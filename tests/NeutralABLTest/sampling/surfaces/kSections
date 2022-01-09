@@ -1,0 +1,7 @@
+surfaceNumber 1
+timeStart     1000
+intervalType  timeStep
+timeInterval  1
+coordinates   10.0 
+
+

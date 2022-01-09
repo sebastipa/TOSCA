@@ -1,0 +1,67 @@
+\hypertarget{structio__}{}\doxysection{io\+\_\+ Struct Reference}
+\label{structio__}\index{io\_@{io\_}}
+
+
+Struct defining io settings (simulation checkpointing)  
+
+
+
+
+{\ttfamily \#include $<$io.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structio___a416d7d07788e249cc8540c6c64264250}\label{structio___a416d7d07788e249cc8540c6c64264250}} 
+word \mbox{\hyperlink{structio___a416d7d07788e249cc8540c6c64264250}{interval\+Type}}
+\begin{DoxyCompactList}\small\item\em time\+Step or adjustable\+Time \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___a0752e624851565298cbbb84fe565faa5}\label{structio___a0752e624851565298cbbb84fe565faa5}} 
+Petsc\+Real \mbox{\hyperlink{structio___a0752e624851565298cbbb84fe565faa5}{time\+Interval}}
+\begin{DoxyCompactList}\small\item\em in iterations if interval\+Type = time\+Step, in seconds if interval\+Type = adjustable\+Time \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___a92b1fdbee0836e1fd77561c0e88f6752}\label{structio___a92b1fdbee0836e1fd77561c0e88f6752}} 
+Petsc\+Int \mbox{\hyperlink{structio___a92b1fdbee0836e1fd77561c0e88f6752}{run\+Time\+Write}}
+\begin{DoxyCompactList}\small\item\em flag telling if must write at this iteration \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___ae83332ed5163f6cc761a33c7d8ee7e7e}\label{structio___ae83332ed5163f6cc761a33c7d8ee7e7e}} 
+Petsc\+Int \mbox{\hyperlink{structio___ae83332ed5163f6cc761a33c7d8ee7e7e}{purge\+Write}}
+\begin{DoxyCompactList}\small\item\em deletes all other files after writing the current \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___a001632b86883960be243bdd05401ecd9}\label{structio___a001632b86883960be243bdd05401ecd9}} 
+Petsc\+Int \mbox{\hyperlink{structio___a001632b86883960be243bdd05401ecd9}{averaging}}
+\begin{DoxyCompactList}\small\item\em compute the time-\/averaged solution fields \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___afc548dc711e49d1b80292ceaeb7d2dde}\label{structio___afc548dc711e49d1b80292ceaeb7d2dde}} 
+Petsc\+Real \mbox{\hyperlink{structio___afc548dc711e49d1b80292ceaeb7d2dde}{avg\+Prd}}
+\begin{DoxyCompactList}\small\item\em sampling period in seconds \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___a61d88b87e794a4a7acaf63c8d98ddaee}\label{structio___a61d88b87e794a4a7acaf63c8d98ddaee}} 
+Petsc\+Real \mbox{\hyperlink{structio___a61d88b87e794a4a7acaf63c8d98ddaee}{avg\+Start\+Time}}
+\begin{DoxyCompactList}\small\item\em start time of averaging procedure \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___af75890506520277ba4f77ac3e949c63f}\label{structio___af75890506520277ba4f77ac3e949c63f}} 
+Petsc\+Int \mbox{\hyperlink{structio___af75890506520277ba4f77ac3e949c63f}{phase\+Averaging}}
+\begin{DoxyCompactList}\small\item\em compute the phase-\/averaged solution fields \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___af94ffcd60ceaa067efdd2d1428d51ced}\label{structio___af94ffcd60ceaa067efdd2d1428d51ced}} 
+Petsc\+Real \mbox{\hyperlink{structio___af94ffcd60ceaa067efdd2d1428d51ced}{ph\+Avg\+Prd}}
+\begin{DoxyCompactList}\small\item\em sampling period in seconds \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___a5ec05b3970410cf0d1eeeb6923d1f8b8}\label{structio___a5ec05b3970410cf0d1eeeb6923d1f8b8}} 
+Petsc\+Real \mbox{\hyperlink{structio___a5ec05b3970410cf0d1eeeb6923d1f8b8}{ph\+Avg\+Start\+Time}}
+\begin{DoxyCompactList}\small\item\em start time of phase averaging procedure \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___aefdf6ae24dc3f600a3ec8ff37dabc60e}\label{structio___aefdf6ae24dc3f600a3ec8ff37dabc60e}} 
+Petsc\+Int \mbox{\hyperlink{structio___aefdf6ae24dc3f600a3ec8ff37dabc60e}{avg\+Weight}}
+\begin{DoxyCompactList}\small\item\em number of average snapshots (cumulated at runtime) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___a2b349cbb4947115f625ae02ac39a15bd}\label{structio___a2b349cbb4947115f625ae02ac39a15bd}} 
+Petsc\+Int \mbox{\hyperlink{structio___a2b349cbb4947115f625ae02ac39a15bd}{p\+Avg\+Weight}}
+\begin{DoxyCompactList}\small\item\em number of phase average snapshots (cumulated at runtime) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structio___a3f66f789de12059bd4331f438ab0a6b8}\label{structio___a3f66f789de12059bd4331f438ab0a6b8}} 
+Petsc\+Int {\bfseries q\+Crit}
+\item 
+\mbox{\Hypertarget{structio___a389666f4c01cd96b7352a73ac0094eaa}\label{structio___a389666f4c01cd96b7352a73ac0094eaa}} 
+Petsc\+Int {\bfseries l2\+Crit}
+\item 
+\mbox{\Hypertarget{structio___ab0b89397a583f0a5bb91fb35ac1c99d6}\label{structio___ab0b89397a583f0a5bb91fb35ac1c99d6}} 
+\mbox{\hyperlink{structaccess__}{access\+\_\+}} $\ast$ {\bfseries access}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Struct defining io settings (simulation checkpointing) 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/\mbox{\hyperlink{io_8h}{io.\+h}}\end{DoxyCompactItemize}

@@ -1,0 +1,67 @@
+\hypertarget{structfarm__}{}\doxysection{farm\+\_\+ Struct Reference}
+\label{structfarm__}\index{farm\_@{farm\_}}
+
+
+Wind farm parameters.  
+
+
+
+
+{\ttfamily \#include $<$turbines.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structfarm___a2e7524e464052c5783dae8cda3540508}\label{structfarm___a2e7524e464052c5783dae8cda3540508}} 
+word \mbox{\hyperlink{structfarm___a2e7524e464052c5783dae8cda3540508}{name}}
+\begin{DoxyCompactList}\small\item\em wind farm name \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___ab48e6121358d04c5544b3856dd676b05}\label{structfarm___ab48e6121358d04c5544b3856dd676b05}} 
+Petsc\+Int \mbox{\hyperlink{structfarm___ab48e6121358d04c5544b3856dd676b05}{size}}
+\begin{DoxyCompactList}\small\item\em number of turbines in the farm \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a4496850695e2ef3e1463a315edc63fce}\label{structfarm___a4496850695e2ef3e1463a315edc63fce}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structfarm___a4496850695e2ef3e1463a315edc63fce}{base}}
+\begin{DoxyCompactList}\small\item\em base coordinates of each turbine \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a42e4a040f68399f5b69370e024367367}\label{structfarm___a42e4a040f68399f5b69370e024367367}} 
+word $\ast$$\ast$ \mbox{\hyperlink{structfarm___a42e4a040f68399f5b69370e024367367}{turbine\+Types}}
+\begin{DoxyCompactList}\small\item\em array of pointers to type of the wind turbines in the farm \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a25996e827d332ebb923957aa359dd494}\label{structfarm___a25996e827d332ebb923957aa359dd494}} 
+word $\ast$$\ast$ \mbox{\hyperlink{structfarm___a25996e827d332ebb923957aa359dd494}{turbine\+Ids}}
+\begin{DoxyCompactList}\small\item\em array of pointers to ID of the wind turbines in the farm \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a6f261c62f349da6371778f9127c21407}\label{structfarm___a6f261c62f349da6371778f9127c21407}} 
+word $\ast$$\ast$ \mbox{\hyperlink{structfarm___a6f261c62f349da6371778f9127c21407}{turbine\+Models}}
+\begin{DoxyCompactList}\small\item\em array of pointers to name of the wind turbine models in the farm \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a0a867e278a5241ae2de23ec1fd84797a}\label{structfarm___a0a867e278a5241ae2de23ec1fd84797a}} 
+\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$$\ast$ \mbox{\hyperlink{structfarm___a0a867e278a5241ae2de23ec1fd84797a}{wt}}
+\begin{DoxyCompactList}\small\item\em array of pointers to wind turbines \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___aa464748d68de96b96e768ea3dd35a77d}\label{structfarm___aa464748d68de96b96e768ea3dd35a77d}} 
+Petsc\+Real \mbox{\hyperlink{structfarm___aa464748d68de96b96e768ea3dd35a77d}{time\+Start}}
+\begin{DoxyCompactList}\small\item\em start time of acquisition system \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___ac6ca776f549e1489faa2f15e0564f574}\label{structfarm___ac6ca776f549e1489faa2f15e0564f574}} 
+word \mbox{\hyperlink{structfarm___ac6ca776f549e1489faa2f15e0564f574}{interval\+Type}}
+\begin{DoxyCompactList}\small\item\em time\+Step\+: sample at every (time\+Interval) iter, adjustable\+Time sample at every (time\+Interval) seconds \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a091bb595bc94ce32f3bc2a946cc88ff0}\label{structfarm___a091bb595bc94ce32f3bc2a946cc88ff0}} 
+Petsc\+Real \mbox{\hyperlink{structfarm___a091bb595bc94ce32f3bc2a946cc88ff0}{time\+Interval}}
+\begin{DoxyCompactList}\small\item\em acquisition time interval (overrides simulation time step if smaller and adjustable\+Time active) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a84c3ae6dd91dcbdf23864c7d28b4ffd1}\label{structfarm___a84c3ae6dd91dcbdf23864c7d28b4ffd1}} 
+Petsc\+Int \mbox{\hyperlink{structfarm___a84c3ae6dd91dcbdf23864c7d28b4ffd1}{write\+Number}}
+\begin{DoxyCompactList}\small\item\em number of mesh files written up to now \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a4392e2d6b63ab4165117d7fced18d26c}\label{structfarm___a4392e2d6b63ab4165117d7fced18d26c}} 
+Petsc\+Int \mbox{\hyperlink{structfarm___a4392e2d6b63ab4165117d7fced18d26c}{dbg}}
+\begin{DoxyCompactList}\small\item\em global debug switch, checks for point discrimination algorithm (slower) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a4b296de841a0fe7d3f73b3dfd91a77b2}\label{structfarm___a4b296de841a0fe7d3f73b3dfd91a77b2}} 
+Vec \mbox{\hyperlink{structfarm___a4b296de841a0fe7d3f73b3dfd91a77b2}{lsource\+Farm\+Cat}}
+\begin{DoxyCompactList}\small\item\em cartesian wind farm body force \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a7a342f1a8c4b55a83570284d2cf1f185}\label{structfarm___a7a342f1a8c4b55a83570284d2cf1f185}} 
+Vec \mbox{\hyperlink{structfarm___a7a342f1a8c4b55a83570284d2cf1f185}{source\+Farm\+Cont}}
+\begin{DoxyCompactList}\small\item\em contravariant wind farm body force \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structfarm___a695564ec4dc2e024880dc93b6e383842}\label{structfarm___a695564ec4dc2e024880dc93b6e383842}} 
+\mbox{\hyperlink{structaccess__}{access\+\_\+}} $\ast$ {\bfseries access}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Wind farm parameters. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/turbines.\+h\end{DoxyCompactItemize}

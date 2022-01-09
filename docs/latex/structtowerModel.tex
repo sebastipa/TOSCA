@@ -1,0 +1,76 @@
+\hypertarget{structtowerModel}{}\doxysection{tower\+Model Struct Reference}
+\label{structtowerModel}\index{towerModel@{towerModel}}
+
+
+Wind turbine tower actuator line model.  
+
+
+
+
+{\ttfamily \#include $<$turbines.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structtowerModel_aec4e7b4e6c5fe22130a17e42fc6b351a}\label{structtowerModel_aec4e7b4e6c5fe22130a17e42fc6b351a}} 
+Petsc\+Real \mbox{\hyperlink{structtowerModel_aec4e7b4e6c5fe22130a17e42fc6b351a}{r\+Base}}
+\begin{DoxyCompactList}\small\item\em radius at the base of the tower \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_aa81238de4cface205ed9f21dc8f607f1}\label{structtowerModel_aa81238de4cface205ed9f21dc8f607f1}} 
+Petsc\+Real \mbox{\hyperlink{structtowerModel_aa81238de4cface205ed9f21dc8f607f1}{r\+Top}}
+\begin{DoxyCompactList}\small\item\em radius at the top of the tower \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a913edd185d2d7cc97e0b1e348e8c6134}\label{structtowerModel_a913edd185d2d7cc97e0b1e348e8c6134}} 
+Petsc\+Real \mbox{\hyperlink{structtowerModel_a913edd185d2d7cc97e0b1e348e8c6134}{Cd}}
+\begin{DoxyCompactList}\small\item\em tower drag coefficient \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a299b524c183976596a7e163dd55a62f1}\label{structtowerModel_a299b524c183976596a7e163dd55a62f1}} 
+Petsc\+Real \mbox{\hyperlink{structtowerModel_a299b524c183976596a7e163dd55a62f1}{eps}}
+\begin{DoxyCompactList}\small\item\em spreading width of the gaussian projection function (good is 0.\+035 $\ast$ h\+Tower) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_abde57e3d0a7c4acbd0dc8f551808cac8}\label{structtowerModel_abde57e3d0a7c4acbd0dc8f551808cac8}} 
+Petsc\+Real \mbox{\hyperlink{structtowerModel_abde57e3d0a7c4acbd0dc8f551808cac8}{prj\+NSigma}}
+\begin{DoxyCompactList}\small\item\em confidence interval as number of std deviations for the projection function (hardcoded to 2.\+7) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_abcf73eb9dd817efaa3c71d4770adfe2d}\label{structtowerModel_abcf73eb9dd817efaa3c71d4770adfe2d}} 
+Petsc\+Int \mbox{\hyperlink{structtowerModel_abcf73eb9dd817efaa3c71d4770adfe2d}{n\+Points}}
+\begin{DoxyCompactList}\small\item\em number of tower points in the linear direction \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a2a723ad032e49d7166b5aab94d7b41fa}\label{structtowerModel_a2a723ad032e49d7166b5aab94d7b41fa}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structtowerModel_a2a723ad032e49d7166b5aab94d7b41fa}{points}}
+\begin{DoxyCompactList}\small\item\em total number of points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_ab9c0ac7ae1a0e0af77ea23977fef6073}\label{structtowerModel_ab9c0ac7ae1a0e0af77ea23977fef6073}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structtowerModel_ab9c0ac7ae1a0e0af77ea23977fef6073}{dA}}
+\begin{DoxyCompactList}\small\item\em array containing the frontal area at each tower point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a6a29903242dd8d15bda61b9fc1effd5c}\label{structtowerModel_a6a29903242dd8d15bda61b9fc1effd5c}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$ \mbox{\hyperlink{structtowerModel_a6a29903242dd8d15bda61b9fc1effd5c}{controlled\+Cells}}
+\begin{DoxyCompactList}\small\item\em labels of the background mesh cells influenced by this tower in this processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a6838fbf570aa9a6078ae00c348e609db}\label{structtowerModel_a6838fbf570aa9a6078ae00c348e609db}} 
+Petsc\+Int \mbox{\hyperlink{structtowerModel_a6838fbf570aa9a6078ae00c348e609db}{n\+Controlled}}
+\begin{DoxyCompactList}\small\item\em size of controlled\+Cells \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a7caa5d0924551abab1c0e176cad9a21d}\label{structtowerModel_a7caa5d0924551abab1c0e176cad9a21d}} 
+Petsc\+Int $\ast$ \mbox{\hyperlink{structtowerModel_a7caa5d0924551abab1c0e176cad9a21d}{this\+Pt\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flags telling if a point is controlled by this processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a1cb8fc6b9f3d8dfb7d3fefb4572a5e18}\label{structtowerModel_a1cb8fc6b9f3d8dfb7d3fefb4572a5e18}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$ \mbox{\hyperlink{structtowerModel_a1cb8fc6b9f3d8dfb7d3fefb4572a5e18}{closest\+Cells}}
+\begin{DoxyCompactList}\small\item\em indices of the closest cells to this turbine tower points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a3616a39a6618163d52ffba1519bed859}\label{structtowerModel_a3616a39a6618163d52ffba1519bed859}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structtowerModel_a3616a39a6618163d52ffba1519bed859}{U}}
+\begin{DoxyCompactList}\small\item\em flow velocity at each point of the tower \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a08fd19c38ee8f730e8cb9e5449762e79}\label{structtowerModel_a08fd19c38ee8f730e8cb9e5449762e79}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structtowerModel_a08fd19c38ee8f730e8cb9e5449762e79}{B}}
+\begin{DoxyCompactList}\small\item\em body force at each point of the tower mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a11a46e9978fc251ab7ac0e7c3718ccba}\label{structtowerModel_a11a46e9978fc251ab7ac0e7c3718ccba}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structtowerModel_a11a46e9978fc251ab7ac0e7c3718ccba}{tangF}}
+\begin{DoxyCompactList}\small\item\em tower tangential force at each point of the tower mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_acc753b6a6d5283de726ad07b3a9c5772}\label{structtowerModel_acc753b6a6d5283de726ad07b3a9c5772}} 
+Petsc\+Real \mbox{\hyperlink{structtowerModel_acc753b6a6d5283de726ad07b3a9c5772}{twr\+Thrust}}
+\begin{DoxyCompactList}\small\item\em total tower thrust \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a02b343bd97b4fa9f067ee2cb62182123}\label{structtowerModel_a02b343bd97b4fa9f067ee2cb62182123}} 
+MPI\+\_\+\+Comm \mbox{\hyperlink{structtowerModel_a02b343bd97b4fa9f067ee2cb62182123}{TWR\+\_\+\+COMM}}
+\begin{DoxyCompactList}\small\item\em communicator for this tower \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structtowerModel_a2382df0cee48a6f7424ca364503d7b0c}\label{structtowerModel_a2382df0cee48a6f7424ca364503d7b0c}} 
+Petsc\+MPIInt \mbox{\hyperlink{structtowerModel_a2382df0cee48a6f7424ca364503d7b0c}{n\+Procs\+Twr}}
+\begin{DoxyCompactList}\small\item\em size of the TWR\+\_\+\+COMM communicator \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Wind turbine tower actuator line model. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/turbines.\+h\end{DoxyCompactItemize}

@@ -1,0 +1,20 @@
+# OKWind Input file - U boundary conditions 
+# -------------------------------------------
+
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   velocityWallFunction
+        {
+            type -3
+            kRough 0.003
+            uStarEval localized
+        }
+        
+jRight  slip
+
+kLeft   periodic
+kRight  periodic  
+
+internalField    readField

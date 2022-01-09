@@ -1,0 +1,74 @@
+\hypertarget{initialization_8h}{}\doxysection{src/include/initialization.h File Reference}
+\label{initialization_8h}\index{src/include/initialization.h@{src/include/initialization.h}}
+
+
+Contains simulation initialization function headers.  
+
+
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{initialization_8h_a45c02b57386aa8a7fad57e19312a5f1c}\label{initialization_8h_a45c02b57386aa8a7fad57e19312a5f1c}} 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_a45c02b57386aa8a7fad57e19312a5f1c}{Print\+Ok\+Wind\+Logo}} ()
+\begin{DoxyCompactList}\small\item\em Print Ok\+Wind logo. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{initialization_8h_aaaa30fe0016ff2262f15e20528d65fab}\label{initialization_8h_aaaa30fe0016ff2262f15e20528d65fab}} 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_aaaa30fe0016ff2262f15e20528d65fab}{Set\+Simulation\+Flags}} (\mbox{\hyperlink{structflags__}{flags\+\_\+}} $\ast$flags)
+\begin{DoxyCompactList}\small\item\em Set simulation flags. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{initialization_8h_abd4982bdbc9502b986d5c8a60d12f8f6}\label{initialization_8h_abd4982bdbc9502b986d5c8a60d12f8f6}} 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_abd4982bdbc9502b986d5c8a60d12f8f6}{Set\+Simulation\+Info}} (\mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}} $\ast$info)
+\begin{DoxyCompactList}\small\item\em Set simulation global info. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{initialization_8h_a7783eb50588674776740103f0efe1c78}\label{initialization_8h_a7783eb50588674776740103f0efe1c78}} 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_a7783eb50588674776740103f0efe1c78}{Set\+Domains\+And\+Allocate}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$$\ast$domain, \mbox{\hyperlink{structflags__}{flags\+\_\+}} $\ast$flags, \mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}} $\ast$info)
+\begin{DoxyCompactList}\small\item\em Set number of domains (reads from Overset\+Input.\+dat file if overset is active) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{initialization_8h_a8ec1db517a7d8e7ba682dbba8fea16dc}\label{initialization_8h_a8ec1db517a7d8e7ba682dbba8fea16dc}} 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_a8ec1db517a7d8e7ba682dbba8fea16dc}{Read\+Time\+Controls}} (\mbox{\hyperlink{structclock__}{clock\+\_\+}} $\ast$clock)
+\begin{DoxyCompactList}\small\item\em Read time controls. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{initialization_8h_ade2bd2d54457b648353c16c58ef4fa78}\label{initialization_8h_ade2bd2d54457b648353c16c58ef4fa78}} 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_ade2bd2d54457b648353c16c58ef4fa78}{Read\+Physical\+Constants}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Read physical constants. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{initialization_8h_a436bfefb533fdf0952250458b89f2dc7}\label{initialization_8h_a436bfefb533fdf0952250458b89f2dc7}} 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_a436bfefb533fdf0952250458b89f2dc7}{Set\+Domain\+Memory}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Allocate memory for domain pointers. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{initialization_8h_a21c99e9bf03f8736a59f7ef8868f142a}\label{initialization_8h_a21c99e9bf03f8736a59f7ef8868f142a}} 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_a21c99e9bf03f8736a59f7ef8868f142a}{Set\+Access\+Pointers}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Set access database pointers. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_aaa6b507000df0106653daedfbf461f63}{simulation\+Initialize}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$$\ast$domain\+Addr, \mbox{\hyperlink{structclock__}{clock\+\_\+}} $\ast$clock, \mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}} $\ast$info, \mbox{\hyperlink{structflags__}{flags\+\_\+}} $\ast$flags)
+\begin{DoxyCompactList}\small\item\em Initialize the simulation parameters. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8h_abf91ab6ea2e06c2659808e82ac0b43f1}{Set\+Initial\+Field}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em set the initial internal contravariant and cartesian velocity field \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{initialization_8h_a61eb4f6a2633bec38f0dd5724978415a}\label{initialization_8h_a61eb4f6a2633bec38f0dd5724978415a}} 
+Petsc\+Error\+Code {\bfseries Set\+Initial\+Field} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains simulation initialization function headers. 
+
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{initialization_8h_abf91ab6ea2e06c2659808e82ac0b43f1}\label{initialization_8h_abf91ab6ea2e06c2659808e82ac0b43f1}} 
+\index{initialization.h@{initialization.h}!SetInitialField@{SetInitialField}}
+\index{SetInitialField@{SetInitialField}!initialization.h@{initialization.h}}
+\doxysubsubsection{\texorpdfstring{SetInitialField()}{SetInitialField()}}
+{\footnotesize\ttfamily Petsc\+Error\+Code Set\+Initial\+Field (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$}]{domain }\end{DoxyParamCaption})}
+
+
+
+set the initial internal contravariant and cartesian velocity field 
+
+set the initial internal contravariant and cartesian velocity field
+
+set the initial internal fields
+
+set the initial internal contravariant and cartesian velocity field \mbox{\Hypertarget{initialization_8h_aaa6b507000df0106653daedfbf461f63}\label{initialization_8h_aaa6b507000df0106653daedfbf461f63}} 
+\index{initialization.h@{initialization.h}!simulationInitialize@{simulationInitialize}}
+\index{simulationInitialize@{simulationInitialize}!initialization.h@{initialization.h}}
+\doxysubsubsection{\texorpdfstring{simulationInitialize()}{simulationInitialize()}}
+{\footnotesize\ttfamily Petsc\+Error\+Code simulation\+Initialize (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$$\ast$}]{domain\+Addr,  }\item[{\mbox{\hyperlink{structclock__}{clock\+\_\+}} $\ast$}]{clock,  }\item[{\mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}} $\ast$}]{info,  }\item[{\mbox{\hyperlink{structflags__}{flags\+\_\+}} $\ast$}]{flags }\end{DoxyParamCaption})}
+
+
+
+Initialize the simulation parameters. 
+
+set the initial internal fields 

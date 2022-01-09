@@ -1,0 +1,109 @@
+\hypertarget{structpeqn__}{}\doxysection{peqn\+\_\+ Struct Reference}
+\label{structpeqn__}\index{peqn\_@{peqn\_}}
+
+
+struct storing pressure equation  
+
+
+
+
+{\ttfamily \#include $<$peqn.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structpeqn___a464e3871213f7bbd7c6397229ddd4b72}\label{structpeqn___a464e3871213f7bbd7c6397229ddd4b72}} 
+Vec \mbox{\hyperlink{structpeqn___a464e3871213f7bbd7c6397229ddd4b72}{phi}}
+\begin{DoxyCompactList}\small\item\em phi is the actual solution of Poisson equation (then converted in Phi) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a913ac6effe27d189e66a68a36f02bfd9}\label{structpeqn___a913ac6effe27d189e66a68a36f02bfd9}} 
+Vec {\bfseries Phi}
+\item 
+\mbox{\Hypertarget{structpeqn___a3041e494b4877608c16e42858130e588}\label{structpeqn___a3041e494b4877608c16e42858130e588}} 
+Vec \mbox{\hyperlink{structpeqn___a3041e494b4877608c16e42858130e588}{l\+Phi}}
+\begin{DoxyCompactList}\small\item\em pressure correction for frac. step method \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___aed5ec665124b931dda219f29e1d0ee9e}\label{structpeqn___aed5ec665124b931dda219f29e1d0ee9e}} 
+Vec {\bfseries P}
+\item 
+\mbox{\Hypertarget{structpeqn___ae03567ba774ad5648c97ba71d8e5e39a}\label{structpeqn___ae03567ba774ad5648c97ba71d8e5e39a}} 
+Vec \mbox{\hyperlink{structpeqn___ae03567ba774ad5648c97ba71d8e5e39a}{lP}}
+\begin{DoxyCompactList}\small\item\em pressure at current and previous time step \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a2a82db0f095baed49dfa912686c356ec}\label{structpeqn___a2a82db0f095baed49dfa912686c356ec}} 
+Vec {\bfseries l\+Lid}
+\item 
+\mbox{\Hypertarget{structpeqn___a436bdf22d65e240fbeb6c8132d8496fe}\label{structpeqn___a436bdf22d65e240fbeb6c8132d8496fe}} 
+Vec \mbox{\hyperlink{structpeqn___a436bdf22d65e240fbeb6c8132d8496fe}{l\+Gid}}
+\begin{DoxyCompactList}\small\item\em matrix\+Free -\/ matrix\+Based connectivity (used to build the poisson coeff. matrix) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___abe37423a45dd3b55533fa5535fabf3cf}\label{structpeqn___abe37423a45dd3b55533fa5535fabf3cf}} 
+HYPRE\+\_\+\+Int \mbox{\hyperlink{structpeqn___abe37423a45dd3b55533fa5535fabf3cf}{this\+Rank\+Size}}
+\begin{DoxyCompactList}\small\item\em number of cells owned by this processore (used to build the poisson coeff. matrix) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a71ed9b6869aaab82858c19f58aa98fd8}\label{structpeqn___a71ed9b6869aaab82858c19f58aa98fd8}} 
+HYPRE\+\_\+\+Int \mbox{\hyperlink{structpeqn___a71ed9b6869aaab82858c19f58aa98fd8}{this\+Rank\+Start}}
+\begin{DoxyCompactList}\small\item\em first cell ID owned by this processor in global indexing (used to build the poisson coeff. matrix) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a4377b381ee9e36c4d95d8370c13c85fb}\label{structpeqn___a4377b381ee9e36c4d95d8370c13c85fb}} 
+HYPRE\+\_\+\+Int \mbox{\hyperlink{structpeqn___a4377b381ee9e36c4d95d8370c13c85fb}{this\+Rank\+End}}
+\begin{DoxyCompactList}\small\item\em last cell ID owned by this processor in global indexing (this\+Rank\+Start + this\+Rank\+Size -\/ 1) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a9b5031c8bbf3dad751ed7b0ea184b1d5}\label{structpeqn___a9b5031c8bbf3dad751ed7b0ea184b1d5}} 
+HYPRE\+\_\+\+Int \mbox{\hyperlink{structpeqn___a9b5031c8bbf3dad751ed7b0ea184b1d5}{total\+Size}}
+\begin{DoxyCompactList}\small\item\em total number of cells (excluding physical ghost \& IBM points, depending of the Hypre Poisson type, -\/1, -\/2, 1) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a32a3dc51a97ddbc817b8a419c4bdeea8}\label{structpeqn___a32a3dc51a97ddbc817b8a419c4bdeea8}} 
+Petsc\+Real {\bfseries initial\+Poisson\+Res}
+\item 
+\mbox{\Hypertarget{structpeqn___a0f8e48e07bea85c145ce481786e0a164}\label{structpeqn___a0f8e48e07bea85c145ce481786e0a164}} 
+Petsc\+Real \mbox{\hyperlink{structpeqn___a0f8e48e07bea85c145ce481786e0a164}{final\+Poisson\+Res}}
+\begin{DoxyCompactList}\small\item\em initial and final residual of the Poisson iteration \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___ac04ddc4e5b2ab8242202152be103c09e}\label{structpeqn___ac04ddc4e5b2ab8242202152be103c09e}} 
+HYPRE\+\_\+\+Int \mbox{\hyperlink{structpeqn___ac04ddc4e5b2ab8242202152be103c09e}{poisson\+Iterations}}
+\begin{DoxyCompactList}\small\item\em number of Poisson iterations \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a5cb00c57c0efa9f1453bc379482b4034}\label{structpeqn___a5cb00c57c0efa9f1453bc379482b4034}} 
+Petsc\+Int \mbox{\hyperlink{structpeqn___a5cb00c57c0efa9f1453bc379482b4034}{hypre\+Solver\+Type}}
+\begin{DoxyCompactList}\small\item\em 1\+: GMRES, 2\+: PCG \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a8662b1a3d930bfb4e9e6e15a31c29103}\label{structpeqn___a8662b1a3d930bfb4e9e6e15a31c29103}} 
+Petsc\+Int \mbox{\hyperlink{structpeqn___a8662b1a3d930bfb4e9e6e15a31c29103}{poisson\+It}}
+\begin{DoxyCompactList}\small\item\em max number of poisson iterations per timestep \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a0d18e3c14740cd099b098037099ec8c7}\label{structpeqn___a0d18e3c14740cd099b098037099ec8c7}} 
+Petsc\+Real \mbox{\hyperlink{structpeqn___a0d18e3c14740cd099b098037099ec8c7}{poisson\+Tol}}
+\begin{DoxyCompactList}\small\item\em relative exit tolerance \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___aeddffe6c08ced60368000883509a4fd7}\label{structpeqn___aeddffe6c08ced60368000883509a4fd7}} 
+Petsc\+Int \mbox{\hyperlink{structpeqn___aeddffe6c08ced60368000883509a4fd7}{amg\+Agg}}
+\begin{DoxyCompactList}\small\item\em aggresive coarsening is good for $>$ 50mil grids \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a8f7d67f2887d5cb06a5988c846a04e0c}\label{structpeqn___a8f7d67f2887d5cb06a5988c846a04e0c}} 
+Petsc\+Int {\bfseries amg\+Coarsen\+Type}
+\item 
+\mbox{\Hypertarget{structpeqn___ae4976c76128ace97e66e27b08e9d00c4}\label{structpeqn___ae4976c76128ace97e66e27b08e9d00c4}} 
+Petsc\+Real \mbox{\hyperlink{structpeqn___ae4976c76128ace97e66e27b08e9d00c4}{amg\+Thresh}}
+\begin{DoxyCompactList}\small\item\em threshold value -\/ 0.\+5 \+: Cartesian, 0.\+6 \+: Distorted \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___aebb38c0ddc4039f9d48fe9465003659a}\label{structpeqn___aebb38c0ddc4039f9d48fe9465003659a}} 
+HYPRE\+\_\+\+Solver \mbox{\hyperlink{structpeqn___aebb38c0ddc4039f9d48fe9465003659a}{hypre\+Slvr}}
+\begin{DoxyCompactList}\small\item\em solver \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a0366eaa89b291a549cf3454d9e3e83db}\label{structpeqn___a0366eaa89b291a549cf3454d9e3e83db}} 
+HYPRE\+\_\+\+Solver \mbox{\hyperlink{structpeqn___a0366eaa89b291a549cf3454d9e3e83db}{PC}}
+\begin{DoxyCompactList}\small\item\em preconditioner \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___af9c73b7c6d5eff1fd3ef3ea2250608b5}\label{structpeqn___af9c73b7c6d5eff1fd3ef3ea2250608b5}} 
+HYPRE\+\_\+\+IJMatrix \mbox{\hyperlink{structpeqn___af9c73b7c6d5eff1fd3ef3ea2250608b5}{hypreA}}
+\begin{DoxyCompactList}\small\item\em coefficient matrix \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___ad1f20406c27a0b2adfe0766e37c725ee}\label{structpeqn___ad1f20406c27a0b2adfe0766e37c725ee}} 
+HYPRE\+\_\+\+Par\+CSRMatrix \mbox{\hyperlink{structpeqn___ad1f20406c27a0b2adfe0766e37c725ee}{hypre\+ParA}}
+\begin{DoxyCompactList}\small\item\em coefficient matrix \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___ae8e46cd657522c25a2382605a428d8bb}\label{structpeqn___ae8e46cd657522c25a2382605a428d8bb}} 
+HYPRE\+\_\+\+IJVector {\bfseries hypreP}
+\item 
+\mbox{\Hypertarget{structpeqn___a55410b97ee3ed160a2eead648efd680b}\label{structpeqn___a55410b97ee3ed160a2eead648efd680b}} 
+HYPRE\+\_\+\+IJVector \mbox{\hyperlink{structpeqn___a55410b97ee3ed160a2eead648efd680b}{hypre\+Rhs}}
+\begin{DoxyCompactList}\small\item\em unknwon and RHS \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___a39687b6f8c37a48075f35d873efd1f2f}\label{structpeqn___a39687b6f8c37a48075f35d873efd1f2f}} 
+HYPRE\+\_\+\+Par\+Vector {\bfseries hypre\+ParP}
+\item 
+\mbox{\Hypertarget{structpeqn___a024231cde6b2227e5ffee8555bc2f949}\label{structpeqn___a024231cde6b2227e5ffee8555bc2f949}} 
+HYPRE\+\_\+\+Par\+Vector \mbox{\hyperlink{structpeqn___a024231cde6b2227e5ffee8555bc2f949}{hypre\+Par\+Rhs}}
+\begin{DoxyCompactList}\small\item\em unknown and RHS \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structpeqn___ac7013e14356e7d0d43cb48fe2847b772}\label{structpeqn___ac7013e14356e7d0d43cb48fe2847b772}} 
+\mbox{\hyperlink{structaccess__}{access\+\_\+}} $\ast$ \mbox{\hyperlink{structpeqn___ac7013e14356e7d0d43cb48fe2847b772}{access}}
+\begin{DoxyCompactList}\small\item\em access database \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+struct storing pressure equation 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/\mbox{\hyperlink{peqn_8h}{peqn.\+h}}\end{DoxyCompactItemize}

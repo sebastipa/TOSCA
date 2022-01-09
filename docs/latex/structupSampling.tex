@@ -1,0 +1,55 @@
+\hypertarget{structupSampling}{}\doxysection{up\+Sampling Struct Reference}
+\label{structupSampling}\index{upSampling@{upSampling}}
+
+
+Structure containing a coarser AD mesh located 2.\+5 D upstrem each turbine for velocity sampling.  
+
+
+
+
+{\ttfamily \#include $<$turbines.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structupSampling_abb3ea59740088fd6dd04684015bff6c5}\label{structupSampling_abb3ea59740088fd6dd04684015bff6c5}} 
+Petsc\+Int \mbox{\hyperlink{structupSampling_abb3ea59740088fd6dd04684015bff6c5}{n\+Points}}
+\begin{DoxyCompactList}\small\item\em total number of points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_aba1b87d56b1cea22ea98b52dbcf941ac}\label{structupSampling_aba1b87d56b1cea22ea98b52dbcf941ac}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structupSampling_aba1b87d56b1cea22ea98b52dbcf941ac}{points}}
+\begin{DoxyCompactList}\small\item\em array containing the upstream point coordinates \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_a38553a7463b5363fd51cc87562fbe136}\label{structupSampling_a38553a7463b5363fd51cc87562fbe136}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structupSampling_a38553a7463b5363fd51cc87562fbe136}{dA}}
+\begin{DoxyCompactList}\small\item\em array containing the element area at each upstream sample point (sums up to rotor area) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_ab2f8812f0ac94560417cd90f690b1418}\label{structupSampling_ab2f8812f0ac94560417cd90f690b1418}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structupSampling_ab2f8812f0ac94560417cd90f690b1418}{center}}
+\begin{DoxyCompactList}\small\item\em center point of the sampling mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_a38135a528340706a8346e866c35b2962}\label{structupSampling_a38135a528340706a8346e866c35b2962}} 
+Petsc\+Int \mbox{\hyperlink{structupSampling_a38135a528340706a8346e866c35b2962}{this\+Rig\+Controlled}}
+\begin{DoxyCompactList}\small\item\em true if this processor has controller cells, zero otherwise \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_a7cd69f2dda2a75dcf9936e6cb935c7f3}\label{structupSampling_a7cd69f2dda2a75dcf9936e6cb935c7f3}} 
+MPI\+\_\+\+Comm \mbox{\hyperlink{structupSampling_a7cd69f2dda2a75dcf9936e6cb935c7f3}{UPW\+\_\+\+COMM}}
+\begin{DoxyCompactList}\small\item\em communicator for this sampling (TRB\+\_\+\+COMM is a subset of UPW\+\_\+\+COMM\+: all data contained in UPW\+\_\+\+COMM are accessible from TRB\+\_\+\+COMM) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_a9a49ca4dab7ee9708a943ff67c20f968}\label{structupSampling_a9a49ca4dab7ee9708a943ff67c20f968}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$ \mbox{\hyperlink{structupSampling_a9a49ca4dab7ee9708a943ff67c20f968}{controlled\+Cells}}
+\begin{DoxyCompactList}\small\item\em labels of the background mesh cells influenced by this sample points in this processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_a9d908acf828d8bfb9823f823934071e5}\label{structupSampling_a9d908acf828d8bfb9823f823934071e5}} 
+Petsc\+Int \mbox{\hyperlink{structupSampling_a9d908acf828d8bfb9823f823934071e5}{n\+Controlled}}
+\begin{DoxyCompactList}\small\item\em size of controlled\+Cells \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_a14bd0c2b457e99de1f21eb6592920554}\label{structupSampling_a14bd0c2b457e99de1f21eb6592920554}} 
+Petsc\+Int $\ast$ \mbox{\hyperlink{structupSampling_a14bd0c2b457e99de1f21eb6592920554}{this\+Pt\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flags telling if a point is controlled by this processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_aeab60c16a43d4023ff2fe860c5c14889}\label{structupSampling_aeab60c16a43d4023ff2fe860c5c14889}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$ \mbox{\hyperlink{structupSampling_aeab60c16a43d4023ff2fe860c5c14889}{closest\+Cells}}
+\begin{DoxyCompactList}\small\item\em indices of the closest cells to this sample points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structupSampling_aa8982c5bf6ea3c7b25905c7ce7aaf055}\label{structupSampling_aa8982c5bf6ea3c7b25905c7ce7aaf055}} 
+Petsc\+Real \mbox{\hyperlink{structupSampling_aa8982c5bf6ea3c7b25905c7ce7aaf055}{Uref}}
+\begin{DoxyCompactList}\small\item\em wind velocity averaged on the sample points \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Structure containing a coarser AD mesh located 2.\+5 D upstrem each turbine for velocity sampling. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/turbines.\+h\end{DoxyCompactItemize}

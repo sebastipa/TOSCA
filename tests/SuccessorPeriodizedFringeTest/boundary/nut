@@ -1,0 +1,11 @@
+# OKWind Input file - nut boundary conditions 
+# -------------------------------------------
+
+iLeft   periodic
+iRight  periodic
+jLeft   fixedValue 0.0
+jRight  fixedValue 0.0
+kLeft   periodic
+kRight  periodic
+
+internalField    readField

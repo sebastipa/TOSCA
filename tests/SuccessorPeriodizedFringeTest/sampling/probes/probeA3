@@ -1,0 +1,9 @@
+probesNumber 2
+timeStart    0
+timeInterval 5.0
+fields       U
+
+locations
+
+20.0 20.0 20.0
+23.1 45.1 45.9

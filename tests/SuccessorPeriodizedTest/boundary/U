@@ -1,0 +1,30 @@
+# OKWind Input file - U boundary conditions 
+# -------------------------------------------
+
+internalField    spreadInflow
+
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   velocityWallFunction
+        {
+            type -3
+            kRough 0.003
+            uStarEval localized
+        }
+        
+jRight  slip
+
+kLeft   inletFunction
+        {
+            type 4
+            n1Inflow 50 
+            n2Inflow 50 
+            n1Periods 1
+            n2Periods 2  
+            cellWidth1 20
+            cellWidth2 20
+        }
+        
+kRight  zeroGradient   

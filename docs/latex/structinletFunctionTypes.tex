@@ -1,0 +1,106 @@
+\hypertarget{structinletFunctionTypes}{}\doxysection{inlet\+Function\+Types Struct Reference}
+\label{structinletFunctionTypes}\index{inletFunctionTypes@{inletFunctionTypes}}
+
+
+Struct storing the inlet function for a patch.  
+
+
+
+
+{\ttfamily \#include $<$boundary.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a13135cbebf8ab159b7989ba51f85121d}\label{structinletFunctionTypes_a13135cbebf8ab159b7989ba51f85121d}} 
+Petsc\+Int {\bfseries typeU}
+\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a6769c10af76fc4d0e717b5f760e3ced2}\label{structinletFunctionTypes_a6769c10af76fc4d0e717b5f760e3ced2}} 
+Petsc\+Int {\bfseries typeT}
+\item 
+\mbox{\Hypertarget{structinletFunctionTypes_aaacc8aaf6717c90f81a7a547feee4af4}\label{structinletFunctionTypes_aaacc8aaf6717c90f81a7a547feee4af4}} 
+Petsc\+Int {\bfseries type\+Nut}
+\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a1f1883ae740d42dad386446146237037}\label{structinletFunctionTypes_a1f1883ae740d42dad386446146237037}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} {\bfseries Uref}
+\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a821a680a55457cb4c0b3d41fc4315abd}\label{structinletFunctionTypes_a821a680a55457cb4c0b3d41fc4315abd}} 
+Petsc\+Real {\bfseries Href}
+\item 
+\mbox{\Hypertarget{structinletFunctionTypes_aa4a0fd34ebdfe4cf641ee7f99083244d}\label{structinletFunctionTypes_aa4a0fd34ebdfe4cf641ee7f99083244d}} 
+Petsc\+Real {\bfseries u\+Prime\+RMS}
+\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a50b49bd10a1e9b5c553afd0fe7b0b890}\label{structinletFunctionTypes_a50b49bd10a1e9b5c553afd0fe7b0b890}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structinletFunctionTypes_a50b49bd10a1e9b5c553afd0fe7b0b890}{Udir}}
+\begin{DoxyCompactList}\small\item\em velocity direction vector \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a09819aefea6b83d9224b10fc15b0bda5}\label{structinletFunctionTypes_a09819aefea6b83d9224b10fc15b0bda5}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_a09819aefea6b83d9224b10fc15b0bda5}{roughness}}
+\begin{DoxyCompactList}\small\item\em equivalent roughness size \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_aeba243adfafd6337ccbeb2466518b264}\label{structinletFunctionTypes_aeba243adfafd6337ccbeb2466518b264}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_aeba243adfafd6337ccbeb2466518b264}{h\+Inv}}
+\begin{DoxyCompactList}\small\item\em height from bottom patch of inversion layer \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_ae3758ea97f170c4eeb57bb3541d0c363}\label{structinletFunctionTypes_ae3758ea97f170c4eeb57bb3541d0c363}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_ae3758ea97f170c4eeb57bb3541d0c363}{u\+Tau}}
+\begin{DoxyCompactList}\small\item\em friction velocity used to compute log profile \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a9f31c66a76534b4a905f3136ce37596e}\label{structinletFunctionTypes_a9f31c66a76534b4a905f3136ce37596e}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_a9f31c66a76534b4a905f3136ce37596e}{n1}}
+\begin{DoxyCompactList}\small\item\em number of inflow cells along the 1st index (ordered as accessed\+: k,j,i. Eg. for k-\/normal patch this is n cells along j) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a7896b465f6fd0165155e9fdf7252444d}\label{structinletFunctionTypes_a7896b465f6fd0165155e9fdf7252444d}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_a7896b465f6fd0165155e9fdf7252444d}{n2}}
+\begin{DoxyCompactList}\small\item\em number of inflow cells along the 2nd index (ordered as accessed\+: k,j,i. Eg. for k-\/normal patch this is n cells along i) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a14b4a0933e8e1c029749f7546b95a95e}\label{structinletFunctionTypes_a14b4a0933e8e1c029749f7546b95a95e}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_a14b4a0933e8e1c029749f7546b95a95e}{n1wg}}
+\begin{DoxyCompactList}\small\item\em n1 with ghosts (n1 + 2) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_afae1661bc87b37edcfba209bf2941b6d}\label{structinletFunctionTypes_afae1661bc87b37edcfba209bf2941b6d}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_afae1661bc87b37edcfba209bf2941b6d}{n2wg}}
+\begin{DoxyCompactList}\small\item\em n2 with ghosts (n2 + 2) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_ad8e38299050061651ab52c665f8b82c0}\label{structinletFunctionTypes_ad8e38299050061651ab52c665f8b82c0}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_ad8e38299050061651ab52c665f8b82c0}{prds1}}
+\begin{DoxyCompactList}\small\item\em indicates how many times inflow data should be periodized along 1st index \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_ae6ed92cf431a4a42e2ae117f8efde7b2}\label{structinletFunctionTypes_ae6ed92cf431a4a42e2ae117f8efde7b2}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_ae6ed92cf431a4a42e2ae117f8efde7b2}{prds2}}
+\begin{DoxyCompactList}\small\item\em indicates how many times inflow data should be periodized along 2nd index \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_aae6085875f810580e5146c0f57c7fba5}\label{structinletFunctionTypes_aae6085875f810580e5146c0f57c7fba5}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_aae6085875f810580e5146c0f57c7fba5}{mapT}}
+\begin{DoxyCompactList}\small\item\em flag telling if also T is mapped (if temperature\+Transport is active is mandatory) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_ac3aa711aa9f3cd2ea4e7e5572cf8d46e}\label{structinletFunctionTypes_ac3aa711aa9f3cd2ea4e7e5572cf8d46e}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_ac3aa711aa9f3cd2ea4e7e5572cf8d46e}{map\+Nut}}
+\begin{DoxyCompactList}\small\item\em flag telling if also nut is mapped (optional) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a7fd2c59962696718ef033bc95d78eb5d}\label{structinletFunctionTypes_a7fd2c59962696718ef033bc95d78eb5d}} 
+Petsc\+Real $\ast$$\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_a7fd2c59962696718ef033bc95d78eb5d}{inflow\+Weights}}
+\begin{DoxyCompactList}\small\item\em array of 4 weights for each cell center (ordered as a 2D plane array) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a1410ab9a289670a716efd9be02a557e8}\label{structinletFunctionTypes_a1410ab9a289670a716efd9be02a557e8}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$$\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_a1410ab9a289670a716efd9be02a557e8}{closest\+Cells}}
+\begin{DoxyCompactList}\small\item\em array of 4 closest cells for each cell center \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a6968eeee539407f71906a8104c9940e8}\label{structinletFunctionTypes_a6968eeee539407f71906a8104c9940e8}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_a6968eeee539407f71906a8104c9940e8}{width1}}
+\begin{DoxyCompactList}\small\item\em inflow cell width in the 1st direction \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a55024ab8b5929994e4b5148095252d10}\label{structinletFunctionTypes_a55024ab8b5929994e4b5148095252d10}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_a55024ab8b5929994e4b5148095252d10}{width2}}
+\begin{DoxyCompactList}\small\item\em inflow cell width in the 2nd direction \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_ab689cd6a286c2aebc468286a2e2b57c2}\label{structinletFunctionTypes_ab689cd6a286c2aebc468286a2e2b57c2}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_ab689cd6a286c2aebc468286a2e2b57c2}{ucat\+\_\+plane}}
+\begin{DoxyCompactList}\small\item\em cartesian velocity inflow data \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a237ff64d3012067536ef8a13c44a9868}\label{structinletFunctionTypes_a237ff64d3012067536ef8a13c44a9868}} 
+Petsc\+Real $\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_a237ff64d3012067536ef8a13c44a9868}{t\+\_\+plane}}
+\begin{DoxyCompactList}\small\item\em temperature inflow data \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_aca72491a1b8808195c4f3ed1a20059b0}\label{structinletFunctionTypes_aca72491a1b8808195c4f3ed1a20059b0}} 
+Petsc\+Real $\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_aca72491a1b8808195c4f3ed1a20059b0}{nut\+\_\+plane}}
+\begin{DoxyCompactList}\small\item\em nut inflow data \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_ab5c766e0d00c0ba44061d49f470d9aca}\label{structinletFunctionTypes_ab5c766e0d00c0ba44061d49f470d9aca}} 
+\mbox{\hyperlink{structinflowData}{inflow\+Data}} \mbox{\hyperlink{structinletFunctionTypes_ab5c766e0d00c0ba44061d49f470d9aca}{inflowU}}
+\begin{DoxyCompactList}\small\item\em velocity inflow database inflormation for unsteady\+Mapped\+Inflow BC \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_ae7a9393d8bf9358666afbb60d0940314}\label{structinletFunctionTypes_ae7a9393d8bf9358666afbb60d0940314}} 
+\mbox{\hyperlink{structinflowData}{inflow\+Data}} \mbox{\hyperlink{structinletFunctionTypes_ae7a9393d8bf9358666afbb60d0940314}{inflowT}}
+\begin{DoxyCompactList}\small\item\em temperature inflow database inflormation for unsteady\+Mapped\+Inflow BC \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a6fbea38c7b5d8fbfc7798537f4776b93}\label{structinletFunctionTypes_a6fbea38c7b5d8fbfc7798537f4776b93}} 
+\mbox{\hyperlink{structinflowData}{inflow\+Data}} \mbox{\hyperlink{structinletFunctionTypes_a6fbea38c7b5d8fbfc7798537f4776b93}{inflow\+Nut}}
+\begin{DoxyCompactList}\small\item\em temperature inflow database inflormation for unsteady\+Mapped\+Inflow BC \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Struct storing the inlet function for a patch. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/\mbox{\hyperlink{boundary_8h}{boundary.\+h}}\end{DoxyCompactItemize}

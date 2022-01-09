@@ -1,0 +1,76 @@
+\hypertarget{structUADM}{}\doxysection{UADM Struct Reference}
+\label{structUADM}\index{UADM@{UADM}}
+
+
+Uniform Actuator Disk model.  
+
+
+
+
+{\ttfamily \#include $<$turbines.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structUADM_a691180f258f76eb21340bc4ee6acd72c}\label{structUADM_a691180f258f76eb21340bc4ee6acd72c}} 
+Petsc\+Int \mbox{\hyperlink{structUADM_a691180f258f76eb21340bc4ee6acd72c}{n\+Points}}
+\begin{DoxyCompactList}\small\item\em total number of points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a9b986d7c8ae0160a9dce268c56b9501c}\label{structUADM_a9b986d7c8ae0160a9dce268c56b9501c}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structUADM_a9b986d7c8ae0160a9dce268c56b9501c}{points}}
+\begin{DoxyCompactList}\small\item\em array containing the AD point coordinates \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a25feb861da57d37e04d0aa2ddf498716}\label{structUADM_a25feb861da57d37e04d0aa2ddf498716}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structUADM_a25feb861da57d37e04d0aa2ddf498716}{dA}}
+\begin{DoxyCompactList}\small\item\em array containing the element area at each AD point (sums up to rotor area) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_ac8ea3e976bfdb4e7da00a0603c7e90a8}\label{structUADM_ac8ea3e976bfdb4e7da00a0603c7e90a8}} 
+Petsc\+Int \mbox{\hyperlink{structUADM_ac8ea3e976bfdb4e7da00a0603c7e90a8}{n\+Radial}}
+\begin{DoxyCompactList}\small\item\em number of AD points in the radial direction \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_adc895e6042269422029b03047ff8dbb2}\label{structUADM_adc895e6042269422029b03047ff8dbb2}} 
+Petsc\+Int \mbox{\hyperlink{structUADM_adc895e6042269422029b03047ff8dbb2}{n\+Azimuth}}
+\begin{DoxyCompactList}\small\item\em number of AD points in the azimuthal direction \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a30527a67fce0797f0eaa1bd6f81f8217}\label{structUADM_a30527a67fce0797f0eaa1bd6f81f8217}} 
+word \mbox{\hyperlink{structUADM_a30527a67fce0797f0eaa1bd6f81f8217}{sample\+Type}}
+\begin{DoxyCompactList}\small\item\em velocity sampling type (\char`\"{}rotor\+Upstream\char`\"{} or \char`\"{}given\+Velocity\char`\"{}) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_ad2827fd4b4950d5bcca50dc68a23edf2}\label{structUADM_ad2827fd4b4950d5bcca50dc68a23edf2}} 
+Petsc\+Real \mbox{\hyperlink{structUADM_ad2827fd4b4950d5bcca50dc68a23edf2}{Uref}}
+\begin{DoxyCompactList}\small\item\em reference velocity to make the provided Ct dimensional \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a13a893ce1f34193f66e8c92499ff5a4f}\label{structUADM_a13a893ce1f34193f66e8c92499ff5a4f}} 
+Petsc\+Real \mbox{\hyperlink{structUADM_a13a893ce1f34193f66e8c92499ff5a4f}{Ct}}
+\begin{DoxyCompactList}\small\item\em imposed thrust coefficient \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_aa67040c75356431635531de1b6c85e8e}\label{structUADM_aa67040c75356431635531de1b6c85e8e}} 
+Petsc\+Real \mbox{\hyperlink{structUADM_aa67040c75356431635531de1b6c85e8e}{axi\+Ind}}
+\begin{DoxyCompactList}\small\item\em axial induction factor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a78ae6f22f64de8169344da80b7c38232}\label{structUADM_a78ae6f22f64de8169344da80b7c38232}} 
+Petsc\+Int $\ast$ \mbox{\hyperlink{structUADM_a78ae6f22f64de8169344da80b7c38232}{this\+Pt\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flags telling if a point is controlled by this processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a6d8e1002000cbc60ebbb2c644933900e}\label{structUADM_a6d8e1002000cbc60ebbb2c644933900e}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$ \mbox{\hyperlink{structUADM_a6d8e1002000cbc60ebbb2c644933900e}{closest\+Cells}}
+\begin{DoxyCompactList}\small\item\em indices of the closest cells to this turbine AD points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_abf188c8cdcd428be9e8166c2a23be8c9}\label{structUADM_abf188c8cdcd428be9e8166c2a23be8c9}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structUADM_abf188c8cdcd428be9e8166c2a23be8c9}{U}}
+\begin{DoxyCompactList}\small\item\em flow velocity at each point of the AD \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_ad51f37d27eaa3d4937670a7a78dd58a9}\label{structUADM_ad51f37d27eaa3d4937670a7a78dd58a9}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structUADM_ad51f37d27eaa3d4937670a7a78dd58a9}{B}}
+\begin{DoxyCompactList}\small\item\em body force at each point of the AD mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a76bf63775500e41d2709addc7b0677b5}\label{structUADM_a76bf63775500e41d2709addc7b0677b5}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structUADM_a76bf63775500e41d2709addc7b0677b5}{axialF}}
+\begin{DoxyCompactList}\small\item\em rotor axial force at each point of the AD mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a0c8f79f2adb44caad7f8d400e5dfb92d}\label{structUADM_a0c8f79f2adb44caad7f8d400e5dfb92d}} 
+Petsc\+Real \mbox{\hyperlink{structUADM_a0c8f79f2adb44caad7f8d400e5dfb92d}{rtr\+Avg\+MagU}}
+\begin{DoxyCompactList}\small\item\em average velocity on the rotor (includes induction from CFD) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a5f3b7c6bbba56ebb22af9aed25d4b82d}\label{structUADM_a5f3b7c6bbba56ebb22af9aed25d4b82d}} 
+Petsc\+Real \mbox{\hyperlink{structUADM_a5f3b7c6bbba56ebb22af9aed25d4b82d}{rtr\+Thrust}}
+\begin{DoxyCompactList}\small\item\em total rotor thrust \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_a08a79256f577dfec91f008bb44acf6ef}\label{structUADM_a08a79256f577dfec91f008bb44acf6ef}} 
+Petsc\+Real \mbox{\hyperlink{structUADM_a08a79256f577dfec91f008bb44acf6ef}{aero\+Pwr}}
+\begin{DoxyCompactList}\small\item\em total rotor aero power \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structUADM_acec45df86c55b7f6ee013238ce6de845}\label{structUADM_acec45df86c55b7f6ee013238ce6de845}} 
+Petsc\+Int \mbox{\hyperlink{structUADM_acec45df86c55b7f6ee013238ce6de845}{dbg}}
+\begin{DoxyCompactList}\small\item\em prints a lot of information \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Uniform Actuator Disk model. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/turbines.\+h\end{DoxyCompactItemize}

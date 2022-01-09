@@ -1,0 +1,65 @@
+\hypertarget{ueqn_8h}{}\doxysection{src/include/ueqn.h File Reference}
+\label{ueqn_8h}\index{src/include/ueqn.h@{src/include/ueqn.h}}
+
+
+U equation solution header file.  
+
+
+\doxysubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structShumann}{Shumann}}
+\begin{DoxyCompactList}\small\item\em \textbackslash{}breif structure storing the \mbox{\hyperlink{structShumann}{Shumann}} wall models information \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structCabot}{Cabot}}
+\begin{DoxyCompactList}\small\item\em \textbackslash{}breif structure storing the \mbox{\hyperlink{structShumann}{Shumann}} wall models information \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structwallModel}{wall\+Model}}
+\begin{DoxyCompactList}\small\item\em wall models container \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structueqn__}{ueqn\+\_\+}}
+\begin{DoxyCompactList}\small\item\em structure storing momentum equation \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{ueqn_8h_a3dbeae2630a94e8222fab61518236341}\label{ueqn_8h_a3dbeae2630a94e8222fab61518236341}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_a3dbeae2630a94e8222fab61518236341}{Initialize\+UEqn}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn)
+\begin{DoxyCompactList}\small\item\em Initializes Ueqn environment. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_ac37a275604f7c56084bd40a8ad5fc710}\label{ueqn_8h_ac37a275604f7c56084bd40a8ad5fc710}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_ac37a275604f7c56084bd40a8ad5fc710}{Update\+Flux\+Limiter}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn)
+\begin{DoxyCompactList}\small\item\em Updates flux limiter. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_ae416d011e237cbe48cf47ed3e6bdd330}\label{ueqn_8h_ae416d011e237cbe48cf47ed3e6bdd330}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_ae416d011e237cbe48cf47ed3e6bdd330}{Correct\+Source\+Terms}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn, Petsc\+Int print)
+\begin{DoxyCompactList}\small\item\em Update driving source terms. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_af46215ee42470ac079bd47a60f156e75}\label{ueqn_8h_af46215ee42470ac079bd47a60f156e75}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_af46215ee42470ac079bd47a60f156e75}{correct\+Damping\+Sources}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn)
+\begin{DoxyCompactList}\small\item\em Correct damping source terms. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_a7154a615d9bb63a6610e9cdefc796289}\label{ueqn_8h_a7154a615d9bb63a6610e9cdefc796289}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_a7154a615d9bb63a6610e9cdefc796289}{contravariant\+To\+Cartesian}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn)
+\begin{DoxyCompactList}\small\item\em Transform contravariant to cartesian. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_a00215441efd96534fd17eac97a6a72c6}\label{ueqn_8h_a00215441efd96534fd17eac97a6a72c6}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_a00215441efd96534fd17eac97a6a72c6}{adjust\+Fluxes}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn)
+\begin{DoxyCompactList}\small\item\em Adjust fluxes to obey mass conservation. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_a2bae16b8422cdba7aaaf537a7bc7f5d6}\label{ueqn_8h_a2bae16b8422cdba7aaaf537a7bc7f5d6}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_a2bae16b8422cdba7aaaf537a7bc7f5d6}{sourceU}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn, Vec \&Rhs, Petsc\+Real scale)
+\begin{DoxyCompactList}\small\item\em Compute driving source term. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_a455f426f82573bd4eb1a1caf45142256}\label{ueqn_8h_a455f426f82573bd4eb1a1caf45142256}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_a455f426f82573bd4eb1a1caf45142256}{damping\+SourceU}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn, Vec \&Rhs, Petsc\+Real scale)
+\begin{DoxyCompactList}\small\item\em Compute damping source terms (x and z) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_a0cad277796a2fb0b7f10681696022896}\label{ueqn_8h_a0cad277796a2fb0b7f10681696022896}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_a0cad277796a2fb0b7f10681696022896}{Coriolis}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn, Vec \&Rhs, Petsc\+Real scale)
+\begin{DoxyCompactList}\small\item\em Compute Coriolis source term. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_abf360de20aefbc88b23662c88568a37d}\label{ueqn_8h_abf360de20aefbc88b23662c88568a37d}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_abf360de20aefbc88b23662c88568a37d}{Buoyancy}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn, Vec \&Rhs, Petsc\+Real scale)
+\begin{DoxyCompactList}\small\item\em Compute buoyancy term. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_a0272610b386154883cceaf07234773d1}\label{ueqn_8h_a0272610b386154883cceaf07234773d1}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_a0272610b386154883cceaf07234773d1}{FormU}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn, Vec \&Rhs, Petsc\+Real scale)
+\begin{DoxyCompactList}\small\item\em Viscous and divergence terms. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_a099aeb5f236533b79b5f3ba4dba897db}\label{ueqn_8h_a099aeb5f236533b79b5f3ba4dba897db}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_a099aeb5f236533b79b5f3ba4dba897db}{Solve\+UEqn}} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} $\ast$ueqn)
+\begin{DoxyCompactList}\small\item\em Solve the momentum equation. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ueqn_8h_aebafdfd6456f3c1a47ca977e4d256f59}\label{ueqn_8h_aebafdfd6456f3c1a47ca977e4d256f59}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ueqn_8h_aebafdfd6456f3c1a47ca977e4d256f59}{Ueqn\+SNES}} (SNES snes, Vec Ucont, Vec Rhs, void $\ast$ptr)
+\begin{DoxyCompactList}\small\item\em SNES evaluation function. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+U equation solution header file. 
+

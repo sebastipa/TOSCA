@@ -1,0 +1,148 @@
+\hypertarget{peqn_8c}{}\doxysection{src/peqn.c File Reference}
+\label{peqn_8c}\index{src/peqn.c@{src/peqn.c}}
+
+
+Contains P equation function definitions.  
+
+
+{\ttfamily \#include \char`\"{}include/base.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/domain.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/io.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/inline.\+h\char`\"{}}\newline
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{peqn_8c_ab8a61f8fa7155e618adea3f67d5a7b79}\label{peqn_8c_ab8a61f8fa7155e618adea3f67d5a7b79}} 
+\#define {\bfseries mat\+ID}(i,  j,  k)~(HYPRE\+\_\+\+Int)(gid\mbox{[}k\mbox{]}\mbox{[}j\mbox{]}\mbox{[}i\mbox{]})
+\item 
+\mbox{\Hypertarget{peqn_8c_a6594e57d1fff186da0a254a3742dcff7}\label{peqn_8c_a6594e57d1fff186da0a254a3742dcff7}} 
+\#define {\bfseries CP}~0
+\item 
+\mbox{\Hypertarget{peqn_8c_adb5bf6fbe6405b09bad71e89e1da5850}\label{peqn_8c_adb5bf6fbe6405b09bad71e89e1da5850}} 
+\#define {\bfseries EP}~1
+\item 
+\mbox{\Hypertarget{peqn_8c_a2c73b81722187c48d6186148091162fb}\label{peqn_8c_a2c73b81722187c48d6186148091162fb}} 
+\#define {\bfseries WP}~2
+\item 
+\mbox{\Hypertarget{peqn_8c_ab04c88bedc6b2be8ddfe7aa8d3e93f06}\label{peqn_8c_ab04c88bedc6b2be8ddfe7aa8d3e93f06}} 
+\#define {\bfseries NP}~3
+\item 
+\mbox{\Hypertarget{peqn_8c_aecd69d9a67487cc45c38eb184c50538a}\label{peqn_8c_aecd69d9a67487cc45c38eb184c50538a}} 
+\#define {\bfseries SP}~4
+\item 
+\mbox{\Hypertarget{peqn_8c_af972ebfdd064fdb489daf84443a12f35}\label{peqn_8c_af972ebfdd064fdb489daf84443a12f35}} 
+\#define {\bfseries TP}~5
+\item 
+\mbox{\Hypertarget{peqn_8c_a82b271e081de4cfb35eb87b0c13dddba}\label{peqn_8c_a82b271e081de4cfb35eb87b0c13dddba}} 
+\#define {\bfseries BP}~6
+\item 
+\mbox{\Hypertarget{peqn_8c_a5af9139e882aef6c820ae908589a40d6}\label{peqn_8c_a5af9139e882aef6c820ae908589a40d6}} 
+\#define {\bfseries NE}~7
+\item 
+\mbox{\Hypertarget{peqn_8c_a18bbe716f5be6adbd2150139244c0262}\label{peqn_8c_a18bbe716f5be6adbd2150139244c0262}} 
+\#define {\bfseries SE}~8
+\item 
+\mbox{\Hypertarget{peqn_8c_af9cccf331f045b89a9f12366df5f7687}\label{peqn_8c_af9cccf331f045b89a9f12366df5f7687}} 
+\#define {\bfseries NW}~9
+\item 
+\mbox{\Hypertarget{peqn_8c_a4b95e941f44a20ea60512bbe2065f0b6}\label{peqn_8c_a4b95e941f44a20ea60512bbe2065f0b6}} 
+\#define {\bfseries SW}~10
+\item 
+\mbox{\Hypertarget{peqn_8c_adda1ea75ba8153e72cfb5c87606c55a6}\label{peqn_8c_adda1ea75ba8153e72cfb5c87606c55a6}} 
+\#define {\bfseries TN}~11
+\item 
+\mbox{\Hypertarget{peqn_8c_a1d0ece5ecf0d2437c47afedee891058c}\label{peqn_8c_a1d0ece5ecf0d2437c47afedee891058c}} 
+\#define {\bfseries BN}~12
+\item 
+\mbox{\Hypertarget{peqn_8c_aaade3232ef08cf18b4f3a20a0a2c6fb6}\label{peqn_8c_aaade3232ef08cf18b4f3a20a0a2c6fb6}} 
+\#define {\bfseries TS}~13
+\item 
+\mbox{\Hypertarget{peqn_8c_a580a88f98668df1ac5e1683cae31c0b3}\label{peqn_8c_a580a88f98668df1ac5e1683cae31c0b3}} 
+\#define {\bfseries BS}~14
+\item 
+\mbox{\Hypertarget{peqn_8c_a91c0a910ad7ea895ed9093c9286df2f2}\label{peqn_8c_a91c0a910ad7ea895ed9093c9286df2f2}} 
+\#define {\bfseries TE}~15
+\item 
+\mbox{\Hypertarget{peqn_8c_a78add0c4a98afa82e663ee5cfb1bdc9f}\label{peqn_8c_a78add0c4a98afa82e663ee5cfb1bdc9f}} 
+\#define {\bfseries BE}~16
+\item 
+\mbox{\Hypertarget{peqn_8c_a051c83d6554c006261a198d0682d84e4}\label{peqn_8c_a051c83d6554c006261a198d0682d84e4}} 
+\#define {\bfseries TW}~17
+\item 
+\mbox{\Hypertarget{peqn_8c_a84909b16209480034c40276c4f84f975}\label{peqn_8c_a84909b16209480034c40276c4f84f975}} 
+\#define {\bfseries BW}~18
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{peqn_8c_a8ee26f27490cd2ba1ba573baeee692ba}\label{peqn_8c_a8ee26f27490cd2ba1ba573baeee692ba}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a8ee26f27490cd2ba1ba573baeee692ba}{Initialize\+PEqn}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Initializes Peqn environment. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a9231ed77659514a09ab5f246e8b35af7}\label{peqn_8c_a9231ed77659514a09ab5f246e8b35af7}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a9231ed77659514a09ab5f246e8b35af7}{Set\+Poisson\+Connectivity}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Compute cell-\/matrix connectivity. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_ad9fa6dfb07b806bdc343704f04083eff}\label{peqn_8c_ad9fa6dfb07b806bdc343704f04083eff}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_ad9fa6dfb07b806bdc343704f04083eff}{Create\+Hypre\+Matrix}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Initializes HYPRE matrix. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_adda9d62eee9605356dc72fef0a33edb8}\label{peqn_8c_adda9d62eee9605356dc72fef0a33edb8}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_adda9d62eee9605356dc72fef0a33edb8}{Create\+Hypre\+Vector}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Initializes HYPRE vector. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_af2c443594a2304edf96ff8e4e7db4c66}\label{peqn_8c_af2c443594a2304edf96ff8e4e7db4c66}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_af2c443594a2304edf96ff8e4e7db4c66}{Create\+Hypre\+Solver}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Initializes HYPRE solver. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_aea4bbdf561dfb67d150e7c1b69dd38a5}\label{peqn_8c_aea4bbdf561dfb67d150e7c1b69dd38a5}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_aea4bbdf561dfb67d150e7c1b69dd38a5}{Destroy\+Hypre\+Matrix}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Destroys HYPRE matrix. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_ad1b0d4c628f840fed6b01cff1b049415}\label{peqn_8c_ad1b0d4c628f840fed6b01cff1b049415}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_ad1b0d4c628f840fed6b01cff1b049415}{Destroy\+Hypre\+Vector}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Destroys HYPRE vector. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a7b109d01b7be010b26e0c9a50b6c16da}\label{peqn_8c_a7b109d01b7be010b26e0c9a50b6c16da}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a7b109d01b7be010b26e0c9a50b6c16da}{Destroy\+Hypre\+Solver}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Destroys HYPRE solver. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a9daf3d053c5f54a60930d2c3fb41c4e9}\label{peqn_8c_a9daf3d053c5f54a60930d2c3fb41c4e9}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a9daf3d053c5f54a60930d2c3fb41c4e9}{Set\+Coeff\+Matrix}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Compute coefficient matrix. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_af35cf556e36d7002ea71ccc59c6119c7}\label{peqn_8c_af35cf556e36d7002ea71ccc59c6119c7}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_af35cf556e36d7002ea71ccc59c6119c7}{Zero\+Coeff\+Matrix}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Set coefficient matrix to zero. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_ad083be97b70c8defdb8741cb277b2bf7}\label{peqn_8c_ad083be97b70c8defdb8741cb277b2bf7}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_ad083be97b70c8defdb8741cb277b2bf7}{Petsc2\+Hypre\+Vector}} (Vec \&A, HYPRE\+\_\+\+IJVector \&B, HYPRE\+\_\+\+Int start\+ID)
+\begin{DoxyCompactList}\small\item\em Transfer vector values from Petsc 2 Hypre. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a11c3504237006df917b0e61e159f5807}\label{peqn_8c_a11c3504237006df917b0e61e159f5807}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a11c3504237006df917b0e61e159f5807}{Hypre2\+Petsc\+Vector}} (HYPRE\+\_\+\+IJVector \&B, Vec \&A, HYPRE\+\_\+\+Int start\+ID)
+\begin{DoxyCompactList}\small\item\em Transfer vector values from Hypre 2 Petsc. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a9846cb49857f2528a8146f6e6ccd0e9b}\label{peqn_8c_a9846cb49857f2528a8146f6e6ccd0e9b}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a9846cb49857f2528a8146f6e6ccd0e9b}{phi\+To\+Phi}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Convert phi to Phi (1D to 3D vector) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_ad70bea1744fa4be27bffab83f74e350b}\label{peqn_8c_ad70bea1744fa4be27bffab83f74e350b}} 
+Petsc\+Real \mbox{\hyperlink{peqn_8c_ad70bea1744fa4be27bffab83f74e350b}{L2\+Norm\+Hypre}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn, HYPRE\+\_\+\+IJMatrix \&A, HYPRE\+\_\+\+IJVector \&X, HYPRE\+\_\+\+IJVector \&B)
+\begin{DoxyCompactList}\small\item\em Compute L2 norm of system residual. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_abeea8cb5145898128043685604fce837}\label{peqn_8c_abeea8cb5145898128043685604fce837}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_abeea8cb5145898128043685604fce837}{Subtract\+Average}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn, HYPRE\+\_\+\+IJVector \&B)
+\begin{DoxyCompactList}\small\item\em Subtract average from the solution. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a47ceea848fc387454697a64956cc467a}\label{peqn_8c_a47ceea848fc387454697a64956cc467a}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a47ceea848fc387454697a64956cc467a}{Set\+RHS}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Set RHS of the pressure equation. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a28d43afc0244d005d1c81d5a297408b0}\label{peqn_8c_a28d43afc0244d005d1c81d5a297408b0}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a28d43afc0244d005d1c81d5a297408b0}{Adjust\+IBMFlux}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Correct IBM volume flux. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a7a65ba9c5e62bcfc9be56370f4bcbc0c}\label{peqn_8c_a7a65ba9c5e62bcfc9be56370f4bcbc0c}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a7a65ba9c5e62bcfc9be56370f4bcbc0c}{Project\+Velocity}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Project Ucont into an incompressible space. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_ad3c83c05b82fba196345bd68cb408341}\label{peqn_8c_ad3c83c05b82fba196345bd68cb408341}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_ad3c83c05b82fba196345bd68cb408341}{Update\+Pressure}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Update pressure and subtract average. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_ab7768de2161a2bbe0ffbcbe4782694eb}\label{peqn_8c_ab7768de2161a2bbe0ffbcbe4782694eb}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_ab7768de2161a2bbe0ffbcbe4782694eb}{GradP}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Compute pressure gradient term. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a653e735ef518ba7324fad4c577eddb37}\label{peqn_8c_a653e735ef518ba7324fad4c577eddb37}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a653e735ef518ba7324fad4c577eddb37}{Solve\+PEqn}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Compute pressure gradient term. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{peqn_8c_a9d397554e586163d7f6df8d76d1efe5e}\label{peqn_8c_a9d397554e586163d7f6df8d76d1efe5e}} 
+Petsc\+Error\+Code \mbox{\hyperlink{peqn_8c_a9d397554e586163d7f6df8d76d1efe5e}{Continuity\+Errors}} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} $\ast$peqn)
+\begin{DoxyCompactList}\small\item\em Compute continuity errors. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains P equation function definitions. 
+

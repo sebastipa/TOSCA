@@ -1,0 +1,25 @@
+nstw         20
+nspw         20
+upDir        (0.0 0.0 1.0)
+streamDir    (1.0 0.0 0.0)
+
+avgStartTime 1000
+avgPeriod    10
+
+level1
+{
+    hStart   0.0
+    hEnd     180.0
+}
+
+level2 
+{
+    hStart   180.0
+    hEnd     260.0
+}
+
+level3
+{
+    hStart   260.0
+    hEnd     1000.0
+}

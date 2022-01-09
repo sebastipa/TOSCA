@@ -1,0 +1,50 @@
+\hypertarget{les_8c}{}\doxysection{src/les.c File Reference}
+\label{les_8c}\index{src/les.c@{src/les.c}}
+
+
+Contains LES model function definitions.  
+
+
+{\ttfamily \#include \char`\"{}include/base.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/domain.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/io.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/inline.\+h\char`\"{}}\newline
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{les_8c_a7d8d2256b27e86881382283286e0dd10}\label{les_8c_a7d8d2256b27e86881382283286e0dd10}} 
+Petsc\+Error\+Code \mbox{\hyperlink{les_8c_a7d8d2256b27e86881382283286e0dd10}{Initialize\+LES}} (\mbox{\hyperlink{structles__}{les\+\_\+}} $\ast$les)
+\begin{DoxyCompactList}\small\item\em Initializes LES environment. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{les_8c_a1f55153a70198bd6249c073123f68826}{Update\+Cs}} (\mbox{\hyperlink{structles__}{les\+\_\+}} $\ast$les)
+\begin{DoxyCompactList}\small\item\em Update Cs Smagorinky coefficient. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{les_8c_a62462508ef5908d87643827b362af7fc}\label{les_8c_a62462508ef5908d87643827b362af7fc}} 
+Petsc\+Error\+Code \mbox{\hyperlink{les_8c_a62462508ef5908d87643827b362af7fc}{Update\+Nut}} (\mbox{\hyperlink{structles__}{les\+\_\+}} $\ast$les)
+\begin{DoxyCompactList}\small\item\em Update effective viscosity. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{les_8c_a81b13a560921183a3edfc07bf623c72f}\label{les_8c_a81b13a560921183a3edfc07bf623c72f}} 
+const Petsc\+Real {\bfseries wall\+\_\+cs} = 0.\+001
+\item 
+\mbox{\Hypertarget{les_8c_a480aed22ed65c3ab46131f61b15fab86}\label{les_8c_a480aed22ed65c3ab46131f61b15fab86}} 
+const Petsc\+Real {\bfseries std\+\_\+cs} = 0.\+0289
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains LES model function definitions. 
+
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{les_8c_a1f55153a70198bd6249c073123f68826}\label{les_8c_a1f55153a70198bd6249c073123f68826}} 
+\index{les.c@{les.c}!UpdateCs@{UpdateCs}}
+\index{UpdateCs@{UpdateCs}!les.c@{les.c}}
+\doxysubsubsection{\texorpdfstring{UpdateCs()}{UpdateCs()}}
+{\footnotesize\ttfamily Petsc\+Error\+Code Update\+Cs (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structles__}{les\+\_\+}} $\ast$}]{les }\end{DoxyParamCaption})}
+
+
+
+Update Cs Smagorinky coefficient. 
+
+is\+On\+Corner\+Cell\+Centers(I, J, K, mesh-\/$>$info) $<$-\/ use also ghost? Not for now

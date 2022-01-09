@@ -1,0 +1,2714 @@
+//! \file  ibm.c
+//! \brief Contains Immersed boundary method function definitions
+
+#include "include/base.h"
+#include "include/domain.h"
+#include "include/io.h"
+#include "include/inline.h"
+#include "include/wallfunctions.h"
+
+//***************************************************************************************************************//
+
+PetscErrorCode InitializeIBM(domain_ *domain)
+{
+  PetscInt nDomains = domain[0].info.nDomains;
+  flags_ flags = domain[0].flags;
+
+  if(flags.isIBMActive)
+  {
+
+    // loop through the domains to set the domain ibm pointer
+    for(PetscInt d = 0; d < nDomains; d++)
+    {
+      readIBMProperties(domain[d].ibm);
+
+      findBodyBoundingBox(domain[d].ibm);
+
+      setDomainIBMObjectInteraction(domain[d].ibm, d);
+
+      findSearchCellDim(domain[d].ibm);
+
+      createSearchCellList(domain[d].ibm);
+
+      // ibm search algorithm
+      if(domain[d].ueqn->initFieldType != "readField")
+      {
+        ibmSearch(domain[d].ibm);
+      }
+
+      MPI_Barrier(domain[d].mesh->MESH_COMM);
+
+      findIBMFluidCells(domain[d].ibm);
+
+      if (domain[d].ibm->IBInterpolationModel == "MLS")
+      {
+        findFluidSupportNodes(domain[d].ibm);
+
+        findIBMMeshSupportNodes(domain[d].ibm);
+
+        MPI_Barrier(domain[d].mesh->MESH_COMM);
+
+        // MLS interpolation algorithm
+        MLSInterpolation(domain[d].ibm);
+
+      }
+      else if (domain[d].ibm->IBInterpolationModel == "CURVIB")
+      {
+        findClosestIBMElement(domain[d].ibm);
+
+        CurvibInterpolation(domain[d].ibm);
+      }
+      else
+      {
+          char error[256];
+          sprintf(error, "incorrect IB interpolation method. Use MLS or CURVIB");
+          fatalErrorInFunction("InitializeIBM",  error);
+      }
+
+      MPI_Barrier(domain[d].mesh->MESH_COMM);
+
+      //update the boundary condition around ibm cells
+      UpdateImmersedBCs(domain[d].ibm);
+
+      contravariantToCartesian(domain[d].ueqn);
+
+    }
+
+  }
+
+  return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode ibmUpdate(ibm_ *ibm)
+{
+    mesh_ *mesh = ibm->access->mesh;
+
+    //copy current nvert before next time step
+    VecCopy(mesh->Nvert, mesh->Nvert_o);
+    DMGlobalToLocalBegin(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
+    DMGlobalToLocalEnd(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
+
+    //search to update the ibm cells and support nodes if dynamic ibm
+    if(ibm->dynamic)
+    {
+        //reset nvert values to 0, they will be recomputed during ibm search
+        VecSet(mesh->Nvert,0.);
+        VecSet(mesh->lNvert,0.);
+
+        UpdateIBMesh(ibm);
+
+        findBodyBoundingBox(ibm);
+
+        findSearchCellDim(ibm);
+
+        createSearchCellList(ibm);
+
+        ibmSearch(ibm);
+
+        findIBMFluidCells(ibm);
+
+        if (ibm->IBInterpolationModel == "MLS")
+        {
+
+            findFluidSupportNodes(ibm);
+
+            findIBMMeshSupportNodes(ibm);
+
+        }
+        else if (ibm->IBInterpolationModel == "CURVIB")
+        {
+            findClosestIBMElement(ibm);
+        }
+
+    }
+
+    //interpolate the ibm fluid cells
+    if (ibm->IBInterpolationModel == "MLS")
+    {
+        MLSInterpolation(ibm);
+    }
+    else if (ibm->IBInterpolationModel == "CURVIB")
+    {
+        CurvibInterpolation(ibm);
+    }
+
+    // destroy the lists created if dynamic before next iteration
+    if(ibm->dynamic)
+    {
+        destroyLists(ibm);
+    }
+    //update the boundary condition around ibm cells
+    UpdateImmersedBCs(ibm);
+
+    contravariantToCartesian(ibm->access->ueqn);
+
+    return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode UpdateIBMesh(ibm_ *ibm)
+{
+
+    // loop through the ibm bodies
+    for(PetscInt b = 0; b < ibm->numBodies; b++)
+    {
+        //check if this user has the ibm body b attached to it
+        if(ibm->ibmDomain[b] != -1)
+        {
+            // update mesh only if not static body
+            if(ibm->ibmBody[b]->bodyMotion != "static")
+            {
+                if(ibm->ibmBody[b]->bodyMotion == "rotation")
+                {
+                    rotateIBMesh(ibm, b);
+                }
+            }
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b)
+{
+    clock_        *clock   = ibm->access->clock;
+
+    ibmObject     *ibmBody = ibm->ibmBody[b];
+    ibmMesh       *ibMsh   = ibmBody->ibMsh;                         // pointer to the ibm body mesh
+    ibmRotation   *ibmRot  = ibmBody->ibmRot;
+
+    Cmpnts        rvec, angVel;
+
+    // change in rotation angle
+    PetscReal     dTheta   = ibmRot->angSpeed * clock->dt;
+
+    // compute the new angular position of the body
+    ibmRot->rotAngle += dTheta;
+
+    // find the new ibm node co-ordinate after rotation
+    for(PetscInt n = 0; n < ibMsh->nodes; n++)
+    {
+        // find the radius vector from the rotation center point
+        rvec = nSub(ibMsh->nCoor[n], ibmRot->rotCenter);
+
+        // rotate the vector
+        mRot(ibmRot->rotAxis, rvec, dTheta);
+
+        // find the new co-ordinate
+        ibMsh->nCoor[n] = nSum(rvec, ibmRot->rotCenter);
+
+        // set the node velocity
+        angVel = nScale(ibmRot->angSpeed, ibmRot->rotAxis);
+
+        ibMsh->nU[n] = nCross(rvec, angVel);
+    }
+
+    // recompute the ibm mesh properties - as rigid body motion the elements do not change
+    PetscInt  n1, n2, n3;
+    PetscReal normMag;
+    Cmpnts    vec1, vec2, temp;
+
+    for (PetscInt i=0; i<ibMsh->elems; i++)
+    {
+        // get the element nodes
+        n1 = ibMsh->nID1[i]; n2 = ibMsh->nID2[i]; n3 = ibMsh->nID3[i];
+
+        vec1 = nSub(ibMsh->nCoor[n2], ibMsh->nCoor[n1]);
+
+        vec2 = nSub(ibMsh->nCoor[n3], ibMsh->nCoor[n1]);
+
+        // normal to the face is found as cross product of the edges vec1 and vec2
+        ibMsh->eN[i] = nCross(vec1, vec2);
+        normMag = nMag(ibMsh->eN[i]);
+        mScale(1.0/normMag, ibMsh->eN[i]);
+
+        //element area
+        ibMsh->eA[i] = normMag/2.0;
+
+        //element center
+        temp = nSum(ibMsh->nCoor[n1], ibMsh->nCoor[n2]);
+        ibMsh->eCent[i] = nSum( temp, ibMsh->nCoor[n3]);
+        mScale(1/3.0, ibMsh->eCent[i]);
+    }
+
+    //write the current angular position of the ibm to a file
+    writeAngularPosition(ibm, b);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b)
+{
+    clock_      *clock = ibm->access->clock;
+    io_         *io    = ibm->access->io;
+    mesh_       *mesh  = ibm->access->mesh;
+
+    word        timeName;
+    word        path;
+
+    PetscInt    t;
+
+    PetscMPIInt rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // set time folder name
+    timeName = getTimeName(clock);
+    path     = "./fields/" + mesh->meshName + "/ibm/" + timeName;
+
+    // create/initialize ibm write directory
+    if
+    (
+        clock->it == clock->itStart
+    )
+    {
+        if(!rank)
+        {
+            word        startTimeName = getStartTimeName(clock);
+
+            path     = "./fields/" + mesh->meshName + "/ibm/" + startTimeName;
+
+            errno = 0;
+            word ibmfolder = "./fields/" + mesh->meshName + "/ibm/";
+            PetscInt dirRes = mkdir(ibmfolder.c_str(), 0777);
+            if(dirRes != 0 && errno != EEXIST)
+            {
+                char error[256];
+                sprintf(error, "could not create %s directory", ibmfolder.c_str());
+                fatalErrorInFunction("writeAngularPosition",  error);
+            }
+
+            // if directory already exist remove everything inside except the start time (safe)
+            if(errno == EEXIST)
+            {
+                remove_subdirs_except(mesh->MESH_COMM, ibmfolder.c_str(), path.c_str());
+            }
+        }
+    }
+
+    // test if must write at this time step
+    if(io->runTimeWrite)
+    {
+        // creates time folder
+        if(!rank)
+        {
+            PetscInt dirRes = mkdir(path.c_str(), 0777);
+
+            if(dirRes != 0 && errno != EEXIST)
+            {
+                char error[256];
+                sprintf(error, "could not create %s directory\n", path.c_str());
+                fatalErrorInFunction("writeAngularPosition",  error);
+            }
+
+            FILE *f;
+            char fileName[80];
+            sprintf(fileName, "%s/%s", path.c_str(), ibm->ibmBody[b]->bodyName.c_str());
+            f = fopen(fileName, "w");
+
+            ibmRotation   *ibmRot  = ibm->ibmBody[b]->ibmRot;
+
+            if(!f)
+            {
+                char error[256];
+                sprintf(error, "cannot open file %s\n", fileName);
+                fatalErrorInFunction("writeAngularPosition",  error);
+            }
+            else
+            {
+                fprintf(f, "AngularPosition             %lf\n", ibmRot->rotAngle);
+            }
+
+            fclose(f);
+
+            // remove old checkpoint files except last one after all files are written (safe)
+            // word ibmfolder = "./fields/" + mesh->meshName + "/ibm/";
+            // if(!rank) remove_subdirs_except(mesh->MESH_COMM, ibmfolder.c_str(), timeName);
+        }
+
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode findClosestIBMElement(ibm_ *ibm)
+{
+    mesh_         *mesh = ibm->access->mesh;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      b, c;
+    Cmpnts        ***cent, dist;
+    cellList      localSearchList;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    //local pointer for ibmFluidCells
+    ibmFluidCell *ibF = ibm->ibmFCells;
+
+    // loop through the ibm bodies
+    for(b = 0; b < ibm->numBodies; b++)
+    {
+        //check if this user has the ibm body b attached to it
+        if(ibm->ibmDomain[b] != -1)
+        {
+            // smallest bounding sphere algorithm
+            elementBoundingSphere(ibm->ibmBody[b]->ibMsh);
+        }
+    }
+
+    for(c = 0; c < ibm->numIBMFluid; c++)
+    {
+        //cell indices
+        i = ibF[c].cellId.i;
+        j = ibF[c].cellId.j;
+        k = ibF[c].cellId.k;
+
+        PetscInt      n1, n2, n3;
+        PetscInt      elemID, cellMin = -100;
+        Cmpnts        dis, elemNorm, p1, p2, p3;
+        PetscReal     d_center, dmin = 1.0e20, d;
+        Cmpnts        pmin, po, pj;
+        PetscReal     normProj;                             // normal projection of point to ibm mesh element
+        PetscInt      bodyID;
+
+        // loop through the ibm bodies
+        for (b = 0; b < ibm->numBodies; b++)
+        {
+            // check if this user is attached to this IBM body b
+            if(ibm->ibmDomain[b] != -1)
+            {
+                boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
+                searchBox     *sBox  = &(ibm->sBox[b]);
+                ibmMesh       *ibMsh = ibm->ibmBody[b]->ibMsh;                         // pointer to the ibm body mesh
+
+                Cmpnts        *qvec   = ibMsh->eQVec;
+                PetscReal     *rvec   = ibMsh->eRVec;
+
+                PetscInt      *nv1   = ibMsh->nID1, *nv2  = ibMsh->nID2, *nv3  = ibMsh->nID3;
+                Cmpnts        *eN    = ibMsh->eN;
+                Cmpnts        *nCoor = ibMsh->nCoor;
+
+                //get access to the first search cell in the list
+                cellNode *currentCell = localSearchList.head;
+
+                //loop through the IBM elements within the current search cell
+                for(PetscInt e = 0; e < ibMsh->elems; e++)
+                {
+
+                    dis = nSub(cent[k][j][i], qvec[e]);
+                    d_center = nMag(dis);
+
+                    // find the ibm mesh element whose bounding sphere center is closest to cent[k][j][i]
+                    if(d_center - rvec[e] < dmin)
+                    {
+                        n1 = nv1[elemID];
+                        n2 = nv2[elemID];
+                        n3 = nv3[elemID];
+
+                        elemNorm = eN[e];
+
+                        p1 = nCoor[n1];
+                        p2 = nCoor[n2];
+                        p3 = nCoor[n3];
+
+                        dis = nSub(cent[k][j][i], p1);
+                        normProj = nDot(dis, elemNorm);
+
+                        if (fabs(normProj) < 1.e-10) normProj = 1.e-10;
+
+                        // cent[k][j][i] located on the positive side of surface triangle
+                        if(normProj >= 0)
+                        {
+                            dis = nScale(normProj, elemNorm);
+                            pj  = nSub(cent[k][j][i], dis);
+
+                            // The projected point is inside the triangle
+                            if(isPointInTriangle(pj, p1, p2, p3, elemNorm) == 1)
+                            {
+                                if(normProj < dmin)
+                                {
+                                    dmin    = normProj;
+                                    pmin    = pj;
+                                    cellMin = e;
+                                    bodyID  = b;
+                                }
+                            }
+                        }
+                        // The projected point is on the triangle line
+                        else
+                        {
+                            // po is the projected point on the line and d is the distance to that point from cent[k][j][i]
+                            disP2Line(cent[k][j][i], p1, p2, &po, &d);
+
+                            if (d < dmin)
+                            {
+                                dmin = d;
+                                pmin = po;
+                                cellMin = e;
+                                bodyID  = b;
+                            }
+
+                            disP2Line(cent[k][j][i], p2, p3, &po, &d);
+
+                            if (d < dmin)
+                            {
+                                dmin = d;
+                                pmin = po;
+                                cellMin = e;
+                                bodyID  = b;
+                            }
+
+                            disP2Line(cent[k][j][i], p3, p1, &po, &d);
+
+                            if (d < dmin)
+                            {
+                                dmin = d;
+                                pmin = po;
+                                cellMin = e;
+                                bodyID  = b;
+                            }
+                        }
+
+                    }
+
+                }
+
+            }
+        }
+
+        if (cellMin == -100)
+        {
+            char error[256];
+            sprintf(error, "Nearest Cell Searching Error for cell %ld %ld %ld\n", k, j, i);
+            fatalErrorInFunction("findClosestIBMElement",  error);
+        }
+
+        //set the closest ibm mesh element to the ibm fluid cell
+        ibF[c].closestElem = cellMin;
+        ibF[c].pMin = pmin;
+        ibF[c].minDist = dmin;
+        ibF[c].bodyID = bodyID;
+
+        Cpt2D     pjp, pj1, pj2, pj3;
+        ibmMesh   *ibMsh = ibm->ibmBody[bodyID]->ibMsh;                         // pointer to the ibm body mesh
+
+        elemNorm  = ibMsh->eN[cellMin];
+        n1        = ibMsh->nID1[cellMin];
+        n2        = ibMsh->nID2[cellMin];
+        n3        = ibMsh->nID3[cellMin];
+
+        p1        = ibMsh->nCoor[n1];
+        p2        = ibMsh->nCoor[n2];
+        p3        = ibMsh->nCoor[n3];
+
+        // to find the ibm interpolation coefficient of the projected point from the ibm element nodes
+        if (fabs(elemNorm.x) >= fabs(elemNorm.y) && fabs(elemNorm.x) >= fabs(elemNorm.z))
+        {
+            pjp.x = pmin.y;
+            pjp.y = pmin.z;
+            pj1.x = p1.y;
+            pj1.y = p1.z;
+            pj2.x = p2.y;
+            pj2.y = p2.z;
+            pj3.x = p3.y;
+            pj3.y = p3.z;
+            triangleIntp(pjp, pj1, pj2, pj3, &(ibF[c]));
+        }
+        else if (fabs(elemNorm.y) >= fabs(elemNorm.x) && fabs(elemNorm.y) >= fabs(elemNorm.z))
+        {
+            pjp.x = pmin.x;
+            pjp.y = pmin.z;
+            pj1.x = p1.x;
+            pj1.y = p1.z;
+            pj2.x = p2.x;
+            pj2.y = p2.z;
+            pj3.x = p3.x;
+            pj3.y = p3.z;
+            triangleIntp(pjp, pj1, pj2, pj3, &(ibF[c]));
+        }
+        else if (fabs(elemNorm.z) >= fabs(elemNorm.y) && fabs(elemNorm.z) >= fabs(elemNorm.x))
+        {
+            pjp.x = pmin.y;
+            pjp.y = pmin.x;
+            pj1.x = p1.y;
+            pj1.y = p1.x;
+            pj2.x = p2.y;
+            pj2.y = p2.x;
+            pj3.x = p3.y;
+            pj3.y = p3.x;
+            triangleIntp(pjp, pj1, pj2, pj3, &(ibF[c]));
+        }
+
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode CurvibInterpolation(ibm_ *ibm)
+{
+    mesh_         *mesh  = ibm->access->mesh;
+    ueqn_         *ueqn  = ibm->access->ueqn;
+    teqn_         *teqn  = ibm->access->teqn;
+    flags_        *flags = ibm->access->flags;
+    constants_    *cst   = ibm->access->constants;
+
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k, ii, kk, jj;
+    PetscInt      b, c, s;
+    Cmpnts        ***ucat, ***lucat, ***cent;
+    PetscReal     ***lt, ***temp, ***aj, ***nvert;
+    Cmpnts        nf, bPt, bPtVel, ibmPtVel;
+    PetscReal     nfMag, cellSize, bPtTemp, ibmPtTemp;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+    DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
+    DMDAVecGetArray(fda, ueqn->Ucat, &ucat);
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecGetArray(da, teqn->lTmprt, &lt);
+        DMDAVecGetArray(da, teqn->Tmprt, &temp);
+    }
+
+    //local pointer for ibmFluidCells
+    ibmFluidCell *ibF = ibm->ibmFCells;
+
+    PetscReal    sc, sb, ustar;
+
+    for(c = 0; c < ibm->numIBMFluid; c++)
+    {
+        //cell indices
+        i = ibF[c].cellId.i;
+        j = ibF[c].cellId.j;
+        k = ibF[c].cellId.k;
+
+        // find the direction to extrapolate from the ibm mesh element to the background mesh along cent[k][j][i]
+        nf    = nSub(cent[k][j][i], ibF[c].pMin);
+        nfMag = nMag(nf);
+
+        mScale(1.0/nfMag, nf);
+
+        // background mesh projection point is taken 2 cell distance along this normal directional
+        cellSize = pow( 1./aj[k][j][i], 1./3.);
+        bPt = nScale(cellSize, nf);
+        mSum(bPt, ibF[c].pMin);
+
+        // search for the closest background mesh cell center (it will be close to current ibm fluid cell k,j,i)
+        PetscInt    i1, j1, k1;
+        PetscReal   dmin = 10e6, d;
+        PetscInt    ic, jc, kc;
+
+        // must be close so don't loop over all cells
+        for (k1=k-2; k1<k+3; k1++)
+        for (j1=j-2; j1<j+3; j1++)
+        for (i1=i-2; i1<i+3; i1++)
+        {
+            // skip the current cell for closest cell interpolation
+            if(k1 == k && j1 == j && i1 == i) continue;
+
+            if
+            ((
+                k1>=1 && k1<mz-1 &&
+                j1>=1 && j1<my-1 &&
+                i1>=1 && i1<mx-1
+            ) && isFluidCell(k1, j1, i1, nvert))
+            {
+                d = pow((bPt.x - cent[k1][j1][i1].x), 2) +
+                    pow((bPt.y - cent[k1][j1][i1].y), 2) +
+                    pow((bPt.z - cent[k1][j1][i1].z), 2);
+
+                if
+                (
+                    d < dmin
+                )
+                {
+                    dmin  = d;
+                    ic = i1;
+                    jc = j1;
+                    kc = k1;
+                }
+            }
+        }
+        // trilinear interpolate the velocity at this point
+        vectorPointLocalVolumeInterpolation
+        (
+                mesh,
+                bPt.x, bPt.y, bPt.z,
+                ic, jc, kc,
+                cent,
+                lucat,
+                bPtVel
+        );
+
+        if (flags->isTeqnActive)
+        {
+            scalarPointLocalVolumeInterpolation
+            (
+                    mesh,
+                    bPt.x, bPt.y, bPt.z,
+                    ic, jc, kc,
+                    cent,
+                    lt,
+                    bPtTemp
+            );
+        }
+
+        // interpolate the velocity of the projected point on the IBM solid element from its nodes
+        ibmMesh   *ibMsh = ibm->ibmBody[ibF[c].bodyID]->ibMsh;
+        PetscInt  cElem  = ibF[c].closestElem;
+        PetscInt  n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
+
+        ibmPtVel.x =   ibMsh->nU[n1].x * ibF[c].cs1
+                     + ibMsh->nU[n2].x * ibF[c].cs2
+                     + ibMsh->nU[n3].x * ibF[c].cs3;
+
+        ibmPtVel.y =   ibMsh->nU[n1].y * ibF[c].cs1
+                     + ibMsh->nU[n2].y * ibF[c].cs2
+                     + ibMsh->nU[n3].y * ibF[c].cs3;
+
+        ibmPtVel.z =   ibMsh->nU[n1].z * ibF[c].cs1
+                     + ibMsh->nU[n2].z * ibF[c].cs2
+                     + ibMsh->nU[n3].z * ibF[c].cs3;
+
+         if (flags->isTeqnActive)
+         {
+             ibmPtTemp = ibm->access->abl->tRef;
+         }
+
+         // cabot wall model to interpolate the velocity at the ibm fluid node
+         sb = ibF[c].minDist;
+         sc = sb + cellSize;
+
+         wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, nf);
+         // wallFunctionPowerlaw(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, nf);
+ 
+
+         if (flags->isTeqnActive)
+         {
+             temp[k][j][i] = (1.0 - (sb/sc)) * ibmPtTemp + (sb/sc) * bPtTemp;
+         }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(fda, ueqn->lUcat, &lucat);
+    DMDAVecRestoreArray(fda, ueqn->Ucat, &ucat);
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+        DMDAVecRestoreArray(da, teqn->Tmprt, &temp);
+        DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+        DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    }
+
+    DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+    DMGlobalToLocalEnd(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode ibmSearch(ibm_ *ibm)
+{
+  mesh_         *mesh = ibm->access->mesh;
+  clock_        *clock = ibm->access->clock;
+  DM            da    = mesh->da, fda = mesh->fda;
+  DMDALocalInfo info  = mesh->info;
+  PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+  PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+  PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+  PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+  PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+  PetscInt      i, j, k, b;
+  PetscInt      ip, im, jp, jm, kp, km;
+  PetscInt      ii, jj, kk;
+
+  cellIds       sCell;
+
+  PetscReal     ***nvert, ***nvert_o, ***gnvert;
+  Cmpnts        ***cent;
+
+  lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+  lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+  lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+  // loop through the ibm bodies
+  for(b = 0; b < ibm->numBodies; b++)
+  {
+    //check if this user has the ibm body b attached to it
+    if(ibm->ibmDomain[b] != -1)
+    {
+      boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
+      ibmMesh       *ibMsh = ibm->ibmBody[b]->ibMsh;                         // pointer to the ibm body mesh
+
+      searchBox *sBox           = &(ibm->sBox[b]);
+      list      *searchCellList = ibm->ibmBody[b]->searchCellList;
+
+      DMDAVecGetArray(fda, mesh->lCent, &cent);
+      DMDAVecGetArray(da, mesh->Nvert, &nvert);
+      DMDAVecGetArray(da, mesh->lNvert_o, &nvert_o);
+
+      for (k = lzs; k < lze; k++)
+      for (j = lys; j < lye; j++)
+      for (i = lxs; i < lxe; i++)
+      {
+
+        // Only if the fluid mesh cell center coordinates are in the IBM bounding box
+        // a fluid mesh cell can be inside the bounding box and still not be inside the IBM body due to its shape
+         if(cent[k][j][i].x > ibBox->xmin
+            && cent[k][j][i].x < ibBox->xmax
+            && cent[k][j][i].y > ibBox->ymin
+            && cent[k][j][i].y < ibBox->ymax
+            && cent[k][j][i].z > ibBox->zmin
+            && cent[k][j][i].z < ibBox->zmax )
+            {
+
+                // index of the cells neighbouring the cell i,j,k
+                ip = (i < mx - 2 ? (i + 1) : (i));
+                im = (i > 1 ? (i - 1) : (i));
+
+                jp = (j < my - 2 ? (j + 1) : (j));
+                jm = (j > 1 ? (j - 1) : (j));
+
+                kp = (k < mz - 2 ? (k + 1) : (k));
+                km = (k > 1 ? (k - 1) : (k));
+
+                PetscInt dosearch = 0, sign = 0;
+
+                //do a search if there is a change in the nvert value between the i,j,k cell and its neighbours due to IBM movement
+                for (kk = km; kk <= kp; kk++)
+                for (jj = jm; jj <= jp; jj++)
+                for (ii = im; ii <= ip; ii++)
+                {
+                    PetscReal sign = nvert_o[k][j][i] - nvert_o[kk][jj][ii];
+                    if (fabs(sign) > 1.e-6)
+                    {
+                      dosearch += 1;
+                    }
+                }
+
+               if ( (dosearch && ibm->ibmBody[b]->bodyMotion != "static") || clock->it == clock->itStart)
+               {
+                    // find the search cell were the fluid node is located
+                    sCell.i = floor((cent[k][j][i].x - ibBox->xmin) / sBox->dcx);
+                    sCell.j = floor((cent[k][j][i].y - ibBox->ymin) / sBox->dcy);
+                    sCell.k = floor((cent[k][j][i].z - ibBox->zmin) / sBox->dcz);
+
+                    // do the ray casting test to check if a cell is inside or outside an IBM body
+                    PetscReal val;
+                    val = rayCastingTest(cent[k][j][i], ibMsh, sCell, sBox, ibBox, searchCellList);
+                    nvert[k][j][i] = PetscMax(nvert[k][j][i], val);
+
+               }
+               else
+                {   // set nvert to old value
+                    nvert[k][j][i] = nvert_o[k][j][i];
+
+                    if (PetscInt (nvert[k][j][i]+0.5) ==3)
+                        nvert[k][j][i] = 4;             // only inside solid is set, here = 4
+                    if (PetscInt (nvert[k][j][i]+0.5) ==1)
+                        nvert[k][j][i] = 0;             // near boundary values are set to 0 and need to be recalculated
+
+               }
+            }
+      }
+
+      DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+      DMDAVecRestoreArray(da, mesh->Nvert, &nvert);
+      DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
+
+      MPI_Barrier(mesh->MESH_COMM);
+
+      DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+      DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+
+      // set nvert at solid fluid intersection IB Nodes
+      DMDAVecGetArray(da, mesh->lNvert, &nvert);
+      DMDAVecGetArray(da, mesh->Nvert, &gnvert);
+
+      for (k = zs; k < ze; k++)
+      for (j = ys; j < ye; j++)
+      for (i = xs; i < xe; i++)
+      {
+        if (nvert[k][j][i] < 0)
+        {
+          gnvert[k][j][i] = 0;
+        }
+
+        ip = (i < mx - 1 ? (i + 1) : (i));
+        im = (i > 0 ? (i - 1) : (i));
+
+        jp = (j < my - 1 ? (j + 1) : (j));
+        jm = (j > 0 ? (j - 1) : (j));
+
+        kp = (k < mz - 1 ? (k + 1) : (k));
+        km = (k > 0 ? (k - 1) : (k));
+
+        //if not a solid node
+        if ((PetscInt) (nvert[k][j][i] + 0.5) != 4)
+        {
+          for (kk = km; kk < kp + 1; kk++)
+          for (jj = jm; jj < jp + 1; jj++)
+          for (ii = im; ii < ip + 1; ii++)
+          {
+              if ((PetscInt) (nvert[kk][jj][ii] + 0.5) == 4)
+              { //if next to a solid node
+                gnvert[k][j][i] = PetscMax(2, nvert[k][j][i]);
+              }
+          }
+        }
+      }
+
+      DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+      DMDAVecRestoreArray(da, mesh->Nvert, &gnvert);
+
+      DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+      DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+
+      // nvert values of 4 for solid and 2 for IB fluid nodes where used for the current body
+      // to differentiate it from other bodies.
+      // reset back to nvert values of 3 for solid and 1 for IB fluid
+      DMDAVecGetArray(da, mesh->lNvert, &nvert);
+      DMDAVecGetArray(da, mesh->Nvert, &gnvert);
+      // Back to the old nvert 3 and 1
+      for (k = lzs; k < lze; k++) {
+          for (j = lys; j < lye; j++) {
+              for (i = lxs; i < lxe; i++) {
+                  if ((PetscInt) (nvert[k][j][i] + 0.5) == 2)
+                      gnvert[k][j][i] = 1;
+                  if ((PetscInt) (nvert[k][j][i] + 0.5) == 4)
+                      gnvert[k][j][i] = 3;
+              }
+          }
+      }
+
+      DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+      DMDAVecRestoreArray(da, mesh->Nvert, &gnvert);
+
+      DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+      DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+
+      MPI_Barrier(mesh->MESH_COMM);
+
+    }
+
+  }
+
+  return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode MLSInterpolation(ibm_ *ibm)
+{
+  mesh_         *mesh  = ibm->access->mesh;
+  ueqn_         *ueqn  = ibm->access->ueqn;
+  teqn_         *teqn  = ibm->access->teqn;
+  flags_        *flags = ibm->access->flags;
+  DM            da = mesh->da, fda = mesh->fda;
+  DMDALocalInfo info = mesh->info;
+  PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+  PetscInt      i, j, k, ii, kk, jj;
+  PetscInt      b, c, s;
+  PetscReal     normDist, ***nvert;
+
+  Cmpnts        ***ucat, ***lucat, ***cent, dist;
+  PetscReal     ***lt, ***temp;
+  PetscReal     A[4][4]={0.}, inv_A[4][4]={0.};
+  PetscInt      n = 0, nsupport=0;
+
+  PetscReal     dis;
+  PetscReal     *W, *PHI, **P, **B, *Ux, *Uy, *Uz, *tmp;
+
+  DMDAVecGetArray(fda, mesh->lCent, &cent);
+  DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
+  DMDAVecGetArray(fda, ueqn->Ucat, &ucat);
+
+  if (flags->isTeqnActive)
+  {
+      DMDAVecGetArray(da, teqn->lTmprt, &lt);
+      DMDAVecGetArray(da, teqn->Tmprt, &temp);
+  }
+
+  //local pointer for ibmFluidCells
+  ibmFluidCell *ibF = ibm->ibmFCells;
+
+  for(c = 0; c < ibm->numIBMFluid; c++)
+  {
+    //cell indices
+    i = ibF[c].cellId.i;
+    j = ibF[c].cellId.j;
+    k = ibF[c].cellId.k;
+
+    //total number of support cells - fluid and ibm mesh
+    nsupport = ibF[c].numFl + ibF[c].numSl;
+
+    // allocate local variables for MLS interpolation
+    B = (PetscReal**) malloc(4*sizeof(PetscReal*));
+
+    for (n=0;n<4;n++)
+    {
+        B[n] = (PetscReal*) malloc(nsupport*sizeof(PetscReal));
+    }
+
+    P = (PetscReal**) malloc(nsupport*sizeof(PetscReal*));
+
+    for (n=0;n<nsupport;n++)
+    {
+        P[n] = (PetscReal*) malloc(4*sizeof(PetscReal));
+    }
+
+    W =  (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
+
+    PHI =(PetscReal* ) malloc(nsupport*sizeof(PetscReal));
+
+    Ux = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
+    Uy = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
+    Uz = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
+
+    if (flags->isTeqnActive)
+    {
+        tmp = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
+    }
+
+    n = -1;
+
+    //build the fluid support polynomial basis
+    //get access to the first fluid cell in the list
+    cellNode *flList = ibF[c].flNodes.head;
+
+    while(flList)
+    {
+      n++;
+
+      ii = flList->Node.i;
+      jj = flList->Node.j;
+      kk = flList->Node.k;
+
+      P[n][0] = 1.0;
+      P[n][1] = (cent[kk][jj][ii].x - cent[k][j][i].x) / ibF[c].rad;
+      P[n][2] = (cent[kk][jj][ii].y - cent[k][j][i].y) / ibF[c].rad;
+      P[n][3] = (cent[kk][jj][ii].z - cent[k][j][i].z) / ibF[c].rad;
+
+      Ux[n] = lucat[kk][jj][ii].x;
+      Uy[n] = lucat[kk][jj][ii].y;
+      Uz[n] = lucat[kk][jj][ii].z;
+
+      if(flags->isTeqnActive)
+      {
+          tmp[n] = lt[kk][jj][ii];
+      }
+
+      // get normalized distance
+      dist = nSub(cent[k][j][i], cent[kk][jj][ii]);
+      normDist = nMag(dist)/ibF[c].rad;
+
+      // get interpolation weights
+      W[n]
+      =
+      (normDist < 0.5)
+      ?
+      2.0 / 3.0 - 4.0 * normDist * normDist + 4.0 * pow(normDist, 3.0)
+      :
+      4.0 / 3.0 - 4.0 * normDist + 4.0 * pow(normDist, 2.0) - 4.0 / 3.0 * pow(normDist, 3.0);
+
+      flList = flList->next;
+    }
+
+    //build the ibm mesh node support polynomial basis
+    //get access to the first ibm mesh node in the list
+    node *slList = ibF[c].slNodes.head;
+
+    // get access to the first ibm mesh body in the list
+    node *bID = ibF[c].bID.head;
+
+    while(slList)
+    {
+      n++;
+
+      Cmpnts nCoor = ibm->ibmBody[bID->Node]->ibMsh->nCoor[slList->Node];
+      Cmpnts uIBM = ibm->ibmBody[bID->Node]->ibMsh->nU[slList->Node];
+
+      P[n][0]=1.0;
+
+      P[n][1]=(nCoor.x-cent[k][j][i].x)/ibF[c].rad;
+      P[n][2]=(nCoor.y-cent[k][j][i].y)/ibF[c].rad;
+      P[n][3]=(nCoor.z-cent[k][j][i].z)/ibF[c].rad;
+
+      Ux[n]=uIBM.x;
+      Uy[n]=uIBM.y;
+      Uz[n]=uIBM.z;
+
+      if(flags->isTeqnActive)
+      {
+          tmp[n] = ibm->access->abl->tRef;
+      }
+
+      // get normalized distance
+      dist = nSub(nCoor, cent[k][j][i]);
+      normDist = nMag(dist)/ibF[c].rad;
+
+      // get interpolation weights
+      W[n]
+      =
+      (normDist < 0.5)
+      ?
+      2.0 / 3.0 - 4.0 * normDist * normDist + 4.0 * pow(normDist, 3.0)
+      :
+      4.0 / 3.0 - 4.0 * normDist + 4.0 * pow(normDist, 2.0) - 4.0 / 3.0 * pow(normDist, 3.0);
+
+      slList = slList->next;
+      bID = bID->next;
+    }
+
+    for (ii=0; ii<4; ii++)
+    {
+        for (jj=0; jj<nsupport; jj++)
+        {
+            B[ii][jj] = W[jj] * P[jj][ii];
+        }
+    }
+
+    for (ii=0; ii<4; ii++)
+    {
+        for (jj=0; jj<4; jj++)
+        {
+            A[ii][jj] = 0.;
+
+            for (kk=0; kk<nsupport; kk++)
+            {
+                A[ii][jj] += B[ii][kk] * P[kk][jj];
+            }
+        }
+    }
+
+    inv_4by4(A, inv_A);
+
+    // get the values of the shape function PHI on the support points
+    mult_mats3_lin(inv_A, B, nsupport, PHI);
+
+    ucat[k][j][i].x = ucat[k][j][i].y = ucat[k][j][i].z = 0.0;
+
+    if(flags->isTeqnActive)
+    {
+        temp[k][j][i] = 0.0;
+    }
+
+    // interpolate with linear least squares
+    for ( n = 0; n < nsupport; n++)
+    {
+        // velocity
+        ucat[k][j][i].x += PHI[n]*Ux[n];
+        ucat[k][j][i].y += PHI[n]*Uy[n];
+        ucat[k][j][i].z += PHI[n]*Uz[n];
+
+        // temperature
+        if(flags->isTeqnActive)
+        {
+            temp[k][j][i] += PHI[n] * tmp[n];
+        }
+    }
+
+    // PetscPrintf(PETSC_COMM_SELF, " vel at node %d %d %d = %f %f %f\n", k, j, i, ucat[k][j][i].x, ucat[k][j][i].y, ucat[k][j][i].z);
+    for( n = 0; n < 4; n++)
+    {
+        free(B[n]);
+    }
+
+    for(n = 0; n < 4; n++)
+    {
+        free(P[n]);
+    }
+
+    free(B);
+    free(P);
+    free(W);
+    free(PHI);
+    free(Ux);
+    free(Uy);
+    free(Uz);
+
+    if(flags->isTeqnActive)
+    {
+        free(tmp);
+    }
+
+
+  }
+
+  DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+  DMDAVecRestoreArray(fda, ueqn->lUcat, &lucat);
+  DMDAVecRestoreArray(fda, ueqn->Ucat, &ucat);
+
+  if (flags->isTeqnActive)
+  {
+      DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+      DMDAVecRestoreArray(da, teqn->Tmprt, &temp);
+      DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+      DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+  }
+
+  DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+  DMGlobalToLocalEnd(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+
+  return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readIBMProperties(ibm_ *ibm)
+{
+  PetscMPIInt rank;
+
+  mesh_ *mesh = ibm->access->mesh;
+
+  MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+  PetscPrintf(PETSC_COMM_WORLD, "\nIBM initialization...\n");
+
+  // read debug switch
+  readDictInt("./IBM/IBMProperties.dat", "debug", &(ibm->dbg));
+
+  // read dynamic IBM switch
+  readDictInt("./IBM/IBMProperties.dat", "dynamic", &(ibm->dynamic));
+
+  // read the number of ibm bodies
+  readDictInt("./IBM/IBMProperties.dat", "NumberofBodies", &(ibm->numBodies));
+
+  // read the interpolation method - MLS or CURVIB
+  readDictWord("./IBM/IBMProperties.dat", "InterpolationMethod", &(ibm->IBInterpolationModel));
+
+  //counter for number of moving objects
+  int movingObject = 0;
+
+  // initialize pointers to NULL
+  ibm->ibmFCells = NULL;
+  ibm->sBox      = NULL;
+  ibm->ibmDomain = NULL;
+
+  // allocate memory for each ibm object
+  PetscMalloc(ibm->numBodies * sizeof(ibmObject*), &(ibm->ibmBody));
+
+  // allocate memory for the search box Parameters
+  PetscMalloc(ibm->numBodies * sizeof(searchBox), &(ibm->sBox));
+
+  for (PetscInt i=0; i < ibm->numBodies; i++)
+  {
+    PetscMalloc(sizeof(ibmObject), &(ibm->ibmBody[i]));
+
+    // set pointers to null
+    ibm->ibmBody[i]->bound          = NULL;
+    ibm->ibmBody[i]->searchCellList = NULL;
+    ibm->ibmBody[i]->ibMsh          = NULL;
+    ibm->ibmBody[i]->ibmRot         = NULL;
+
+    // allocate memory for the IBM mesh of the object
+    PetscMalloc(sizeof(ibmMesh), &(ibm->ibmBody[i]->ibMsh));
+
+    // allocate memory for the bounding box  of the object
+    PetscMalloc(sizeof(boundingBox), &(ibm->ibmBody[i]->bound));
+
+    char objectName[256];
+    sprintf(objectName, "object%ld", i);
+
+    // read object name
+    readSubDictWord("./IBM/IBMProperties.dat", objectName, "bodyName", &(ibm->ibmBody[i]->bodyName));
+
+    // read userMesh attached to ibm body.
+    readSubDictInt("./IBM/IBMProperties.dat", objectName, "attachedMeshID", &(ibm->ibmBody[i]->attachedDomain));
+
+    // read the ibm motion
+    readSubDictWord("./IBM/IBMProperties.dat", objectName, "bodyMotion", &(ibm->ibmBody[i]->bodyMotion));
+
+    if(ibm->ibmBody[i]->bodyMotion != "static")
+    {
+        movingObject ++;
+    }
+
+    // read the body base location
+    readSubDictVector("./IBM/IBMProperties.dat", objectName, "baseLocation", &(ibm->ibmBody[i]->baseLocation));
+
+    if(ibm->dynamic)
+    {
+        if(ibm->ibmBody[i]->bodyMotion == "rotation")
+        {
+            // allocate ememory for ibm rotation
+            PetscMalloc( sizeof(ibmRotation), &(ibm->ibmBody[i]->ibmRot));
+
+            ibmRotation *ibmRot = ibm->ibmBody[i]->ibmRot;
+
+            // set the initial rotation angle
+            ibmRot->rotAngle = 0;
+
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "angularSpeed", &(ibmRot->angSpeed));
+            readSubDictVector("./IBM/IBMProperties.dat", objectName, "rotationAxis", &(ibmRot->rotAxis));
+            readSubDictVector("./IBM/IBMProperties.dat", objectName, "rotationCenter", &(ibmRot->rotCenter));
+
+        }
+    }
+
+    // read the search cell ratio wrt to the average cell size of the domain mesh
+    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "searchCellRatio", &(ibm->ibmBody[i]->searchCellRatio));
+
+    //set the body index as the index of the loop
+    ibm->ibmBody[i]->bodyID = i;
+
+  }
+
+  if(movingObject == 0 && ibm->dynamic == 1)
+  {
+      char error[256];
+      sprintf(error, "ibm dynamic motion set to true but there are no moving objects. Set dynamic to 0 in IBMProperties\n");
+      fatalErrorInFunction("readIBMProperties",  error);
+  }
+
+  if(movingObject > 0 && ibm->dynamic == 0)
+  {
+      char error[256];
+      sprintf(error, "ibm dynamic motion set to false but there are moving objects. Set dynamic to 1 in IBMProperties\n");
+      fatalErrorInFunction("readIBMProperties",  error);
+  }
+
+  for (PetscInt i=0; i < ibm->numBodies; i++)
+  {
+      // read the mesh file for the ibm object
+      readIBMObjectMesh(ibm, i);
+  }
+
+  return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
+{
+  ibmObject     *ibmBody = ibm->ibmBody[b];
+  clock_        *clock   = ibm->access->clock;
+
+  PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s", ibmBody->bodyName.c_str());
+
+  char ibmFile[256];
+  sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
+
+  FILE *fd;
+  PetscInt  readError; char* charError;
+
+  // pointer to the mesh object of the current body
+  ibmMesh *ibMesh = ibmBody->ibMsh;
+
+  // open the ibm object file in read mode
+  fd = fopen(ibmFile, "r");
+
+  if(fd == NULL)
+  {
+    char error[256];
+    sprintf(error, "cannot open file %s\n", ibmFile);
+    fatalErrorInFunction("readIBMObjectMesh",  error);
+  }
+
+  // local variables to read file variables
+  PetscInt         nodes = 0;                          // number of ib nodes
+  PetscInt         elem = 0;                           // numbe of elements
+  PetscInt              tmp;                            // temporary access variables
+  char             string[128], tmpS[128];                    // temporary string variable
+
+  // skip the first 3 header lines of the file created by pointwise.
+  charError = fgets(string, 128, fd);
+  charError = fgets(string, 128, fd);
+  charError = fgets(string, 128, fd);
+
+  // scan the number of nodes and elements
+  readError = fscanf(fd, "%ld %ld %ld %ld %ld",  &nodes, &elem, &tmp, &tmp, &tmp);
+
+  ibMesh->nodes = nodes;
+  ibMesh->elems = elem;
+
+  if(nodes == 0)
+  {
+    char error[256];
+    sprintf(error, "nodes read = 0. check the IBM file and make sure there are no header comments %s\n", ibmFile);
+    fatalErrorInFunction("readIBMObjectMesh",  error);
+  }
+
+  // allocate memory for the x, y and z co-ordinates of the nodes
+  PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nCoor));
+
+  // allocate memory for the node velocity
+  PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nU));
+
+  // read the node co-rdinates from the file and initialize the node velocity to 0
+  for(PetscInt i = 0; i < nodes; i++)
+  {
+    readError = fscanf(fd, "%ld %le %le %le", &tmp, &ibMesh->nCoor[i].x, &ibMesh->nCoor[i].y, &ibMesh->nCoor[i].z);
+
+    // translate the body based on the based location
+    mSum(ibMesh->nCoor[i], ibmBody->baseLocation);
+
+    // initialize node velocity to 0
+    mSetValue(ibMesh->nU[i], 0.0);
+  }
+
+  // allocate memory for the pointer to nodes (n1, n2 and n3) of an element
+  PetscMalloc(elem * sizeof(PetscInt), &(ibMesh->nID1));
+  PetscMalloc(elem * sizeof(PetscInt), &(ibMesh->nID2));
+  PetscMalloc(elem * sizeof(PetscInt), &(ibMesh->nID3));
+
+  // read the nodes that form the 3 vertices of an element
+  for(PetscInt i = 0; i < elem; i++)
+  {
+    readError = fscanf(fd, "%ld %ld %s %ld %ld %ld", &tmp, &tmp, tmpS, &ibMesh->nID1[i], &ibMesh->nID2[i], &ibMesh->nID3[i]);
+
+    // node numbers start from 0
+    ibMesh->nID1[i] = ibMesh->nID1[i] - 1;
+    ibMesh->nID2[i] = ibMesh->nID2[i] - 1;
+    ibMesh->nID3[i] = ibMesh->nID3[i] - 1;
+
+  }
+
+  if ( fd != NULL ) fclose(fd);
+
+  // reset the co-ordinates if the angular position is read
+  if(ibmBody->bodyMotion == "rotation")
+  {
+      word        timeName, dictName;
+      ibmRotation   *ibmRot  = ibmBody->ibmRot;
+
+      //read the angular position from file
+      timeName = "./fields/" + ibm->access->mesh->meshName + "/ibm/" + getTimeName(clock);
+
+      // check if this folder exists, if yes angular position is set, if no, angular position is 0
+      if(dir_exist(timeName.c_str()))
+      {
+          PetscPrintf(ibm->access->mesh->MESH_COMM, "reading angular position for time: %s \n",timeName.c_str());
+
+          dictName = timeName + "/" + ibmBody->bodyName;
+
+          readDictDouble(dictName.c_str(), "AngularPosition", &(ibmRot->rotAngle));
+      }
+      else
+      {
+          if(clock->time != 0.)
+          {
+              char error[256];
+              sprintf(error, "could not find folder %s", timeName.c_str());
+              fatalErrorInFunction("readIBMObjectMesh",  error);
+          }
+      }
+
+      for(PetscInt i = 0; i < ibMesh->nodes; i++)
+      {
+          Cmpnts rvec   = nSub(ibMesh->nCoor[i], ibmRot->rotCenter);
+          Cmpnts angVel = nScale(ibmRot->angSpeed, ibmRot->rotAxis);
+
+          // rotate the vector to the required angular position
+          mRot(ibmRot->rotAxis, rvec, ibmRot->rotAngle);
+
+          // find the new co-ordinate
+          ibMesh->nCoor[i] = nSum(rvec, ibmRot->rotCenter);
+
+          ibMesh->nU[i]  = nCross(rvec, angVel);
+      }
+  }
+
+  // compute the element normal
+  PetscInt    n1, n2, n3;
+  Cmpnts vec1, vec2, temp;
+  PetscReal normMag;
+
+  // allocate memory for the element normal, area and center coordinate
+  PetscMalloc(elem * sizeof(Cmpnts), &(ibMesh->eN));
+  PetscMalloc(elem * sizeof(PetscReal), &(ibMesh->eA));
+  PetscMalloc(elem * sizeof(Cmpnts), &(ibMesh->eCent));
+
+  for (PetscInt i=0; i<elem; i++)
+  {
+    // get the element nodes
+    n1 = ibMesh->nID1[i]; n2 = ibMesh->nID2[i]; n3 = ibMesh->nID3[i];
+
+    vec1 = nSub(ibMesh->nCoor[n2], ibMesh->nCoor[n1]);
+
+    vec2 = nSub(ibMesh->nCoor[n3], ibMesh->nCoor[n1]);
+
+    // normal to the face is found as cross product of the edges vec1 and vec2
+    ibMesh->eN[i] = nCross(vec1, vec2);
+    normMag = nMag(ibMesh->eN[i]);
+    mScale(1.0/normMag, ibMesh->eN[i]);
+
+    //element area
+    ibMesh->eA[i] = normMag/2.0;
+
+    //element center
+    temp = nSum(ibMesh->nCoor[n1], ibMesh->nCoor[n2]);
+    ibMesh->eCent[i] = nSum( temp, ibMesh->nCoor[n3]);
+    mScale(1/3.0, ibMesh->eCent[i]);
+  }
+
+  //allocate memory for the smallest bounding sphere for each element - used for finding the nearest IBM Mesh element to IBM fluid cell
+  PetscMalloc(elem * sizeof(PetscReal), &(ibMesh->eRVec));
+  PetscMalloc(elem * sizeof(Cmpnts), &(ibMesh->eQVec));
+
+  PetscPrintf(PETSC_COMM_WORLD, "...  done.\n\n");
+  return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode elementBoundingSphere(ibmMesh *ibMesh)
+{
+    PetscInt    n1, n2, n3;
+    Cmpnts      p1, p2, p3, tmp1, tmp2, tmp3;
+    Cmpnts      pa, pb, pc, pf, pu, pv, pd, pt;
+    PetscReal   l12, l23, l31, lu, lv;
+    PetscReal   gama, lamda;
+
+    Cmpnts      *qvec = ibMesh->eQVec;
+    PetscReal   *rvec = ibMesh->eRVec;
+
+    for (PetscInt i=0; i<ibMesh->elems; i++)
+    {
+        // get the element nodes
+        n1 = ibMesh->nID1[i]; n2 = ibMesh->nID2[i]; n3 = ibMesh->nID3[i];
+
+        p1 = ibMesh->nCoor[n1]; p2 = ibMesh->nCoor[n2]; p3 = ibMesh->nCoor[n3];
+
+        tmp1 = nSum(p1, p2);
+        tmp2 = nSum(p2, p3);
+        tmp3 = nSum(p3, p1);
+
+        l12 = nMag(tmp1);
+        l23 = nMag(tmp2);
+        l31 = nMag(tmp3);
+
+        //Find the longest edge and assign the corresponding two vertices to pa and pb
+        if (l12 > l23)
+        {
+            if (l12 > l31)
+            {
+                pa = p1;
+                pb = p2;
+                pc = p3;
+            }
+            else
+            {
+                pa = p3;
+                pb = p1;
+                pc = p2;
+            }
+        }
+        else
+        {
+            if (l31 < l23)
+            {
+                pa = p2;
+                pb = p3;
+                pc = p1;
+            }
+            else
+            {
+                pa = p3;
+                pb = p1;
+                pc = p2;
+            }
+        }
+
+        pf = nSum(pa, pb);
+        mScale(0.5, pf);
+
+        // u = a - f; v = c - f;
+        pu = nSub(pa, pf);
+        pv = nSub(pc, pf);
+
+        // d = (u X v) X u;
+        pt = nCross(pu, pv);
+        pd = nCross(pt, pu);
+
+        // gama = (v^2 - u^2) / (2 d \dot (v - u));
+        lu   = nMag(pu);
+        lv   = nMag(pv);
+
+        gama = lv * lv - lu * lu ;
+
+        pt    = nSub(pv, pu);
+        lamda = 2.0 * nDot(pd, pt);
+
+        gama  /= lamda;
+
+        if (gama < 0)
+        {
+            lamda = 0;
+        }
+        else
+        {
+            lamda = gama;
+        }
+
+
+        qvec[i] = nSet(pd);
+        mScale(lamda, qvec[i]);
+        mSum(qvec[i], pf);
+
+        tmp1 = nSub(qvec[i], pa);
+        rvec[i] = nMag(tmp1);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+PetscErrorCode findBodyBoundingBox(ibm_ *ibm)
+{
+
+  boundingBox    ibBox;
+
+  //loop through the IBM bodies
+  for (PetscInt i = 0; i < ibm->numBodies; i++)
+  {
+
+    //initialize the bounding box
+    ibBox.xmin =  1.e23;
+    ibBox.xmax = -1.e23;
+    ibBox.ymin =  1.e23;
+    ibBox.ymax = -1.e23;
+    ibBox.zmin =  1.e23;
+    ibBox.zmax = -1.e23;
+
+    ibBox.Lx   =  0.;
+    ibBox.Ly   =  0.;
+    ibBox.Lz   =  0.;
+
+    // get pointer to the current body mesh
+    ibmMesh *ibMsh = ibm->ibmBody[i]->ibMsh;
+
+    // loop through the nodes of the IBM Mesh
+    for (PetscInt n=0; n < ibMsh->nodes; n++)
+    {
+      ibBox.xmin = PetscMin(ibBox.xmin, ibMsh->nCoor[n].x);
+      ibBox.xmax = PetscMax(ibBox.xmax, ibMsh->nCoor[n].x);
+
+      ibBox.ymin = PetscMin(ibBox.ymin, ibMsh->nCoor[n].y);
+      ibBox.ymax = PetscMax(ibBox.ymax, ibMsh->nCoor[n].y);
+
+      ibBox.zmin = PetscMin(ibBox.zmin, ibMsh->nCoor[n].z);
+      ibBox.zmax = PetscMax(ibBox.zmax, ibMsh->nCoor[n].z);
+    }
+
+    // set a buffer for the bounding box
+    ibBox.xmin -= 0.05;
+    ibBox.xmax += 0.05;
+    ibBox.ymin -= 0.05;
+    ibBox.ymax += 0.05;
+    ibBox.zmin -= 0.05;
+    ibBox.zmax += 0.05;
+
+    ibBox.Lx = ibBox.xmax - ibBox.xmin;
+    ibBox.Ly = ibBox.ymax - ibBox.ymin;
+    ibBox.Lz = ibBox.zmax - ibBox.zmin;
+
+    //save the bounding box for this body
+    ibm->ibmBody[i]->bound->xmin = ibBox.xmin;
+    ibm->ibmBody[i]->bound->xmax = ibBox.xmax;
+    ibm->ibmBody[i]->bound->ymin = ibBox.ymin;
+    ibm->ibmBody[i]->bound->ymax = ibBox.ymax;
+    ibm->ibmBody[i]->bound->zmin = ibBox.zmin;
+    ibm->ibmBody[i]->bound->zmax = ibBox.zmax;
+
+    ibm->ibmBody[i]->bound->Lx = ibBox.Lx;
+    ibm->ibmBody[i]->bound->Ly = ibBox.Ly;
+    ibm->ibmBody[i]->bound->Lz = ibBox.Lz;
+
+    if(ibm->dbg)
+    {
+      PetscPrintf(PETSC_COMM_WORLD, "Bounding box for ibm object: %s\n\n", ibm->ibmBody[i]->bodyName.c_str());
+      PetscPrintf(PETSC_COMM_WORLD, "xmin = %lf\n", ibBox.xmin);
+      PetscPrintf(PETSC_COMM_WORLD, "xmax = %lf\n", ibBox.xmax);
+      PetscPrintf(PETSC_COMM_WORLD, "ymin = %lf\n", ibBox.ymin);
+      PetscPrintf(PETSC_COMM_WORLD, "ymax = %lf\n", ibBox.ymax);
+      PetscPrintf(PETSC_COMM_WORLD, "zmin = %lf\n", ibBox.zmin);
+      PetscPrintf(PETSC_COMM_WORLD, "zmax = %lf\n", ibBox.zmax);
+
+      PetscPrintf(PETSC_COMM_WORLD, "Lx = %lf\n", ibBox.Lx);
+      PetscPrintf(PETSC_COMM_WORLD, "Ly = %lf\n", ibBox.Ly);
+      PetscPrintf(PETSC_COMM_WORLD, "Lz = %lf\n", ibBox.Lz);
+    }
+  }
+  return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode setDomainIBMObjectInteraction(ibm_ *ibm, PetscInt domainId)
+{
+
+  // allocate memory for the ibmDomain array
+  PetscMalloc(ibm->numBodies * sizeof(PetscInt), &(ibm->ibmDomain));
+
+  // initialize all elements of the array to -1
+  for(PetscInt i = 0; i < ibm->numBodies; i++)
+  {
+    ibm->ibmDomain[i] = -1;
+  }
+
+  // domain 0 (base domain) has access to all IBM bodies
+  if(domainId == 0)
+  {
+    for(PetscInt i = 0; i < ibm->numBodies; i++)
+    {
+      ibm->ibmDomain[i] = ibm->ibmBody[i]->bodyID;
+    }
+  }
+  else
+  {
+    if(ibm->access->flags->isOversetActive)
+    {
+      overset_ *os = ibm->access->os;
+
+      // loop through the ibm bodies
+      for(PetscInt i = 0; i < ibm->numBodies; i++)
+      {
+        // if the current domain mesh is attached to this ibm
+        if(domainId == ibm->ibmBody[i]->attachedDomain)
+        {
+          ibm->ibmDomain[i] = ibm->ibmBody[i]->bodyID;
+        }
+        else
+        {
+          // if any child of the current mesh is attached to this ibm
+          for(PetscInt ci = 0; ci < os->childMeshId.size(); ci++)
+          {
+            if(os->childMeshId[ci] == ibm->ibmBody[i]->attachedDomain)
+            {
+              ibm->ibmDomain[i] = ibm->ibmBody[i]->bodyID;
+            }
+          }
+        }
+
+      }
+    }
+  }
+
+  // set if atleast one IBM body controlled by the user
+  for(PetscInt i = 0; i < ibm->numBodies; i++)
+  {
+    if(ibm->ibmDomain[i] >= 0)
+    {
+      ibm->ibmControlled = 1;
+      break;
+    }
+  }
+
+  return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode findFluidSupportNodes(ibm_ *ibm)
+{
+  mesh_         *mesh = ibm->access->mesh;
+  DM            da = mesh->da, fda = mesh->fda;
+  DMDALocalInfo info = mesh->info;
+  PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+  PetscInt      gxs = info.gxs, gxe = info.gxs + info.gxm;
+  PetscInt      gys = info.gys, gye = info.gys + info.gym;
+  PetscInt      gzs = info.gzs, gze = info.gzs + info.gzm;
+
+  PetscInt      i, j, k, ii, kk, jj, c;
+  PetscReal     beta = 1.0, normDist, ***nvert;
+  Cmpnts        ***cent, dist;
+
+  DMDAVecGetArray(fda, mesh->lCent, &cent);
+  DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+  //local pointer for ibmFluidCells
+  ibmFluidCell *ibF = ibm->ibmFCells;
+
+  for(c = 0; c < ibm->numIBMFluid; c++)
+  {
+    //cell indices
+    i = ibF[c].cellId.i;
+    j = ibF[c].cellId.j;
+    k = ibF[c].cellId.k;
+
+    //initialize the fluid support List of the ibm fluid cell i, j, k
+    initCellList(&(ibF[c].flNodes));
+
+    // set the support radius for the least square method
+    if (k==mz-2 || j==my-2 || i==mx-2)
+    {
+      dist = nSub(cent[k][j][i], cent[k-1][j-1][i-1]);
+      ibF[c].rad = nMag(dist);
+    }
+    else if (k==1 || j==1 || i==1)
+    {
+      dist = nSub(cent[k+1][j+1][i+1], cent[k][j][i]);
+      ibF[c].rad = nMag(dist);
+    }
+    else
+    {
+      dist = nSub(cent[k+1][j+1][i+1], cent[k-1][j-1][i-1]);
+      ibF[c].rad = 0.5 * nMag(dist);
+    }
+
+    //scaled support radius
+    ibF[c].rad = beta * ibF[c].rad;
+
+    //initialize the number of fluid support cells around ibm fluid cell i,j,k
+    ibF[c].numFl = 0;
+
+    for (kk = k-floor(beta); kk <= k+floor(beta); kk++)
+    {
+      //do not include cells outside the ghost cells of the processor - will cause segmentation fault
+      if (kk < gzs || kk >= gze || kk >= mz-2 || kk <= 1 ) continue;
+
+      for (jj = j-floor(beta); jj <= j+floor(beta); jj++)
+      {
+        if (jj < gys || jj >= gye || jj >= my-2 || jj <= 1) continue;
+
+        for (ii = i-floor(beta); ii <= i+floor(beta); ii++)
+        {
+          if (ii < gxs || ii >= gxe || ii >= mx-2 || ii <= 1) continue;
+
+          if(isFluidCell(kk, jj, ii, nvert))
+          {
+            //normalized distance from the ibm fluid node
+            dist = nSub(cent[k][j][i],cent[kk][jj][ii]);
+            normDist = nMag(dist);
+            normDist = normDist / ibF[c].rad;
+
+            //check that cell is within the support and not the ibm fluid cell
+            if (normDist <= 1 && !(ii==i && jj==j && kk==k))
+            {
+              cellIds tmp;
+              tmp.i = ii; tmp.j = jj; tmp.k = kk;
+
+              //insert into the fluid support list
+              insertCellNode1(&(ibF[c].flNodes), tmp);
+              ibF[c].numFl++;
+            }
+
+          }
+
+        }
+      }
+    }
+
+  }
+
+  DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+  DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+  return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode findIBMFluidCells(ibm_ *ibm)
+{
+  mesh_         *mesh = ibm->access->mesh;
+  DM            da = mesh->da, fda = mesh->fda;
+  DMDALocalInfo info = mesh->info;
+  PetscInt      xs = info.xs, xe = info.xs + info.xm;
+  PetscInt      ys = info.ys, ye = info.ys + info.ym;
+  PetscInt      zs = info.zs, ze = info.zs + info.zm;
+  PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+  PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+  PetscInt      i, j, k, ctr;
+  PetscReal     ***nvert;
+
+  lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+  lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+  lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+  DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+  ctr = 0;
+
+  for (k = lzs; k < lze; k++)
+  for (j = lys; j < lye; j++)
+  for (i = lxs; i < lxe; i++)
+  {
+    if(isIBMFluidCell(k, j, i, nvert))
+    {
+      ctr++;
+    }
+  }
+  ibm->numIBMFluid = ctr;
+
+  PetscMalloc(ctr * sizeof(ibmFluidCell), &(ibm->ibmFCells));
+  ibmFluidCell *ibmFluid = ibm->ibmFCells;
+
+  ctr = 0;
+
+  for (k = lzs; k < lze; k++)
+  for (j = lys; j < lye; j++)
+  for (i = lxs; i < lxe; i++)
+  {
+    if(isIBMFluidCell(k, j, i, nvert))
+    {
+      ibmFluid[ctr].cellId.i = i;
+      ibmFluid[ctr].cellId.j = j;
+      ibmFluid[ctr].cellId.k = k;
+      ctr++;
+    }
+  }
+
+  DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+  return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode findIBMMeshSupportNodes(ibm_ *ibm)
+{
+  mesh_         *mesh = ibm->access->mesh;
+  DM            da = mesh->da, fda = mesh->fda;
+  DMDALocalInfo info = mesh->info;
+  PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+  PetscInt      i, j, k, ii, kk, jj;
+  PetscInt      b, c, s;
+  PetscReal     normDist, ***nvert;
+  Cmpnts        ***cent, dist;
+  cellList      localSearchList;
+
+  DMDAVecGetArray(fda, mesh->lCent, &cent);
+  DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+  //local pointer for ibmFluidCells
+  ibmFluidCell *ibF = ibm->ibmFCells;
+
+  for(c = 0; c < ibm->numIBMFluid; c++)
+  {
+      //cell indices
+      i = ibF[c].cellId.i;
+      j = ibF[c].cellId.j;
+      k = ibF[c].cellId.k;
+
+    // initialize the ibm node support list
+    initlist(&(ibF[c].slNodes));
+
+    // initialize the list of ibm body each node in the support list belongs to
+    initlist(&(ibF[c].bID));
+
+    //initialize number of support cells to 0
+    ibF[c].numSl = 0;
+
+    // loop through the ibm bodies
+    for (b = 0; b < ibm->numBodies; b++)
+    {
+      // check if this user is attached to this IBM body b
+      if(ibm->ibmDomain[b] != -1)
+      {
+        boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
+        searchBox     *sBox  = &(ibm->sBox[b]);
+
+        //initialize the local search list for search cells within the support radius
+        initCellList(&localSearchList);
+
+        // loop through the searchCellList
+        PetscInt flag = 0;
+        for(ii = 0; ii < sBox->ncx; ii++)
+        for(jj = 0; jj < sBox->ncy; jj++)
+        for(kk = 0; kk < sBox->ncz; kk++)
+        {
+          cellIds tmp;
+          tmp.i = ii;
+          tmp.j = jj;
+          tmp.k = kk;
+
+          if(isSearchCellSupport(ibF[c].rad, cent[k][j][i], tmp, ibBox, sBox))
+          {
+            flag = 1;
+            insertCellNode1(&localSearchList, tmp);
+          }
+        }
+
+        if(flag == 0)
+        {
+          char error[256];
+          sprintf(error, "no ibm search cell in the support radius\n");
+          fatalErrorInFunction("findIBMMeshSupportNodes",  error);
+        }
+
+        //get access to the first search cell in the list
+        cellNode *currentCell = localSearchList.head;
+
+        // loop through the search cells in the support radius
+        while(currentCell)
+        {
+          // get the searchcell index
+          cellIds cellInd;
+          cellInd.i = currentCell->Node.i;
+          cellInd.j = currentCell->Node.j;
+          cellInd.k = currentCell->Node.k;
+
+          insertIBMSupportNodes(cent[k][j][i], cellInd, &ibF[c], ibm->ibmBody[b], sBox);
+
+          currentCell = currentCell->next;
+        }
+
+        destroyCellList(&localSearchList);
+
+      }
+    }
+
+  }
+
+  DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+  DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+  return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode findSearchCellDim(ibm_ *ibm)
+{
+    mesh_         *mesh = ibm->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***aj, lcellSize = 0., cellSize = 0.;
+    PetscInt      lsum = 0., sum = 0.;
+    PetscReal     searchCellsize;
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+
+    //find average cellsize
+    for (k = lzs; k < lze; k++)
+    for (j = lys; j < lye; j++)
+    for (i = lxs; i < lxe; i++)
+    {
+      lcellSize += pow( 1./aj[k][j][i], 1./3.);
+      lsum ++ ;
+    }
+
+    MPI_Allreduce(&lcellSize, &cellSize, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lsum, &sum, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+    cellSize /= sum;
+
+    for (PetscInt b = 0; b < ibm->numBodies; b++)
+    {
+        //compare the searchCellsize to the body bounding box
+        boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
+        searchBox     *sBox  = &(ibm->sBox[b]);
+
+        //search cell size taken to be n times the average cell size
+        searchCellsize = ibm->ibmBody[b]->searchCellRatio * cellSize;
+
+        sBox->ncx = ceil(ibBox->Lx/searchCellsize);
+        sBox->ncy = ceil(ibBox->Ly/searchCellsize);
+        sBox->ncz = ceil(ibBox->Lz/searchCellsize);
+
+        // //set a default value
+        // sBox->ncx = 1; sBox->ncy = 1; sBox->ncz = 1;
+
+        // cell size for the search algorithm
+        sBox->dcx = (ibBox->Lx) / (sBox->ncx);
+        sBox->dcy = (ibBox->Ly) / (sBox->ncy);
+        sBox->dcz = (ibBox->Lz) / (sBox->ncz);
+
+        if(ibm->dbg)
+        {
+          PetscPrintf(mesh->MESH_COMM, "\n ncx = %ld, ncy = %ld, ncz = %ld\n", sBox->ncx, sBox->ncy ,sBox->ncz);
+          PetscPrintf(mesh->MESH_COMM, "\n dcx = %lf, dcy = %lf, dcz = %lf\n", sBox->dcx, sBox->dcy ,sBox->dcz);
+        }
+    }
+
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+  return(0);
+}
+
+//***************************************************************************************************************//
+
+// creates the search cell list
+// each element of the search list has an array of the IBM elements within than search cell
+// when the ray cast algorithm is used, need to go only through the search cells the ray is casted along
+PetscErrorCode createSearchCellList(ibm_ *ibm)
+{
+  PetscReal     xv_min, yv_min, zv_min, xv_max, yv_max, zv_max; // min and max co-ordinate of the 3 vertices of an element
+  PetscInt      iv_min, iv_max, jv_min, jv_max, kv_min, kv_max; // min and max search cell index of an IBM element
+  PetscInt      n1, n2, n3;                                     // nodes of a particular IBM element
+  PetscInt      i, j, k, e, b;
+
+  // loop through the ibm bodies
+  for(b = 0; b < ibm->numBodies; b++)
+  {
+      //check if this user has the ibm body b attached to it
+      if(ibm->ibmDomain[b] != -1)
+      {
+          boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
+          ibmMesh       *ibMsh = ibm->ibmBody[b]->ibMsh;                         // pointer to the ibm body mesh
+
+          searchBox *sBox = &(ibm->sBox[b]);
+
+          // allocate memory for the search cell list
+          PetscMalloc(sBox->ncz * sBox->ncy * sBox->ncx * sizeof(list), &(ibm->ibmBody[b]->searchCellList));
+          list  *searchCellList = ibm->ibmBody[b]->searchCellList;
+
+          //initialize each array element of the search cell list to null pointer
+          for (k = 0; k < sBox->ncz; k++) {
+              for (j = 0; j < sBox->ncy; j++) {
+                  for (i = 0; i < sBox->ncx; i++) {
+                      initlist(&searchCellList[k * sBox->ncx * sBox->ncy + j * sBox->ncx + i]);
+                  }
+              }
+          }
+
+          //insert the ibm body triangular mesh elements into the search cell list based on its position
+          //loop through the ibm mesh elements
+
+          for(e = 0; e < ibMsh->elems; e++)
+          {
+            // 3 vertices of the element
+            n1 = ibMsh->nID1[e];
+            n2 = ibMsh->nID2[e];
+            n3 = ibMsh->nID3[e];
+
+            // min and max coordinate value of the element vertices
+            xv_min = PetscMin( PetscMin( ibMsh->nCoor[n1].x, ibMsh->nCoor[n2].x ), ibMsh->nCoor[n3].x );
+            xv_max = PetscMax( PetscMax( ibMsh->nCoor[n1].x, ibMsh->nCoor[n2].x ), ibMsh->nCoor[n3].x );
+
+            yv_min = PetscMin( PetscMin( ibMsh->nCoor[n1].y, ibMsh->nCoor[n2].y ), ibMsh->nCoor[n3].y );
+            yv_max = PetscMax( PetscMax( ibMsh->nCoor[n1].y, ibMsh->nCoor[n2].y ), ibMsh->nCoor[n3].y );
+
+            zv_min = PetscMin( PetscMin( ibMsh->nCoor[n1].z, ibMsh->nCoor[n2].z ), ibMsh->nCoor[n3].z );
+            zv_max = PetscMax( PetscMax( ibMsh->nCoor[n1].z, ibMsh->nCoor[n2].z ), ibMsh->nCoor[n3].z );
+
+            // min and max index of the search cell where this element is located
+            iv_min = floor((xv_min - ibBox->xmin) / sBox->dcx);          // find the search cell index of xmin coordinate of the element
+            iv_max = floor((xv_max - ibBox->xmin) / sBox->dcx) + 1;      // +1 ensures that iv_min and iv_max are not the same
+
+            jv_min = floor((yv_min - ibBox->ymin) / sBox->dcy); //
+            jv_max = floor((yv_max - ibBox->ymin) / sBox->dcy) + 1;
+
+            kv_min = floor((zv_min - ibBox->zmin) / sBox->dcz); //
+            kv_max = floor((zv_max - ibBox->zmin) / sBox->dcz) + 1;
+
+            //ensure that the search cell indices of the current element are bounded between 0 and max index
+            iv_min = (iv_min < 0) ? 0 : iv_min;
+            iv_max = (iv_max > sBox->ncx) ? sBox->ncx : iv_max;
+
+            jv_min = (jv_min < 0) ? 0 : jv_min;
+            jv_max = (jv_max > sBox->ncx) ? sBox->ncy : jv_max;
+
+            kv_min = (kv_min < 0) ? 0 : kv_min;
+            kv_max = (kv_max > sBox->ncz) ? sBox->ncz : kv_max;
+
+            //insert element into search cell
+            for (k = kv_min; k < kv_max; k++) {
+                for (j = jv_min; j < jv_max; j++) {
+                    for (i = iv_min; i < iv_max; i++) {
+                        insertnode(&(searchCellList[k * sBox->ncx * sBox->ncy + j * sBox->ncx + i]), e);
+                    }
+                }
+            }
+          }
+
+      }
+  }
+
+  return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode destroyLists(ibm_ *ibm)
+{
+    PetscInt      i, j, k, b, c;
+
+    // loop through the ibm bodies and destroy the searchCellList
+    for(b = 0; b < ibm->numBodies; b++)
+    {
+        if(ibm->ibmDomain[b] != -1)
+        {
+            PetscInt ncx = ibm->sBox[b].ncx;
+            PetscInt ncy = ibm->sBox[b].ncy;
+            PetscInt ncz = ibm->sBox[b].ncz;
+
+            for (k = 0; k < ncz; k++) {
+                for (j = 0; j < ncy; j++) {
+                    for (i = 0; i < ncx; i++) {
+                        destroy(&(ibm->ibmBody[b]->searchCellList[k * ncx * ncy + j * ncx + i]));
+                    }
+                }
+            }
+        }
+
+        PetscFree(ibm->ibmBody[b]->searchCellList);
+
+    }
+
+
+    if (ibm->IBInterpolationModel == "MLS")
+    {
+        //local pointer for ibmFluidCells
+        ibmFluidCell *ibF = ibm->ibmFCells;
+
+        for(c = 0; c < ibm->numIBMFluid; c++)
+        {
+
+            destroyCellList(&(ibF[c].flNodes));
+
+            destroy(&(ibF[c].slNodes));
+
+            destroy(&(ibF[c].bID));
+        }
+
+    }
+
+    PetscFree(ibm->ibmFCells);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+inline void insertIBMSupportNodes(Cmpnts pt, cellIds sCell, ibmFluidCell *ibF, ibmObject *ibBody, searchBox *sBox)
+{
+  PetscInt       elemID, i;
+  PetscInt       n[3];
+  Cmpnts    dist;
+  PetscReal    normDist;
+  ibmMesh   *ibMsh = ibBody->ibMsh;
+
+  // get access to the first IBM element in a search cell
+  node *currentElem = ibBody->searchCellList[sCell.k * sBox->ncx * sBox->ncy + sCell.j * sBox->ncx + sCell.i].head;
+
+  //loop through the IBM elements within the current search cell
+  while(currentElem)
+  {
+    elemID = currentElem->Node;
+    n[0]   = ibMsh->nID1[elemID];
+    n[1]   = ibMsh->nID2[elemID];
+    n[2]   = ibMsh->nID3[elemID];
+
+    for(i = 0; i < 3; i++)
+    {
+      dist = nSub(pt, ibMsh->nCoor[n[i]]);
+      normDist = nMag(dist)/ibF->rad;
+
+      if (normDist<=1)
+      {
+        //insert node if not previously added
+        if(insertnode(&(ibF->slNodes), n[i]))
+        {
+          //list of the body id of the node support ibm node inserted
+          insertnode1(&(ibF->bID), ibBody->bodyID);
+          ibF->numSl++;
+        }
+      }
+    }
+
+    currentElem = currentElem->next;
+  }
+  return;
+}
+
+//***************************************************************************************************************//
+
+PetscReal rayCastingTest(Cmpnts p, ibmMesh *ibMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList)
+{
+  PetscBool     *Element_Searched;                    //bool to indicate if an element has been searched or not
+  PetscBool      NotDecided = PETSC_TRUE;
+  PetscBool      Singularity = PETSC_FALSE;
+
+  PetscInt       searchtimes = 0, nvertLoc, numInt;                     //number of times search is performed - each time a new ray is cast
+  Cmpnts         dir, nor, dnn[1000];
+  node           *current;                           //pointer to the first element in the current searchCellList node
+  PetscInt            e, i, j, k;
+  PetscInt            n1, n2, n3;                         // vertices of an ibm mesh element
+  PetscReal      epsilon = 1.e-25;
+  PetscReal      dt[1000], ndotn, dirdotn;
+  PetscReal      t, u, v;
+
+  PetscMalloc(ibMsh->elems * sizeof(PetscBool), &Element_Searched);
+
+  j = sCell.j;
+  i = sCell.i;
+
+  while (NotDecided)
+  {
+    searchtimes++;
+    numInt = 0;
+    Singularity = PETSC_FALSE;
+
+    for (e = 0; e < ibMsh->elems; e++)
+    {
+        Element_Searched[e] = PETSC_FALSE;
+    }
+
+    //get a random direction from the fluid mesh point in the search box z direction
+    dir = randomdirection(p, sCell, ibBox, sBox, searchtimes);
+
+    // ray cast is done along the z direction of the search cells
+    // as the ray is cast in the positive z cell direction, need to search only between point p.z and ncz
+    for (k = sCell.k; k < sBox->ncz; k++)
+    {
+      current = searchCellList[k * sBox->ncx * sBox->ncy + j * sBox->ncx + i].head;
+
+      // loop through the elements in the current search cell
+      while (current)
+      {
+        // element currently pointed to
+        e = current->Node;
+
+        if (!Element_Searched[e])
+        {
+          Element_Searched[e] = PETSC_TRUE;
+          n1 = ibMsh->nID1[e];
+          n2 = ibMsh->nID2[e];
+          n3 = ibMsh->nID3[e];
+          nor = ibMsh->eN[e];
+
+          dirdotn = nDot(dir, nor);
+
+          // t: is the magnitude of the ray (positive ore negative based on the intersection side)
+          // u and v are a and b of the Borazjani, Ge, Sotiropulos 2008 paper
+          nvertLoc = intsectElement(p, dir, ibMsh->nCoor[n1], ibMsh->nCoor[n2], ibMsh->nCoor[n3], &t, &u, &v);
+
+          // if ray intersects element
+          if (nvertLoc > 0 && t > 0)
+          {
+            //store the element normal and dist from point to element at current intersection
+            dt[numInt] = t;
+            dnn[numInt] = nSet(nor);
+
+            numInt++;
+
+            // if 2 intersections points are at same distance from point p
+            // ensure no singularity. If singularity point, recast and find number of intersections again
+            for( PetscInt tmp = 0; tmp < numInt - 1; tmp++)
+            {
+              ndotn = nDot(dnn[tmp], nor);
+
+              if(fabs(t - dt[tmp]) < epsilon && ndotn > -0.99)
+              {
+                Singularity = PETSC_TRUE;
+                break;
+              }
+            }
+
+          }
+
+        }
+        if(Singularity)
+        {
+          break;
+        }
+        else
+        {
+          current = current->next;
+        }
+      }
+      if (Singularity)
+      {
+          break;
+      }
+    }
+
+    if (!Singularity)
+    {
+        // The interception point number is odd, inside body else outise the IBM
+        if (numInt % 2)
+        {
+            PetscFree(Element_Searched);
+            return 4.;
+        }
+        else
+        {
+            PetscFree(Element_Searched);
+            return 0.;
+        }
+    }
+    // if code control reaches here, then singularity has occured so recast ray to repeat until no singularity
+  }
+  PetscFree(Element_Searched);
+
+  return 0.;
+}
+
+//***************************************************************************************************************//
+
+//returns true if search cell intersects with the support radius of the point pt
+inline bool isSearchCellSupport(PetscReal rad, Cmpnts pt, cellIds cID, boundingBox *ibBox, searchBox *sBox)
+{
+
+    Cmpnts Bmin, Bmax;
+    PetscReal dist = rad*rad;
+
+    // co-ordinates of the min and max of the cell box
+    Bmin.x = ibBox->xmin + (cID.i)*sBox->dcx;
+    Bmin.y = ibBox->ymin + (cID.j)*sBox->dcy;
+    Bmin.z = ibBox->zmin + (cID.k)*sBox->dcz;
+
+    Bmax.x = ibBox->xmin + (cID.i+1)*sBox->dcx;
+    Bmax.y = ibBox->ymin + (cID.j+1)*sBox->dcy;
+    Bmax.z = ibBox->zmin + (cID.k+1)*sBox->dcz;
+
+    if (pt.x < Bmin.x)      dist = dist - (pt.x - Bmin.x)*(pt.x - Bmin.x);
+    else if (pt.x > Bmax.x) dist = dist - (pt.x - Bmax.x)*(pt.x - Bmax.x);
+
+    if (pt.y < Bmin.y)      dist = dist - (pt.y - Bmin.y)*(pt.y - Bmin.y);
+    else if (pt.y > Bmax.y) dist = dist - (pt.y - Bmax.y)*(pt.y - Bmax.y);
+
+    if (pt.z < Bmin.z)      dist = dist - (pt.z - Bmin.z)*(pt.z - Bmin.z);
+    else if (pt.z > Bmax.z) dist = dist - (pt.z - Bmax.z)*(pt.z - Bmax.z);
+
+    return dist > 0;
+}
+
+//***************************************************************************************************************//
+
+inline Cmpnts randomdirection(Cmpnts p, cellIds sCell, boundingBox *ibBox, searchBox *sBox, PetscInt seed)
+{
+  Cmpnts endpoint, dir;
+  PetscReal s;
+  PetscReal xpc, ypc;
+
+//Find the co-ordinate of the center of the search cell (xc, yc) containing the current node p
+  xpc = sBox->dcx * (sCell.i + 0.5) + ibBox->xmin;
+  ypc = sBox->dcy * (sCell.j + 0.5) + ibBox->ymin;
+
+  // seeded differently each search time to get a new direction
+  srand(seed);
+
+// A ray is cast in the positive z cell direction from p such that its endpoint lies
+// between (xc + 0.5 and xc - 0.5, yc + 0.5, yc - 0.5)
+
+  s = rand() / ((PetscReal) RAND_MAX + 1) - 0.5;
+
+  endpoint.x = xpc + s * sBox->dcx;
+  endpoint.y = ypc + s * sBox->dcy;
+  endpoint.z = ibBox->zmax + 0.2;
+
+  dir = nSub(endpoint, p);
+
+  // unit vector along the cast ray from p
+  s = nMag(dir);
+  mScale(1.0/s, dir);
+
+  return dir;
+}
+
+//***************************************************************************************************************//
+
+//to check if a ray from point p intersects an IBM elemtent. return 1 - success
+inline PetscInt intsectElement(Cmpnts p, Cmpnts dir, Cmpnts node1, Cmpnts node2, Cmpnts node3, PetscReal *t, PetscReal *u, PetscReal *v)
+{
+  Cmpnts    edge1, edge2, tvec, pvec, qvec;
+  PetscReal    det, invDet;
+  PetscReal epsilon = 1.e-15;
+  edge1 = nSub(node2, node1);
+  edge2 = nSub(node3, node1);
+
+  pvec = nCross(dir, edge2);
+  det = nDot(edge1, pvec);
+
+  if(det > -epsilon && det < epsilon)
+  {
+    return 0;
+  }
+
+  invDet = 1.0 / det;
+
+  tvec = nSub(p, node1);
+
+  *u = nDot(tvec, pvec) * invDet;
+
+  if (*u < 0.0 || *u > 1.0)
+  {
+      return 0;
+  }
+
+  qvec = nCross(tvec, edge1);
+
+  *v = nDot(dir, qvec) *invDet;
+
+  if (*v < 0.0 || *u + *v > 1.0)
+  {
+      return 0;
+  }
+
+  *t = nDot(edge2, qvec) * invDet;
+  return 1;
+}
+
+//***************************************************************************************************************//
+
+inline PetscInt isPointInTriangle(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts p3, Cmpnts norm)
+{
+  PetscInt   flag;
+  Cpt2D	     pj, pj1, pj2, pj3;
+
+  if ( fabs(norm.z) >= fabs(norm.x) && fabs(norm.z) >= fabs(norm.y) )
+  {
+    pj.x  = p.x;  pj.y  = p.y;
+    pj1.x = p1.x; pj1.y = p1.y;
+    pj2.x = p2.x; pj2.y = p2.y;
+    pj3.x = p3.x; pj3.y = p3.y;
+  }
+  else if (fabs(norm.x) >= fabs(norm.y) && fabs(norm.x) >= fabs(norm.z))
+  {
+    pj.x  = p.z;  pj.y  = p.y;
+    pj1.x = p1.z; pj1.y = p1.y;
+    pj2.x = p2.z; pj2.y = p2.y;
+    pj3.x = p3.z; pj3.y = p3.y;
+  }
+  else {
+    pj.x  = p.x;  pj.y  = p.z;
+    pj1.x = p1.x; pj1.y = p1.z;
+    pj2.x = p2.x; pj2.y = p2.z;
+    pj3.x = p3.x; pj3.y = p3.z;
+  }
+
+  flag = ISInsideTriangle2D(pj, pj1, pj2, pj3);
+
+  return(flag);
+}
+
+//***************************************************************************************************************//
+
+inline PetscInt ISInsideTriangle2D(Cpt2D p, Cpt2D pa, Cpt2D pb, Cpt2D pc)
+{
+  // Check if point p and p3 is located on the same side of line p1p2
+  PetscInt 	ls;
+
+  ls = ISSameSide2D(p, pa, pb, pc);
+
+  if (ls < 0) {
+    return (ls);
+  }
+
+  ls = ISSameSide2D(p, pb, pc, pa);
+
+  if (ls < 0) {
+    return (ls);
+  }
+
+  ls = ISSameSide2D(p, pc, pa, pb);
+
+  if (ls <0) {
+    return(ls);
+  }
+
+  return (ls);
+}
+
+//***************************************************************************************************************//
+
+/*  Check whether 2D point p is located on the same side of line p1p2
+    with point p3. Returns:
+    -1	different side
+     1	same side (including the case when p is located right on the line)
+
+    If p and p3 is located on the same side to line p1p2, then
+    the (p-p1) X (p2-p1) and (p3-p1) X (p2-p1) should have the same sign
+*/
+
+inline PetscInt ISSameSide2D(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3)
+{
+  PetscReal t1, t2, t3;
+  PetscReal	epsilon = 1.e-10;
+  PetscReal lt;
+
+  t1 = (p.x - p1.x) * (p2.y - p1.y) - (p.y - p1.y) * (p2.x - p1.x);
+  t2 = (p3.x - p1.x) * (p2.y - p1.y) - (p3.y - p1.y) * (p2.x - p1.x);
+
+  lt = sqrt((p1.x - p2.x)*(p1.x-p2.x) + (p1.y-p2.y)*(p1.y-p2.y));
+
+  if (fabs(t1/lt) < epsilon)
+  { // Point is located along the line of p1p2
+    return(1);
+  }
+
+  if (t1 > 0)
+  {
+    if (t2 > 0) return (1); // same side
+    else return(-1);  // not
+  }
+  else
+  {
+    if (t2 < 0) return(1); // same side
+    else return(-1);
+  }
+}
+
+//***************************************************************************************************************//
+
+inline void disP2Line(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts *po, PetscReal *d)
+{
+  PetscReal	dmin;
+  PetscReal	dx21, dy21, dz21, dx31, dy31, dz31, t;
+
+  dx21 = p2.x - p1.x; dy21 = p2.y - p1.y; dz21 = p2.z - p1.z;
+  dx31 = p.x  - p1.x; dy31 = p.y  - p1.y; dz31 = p.z  - p1.z;
+
+  t = (dx31 * dx21 + dy31 * dy21 + dz31 * dz21) / (dx21*dx21 + dy21*dy21 +
+       dz21 * dz21);
+
+  if (t<0)
+  { // The closet point is p1
+    po->x = p1.x; po->y = p1.y; po->z = p1.z;
+    *d = sqrt(dx31*dx31 + dy31*dy31 + dz31*dz31);
+  }
+  else if (t>1)
+  { // The closet point is p2
+    po->x = p2.x; po->y = p2.y; po->z = p2.z;
+    *d = sqrt((p.x - po->x)*(p.x - po->x)+(p.y - po->y) * (p.y - po->y) +
+         (p.z - po->z) * (p.z - po->z));
+  }
+  else
+  { // The closet point lies between p1 & p2
+    po->x = p1.x + t * dx21; po->y = p1.y + t * dy21; po->z = p1.z + t*dz21;
+    *d = sqrt((p.x - po->x)*(p.x - po->x)+(p.y - po->y) * (p.y - po->y) +
+         (p.z - po->z) * (p.z - po->z));
+  }
+
+  return;
+}
+
+//***************************************************************************************************************//
+
+inline void triangleIntp(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3, ibmFluidCell *ibF)
+{
+  PetscReal  x13, y13, x23, y23, xp3, yp3, a;
+
+  x13 = p1.x - p3.x; y13 = p1.y - p3.y;
+  x23 = p2.x - p3.x; y23 = p2.y - p3.y;
+  xp3 = p.x - p3.x; yp3 = p.y - p3.y;
+  a   = x13 * y23 - x23 * y13;
+
+  ibF->cs1 = (y23 * xp3 - x23 * yp3) / a;
+  ibF->cs2 = (-y13 * xp3 + x13 * yp3) / a;
+  ibF->cs3 = 1. - ibF->cs1 - ibF->cs2;
+
+  return;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode printstuff(ibm_ *ibm)
+{
+  mesh_ *mesh = ibm->access->mesh;
+  ueqn_ *ueqn = ibm->access->ueqn;
+  peqn_ *peqn = ibm->access->peqn;
+
+  DM               da      = mesh->da, fda = mesh->fda;
+  DMDALocalInfo    info    = mesh->info;
+  PetscInt         xs      = info.xs, xe = info.xs + info.xm;
+  PetscInt         ys      = info.ys, ye = info.ys + info.ym;
+  PetscInt         zs      = info.zs, ze = info.zs + info.zm;
+  PetscInt         mx      = info.mx, my = info.my, mz = info.mz;
+
+  PetscInt         lxs, lxe, lys, lye, lzs, lze;
+  PetscInt         i, j, k;
+
+  Cmpnts           ***ucont, ***ucat;
+
+  PetscReal        ***nvert, ***phi;
+
+  // indices for internal cells
+  lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+  lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+  lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+  DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+  DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+  DMDAVecGetArray(da,  mesh->lNvert,  &nvert);
+  DMDAVecGetArray(da, peqn->Phi, &phi);
+
+  for (k=zs; k<ze; k++)
+  {
+      for (j=ys; j<ye; j++)
+      {
+          for (i=xs; i<xe; i++)
+          {
+            if(isIBMFluidCell(k, j, i, nvert))
+            {
+              PetscPrintf(mesh->MESH_COMM, "at cell %d %d %d, ucat = %f %f %f\n", k, j, i, ucat[k][j][i].x, ucat[k][j][i].y, ucat[k][j][i].z);
+            }
+          }
+      }
+  }
+
+  // for (k=zs; k<ze; k++)
+  // {
+  //     for (j=ys; j<ye; j++)
+  //     {
+  //         for (i=xs; i<xe; i++)
+  //         {
+  //           if(k == 5)
+  //           {
+  //             PetscPrintf(mesh->MESH_COMM, "at cell %d %d %d, ucat = %2.8f %2.8f %2.8f\n", k, j, i, ucat[k][j][i].x, ucat[k][j][i].y, ucat[k][j][i].z);
+  //             // PetscPrintf(mesh->MESH_COMM, "at cell %d %d %d, ucont = %f %f %f\n", k, j, i, ucont[k][j][i].x, ucont[k][j][i].y, ucont[k][j][i].z);
+  //
+  //           }
+  //         }
+  //     }
+  // }
+
+  // for (k=zs; k<ze; k++)
+  // {
+  //     for (j=ys; j<ye; j++)
+  //     {
+  //         for (i=xs; i<xe; i++)
+  //         {
+  //           if(k == 5)
+  //           {
+  //             PetscPrintf(mesh->MESH_COMM, "at cell %d %d %d, nvert = %f, phi = %f\n", k, j, i, nvert[k][j][i], phi[k][j][i]);
+  //
+  //           }
+  //         }
+  //     }
+  // }
+
+  DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+  DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+  DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
+  DMDAVecRestoreArray(da, peqn->Phi, &phi);
+
+  return 0;
+}

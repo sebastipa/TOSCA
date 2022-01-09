@@ -1,0 +1,96 @@
+\hypertarget{acquisition_8h}{}\doxysection{src/include/acquisition.h File Reference}
+\label{acquisition_8h}\index{src/include/acquisition.h@{src/include/acquisition.h}}
+
+
+Acquisition object declaration.  
+
+
+{\ttfamily \#include \char`\"{}acquisition/average\+Acquisition.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}acquisition/probes\+Acquisition.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}acquisition/sections\+Acquisition.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}acquisition/abl\+Acquisition.\+h\char`\"{}}\newline
+\doxysubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Struct containing all acquisition data structures. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{acquisition_8h_aa2f12b980e9851b7b16b67e3431e8dc8}\label{acquisition_8h_aa2f12b980e9851b7b16b67e3431e8dc8}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_aa2f12b980e9851b7b16b67e3431e8dc8}{Initialize\+Acquisition}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Reads acquisition settings and calls individual iniitialization functions. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a9dd8032dbb4c0b84765ed04e90f714c1}\label{acquisition_8h_a9dd8032dbb4c0b84765ed04e90f714c1}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a9dd8032dbb4c0b84765ed04e90f714c1}{Initialize\+Acquisition\+Precursor}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Reads acquisition settings and calls individual iniitialization functions for concurrent precursor. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a29596ec0b3e883f5b468c9da0c5a6fc9}\label{acquisition_8h_a29596ec0b3e883f5b468c9da0c5a6fc9}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a29596ec0b3e883f5b468c9da0c5a6fc9}{Write\+Acquisition}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Write acquisition data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a376b4c81c7e65b09666704d79db4b0da}\label{acquisition_8h_a376b4c81c7e65b09666704d79db4b0da}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a376b4c81c7e65b09666704d79db4b0da}{Probes\+Initialize}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Initializes the array of probe rakes. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a49178fb083cf72ee1b6a48e5e4945630}\label{acquisition_8h_a49178fb083cf72ee1b6a48e5e4945630}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a49178fb083cf72ee1b6a48e5e4945630}{Init\+Rake\+File}} (probe\+Rake $\ast$rake, const char $\ast$field\+Name)
+\begin{DoxyCompactList}\small\item\em Initialize probe rake file. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a443d88ca035f2857665b9a4e93c261fd}\label{acquisition_8h_a443d88ca035f2857665b9a4e93c261fd}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a443d88ca035f2857665b9a4e93c261fd}{write\+Probes}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Writes probes to file. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a5cd8f27f6d845cf27497ddfd33437987}\label{acquisition_8h_a5cd8f27f6d845cf27497ddfd33437987}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a5cd8f27f6d845cf27497ddfd33437987}{sections\+Initialize}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Initializes sections. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a9f6272da692cc05daccd617647fdf1de}\label{acquisition_8h_a9f6272da692cc05daccd617647fdf1de}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a9f6272da692cc05daccd617647fdf1de}{write\+Sections}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Writes down section data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a7f7adb945ca99ac6193f4545cf433faa}\label{acquisition_8h_a7f7adb945ca99ac6193f4545cf433faa}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a7f7adb945ca99ac6193f4545cf433faa}{i\+Section\+Save\+Vector}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, sections $\ast$sec, Petsc\+Int iplane, Vec \&V, const char $\ast$field\+Name)
+\begin{DoxyCompactList}\small\item\em Saves i-\/section vector data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a2b8ce43a178c145225191c5983d13d62}\label{acquisition_8h_a2b8ce43a178c145225191c5983d13d62}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a2b8ce43a178c145225191c5983d13d62}{j\+Section\+Save\+Vector}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, sections $\ast$sec, Petsc\+Int jplane, Vec \&V, const char $\ast$field\+Name)
+\begin{DoxyCompactList}\small\item\em Saves j-\/section vector data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_ac2fb6e54541435cb8b87de0b7d13736c}\label{acquisition_8h_ac2fb6e54541435cb8b87de0b7d13736c}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_ac2fb6e54541435cb8b87de0b7d13736c}{k\+Section\+Save\+Vector}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, sections $\ast$sec, Petsc\+Int kplane, Vec \&V, const char $\ast$field\+Name)
+\begin{DoxyCompactList}\small\item\em Saves k-\/section vector data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a19d1984954e8f0c5eebff9ddbc42132d}\label{acquisition_8h_a19d1984954e8f0c5eebff9ddbc42132d}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a19d1984954e8f0c5eebff9ddbc42132d}{i\+Section\+Save\+Scalar}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, sections $\ast$sec, Petsc\+Int iplane, Vec \&V, const char $\ast$field\+Name)
+\begin{DoxyCompactList}\small\item\em Saves i-\/section scalar data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_ace36e53e6bbb23e824d79687c8e86197}\label{acquisition_8h_ace36e53e6bbb23e824d79687c8e86197}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_ace36e53e6bbb23e824d79687c8e86197}{j\+Section\+Save\+Scalar}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, sections $\ast$sec, Petsc\+Int jplane, Vec \&V, const char $\ast$field\+Name)
+\begin{DoxyCompactList}\small\item\em Saves j-\/section scalar data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a75064ac59494bfe3dd43a41bf0e08bad}\label{acquisition_8h_a75064ac59494bfe3dd43a41bf0e08bad}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a75064ac59494bfe3dd43a41bf0e08bad}{k\+Section\+Save\+Scalar}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, sections $\ast$sec, Petsc\+Int kplane, Vec \&V, const char $\ast$field\+Name)
+\begin{DoxyCompactList}\small\item\em Saves k-\/section scalar data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a9c4b85d8d544d0ab775023c06ed46a6a}\label{acquisition_8h_a9c4b85d8d544d0ab775023c06ed46a6a}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a9c4b85d8d544d0ab775023c06ed46a6a}{average\+Fields\+Initialize}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Initialize average fields acquisition. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_af1609d0f861e9b03292a2b76eb210bff}\label{acquisition_8h_af1609d0f861e9b03292a2b76eb210bff}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_af1609d0f861e9b03292a2b76eb210bff}{average\+Fields}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Average fields. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_acf65889cfc2f4377a48a220818db886c}\label{acquisition_8h_acf65889cfc2f4377a48a220818db886c}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_acf65889cfc2f4377a48a220818db886c}{computeQ}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Compute Q criteria. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_accc174c4786680d5a09079d3bc44048d}\label{acquisition_8h_accc174c4786680d5a09079d3bc44048d}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_accc174c4786680d5a09079d3bc44048d}{averaging3\+LMInitialize}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Initialize 3LM data structure. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a1ae264dbb2d37aa89db2a8c1daa14b2a}\label{acquisition_8h_a1ae264dbb2d37aa89db2a8c1daa14b2a}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a1ae264dbb2d37aa89db2a8c1daa14b2a}{write\+Averaging3\+LM}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Performs 3LM average and write 3LM fields. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a0719e3c30a62f29dcc74de907e6f2355}\label{acquisition_8h_a0719e3c30a62f29dcc74de907e6f2355}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a0719e3c30a62f29dcc74de907e6f2355}{write3\+LMPoints}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Write 3LM points to file inside post\+Processing/3\+LM/points. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a444f9ab736492e28cfe1e3574ca46565}\label{acquisition_8h_a444f9ab736492e28cfe1e3574ca46565}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a444f9ab736492e28cfe1e3574ca46565}{write3\+LMFields}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Write 3LM fields to file inside post\+Processing/3\+LM/. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a326fe9711b1a9e4492a3ef987fb1b353}\label{acquisition_8h_a326fe9711b1a9e4492a3ef987fb1b353}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a326fe9711b1a9e4492a3ef987fb1b353}{find\+Avg\+Line\+Ids}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Inizializes the closest cells and the owner of the 3LM mesh points. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_a5b2adbb876893fb6257bf612b9d690e8}\label{acquisition_8h_a5b2adbb876893fb6257bf612b9d690e8}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_a5b2adbb876893fb6257bf612b9d690e8}{averaging\+ABLInitialize}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Initialize ABL data structure. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8h_ae74d4f1acfed798435103a6921a05dcd}\label{acquisition_8h_ae74d4f1acfed798435103a6921a05dcd}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8h_ae74d4f1acfed798435103a6921a05dcd}{write\+Averaging\+ABL}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Write spatial averaged ABL statistics. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Acquisition object declaration. 
+

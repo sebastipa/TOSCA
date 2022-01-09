@@ -1,0 +1,97 @@
+\hypertarget{structADM}{}\doxysection{ADM Struct Reference}
+\label{structADM}\index{ADM@{ADM}}
+
+
+Actuator Disk Model.  
+
+
+
+
+{\ttfamily \#include $<$turbines.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structADM_a11ad5f2fd765a1cb2521f5cabd34b2d0}\label{structADM_a11ad5f2fd765a1cb2521f5cabd34b2d0}} 
+Petsc\+Int \mbox{\hyperlink{structADM_a11ad5f2fd765a1cb2521f5cabd34b2d0}{n\+Points}}
+\begin{DoxyCompactList}\small\item\em total number of points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a32cc0e83ac9beb636f186d0b35ea0482}\label{structADM_a32cc0e83ac9beb636f186d0b35ea0482}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structADM_a32cc0e83ac9beb636f186d0b35ea0482}{points}}
+\begin{DoxyCompactList}\small\item\em array containing the AD point coordinates \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a034cb78cd27db62abf37bab4ddb09591}\label{structADM_a034cb78cd27db62abf37bab4ddb09591}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structADM_a034cb78cd27db62abf37bab4ddb09591}{dr}}
+\begin{DoxyCompactList}\small\item\em array containing the radial mesh size \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a7fb16d7634e2066a3f38893fe276dfdf}\label{structADM_a7fb16d7634e2066a3f38893fe276dfdf}} 
+Petsc\+Int \mbox{\hyperlink{structADM_a7fb16d7634e2066a3f38893fe276dfdf}{n\+Radial}}
+\begin{DoxyCompactList}\small\item\em number of AD points in the radial direction \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_ace25bba428bb598066f24b1d0aaa81bf}\label{structADM_ace25bba428bb598066f24b1d0aaa81bf}} 
+Petsc\+Int \mbox{\hyperlink{structADM_ace25bba428bb598066f24b1d0aaa81bf}{n\+Azimuth}}
+\begin{DoxyCompactList}\small\item\em number of AD points in the azimuthal direction \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_acb47ec3db8775f611be0624f0210438c}\label{structADM_acb47ec3db8775f611be0624f0210438c}} 
+Petsc\+Real \mbox{\hyperlink{structADM_acb47ec3db8775f611be0624f0210438c}{Uref}}
+\begin{DoxyCompactList}\small\item\em reference velocity to compute Ct\+Inf (only used for data writing) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_ac2f2b980804e74c61973451322ee6b93}\label{structADM_ac2f2b980804e74c61973451322ee6b93}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structADM_ac2f2b980804e74c61973451322ee6b93}{chord}}
+\begin{DoxyCompactList}\small\item\em array containing the chord at each AD point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a305a643a04442ebb23acee159103f8b6}\label{structADM_a305a643a04442ebb23acee159103f8b6}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structADM_a305a643a04442ebb23acee159103f8b6}{twist}}
+\begin{DoxyCompactList}\small\item\em array containing the twist at each AD point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a3265e95b9fe057c908d300d02dde480f}\label{structADM_a3265e95b9fe057c908d300d02dde480f}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structADM_a3265e95b9fe057c908d300d02dde480f}{solidity}}
+\begin{DoxyCompactList}\small\item\em array containing the solidity at each AD point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_ab39343a03c5ea1c15e88240260999905}\label{structADM_ab39343a03c5ea1c15e88240260999905}} 
+Petsc\+Int $\ast$$\ast$ \mbox{\hyperlink{structADM_ab39343a03c5ea1c15e88240260999905}{foil\+Ids}}
+\begin{DoxyCompactList}\small\item\em labels of the 2 airfoils closest to each AD point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a9858738ba020b046b2e6fc7ce344fe6e}\label{structADM_a9858738ba020b046b2e6fc7ce344fe6e}} 
+Petsc\+Real $\ast$$\ast$ \mbox{\hyperlink{structADM_a9858738ba020b046b2e6fc7ce344fe6e}{iw}}
+\begin{DoxyCompactList}\small\item\em interp. weights for the the 2 airfoils closest to each AD point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a1730f8aedc77661c94eb4694c5e2c76b}\label{structADM_a1730f8aedc77661c94eb4694c5e2c76b}} 
+Petsc\+Int $\ast$ \mbox{\hyperlink{structADM_a1730f8aedc77661c94eb4694c5e2c76b}{this\+Pt\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flags telling if a point is controlled by this processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a5ad534ba51de911ee97f718a8e49d940}\label{structADM_a5ad534ba51de911ee97f718a8e49d940}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$ \mbox{\hyperlink{structADM_a5ad534ba51de911ee97f718a8e49d940}{closest\+Cells}}
+\begin{DoxyCompactList}\small\item\em indices of the closest cells to this turbine AD points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_ac2241807b1ec9176513e1f96ef54114a}\label{structADM_ac2241807b1ec9176513e1f96ef54114a}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structADM_ac2241807b1ec9176513e1f96ef54114a}{Cd}}
+\begin{DoxyCompactList}\small\item\em drag coefficient at each point of the AD \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_ad4a6d91c4f1b1872f4b77df8e67eb61e}\label{structADM_ad4a6d91c4f1b1872f4b77df8e67eb61e}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structADM_ad4a6d91c4f1b1872f4b77df8e67eb61e}{Cl}}
+\begin{DoxyCompactList}\small\item\em lift coefficient at each point of the AD \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a0136d9f6c2d9df5efd302776204aed5f}\label{structADM_a0136d9f6c2d9df5efd302776204aed5f}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structADM_a0136d9f6c2d9df5efd302776204aed5f}{alpha}}
+\begin{DoxyCompactList}\small\item\em angle of attack at each point of the AD \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_ace4328c330e2094496a3c761430fe51a}\label{structADM_ace4328c330e2094496a3c761430fe51a}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structADM_ace4328c330e2094496a3c761430fe51a}{U}}
+\begin{DoxyCompactList}\small\item\em flow velocity at each point of the AD (relative to the blade) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a13155b665b39735b1c0e7254040d33f2}\label{structADM_a13155b665b39735b1c0e7254040d33f2}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structADM_a13155b665b39735b1c0e7254040d33f2}{B}}
+\begin{DoxyCompactList}\small\item\em body force at each point of the AD mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a62df04c94846102371eba729dd2ac8ff}\label{structADM_a62df04c94846102371eba729dd2ac8ff}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structADM_a62df04c94846102371eba729dd2ac8ff}{axialF}}
+\begin{DoxyCompactList}\small\item\em rotor axial force at each point of the AD mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_ab17fe0c39d9553516026c6d05601d3d3}\label{structADM_ab17fe0c39d9553516026c6d05601d3d3}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structADM_ab17fe0c39d9553516026c6d05601d3d3}{tangtF}}
+\begin{DoxyCompactList}\small\item\em rotor tangential force at each point of the AD mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a0a14beb79e6e3696bd249d626bfa50ca}\label{structADM_a0a14beb79e6e3696bd249d626bfa50ca}} 
+Petsc\+Real \mbox{\hyperlink{structADM_a0a14beb79e6e3696bd249d626bfa50ca}{rtr\+Avg\+MagU}}
+\begin{DoxyCompactList}\small\item\em average velocity on the rotor (includes induction from CFD) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_af89169b86779de8dae11d2e7c62b4117}\label{structADM_af89169b86779de8dae11d2e7c62b4117}} 
+Petsc\+Real \mbox{\hyperlink{structADM_af89169b86779de8dae11d2e7c62b4117}{rtr\+Torque}}
+\begin{DoxyCompactList}\small\item\em total rotor torque \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_af4cd3d692a5e814b945cfff7b04385c9}\label{structADM_af4cd3d692a5e814b945cfff7b04385c9}} 
+Petsc\+Real \mbox{\hyperlink{structADM_af4cd3d692a5e814b945cfff7b04385c9}{rtr\+Thrust}}
+\begin{DoxyCompactList}\small\item\em total rotor thrust \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_aecfa08ebd6e1b6aa2557daf7d647679f}\label{structADM_aecfa08ebd6e1b6aa2557daf7d647679f}} 
+Petsc\+Real \mbox{\hyperlink{structADM_aecfa08ebd6e1b6aa2557daf7d647679f}{aero\+Pwr}}
+\begin{DoxyCompactList}\small\item\em total rotor aero power \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structADM_a8f690f87e3c10dd1e66a4afac32186fa}\label{structADM_a8f690f87e3c10dd1e66a4afac32186fa}} 
+Petsc\+Int \mbox{\hyperlink{structADM_a8f690f87e3c10dd1e66a4afac32186fa}{dbg}}
+\begin{DoxyCompactList}\small\item\em prints a lot of information \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Actuator Disk Model. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/turbines.\+h\end{DoxyCompactItemize}

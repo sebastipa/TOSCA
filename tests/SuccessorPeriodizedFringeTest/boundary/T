@@ -1,0 +1,11 @@
+# OKWind Input file - T boundary conditions 
+# -------------------------------------------
+
+iLeft   periodic
+iRight  periodic
+jLeft   zeroGradient
+jRight  fixedGradient 0.003
+kLeft   periodic
+kRight  periodic
+
+internalField    readField

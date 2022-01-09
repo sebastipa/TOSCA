@@ -1,0 +1,51 @@
+\hypertarget{precursor_8c}{}\doxysection{src/precursor.c File Reference}
+\label{precursor_8c}\index{src/precursor.c@{src/precursor.c}}
+
+
+Contains top to bottom level routines for the concurrent precursor method.  
+
+
+{\ttfamily \#include \char`\"{}include/base.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/domain.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/io.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/inline.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/inflow.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}include/initialization.\+h\char`\"{}}\newline
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{precursor_8c_aa859f9bac2360b2293979f0f8359e6e0}\label{precursor_8c_aa859f9bac2360b2293979f0f8359e6e0}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_aa859f9bac2360b2293979f0f8359e6e0}{Set\+Solution\+Flags\+Precursor}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Precursor solution flags definition. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{precursor_8c_ad866651341e465aa5919cdd9bb429c93}\label{precursor_8c_ad866651341e465aa5919cdd9bb429c93}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_ad866651341e465aa5919cdd9bb429c93}{concurrent\+Precursor\+Initialize}} (\mbox{\hyperlink{structabl__}{abl\+\_\+}} $\ast$abl)
+\begin{DoxyCompactList}\small\item\em initialize concurrent precursor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{precursor_8c_ad82c60678ecfa62a5c631937b4ba8f15}\label{precursor_8c_ad82c60678ecfa62a5c631937b4ba8f15}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_ad82c60678ecfa62a5c631937b4ba8f15}{Initialize\+Mesh\+Precursor}} (\mbox{\hyperlink{structabl__}{abl\+\_\+}} $\ast$abl)
+\begin{DoxyCompactList}\small\item\em Precursor mesh initialization. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{precursor_8c_a735697ec69fed10f3151d3c73f26fb6e}\label{precursor_8c_a735697ec69fed10f3151d3c73f26fb6e}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_a735697ec69fed10f3151d3c73f26fb6e}{concurrent\+Precursor\+Solve}} (\mbox{\hyperlink{structabl__}{abl\+\_\+}} $\ast$abl)
+\begin{DoxyCompactList}\small\item\em Solve concurrent precursor. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{precursor_8c_a78760997140b4d4723fa9deb4bfb6839}\label{precursor_8c_a78760997140b4d4723fa9deb4bfb6839}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_a78760997140b4d4723fa9deb4bfb6839}{Set\+Boundary\+Conditions\+Precursor}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Precursor boundary conditions initialization function. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{precursor_8c_a0aa138a378b2d886d7014715112fde6b}\label{precursor_8c_a0aa138a378b2d886d7014715112fde6b}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_a0aa138a378b2d886d7014715112fde6b}{Set\+Inflow\+Functions\+Precursor}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Sets the inflow function on the precursor. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{precursor_8c_af3c6f2be652f4965679073f4d07ced62}\label{precursor_8c_af3c6f2be652f4965679073f4d07ced62}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_af3c6f2be652f4965679073f4d07ced62}{Map\+Initial\+Condition\+Precursor}} (\mbox{\hyperlink{structabl__}{abl\+\_\+}} $\ast$abl)
+\begin{DoxyCompactList}\small\item\em Map fields from successor to precursor. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{precursor_8c_af6212df0bb2c422e40700fa08b37fc13}\label{precursor_8c_af6212df0bb2c422e40700fa08b37fc13}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_af6212df0bb2c422e40700fa08b37fc13}{successor\+Precursor\+Map\+Vector\+Field}} (\mbox{\hyperlink{structabl__}{abl\+\_\+}} $\ast$abl, Vec \&Source, Vec \&Target, Vec \&l\+Target)
+\begin{DoxyCompactList}\small\item\em Map vector field from successor to precursor. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{precursor_8c_abf2b1a5812e59b837220336a4516e817}\label{precursor_8c_abf2b1a5812e59b837220336a4516e817}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_abf2b1a5812e59b837220336a4516e817}{successor\+Precursor\+Map\+Scalar\+Field}} (\mbox{\hyperlink{structabl__}{abl\+\_\+}} $\ast$abl, Vec \&Source, Vec \&Target, Vec \&l\+Target)
+\begin{DoxyCompactList}\small\item\em Map scalar tor field from successor to precursor. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{precursor_8c_ade55e77a027c358c5be69660bc152cb2}\label{precursor_8c_ade55e77a027c358c5be69660bc152cb2}} 
+Petsc\+Error\+Code \mbox{\hyperlink{precursor_8c_ade55e77a027c358c5be69660bc152cb2}{ABLInitialize\+Precursor}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Initialize abl for precursor (x damping layer is not set) \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains top to bottom level routines for the concurrent precursor method. 
+

@@ -1,0 +1,283 @@
+\hypertarget{structwindTurbine}{}\doxysection{wind\+Turbine Struct Reference}
+\label{structwindTurbine}\index{windTurbine@{windTurbine}}
+
+
+Wind turbine parameters.  
+
+
+
+
+{\ttfamily \#include $<$turbines.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structwindTurbine_a2a1dfbb94c207a81df4eede552284917}\label{structwindTurbine_a2a1dfbb94c207a81df4eede552284917}} 
+word \mbox{\hyperlink{structwindTurbine_a2a1dfbb94c207a81df4eede552284917}{id}}
+\begin{DoxyCompactList}\small\item\em id of the wind turbine \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a5f42a55fd6db24c6cffc25654440bfe3}\label{structwindTurbine_a5f42a55fd6db24c6cffc25654440bfe3}} 
+word \mbox{\hyperlink{structwindTurbine_a5f42a55fd6db24c6cffc25654440bfe3}{type}}
+\begin{DoxyCompactList}\small\item\em type of the wind turbine \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a7800a5022c238907600f8287c8075f71}\label{structwindTurbine_a7800a5022c238907600f8287c8075f71}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_a7800a5022c238907600f8287c8075f71}{n\+Blades}}
+\begin{DoxyCompactList}\small\item\em number of turbine blades \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_afcf15731d021c96cadb1175a0ce7edcd}\label{structwindTurbine_afcf15731d021c96cadb1175a0ce7edcd}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_afcf15731d021c96cadb1175a0ce7edcd}{r\+Tip}}
+\begin{DoxyCompactList}\small\item\em tip radius from CoR \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ac83d3aab8c7c60b24bbddf6233587844}\label{structwindTurbine_ac83d3aab8c7c60b24bbddf6233587844}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_ac83d3aab8c7c60b24bbddf6233587844}{r\+Hub}}
+\begin{DoxyCompactList}\small\item\em hub radius from CoR \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ae2147583b90223867e47238f1a1fb671}\label{structwindTurbine_ae2147583b90223867e47238f1a1fb671}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_ae2147583b90223867e47238f1a1fb671}{h\+Twr}}
+\begin{DoxyCompactList}\small\item\em tower height \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a038649daeac75f673987b104b58f3dc5}\label{structwindTurbine_a038649daeac75f673987b104b58f3dc5}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a038649daeac75f673987b104b58f3dc5}{ovr\+Hang}}
+\begin{DoxyCompactList}\small\item\em nacelle overhang in the rotor direction (facing the wind) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a2201ab9829e59f6480966d5fdcda096e}\label{structwindTurbine_a2201ab9829e59f6480966d5fdcda096e}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a2201ab9829e59f6480966d5fdcda096e}{precone}}
+\begin{DoxyCompactList}\small\item\em blade precone (equal for all blades) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ab5b017cb8a6cc60caf98e0c570919a9c}\label{structwindTurbine_ab5b017cb8a6cc60caf98e0c570919a9c}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structwindTurbine_ab5b017cb8a6cc60caf98e0c570919a9c}{twr\+Dir}}
+\begin{DoxyCompactList}\small\item\em unit vector pointing from base to tower top \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a71935374de38da5dab95f2cdececc770}\label{structwindTurbine_a71935374de38da5dab95f2cdececc770}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a71935374de38da5dab95f2cdececc770}{up\+Tilt}}
+\begin{DoxyCompactList}\small\item\em nacell up-\/tilt (positive when blades get far from tower) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_abf896cbf910469ddd3db502a4ac7f3a1}\label{structwindTurbine_abf896cbf910469ddd3db502a4ac7f3a1}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_abf896cbf910469ddd3db502a4ac7f3a1}{gen\+Eff}}
+\begin{DoxyCompactList}\small\item\em electrical generator eficiency \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ab0a6ad4d0611e4353a71d148001c64bd}\label{structwindTurbine_ab0a6ad4d0611e4353a71d148001c64bd}} 
+word \mbox{\hyperlink{structwindTurbine_ab0a6ad4d0611e4353a71d148001c64bd}{rot\+Dir}}
+\begin{DoxyCompactList}\small\item\em rotation dir as seen lookingthrough the WT from the front \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a7aa3563569e2ffb2cc84f9dc1944fa8c}\label{structwindTurbine_a7aa3563569e2ffb2cc84f9dc1944fa8c}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structwindTurbine_a7aa3563569e2ffb2cc84f9dc1944fa8c}{rot\+Center}}
+\begin{DoxyCompactList}\small\item\em rotor rotation center \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ab98205c90b9b55c758296ad800a21446}\label{structwindTurbine_ab98205c90b9b55c758296ad800a21446}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_ab98205c90b9b55c758296ad800a21446}{n\+Foils}}
+\begin{DoxyCompactList}\small\item\em number of airfoils in the database \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a055df111e77c1cb581616f2072321c92}\label{structwindTurbine_a055df111e77c1cb581616f2072321c92}} 
+word $\ast$$\ast$ \mbox{\hyperlink{structwindTurbine_a055df111e77c1cb581616f2072321c92}{foil\+Names}}
+\begin{DoxyCompactList}\small\item\em array of pointers of size(n-\/foils in turbine) to airfoil names \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a11c3294b7634729455fdbf2fbf68bb7d}\label{structwindTurbine_a11c3294b7634729455fdbf2fbf68bb7d}} 
+\mbox{\hyperlink{structfoilInfo}{foil\+Info}} $\ast$$\ast$ \mbox{\hyperlink{structwindTurbine_a11c3294b7634729455fdbf2fbf68bb7d}{foils}}
+\begin{DoxyCompactList}\small\item\em array of pointers of size(n-\/foils in turbine) to each airfoil\textquotesingle{}s info \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a4b0867c0c192b3a90f2423e7e75b3f1e}\label{structwindTurbine_a4b0867c0c192b3a90f2423e7e75b3f1e}} 
+\mbox{\hyperlink{structbladeAeroInfo}{blade\+Aero\+Info}} \mbox{\hyperlink{structwindTurbine_a4b0867c0c192b3a90f2423e7e75b3f1e}{blade}}
+\begin{DoxyCompactList}\small\item\em blade properties \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ab5bfdd09ff75d78c504943aa9566b8cf}\label{structwindTurbine_ab5bfdd09ff75d78c504943aa9566b8cf}} 
+\mbox{\hyperlink{structanemometer}{anemometer}} \mbox{\hyperlink{structwindTurbine_ab5bfdd09ff75d78c504943aa9566b8cf}{WDAS}}
+\begin{DoxyCompactList}\small\item\em wind data acquisition system (nacelle mounted anemometer) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ad0ec959ac838eec778fce2ef8a5d21da}\label{structwindTurbine_ad0ec959ac838eec778fce2ef8a5d21da}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structwindTurbine_ad0ec959ac838eec778fce2ef8a5d21da}{rtr\+Dir}}
+\begin{DoxyCompactList}\small\item\em (all) unit vector pointing to the rotor orientation in non-\/tilted position (facing the wind) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a842ccc5eb06281f842cf835b4f141029}\label{structwindTurbine_a842ccc5eb06281f842cf835b4f141029}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structwindTurbine_a842ccc5eb06281f842cf835b4f141029}{rtr\+Axis}}
+\begin{DoxyCompactList}\small\item\em (all) unit vector pointing to the rotor orientation in tilted position (facing the wind) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a320bf8277acf98f5c5f3fe89992dec0c}\label{structwindTurbine_a320bf8277acf98f5c5f3fe89992dec0c}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structwindTurbine_a320bf8277acf98f5c5f3fe89992dec0c}{omega\+\_\+hat}}
+\begin{DoxyCompactList}\small\item\em (AD/\+AL) turbine angular velocity unit vector (directed as rtr\+Axis, pointed according to rot\+Dir) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a3c92b34521b313ade227640f1606cb68}\label{structwindTurbine_a3c92b34521b313ade227640f1606cb68}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a3c92b34521b313ade227640f1606cb68}{rtr\+Omega}}
+\begin{DoxyCompactList}\small\item\em (AD/\+AL) turbine angular velocity \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ab427d8cbb03f5750f4f058f01ea15a63}\label{structwindTurbine_ab427d8cbb03f5750f4f058f01ea15a63}} 
+\mbox{\hyperlink{structADM}{ADM}} \mbox{\hyperlink{structwindTurbine_ab427d8cbb03f5750f4f058f01ea15a63}{adm}}
+\begin{DoxyCompactList}\small\item\em actuator disk model \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_af134fddf16dca0e4d2a59d45dc3eeb49}\label{structwindTurbine_af134fddf16dca0e4d2a59d45dc3eeb49}} 
+\mbox{\hyperlink{structUADM}{UADM}} \mbox{\hyperlink{structwindTurbine_af134fddf16dca0e4d2a59d45dc3eeb49}{uadm}}
+\begin{DoxyCompactList}\small\item\em unform actuator disk model \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a941a7bece4ac47fdba98c56a91dce920}\label{structwindTurbine_a941a7bece4ac47fdba98c56a91dce920}} 
+\mbox{\hyperlink{structtowerModel}{tower\+Model}} \mbox{\hyperlink{structwindTurbine_a941a7bece4ac47fdba98c56a91dce920}{twr}}
+\begin{DoxyCompactList}\small\item\em actuator line tower model \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a973d232c4a27cc42f053150f87777b23}\label{structwindTurbine_a973d232c4a27cc42f053150f87777b23}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_a973d232c4a27cc42f053150f87777b23}{include\+Twr}}
+\begin{DoxyCompactList}\small\item\em flag telling if tower is included \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a544933f094ffb8a7a1b1585bebc1b20a}\label{structwindTurbine_a544933f094ffb8a7a1b1585bebc1b20a}} 
+\mbox{\hyperlink{structupSampling}{up\+Sampling}} $\ast$ \mbox{\hyperlink{structwindTurbine_a544933f094ffb8a7a1b1585bebc1b20a}{up\+Points}}
+\begin{DoxyCompactList}\small\item\em struct containing the upstream sampling points information \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a31117d364a875df772a66d74357fef5c}\label{structwindTurbine_a31117d364a875df772a66d74357fef5c}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a31117d364a875df772a66d74357fef5c}{deg2rad}}
+\begin{DoxyCompactList}\small\item\em degrees to radiants conversion factor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a3c3fc6e24aede5702be006b052f2e82f}\label{structwindTurbine_a3c3fc6e24aede5702be006b052f2e82f}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a3c3fc6e24aede5702be006b052f2e82f}{rad2deg}}
+\begin{DoxyCompactList}\small\item\em radiants to degrees conversion factor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_aabb4c301d32b424edb555fa27124c2b0}\label{structwindTurbine_aabb4c301d32b424edb555fa27124c2b0}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_aabb4c301d32b424edb555fa27124c2b0}{rpm2\+Rad\+Sec}}
+\begin{DoxyCompactList}\small\item\em RPM to rad/s conversion factor. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a549b655c0dbd5d1ac21c61bcaf9bd9f1}\label{structwindTurbine_a549b655c0dbd5d1ac21c61bcaf9bd9f1}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_a549b655c0dbd5d1ac21c61bcaf9bd9f1}{turbine\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flag which tells if this proc controls this wind turbine \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a40ac561471f8c4a01884cc9b059b22be}\label{structwindTurbine_a40ac561471f8c4a01884cc9b059b22be}} 
+MPI\+\_\+\+Comm \mbox{\hyperlink{structwindTurbine_a40ac561471f8c4a01884cc9b059b22be}{TRB\+\_\+\+COMM}}
+\begin{DoxyCompactList}\small\item\em communicator for this turbine \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a5b4668e1510b5b8283dab7d665ec99b4}\label{structwindTurbine_a5b4668e1510b5b8283dab7d665ec99b4}} 
+Petsc\+MPIInt \mbox{\hyperlink{structwindTurbine_a5b4668e1510b5b8283dab7d665ec99b4}{writer\+Rank}}
+\begin{DoxyCompactList}\small\item\em label of master rank of the TRB\+\_\+\+COMM communicator in the MPI\+\_\+\+COMM\+\_\+\+WORLD rank list \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a69ff916190402e2fd787d753dffd623b}\label{structwindTurbine_a69ff916190402e2fd787d753dffd623b}} 
+Petsc\+MPIInt \mbox{\hyperlink{structwindTurbine_a69ff916190402e2fd787d753dffd623b}{n\+Procs\+Trb}}
+\begin{DoxyCompactList}\small\item\em size of the TRB\+\_\+\+COMM communicator \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a9bbb9442f50cc51d02d16ce4ae10617b}\label{structwindTurbine_a9bbb9442f50cc51d02d16ce4ae10617b}} 
+word \mbox{\hyperlink{structwindTurbine_a9bbb9442f50cc51d02d16ce4ae10617b}{gen\+Controller\+Type}}
+\begin{DoxyCompactList}\small\item\em name of torque controller (if none preserves intial omega, else reads from control/gen\+Controller\+Type) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_afe2a3611eb5d32d6aac3d27de312a94e}\label{structwindTurbine_afe2a3611eb5d32d6aac3d27de312a94e}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_afe2a3611eb5d32d6aac3d27de312a94e}{gen\+Omega}}
+\begin{DoxyCompactList}\small\item\em turbine angular velocity \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a895fce5e38b490577db4de80e1b23766}\label{structwindTurbine_a895fce5e38b490577db4de80e1b23766}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a895fce5e38b490577db4de80e1b23766}{rtr\+Omega\+Filt}}
+\begin{DoxyCompactList}\small\item\em turbine filtered angular velocity \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_aad16570c10e128b3217bd7b841f3ab3b}\label{structwindTurbine_aad16570c10e128b3217bd7b841f3ab3b}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_aad16570c10e128b3217bd7b841f3ab3b}{rtr\+Spd\+Filter\+Freq}}
+\begin{DoxyCompactList}\small\item\em frequency of the single-\/pole low pass filter for the rotor angular frequency \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_adab194a09b499c48de4fd33ea15c894d}\label{structwindTurbine_adab194a09b499c48de4fd33ea15c894d}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_adab194a09b499c48de4fd33ea15c894d}{cut\+In\+Gen\+Spd}}
+\begin{DoxyCompactList}\small\item\em cut in generator speed \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a6fb256b8cf40fc0d212c9dab5d471ea9}\label{structwindTurbine_a6fb256b8cf40fc0d212c9dab5d471ea9}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a6fb256b8cf40fc0d212c9dab5d471ea9}{cut\+In\+Gen\+Tq}}
+\begin{DoxyCompactList}\small\item\em cut in generator torque \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ac107971db9d540b0c81f057344841152}\label{structwindTurbine_ac107971db9d540b0c81f057344841152}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_ac107971db9d540b0c81f057344841152}{reg\+Two\+Start\+Gen\+Spd}}
+\begin{DoxyCompactList}\small\item\em generator speed at the start of control region 2 \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_aaf969c275d5318354ce4bb90f2e205d1}\label{structwindTurbine_aaf969c275d5318354ce4bb90f2e205d1}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_aaf969c275d5318354ce4bb90f2e205d1}{reg\+Two\+End\+Gen\+Spd}}
+\begin{DoxyCompactList}\small\item\em generator speed at the end of control region 2 \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a7b8f854996f1af21d605411b7c50cf46}\label{structwindTurbine_a7b8f854996f1af21d605411b7c50cf46}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a7b8f854996f1af21d605411b7c50cf46}{rated\+Gen\+Tq}}
+\begin{DoxyCompactList}\small\item\em generator torque at the rated wind speed \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a854588d0fc9ec21bb559050ad31c4ca4}\label{structwindTurbine_a854588d0fc9ec21bb559050ad31c4ca4}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a854588d0fc9ec21bb559050ad31c4ca4}{omega\+KP}}
+\begin{DoxyCompactList}\small\item\em proportional gain of the generator torque controller \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a8f7ef0e72fc5420762b9fbc44bd4898d}\label{structwindTurbine_a8f7ef0e72fc5420762b9fbc44bd4898d}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a8f7ef0e72fc5420762b9fbc44bd4898d}{gen\+Torque}}
+\begin{DoxyCompactList}\small\item\em total generator torque \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a073bcbb4472baeeaa61116566f64cea0}\label{structwindTurbine_a073bcbb4472baeeaa61116566f64cea0}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a073bcbb4472baeeaa61116566f64cea0}{gen\+Pwr}}
+\begin{DoxyCompactList}\small\item\em total rotor gen power \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a64a83e2f595d1ee7fa38c7a65f82f322}\label{structwindTurbine_a64a83e2f595d1ee7fa38c7a65f82f322}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_a64a83e2f595d1ee7fa38c7a65f82f322}{tq\+Rate\+Limiter}}
+\begin{DoxyCompactList}\small\item\em activate torque rate limiter (1 yes, 0 no) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a7c82f0fd0d05190372991f7b01538908}\label{structwindTurbine_a7c82f0fd0d05190372991f7b01538908}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_a7c82f0fd0d05190372991f7b01538908}{rtr\+Spd\+Limiter}}
+\begin{DoxyCompactList}\small\item\em activate generator speed limiter (1 yes, 0 no) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ab7fda793f293f1d6ec35e8055b76463c}\label{structwindTurbine_ab7fda793f293f1d6ec35e8055b76463c}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_ab7fda793f293f1d6ec35e8055b76463c}{tq\+Max\+Rate}}
+\begin{DoxyCompactList}\small\item\em maximum torque variation rate allowed for the generator torque controller \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ad6b3d8b5811e74faa57124171914dda0}\label{structwindTurbine_ad6b3d8b5811e74faa57124171914dda0}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_ad6b3d8b5811e74faa57124171914dda0}{rated\+Rotor\+Spd}}
+\begin{DoxyCompactList}\small\item\em rotor speed at rated wind speed \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_abd2303fcd150f90ac177837220e31a4d}\label{structwindTurbine_abd2303fcd150f90ac177837220e31a4d}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_abd2303fcd150f90ac177837220e31a4d}{drive\+Train\+Inertia}}
+\begin{DoxyCompactList}\small\item\em sum of all the inertias attached to the shaft \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a720b936428e4d6fb0ece440aeea80cf3}\label{structwindTurbine_a720b936428e4d6fb0ece440aeea80cf3}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a720b936428e4d6fb0ece440aeea80cf3}{gen\+Inertia}}
+\begin{DoxyCompactList}\small\item\em generator inertia \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a20751b2247c727c29d2369da08e43990}\label{structwindTurbine_a20751b2247c727c29d2369da08e43990}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a20751b2247c727c29d2369da08e43990}{hub\+Inertia}}
+\begin{DoxyCompactList}\small\item\em hub intertia \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a8a6a9de9bc4fbf1e8cb6c93136a266ab}\label{structwindTurbine_a8a6a9de9bc4fbf1e8cb6c93136a266ab}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a8a6a9de9bc4fbf1e8cb6c93136a266ab}{bld\+Inertia}}
+\begin{DoxyCompactList}\small\item\em blade intertia \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a87365233579294438b76753874db2b77}\label{structwindTurbine_a87365233579294438b76753874db2b77}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a87365233579294438b76753874db2b77}{gbx\+Ratio\+G2R}}
+\begin{DoxyCompactList}\small\item\em gearbox generator-\/to-\/rotor ratio \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a3333a9b28ce96e95d09ece2f96769e05}\label{structwindTurbine_a3333a9b28ce96e95d09ece2f96769e05}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a3333a9b28ce96e95d09ece2f96769e05}{gbx\+Eff}}
+\begin{DoxyCompactList}\small\item\em gearbox mechanical efficiency \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a16fd0d1f4208851bb5df5975fcf7fbea}\label{structwindTurbine_a16fd0d1f4208851bb5df5975fcf7fbea}} 
+word \mbox{\hyperlink{structwindTurbine_a16fd0d1f4208851bb5df5975fcf7fbea}{pitch\+Controller\+Type}}
+\begin{DoxyCompactList}\small\item\em name of torque controller (if none preserves intial omega, else reads from control/pitch\+Controller\+Type) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ab3e7af50698270e0b09fa9f5f4afc7bc}\label{structwindTurbine_ab3e7af50698270e0b09fa9f5f4afc7bc}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structwindTurbine_ab3e7af50698270e0b09fa9f5f4afc7bc}{pitch}}
+\begin{DoxyCompactList}\small\item\em blade pitch (array of size n-\/blades), could vary blade by blade \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a43efb8dd9fa8cc2b08d1c78a514b5320}\label{structwindTurbine_a43efb8dd9fa8cc2b08d1c78a514b5320}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a43efb8dd9fa8cc2b08d1c78a514b5320}{coll\+Pitch}}
+\begin{DoxyCompactList}\small\item\em collective pitch (same for all blades) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ac822ba0cbc609f2501228638d38f6423}\label{structwindTurbine_ac822ba0cbc609f2501228638d38f6423}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_ac822ba0cbc609f2501228638d38f6423}{pitch\+KP}}
+\begin{DoxyCompactList}\small\item\em pitch controller proportional gain \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ada561b1750a3b17bb708d212038193d6}\label{structwindTurbine_ada561b1750a3b17bb708d212038193d6}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_ada561b1750a3b17bb708d212038193d6}{pitch\+KI}}
+\begin{DoxyCompactList}\small\item\em pitch controller integral gain \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ae02ca2dff28fbae5f6413f07c793bb67}\label{structwindTurbine_ae02ca2dff28fbae5f6413f07c793bb67}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_ae02ca2dff28fbae5f6413f07c793bb67}{pitch\+KD}}
+\begin{DoxyCompactList}\small\item\em pitch controller derivative gain \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a1e2b4084ba4bc6bb555e5e30b726326f}\label{structwindTurbine_a1e2b4084ba4bc6bb555e5e30b726326f}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a1e2b4084ba4bc6bb555e5e30b726326f}{pitch\+S2R}}
+\begin{DoxyCompactList}\small\item\em pitch at which the sensit. of power to pitch variations has doubled w.\+r.\+t. rated position \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a0aaa8c882bac4d54297d4fd040db0014}\label{structwindTurbine_a0aaa8c882bac4d54297d4fd040db0014}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a0aaa8c882bac4d54297d4fd040db0014}{err\+PID}}
+\begin{DoxyCompactList}\small\item\em error of the PID controller \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a8b92665f95ac9425550b5b7969175290}\label{structwindTurbine_a8b92665f95ac9425550b5b7969175290}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a8b92665f95ac9425550b5b7969175290}{int\+Err\+PID}}
+\begin{DoxyCompactList}\small\item\em integrated error of the PID controller \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_aa385107fbb759faee0dd53dec5a68fda}\label{structwindTurbine_aa385107fbb759faee0dd53dec5a68fda}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_aa385107fbb759faee0dd53dec5a68fda}{pitch\+Rate\+Limiter}}
+\begin{DoxyCompactList}\small\item\em activate pitch rate limiter (1 yes, 0 no) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_abb26fc1ac8540982272f21e2fd2f69e4}\label{structwindTurbine_abb26fc1ac8540982272f21e2fd2f69e4}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_abb26fc1ac8540982272f21e2fd2f69e4}{pitch\+Angle\+Limiter}}
+\begin{DoxyCompactList}\small\item\em activate pitch angle limiter (1 yes, 0 no) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a20bab277b4d453562cbb1e7dfcbed508}\label{structwindTurbine_a20bab277b4d453562cbb1e7dfcbed508}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a20bab277b4d453562cbb1e7dfcbed508}{pitch\+Max\+Rate}}
+\begin{DoxyCompactList}\small\item\em max rate of blade pitch motion \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a83644e4f971a967d93740f3bb38e1481}\label{structwindTurbine_a83644e4f971a967d93740f3bb38e1481}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a83644e4f971a967d93740f3bb38e1481}{pitch\+Min}}
+\begin{DoxyCompactList}\small\item\em minimum pitch angle \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a900c52e67291387aac1cb48da8510e47}\label{structwindTurbine_a900c52e67291387aac1cb48da8510e47}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a900c52e67291387aac1cb48da8510e47}{pitch\+Max}}
+\begin{DoxyCompactList}\small\item\em maximum pitch angle \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ab1489e92fa62804eeafb5321739c2a3d}\label{structwindTurbine_ab1489e92fa62804eeafb5321739c2a3d}} 
+word \mbox{\hyperlink{structwindTurbine_ab1489e92fa62804eeafb5321739c2a3d}{yaw\+Controller\+Type}}
+\begin{DoxyCompactList}\small\item\em name of torque controller (if none preserves intial omega, else reads from control/yaw\+Controller\+Type) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_afc4173b4e09ae79cc7c482a58f049519}\label{structwindTurbine_afc4173b4e09ae79cc7c482a58f049519}} 
+word \mbox{\hyperlink{structwindTurbine_afc4173b4e09ae79cc7c482a58f049519}{yaw\+Sampling\+Type}}
+\begin{DoxyCompactList}\small\item\em mode of velocity sampling (hub\+Up\+Dist, anemometer) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a0c314d2d232f439c86801e24fd3b1d69}\label{structwindTurbine_a0c314d2d232f439c86801e24fd3b1d69}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a0c314d2d232f439c86801e24fd3b1d69}{yaw\+Average\+Window}}
+\begin{DoxyCompactList}\small\item\em time window used for misalignment averaging \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a7595d59b919ccfdd3718d74940c4b41e}\label{structwindTurbine_a7595d59b919ccfdd3718d74940c4b41e}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a7595d59b919ccfdd3718d74940c4b41e}{yaw\+Allowed\+Error}}
+\begin{DoxyCompactList}\small\item\em allows +-\/yaw\+Allowed\+Error flow misalignment in degrees \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_abad92947e71ff54b4b991cb101207ed0}\label{structwindTurbine_abad92947e71ff54b4b991cb101207ed0}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_abad92947e71ff54b4b991cb101207ed0}{yaw\+Min}}
+\begin{DoxyCompactList}\small\item\em minimum yaw angle \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a4aa91064b66539be2c86bd0a8d1058ab}\label{structwindTurbine_a4aa91064b66539be2c86bd0a8d1058ab}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a4aa91064b66539be2c86bd0a8d1058ab}{yaw\+Max}}
+\begin{DoxyCompactList}\small\item\em maximum yaw angle \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a88e923f9214a5fb525b7175c0e3fa582}\label{structwindTurbine_a88e923f9214a5fb525b7175c0e3fa582}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a88e923f9214a5fb525b7175c0e3fa582}{yaw\+Angle}}
+\begin{DoxyCompactList}\small\item\em actual yaw angle wrt xyz background ref frame \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_aea0f82b8e10cb71c530285e002e88eb5}\label{structwindTurbine_aea0f82b8e10cb71c530285e002e88eb5}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_aea0f82b8e10cb71c530285e002e88eb5}{flow\+Angle}}
+\begin{DoxyCompactList}\small\item\em actual averaged flow angle wrt xyz background ref frame \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_aa2d739bbc6834b3f06a3493eae6a45e1}\label{structwindTurbine_aa2d739bbc6834b3f06a3493eae6a45e1}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_aa2d739bbc6834b3f06a3493eae6a45e1}{yaw\+Error}}
+\begin{DoxyCompactList}\small\item\em yaw misalignment error \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a48491369c1948f31184ac81931322b17}\label{structwindTurbine_a48491369c1948f31184ac81931322b17}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a48491369c1948f31184ac81931322b17}{yaw\+Speed}}
+\begin{DoxyCompactList}\small\item\em yaw speed in degs/s \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_abf592f981aef80136d6a809c6892f5c2}\label{structwindTurbine_abf592f981aef80136d6a809c6892f5c2}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} \mbox{\hyperlink{structwindTurbine_abf592f981aef80136d6a809c6892f5c2}{yaw\+Sample\+Ids}}
+\begin{DoxyCompactList}\small\item\em ids of the point where the velocity for misalignment computation must be sampled \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a3e8c1c2eda750b096eb0f9f1f2b2bd14}\label{structwindTurbine_a3e8c1c2eda750b096eb0f9f1f2b2bd14}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_a3e8c1c2eda750b096eb0f9f1f2b2bd14}{yaw\+Changed}}
+\begin{DoxyCompactList}\small\item\em flag telling if must do the search on the turbine points due to yaw change \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a0c32db07275137b1c5a32772916e8cea}\label{structwindTurbine_a0c32db07275137b1c5a32772916e8cea}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$ \mbox{\hyperlink{structwindTurbine_a0c32db07275137b1c5a32772916e8cea}{controlled\+Cells}}
+\begin{DoxyCompactList}\small\item\em labels of the background mesh cells influenced by this turbine in this processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a5a90b8a4452f1675f004c3c248524fdf}\label{structwindTurbine_a5a90b8a4452f1675f004c3c248524fdf}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_a5a90b8a4452f1675f004c3c248524fdf}{n\+Controlled}}
+\begin{DoxyCompactList}\small\item\em size of controlled\+Cells \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a70a29b2976addefb72b500d79cd3517f}\label{structwindTurbine_a70a29b2976addefb72b500d79cd3517f}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_a70a29b2976addefb72b500d79cd3517f}{eps}}
+\begin{DoxyCompactList}\small\item\em spreading width of the gaussian projection function (good is 0.\+035 $\ast$ h\+Tower) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_ac12a5bdb0936f5e02611123ac3991573}\label{structwindTurbine_ac12a5bdb0936f5e02611123ac3991573}} 
+Petsc\+Real \mbox{\hyperlink{structwindTurbine_ac12a5bdb0936f5e02611123ac3991573}{prj\+NSigma}}
+\begin{DoxyCompactList}\small\item\em confidence interval as number of std deviations for the projection function (hardcoded to 2.\+7) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structwindTurbine_a097086813b30129d5372200d6c1960e1}\label{structwindTurbine_a097086813b30129d5372200d6c1960e1}} 
+Petsc\+Int \mbox{\hyperlink{structwindTurbine_a097086813b30129d5372200d6c1960e1}{dbg}}
+\begin{DoxyCompactList}\small\item\em this turbines info at the begining of the simulation and at each iteration \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Wind turbine parameters. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/turbines.\+h\end{DoxyCompactItemize}

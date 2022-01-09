@@ -1,0 +1,92 @@
+\hypertarget{overset_8h}{}\doxysection{src/include/overset.h File Reference}
+\label{overset_8h}\index{src/include/overset.h@{src/include/overset.h}}
+
+
+overset Objects and functions,  
+
+
+\doxysubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structAcell}{Acell}}
+\begin{DoxyCompactList}\small\item\em overset acceptor cell \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structDcell}{Dcell}}
+\begin{DoxyCompactList}\small\item\em overset donor cell \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structoversetMotion}{overset\+Motion}}
+\begin{DoxyCompactList}\small\item\em struct with the overset motion \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structoverset__}{overset\+\_\+}}
+\begin{DoxyCompactList}\small\item\em Structure for the Overset mesh method. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{overset_8h_aff3ca6c4a4ea1ca2fc65979a72587ddb}\label{overset_8h_aff3ca6c4a4ea1ca2fc65979a72587ddb}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_aff3ca6c4a4ea1ca2fc65979a72587ddb}{Initialize\+Overset}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$dm)
+\begin{DoxyCompactList}\small\item\em initialize the overset variables \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_a32d689e1f0668f5c4c5bd0115e0a6f31}\label{overset_8h_a32d689e1f0668f5c4c5bd0115e0a6f31}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_a32d689e1f0668f5c4c5bd0115e0a6f31}{Update\+Overset\+Interpolation}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em perform the overset interpolation \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_ac68842297073626eb631dd8185074732}\label{overset_8h_ac68842297073626eb631dd8185074732}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_ac68842297073626eb631dd8185074732}{read\+Overset\+Properties}} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} $\ast$overset)
+\begin{DoxyCompactList}\small\item\em read the overset properties file to set them \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_ae8352cbca8eaccd85398d9453de0a52a}\label{overset_8h_ae8352cbca8eaccd85398d9453de0a52a}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_ae8352cbca8eaccd85398d9453de0a52a}{update\+Acceptor\+Coordinates}} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} $\ast$os)
+\begin{DoxyCompactList}\small\item\em In dynamic overset, update the acceptor cell co-\/ordinates for the next time step. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_a2e3bddd2f78e55b587a06c754b671216}\label{overset_8h_a2e3bddd2f78e55b587a06c754b671216}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_a2e3bddd2f78e55b587a06c754b671216}{overset\+Mesh\+Translation}} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} $\ast$os)
+\begin{DoxyCompactList}\small\item\em overset mesh translation based on the prescribed velocity \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_ae0140714e44521b497b69fee6494f78a}\label{overset_8h_ae0140714e44521b497b69fee6494f78a}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_ae0140714e44521b497b69fee6494f78a}{create\+Acceptor\+Cell}} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} $\ast$os)
+\begin{DoxyCompactList}\small\item\em Create the list of acceptor cells which will be interpolated. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_a86b6744be8ecc51f201e9e830e73d5b6}\label{overset_8h_a86b6744be8ecc51f201e9e830e73d5b6}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_a86b6744be8ecc51f201e9e830e73d5b6}{find\+Closest\+Donor}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$meshP, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Find the closest donor cell to the acceptor cell in the overset mesh for trilinear interpolation. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_a2b5dbd542df7a91b8ad9d1104517dd37}\label{overset_8h_a2b5dbd542df7a91b8ad9d1104517dd37}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_a2b5dbd542df7a91b8ad9d1104517dd37}{acell\+Dcell\+Connectivity}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$meshP, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Find the donor cell to the acceptor cell in the overset mesh for Least square interpolation. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_a2419f3d74afec706cdc532d3ac50e885}\label{overset_8h_a2419f3d74afec706cdc532d3ac50e885}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_a2419f3d74afec706cdc532d3ac50e885}{get\+LSWeights}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$meshP, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Find the weight for each donor cell when using least square interpolation first order. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_a6b5de734f4a8247f36d3e60fe16599d0}\label{overset_8h_a6b5de734f4a8247f36d3e60fe16599d0}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_a6b5de734f4a8247f36d3e60fe16599d0}{get\+LSWeights\+\_\+2nd}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$meshP, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Find the weight for each donor cell when using least square interpolation second order. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_a7cc6bccee9e906418451045904db5e09}\label{overset_8h_a7cc6bccee9e906418451045904db5e09}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_a7cc6bccee9e906418451045904db5e09}{get\+LSWeights\+\_\+3rd}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$meshP, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Find the weight for each donor cell when using least square interpolation third order. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_abfe962dac7079f7c9c2dcb2d066935a5}\label{overset_8h_abfe962dac7079f7c9c2dcb2d066935a5}} 
+Petsc\+Error\+Code {\bfseries Overset\+Interpolation} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\item 
+\mbox{\Hypertarget{overset_8h_ac341eac1ec2348a39d5e94591af34e3a}\label{overset_8h_ac341eac1ec2348a39d5e94591af34e3a}} 
+Petsc\+Error\+Code {\bfseries interpolate\+ACell\+InvD} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$meshP, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\item 
+\mbox{\Hypertarget{overset_8h_a3572f74f9cb9fdb4045dfaefa718c000}\label{overset_8h_a3572f74f9cb9fdb4045dfaefa718c000}} 
+Petsc\+Error\+Code {\bfseries interpolate\+ACell\+Trilinear} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$meshP, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\item 
+\mbox{\Hypertarget{overset_8h_a6fffdbbb905801c051e3ffad386edd34}\label{overset_8h_a6fffdbbb905801c051e3ffad386edd34}} 
+Petsc\+Error\+Code {\bfseries interpolate\+ACell\+LS} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$meshP, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\item 
+\mbox{\Hypertarget{overset_8h_a0f2668af260f09450a34b8678ec332e9}\label{overset_8h_a0f2668af260f09450a34b8678ec332e9}} 
+Petsc\+Error\+Code \mbox{\hyperlink{overset_8h_a0f2668af260f09450a34b8678ec332e9}{overset\+Contravariant\+BC}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int i, Petsc\+Int j, Petsc\+Int k, \mbox{\hyperlink{structCmpnts}{Cmpnts}} ucart, Petsc\+Int face)
+\begin{DoxyCompactList}\small\item\em set the contravariant flux at the face of an overset interpolated cell \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{overset_8h_adc8b7dfae6116a5b87bfecd7f89b9841}\label{overset_8h_adc8b7dfae6116a5b87bfecd7f89b9841}} 
+Petsc\+Error\+Code {\bfseries update\+Acell\+Coordinates} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\item 
+\mbox{\Hypertarget{overset_8h_a662f0f62c303a9bee041f5f56364de54}\label{overset_8h_a662f0f62c303a9bee041f5f56364de54}} 
+Petsc\+Error\+Code {\bfseries update\+Intersecting\+Processors} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\item 
+\mbox{\Hypertarget{overset_8h_a04c541a3b403c97194e8288092d0d300}\label{overset_8h_a04c541a3b403c97194e8288092d0d300}} 
+Petsc\+Error\+Code {\bfseries update\+Donor\+Cells} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\item 
+\mbox{\Hypertarget{overset_8h_ae9a12f5ebd02a87fc15c458919447aef}\label{overset_8h_ae9a12f5ebd02a87fc15c458919447aef}} 
+Petsc\+Error\+Code {\bfseries overset\+Mesh\+Translation} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\item 
+\mbox{\Hypertarget{overset_8h_a2a4858dad8c212571dfe23fcff7e2860}\label{overset_8h_a2a4858dad8c212571dfe23fcff7e2860}} 
+void {\bfseries sum\+\_\+struct\+\_\+\+Acell} (void $\ast$in, void $\ast$inout, int $\ast$len, MPI\+\_\+\+Datatype $\ast$type)
+\item 
+\mbox{\Hypertarget{overset_8h_a9d59b4f910e870ccb73caabeecf71047}\label{overset_8h_a9d59b4f910e870ccb73caabeecf71047}} 
+void {\bfseries define\+Struct\+\_\+\+Acell} (MPI\+\_\+\+Datatype $\ast$tstype)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+overset Objects and functions, 
+

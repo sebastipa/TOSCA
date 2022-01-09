@@ -1,0 +1,38 @@
+\hypertarget{mesh_8h}{}\doxysection{src/include/mesh.h File Reference}
+\label{mesh_8h}\index{src/include/mesh.h@{src/include/mesh.h}}
+
+
+Mesh header file.  
+
+
+{\ttfamily \#include \char`\"{}boundary.\+h\char`\"{}}\newline
+\doxysubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structboundingBox}{bounding\+Box}}
+\begin{DoxyCompactList}\small\item\em Structure defining the domain bounding box (easy access to xmin, xmax, ymin, ymax, zmin, zmax) \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structmesh__}{mesh\+\_\+}}
+\begin{DoxyCompactList}\small\item\em mesh structure storing mesh and curvilinear coordinates \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{mesh_8h_a68f967253178f3a500fdf905f93d6e17}\label{mesh_8h_a68f967253178f3a500fdf905f93d6e17}} 
+Petsc\+Error\+Code \mbox{\hyperlink{mesh_8h_a68f967253178f3a500fdf905f93d6e17}{Initialize\+Mesh}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Initialize mesh. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{mesh_8h_a204921bb082c6d2b90822b90cefb5e78}\label{mesh_8h_a204921bb082c6d2b90822b90cefb5e78}} 
+Petsc\+Error\+Code \mbox{\hyperlink{mesh_8h_a204921bb082c6d2b90822b90cefb5e78}{Set\+Distributed\+Arrays}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Set distributed arrays. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{mesh_8h_ac162deedb22611ecfd37ed856e76a81f}\label{mesh_8h_ac162deedb22611ecfd37ed856e76a81f}} 
+Petsc\+Error\+Code \mbox{\hyperlink{mesh_8h_ac162deedb22611ecfd37ed856e76a81f}{Set\+Mesh\+Metrics}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Set curvilinear coordinates metrics. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{mesh_8h_a6f779a01b006adc21b19d9f83b736eb5}\label{mesh_8h_a6f779a01b006adc21b19d9f83b736eb5}} 
+Petsc\+Error\+Code \mbox{\hyperlink{mesh_8h_a6f779a01b006adc21b19d9f83b736eb5}{Set\+Bounding\+Box}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Set bounding box. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{mesh_8h_aa53c26599ca626caa6dc7866b6df656c}\label{mesh_8h_aa53c26599ca626caa6dc7866b6df656c}} 
+Petsc\+Error\+Code \mbox{\hyperlink{mesh_8h_aa53c26599ca626caa6dc7866b6df656c}{ghostnodes\+Cellcenter}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Find the cell center for the ghost nodes. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Mesh header file. 
+

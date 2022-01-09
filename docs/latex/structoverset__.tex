@@ -1,0 +1,70 @@
+\hypertarget{structoverset__}{}\doxysection{overset\+\_\+ Struct Reference}
+\label{structoverset__}\index{overset\_@{overset\_}}
+
+
+Structure for the Overset mesh method.  
+
+
+
+
+{\ttfamily \#include $<$overset.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structoverset___a2fdb73fb6008e358fee285cf457a43e6}\label{structoverset___a2fdb73fb6008e358fee285cf457a43e6}} 
+label\+List \mbox{\hyperlink{structoverset___a2fdb73fb6008e358fee285cf457a43e6}{parent\+Mesh\+Id}}
+\begin{DoxyCompactList}\small\item\em Parent node of each level. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___ae1fa78568c7d5db456552a664606ad0c}\label{structoverset___ae1fa78568c7d5db456552a664606ad0c}} 
+label\+List \mbox{\hyperlink{structoverset___ae1fa78568c7d5db456552a664606ad0c}{child\+Mesh\+Id}}
+\begin{DoxyCompactList}\small\item\em Child node of each level. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a7ec3ede91baefa23485505f800a6243b}\label{structoverset___a7ec3ede91baefa23485505f800a6243b}} 
+word \mbox{\hyperlink{structoverset___a7ec3ede91baefa23485505f800a6243b}{interpolation\+Type}}
+\begin{DoxyCompactList}\small\item\em type of Interpolation \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___ade3e2342b4cf0b3aa02cbcf7c806a6b3}\label{structoverset___ade3e2342b4cf0b3aa02cbcf7c806a6b3}} 
+Petsc\+Int \mbox{\hyperlink{structoverset___ade3e2342b4cf0b3aa02cbcf7c806a6b3}{dynamic\+Overset}}
+\begin{DoxyCompactList}\small\item\em switch for dynamic overset \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a586d248402446da66aacd74362db8a11}\label{structoverset___a586d248402446da66aacd74362db8a11}} 
+Petsc\+Int \mbox{\hyperlink{structoverset___a586d248402446da66aacd74362db8a11}{proc\+Change}}
+\begin{DoxyCompactList}\small\item\em switch to check if the background processors which intersect with overset mesh have changed \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a51dbcb8cb309881bdd2992076b21a056}\label{structoverset___a51dbcb8cb309881bdd2992076b21a056}} 
+\mbox{\hyperlink{structoversetMotion}{overset\+Motion}} $\ast$ {\bfseries o\+Motion}
+\item 
+\mbox{\Hypertarget{structoverset___af22d524f63481b0e3e53f46707e725d9}\label{structoverset___af22d524f63481b0e3e53f46707e725d9}} 
+Petsc\+Real {\bfseries cell\+Avg}
+\item 
+\mbox{\Hypertarget{structoverset___a519e8f2f0939b41dc7491dc7c8abc9eb}\label{structoverset___a519e8f2f0939b41dc7491dc7c8abc9eb}} 
+Petsc\+Real \mbox{\hyperlink{structoverset___a519e8f2f0939b41dc7491dc7c8abc9eb}{cell\+Factor}}
+\begin{DoxyCompactList}\small\item\em cell\+Factor scales the cell size by a factor which will be used as the search radius \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a1cc34a18382217727c6dcf4c74ea1f6f}\label{structoverset___a1cc34a18382217727c6dcf4c74ea1f6f}} 
+std\+::vector$<$ MPI\+\_\+\+Comm $>$ \mbox{\hyperlink{structoverset___a1cc34a18382217727c6dcf4c74ea1f6f}{oset\+\_\+comm}}
+\begin{DoxyCompactList}\small\item\em communicator for overset -\/ background processor interaction \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a3468b2f7005e075f0242c1a15c8d6087}\label{structoverset___a3468b2f7005e075f0242c1a15c8d6087}} 
+std\+::vector$<$ \mbox{\hyperlink{structAcell}{Acell}} $>$ \mbox{\hyperlink{structoverset___a3468b2f7005e075f0242c1a15c8d6087}{a\+Cell}}
+\begin{DoxyCompactList}\small\item\em interpolated cells of the overset mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a8d8376ac737eab324c2287e3d78ce0b4}\label{structoverset___a8d8376ac737eab324c2287e3d78ce0b4}} 
+std\+::vector$<$ std\+::vector$<$ \mbox{\hyperlink{structDcell}{Dcell}} $>$ $>$ \mbox{\hyperlink{structoverset___a8d8376ac737eab324c2287e3d78ce0b4}{d\+Cell}}
+\begin{DoxyCompactList}\small\item\em MLS interpolation\+: donor cells of the background mesh. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a5db1a497bc3c96ff700862600a799dbe}\label{structoverset___a5db1a497bc3c96ff700862600a799dbe}} 
+std\+::vector$<$ \mbox{\hyperlink{structDcell}{Dcell}} $>$ \mbox{\hyperlink{structoverset___a5db1a497bc3c96ff700862600a799dbe}{closest\+Donor}}
+\begin{DoxyCompactList}\small\item\em Trilinear interpolation\+: donor cells of the background mesh. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a8f97f189d7dfe6567da843a2a6146b86}\label{structoverset___a8f97f189d7dfe6567da843a2a6146b86}} 
+std\+::vector$<$ std\+::vector$<$ Petsc\+Int $>$ $>$ \mbox{\hyperlink{structoverset___a8f97f189d7dfe6567da843a2a6146b86}{Acell\+Proc\+Mat}}
+\begin{DoxyCompactList}\small\item\em rank matrix which indicates the processor connectivity between the Acell1 and Dcell0 \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a8d4f22785e4889afdfd1c36d657bbffa}\label{structoverset___a8d4f22785e4889afdfd1c36d657bbffa}} 
+std\+::vector$<$ Petsc\+Int $>$ \mbox{\hyperlink{structoverset___a8d4f22785e4889afdfd1c36d657bbffa}{Num\+Acell\+Per\+Proc}}
+\begin{DoxyCompactList}\small\item\em number of Acceptor cells in each processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a9cc3c5561c566ba8084118243e75bd03}\label{structoverset___a9cc3c5561c566ba8084118243e75bd03}} 
+std\+::vector$<$ std\+::vector$<$ Petsc\+Real $>$ $>$ \mbox{\hyperlink{structoverset___a9cc3c5561c566ba8084118243e75bd03}{DWeights}}
+\begin{DoxyCompactList}\small\item\em MLS interpolation weights. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structoverset___a0ae50ce0033ba75bf3bebd261647bc13}\label{structoverset___a0ae50ce0033ba75bf3bebd261647bc13}} 
+\mbox{\hyperlink{structaccess__}{access\+\_\+}} $\ast$ {\bfseries access}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Structure for the Overset mesh method. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/\mbox{\hyperlink{overset_8h}{overset.\+h}}\end{DoxyCompactItemize}

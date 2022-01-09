@@ -1,0 +1,48 @@
+//! \file  teqn.h
+//! \brief T equation solution header file.
+
+#ifndef _TEQN_H_
+#define _TEQN_H_
+
+//! \brief struct storing temperature equation
+struct teqn_
+{
+    // temperature variables
+    SNES          snesT;                       //!< non linear matrix free context
+    Mat           JT;                          //!< non linear matrix free preconditioner
+    Mat           AT, CT;
+    KSP           ksp;                         //!< linear krylov-subspace context
+    PC            pc;
+    Vec           Rhs;
+    Vec           TmprtTmp;                    //!< temporary solution
+    Vec           Tmprt, lTmprt,
+                  Tmprt_o, lTmprt_o;
+    Vec           lDivT, lViscT;               //!< viscous and divergence temperature equation fluxes
+
+    PetscReal        absExitTol;                 //!< absolute exit tolerance
+    PetscReal        relExitTol;                 //!< relative exit tolerance
+
+    // initial field
+    word           initFieldType;
+
+    // access
+    access_       *access;                  //!< access database
+
+};
+
+#endif
+
+//! \brief Initializes Teqn environment
+PetscErrorCode InitializeTEqn(teqn_ *teqn);
+
+//! \brief Solve T equation
+PetscErrorCode SolveTEqn(teqn_ *teqn);
+
+//! \brief SNES evaulation function
+PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr);
+
+//! \brief Apply fringe region damping
+PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
+
+//! \brief RHS of the potential temperature transport equation
+PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale);

@@ -1,0 +1,27 @@
+# OKWind Input file - T boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    spreadInflow
+
+# boundary patches
+
+iLeft   	 slip
+
+iRight  	 periodic
+
+jLeft   	 zeroGradient
+
+jRight  	 fixedGradient 0.003
+
+kLeft   	 inletFunction
+        	 {
+            	 	type 3
+            	 	n1Inflow 100
+            	 	n2Inflow 300
+            	 	n1Periods 1
+            	 	n2Periods 1
+        	 }
+
+kRight  	 zeroGradient

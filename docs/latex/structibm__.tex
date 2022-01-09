@@ -1,0 +1,55 @@
+\hypertarget{structibm__}{}\doxysection{ibm\+\_\+ Struct Reference}
+\label{structibm__}\index{ibm\_@{ibm\_}}
+
+
+struct storing IBM model  
+
+
+
+
+{\ttfamily \#include $<$ibm.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structibm___a7e5b2d18ede0c77edefbe2c1a11b85bc}\label{structibm___a7e5b2d18ede0c77edefbe2c1a11b85bc}} 
+Petsc\+Int \mbox{\hyperlink{structibm___a7e5b2d18ede0c77edefbe2c1a11b85bc}{num\+Bodies}}
+\begin{DoxyCompactList}\small\item\em number of bodies \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___ad5158afcc83cf8937946f45da9fd15e1}\label{structibm___ad5158afcc83cf8937946f45da9fd15e1}} 
+word \mbox{\hyperlink{structibm___ad5158afcc83cf8937946f45da9fd15e1}{IBInterpolation\+Model}}
+\begin{DoxyCompactList}\small\item\em interpolation methodology \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___aa15d40e1af8d8e4a93ca205fd99e49d9}\label{structibm___aa15d40e1af8d8e4a93ca205fd99e49d9}} 
+Petsc\+Int {\bfseries dbg}
+\item 
+\mbox{\Hypertarget{structibm___ad66f32ad5a20909e084f19309fbc2889}\label{structibm___ad66f32ad5a20909e084f19309fbc2889}} 
+Petsc\+Int {\bfseries dynamic}
+\item 
+\mbox{\Hypertarget{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}\label{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}} 
+\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$$\ast$ \mbox{\hyperlink{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}{ibm\+Body}}
+\begin{DoxyCompactList}\small\item\em array of pointers to ibm objects \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___a9af9ae532bcc101759de61573b2683f2}\label{structibm___a9af9ae532bcc101759de61573b2683f2}} 
+Petsc\+Int $\ast$ \mbox{\hyperlink{structibm___a9af9ae532bcc101759de61573b2683f2}{ibm\+Domain}}
+\begin{DoxyCompactList}\small\item\em array of pointers to the ibm object controlled by each user. domain 0 has access to all IBM bodies \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___a7afc62636e02d8bc44f58b234d9a7eb6}\label{structibm___a7afc62636e02d8bc44f58b234d9a7eb6}} 
+Petsc\+Int \mbox{\hyperlink{structibm___a7afc62636e02d8bc44f58b234d9a7eb6}{ibm\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flag indicating that this domain controls atleast one ibm object \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___ac02bdee327b6634904d5cde6c50a79da}\label{structibm___ac02bdee327b6634904d5cde6c50a79da}} 
+\mbox{\hyperlink{structsearchBox}{search\+Box}} $\ast$ \mbox{\hyperlink{structibm___ac02bdee327b6634904d5cde6c50a79da}{s\+Box}}
+\begin{DoxyCompactList}\small\item\em array of \mbox{\hyperlink{structsearchBox}{search\+Box}} with number of search cells and their size for each ibm object \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___afa028ac00ffea179ec8029b0b0bfe64f}\label{structibm___afa028ac00ffea179ec8029b0b0bfe64f}} 
+\mbox{\hyperlink{structibmFluidCell}{ibm\+Fluid\+Cell}} $\ast$ \mbox{\hyperlink{structibm___afa028ac00ffea179ec8029b0b0bfe64f}{ibm\+FCells}}
+\begin{DoxyCompactList}\small\item\em cell ids and supports cells of the ibm fluid cells within each processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___ab98888e4019f88a3366d87d5ffb42f7b}\label{structibm___ab98888e4019f88a3366d87d5ffb42f7b}} 
+Petsc\+Int \mbox{\hyperlink{structibm___ab98888e4019f88a3366d87d5ffb42f7b}{num\+IBMFluid}}
+\begin{DoxyCompactList}\small\item\em number of ibm fluid cells within each processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___a83728ff65459fc6479450b68e9383a43}\label{structibm___a83728ff65459fc6479450b68e9383a43}} 
+\mbox{\hyperlink{structaccess__}{access\+\_\+}} $\ast$ {\bfseries access}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+struct storing IBM model 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/\mbox{\hyperlink{ibm_8h}{ibm.\+h}}\end{DoxyCompactItemize}

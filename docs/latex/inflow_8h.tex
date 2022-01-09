@@ -1,0 +1,36 @@
+\hypertarget{inflow_8h}{}\doxysection{src/include/inflow.h File Reference}
+\label{inflow_8h}\index{src/include/inflow.h@{src/include/inflow.h}}
+
+
+Contains inflow boundary condition headers.  
+
+
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{inflow_8h_ad893429a3f221b07240528b6d7bd23ee}\label{inflow_8h_ad893429a3f221b07240528b6d7bd23ee}} 
+Petsc\+Error\+Code \mbox{\hyperlink{inflow_8h_ad893429a3f221b07240528b6d7bd23ee}{Set\+Inflow\+Functions}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh)
+\begin{DoxyCompactList}\small\item\em Initialize the inlet functions for inflow. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{inflow_8h_a12cc0340001c48dcaf7e4d55a6defa07}\label{inflow_8h_a12cc0340001c48dcaf7e4d55a6defa07}} 
+Petsc\+Error\+Code \mbox{\hyperlink{inflow_8h_a12cc0340001c48dcaf7e4d55a6defa07}{print\+Inflow\+Mapping\+Action}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, \mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} $\ast$if\+Ptr)
+\begin{DoxyCompactList}\small\item\em print information regarding the inflow boundary mapping \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{inflow_8h_a1d5ffb2cde2bb35b5886889d196942c3}\label{inflow_8h_a1d5ffb2cde2bb35b5886889d196942c3}} 
+Petsc\+Error\+Code \mbox{\hyperlink{inflow_8h_a1d5ffb2cde2bb35b5886889d196942c3}{mapped\+Inflow\+Initialize}} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} $\ast$if\+Ptr)
+\begin{DoxyCompactList}\small\item\em allocate and set the inflow section fields \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{inflow_8h_ac1f881b7afde1e36bbe6e097a50ee77e}\label{inflow_8h_ac1f881b7afde1e36bbe6e097a50ee77e}} 
+Petsc\+Error\+Code \mbox{\hyperlink{inflow_8h_ac1f881b7afde1e36bbe6e097a50ee77e}{Set\+Inflow\+Weights}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, \mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} $\ast$if\+Ptr)
+\begin{DoxyCompactList}\small\item\em Calculate interpolation weights for the mapped interpolated inflow boundary condition. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{inflow_8h_a41c63e5fe6a3298c46018563b5c0db52}\label{inflow_8h_a41c63e5fe6a3298c46018563b5c0db52}} 
+Petsc\+Error\+Code \mbox{\hyperlink{inflow_8h_a41c63e5fe6a3298c46018563b5c0db52}{read\+InflowU}} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} $\ast$if\+Ptr, \mbox{\hyperlink{structclock__}{clock\+\_\+}} $\ast$clock)
+\begin{DoxyCompactList}\small\item\em Reads inflow velocity from database and stores in inlet\+Function data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{inflow_8h_a0837d0a34b62bee1c93402bd95934f89}\label{inflow_8h_a0837d0a34b62bee1c93402bd95934f89}} 
+Petsc\+Error\+Code \mbox{\hyperlink{inflow_8h_a0837d0a34b62bee1c93402bd95934f89}{read\+InflowT}} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} $\ast$if\+Ptr, \mbox{\hyperlink{structclock__}{clock\+\_\+}} $\ast$clock)
+\begin{DoxyCompactList}\small\item\em Reads inflow tempereature from database and stores in inlet\+Function data. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{inflow_8h_a076de702bea8a8e60398175f2ce34173}\label{inflow_8h_a076de702bea8a8e60398175f2ce34173}} 
+Petsc\+Error\+Code \mbox{\hyperlink{inflow_8h_a076de702bea8a8e60398175f2ce34173}{read\+Inflow\+Nut}} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} $\ast$if\+Ptr, \mbox{\hyperlink{structclock__}{clock\+\_\+}} $\ast$clock)
+\begin{DoxyCompactList}\small\item\em Reads inflow sgs viscosity from database and stores in inlet\+Function data. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains inflow boundary condition headers. 
+
