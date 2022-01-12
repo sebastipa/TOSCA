@@ -144,7 +144,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 }
 
                 // ABL averaging for background domain only
-                if(acquisition->isAverage3LMActive)
+                if(acquisition->isAverageABLActive)
                 {
                     timeStart    = domain[0].acquisition->statisticsABL->avgStartTime;
                     timeInterval = domain[0].acquisition->statisticsABL->avgPrd;
