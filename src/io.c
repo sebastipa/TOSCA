@@ -986,7 +986,7 @@ void createDir(MPI_Comm comm, const char* path)
       PetscInt dirRes = mkdir(path, 0777);
       if(dirRes != 0 && errno != EEXIST)
       {
-          char error[256];
+         char error[512];
           sprintf(error, "could not create %s directory\n", path);
           fatalErrorInFunction("createDir",  error);
       }
@@ -1111,7 +1111,7 @@ PetscInt dir_exist(const char *str)
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s directory\n", str);
         fatalErrorInFunction("dir_exists",  error);
     }
@@ -1148,7 +1148,7 @@ PetscInt count_files(const char* path)
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s directory", path);
         fatalErrorInFunction("count_files",  error);
     }
@@ -1426,7 +1426,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
       dirRes = mkdir("./fields", 0777);
       if(dirRes != 0 && errno != EEXIST)
       {
-          char error[256];
+         char error[512];
           sprintf(error, "could not create fields directory \n");
           fatalErrorInFunction("setRunTimeWrite",  error);
       }
@@ -1457,7 +1457,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
             dirRes = mkdir(writeDir.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory", writeDir.c_str());
                 fatalErrorInFunction("setRunTimeWrite",  error);
             }
@@ -1511,7 +1511,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
             (intervalType != "adjustableTime")
         )
         {
-            char error[256];
+           char error[512];
             sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", intervalType.c_str());
             fatalErrorInFunction("setRunTimeWrite",  error);
         }
@@ -1533,7 +1533,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
             PetscInt dirRes = mkdir(timeName.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory\n", timeName.c_str());
                 fatalErrorInFunction("setRunTimeWrite",  error);
             }
@@ -1564,7 +1564,7 @@ PetscErrorCode readDictDouble(const char *dictName, const char *keyword, PetscRe
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readDictDouble",  error);
     }
@@ -1592,7 +1592,7 @@ PetscErrorCode readDictDouble(const char *dictName, const char *keyword, PetscRe
         }
         indata.close();
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find keyword %s in dictionary %s\n", keyword, dictName);
         fatalErrorInFunction("readDictDouble",  error);
     }
@@ -1615,7 +1615,7 @@ PetscErrorCode readDictVector(const char *dictName, const char *keyword, Cmpnts 
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readDictVector",  error);
     }
@@ -1655,7 +1655,7 @@ PetscErrorCode readDictVector(const char *dictName, const char *keyword, Cmpnts 
 
                    if(!isNumber(cmp1))
                    {
-                       char error[256];
+                      char error[512];
                        sprintf(error, "expected number after keyword '%s' in dictionary %s\n", keyword, dictName);
                        fatalErrorInFunction("readDictVector",  error);
                    }
@@ -1669,7 +1669,7 @@ PetscErrorCode readDictVector(const char *dictName, const char *keyword, Cmpnts 
 
                    if(!isNumber(cmp2))
                    {
-                       char error[256];
+                      char error[512];
                        sprintf(error, "expected number in vector defined by keyword '%s' in dictionary %s\n", keyword, dictName);
                        fatalErrorInFunction("readDictVector",  error);
                    }
@@ -1688,7 +1688,7 @@ PetscErrorCode readDictVector(const char *dictName, const char *keyword, Cmpnts 
 
                        if(!isNumber(cmp3))
                        {
-                           char error[256];
+                          char error[512];
                            sprintf(error, "expected number in vector defined by keyword '%s' in dictionary %s\n", keyword, dictName);
                            fatalErrorInFunction("readDictVector",  error);
                        }
@@ -1702,14 +1702,14 @@ PetscErrorCode readDictVector(const char *dictName, const char *keyword, Cmpnts 
                    }
                    else
                    {
-                       char error[256];
+                      char error[512];
                        sprintf(error, "expected <)>  after vector defined by keyword '%s' in dictionary %s\n", keyword, dictName);
                        fatalErrorInFunction("readDictVector",  error);
                    }
                }
                else
                {
-                 char error[256];
+                char error[512];
                  sprintf(error, "expected <(>  after keyword '%s' in dictionary %s\n", keyword, dictName);
                  fatalErrorInFunction("readDictVector",  error);
                }
@@ -1717,7 +1717,7 @@ PetscErrorCode readDictVector(const char *dictName, const char *keyword, Cmpnts 
         }
         indata.close();
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find keyword %s in dictionary %s\n", keyword, dictName);
         fatalErrorInFunction("readDictVector",  error);
     }
@@ -1737,7 +1737,7 @@ PetscErrorCode readDictInt(const char *dictName, const char *keyword, PetscInt *
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readDictInt",  error);
     }
@@ -1765,7 +1765,7 @@ PetscErrorCode readDictInt(const char *dictName, const char *keyword, PetscInt *
         }
         indata.close();
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find keyword %s in dictionary %s\n", keyword, dictName);
         fatalErrorInFunction("readDictInt",  error);
     }
@@ -1785,7 +1785,7 @@ PetscErrorCode readDictWord(const char *dictName, const char *keyword, word *val
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readDictWord",  error);
     }
@@ -1819,7 +1819,7 @@ PetscErrorCode readDictWord(const char *dictName, const char *keyword, word *val
         }
         indata.close();
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find keyword %s in dictionary %s\n", keyword, dictName);
         fatalErrorInFunction("readDictWord",  error);
     }
@@ -1839,7 +1839,7 @@ PetscErrorCode readDictWordAndDouble(const char *dictName, const char *keyword, 
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readDictWordAndDouble",  error);
     }
@@ -1882,14 +1882,14 @@ PetscErrorCode readDictWordAndDouble(const char *dictName, const char *keyword, 
                        }
                        else
                        {
-                           char error[256];
+                          char error[512];
                            sprintf(error, "expected <PetscReal>  after keyword '%s' in dict %s\n", keyword, dictName);
                            fatalErrorInFunction("readDictWordAndDouble",  error);
                        }
                    }
                    else
                    {
-                       char error[256];
+                      char error[512];
                        sprintf(error, "expected <PetscReal> after keyword '%s' in %s dictionary\n", keyword, dictName);
                        fatalErrorInFunction("readDictWordAndDouble",  error);
                    }
@@ -1904,7 +1904,7 @@ PetscErrorCode readDictWordAndDouble(const char *dictName, const char *keyword, 
         }
         indata.close();
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find keyword %s in dictionary %s\n", keyword, dictName);
         fatalErrorInFunction("readDictWordAndDouble",  error);
     }
@@ -1927,7 +1927,7 @@ PetscErrorCode readDictWordAndVector(const char *dictName, const char *keyword, 
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readDictWordAndDouble",  error);
     }
@@ -1982,14 +1982,14 @@ PetscErrorCode readDictWordAndVector(const char *dictName, const char *keyword, 
 
                           if (str1.find ('.') == std::string::npos)
                           {
-                              char error[256];
+                             char error[512];
                               sprintf(error, "expected <PetscReal>  after keyword '%s' in dict %s\n", keyword, dictName);
                               fatalErrorInFunction("readDictWordAndVector",  error);
                           }
                       }
                       else
                       {
-                          char error[256];
+                         char error[512];
                           sprintf(error, "expected <PetscReal> after keyword '%s' in %s dictionary\n", keyword, dictName);
                           fatalErrorInFunction("readDictWordAndVector",  error);
                       }
@@ -2005,14 +2005,14 @@ PetscErrorCode readDictWordAndVector(const char *dictName, const char *keyword, 
                       {
                           if (str2.find ('.') == std::string::npos)
                           {
-                              char error[256];
+                             char error[512];
                               sprintf(error, "expected <PetscReal>  in vector defined by keyword '%s' in dict %s\n", keyword, dictName);
                               fatalErrorInFunction("readDictWordAndVector",  error);
                           }
                       }
                       else
                       {
-                          char error[256];
+                         char error[512];
                           sprintf(error, "expected <PetscReal> in vector defined by keyword '%s' in %s dictionary\n", keyword, dictName);
                           fatalErrorInFunction("readDictWordAndVector",  error);
                       }
@@ -2038,14 +2038,14 @@ PetscErrorCode readDictWordAndVector(const char *dictName, const char *keyword, 
                               }
                               else
                               {
-                                  char error[256];
+                                 char error[512];
                                   sprintf(error, "expected <PetscReal>  in vector defined by keyword '%s' in dict %s\n", keyword, dictName);
                                   fatalErrorInFunction("readDictWordAndVector",  error);
                               }
                           }
                           else
                           {
-                              char error[256];
+                             char error[512];
                               sprintf(error, "expected <PetscReal> in vector defined by keyword '%s' in %s dictionary\n", keyword, dictName);
                               fatalErrorInFunction("readDictWordAndVector",  error);
                           }
@@ -2053,7 +2053,7 @@ PetscErrorCode readDictWordAndVector(const char *dictName, const char *keyword, 
                       }
                       else
                       {
-                          char error[256];
+                         char error[512];
                           sprintf(error, "expected <)>  after vector defined by keyword '%s' in dict %s\n", keyword, dictName);
                           fatalErrorInFunction("readDictWordAndVector",  error);
                       }
@@ -2061,7 +2061,7 @@ PetscErrorCode readDictWordAndVector(const char *dictName, const char *keyword, 
                    }
                    else
                    {
-                       char error[256];
+                      char error[512];
                        sprintf(error, "expected <(>  after keyword '%s' in dict %s\n", keyword, dictName);
                        fatalErrorInFunction("readDictWordAndVector",  error);
                    }
@@ -2078,7 +2078,7 @@ PetscErrorCode readDictWordAndVector(const char *dictName, const char *keyword, 
         }
         indata.close();
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find keyword %s in dictionary %s\n", keyword, dictName);
         fatalErrorInFunction("readDictWordAndDouble",  error);
     }
@@ -2104,7 +2104,7 @@ PetscErrorCode readSubDictDouble(const char *dictName, const char *subdict, cons
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readSubDictDouble",  error);
     }
@@ -2169,13 +2169,13 @@ PetscErrorCode readSubDictDouble(const char *dictName, const char *subdict, cons
                                    indata >> token2;
                                }
 
-                               char error[256];
+                              char error[512];
                                sprintf(error, "missing '}' token in subdict %s of %s dictionary\n", subdict, dictName);
                                fatalErrorInFunction("readSubDictDouble",  error);
                            }
                            else
                            {
-                               char error[256];
+                              char error[512];
                                sprintf(error, "expected number after keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
                                fatalErrorInFunction("readSubDictDouble",  error);
                            }
@@ -2185,20 +2185,20 @@ PetscErrorCode readSubDictDouble(const char *dictName, const char *subdict, cons
                        indata >> token2;
                    }
 
-                   char error[256];
+                  char error[512];
                    sprintf(error, "could not find keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
                    fatalErrorInFunction("readSubDictDouble",  error);
                }
                else
                {
-                   char error[256];
+                   char error[512];
                    sprintf(error, "expected '{' token in subdict %s of %s dictionary, found '%s'\n", subdict, dictName, word);
                    fatalErrorInFunction("readSubDictDouble",  error);
                }
            }
        }
 
-       char error[256];
+      char error[512];
        sprintf(error, "could not find subdictionary %s in dictionary %s\n", subdict, dictName);
        fatalErrorInFunction("readSubDictDouble",  error);
    }
@@ -2225,7 +2225,7 @@ PetscErrorCode readSubDictInt(const char *dictName, const char *subdict, const c
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readSubDictInt",  error);
     }
@@ -2290,13 +2290,13 @@ PetscErrorCode readSubDictInt(const char *dictName, const char *subdict, const c
                                    indata >> token2;
                                }
 
-                               char error[256];
+                              char error[512];
                                sprintf(error, "missing '}' token in subdict %s of %s dictionary\n", subdict, dictName);
                                fatalErrorInFunction("readSubDictInt",  error);
                            }
                            else
                            {
-                               char error[256];
+                              char error[512];
                                sprintf(error, "expected number after keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
                                fatalErrorInFunction("readSubDictInt",  error);
                            }
@@ -2306,20 +2306,20 @@ PetscErrorCode readSubDictInt(const char *dictName, const char *subdict, const c
                        indata >> token2;
                    }
 
-                   char error[256];
+                  char error[512];
                    sprintf(error, "could not find keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
                    fatalErrorInFunction("readSubDictInt",  error);
                }
                else
                {
-                   char error[256];
+                  char error[512];
                    sprintf(error, "expected '{' token in subdict %s of %s dictionary, found '%s'\n", subdict, dictName, word);
                    fatalErrorInFunction("readSubDictInt",  error);
                }
            }
        }
 
-       char error[256];
+      char error[512];
        sprintf(error, "could not find subdictionary %s in dictionary %s\n", subdict, dictName);
        fatalErrorInFunction("readSubDictInt",  error);
    }
@@ -2343,7 +2343,7 @@ PetscErrorCode readSubDictWord(const char *dictName, const char *subdict, const 
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readSubDictWord",  error);
     }
@@ -2389,7 +2389,7 @@ PetscErrorCode readSubDictWord(const char *dictName, const char *subdict, const 
 
                            if(isNumber(str))
                            {
-                               char error[256];
+                              char error[512];
                                sprintf(error, "expected word after keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
                                fatalErrorInFunction("readSubDictWord",  error);
                            }
@@ -2418,7 +2418,7 @@ PetscErrorCode readSubDictWord(const char *dictName, const char *subdict, const 
                                    indata >> token2;
                                }
 
-                               char error[256];
+                              char error[512];
                                sprintf(error, "missing '}' token in subdict %s of %s dictionary\n", subdict, dictName);
                                fatalErrorInFunction("readSubDictWord",  error);
                            }
@@ -2428,20 +2428,20 @@ PetscErrorCode readSubDictWord(const char *dictName, const char *subdict, const 
                        indata >> token2;
                    }
 
-                   char error[256];
+                  char error[512];
                    sprintf(error, "could not find keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
                    fatalErrorInFunction("readSubDictWord",  error);
                }
                else
                {
-                   char error[256];
+                  char error[512];
                    sprintf(error, "expected '{' token in subdict %s of %s dictionary, found '%s'\n", subdict, dictName, word);
                    fatalErrorInFunction("readSubDictWord",  error);
                }
            }
        }
 
-       char error[256];
+      char error[512];
        sprintf(error, "could not find subdictionary %s in dictionary %s\n", subdict, dictName);
        fatalErrorInFunction("readSubDicWord",  error);
    }
@@ -2468,7 +2468,7 @@ PetscErrorCode readSubDictVector(const char *dictName, const char *subdict, cons
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readSubDictVector",  error);
     }
@@ -2536,14 +2536,14 @@ PetscErrorCode readSubDictVector(const char *dictName, const char *subdict, cons
 
                                   if (cmp1.find ('.') == std::string::npos)
                                   {
-                                      char error[256];
+                                     char error[512];
                                       sprintf(error, "expected <PetscReal>  after keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                       fatalErrorInFunction("readSubDictVector",  error);
                                   }
                               }
                               else
                               {
-                                  char error[256];
+                                 char error[512];
                                   sprintf(error, "expected <PetscReal> after keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                   fatalErrorInFunction("readSubDictVector",  error);
                               }
@@ -2559,14 +2559,14 @@ PetscErrorCode readSubDictVector(const char *dictName, const char *subdict, cons
                               {
                                   if (cmp2.find ('.') == std::string::npos)
                                   {
-                                      char error[256];
+                                     char error[512];
                                       sprintf(error, "expected <PetscReal>  in vector defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                       fatalErrorInFunction("readSubDictVector",  error);
                                   }
                               }
                               else
                               {
-                                  char error[256];
+                                 char error[512];
                                   sprintf(error, "expected <PetscReal> in vector defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                   fatalErrorInFunction("readSubDictVector",  error);
                               }
@@ -2587,14 +2587,14 @@ PetscErrorCode readSubDictVector(const char *dictName, const char *subdict, cons
                                   {
                                       if (cmp3.find ('.') == std::string::npos)
                                       {
-                                          char error[256];
+                                         char error[512];
                                           sprintf(error, "expected <PetscReal>  in vector defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                           fatalErrorInFunction("readSubDictVector",  error);
                                       }
                                   }
                                   else
                                   {
-                                      char error[256];
+                                     char error[512];
                                       sprintf(error, "expected <PetscReal> in vector defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                       fatalErrorInFunction("readSubDictVector",  error);
                                   }
@@ -2615,20 +2615,20 @@ PetscErrorCode readSubDictVector(const char *dictName, const char *subdict, cons
                                       indata >> token2;
                                   }
 
-                                  char error[256];
+                                 char error[512];
                                   sprintf(error, "missing '}' token in subdict %s of %s dictionary\n", subdict, dictName);
                                   fatalErrorInFunction("readSubDictWord",  error);
                               }
                               else
                               {
-                                  char error[256];
+                                 char error[512];
                                   sprintf(error, "expected <)>  after vector defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                   fatalErrorInFunction("readSubDictVector",  error);
                               }
                           }
                           else
                           {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "expected <(>  after keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                 fatalErrorInFunction("readSubDictVector",  error);
                            }
@@ -2637,13 +2637,13 @@ PetscErrorCode readSubDictVector(const char *dictName, const char *subdict, cons
                        indata >> token2;
                    }
 
-                   char error[256];
+                  char error[512];
                    sprintf(error, "could not find keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
                    fatalErrorInFunction("readSubDictVector",  error);
                }
                else
                {
-                   char error[256];
+                  char error[512];
                    sprintf(error, "expected '{' token in subdict %s of %s dictionary, found '%s'\n", subdict, dictName, word);
                    fatalErrorInFunction("readSubDictVector",  error);
                }
@@ -2651,7 +2651,7 @@ PetscErrorCode readSubDictVector(const char *dictName, const char *subdict, cons
        }
        indata.close();
 
-       char error[256];
+      char error[512];
        sprintf(error, "could not find subdictionary %s in dictionary %s\n", subdict, dictName);
        fatalErrorInFunction("readSubDictVector",  error);
    }
@@ -2677,7 +2677,7 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readSubDictIntArray",  error);
     }
@@ -2735,7 +2735,7 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
 
                                 if(sum == 0)
                                 {
-                                    char error[256];
+                                   char error[512];
                                     sprintf(error, "empty array or expected <PetscInt>  after keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                     fatalErrorInFunction("readSubDictIntArray",  error);
                                 }
@@ -2750,14 +2750,14 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
 
                                     if (cmp1.find ('.') != std::string::npos)
                                     {
-                                        char error[256];
+                                       char error[512];
                                         sprintf(error, "expected <PetscInt>  after keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                         fatalErrorInFunction("readSubDictIntArray",  error);
                                     }
                                 }
                                 else
                                 {
-                                    char error[256];
+                                   char error[512];
                                     sprintf(error, "expected <PetscInt> after keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                     fatalErrorInFunction("readSubDictIntArray",  error);
                                 }
@@ -2779,7 +2779,7 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
                                         indata >> token2;
                                     }
 
-                                    char error[256];
+                                   char error[512];
                                     sprintf(error, "missing '}' token in subdict %s of %s dictionary\n", subdict, dictName);
                                     fatalErrorInFunction("readSubDictWord",  error);
                                 }
@@ -2798,7 +2798,7 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
                                         {
                                             if (!isdigit(cmp1[i]))
                                             {
-                                                char error[256];
+                                               char error[512];
                                                 sprintf(error, "expected <PetscInt> or expected <)>  after vector defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                                 fatalErrorInFunction("readSubDictIntArray",  error);
                                             }
@@ -2809,14 +2809,14 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
 
                                             if (cmp1.find ('.') != std::string::npos)
                                             {
-                                                char error[256];
+                                               char error[512];
                                                 sprintf(error, "expected <PetscInt>  after keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                                 fatalErrorInFunction("readSubDictIntArray",  error);
                                             }
                                         }
                                         else
                                         {
-                                            char error[256];
+                                           char error[512];
                                             sprintf(error, "expected <PetscInt> after keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                             fatalErrorInFunction("readSubDictIntArray",  error);
                                         }
@@ -2839,14 +2839,14 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
                                         {
                                             if (cmp3.find ('.') != std::string::npos)
                                             {
-                                                char error[256];
+                                               char error[512];
                                                 sprintf(error, "expected <PetscInt>  in vector defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                                 fatalErrorInFunction("readSubDictIntArray",  error);
                                             }
                                         }
                                         else
                                         {
-                                            char error[256];
+                                           char error[512];
                                             sprintf(error, "expected <PetscInt> in vector defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                             fatalErrorInFunction("readSubDictIntArray",  error);
                                         }
@@ -2868,25 +2868,25 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
                                             indata >> token2;
                                         }
 
-                                        char error[256];
+                                       char error[512];
                                         sprintf(error, "missing '}' token in subdict %s of %s dictionary\n", subdict, dictName);
                                         fatalErrorInFunction("readSubDictIntArray",  error);
                                     }
                                     else
                                     {
-                                        char error[256];
+                                       char error[512];
                                         sprintf(error, "expected <)>  after vector defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                         fatalErrorInFunction("readSubDictIntArray",  error);
                                     }
                                 }
 
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "missing '}' token in subdict %s of %s dictionary\n", subdict, dictName);
                                 fatalErrorInFunction("readSubDictIntArray",  error);
                             }
                             else
                             {
-                                  char error[256];
+                                 char error[512];
                                   sprintf(error, "expected <(>  after keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
                                   fatalErrorInFunction("readSubDictIntArray",  error);
                              }
@@ -2895,14 +2895,14 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
                         indata >> token2;
                     }
 
-                    char error[256];
+                   char error[512];
                     sprintf(error, "could not find keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
                     fatalErrorInFunction("readSubDictIntArray",  error);
 
                 }
                 else
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "expected '{' token in subdict %s of %s dictionary, found '%s'\n", subdict, dictName, word);
                     fatalErrorInFunction("readSubDictIntArray",  error);
                 }
@@ -2910,7 +2910,7 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
         }
         indata.close();
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find subdictionary %s in dictionary %s\n", subdict, dictName);
         fatalErrorInFunction("readSubDictIntArray",  error);
     }

@@ -82,7 +82,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
   {
     if(clock->time == 0)
     {
-      char error[256];
+     char error[512];
       sprintf(error, "readField option not available at startTime 0. Use uniform field or spread the inflow\n");
       fatalErrorInFunction("SetInitialFieldU", error);
     }
@@ -91,7 +91,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
     {
       if(ueqn->access->teqn->initFieldType != "readField")
       {
-        char error[256];
+       char error[512];
         sprintf(error, "readField requires all fields to be set to this keyword. Temperature not set as readField\n");
         fatalErrorInFunction("SetInitialFieldU", error);
       }
@@ -101,7 +101,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
     {
       if(ueqn->access->les->initFieldType != "readField")
       {
-        char error[256];
+       char error[512];
         sprintf(error, "readField requires all fields to be set to this keyword. nut not set as readField\n");
         fatalErrorInFunction("SetInitialFieldU", error);
       }
@@ -124,21 +124,21 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
   {
     if(!(ueqn->access->flags->isAblActive))
     {
-      char error[256];
+     char error[512];
       sprintf(error, "activate ABL flag before setting the ABLFlow initial field\n");
       fatalErrorInFunction("SetInitialFieldU", error);
     }
 
     if(!(ueqn->access->flags->isTeqnActive))
     {
-      char error[256];
+     char error[512];
       sprintf(error, "activate Teqn flag before setting the ABLFlow initial field\n");
       fatalErrorInFunction("SetInitialFieldU", error);
     }
 
     if(ueqn->access->teqn->initFieldType != "ABLFlow")
     {
-      char error[256];
+     char error[512];
       sprintf(error, "Set initial field in /boundary/T to ABLFlow\n");
       fatalErrorInFunction("SetInitialFieldU", error);
     }
@@ -155,7 +155,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
 
   else
   {
-    char error[256];
+   char error[512];
     sprintf(error, "Invalid initial field keyword. Available initial fields are:\n\n        1. uniform\n        2. ABLFlow\n        3. spreadInflow\n        4. readField\n");
     fatalErrorInFunction("SetInitialFieldU", error);
   }
@@ -175,7 +175,7 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
   {
     if(clock->time == 0)
     {
-      char error[256];
+     char error[512];
       sprintf(error, "readField option not available at startTime 0. Use uniform field or spread the inflow\n");
       fatalErrorInFunction("SetInitialFieldT", error);
     }
@@ -184,7 +184,7 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
     {
       if(teqn->access->ueqn->initFieldType != "readField")
       {
-        char error[256];
+       char error[512];
         sprintf(error, "readField requires all fields to be set to this keyword. Velocity not set as readField\n");
         fatalErrorInFunction("SetInitialFieldT", error);
       }
@@ -207,21 +207,21 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
   {
     if(!(teqn->access->flags->isAblActive))
     {
-      char error[256];
+     char error[512];
       sprintf(error, "activate ABL flag before setting the ABLFlow initial field\n");
       fatalErrorInFunction("SetInitialFieldU", error);
     }
 
     if(!(teqn->access->flags->isTeqnActive))
     {
-      char error[256];
+     char error[512];
       sprintf(error, "activate Teqn flag before setting the ABLFlow initial field\n");
       fatalErrorInFunction("SetInitialFieldU", error);
     }
 
     if(teqn->access->ueqn->initFieldType != "ABLFlow")
     {
-      char error[256];
+     char error[512];
       sprintf(error, "Set initial field in /boundary/U to ABLFlow\n");
       fatalErrorInFunction("SetInitialFieldU", error);
     }
@@ -238,7 +238,7 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
 
   else
   {
-    char error[256];
+   char error[512];
     sprintf(error, "Invalid initial field keyword. Available initial fields at time=0 are:\n\n        1. uniform\n        2. ABLFlow\n        3. spreadInflow\n");
     fatalErrorInFunction("SetInitialFieldU", error);
   }

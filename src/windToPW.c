@@ -238,7 +238,7 @@ PetscErrorCode binary3DToXMF(domain_ *domain, postProcess *pp)
       PetscInt dirRes = mkdir(XMFDir.c_str(), 0777);
       if(dirRes != 0 && errno != EEXIST)
       {
-          char error[256];
+         char error[512];
           sprintf(error, "could not create directory %s for XMF\n", XMFDir.c_str());
           fatalErrorInFunction("binary3DToXMF",  error);
       }
@@ -2518,7 +2518,7 @@ PetscErrorCode kSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt kplane, c
 
     if(!fp)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "cannot open file: %s\n", fname.c_str());
         fatalErrorInFunction("kSectionLoadVector",  error);
     }
@@ -2564,7 +2564,7 @@ PetscErrorCode kSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt kplane, c
 
     if(!fp)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "cannot open file: %s\n", fname.c_str());
         fatalErrorInFunction("kSectionLoadScalar",  error);
     }
@@ -2612,7 +2612,7 @@ PetscErrorCode jSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt jplane, c
 
     if(!fp)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "cannot open file: %s\n", fname.c_str());
         fatalErrorInFunction("jSectionLoadVector",  error);
     }
@@ -2659,7 +2659,7 @@ PetscErrorCode jSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt jplane, c
 
     if(!fp)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "cannot open file: %s\n", fname.c_str());
         fatalErrorInFunction("jSectionLoadScalar",  error);
     }
@@ -2707,7 +2707,7 @@ PetscErrorCode iSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt iplane, c
 
     if(!fp)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "cannot open file: %s\n", fname.c_str());
         fatalErrorInFunction("iSectionLoadVector",  error);
     }
@@ -2754,7 +2754,7 @@ PetscErrorCode iSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt iplane, c
 
     if(!fp)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "cannot open file: %s\n", fname.c_str());
         fatalErrorInFunction("iSectionLoadScalar",  error);
     }
@@ -2808,7 +2808,7 @@ PetscErrorCode getTimeList(const char* dataLoc, std::vector<PetscReal> &timeSeri
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not access %s directory\n", dataLoc);
         fatalErrorInFunction("getTimeList", error);
     }
@@ -2877,7 +2877,7 @@ PetscErrorCode getIndexList(const char* dataLoc, std::vector<PetscInt> &indexSer
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not access %s directory\n", dataLoc);
         fatalErrorInFunction("getTimeList", error);
     }
@@ -2949,7 +2949,7 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
         PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
         if(dirRes != 0 && errno != EEXIST)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
             fatalErrorInFunction("binary3DToXMF",  error);
         }
@@ -3218,7 +3218,7 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
       PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
       if(dirRes != 0 && errno != EEXIST)
       {
-          char error[256];
+         char error[512];
           sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
           fatalErrorInFunction("binary3DToXMF",  error);
       }
@@ -3495,7 +3495,7 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
       PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
       if(dirRes != 0 && errno != EEXIST)
       {
-          char error[256];
+         char error[512];
           sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
           fatalErrorInFunction("binary3DToXMF",  error);
       }

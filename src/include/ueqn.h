@@ -4,14 +4,14 @@
 #ifndef _UEQN_H_
 #define _UEQN_H_
 
-//! \breif structure storing the Shumann wall models information
+//! \brief structure storing the Shumann wall models information
 struct Shumann
 {
     word             wfEvalType;
     PetscReal           roughness;
 };
 
-//! \breif structure storing the Shumann wall models information
+//! \brief structure storing the Shumann wall models information
 struct Cabot
 {
     PetscReal           roughness;

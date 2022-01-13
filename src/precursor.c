@@ -905,7 +905,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         if(mesh->meshFileType != "cartesian")
         {
-            char error[256];
+           char error[512];
             sprintf(error, "ABL capabilites only available for cartesian meshes\n");
             fatalErrorInFunction("ABLInitializePrecursor",  error);
         }
@@ -1053,7 +1053,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
             if(!indata)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "cannot open file inflowDatabase/momentumSource\n");
                 fatalErrorInFunction("ABLInitializePrecursor",  error);
             }
@@ -1126,14 +1126,14 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                 // check that average start time is in the list
                 if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
                     fatalErrorInFunction("ABLInitializePrecursor",  error);
                 }
                 // check that more than 100 s of history are used to average
                 else if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average is too poor (less than 100 s)");
                     fatalErrorInFunction("ABLInitializePrecursor",  error);
                 }
@@ -1142,7 +1142,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     // warn if less then 1000 s of history are used to average
                     if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 1000.00)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average could be too poor (less than 1000 s)");
                         warningInFunction("ABLInitializePrecursor",  error);
                     }
@@ -1173,7 +1173,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
         }
         else
         {
-            char error[256];
+           char error[512];
             sprintf(error, "unknown controllerType, available types are:\n        1 : write\n        2 : read\n        3 : average");
             fatalErrorInFunction("ABLInitializePrecursor",  error);
         }

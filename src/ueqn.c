@@ -442,7 +442,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 PetscInt dirRes = mkdir("./postProcessing", 0777);
                 if(dirRes != 0 && errno != EEXIST)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "could not create postProcessing directory\n");
                     fatalErrorInFunction("correctSourceTerm",  error);
                 }
@@ -455,7 +455,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             FILE *fp = fopen("postProcessing/momentumSource", "a");
             if(!fp)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "cannot open file postProcessing/momentumSource\n");
                 fatalErrorInFunction("correctSourceTerm",  error);
             }

@@ -1,10 +1,18 @@
-CC      = mpicxx
+CC      = /usr/local/bin/mpicxx
+PETSC_DIR=${HOME}/petsc-3.14.6
+PETSC_ARCH=arch-linux-c-opt
 PETSC=${PETSC_DIR}
-PETSCLIB=$(PETSC)/$(PETSC_ARCH)/lib
-PETSCINC1=$(PETSC)/include
-PETSCINC2=$(PETSC)/$(PETSC_ARCH)/include
-HDF5INC=/usr/lib/x86_64-linux-gnu/hdf5/serial/
-HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/serial/
+PETSCLIB=$(PETSC)/$(PETSC_ARCH)/lib/
+PETSCINC1=$(PETSC)/include/
+PETSCINC2=$(PETSC)/$(PETSC_ARCH)/include/
+
+#Serial HDF5
+#HDF5INC=/usr/lib/x86_64-linux-gnu/hdf5/serial/include/
+#HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/serial/
+
+#Parallel HDF5
+HDF5INC=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/include/
+HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/
 
 LIBFLAG =       -lpthread -lrt -ldl -lstdc++ \
 		        -lpetsc -lf2cblas -lf2clapack -lhdf5 -lHYPRE
@@ -27,10 +35,10 @@ OBJSW   =       windToPW.o initialization.o io.o wallfunctions.o overset.o bound
                 initialField.o acquisition.o ibm.o clock.o precursor.o\
 
 tosca:   $(OBJSM)
-		$(CC) -o tosca $(OBJSM) $(CPPFLAGS) $(LIBDIR) $(LIBFLAG)
+		$(CC) -o ../bin/tosca $(OBJSM) $(CPPFLAGS) $(LIBDIR) $(LIBFLAG)
 
 windToPW:   $(OBJSW)
-		$(CC) -o windToPW $(OBJSW) $(CPPFLAGS) $(LIBDIR) $(LIBFLAG)
+		$(CC) -o ../bin/windToPW $(OBJSW) $(CPPFLAGS) $(LIBDIR) $(LIBFLAG)
 
 clean:
-	rm *.o tosca windToPW
+	rm *.o ../bin/tosca ../bin/windToPW

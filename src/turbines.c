@@ -126,7 +126,7 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
             }
             else
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "unknown wind turbine model for turbine %s\n", (*farm->turbineIds[t]).c_str());
                 fatalErrorInFunction("initWindTurbines",  error);
             }
@@ -2899,7 +2899,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
             PetscInt dirRes = mkdir("./postProcessing/turbines", 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create ./postProcessing/turbines directory\n");
                 fatalErrorInFunction("windTurbinesWrite",  error);
             }
@@ -2928,7 +2928,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName);
                     fatalErrorInFunction("windTurbinesWrite",  error);
                 }
@@ -3138,7 +3138,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
 
                     if(!f)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "cannot open file %s\n", fileName);
                         fatalErrorInFunction("windTurbinesWrite",  error);
                     }
@@ -3239,7 +3239,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
         PetscInt dirRes = mkdir(turbineFolderName.c_str(), 0777);
         if(dirRes != 0 && errno != EEXIST)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "could not create fields/turbines directory");
             fatalErrorInFunction("windTurbinesWriteCheckpoint",  error);
         }
@@ -3260,7 +3260,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
             PetscInt dirRes = mkdir(path.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory\n", path.c_str());
                 fatalErrorInFunction("windTurbinesWriteCheckpoint",  error);
             }
@@ -3313,7 +3313,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
 
                     if(!f)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "cannot open file %s\n", fileName);
                         fatalErrorInFunction("windTurbinesWriteCheckpoint",  error);
                     }
@@ -3600,7 +3600,7 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base)
         }
         else
         {
-            char error[256];
+           char error[512];
             sprintf(error, "unknown rotationDir, avilable options are 'cw' or 'ccw'\n");
             fatalErrorInFunction("initADM",  error);
         }
@@ -3715,7 +3715,7 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base)
         wt->uadm.sampleType != "givenVelocity"
     )
     {
-        char error[256];
+       char error[512];
         sprintf(error, "unknown velocity sampling type. Available types are givenVelocity or rotorUpstream");
         fatalErrorInFunction("initUADM",  error);
     }
@@ -3723,7 +3723,7 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base)
     // check that Ct does not make induction complex or negative
     if(wt->uadm.Ct <= 0.0 || wt->uadm.Ct >= 1.0)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "provided thrust coefficient ouside of bounds ([0 1] excluded)");
         fatalErrorInFunction("initUADM",  error);
     }
@@ -3962,7 +3962,7 @@ PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base)
 
 PetscErrorCode initALM(windTurbine *wt, Cmpnts &base)
 {
-    char error[256];
+   char error[512];
     sprintf(error, "actuator line model not yet implemented (requested by turbine %s)\n", wt->id.c_str());
     fatalErrorInFunction("initWindTurbines",  error);
 
@@ -4350,7 +4350,7 @@ PetscErrorCode initControlledCells(farm_ *farm)
 
             if(gnCells == 0)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not find any tower cells when searching, try increase tower epsilon\n");
                 fatalErrorInFunction("initControlledCells",  error);
             }
@@ -4821,13 +4821,13 @@ PetscErrorCode readFarmProperties(farm_ *farm)
     }
     else if(arraySpec=="grid")
     {
-        char error[256];
+       char error[512];
         sprintf(error, "array specification type %s not yet implemented\n", arraySpec.c_str());
         fatalErrorInFunction("readFarmProperties",  error);
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "unknown array specification type %s\n", arraySpec.c_str());
         fatalErrorInFunction("readFarmProperties",  error);
     }
@@ -4908,7 +4908,7 @@ PetscErrorCode readTurbineArray(farm_ *farm)
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName.c_str());
         fatalErrorInFunction("readTurbineArray",  error);
     }
@@ -4992,7 +4992,7 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                             }
                             else
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "expected at least one turbine in subdictionary turbineArray of %s dictionary\n", dictName.c_str());
                                 fatalErrorInFunction("readTurbineArray",  error);
                             }
@@ -5001,7 +5001,7 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                         // check if have hit another list (this was not closed with "}")
                         if(trim(turbineIds_i)=="}")
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "missing '}' token in subdictionary turbineArray of %s dictionary\n", dictName.c_str());
                             fatalErrorInFunction("readTurbineArray",  error);
                         }
@@ -5071,14 +5071,14 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                                            {
                                                if (cmp1.find ('.') == std::string::npos)
                                                {
-                                                   char error[256];
+                                                  char error[512];
                                                    sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                                    fatalErrorInFunction("readTurbineArray",  error);
                                                }
                                            }
                                            else
                                            {
-                                               char error[256];
+                                              char error[512];
                                                sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                                fatalErrorInFunction("readTurbineArray",  error);
                                            }
@@ -5094,14 +5094,14 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                                            {
                                                if (cmp2.find ('.') == std::string::npos)
                                                {
-                                                   char error[256];
+                                                  char error[512];
                                                    sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                                    fatalErrorInFunction("readTurbineArray",  error);
                                                }
                                            }
                                            else
                                            {
-                                               char error[256];
+                                              char error[512];
                                                sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                                fatalErrorInFunction("readTurbineArray",  error);
                                            }
@@ -5122,14 +5122,14 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                                                {
                                                    if (cmp3.find ('.') == std::string::npos)
                                                    {
-                                                       char error[256];
+                                                      char error[512];
                                                        sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                                        fatalErrorInFunction("readTurbineArray",  error);
                                                    }
                                                }
                                                else
                                                {
-                                                   char error[256];
+                                                  char error[512];
                                                    sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                                    fatalErrorInFunction("readTurbineArray",  error);
                                                }
@@ -5146,21 +5146,21 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                                                token = word;
                                                if(trim(token)!=")")
                                                {
-                                                   char error[256];
+                                                  char error[512];
                                                    sprintf(error, "expected <)>  at end of subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                                    fatalErrorInFunction("readTurbineArray",  error);
                                                }
                                            }
                                            else
                                            {
-                                               char error[256];
+                                              char error[512];
                                                sprintf(error, "expected <(>  after vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                                fatalErrorInFunction("readTurbineArray",  error);
                                            }
                                        }
                                        else
                                        {
-                                           char error[256];
+                                          char error[512];
                                            sprintf(error, "expected <(>  after keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                            fatalErrorInFunction("readTurbineArray",  error);
                                        }
@@ -5169,41 +5169,41 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                                     }
                                     else
                                     {
-                                        char error[256];
+                                       char error[512];
                                         sprintf(error, "expected turbineModel keyword after %s in subdictionary %s of %s dictionary, found '%s'\n", turbineModels_i.c_str(), turbineIds_i.c_str(), dictName.c_str(), word);
                                         fatalErrorInFunction("readTurbineArray",  error);
                                     }
                                 }
                                 else
                                 {
-                                    char error[256];
+                                   char error[512];
                                     sprintf(error, "expected turbineModel keyword after %s in sub-dictionary %s, found '%s'\n", turbineTypes_i.c_str(), turbineIds_i.c_str(), word);
                                     fatalErrorInFunction("readTurbineArray",  error);
                                 }
                             }
                             else
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "expected turbineType keyword after ( in sub-dictionary %s, found '%s'\n", turbineIds_i.c_str(), word);
                                 fatalErrorInFunction("readTurbineArray",  error);
                             }
                         }
                         else
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "expected <(> token after keyword %s in dictionary %s, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                             fatalErrorInFunction("readTurbineArray",  error);
                         }
                     }
 
                     // have reached this point without finding }: throws error
-                    char error[256];
+                   char error[512];
                     sprintf(error, "missing '}' token at end of turbineArray subdictionary in %s dictionary\n", dictName.c_str());
                     fatalErrorInFunction("readTurbineArray",  error);
                 }
                 else
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "expected '{' token after keyword turbineArray in dictionary %s, found '%s'\n", dictName.c_str(), word);
                     fatalErrorInFunction("readTurbineArray",  error);
                 }
@@ -5211,7 +5211,7 @@ PetscErrorCode readTurbineArray(farm_ *farm)
             }
         }
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find subdictionary turbineArray in dictionary %s\n", dictName.c_str());
         fatalErrorInFunction("readTurbineArray",  error);
     }
@@ -5321,7 +5321,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
 
         if(max_id+1>wt->nFoils)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "requested more airfoils than the number provided in turbine type %s (airfoils and bladeData mismatch)\n",wt->type.c_str());
             fatalErrorInFunction("readTurbineProperties",  error);
         }
@@ -5377,7 +5377,7 @@ PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName)
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readAirfoilProperties",  error);
     }
@@ -5442,7 +5442,7 @@ PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName)
                             }
                             else
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "Required at least 1 entry as reading airfoils subdictionary in %s dictionary\n", dictName);
                                 fatalErrorInFunction("readAirfoilProperties",  error);
                             }
@@ -5450,7 +5450,7 @@ PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName)
                         // if find another "{" means another subdict is entered: throws error
                         else if(trim(token)=="{")
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "missing '}' token at end of airfoils subdictionary in %s dictionary\n", dictName);
                             fatalErrorInFunction("readAirfoilProperties",  error);
                         }
@@ -5464,20 +5464,20 @@ PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName)
                     }
 
                     // have reached this point without finding }: throws error
-                    char error[256];
+                   char error[512];
                     sprintf(error, "missing '}' token at end of airfoils subdictionary in %s dictionary\n", dictName);
                     fatalErrorInFunction("readAirfoilProperties",  error);
                 }
                 else
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "expected '{' token after keyword airfoils in dictionary %s, found '%s'\n", dictName, word);
                     fatalErrorInFunction("readAirfoilProperties",  error);
                 }
             }
         }
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find keyword airfoils in dictionary %s\n", dictName);
         fatalErrorInFunction("readAirfoilProperties",  error);
 
@@ -5525,7 +5525,7 @@ PetscErrorCode readAirfoilTable(foilInfo *af, const char *tableName)
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s file\n", tableName);
         fatalErrorInFunction("readAirfoilTable",  error);
     }
@@ -5599,7 +5599,7 @@ PetscErrorCode readAirfoilTable(foilInfo *af, const char *tableName)
                             }
                             else
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "expected <)>  at end of line as reading table in %s dictionary\n", tableName);
                                 fatalErrorInFunction("readAirfoilTable",  error);
                             }
@@ -5636,7 +5636,7 @@ PetscErrorCode readAirfoilTable(foilInfo *af, const char *tableName)
                             }
                             else
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "Required at least 3 data points as reading table in %s dictionary\n", tableName);
                                 fatalErrorInFunction("readAirfoilTable",  error);
                             }
@@ -5644,34 +5644,34 @@ PetscErrorCode readAirfoilTable(foilInfo *af, const char *tableName)
                         // if find another "{" means another subdict is entered: throws error
                         else if(trim(token)=="{")
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "missing '}' token at end of table in %s dictionary\n", tableName);
                             fatalErrorInFunction("readAirfoilTable",  error);
                         }
                         // we are at a new line and neither '(' nor '}' were found: throws error
                         else
                         {
-                              char error[256];
+                             char error[512];
                               sprintf(error, "expected either <(>  or <}> at new line as reading table in %s dictionary\n", tableName);
                               fatalErrorInFunction("readAirfoilTable",  error);
                         }
                     }
 
                     // have reached this point without finding }: throws error
-                    char error[256];
+                   char error[512];
                     sprintf(error, "missing '}' token at end of table in %s dictionary\n", tableName);
                     fatalErrorInFunction("readAirfoilTable",  error);
                 }
                 else
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "expected '{' token after keyword table in dictionary %s, found '%s'\n", tableName, word);
                     fatalErrorInFunction("readAirfoilTable",  error);
                 }
             }
         }
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find keyword 'table' in file %s\n", tableName);
         fatalErrorInFunction("readAirfoilTable",  error);
     }
@@ -5724,7 +5724,7 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName)
 
     if(!indata)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readBladeProperties",  error);
     }
@@ -5806,7 +5806,7 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName)
                             }
                             else
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "expected <)>  at end of line as reading readData table in %s dictionary\n", dictName);
                                 fatalErrorInFunction("readBladeProperties",  error);
                             }
@@ -5850,7 +5850,7 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName)
                             }
                             else
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "Required at least 2 data points as reading readData table in %s dictionary\n", dictName);
                                 fatalErrorInFunction("readBladeProperties",  error);
                             }
@@ -5858,34 +5858,34 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName)
                         // if find another "{" means another subdict is entered: throws error
                         else if(trim(token3)=="{")
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "missing '}' token at end of readData table in %s dictionary\n", dictName);
                             fatalErrorInFunction("readBladeProperties",  error);
                         }
                         // we are at a new line and neither '(' nor '}' were found: throws error
                         else
                         {
-                              char error[256];
+                             char error[512];
                               sprintf(error, "expected either <(>  or <}> at new line as reading readData table in %s dictionary\n", dictName);
                               fatalErrorInFunction("readBladeProperties",  error);
                         }
                     }
 
                     // have reached this point without finding }: throws error
-                    char error[256];
+                   char error[512];
                     sprintf(error, "missing '}' token at end of readData table in %s dictionary\n", dictName);
                     fatalErrorInFunction("readBladeProperties",  error);
                 }
                 else
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "expected '{' token after keyword bladeData in dictionary %s, found '%s'\n", dictName, word);
                     fatalErrorInFunction("readBladeProperties",  error);
                 }
             }
         }
 
-        char error[256];
+       char error[512];
         sprintf(error, "could not find keyword bladeData in dictionary %s\n", dictName);
         fatalErrorInFunction("readBladeProperties",  error);
     }
@@ -6007,13 +6007,13 @@ PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictNa
     // check and validate
     if(fabs(wt->pitchKI) < 1e-5)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "integral gain 'controlledIGain' cannot be zero\n");
         fatalErrorInFunction("readPitchControllerParameters",  error);
     }
     if(fabs(wt->pitchS2R) < 1e-5)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "point at which the power sensitivity to pitch is twice the one at rated conditions 'pitchS2R' cannot be zero\n");
         fatalErrorInFunction("readPitchControllerParameters",  error);
     }
@@ -6064,7 +6064,7 @@ PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName
         wt->yawSamplingType != "anemometer"
     )
     {
-        char error[256];
+       char error[512];
         sprintf(error, "unknown yaw sampleType %s. Known types are hubUpDistance and anemometer", wt->yawSamplingType.c_str());
         fatalErrorInFunction("readYawControllerParameters",  error);
     }
@@ -6086,7 +6086,7 @@ inline void findInterpolationWeigths(PetscReal *weights, PetscInt *labels, Petsc
     PetscReal eps = (pvec[npts-1] - pvec[0]) / npts;
     if(pval > pvec[npts-1]+eps || pval < pvec[0]-eps)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "query point %lf outside of bounds [%lf - %lf]... was told not to extrapolate\n", pval, pvec[0]-eps, pvec[npts-1]+eps);
         fatalErrorInFunction("findInterpolationWeigths",  error);
     }

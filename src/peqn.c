@@ -417,7 +417,7 @@ PetscErrorCode CreateHypreSolver(peqn_ *peqn)
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "Unknown HYPRE solver type. Available types are:\n    - 1: GMRES\n    - 2: PCG\n");
         fatalErrorInFunction("CreateHypreSolver",  error);
     }

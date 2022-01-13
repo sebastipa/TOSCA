@@ -8,6 +8,9 @@
 //! \brief Print OkWind logo
 PetscErrorCode PrintOkWindLogo();
 
+//! \brief Print number of processors
+PetscErrorCode PrintNumberOfProcs();
+
 //! \brief Set simulation flags
 PetscErrorCode SetSimulationFlags(flags_ *flags);
 

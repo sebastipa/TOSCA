@@ -143,7 +143,7 @@ int main(int argc, char **argv)
         clock.it ++;
 
         PetscTime(&iterationTimeEnd);
-        
+
         PetscPrintf(PETSC_COMM_WORLD, "Total iteration time = %lf s\n", iterationTimeEnd - iterationTimeStart);
 
     }

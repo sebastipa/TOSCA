@@ -60,7 +60,7 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
 
         if(!meshFileID)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open mesh file %s\n", meshFileName.c_str());
             fatalErrorInFunction("SetDistributedArrays", error);
         }
@@ -103,7 +103,7 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
 
         if(!meshFileID)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open mesh file %s\n", meshFileName.c_str());
             fatalErrorInFunction("SetDistributedArrays", error);
         }
@@ -115,7 +115,7 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
                 error = fscanf(meshFileID, "%s %ld", &bufferChar, &bufferInt);
             }
 
-            char error[256];
+           char error[512];
             sprintf(error, "curvilinear mesh file input not implemented %s\n", meshFileName.c_str());
             fatalErrorInFunction("SetDistributedArrays", error);
         }
@@ -1001,28 +1001,28 @@ PetscErrorCode SetMeshMetrics(mesh_ *mesh)
                 {
                     if(nMag(lcsi[k][j][i]) < 1e-20)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "negative or close-to-zero i-face area detected at i-face with [i][j][k] = [%ld][%ld][%ld], value = %lf\n", i, j, k, nMag(lcsi[k][j][i]));
                         fatalErrorInFunction("SetMeshMetrics",  error);
                     }
 
                     if(nMag(leta[k][j][i]) < 1e-20)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "negative or close-to-zero j-face area detected at j-face with [i][j][k] = [%ld][%ld][%ld], value = %lf\n", i, j, k, nMag(leta[k][j][i]));
                         fatalErrorInFunction("SetMeshMetrics",  error);
                     }
 
                     if(nMag(lzet[k][j][i]) < 1e-20)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "negative or close-to-zero k-face area detected at k-face with [i][j][k] = [%ld][%ld][%ld], value = %lf\n", i, j, k, nMag(lzet[k][j][i]));
                         fatalErrorInFunction("SetMeshMetrics",  error);
                     }
 
                     if(laj[k][j][i] < 1e-20)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "negative or close-to-zero cell volume detected at cell[%ld][%ld][%ld], value = %lf\n", k, j, i, laj[k][j][i]);
                         fatalErrorInFunction("SetMeshMetrics",  error);
                     }

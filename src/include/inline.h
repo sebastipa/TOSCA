@@ -139,7 +139,7 @@ inline Cmpnts nCross(Cmpnts &v1, Cmpnts &v2)
 
     // if(nMag(vCross)<1e-20)
     // {
-    //     char error[256];
+    //    char error[512];
     //     sprintf(error, "vectors are parallel...was told to exit\n");
     //     fatalErrorInFunction("nCross",  error);
     // }
@@ -166,7 +166,7 @@ inline Cmpnts nRot(Cmpnts &axis, Cmpnts &vStart, PetscReal theta)
 
     if(axisMag < 1.0e-20)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "provided rotation axis too small to working precision\n");
         fatalErrorInFunction("nRot",  error);
     }
@@ -391,7 +391,7 @@ inline void mRot(Cmpnts &axis, Cmpnts &v, PetscReal theta)
 
     if(axisMag < 1.0e-20)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "provided rotation axis too small to working precision\n");
         fatalErrorInFunction("mRot",  error);
     }
@@ -1946,7 +1946,7 @@ inline PetscReal wCentralUpwind
 
     if(d0 != d0 || d1 != d1 || d2 != d2 || d3 != d3)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "nan-distances provided\n");
         fatalErrorInFunction("wCentralUpwind",  error);
     }
@@ -2279,7 +2279,7 @@ inline void resetFacePeriodicFluxesVector(mesh_ *mesh, Vec V, Vec lV, const char
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "wrong scatter type selected, available types are\n    - globalToLocal\n    - localToLocal\n");
         fatalErrorInFunction("resetCellPeriodicFluxes",  error);
     }
@@ -2333,7 +2333,7 @@ inline void resetCellPeriodicFluxes(mesh_ *mesh, Vec &V, Vec &lV, const char *ty
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "wrong type selected, available types are\n    - scalar\n    - vector\n");
         fatalErrorInFunction("resetCellPeriodicFluxes",  error);
     }
@@ -2413,7 +2413,7 @@ inline void resetCellPeriodicFluxes(mesh_ *mesh, Vec &V, Vec &lV, const char *ty
         }
         else
         {
-            char error[256];
+           char error[512];
             sprintf(error, "wrong scatter type selected, available types are\n    - globalToLocal\n    - localToLocal\n");
             fatalErrorInFunction("resetCellPeriodicFluxes",  error);
         }
@@ -2435,7 +2435,7 @@ inline void resetCellPeriodicFluxes(mesh_ *mesh, Vec &V, Vec &lV, const char *ty
         }
         else
         {
-            char error[256];
+           char error[512];
             sprintf(error, "wrong scatter type selected, available types are\n    - globalToLocal\n    - localToLocal\n");
             fatalErrorInFunction("resetCellPeriodicFluxes",  error);
         }
@@ -2643,7 +2643,7 @@ inline void scalarPointLocalVolumeInterpolation
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "i-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
         fatalErrorInFunction("pointLocalVolumeInterpolation",  error);
     }
@@ -2686,7 +2686,7 @@ inline void scalarPointLocalVolumeInterpolation
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
         fatalErrorInFunction("pointLocalVolumeInterpolation",  error);
     }
@@ -2729,7 +2729,7 @@ inline void scalarPointLocalVolumeInterpolation
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
         fatalErrorInFunction("pointLocalVolumeInterpolation",  error);
     }
@@ -2927,7 +2927,7 @@ inline void vectorPointLocalVolumeInterpolation
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "i-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
         fatalErrorInFunction("pointLocalVolumeInterpolation",  error);
     }
@@ -2970,7 +2970,7 @@ inline void vectorPointLocalVolumeInterpolation
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
         fatalErrorInFunction("pointLocalVolumeInterpolation",  error);
     }
@@ -3013,7 +3013,7 @@ inline void vectorPointLocalVolumeInterpolation
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
         fatalErrorInFunction("pointLocalVolumeInterpolation",  error);
     }

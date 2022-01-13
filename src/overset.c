@@ -1149,7 +1149,7 @@ PetscErrorCode acellDcellConnectivity(mesh_ *meshP, mesh_ *mesh)
 
     if(size != sizeP)
     {
-      char error[256];
+     char error[512];
       sprintf(error, "current implementation requires the 2 meshes to have same number of processors. Recheck acellDcellConnectivity function\n");
       fatalErrorInFunction("acellDcellConnectivity", error);
     }
@@ -1312,7 +1312,7 @@ PetscErrorCode findClosestDonor(mesh_ *meshP, mesh_ *mesh)
 
     if(size != sizeP)
     {
-      char error[256];
+     char error[512];
       sprintf(error, "current implementation requires the 2 meshes to have same number of processors. Recheck findClosestDonor function\n");
       fatalErrorInFunction("findClosestDonor", error);
     }
@@ -1964,7 +1964,7 @@ PetscErrorCode updateAcceptorCoordinates(overset_ *os)
     }
     else
     {
-      char error[256];
+     char error[512];
       sprintf(error, "Only translation and rotation motion is available presently \n");
       fatalErrorInFunction("readOversetParameters",  error);
     }
@@ -1977,7 +1977,7 @@ PetscErrorCode updateAcceptorCoordinates(overset_ *os)
 
     if(!ibmMotion)
     {
-      char error[256];
+     char error[512];
       sprintf(error, "IBM is not moving. Use static overset as dynamic overset motion not required.\n");
       fatalErrorInFunction("readOversetParameters",  error);
     }

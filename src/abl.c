@@ -47,7 +47,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
     if(mesh->meshFileType != "cartesian")
     {
-        char error[256];
+       char error[512];
         sprintf(error, "ABL capabilites only available for cartesian meshes\n");
         fatalErrorInFunction("InitializeABL",  error);
     }
@@ -132,7 +132,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
             if(mesh->boundaryU.kLeft == "inletFunction")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "fringe region in x direction and inflowFunctions cannot be used together\n");
                 fatalErrorInFunction("ABLInitialize", error);
             }
@@ -200,7 +200,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             }
             else
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "unknown uBarSelectionType in xDampingLayer, available types are:\n        1 : unsteady mapped ubar from database\n        2 : unsteady interpolated uBar from database");
                 fatalErrorInFunction("ABLInitialize",  error);
             }
@@ -356,7 +356,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         if(!indata)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open file inflowDatabase/momentumSource\n");
             fatalErrorInFunction("ABLInitialize",  error);
         }
@@ -429,14 +429,14 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // check that average start time is in the list
             if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
                 fatalErrorInFunction("ABLInitialize",  error);
             }
             // check that more than 100 s of history are used to average
             else if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average is too poor (less than 100 s)");
                 fatalErrorInFunction("ABLInitialize",  error);
             }
@@ -445,7 +445,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // warn if less then 1000 s of history are used to average
                 if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 1000.00)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average could be too poor (less than 1000 s)");
                     warningInFunction("ABLInitialize",  error);
                 }
@@ -476,7 +476,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "unknown controllerType, available types are:\n        1 : write\n        2 : read\n        3 : average");
         fatalErrorInFunction("ABLInitialize",  error);
     }

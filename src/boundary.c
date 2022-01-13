@@ -138,42 +138,42 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
 
     if(flagU[0] == 0)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "In %s/U, U boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.kLeft.c_str());
         fatalErrorInFunction("checkBoundaryConditions", error);
     }
 
     if(flagU[1] == 0)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "In %s/U, U boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.kRight.c_str());
         fatalErrorInFunction("checkBoundaryConditions", error);
     }
 
     if(flagU[2] == 0)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "In %s/U, U boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jLeft.c_str());
         fatalErrorInFunction("checkBoundaryConditions", error);
     }
 
     if(flagU[3] == 0)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "In %s/U, U boundary condition at jRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jRight.c_str());
         fatalErrorInFunction("checkBoundaryConditions", error);
     }
 
     if(flagU[4] == 0)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "In %s/U, U boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.iLeft.c_str());
         fatalErrorInFunction("checkBoundaryConditions", error);
     }
 
     if(flagU[5] == 0)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "In %s/U, U boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.iRight.c_str());
         fatalErrorInFunction("checkBoundaryConditions", error);
     }
@@ -205,42 +205,42 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
 
         if(flagT[0] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/T, T boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.kLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagT[1] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/T, T boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.kRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagT[2] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/T, T boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.jLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagT[3] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/T, T boundary condition at jRight = '%s' does not match with available BC\n", location.c_str(), boundaryT.jRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagT[4] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/T, T boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.iLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagT[5] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/T, T boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.iRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
@@ -273,42 +273,42 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
 
         if(flagNut[0] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.kLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[1] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.kRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[2] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.jLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[3] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at jRight = '%s' does not match with available BC\n", location.c_str(), boundaryNut.jRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[4] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.iLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[5] == 0)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.iRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
@@ -333,7 +333,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.iRight!="periodic")
         {
-            char error[256];
+           char error[512];
             sprintf(error, "i-left patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -352,7 +352,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
             }
             else
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "unknown periodic i connectivity type. Known types are 1, 2");
                 fatalErrorInFunction("SetPeriodicConnectivity", error);
             }
@@ -363,7 +363,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.iLeft!="periodic")
         {
-            char error[256];
+           char error[512];
             sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -373,7 +373,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.jRight!="periodic")
         {
-            char error[256];
+           char error[512];
             sprintf(error, "j-left patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -391,7 +391,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
             }
             else
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "unknown periodic j connectivity type. Known types are 1, 2");
                 fatalErrorInFunction("SetPeriodicConnectivity", error);
             }
@@ -401,7 +401,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.jLeft!="periodic")
         {
-            char error[256];
+           char error[512];
             sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -411,7 +411,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.kRight!="periodic")
         {
-            char error[256];
+           char error[512];
             sprintf(error, "k-left patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -429,7 +429,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
             }
             else
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "unknown periodic k connectivity type. Known types are 1, 2");
                 fatalErrorInFunction("SetPeriodicConnectivity", error);
             }
@@ -439,7 +439,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.kLeft!="periodic")
         {
-            char error[256];
+           char error[512];
             sprintf(error, "k-right patch is periodic but opposite patch is not. Try setting periodic in in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -452,7 +452,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.iRight!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "i-left patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -461,7 +461,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.iLeft!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -471,7 +471,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.jRight!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "j-left patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -480,7 +480,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.jLeft!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -490,7 +490,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.kRight!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "k-left patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -499,7 +499,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.kLeft!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "k-right patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -513,7 +513,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.iRight!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "i-left patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -522,7 +522,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.iLeft!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -532,7 +532,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.jRight!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "j-left patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -541,7 +541,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.jLeft!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -551,7 +551,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.kRight!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "k-left patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -560,7 +560,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.kLeft!="periodic")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "k-right patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -3304,7 +3304,7 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
         }
         else
         {
-          char error[256];
+         char error[512];
           sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
           fatalErrorInFunction("SetWallModels", error);
         }
@@ -3369,7 +3369,7 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
       }
       else
       {
-        char error[256];
+       char error[512];
         sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
         fatalErrorInFunction("SetWallModels", error);
       }
@@ -3435,7 +3435,7 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
         }
         else
         {
-          char error[256];
+         char error[512];
           sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
           fatalErrorInFunction("SetWallModels", error);
         }
@@ -3502,7 +3502,7 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
       }
       else
       {
-        char error[256];
+       char error[512];
         sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
         fatalErrorInFunction("SetWallModels", error);
       }

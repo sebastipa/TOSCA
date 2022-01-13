@@ -31,10 +31,23 @@ PetscErrorCode PrintOkWindLogo()
     PetscPrintf(PETSC_COMM_WORLD,"   |                    ||      ||                    |      This software was developed by Sebastiano Stipa, Arjun Ajay and Mohammad\n");
     PetscPrintf(PETSC_COMM_WORLD,"   |____________________||______||____________________|      Hadi during their time at the Okanagan CFD-LAB. It is a LES code in\n");
     PetscPrintf(PETSC_COMM_WORLD,"   |            copyright : OK-CFD Lab                |      generalized curvilinear coordinates for the simulation of wind plants\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |            authors   : Stipa - Ajay - Hadi       |      immersed in the atmospheric boundary layer. Momentum and pressure equations\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |            authors   : Stipa - Ajay - Haji       |      immersed in the atmospheric boundary layer. Momentum and pressure equations\n");
     PetscPrintf(PETSC_COMM_WORLD,"   |==================================================|      are solved using operators splitting. If activated, potential temperature\n");
     PetscPrintf(PETSC_COMM_WORLD,"   |  Toolbox for Stratified Convective Atmospheres   |      transport is also solved. Advanced actuator disk/line models and IBM with\n");
     PetscPrintf(PETSC_COMM_WORLD,"   |__________________________________________________|      the moving least squares techinque are also implemented.\n\n\n\n");
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode PrintNumberOfProcs()
+{
+    PetscMPIInt nProcs;
+
+    MPI_Comm_size(PETSC_COMM_WORLD, &nProcs);
+    PetscPrintf(PETSC_COMM_WORLD,"Simulation running with %ld processors\n", nProcs);
+    PetscPrintf(PETSC_COMM_WORLD,"-----------------------------------\n\n");
 
     return(0);
 }
@@ -45,6 +58,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
 {
     // print logo
     PrintOkWindLogo();
+
+    // print number of processors being used for this simulation
+    PrintNumberOfProcs();
 
     // reads parent/child tree and allocates os memory
     SetDomainsAndAllocate(domainAddr, flags, info);

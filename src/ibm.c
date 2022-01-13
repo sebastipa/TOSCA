@@ -60,7 +60,7 @@ PetscErrorCode InitializeIBM(domain_ *domain)
       }
       else
       {
-          char error[256];
+         char error[512];
           sprintf(error, "incorrect IB interpolation method. Use MLS or CURVIB");
           fatalErrorInFunction("InitializeIBM",  error);
       }
@@ -278,7 +278,7 @@ PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b)
             PetscInt dirRes = mkdir(ibmfolder.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory", ibmfolder.c_str());
                 fatalErrorInFunction("writeAngularPosition",  error);
             }
@@ -301,7 +301,7 @@ PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b)
 
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory\n", path.c_str());
                 fatalErrorInFunction("writeAngularPosition",  error);
             }
@@ -315,7 +315,7 @@ PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b)
 
             if(!f)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("writeAngularPosition",  error);
             }
@@ -488,7 +488,7 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
 
         if (cellMin == -100)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "Nearest Cell Searching Error for cell %ld %ld %ld\n", k, j, i);
             fatalErrorInFunction("findClosestIBMElement",  error);
         }
@@ -1284,14 +1284,14 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
 
   if(movingObject == 0 && ibm->dynamic == 1)
   {
-      char error[256];
+     char error[512];
       sprintf(error, "ibm dynamic motion set to true but there are no moving objects. Set dynamic to 0 in IBMProperties\n");
       fatalErrorInFunction("readIBMProperties",  error);
   }
 
   if(movingObject > 0 && ibm->dynamic == 0)
   {
-      char error[256];
+     char error[512];
       sprintf(error, "ibm dynamic motion set to false but there are moving objects. Set dynamic to 1 in IBMProperties\n");
       fatalErrorInFunction("readIBMProperties",  error);
   }
@@ -1328,7 +1328,7 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
 
   if(fd == NULL)
   {
-    char error[256];
+   char error[512];
     sprintf(error, "cannot open file %s\n", ibmFile);
     fatalErrorInFunction("readIBMObjectMesh",  error);
   }
@@ -1352,7 +1352,7 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
 
   if(nodes == 0)
   {
-    char error[256];
+   char error[512];
     sprintf(error, "nodes read = 0. check the IBM file and make sure there are no header comments %s\n", ibmFile);
     fatalErrorInFunction("readIBMObjectMesh",  error);
   }
@@ -1416,7 +1416,7 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
       {
           if(clock->time != 0.)
           {
-              char error[256];
+             char error[512];
               sprintf(error, "could not find folder %s", timeName.c_str());
               fatalErrorInFunction("readIBMObjectMesh",  error);
           }
@@ -1954,7 +1954,7 @@ PetscErrorCode findIBMMeshSupportNodes(ibm_ *ibm)
 
         if(flag == 0)
         {
-          char error[256];
+         char error[512];
           sprintf(error, "no ibm search cell in the support radius\n");
           fatalErrorInFunction("findIBMMeshSupportNodes",  error);
         }

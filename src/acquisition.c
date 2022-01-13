@@ -34,7 +34,7 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
             PetscInt dirRes = mkdir("./postProcessing", 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create postProcessing directory\n");
                 fatalErrorInFunction("InitializeAcquisition",  error);
             }
@@ -78,7 +78,7 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
                 PetscInt dirRes = mkdir(domainFolderName.c_str(), 0777);
                 if(dirRes != 0 && errno != EEXIST)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "could not create %s directory", domainFolderName.c_str());
                     fatalErrorInFunction("InitializeAcquisition",  error);
                 }
@@ -146,7 +146,7 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
             PetscInt dirRes = mkdir("./postProcessing", 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create postProcessing directory\n");
                 fatalErrorInFunction("InitializeAcquisition",  error);
             }
@@ -172,7 +172,7 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
             PetscInt dirRes = mkdir(domainFolderName.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory", domainFolderName.c_str());
                 fatalErrorInFunction("InitializeAcquisition",  error);
             }
@@ -925,7 +925,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
             // check if intervalType is known
             if(kSections->intervalType != "timeStep" && kSections->intervalType != "adjustableTime")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", kSections->intervalType.c_str());
                 fatalErrorInFunction("sectionsInitialize",  error);
             }
@@ -1010,7 +1010,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
             PetscInt dirRes = mkdir(kslicesFolder.c_str(), 0777);
             if (dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory", kslicesFolder.c_str());
                 fatalErrorInFunction("sectionsInitialize", error);
             }
@@ -1026,7 +1026,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                     PetscInt dirRes = mkdir(ksliceName, 0777);
                     if (dirRes != 0 && errno != EEXIST)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "could not create %s directory\n", ksliceName);
                         fatalErrorInFunction("sectionsInitialize", error);
                     }
@@ -1034,14 +1034,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                     {
                         // create U directory in which time snapshots are saved
                         PetscInt dirRes;
-                        char ksliceNameU[256];
+                        char ksliceNameU[260];
                         sprintf(ksliceNameU, "%s/U", ksliceName);
 
                         errno = 0;
                         dirRes = mkdir(ksliceNameU, 0777);
                         if (dirRes != 0 && errno != EEXIST)
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "could not create %s directory\n", ksliceNameU);
                             fatalErrorInFunction("sectionsInitialize", error);
                         }
@@ -1051,14 +1051,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             atLeastOneVector++;
                         }
 
-                        char ksliceNameP[256];
+                        char ksliceNameP[260];
                         sprintf(ksliceNameP, "%s/p", ksliceName);
 
                         errno = 0;
                         dirRes = mkdir(ksliceNameP, 0777);
                         if (dirRes != 0 && errno != EEXIST)
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "could not create %s directory\n", ksliceNameP);
                             fatalErrorInFunction("sectionsInitialize", error);
                         }
@@ -1071,14 +1071,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                         // create T directory in which time snapshots are saved
                         if(flags->isTeqnActive)
                         {
-                            char ksliceNameT[256];
+                            char ksliceNameT[260];
                             sprintf(ksliceNameT, "%s/T", ksliceName);
 
                             errno = 0;
                             dirRes = mkdir(ksliceNameT, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "could not create %s directory\n", ksliceNameT);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -1092,14 +1092,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                         // create nut directory in which time snapshots are saved
                         if(flags->isLesActive)
                         {
-                            char ksliceNameNut[256];
+                            char ksliceNameNut[260];
                             sprintf(ksliceNameNut, "%s/nut", ksliceName);
 
                             errno = 0;
                             dirRes = mkdir(ksliceNameNut, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "could not create %s directory\n", ksliceNameNut);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -1174,7 +1174,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
             // check if intervalType is known
             if(jSections->intervalType != "timeStep" && jSections->intervalType != "adjustableTime")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", jSections->intervalType.c_str());
                 fatalErrorInFunction("sectionsInitialize",  error);
             }
@@ -1260,7 +1260,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
             PetscInt dirRes = mkdir(jslicesFolder.c_str(), 0777);
             if (dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory", jslicesFolder.c_str());
                 fatalErrorInFunction("sectionsInitialize", error);
             }
@@ -1276,7 +1276,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                     PetscInt dirRes = mkdir(jsliceName, 0777);
                     if (dirRes != 0 && errno != EEXIST)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "could not create %s directory\n", jsliceName);
                         fatalErrorInFunction("sectionsInitialize", error);
                     }
@@ -1284,14 +1284,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                     {
                         // create U directory in which time snapshots are saved
                         PetscInt dirRes;
-                        char jsliceNameU[256];
+                        char jsliceNameU[260];
                         sprintf(jsliceNameU, "%s/U", jsliceName);
 
                         errno = 0;
                         dirRes = mkdir(jsliceNameU, 0777);
                         if (dirRes != 0 && errno != EEXIST)
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "could not create %s directory\n", jsliceNameU);
                             fatalErrorInFunction("sectionsInitialize", error);
                         }
@@ -1301,14 +1301,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             atLeastOneVector++;
                         }
 
-                        char jsliceNameP[256];
+                        char jsliceNameP[260];
                         sprintf(jsliceNameP, "%s/p", jsliceName);
 
                         errno = 0;
                         dirRes = mkdir(jsliceNameP, 0777);
                         if (dirRes != 0 && errno != EEXIST)
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "could not create %s directory\n", jsliceNameP);
                             fatalErrorInFunction("sectionsInitialize", error);
                         }
@@ -1321,14 +1321,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                         // create T directory in which time snapshots are saved
                         if(flags->isTeqnActive)
                         {
-                            char jsliceNameT[256];
+                            char jsliceNameT[260];
                             sprintf(jsliceNameT, "%s/T", jsliceName);
 
                             errno = 0;
                             dirRes = mkdir(jsliceNameT, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "could not create %s directory\n", jsliceNameT);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -1342,14 +1342,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                         // create nut directory in which time snapshots are saved
                         if(flags->isLesActive)
                         {
-                            char jsliceNameNut[256];
+                            char jsliceNameNut[260];
                             sprintf(jsliceNameNut, "%s/nut", jsliceName);
 
                             errno = 0;
                             dirRes = mkdir(jsliceNameNut, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "could not create %s directory\n", jsliceNameNut);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -1424,7 +1424,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
             // check if intervalType is known
             if(iSections->intervalType != "timeStep" && iSections->intervalType != "adjustableTime")
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", iSections->intervalType.c_str());
                 fatalErrorInFunction("sectionsInitialize",  error);
             }
@@ -1509,7 +1509,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
             PetscInt dirRes = mkdir(islicesFolder.c_str(), 0777);
             if (dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory", islicesFolder.c_str());
                 fatalErrorInFunction("sectionsInitialize", error);
             }
@@ -1525,7 +1525,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                     PetscInt dirRes = mkdir(isliceName, 0777);
                     if (dirRes != 0 && errno != EEXIST)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "could not create %s directory\n", isliceName);
                         fatalErrorInFunction("sectionsInitialize", error);
                     }
@@ -1533,14 +1533,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                     {
                         // create U directory in which time snapshots are saved
                         PetscInt dirRes;
-                        char isliceNameU[256];
+                        char isliceNameU[260];
                         sprintf(isliceNameU, "%s/U", isliceName);
 
                         errno = 0;
                         dirRes = mkdir(isliceNameU, 0777);
                         if (dirRes != 0 && errno != EEXIST)
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "could not create %s directory\n", isliceNameU);
                             fatalErrorInFunction("sectionsInitialize", error);
                         }
@@ -1550,14 +1550,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             atLeastOneVector++;
                         }
 
-                        char isliceNameP[256];
+                        char isliceNameP[260];
                         sprintf(isliceNameP, "%s/p", isliceName);
 
                         errno = 0;
                         dirRes = mkdir(isliceNameP, 0777);
                         if (dirRes != 0 && errno != EEXIST)
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "could not create %s directory\n", isliceNameP);
                             fatalErrorInFunction("sectionsInitialize", error);
                         }
@@ -1570,14 +1570,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                         // create T directory in which time snapshots are saved
                         if(flags->isTeqnActive)
                         {
-                            char isliceNameT[256];
+                            char isliceNameT[260];
                             sprintf(isliceNameT, "%s/T", isliceName);
 
                             errno = 0;
                             dirRes = mkdir(isliceNameT, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "could not create %s directory\n", isliceNameT);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -1591,14 +1591,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                         // create nut directory in which time snapshots are saved
                         if(flags->isLesActive)
                         {
-                            char isliceNameNut[256];
+                            char isliceNameNut[260];
                             sprintf(isliceNameNut, "%s/nut", isliceName);
 
                             errno = 0;
                             dirRes = mkdir(isliceNameNut, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[256];
+                               char error[512];
                                 sprintf(error, "could not create %s directory\n", isliceNameNut);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -1896,7 +1896,7 @@ PetscErrorCode iSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt iplane, V
         FILE *fp=fopen(fname, "wb");
         if(!fp)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open file %s", fname);
             fatalErrorInFunction("save_inflow_section",  error);
         }
@@ -1988,7 +1988,7 @@ PetscErrorCode jSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt jplane, V
         FILE *fp=fopen(fname, "wb");
         if(!fp)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open file %s", fname);
             fatalErrorInFunction("save_inflow_section",  error);
         }
@@ -2080,7 +2080,7 @@ PetscErrorCode kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, V
         FILE *fp=fopen(fname, "wb");
         if(!fp)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open file %s", fname);
             fatalErrorInFunction("save_inflow_section",  error);
         }
@@ -2170,7 +2170,7 @@ PetscErrorCode iSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt iplane, V
         FILE *fp=fopen(fname, "wb");
         if(!fp)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open file %s", fname);
             fatalErrorInFunction("save_inflow_section",  error);
         }
@@ -2260,7 +2260,7 @@ PetscErrorCode jSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt jplane, V
         FILE *fp=fopen(fname, "wb");
         if(!fp)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open file %s", fname);
             fatalErrorInFunction("save_inflow_section",  error);
         }
@@ -2350,7 +2350,7 @@ PetscErrorCode kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, V
         FILE *fp=fopen(fname, "wb");
         if(!fp)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open file %s", fname);
             fatalErrorInFunction("save_inflow_section",  error);
         }
@@ -2428,7 +2428,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
 
                     if(!f)
                     {
-                        char error[256];
+                       char error[530];
                         sprintf(error, "cannot open file %s\n", fileName);
                         fatalErrorInFunction("ProbesInitialize",  error);
                     }
@@ -2473,7 +2473,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                     readError = fscanf(f, "%s\n", tmp);
                     if(strcmp(tmp, "locations") != 0)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "probe rake %s has an incorrect file format, the correct format is\n\nprobesNumber 2\nrakeName     A1\ntimeStart    10.0\ntimeInterval 20.0\nfields       U,T\n\nlocations\n\n20.0 20.0 20.0\n23.1 45.1 45.9\n\n", probes->rakes[nRakes].rakeName.c_str());
                         fatalErrorInFunction("ProbesInitialize",  error);
                     }
@@ -2718,7 +2718,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                     PetscInt dirRes = mkdir(rakeFolderName.c_str(), 0777);
                     if(dirRes != 0 && errno != EEXIST)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "could not create %s directory\n", rakeFolderName.c_str());
                         fatalErrorInFunction("ProbesInitialize",  error);
                     }
@@ -2729,7 +2729,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                         dirRes = mkdir(probes->rakes[r].timeName.c_str(), 0777);
                         if(dirRes != 0 && errno != EEXIST)
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "could not create %s directory\n", probes->rakes[r].timeName.c_str());
                             fatalErrorInFunction("ProbesInitialize",  error);
                         }
@@ -2830,7 +2830,7 @@ PetscErrorCode InitRakeFile(probeRake *rake, const char *fieldName)
 
     if(!f)
     {
-        char error[256];
+       char error[530];
         sprintf(error, "cannot open file %s\n", fileName);
         fatalErrorInFunction("ProbesInitialize",  error);
     }
@@ -3151,7 +3151,7 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
 
         if(mesh->meshFileType != "cartesian")
         {
-            char error[256];
+           char error[512];
             sprintf(error, "3LM averaging only available for cartesian meshes\n");
             fatalErrorInFunction("averaging3LMInitialize",  error);
         }
@@ -3518,7 +3518,7 @@ PetscErrorCode write3LMPoints(acquisition_ *acquisition)
         PetscInt dirRes = mkdir("./postProcessing/3LM/", 0777);
         if(dirRes != 0 && errno != EEXIST)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "could not create postProcessing/3LM directory\n");
             fatalErrorInFunction("write3LMPoints",  error);
         }
@@ -3530,7 +3530,7 @@ PetscErrorCode write3LMPoints(acquisition_ *acquisition)
         FILE *fp = fopen("postProcessing/3LM/points", "w");
         if(!fp)
         {
-            char error[256];
+           char error[512];
             sprintf(error, "cannot open file postProcessing/3LM/points\n");
             fatalErrorInFunction("write3LMPoints",  error);
         }
@@ -3592,7 +3592,7 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
                     FILE *fp = fopen(fileName, "w");
                     if(!fp)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "cannot open file %s\n", fileName);
                         fatalErrorInFunction("write3LMFields",  error);
                     }
@@ -3627,7 +3627,7 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
                     FILE *fp = fopen(fileName, "w");
                     if(!fp)
                     {
-                        char error[256];
+                       char error[512];
                         sprintf(error, "cannot open file %s\n", fileName);
                         fatalErrorInFunction("write3LMFields",  error);
                     }
@@ -3817,7 +3817,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
           // check if temperature transport is active
           if(!acquisition->access->flags->isTeqnActive)
           {
-              char error[256];
+             char error[512];
               sprintf(error, "ABL averaging not available without temperature transport (set potentialT to true)");
               fatalErrorInFunction("averagingABLInitialize",  error);
           }
@@ -3825,7 +3825,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
           // check if les is active
           if(!acquisition->access->flags->isLesActive)
           {
-              char error[256];
+             char error[512];
               sprintf(error, "ABL averaging not available without les closure (set les to true)");
               fatalErrorInFunction("averagingABLInitialize",  error);
           }
@@ -3888,7 +3888,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
             PetscInt dirRes = mkdir(averageFolder.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-                char error[256];
+               char error[512];
                 sprintf(error, "could not create %s directory",averageFolder.c_str());
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -3904,7 +3904,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
                 dirRes = mkdir(timeName.c_str(), 0777);
                 if(dirRes != 0 && errno != EEXIST)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "could not create %s directory\n", timeName.c_str());
                     fatalErrorInFunction("averagingABLInitialize",  error);
                 }
@@ -4033,7 +4033,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4054,7 +4054,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4069,7 +4069,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4084,7 +4084,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4099,7 +4099,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4114,7 +4114,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4129,7 +4129,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4144,7 +4144,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4159,7 +4159,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4174,7 +4174,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4189,7 +4189,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4204,7 +4204,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4219,7 +4219,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4234,7 +4234,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4249,7 +4249,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4264,7 +4264,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4279,7 +4279,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4294,7 +4294,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4309,7 +4309,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4324,7 +4324,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4339,7 +4339,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4354,7 +4354,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4369,7 +4369,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4384,7 +4384,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4399,7 +4399,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4414,7 +4414,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4429,7 +4429,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4444,7 +4444,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4459,7 +4459,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4474,7 +4474,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(!f)
             {
-                char error[256];
+                char error[530];
                 sprintf(error, "cannot open file %s\n", fileName);
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }
@@ -4823,7 +4823,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -4845,7 +4845,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -4867,7 +4867,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -4889,7 +4889,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -4911,7 +4911,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -4933,7 +4933,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -4955,7 +4955,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -4977,7 +4977,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -4999,7 +4999,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5021,7 +5021,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5043,7 +5043,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5065,7 +5065,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5087,7 +5087,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5109,7 +5109,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5131,7 +5131,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5153,7 +5153,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5175,7 +5175,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5197,7 +5197,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5219,7 +5219,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5241,7 +5241,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5263,7 +5263,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5285,7 +5285,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5307,7 +5307,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5329,7 +5329,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5351,7 +5351,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5373,7 +5373,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5395,7 +5395,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5417,7 +5417,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }
@@ -5439,7 +5439,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(!f)
                 {
-                    char error[256];
+                   char error[512];
                     sprintf(error, "cannot open file %s\n", fileName.c_str());
                     fatalErrorInFunction("writeAveragingABL",  error);
                 }

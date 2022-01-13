@@ -82,7 +82,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                   if(ifPtr->typeT != ifPtr->typeU)
                   {
                       // throw error
-                      char error[256];
+                     char error[512];
                       sprintf(error, "unsteadyMappedInflow must be applied to U, T if temperatureTransport is active\n");
                       fatalErrorInFunction("SetInflowFunctions", error);
                   }
@@ -98,7 +98,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                       readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
                       if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2)
                       {
-                          char error[256];
+                         char error[512];
                           sprintf(error, "inletFunction type 3 parameters in boundary/T must match boundary/U");
                           fatalErrorInFunction("SetInflowFunctions",  error);
                       }
@@ -130,7 +130,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                       readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
                       if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2)
                       {
-                          char error[256];
+                         char error[512];
                           sprintf(error, "inletFunction type 3 parameters in boundary/nut must match boundary/U");
                           fatalErrorInFunction("SetInflowFunctions",  error);
                       }
@@ -180,7 +180,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     if(ifPtr->typeT != ifPtr->typeU)
                     {
                         // throw error
-                        char error[256];
+                       char error[512];
                         sprintf(error, "unsteadyMappedInflow must be applied to U, T if temperatureTransport is active\n");
                         fatalErrorInFunction("SetInflowFunctions", error);
                     }
@@ -199,7 +199,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                         readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &width2);
                         if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 || width1!=ifPtr->width1 || width2!=ifPtr->width2)
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "inletFunction type 4 parameters in boundary/T must match boundary/U");
                             fatalErrorInFunction("SetInflowFunctions",  error);
                         }
@@ -236,7 +236,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                         readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &width2);
                         if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 || width1!=ifPtr->width1 || width2!=ifPtr->width2)
                         {
-                            char error[256];
+                           char error[512];
                             sprintf(error, "inletFunction type 4 parameters in boundary/nut must match boundary/U");
                             fatalErrorInFunction("SetInflowFunctions",  error);
                         }
@@ -253,7 +253,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database");
         fatalErrorInFunction("SetInflowFunctions",  error);
     }
@@ -562,7 +562,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
     }
     else
     {
-        char error[256];
+       char error[512];
         sprintf(error, "could not access ./inflowDatabase/U directory\n");
         fatalErrorInFunction("mappedInflowInitialize", error);
     }
@@ -646,7 +646,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
         }
         else
         {
-            char error[256];
+           char error[512];
             sprintf(error, "could not access ./inflowDatabase/T directory\n");
             fatalErrorInFunction("mappedInflowInitialize", error);
         }
@@ -733,7 +733,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
         }
         else
         {
-            char error[256];
+           char error[512];
             sprintf(error, "could not access ./inflowDatabase/nut directory\n");
             fatalErrorInFunction("mappedInflowInitialize", error);
         }
@@ -814,7 +814,7 @@ PetscErrorCode printInflowMappingAction(mesh_ *mesh, inletFunctionTypes *ifPtr)
 
     if(actionOnJ == "mismatch" || actionOnI == "mismatch")
     {
-        char error[256];
+       char error[512];
         sprintf(error, "inflow cannot correctly periodized (j check = %s, i check = %s)", actionOnJ.c_str(), actionOnI.c_str());
         fatalErrorInFunction("printInflowMappingAction",  error);
     }
@@ -924,7 +924,7 @@ PetscErrorCode readInflowU(inletFunctionTypes *ifPtr, clock_ *clock)
 
     if(!fp_1 || !fp_2)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "cannot open files:\n    %s\n    %s\n", fname_1.c_str(), fname_2.c_str());
         fatalErrorInFunction("read_inflow_data",  error);
     }
@@ -1071,7 +1071,7 @@ PetscErrorCode readInflowT(inletFunctionTypes *ifPtr, clock_ *clock)
 
     if(!fp_1 || !fp_2)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "cannot open files:\n    %s\n    %s\n", fname_1.c_str(), fname_2.c_str());
         fatalErrorInFunction("read_inflow_data",  error);
     }
@@ -1205,7 +1205,7 @@ PetscErrorCode readInflowNut(inletFunctionTypes *ifPtr, clock_ *clock)
 
     if(!fp_1 || !fp_2)
     {
-        char error[256];
+       char error[512];
         sprintf(error, "cannot open files:\n    %s\n    %s\n", fname_1.c_str(), fname_2.c_str());
         fatalErrorInFunction("read_inflow_data",  error);
     }
