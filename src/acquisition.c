@@ -2884,146 +2884,158 @@ PetscErrorCode writeProbes(domain_ *domain)
 
             if(rake->thisRakeControlled)
             {
-                // initialize local vectors
-                std::vector<Cmpnts> lprobeValuesU;
-                std::vector<Cmpnts> gprobeValuesU;
+                double timeStart    = rake->timeStart;
+                double timeInterval = rake->timeInterval;
 
-                // initialize local vectors
-                std::vector<PetscReal> lprobeValuesT;
-                std::vector<PetscReal> gprobeValuesT;
+                // check the time and see if must write
+                if
+                (
+                    clock->time >= timeStart && // past acquisition start
+                    (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval) < 1e-10
 
-                if(rake->Uflag)
+                )
                 {
-                    lprobeValuesU.resize(rake->probesNumber);
-                    gprobeValuesU.resize(rake->probesNumber);
-                }
+                    // initialize local vectors
+                    std::vector<Cmpnts> lprobeValuesU;
+                    std::vector<Cmpnts> gprobeValuesU;
 
-                if(rake->Tflag)
-                {
-                    lprobeValuesT.resize(rake->probesNumber);
-                    gprobeValuesT.resize(rake->probesNumber);
-                }
+                    // initialize local vectors
+                    std::vector<PetscReal> lprobeValuesT;
+                    std::vector<PetscReal> gprobeValuesT;
 
-                for(p=0; p<rake->probesNumber; p++)
-                {
-                    if(rake->domainID[p] != -1)
+                    if(rake->Uflag)
                     {
-                        mesh_         *mesh = domain[rake->domainID[p]].mesh;
-                        DMDALocalInfo info = mesh->info;
-                        PetscInt           xs = info.xs, xe = info.xs + info.xm;
-                        PetscInt           ys = info.ys, ye = info.ys + info.ym;
-                        PetscInt           zs = info.zs, ze = info.zs + info.zm;
-                        PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+                        lprobeValuesU.resize(rake->probesNumber);
+                        gprobeValuesU.resize(rake->probesNumber);
+                    }
 
-                        PetscInt           i, j, k;
-                        PetscInt           lxs, lxe, lys, lye, lzs, lze;
+                    if(rake->Tflag)
+                    {
+                        lprobeValuesT.resize(rake->probesNumber);
+                        gprobeValuesT.resize(rake->probesNumber);
+                    }
 
-                        lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-                        lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-                        lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-                        PetscMPIInt meshRank;
-                        MPI_Comm_rank(mesh->MESH_COMM, &meshRank);
-
-                        if(rake->Uflag)
+                    for(p=0; p<rake->probesNumber; p++)
+                    {
+                        if(rake->domainID[p] != -1)
                         {
-                            Cmpnts ***ucat;
+                            mesh_         *mesh = domain[rake->domainID[p]].mesh;
+                            DMDALocalInfo info = mesh->info;
+                            PetscInt           xs = info.xs, xe = info.xs + info.xm;
+                            PetscInt           ys = info.ys, ye = info.ys + info.ym;
+                            PetscInt           zs = info.zs, ze = info.zs + info.zm;
+                            PetscInt           mx = info.mx, my = info.my, mz = info.mz;
 
-                            // get u equation
-                            ueqn_ *ueqn = domain[rake->domainID[p]].ueqn;
+                            PetscInt           i, j, k;
+                            PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
-                            DMDAVecGetArray(mesh->fda, ueqn->lUcat, &ucat);
+                            lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+                            lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+                            lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-                            if(meshRank == rake->owner[p])
+                            PetscMPIInt meshRank;
+                            MPI_Comm_rank(mesh->MESH_COMM, &meshRank);
+
+                            if(rake->Uflag)
                             {
-                                k = rake->cells[p][0];
-                                j = rake->cells[p][1];
-                                i = rake->cells[p][2];
-                                lprobeValuesU[p].x = ucat[k][j][i].x;
-                                lprobeValuesU[p].y = ucat[k][j][i].y;
-                                lprobeValuesU[p].z = ucat[k][j][i].z;
+                                Cmpnts ***ucat;
+
+                                // get u equation
+                                ueqn_ *ueqn = domain[rake->domainID[p]].ueqn;
+
+                                DMDAVecGetArray(mesh->fda, ueqn->lUcat, &ucat);
+
+                                if(meshRank == rake->owner[p])
+                                {
+                                    k = rake->cells[p][0];
+                                    j = rake->cells[p][1];
+                                    i = rake->cells[p][2];
+                                    lprobeValuesU[p].x = ucat[k][j][i].x;
+                                    lprobeValuesU[p].y = ucat[k][j][i].y;
+                                    lprobeValuesU[p].z = ucat[k][j][i].z;
+                                }
+
+                                DMDAVecRestoreArray(mesh->fda, ueqn->lUcat, &ucat);
                             }
 
-                            DMDAVecRestoreArray(mesh->fda, ueqn->lUcat, &ucat);
-                        }
-
-                        if(rake->Tflag)
-                        {
-                            PetscReal ***t;
-
-                            // get u equation
-                            teqn_ *teqn = domain[rake->domainID[p]].teqn;
-
-                            DMDAVecGetArray(mesh->da, teqn->lTmprt, &t);
-
-                            if(meshRank == rake->owner[p])
+                            if(rake->Tflag)
                             {
-                                k = rake->cells[p][0];
-                                j = rake->cells[p][1];
-                                i = rake->cells[p][2];
-                                lprobeValuesT[p] = t[k][j][i];
-                            }
+                                PetscReal ***t;
 
-                            DMDAVecRestoreArray(mesh->da, teqn->lTmprt, &t);
+                                // get u equation
+                                teqn_ *teqn = domain[rake->domainID[p]].teqn;
+
+                                DMDAVecGetArray(mesh->da, teqn->lTmprt, &t);
+
+                                if(meshRank == rake->owner[p])
+                                {
+                                    k = rake->cells[p][0];
+                                    j = rake->cells[p][1];
+                                    i = rake->cells[p][2];
+                                    lprobeValuesT[p] = t[k][j][i];
+                                }
+
+                                DMDAVecRestoreArray(mesh->da, teqn->lTmprt, &t);
+                            }
                         }
                     }
-                }
 
-                if(rake->Uflag)
-                {
-                    MPI_Reduce(&lprobeValuesU[0], &gprobeValuesU[0], 3*rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
-
-                    // only master process writes on the file
-                    if(!rakeRank)
+                    if(rake->Uflag)
                     {
-                        // write velocity
-                        FILE *fu;
-                        word fileName = rake->timeName + "/U";
-                        fu = fopen(fileName.c_str(), "a");
+                        MPI_Reduce(&lprobeValuesU[0], &gprobeValuesU[0], 3*rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
 
-                        fprintf(fu, "\t %.3f\t\t\t\t\t\t", clock->time);
-                        for(p=0; p<rake->probesNumber; p++)
+                        // only master process writes on the file
+                        if(!rakeRank)
                         {
-                            if(rake->domainID[p] != -1)
+                            // write velocity
+                            FILE *fu;
+                            word fileName = rake->timeName + "/U";
+                            fu = fopen(fileName.c_str(), "a");
+
+                            fprintf(fu, "\t %.3f\t\t\t\t\t\t", clock->time);
+                            for(p=0; p<rake->probesNumber; p++)
                             {
-                                fprintf(fu, "(%.10f  %.10f  %.10f)\t\t", gprobeValuesU[p].x, gprobeValuesU[p].y, gprobeValuesU[p].z);
+                                if(rake->domainID[p] != -1)
+                                {
+                                    fprintf(fu, "(%.10f  %.10f  %.10f)\t\t", gprobeValuesU[p].x, gprobeValuesU[p].y, gprobeValuesU[p].z);
+                                }
                             }
+                            fprintf(fu, "\n");
+                            fclose(fu);
                         }
-                        fprintf(fu, "\n");
-                        fclose(fu);
                     }
-                }
 
-                if(rake->Tflag)
-                {
-                    MPI_Reduce(&lprobeValuesT[0], &gprobeValuesT[0], rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
-
-                    // only master process writes on the file
-                    if(!rakeRank)
+                    if(rake->Tflag)
                     {
-                        // write velocity
-                        FILE *ft;
-                        word fileName = rake->timeName + "/T";
-                        ft = fopen(fileName.c_str(), "a");
+                        MPI_Reduce(&lprobeValuesT[0], &gprobeValuesT[0], rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
 
-                        fprintf(ft, "\t %.3f\t\t\t\t\t\t", clock->time);
-                        for(p=0; p<rake->probesNumber; p++)
+                        // only master process writes on the file
+                        if(!rakeRank)
                         {
-                            if(rake->domainID[p] != -1)
+                            // write velocity
+                            FILE *ft;
+                            word fileName = rake->timeName + "/T";
+                            ft = fopen(fileName.c_str(), "a");
+
+                            fprintf(ft, "\t %.3f\t\t\t\t\t\t", clock->time);
+                            for(p=0; p<rake->probesNumber; p++)
                             {
-                                fprintf(ft, "%.10f\t\t", gprobeValuesT[p]);
+                                if(rake->domainID[p] != -1)
+                                {
+                                    fprintf(ft, "%.10f\t\t", gprobeValuesT[p]);
+                                }
                             }
+                            fprintf(ft, "\n");
+                            fclose(ft);
                         }
-                        fprintf(ft, "\n");
-                        fclose(ft);
                     }
+
+                    std::vector<Cmpnts> ().swap(lprobeValuesU);
+                    std::vector<Cmpnts> ().swap(gprobeValuesU);
+
+                    std::vector<PetscReal> ().swap(lprobeValuesT);
+                    std::vector<PetscReal> ().swap(gprobeValuesT);
                 }
-
-                std::vector<Cmpnts> ().swap(lprobeValuesU);
-                std::vector<Cmpnts> ().swap(gprobeValuesU);
-
-                std::vector<PetscReal> ().swap(lprobeValuesT);
-                std::vector<PetscReal> ().swap(gprobeValuesT);
             }
         }
     }
@@ -3469,12 +3481,12 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
                     }
 
                     // clean memory
-                    std::vector<Cmpnts> ().swap(ldepthU[pk]);
-                    std::vector<Cmpnts> ().swap(gdepthU[pk]);
+                    std::vector<Cmpnts>    ().swap(ldepthU[pk]);
+                    std::vector<Cmpnts>    ().swap(gdepthU[pk]);
                     std::vector<PetscReal> ().swap(ldepthP[pk]);
                     std::vector<PetscReal> ().swap(gdepthP[pk]);
-                    std::vector<PetscInt>    ().swap(ldepthN[pk]);
-                    std::vector<PetscInt>    ().swap(gdepthN[pk]);
+                    std::vector<PetscInt>  ().swap(ldepthN[pk]);
+                    std::vector<PetscInt>  ().swap(gdepthN[pk]);
                 }
             }
 
