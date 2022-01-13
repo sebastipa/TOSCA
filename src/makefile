@@ -1,4 +1,4 @@
-CC      = /usr/local/bin/mpicxx
+CC      = mpicxx
 PETSC_DIR=${HOME}/petsc-3.14.6
 PETSC_ARCH=arch-linux-c-opt
 PETSC=${PETSC_DIR}
