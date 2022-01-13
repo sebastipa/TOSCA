@@ -53,9 +53,7 @@ We suggest to create a folder named 'software', where the PETSc, HYPRE and TOSCA
     
     2. Download HYPRE (https://github.com/hypre-space/hypre)
     
-    3. TOSCA requires PETSc to be compiled with OpenMPI version 4.0.3 or earlier. To determine your version of OpenMPI, type
-    
-    $ ompi_info
+    3. TOSCA requires PETSc to be compiled with OpenMPI version 4.0.3 or earlier. To determine your version of OpenMPI, run the terminal command 'ompi_info'.
     
     4. Configure PETSc (will automatically compile HYPRE). We suggest the following configure options: 
        './configure --with-cc=gcc --with-fc=0 --download-f2cblaslapack --with-mpi-dir='your--path--to--mpicc' --download-hypre='your--path--to--hypre' --with-64-bit-indices=1 --with-debugging=0'
