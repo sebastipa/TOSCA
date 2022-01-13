@@ -35,10 +35,10 @@ OBJSW   =       windToPW.o initialization.o io.o wallfunctions.o overset.o bound
                 initialField.o acquisition.o ibm.o clock.o precursor.o\
 
 tosca:   $(OBJSM)
-		$(CC) -o ../bin/tosca $(OBJSM) $(CPPFLAGS) $(LIBDIR) $(LIBFLAG)
+		$(CC) -o tosca $(OBJSM) $(CPPFLAGS) $(LIBDIR) $(LIBFLAG)
 
 windToPW:   $(OBJSW)
-		$(CC) -o ../bin/windToPW $(OBJSW) $(CPPFLAGS) $(LIBDIR) $(LIBFLAG)
+		$(CC) -o windToPW $(OBJSW) $(CPPFLAGS) $(LIBDIR) $(LIBFLAG)
 
 clean:
-	rm *.o ../bin/tosca ../bin/windToPW
+	rm *.o tosca windToPW
