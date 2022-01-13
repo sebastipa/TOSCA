@@ -49,18 +49,22 @@ Toolbox fOr Stratified Convective Atmospheres
 
 We suggest to create a folder named 'software', where the PETSc, HYPRE and TOSCA folders will be located. 
 
-    1. Download PETSc (https://petsc.org/release/download/)
+    1. Download PETSc (https://petsc.org/release/download/). Version 3.14.6 is recommended, available from (https://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-3.14.6.tar.gz)
     
     2. Download HYPRE (https://github.com/hypre-space/hypre)
     
-    3. Configure PETSc (will automatically compile HYPRE). We suggest the following configure options: 
-       './configure --with-cc=gcc --with-fc=0 --download-f2cblaslapack --download-hypre='your--path--to--hypre' --with-64-bit-indices=1 --with-debugging=0'
+    3. TOSCA requires PETSc to be compiled with OpenMPI version 4.0.3 or earlier. To determine your version of OpenMPI, type
+    
+    $ ompi_info
+    
+    4. Configure PETSc (will automatically compile HYPRE). We suggest the following configure options: 
+       './configure --with-cc=gcc --with-fc=0 --download-f2cblaslapack --with-mpi-dir='your--path--to--mpicc' --download-hypre='your--path--to--hypre' --with-64-bit-indices=1 --with-debugging=0'
        Be sure to have the correct path to your OpenMPI installation in your environment variables. 
     
-    4. Make PETSc with 'make all'
+    5. Make PETSc with 'make all'
     
-    5. Test PETSc with 'make check'
+    6. Test PETSc with 'make check'
     
-    6. Compile TOSCA executables with 'make tosca' and 'make windToPW'
+    7. Compile TOSCA executables with 'make tosca' and 'make windToPW'
 
 Credits and Copyright: Sebastiano Stipa - Arjun Ajay - Mohammad Hadi - The University of British Columbia
