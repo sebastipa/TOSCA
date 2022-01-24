@@ -226,6 +226,10 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         clock->dt = clock->endTime - clock->time;
     }
 
+    if (clock->dt < 1e-10)
+    {
+        clock->dt = clock->startDt;
+    }
     clock->time = clock->time + clock->dt;
 
     PetscPrintf(PETSC_COMM_WORLD, "\n\nTime: %lf\n\n", clock->time);

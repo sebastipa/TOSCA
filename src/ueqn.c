@@ -2353,6 +2353,554 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
+{
+    mesh_           *mesh = ueqn->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k;
+
+    Cmpnts           ***ucont, ***lucont,
+                     ***coor;
+    PetscReal        epsilon = 1.e-10;
+
+    PetscScalar      ratio;
+    PetscScalar      lFluxIn = 0.0, lFluxOut = 0.0,
+                     FluxIn  = 0.0, FluxOut  = 0.0;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
+
+    if
+    (
+        !mesh->k_periodic && !mesh->kk_periodic
+    )
+    {
+        // compute inflow flux at k-left boundary
+        if (zs==0)
+        {
+            // k-right boundary face
+            k = 0;
+
+            // loop on the boundary faces
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].z) > epsilon){
+                        lFluxIn   +=  ucont[k][j][i].z;
+
+                    }
+                    else
+                    {
+                        ucont[k][j][i].z = 0.;
+                    }
+
+                }
+            }
+        }
+
+        // compute outflow flux at k-right boundary
+        if (ze==mz)
+        {
+            // k-right boundary face
+            k = mz-2;
+
+            // loop on the boundary cells
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].z) > epsilon){
+                        lFluxOut   +=  ucont[k][j][i].z;
+
+                    }
+                    else
+                    {
+                        ucont[k][j][i].z = 0.;
+                    }
+
+                }
+            }
+        }
+    }
+
+    if
+    (
+        !mesh->j_periodic && !mesh->jj_periodic
+    )
+    {
+        // compute flux at j-left boundary
+        if (ys==0)
+        {
+            // k-right boundary face
+            j = 0;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].y) > epsilon){
+                        lFluxIn   +=  ucont[k][j][i].y;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].y = 0.;
+                    }
+
+                }
+            }
+        }
+
+        // compute flux at j-right boundary
+        if (ye==my)
+        {
+            // k-right boundary face
+            j = my-2;
+
+            // loop on the boundary cells
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].y) > epsilon){
+                        lFluxOut   +=  ucont[k][j][i].y;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].y = 0.;
+                    }
+
+                }
+            }
+        }
+    }
+
+    if
+    (
+        !mesh->i_periodic && !mesh->ii_periodic
+    )
+    {
+        // compute flux at i-left boundary
+        if (xs==0)
+        {
+            // i-right boundary face
+            i = 0;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].x) > epsilon)
+                    {
+                        lFluxIn   +=  ucont[k][j][i].x;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].x = 0.;
+                    }
+
+                }
+            }
+        }
+
+        // compute flux at i-right boundary
+        if (xe==mx)
+        {
+            // k-right boundary face
+            i = mx-2;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].x) > epsilon){
+                        lFluxOut   +=  ucont[k][j][i].x;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].x = 0.;
+                    }
+
+                }
+            }
+        }
+    }
+
+    // cumulate the net influx and net outflux
+    MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    //PetscPrintf(mesh->MESH_COMM, "\n fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
+
+    if(FluxOut > 1.e-15)
+    {
+        ratio = (FluxIn) / FluxOut;
+    }
+    else
+    {
+        ratio = 1.0;
+    }
+
+    // correct only outflow patches - outflow patches are assumed to be the right side patches
+    // this is not generic but for inflow - outflow problems with outflow on the right patches this should work
+    if
+    (
+        !mesh->k_periodic && !mesh->kk_periodic
+    )
+    {
+
+        // correct outflow velocity on the k-right patch
+
+            if (ze==mz)
+            {
+                k = mz-2;
+
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if (fabs(ucont[k][j][i].z) > epsilon)
+                        {
+                            // correct contrav. vel. at boundary faces
+                            ucont[k][j][i].z *= sqrt(ratio);
+
+                        }
+                    }
+                }
+            }
+
+            if (zs==0)
+            {
+                k = 0;
+
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if (fabs(ucont[k][j][i].z) > epsilon)
+                        {
+                            // correct contrav. vel. at boundary faces
+                            ucont[k][j][i].z /= sqrt(ratio);
+
+                        }
+                    }
+                }
+            }
+
+    }
+
+    if
+    (
+       !mesh->j_periodic && !mesh->jj_periodic
+    )
+    {
+
+        // correct outflow velocity on the j-right patch
+
+            if (ye==my)
+            {
+                j = my-2;
+
+                for (k=lzs; k<lze; k++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if (fabs(ucont[k][j][i].y) > epsilon)
+                        {
+
+                            // correct contrav. vel. at boundary faces
+                            ucont[k][j][i].y *= sqrt(ratio);
+
+                        }
+                    }
+                }
+            }
+
+            if (ys==0)
+            {
+                j = 0;
+
+                for (k=lzs; k<lze; k++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if (fabs(ucont[k][j][i].y) > epsilon)
+                        {
+
+                            // correct contrav. vel. at boundary faces
+                            ucont[k][j][i].y /= sqrt(ratio);
+
+                        }
+                    }
+                }
+            }
+
+    }
+
+    if
+    (
+        !mesh->i_periodic && !mesh->ii_periodic
+    )
+    {
+
+        // correct outflow velocity on the i-right patch
+
+        if (xe==mx)
+        {
+            i = mx-2;
+
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    if (fabs(ucont[k][j][i].x) > epsilon)
+                    {
+
+                        // correct contrav. vel. at boundary faces
+                        ucont[k][j][i].x *= sqrt(ratio);
+                    }
+                }
+            }
+        }
+
+        if (xs==0)
+        {
+            i = 0;
+
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    if (fabs(ucont[k][j][i].x) > epsilon)
+                    {
+
+                        // correct contrav. vel. at boundary faces
+                        ucont[k][j][i].x /= sqrt(ratio);
+                    }
+                }
+            }
+        }
+    }
+
+    // Recalculate flux to check if corrected
+    lFluxIn = 0.0, lFluxOut = 0.0,
+    FluxIn  = 0.0, FluxOut  = 0.0;
+
+    if
+    (
+        !mesh->k_periodic && !mesh->kk_periodic
+    )
+    {
+        // compute inflow flux at k-left boundary
+        if (zs==0)
+        {
+            // k-right boundary face
+            k = 0;
+
+            // loop on the boundary faces
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].z) > epsilon){
+                        lFluxIn   +=  ucont[k][j][i].z;
+
+                    }
+                    else
+                    {
+                        ucont[k][j][i].z = 0.;
+                    }
+
+                }
+            }
+        }
+
+        // compute outflow flux at k-right boundary
+        if (ze==mz)
+        {
+            // k-right boundary face
+            k = mz-2;
+
+            // loop on the boundary cells
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].z) > epsilon){
+                        lFluxOut   +=  ucont[k][j][i].z;
+
+                    }
+                    else
+                    {
+                        ucont[k][j][i].z = 0.;
+                    }
+
+                }
+            }
+        }
+    }
+
+    if
+    (
+        !mesh->j_periodic && !mesh->jj_periodic
+    )
+    {
+        // compute flux at j-left boundary
+        if (ys==0)
+        {
+            // k-right boundary face
+            j = 0;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].y) > epsilon){
+                        lFluxIn   +=  ucont[k][j][i].y;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].y = 0.;
+                    }
+
+                }
+            }
+        }
+
+        // compute flux at j-right boundary
+        if (ye==my)
+        {
+            // k-right boundary face
+            j = my-2;
+
+            // loop on the boundary cells
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].y) > epsilon){
+                        lFluxOut   +=  ucont[k][j][i].y;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].y = 0.;
+                    }
+
+                }
+            }
+        }
+    }
+
+    if
+    (
+        !mesh->i_periodic && !mesh->ii_periodic
+    )
+    {
+        // compute flux at i-left boundary
+        if (xs==0)
+        {
+            // i-right boundary face
+            i = 0;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].x) > epsilon)
+                    {
+                        lFluxIn   +=  ucont[k][j][i].x;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].x = 0.;
+                    }
+
+                }
+            }
+        }
+
+        // compute flux at i-right boundary
+        if (xe==mx)
+        {
+            // k-right boundary face
+            i = mx-2;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    // cumulate flux and area
+
+                    if(fabs(ucont[k][j][i].x) > epsilon){
+                        lFluxOut   +=  ucont[k][j][i].x;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].x = 0.;
+                    }
+
+                }
+            }
+        }
+    }
+
+    // cumulate the net influx and net outflux
+    MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    //PetscPrintf(mesh->MESH_COMM, "After correction fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
+
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
+
+    // scatter new contravariant velocity values
+    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 {
     // In this function the viscous + divergence term of the momentum equation are
@@ -3896,7 +4444,14 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
 
     // adjust inflow/outflow fluxes to ensure mass conservation
-    adjustFluxes(ueqn);
+    if(ueqn->access->flags->isOversetActive && ueqn->access->domainID != 0)
+    {
+        adjustFluxesOverset(ueqn);
+    }
+    else
+    {
+        adjustFluxes(ueqn);
+    }
 
     PetscTime(&te);
     PetscPrintf(mesh->MESH_COMM,"Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n", norm, iter, te-ts);

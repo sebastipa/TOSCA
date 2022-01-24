@@ -73,6 +73,8 @@ typedef struct
 
     word          bodyMotion;
 
+    word          fileType;
+
     Cmpnts        baseLocation;
 
     ibmRotation   *ibmRot;
@@ -150,8 +152,15 @@ PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b);
 //! \brief read the IBMProperties.dat file , IBM mesh files and allocate memory for the objects
 PetscErrorCode readIBMProperties(ibm_ *ibm);
 
-//! \brief read the ibm mesh in ucd format
 PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b);
+
+//! \brief read the ibm mesh in ASCII format
+PetscErrorCode readIBMFileASCIIRaster(ibmObject *ibmBody);
+
+//! \brief read the ibm mesh in ucd format
+PetscErrorCode readIBMFileUCD(ibmObject *ibmBody);
+
+PetscErrorCode writeSTLFile(ibmObject *ibmBody);
 
 //! \brief update the ibm mesh when the ibm body is moving
 PetscErrorCode UpdateIBMesh(ibm_ *ibm);
@@ -189,8 +198,8 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm);
 //! \brief CURVIB normal projection interpolation algorithm
 PetscErrorCode CurvibInterpolation(ibm_ *ibm);
 
-//! \brief copy the objects common to all domain from local ibm to domain ibm pointer
-void copyToDomainIBM(ibm_ *ibmD, ibm_ *ibm);
+// check if a given body exists in the mesh based on the IBMProperties.dat file
+PetscErrorCode checkIBMexists(ibm_ *ibm);
 
 //! \brief insert ibm mesh elements as a list into the search cell that they belong to
 PetscErrorCode createSearchCellList(ibm_ *ibm);

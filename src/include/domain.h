@@ -26,6 +26,7 @@ struct domain_
     simInfo_      info;
     constants_    constants;
 
+    PetscInt      domainID;
     clock_        *clock;            //!< time info
 
     mesh_         *mesh;             //!< mesh data structure

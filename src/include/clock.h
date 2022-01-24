@@ -11,6 +11,7 @@ struct clock_
     PetscReal        endTime;                   //!< simulation end time
 
     PetscReal        dt;                        //!< time step
+    PetscReal        startDt;                   //!< time step
     PetscReal        cfl;                       //!< cfl number
 
     PetscInt         it;                        //!< current iteration value

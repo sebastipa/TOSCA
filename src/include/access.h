@@ -22,6 +22,7 @@ struct access_
     abl_         *abl;
     acquisition_ *acquisition;
     ibm_         *ibm;
+    PetscInt     *domainID;
 };
 
 #endif

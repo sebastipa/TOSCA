@@ -221,6 +221,9 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         VecCopy(teqn->Tmprt, teqn->Tmprt_o);
     }
 
+    DMGlobalToLocalBegin(mesh->da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+    DMGlobalToLocalEnd(mesh->da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+
     DMGlobalToLocalBegin(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
     DMGlobalToLocalEnd(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
 

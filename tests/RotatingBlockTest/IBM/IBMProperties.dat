@@ -1,7 +1,7 @@
 
 NumberofBodies                      1
 
-InterpolationMethod                 CURVIB
+InterpolationMethod                 MLS
 
 debug                               0
 
@@ -11,7 +11,8 @@ dynamic                             1
 object0
 {
     bodyName                        rotatingBlock
-    attachedMeshID		    0			#to indicate if a particular user needs to use this IBM, by default all IBM's are user0
+    fileType                        ucd             #ascii
+    attachedMeshID		    0			
     bodyMotion                      rotation   
     baseLocation     	            (0.0 0.0 0.0)
 

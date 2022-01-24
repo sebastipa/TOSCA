@@ -348,18 +348,18 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
         PetscInt    accumulate         = 0;
         PetscInt    accumulateAvg      = 0;
         PetscInt    accumulatePhaseAvg = 0;
+        PetscReal   epsilon            = 1e-8;
 
         if(io->averaging)
         {
             PetscReal startTimeAvg         = io->avgStartTime;
             PetscReal timeIntervalAvg      = io->avgPrd;
-
             // check if must accumulate averaged fields
             if
             (
                 clock->time >= startTimeAvg &&
                 (clock->time - startTimeAvg ) / timeIntervalAvg -
-                std::floor((clock->time - startTimeAvg) / timeIntervalAvg) < 1e-10
+                std::floor((clock->time - startTimeAvg) / timeIntervalAvg + epsilon) < 1e-10
             )
             {
                 accumulateAvg = 1;
@@ -376,7 +376,7 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
             (
                 clock->time >= startTimePhaseAvg &&
                 (clock->time - startTimePhaseAvg ) / timeIntervalPhaseAvg -
-                std::floor((clock->time - startTimePhaseAvg) / timeIntervalPhaseAvg) < 1e-10
+                std::floor((clock->time - startTimePhaseAvg) / timeIntervalPhaseAvg + epsilon) < 1e-10
             )
             {
                 accumulatePhaseAvg = 1;
@@ -1684,7 +1684,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
 
             PetscReal timeStart    = iSections->timeStart;
             PetscReal timeInterval = iSections->timeInterval;
-
+            PetscReal epsilon      = 1e-8;
             // check the time and see if must write
             if
             (
@@ -1693,12 +1693,12 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     // adjustableTime: write only if clock->time is multiple of time interval
                     (
                         iSections->intervalType == "adjustableTime" &&
-                        (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval) < 1e-10
+                        (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval + epsilon) < 1e-10
                     ) ||
                     // timeStep: write every timeInterval iterations
                     (
                         iSections->intervalType == "timeStep" &&
-                        (clock->it / timeInterval - std::floor(clock->it / timeInterval) < 1e-10)
+                        (clock->it / timeInterval - std::floor(clock->it / timeInterval + epsilon) < 1e-10)
                     )
                 )
 
@@ -1730,7 +1730,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
 
             PetscReal timeStart    = jSections->timeStart;
             PetscReal timeInterval = jSections->timeInterval;
-
+            PetscReal epsilon      = 1e-8;
             // check the time and see if must write
             if
             (
@@ -1739,12 +1739,12 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     // adjustableTime: write only if clock->time is multiple of time interval
                     (
                         jSections->intervalType == "adjustableTime" &&
-                        (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval) < 1e-10
+                        (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval + epsilon) < 1e-10
                     ) ||
                     // timeStep: write every timeInterval iterations
                     (
                         jSections->intervalType == "timeStep" &&
-                        (clock->it / timeInterval - std::floor(clock->it / timeInterval) < 1e-10)
+                        (clock->it / timeInterval - std::floor(clock->it / timeInterval + epsilon) < 1e-10)
                     )
                 )
 
@@ -1776,6 +1776,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
 
             PetscReal timeStart    = kSections->timeStart;
             PetscReal timeInterval = kSections->timeInterval;
+            PetscReal epsilon      = 1e-8;
 
             // check the time and see if must write
             if
@@ -1785,12 +1786,12 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     // adjustableTime: write only if clock->time is multiple of time interval
                     (
                         kSections->intervalType == "adjustableTime" &&
-                        (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval) < 1e-10
+                        (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval + epsilon) < 1e-10
                     ) ||
                     // timeStep: write every timeInterval iterations
                     (
                         kSections->intervalType == "timeStep" &&
-                        (clock->it / timeInterval - std::floor(clock->it / timeInterval) < 1e-10)
+                        (clock->it / timeInterval - std::floor(clock->it / timeInterval + epsilon) < 1e-10)
                     )
                 )
 

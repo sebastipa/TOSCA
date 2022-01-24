@@ -90,6 +90,22 @@ PetscErrorCode InitializeOverset(domain_ *domain)
         {
           SetInitialFieldLES(domain[d].les);
         }
+
+        // if readFields is on, read all the fields
+        if(domain[d].ueqn->initFieldType == "readField")
+        {
+          PetscPrintf(mesh->MESH_COMM, "Setting initial field: %s\n\n", domain[d].ueqn->initFieldType.c_str());
+          readFields(domain, domain[d].clock->startTime);
+        }
+
+        // save old fields
+        VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
+
+        if(flags.isTeqnActive)
+        {
+          VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
+        }
+
       }
 
     }

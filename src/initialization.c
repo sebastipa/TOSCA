@@ -75,6 +75,8 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // set pointer to time controls
         domain[d].clock = clock;
 
+        domain[d].domainID = d;
+
         // read physical constants
         ReadPhysicalConstants(&domain[d]);
 
@@ -272,6 +274,7 @@ PetscErrorCode ReadTimeControls(clock_ *clock)
     clock->time    = clock->startTime;
     clock->it      = 0;
     clock->itStart = 0;
+    clock->startDt = clock->dt;
 
     // get time precision (optional)
     PetscOptionsInsertFile(PETSC_COMM_WORLD, PETSC_NULL, "control.dat", PETSC_TRUE);
@@ -361,6 +364,9 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
 
     // set access to simulation info
     domain->access.info      = &(domain->info);
+
+    // set access to domain id
+    domain->access.domainID  = &(domain->domainID);
 
     // set access to physical constants
     domain->access.constants = &(domain->constants);
