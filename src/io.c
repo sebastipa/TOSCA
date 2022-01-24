@@ -43,6 +43,10 @@ PetscErrorCode InitializeIO(io_ *io)
     io->l2Crit          = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2", &(io->l2Crit), PETSC_NULL);
 
+    // read sources post processing
+    io->sources         = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeSources", &(io->sources), PETSC_NULL);
+
     // allocate memory and initialize averaged fields
     if(io->averaging)
     {
@@ -77,13 +81,14 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
 {
     PetscViewer viewer;
     PetscInt    N;
-    ueqn_       *ueqn = domain->ueqn;
-    mesh_       *mesh = domain->mesh;
-    peqn_       *peqn = domain->peqn;
-    teqn_       *teqn = domain->teqn;
-    les_        *les  = domain->les;
-    clock_      *clock= domain->clock;
-    io_         *io   = domain->io;
+    ueqn_       *ueqn  = domain->ueqn;
+    mesh_       *mesh  = domain->mesh;
+    peqn_       *peqn  = domain->peqn;
+    teqn_       *teqn  = domain->teqn;
+    les_        *les   = domain->les;
+    clock_      *clock = domain->clock;
+    io_         *io    = domain->io;
+    flags_      *flags = io->access->flags;
     acquisition_ *acquisition = domain->acquisition;
     word        fileName, field, location;
 
@@ -442,6 +447,82 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         MPI_Barrier(mesh->MESH_COMM);
     }
 
+    if(io->sources && flags->isAblActive)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // coriolis force
+        field = "/Coriolis";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Coriolis...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->Coriolis,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // driving pressure gradient
+        field = "/Driving";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Driving Source...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->Driving,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // x damping region
+        if(flags->isXDampingActive || flags->isZDampingActive)
+        {
+            field = "/Damping";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading Damping Source...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->fields->xDamping,viewer);
+                PetscViewerDestroy(&viewer);
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        // side force
+        if(flags->isSideForceActive)
+        {
+            field = "/SideForce";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading Side Force...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->fields->SideForce,viewer);
+                PetscViewerDestroy(&viewer);
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+    }
+
     // read phase averaged fields
     if(io->phaseAveraging)
     {
@@ -783,10 +864,44 @@ PetscErrorCode writeFields(io_ *io)
         // write Q-Criterion
         if(io->qCrit)
         {
-            computeQ(acquisition);
+            computeQCritIO(acquisition);
             fieldName = timeName + "/Q";
             writeBinaryField(mesh->MESH_COMM, acquisition->fields->Q, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        // write sources
+        if(io->sources && flags->isAblActive)
+        {
+            // coriolis force
+            computeCoriolisIO(acquisition);
+            fieldName = timeName + "/Coriolis";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->Coriolis, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // driving pressure gradient
+            computeDrivingSourceIO(acquisition);
+            fieldName = timeName + "/Driving";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->Driving, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // x damping region
+            if(flags->isXDampingActive || flags->isZDampingActive)
+            {
+                computeXDampingIO(acquisition);
+                fieldName = timeName + "/Damping";
+                writeBinaryField(mesh->MESH_COMM, acquisition->fields->xDamping, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+            }
+
+            // side force
+            if(flags->isSideForceActive)
+            {
+                computeSideForceIO(acquisition);
+                fieldName = timeName + "/SideForce";
+                writeBinaryField(mesh->MESH_COMM, acquisition->fields->SideForce, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+            }
         }
 
         if(io->averaging)

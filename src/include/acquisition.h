@@ -91,8 +91,20 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition);
 //! \brief Average fields
 PetscErrorCode averageFields(acquisition_ *acquisition);
 
-//! \brief Compute Q criteria
-PetscErrorCode computeQ(acquisition_ *acquisition);
+//! \brief Compute Q criteria for I/O in cartesian form
+PetscErrorCode computeQCritIO(acquisition_ *acquisition);
+
+//! \brief Compute coriolis force for I/O in cartesian form
+PetscErrorCode computeCoriolisIO(acquisition_ *acquisition);
+
+//! \brief Compute driving pressure force for I/O in cartesian form
+PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition);
+
+//! \brief Compute x damping force for I/O in cartesian form
+PetscErrorCode computeXDampingIO(acquisition_ *acquisition);
+
+//! \brief Compute side force for I/O in cartesian form
+PetscErrorCode computeSideForceIO(acquisition_ *acquisition);
 
 // 3LM ACQUISITION
 // ============================================================================================================= //

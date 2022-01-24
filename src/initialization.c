@@ -151,6 +151,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isIBMActive        = 0;
     flags->isZDampingActive   = 0;
     flags->isXDampingActive   = 0;
+    flags->isSideForceActive  = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",       &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);
@@ -160,6 +161,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-ibm",           &(flags->isIBMActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-zDampingLayer", &(flags->isZDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer", &(flags->isXDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sideForce",     &(flags->isSideForceActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
 
     // read acquisition flags
@@ -171,6 +173,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscInt isAveragingActive      = 0;
     PetscInt isQCritActive          = 0;
     PetscInt isL2CritActive         = 0;
+    PetscInt isSourcesActive        = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",        &isProbesActive,         PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &isSectionsActive,       PETSC_NULL);
@@ -180,13 +183,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-phaseAveraging",&isPhaseAveragingActive, PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQ",      &isQCritActive,          PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2",     &isL2CritActive,         PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeSources",&isSourcesActive,        PETSC_NULL);
 
     flags->isAquisitionActive
     =
     PetscMin(
     (
         isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive +
-        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive),
+        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isSourcesActive),
         1
     );
 

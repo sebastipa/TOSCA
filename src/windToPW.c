@@ -445,50 +445,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             "T",
             domain->teqn->Tmprt
         );
-
-        /*
-        writeVectorToXMF
-        (
-            user,
-            filexmf,
-            hdfilen,
-            &file_id,
-            &dataspace_id,
-            time,
-            "Coriolis",
-            user->Coriolis
-        );
-
-        writeVectorToXMF
-        (
-            user,
-            filexmf,
-            hdfilen,
-            &file_id,
-            &dataspace_id,
-            time,
-            "Driving",
-            user->Driving
-        );
-        */
     }
-
-    // if(xDampingLayer || zDampingLayer)
-    // {
-    //     /*
-    //     writeVectorToXMF
-    //     (
-    //         user,
-    //         filexmf,
-    //         hdfilen,
-    //         &file_id,
-    //         &dataspace_id,
-    //         time,
-    //         "alpha",
-    //         user->alphaDamping
-    //     );
-    //     */
-    // }
 
     if(io->qCrit)
     {
@@ -502,6 +459,57 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             time,
             "Q",
             acquisition->fields->Q
+        );
+    }
+
+    if(io->sources)
+    {
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Coriolis",
+            acquisition->fields->Coriolis
+        );
+
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Driving",
+            acquisition->fields->Driving
+        );
+
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Damping",
+            acquisition->fields->xDamping
+        );
+
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "SideForce",
+            acquisition->fields->SideForce
         );
     }
 

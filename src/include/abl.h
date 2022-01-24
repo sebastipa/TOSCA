@@ -56,6 +56,10 @@ struct abl_
     PetscReal    **tBarInstX;                    //!< array storing the instantaneous temperature field for x damping layer
     PetscInt     **nProcsKLine;                  //!< number of processors in each k-line, used to average after MPI_Allreduce
 
+    // side force for fringe region testing
+    PetscReal    xStartSideF, xEndSideF;         //!< x start and ending coordinates of the region where the side force is applied
+    PetscReal    zStartSideF, zEndSideF;         //!< z start and ending coordinates of the region where the side force is applied
+
     // turbulent flow initialization
     PetscReal    zPeak;
     PetscReal    deltaV;

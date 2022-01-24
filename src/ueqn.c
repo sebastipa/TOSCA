@@ -1119,8 +1119,6 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
         {
             // solve concurrent precursor
             concurrentPrecursorSolve(abl);
-
-            // set from concurrent precursor data
         }
     }
 
@@ -1411,7 +1409,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
 
-    PetscReal        fc      = ueqn->access->abl->fc; // coriolis parameter
+    PetscReal     fc      = ueqn->access->abl->fc; // coriolis parameter
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1522,6 +1520,130 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale * nudK *
                     (
                         -2.0 *
+                        (
+                          - fc * central(ucat[k][j][i].y, ucat[k+1][j][i].y) * kzet[k][j][i].x +
+                            fc * central(ucat[k][j][i].x, ucat[k+1][j][i].x) * kzet[k][j][i].y
+                        )
+                    );
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+
+    DMDAVecRestoreArray(fda, Rhs,  &rhs);
+    DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+{
+    // fictitious force evaluated as the Coriolis force with opposite direction:
+    // SideForce = -K * Coriolis
+
+    mesh_         *mesh = ueqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***rhs, ***ucat, ***cent;
+    Cmpnts        ***icsi, ***jeta, ***kzet;
+    PetscReal     ***nvert;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l;
+
+    PetscReal     fc      = ueqn->access->abl->fc; // coriolis parameter
+    PetscReal     xStart  = ueqn->access->abl->xStartSideF,
+                  zStart  = ueqn->access->abl->zStartSideF,
+                  xEnd    = ueqn->access->abl->xEndSideF,
+                  zEnd    = ueqn->access->abl->zEndSideF;
+    double        K       = 5;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+
+    DMDAVecGetArray(fda, Rhs,  &rhs);
+    DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                double coeff_i = 0.0, coeff_j = 0.0, coeff_k = 0.0;
+
+                // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                double xi    = 0.5 * (cent[k][j][i].x + cent[k][j][i+1].x) - mesh->bounds.xmin;
+                double xj    = 0.5 * (cent[k][j][i].x + cent[k][j+1][i].x) - mesh->bounds.xmin;
+                double xk    = 0.5 * (cent[k][j][i].x + cent[k+1][j][i].x) - mesh->bounds.xmin;
+
+                // compute cell center z at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                double zi    = 0.5 * (cent[k][j][i].z + cent[k][j][i+1].z) - mesh->bounds.zmin;
+                double zj    = 0.5 * (cent[k][j][i].z + cent[k][j+1][i].z) - mesh->bounds.zmin;
+                double zk    = 0.5 * (cent[k][j][i].z + cent[k+1][j][i].z) - mesh->bounds.zmin;
+
+                if(xi < xEnd && xi > xStart && zi < zEnd && zi > zStart) coeff_i = 1;
+                if(xj < xEnd && xj > xStart && zj < zEnd && zj > zStart) coeff_j = 1;
+                if(xk < xEnd && xk > xStart && zk < zEnd && zk > zStart) coeff_k = 1;
+
+                rhs[k][j][i].x
+                +=
+                scale * coeff_i *
+                (
+                    2.0 * K *
+                    (
+                        - fc * central(ucat[k][j][i].y, ucat[k][j][i+1].y) * icsi[k][j][i].x +
+                          fc * central(ucat[k][j][i].x, ucat[k][j][i+1].x) * icsi[k][j][i].y
+                    )
+                );
+
+                if
+                (
+                    isFluidJFace(k, j, i, j+1, nvert)
+                )
+                {
+                    rhs[k][j][i].y
+                    +=
+                    scale * coeff_j *
+                    (
+                        2.0 * K *
+                        (
+                          - fc * central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].x +
+                            fc * central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].y
+                        )
+                    );
+                }
+
+                if
+                (
+                    isFluidKFace(k, j, i, k+1, nvert)
+                )
+                {
+                    rhs[k][j][i].z
+                    +=
+                    scale * coeff_k *
+                    (
+                        2.0 * K *
                         (
                           - fc * central(ucat[k][j][i].y, ucat[k+1][j][i].y) * kzet[k][j][i].x +
                             fc * central(ucat[k][j][i].x, ucat[k+1][j][i].x) * kzet[k][j][i].y
@@ -4280,6 +4402,12 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     if(ueqn->access->flags->isAblActive)
     {
         Coriolis(ueqn, Rhs, 1.0);
+    }
+
+    // add side force term
+    if(ueqn->access->flags->isSideForceActive)
+    {
+        SideForce(ueqn, Rhs, 1.0);
     }
 
     if(ueqn->access->flags->isTeqnActive)

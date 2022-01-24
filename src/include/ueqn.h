@@ -109,6 +109,9 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 //! \brief Compute Coriolis source term
 PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
+//! \brief Compute Side Force source term
+PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
+
 //! \brief Compute buoyancy term
 PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 

@@ -7,6 +7,12 @@
 //! \brief Struct defining the average fields
 struct avgFields
 {
+    // source terms
+    Vec           Coriolis;                   //!< coriolis source 
+    Vec           Driving;                    //!< driving pressure gradient source
+    Vec           xDamping;                   //!< x damping layer (x fringe region source)
+    Vec           SideForce;                  //!< side force for fringe region testing
+
     // turbulence criterions
     Vec           Q;                          //!< Q criterion field
     Vec           L2;                         //!< L2 criterion field (not yet implemented)

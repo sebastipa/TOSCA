@@ -253,7 +253,7 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
     mesh_  *mesh  = acquisition->access->mesh;
     flags_ *flags = acquisition->access->flags;
 
-    if(io->averaging || io->phaseAveraging || io->qCrit || io->l2Crit)
+    if(io->averaging || io->phaseAveraging || io->qCrit || io->l2Crit || io->sources)
     {
         PetscMalloc(sizeof(avgFields), &(acquisition->fields));
         avgFields *avg = acquisition->fields;
@@ -266,6 +266,14 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
         if(io->l2Crit)
         {
             VecDuplicate(mesh->Nvert, &(avg->L2));  VecSet(avg->L2,0.);
+        }
+
+        if(io->sources)
+        {
+            VecDuplicate(mesh->Cent, &(avg->Coriolis)); VecSet(avg->Coriolis, 0.);
+            VecDuplicate(mesh->Cent, &(avg->Driving));  VecSet(avg->Driving,  0.);
+            VecDuplicate(mesh->Cent, &(avg->xDamping)); VecSet(avg->xDamping, 0.);
+            VecDuplicate(mesh->Cent, &(avg->SideForce));VecSet(avg->SideForce,0.);
         }
 
         // allocate averaging vectors
@@ -3046,7 +3054,7 @@ PetscErrorCode writeProbes(domain_ *domain)
 
 //***************************************************************************************************************//
 
-PetscErrorCode computeQ(acquisition_ *acquisition)
+PetscErrorCode computeQCritIO(acquisition_ *acquisition)
 {
     mesh_         *mesh = acquisition->access->mesh;
     ueqn_         *ueqn = acquisition->access->ueqn;
@@ -3057,7 +3065,7 @@ PetscErrorCode computeQ(acquisition_ *acquisition)
     PetscInt      zs = info.zs, ze = info.zs + info.zm;
     PetscInt      mx = info.mx, my = info.my, mz = info.mz;
 
-    PetscInt           i, j, k;
+    PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
     Cmpnts        ***ucat;
@@ -3146,6 +3154,613 @@ PetscErrorCode computeQ(acquisition_ *acquisition)
     MPI_Barrier ( mesh->MESH_COMM );
 
     return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
+{
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***source, ***ucat, ***cent;
+    Cmpnts        ***csi, ***eta, ***zet;
+    PetscReal     ***nvert;
+
+    PetscReal     fc = ueqn->access->abl->fc; // coriolis parameter
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    VecSet(acquisition->fields->Coriolis, 0.);
+
+    // damping viscosity for fringe region exclusion
+    double nu_fringe;
+
+    // fringe region parameters (set only if active)
+    double xS;
+    double xE;
+    double xD;
+
+    if(ueqn->access->flags->isXDampingActive)
+    {
+        xS     = ueqn->access->abl->xDampingStart;
+        xE     = ueqn->access->abl->xDampingEnd;
+        xD     = ueqn->access->abl->xDampingDelta;
+    }
+    else
+    {
+        nu_fringe = 1.0;
+    }
+
+    DMDAVecGetArray(fda, mesh->lCsi,  &csi);
+    DMDAVecGetArray(fda, mesh->lEta,  &eta);
+    DMDAVecGetArray(fda, mesh->lZet,  &zet);
+    DMDAVecGetArray(da,  mesh->lNvert,&nvert);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    DMDAVecGetArray(fda, acquisition->fields->Coriolis,  &source);
+    DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(ueqn->access->flags->isXDampingActive)
+                {
+                    // compute cell center x at i,j,k
+                    double x = (cent[k][j][i].x   - mesh->bounds.xmin);
+
+                    // compute Stipa viscosity at i,j,k,
+                    nu_fringe = viscStipa(xS, xE, xD, x);
+                }
+                // might need an else to reset x_fringe to 1 at each iteration
+
+                if
+                (
+                    isFluidCell(k, j, i, nvert)
+                )
+                {
+                    source[k][j][i].x
+                    +=
+                    nu_fringe *
+                    (
+                        -2.0 *
+                        (
+                            - fc * ucat[k][j][i].y * csi[k][j][i].x +
+                              fc * ucat[k][j][i].x * csi[k][j][i].y
+                        )
+                    );
+
+                    source[k][j][i].y
+                    +=
+                    nu_fringe *
+                    (
+                        -2.0 *
+                        (
+                          - fc * ucat[k][j][i].y * eta[k][j][i].x +
+                            fc * ucat[k][j][i].x * eta[k][j][i].y
+                        )
+                    );
+
+                    source[k][j][i].z
+                    +=
+                    nu_fringe *
+                    (
+                        -2.0 *
+                        (
+                          - fc * ucat[k][j][i].y * zet[k][j][i].x +
+                            fc * ucat[k][j][i].x * zet[k][j][i].y
+                        )
+                    );
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,  &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,  &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,  &zet);
+    DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    DMDAVecRestoreArray(fda, acquisition->fields->Coriolis,  &source);
+    DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
+{
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***source, ***sourceu, ***ucat, ***cent;
+    Cmpnts        ***csi, ***eta, ***zet;
+    PetscReal     ***nvert;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    VecSet(acquisition->fields->Driving, 0.);
+
+    // damping viscosity for fringe region exclusion
+    double nu_fringe;
+
+    // fringe region parameters (set only if active)
+    double xS;
+    double xE;
+    double xD;
+
+    if(ueqn->access->flags->isXDampingActive)
+    {
+        xS     = ueqn->access->abl->xDampingStart;
+        xE     = ueqn->access->abl->xDampingEnd;
+        xD     = ueqn->access->abl->xDampingDelta;
+    }
+    else
+    {
+        nu_fringe = 1.0;
+    }
+
+    DMDAVecGetArray(fda, mesh->lCsi,  &csi);
+    DMDAVecGetArray(fda, mesh->lEta,  &eta);
+    DMDAVecGetArray(fda, mesh->lZet,  &zet);
+    DMDAVecGetArray(da,  mesh->lNvert,&nvert);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    DMDAVecGetArray(fda, acquisition->fields->Driving,  &source);
+    DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+    DMDAVecGetArray(fda, ueqn->sourceU, &sourceu);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(ueqn->access->flags->isXDampingActive)
+                {
+                    // compute cell center x at i,j,k
+                    double x = (cent[k][j][i].x   - mesh->bounds.xmin);
+
+                    // compute Stipa viscosity at i,j,k,
+                    nu_fringe = viscStipa(xS, xE, xD, x);
+                }
+                // might need an else to reset x_fringe to 1 at each iteration
+
+                if
+                (
+                    isFluidCell(k, j, i, nvert)
+                )
+                {
+                    source[k][j][i].x
+                    +=
+                    nu_fringe *
+                    (
+                        sourceu[k][j][i].x * csi[k][j][i].x +
+                        sourceu[k][j][i].y * csi[k][j][i].y +
+                        sourceu[k][j][i].z * csi[k][j][i].z
+                    );
+
+
+                    source[k][j][i].y
+                    +=
+                    nu_fringe *
+                    (
+                        sourceu[k][j][i].x * eta[k][j][i].x +
+                        sourceu[k][j][i].y * eta[k][j][i].y +
+                        sourceu[k][j][i].z * eta[k][j][i].z
+                    );
+
+
+                    source[k][j][i].z
+                    +=
+                    nu_fringe *
+                    (
+                        sourceu[k][j][i].x * zet[k][j][i].x +
+                        sourceu[k][j][i].y * zet[k][j][i].y +
+                        sourceu[k][j][i].z * zet[k][j][i].z
+                    );
+
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,  &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,  &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,  &zet);
+    DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    DMDAVecRestoreArray(fda, acquisition->fields->Driving,  &source);
+    DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+    DMDAVecRestoreArray(fda, ueqn->sourceU, &sourceu);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
+{
+    abl_          *abl  = acquisition->access->abl;
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***source, ***ucat, ***ucatP, ***cent;
+    Cmpnts        ***csi, ***eta, ***zet;
+    Cmpnts        ***ucont;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l;
+
+    precursor_    *precursor;
+    domain_       *pdomain;
+    PetscInt      kStart;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    VecSet(acquisition->fields->xDamping, 0.);
+
+    DMDAVecGetArray(fda, mesh->lCsi,  &csi);
+    DMDAVecGetArray(fda, mesh->lEta,  &eta);
+    DMDAVecGetArray(fda, mesh->lZet,  &zet);
+
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecGetArray(fda, acquisition->fields->xDamping,  &source);
+
+    if(ueqn->access->flags->isXDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            precursor = abl->precursor;
+            pdomain   = precursor->domain;
+
+            if(precursor->thisProcessorInFringe)
+            {
+                DMDAVecGetArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucatP);
+                kStart = precursor->map.kStart;
+            }
+        }
+    }
+
+    // z damping layer
+    PetscReal alphaZ = abl->zDampingAlpha;
+    PetscReal zS     = abl->zDampingStart;
+    PetscReal zE     = abl->zDampingEnd;
+
+    // x damping layer
+    PetscReal alphaX = abl->xDampingAlpha;
+    PetscReal xS     = abl->xDampingStart;
+    PetscReal xE     = abl->xDampingEnd;
+    PetscReal xD     = abl->xDampingDelta;
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(ueqn->access->flags->isXDampingActive)
+                {
+                    // compute cell center x at i,j,k
+                    PetscReal x = (cent[k][j][i].x   - mesh->bounds.xmin);
+
+                    // compute Nordstrom viscosity at i,j,k
+                    PetscReal nu_fringe = viscNordstrom(alphaX, xS, xE, xD, x);
+
+                    // X DAMPING LAYER
+                    // ---------------
+
+                    if(abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
+                    {
+                        Cmpnts uBar  = nSet(abl->uBarInstX[j][i]);
+
+                        // i-fluxes
+                        source[k][j][i].x
+                        +=
+                        nu_fringe *
+                        (
+                            (
+                                (uBar.x - ucat[k][j][i].x) * csi[k][j][i].x +
+                                (uBar.y - ucat[k][j][i].y) * csi[k][j][i].y +
+                                (uBar.z - ucat[k][j][i].z) * csi[k][j][i].z
+                            )
+                        );
+
+                        // j-fluxes
+                        source[k][j][i].y
+                        +=
+                        nu_fringe *
+                        (
+                            (
+                                (uBar.x - ucat[k][j][i].x) * eta[k][j][i].x +
+                                (uBar.y - ucat[k][j][i].y) * eta[k][j][i].y +
+                                (uBar.z - ucat[k][j][i].z) * eta[k][j][i].z
+                            )
+                        );
+
+                        // k-fluxes
+                        source[k][j][i].z
+                        +=
+                        nu_fringe *
+                        (
+                            (
+                                (uBar.x - ucat[k][j][i].x) * zet[k][j][i].x +
+                                (uBar.y - ucat[k][j][i].y) * zet[k][j][i].y +
+                                (uBar.z - ucat[k][j][i].z) * zet[k][j][i].z
+                            )
+                        );
+                    }
+                    else if(abl->xFringeUBarSelectionType == 3)
+                    {
+                        Cmpnts uBar;
+
+                        if(precursor->thisProcessorInFringe)
+                        {
+                            uBar = nSet(ucatP[k+kStart][j][i]);
+                        }
+                        else
+                        {
+                            uBar = nSet(ucat[k][j][i]);
+                        }
+
+                        source[k][j][i].x
+                        +=
+                        nu_fringe *
+                        (
+                            (uBar.x - ucat[k][j][i].x) * csi[k][j][i].x +
+                            (uBar.y - ucat[k][j][i].y) * csi[k][j][i].y +
+                            (uBar.z - ucat[k][j][i].z) * csi[k][j][i].z
+                        );
+
+                        source[k][j][i].y
+                        +=
+                        nu_fringe *
+                        (
+                            (uBar.x - ucat[k][j][i].x) * eta[k][j][i].x +
+                            (uBar.y - ucat[k][j][i].y) * eta[k][j][i].y +
+                            (uBar.z - ucat[k][j][i].z) * eta[k][j][i].z
+                        );
+
+                        source[k][j][i].z
+                        +=
+                        nu_fringe *
+                        (
+                            (uBar.x - ucat[k][j][i].x) * zet[k][j][i].x +
+                            (uBar.y - ucat[k][j][i].y) * zet[k][j][i].y +
+                            (uBar.z - ucat[k][j][i].z) * zet[k][j][i].z
+                        );
+                    }
+                }
+
+                // Z DAMPING LAYER
+                // ---------------
+                if(ueqn->access->flags->isZDampingActive)
+                {
+                    // compute cell center z at i,j,k
+                    PetscReal z = (cent[k][j][i].z   - mesh->bounds.zmin);
+
+                    // compute Rayleigh viscosity at i,j,k and i,j+1,k points
+                    PetscReal nud_rayleigh = viscRayleigh(alphaZ, zS, zE, z);
+
+                    // damp also x and y components
+                    if(abl->zDampingAlsoXY)
+                    {
+                        // i-fluxes: dampen w.r.t. uBarMean
+                        source[k][j][i].x
+                        +=
+                        nud_rayleigh *
+                        (
+                            abl->uBarMeanZ[j].x -
+                            (
+                                ucat[k][j][i].x * csi[k][j][i].x +
+                                ucat[k][j][i].y * csi[k][j][i].y +
+                                ucat[k][j][i].z * csi[k][j][i].z
+                            )
+                        );
+
+                        // k-fluxes: dampen w.r.t. uBarMean
+                        source[k][j][i].z
+                        +=
+                        nud_rayleigh *
+                        (
+                            abl->uBarMeanZ[j].z -
+                            (
+                                ucat[k][j][i].x * zet[k][j][i].x +
+                                ucat[k][j][i].y * zet[k][j][i].y +
+                                ucat[k][j][i].z * zet[k][j][i].z
+                            )
+                        );
+                    }
+
+                    // j-fluxes: total damping to reach no penetration at jRight
+                    source[k][j][i].y
+                    +=
+                    nud_rayleigh *
+                    (
+                        -1.0 *
+                        (
+                            ucat[k][j][i].x * eta[k][j][i].x +
+                            ucat[k][j][i].y * eta[k][j][i].y +
+                            ucat[k][j][i].z * eta[k][j][i].z
+                        )
+                    );
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,  &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,  &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,  &zet);
+
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecRestoreArray(fda, acquisition->fields->xDamping,  &source);
+
+    if(ueqn->access->flags->isXDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            if(precursor->thisProcessorInFringe)
+            {
+                DMDAVecRestoreArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucatP);
+            }
+        }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
+{
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***source, ***ucat, ***cent;
+    Cmpnts        ***csi, ***eta, ***zet;
+    PetscReal     ***nvert;
+
+    PetscReal     fc      = ueqn->access->abl->fc; // coriolis parameter
+    PetscReal     xStart  = ueqn->access->abl->xStartSideF,
+                  zStart  = ueqn->access->abl->zStartSideF,
+                  xEnd    = ueqn->access->abl->xEndSideF,
+                  zEnd    = ueqn->access->abl->zEndSideF;
+
+    double        K       = 5;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    VecSet(acquisition->fields->SideForce, 0.);
+
+    DMDAVecGetArray(fda, mesh->lCsi,  &csi);
+    DMDAVecGetArray(fda, mesh->lEta,  &eta);
+    DMDAVecGetArray(fda, mesh->lZet,  &zet);
+    DMDAVecGetArray(da,  mesh->lNvert,&nvert);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    DMDAVecGetArray(fda, acquisition->fields->SideForce,  &source);
+    DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                double coeff = 0.0;
+
+                // compute cell center x at i,j,k
+                double x    = cent[k][j][i].x - mesh->bounds.xmin;
+
+                // compute cell center z at i,j,k
+                double z    = cent[k][j][i].z - mesh->bounds.zmin;
+
+                if(x < xEnd && x > xStart && z < zEnd && z > zStart) coeff = 1;
+
+                if
+                (
+                    isFluidCell(k, j, i, nvert)
+                )
+                {
+                    source[k][j][i].x
+                    +=
+                    coeff *
+                    (
+                        2.0 * K *
+                        (
+                            - fc * ucat[k][j][i].y * csi[k][j][i].x +
+                              fc * ucat[k][j][i].x * csi[k][j][i].y
+                        )
+                    );
+
+                    source[k][j][i].y
+                    +=
+                    coeff *
+                    (
+                        2.0 * K *
+                        (
+                          - fc * ucat[k][j][i].y * eta[k][j][i].x +
+                            fc * ucat[k][j][i].x * eta[k][j][i].y
+                        )
+                    );
+
+                    source[k][j][i].z
+                    +=
+                    coeff *
+                    (
+                        2.0 * K *
+                        (
+                          - fc * ucat[k][j][i].y * zet[k][j][i].x +
+                            fc * ucat[k][j][i].x * zet[k][j][i].y
+                        )
+                    );
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,  &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,  &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,  &zet);
+    DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    DMDAVecRestoreArray(fda, acquisition->fields->SideForce,  &source);
+    DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+
+    return(0);
 }
 
 //***************************************************************************************************************//
@@ -3257,18 +3872,18 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
         min.z = mesh->bounds.zmin;
         max.z = mesh->bounds.zmax;
 
-        Cmpnts maxDist = nSub(max, min);
+        Cmpnts maxDist       = nSub(max, min);
 
         PetscReal dStreamMag = nDot(maxDist, lm3->streamDir) / (lm3->nstw - 1);
-        Cmpnts dStream    = nScale(dStreamMag, lm3->streamDir);
+        Cmpnts dStream       = nScale(dStreamMag, lm3->streamDir);
 
-        PetscReal dSpanMag = nDot(maxDist, lm3->spanDir) / (lm3->nspw - 1);
-        Cmpnts dSpan    = nScale(dSpanMag, lm3->spanDir);
+        PetscReal dSpanMag   = nDot(maxDist, lm3->spanDir) / (lm3->nspw - 1);
+        Cmpnts dSpan         = nScale(dSpanMag, lm3->spanDir);
 
-        PetscReal dVertMag = nDot(min, lm3->upDir);
-        Cmpnts dVert    = nScale(dVertMag, lm3->upDir);
+        PetscReal dVertMag   = nDot(min, lm3->upDir);
+        Cmpnts dVert         = nScale(dVertMag, lm3->upDir);
 
-        Cmpnts point    = min;
+        Cmpnts point         = min;
 
         // subtract vertical component so that up coord is always zero
         mSub(point, dVert);
@@ -3385,12 +4000,12 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
             // loop over levels
             for(l=0; l<3; l++)
             {
-                std::vector<std::vector<Cmpnts>> ldepthU(lm3->nstw);
+                std::vector<std::vector<Cmpnts>>    ldepthU(lm3->nstw);
                 std::vector<std::vector<PetscReal>> ldepthP(lm3->nstw);
-                std::vector<std::vector<PetscInt>>    ldepthN(lm3->nstw);
-                std::vector<std::vector<Cmpnts>> gdepthU(lm3->nstw);
+                std::vector<std::vector<PetscInt>>  ldepthN(lm3->nstw);
+                std::vector<std::vector<Cmpnts>>    gdepthU(lm3->nstw);
                 std::vector<std::vector<PetscReal>> gdepthP(lm3->nstw);
-                std::vector<std::vector<PetscInt>>    gdepthN(lm3->nstw);
+                std::vector<std::vector<PetscInt>>  gdepthN(lm3->nstw);
 
                 // get level pointer for speed
                 level3LM *lev = lm3->levels[l];
@@ -3720,7 +4335,7 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
 
     std::vector<PetscReal>  gdist(lm3->nstw*lm3->nspw);
     std::vector<PetscReal>  ldist(lm3->nstw*lm3->nspw);
-    std::vector<cellIds> lclosestCells(lm3->nstw*lm3->nspw);
+    std::vector<cellIds>    lclosestCells(lm3->nstw*lm3->nspw);
 
     for(p=0; p<lm3->nstw*lm3->nspw; p++)
     {
@@ -3743,9 +4358,9 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
             p = pi*lm3->nspw + pk;
 
             // find the cell closest to this 3LM mesh point on this processor
-            PetscReal  minDistMag = 1e20;
-            Cmpnts  minDist;
-            cellIds closestCell;
+            PetscReal minDistMag = 1e20;
+            Cmpnts    minDist;
+            cellIds   closestCell;
 
             Cmpnts perturbVec;
                    perturbVec.x = procContrib;

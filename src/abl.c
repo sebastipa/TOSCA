@@ -275,6 +275,15 @@ PetscErrorCode InitializeABL(abl_ *abl)
         }
     }
 
+    // read the side force region properties
+    if(mesh->access->flags->isSideForceActive)
+    {
+        readSubDictDouble("ABLProperties.dat", "sideForceProperties", "xStartSideF",   &(abl->xStartSideF));
+        readSubDictDouble("ABLProperties.dat", "sideForceProperties", "xEndSideF",     &(abl->xEndSideF));
+        readSubDictDouble("ABLProperties.dat", "sideForceProperties", "zStartSideF",   &(abl->zStartSideF));
+        readSubDictDouble("ABLProperties.dat", "sideForceProperties", "zEndSideF",     &(abl->zEndSideF));
+    }
+
     // source terms are computed
     if(abl->controllerType == "write")
     {
