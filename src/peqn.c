@@ -3250,7 +3250,7 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     {
         if(atleastOneIBM(peqn->access->ibm))
         {
-        AdjustIBMFlux(peqn);
+            AdjustIBMFlux(peqn);
         }
     }
 
@@ -3507,31 +3507,6 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn)
     }
 
     if(rank==maxrank) printf("Time step continuity error: %e (at cell %ld, %ld, %ld). uMax = %lf\n", maxdiv, maxDivIds.i, maxDivIds.j, maxDivIds.k, gmaxu);
-
-    /*
-    if (!rank)
-    {
-        FILE *f;
-        char filen[80];
-        sprintf(filen, "continuityErrors");
-        f = fopen(filen, "a");
-
-        PetscInt width = -15;
-
-        if(ti==tistart)
-        {
-            word w1 = "time";
-            word w2 = "iteration";
-            word w3 = "continuityError";
-            PetscFPrintf(PETSC_COMM_WORLD, f, "%*s\t%*s\t%*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str());
-        }
-
-        PetscFPrintf(PETSC_COMM_WORLD, f, "%*.2f\t%*d\t%*.2e\n", width, time_, width, ti-tistart, width, maxdiv);
-
-        fclose(f);
-    }
-    */
-
 
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);

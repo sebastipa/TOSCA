@@ -523,7 +523,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         setRunTimeWrite(domain);
 
         // map the initial condition if first iteration
-        if(clock->it==0)
+        if(clock->it==clock->itStart)
         {
             MapInitialConditionPrecursor(abl);
         }

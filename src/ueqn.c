@@ -328,7 +328,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         uMean.y = guMean1.y * abl->levelWeights[0] + guMean2.y * abl->levelWeights[1];
         uMean.z = guMean1.z * abl->levelWeights[0] + guMean2.z * abl->levelWeights[1];
 
-        PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
+        if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
 
         PetscReal magUMean = std::sqrt(uMean.x*uMean.x + uMean.y*uMean.y + uMean.z*uMean.z);
         PetscReal magUDes  = std::sqrt(uDes.x*uDes.x + uDes.y*uDes.y + uDes.z*uDes.z);
@@ -345,8 +345,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         relError.y = error.y / magUDes;
         relError.z = error.z / magUDes;
 
-        PetscPrintf(mesh->MESH_COMM, "                         avg mag U at hRef = %lf m/s, U desired = %lf m/s\n", magUMean, magUDes);
-        PetscPrintf(mesh->MESH_COMM, "                         U error in perc. of desired: (%.3f %.3f %.3f)\n", relError.x,relError.y, relError.z);
+        if(print) PetscPrintf(mesh->MESH_COMM, "                         avg mag U at hRef = %lf m/s, U desired = %lf m/s\n", magUMean, magUDes);
+        if(print) PetscPrintf(mesh->MESH_COMM, "                         U error in perc. of desired: (%.3f %.3f %.3f)\n", relError.x,relError.y, relError.z);
 
         // cumulate the error (integral part of the controller)
         abl->cumulatedSource.x = std::exp(-clock->dt / T) * abl->cumulatedSource.x + (clock->dt / T) * error.x;
@@ -456,9 +456,9 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
         PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
 
-        PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading sources\n", w1 * abl->preCompSources[idx_1][0] + w2 * abl->preCompSources[idx_2][0]);
-        PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
-        PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->preCompSources[idx_1][0], abl->preCompSources[idx_2][0]);
+        if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading sources\n", w1 * abl->preCompSources[idx_1][0] + w2 * abl->preCompSources[idx_2][0]);
+        if(print) PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+        if(print) PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->preCompSources[idx_1][0], abl->preCompSources[idx_2][0]);
 
         // reset the closest index for nex iteration
         abl->currentCloseIdx = idx_1;
@@ -481,7 +481,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     }
     else if(abl->controllerType=="average")
     {
-        PetscPrintf(mesh->MESH_COMM, "Correcting source terms using source average from time %lf\n", abl->sourceAvgStartTime);
+        // PetscPrintf(mesh->MESH_COMM, "Correcting source terms using source average from time %lf\n", abl->sourceAvgStartTime);
 
         // scale with dt
         // PetscReal dtScale = clock->dt / abl->avgTimeStep;
@@ -1222,6 +1222,42 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 PetscReal percTimeFringe = fringeTime / waitTime * 100.0;
 
                 PetscPrintf(mesh->MESH_COMM, "Correcting fringe region: errStart = %.2lf %%, errEnd = %.2lf %%, vBar = %.3lf m/s, mCoeff = %.2lf, tFringe = %.1lf %%, alpha = %.4lf\n", percErrVStart, percErrVEnd, abl->xDampingVBar, abl->xDampingCoeff, percTimeFringe, abl->xDampingAlpha);
+
+                // get current process
+                PetscMPIInt   rank;
+                MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+                // write file
+                if (!rank)
+                {
+                    FILE *f;
+                    char filen[80];
+                    sprintf(filen, "fringeRegionData");
+                    f = fopen(filen, "a");
+
+                    if(f!=NULL && clock->it == clock->itStart)
+                    {
+                        unlink(filen);
+                    }
+
+                    PetscInt width = -20;
+
+                    if(clock->it == clock->itStart)
+                    {
+                        word w1 = "time";
+                        word w2 = "errStartPercent";
+                        word w3 = "errEndPercent";
+                        word w4 = "vBar";
+                        word w5 = "mCoeff";
+                        word w6 = "tFringePercent";
+                        word w7 = "alpha";
+                        PetscFPrintf(PETSC_COMM_WORLD, f, "%*s\t%*s\t%*s\t%*s\t%*s\t%*s\t%*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(), width, w5.c_str(), width, w6.c_str(), width, w7.c_str());
+                    }
+
+                    PetscFPrintf(PETSC_COMM_WORLD, f, "%*.3f\t%*.3f\t%*.3f\t%*.5f\t%*.3f\t%*.3f\t%*.3f\n", width, clock->time, width, percErrVStart, width, percErrVEnd, width, abl->xDampingVBar, width, abl->xDampingCoeff, width, percTimeFringe, width, abl->xDampingAlpha);
+
+                    fclose(f);
+                }
             }
 
             PetscPrintf(mesh->MESH_COMM, "Solving concurrent precursor:\n");

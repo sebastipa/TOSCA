@@ -15,18 +15,18 @@ struct peqn_
                   thisRankStart,              //!< first cell ID owned by this processor in global indexing (used to build the poisson coeff. matrix)
                   thisRankEnd;                //!< last cell ID owned by this processor in global indexing (thisRankStart + thisRankSize - 1)
     HYPRE_Int     totalSize;                  //!< total number of cells (excluding physical ghost & IBM points, depending of the Hypre Poisson type, -1, -2, 1)
-    PetscReal        initialPoissonRes,
+    PetscReal     initialPoissonRes,
                   finalPoissonRes;            //!< initial and final residual of the Poisson iteration
     HYPRE_Int     poissonIterations;          //!< number of Poisson iterations
 
     PetscInt      hypreSolverType;            //!< 1: GMRES, 2: PCG
     PetscInt      poissonIt;                  //!< max number of poisson iterations per timestep
-    PetscReal        poissonTol;                 //!< relative exit tolerance
+    PetscReal     poissonTol;                 //!< relative exit tolerance
 
     // solver parameters
     PetscInt      amgAgg;                     //!< aggresive coarsening is good for > 50mil grids
     PetscInt      amgCoarsenType;
-    PetscReal        amgThresh;                  //!< threshold value - 0.5 : Cartesian, 0.6 : Distorted
+    PetscReal     amgThresh;                  //!< threshold value - 0.5 : Cartesian, 0.6 : Distorted
 
     // hypre solver
     HYPRE_Solver       hypreSlvr;             //!< solver

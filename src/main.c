@@ -86,8 +86,6 @@ int main(int argc, char **argv)
             // compute pressure gradient term
             GradP(domain[d].peqn);
 
-            // printstuff(domain[d].ibm);
-
             // Predictor Step
             SolveUEqn(domain[d].ueqn);
 
