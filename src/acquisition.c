@@ -2782,7 +2782,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
 
                 for(p=0; p<probes->rakes[r].probesNumber; p++)
                 {
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld location                     : (%.2f\t%.2f\t%.2f)\n", p, probes->rakes[r].locations[p][0], probes->rakes[r].locations[p][1], probes->rakes[r].locations[p][2]);
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld location                     : (%*.2lf\t%*.2lf\t%*.2lf)\n", p, probes->rakes[r].locations[p][0], probes->rakes[r].locations[p][1], probes->rakes[r].locations[p][2]);
 
                     if(probes->rakes[r].domainID[p] != -1)
                     {
@@ -2806,7 +2806,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
 
                         MPI_Allreduce(&lc[0], &gc[0], 3, MPIU_REAL, MPIU_SUM, probes->rakes[r].RAKE_COMM);
 
-                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld closest cell center location : (%.2f\t%.2f\t%.2f)\n", p, gc[0], gc[1], gc[2]);
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld closest cell center location : (%*.2lf\t%*.2lf\t%*.2lf)\n", p, gc[0], gc[1], gc[2]);
 
                         DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
                     }
@@ -3001,12 +3001,12 @@ PetscErrorCode writeProbes(domain_ *domain)
                             word fileName = rake->timeName + "/U";
                             fu = fopen(fileName.c_str(), "a");
 
-                            fprintf(fu, "\t %.3f\t\t\t\t\t\t", clock->time);
+                            fprintf(fu, "\t %.3lf\t\t\t\t\t\t", clock->time);
                             for(p=0; p<rake->probesNumber; p++)
                             {
                                 if(rake->domainID[p] != -1)
                                 {
-                                    fprintf(fu, "(%.10f  %.10f  %.10f)\t\t", gprobeValuesU[p].x, gprobeValuesU[p].y, gprobeValuesU[p].z);
+                                    fprintf(fu, "(%.10lf  %.10lf  %.10lf)\t\t", gprobeValuesU[p].x, gprobeValuesU[p].y, gprobeValuesU[p].z);
                                 }
                             }
                             fprintf(fu, "\n");
@@ -3026,12 +3026,12 @@ PetscErrorCode writeProbes(domain_ *domain)
                             word fileName = rake->timeName + "/T";
                             ft = fopen(fileName.c_str(), "a");
 
-                            fprintf(ft, "\t %.3f\t\t\t\t\t\t", clock->time);
+                            fprintf(ft, "\t %.3lf\t\t\t\t\t\t", clock->time);
                             for(p=0; p<rake->probesNumber; p++)
                             {
                                 if(rake->domainID[p] != -1)
                                 {
-                                    fprintf(ft, "%.10f\t\t", gprobeValuesT[p]);
+                                    fprintf(ft, "%.10lf\t\t", gprobeValuesT[p]);
                                 }
                             }
                             fprintf(ft, "\n");
@@ -4234,7 +4234,7 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
                         {
                             for(PetscInt pi=0; pi<lm3->nspw; pi++)
                             {
-                                PetscFPrintf(mesh->MESH_COMM, fp, "(%*.4f %*.4f %*.4f) ", -15, lev->U[pk][pi].x, -10, lev->U[pk][pi].y, 10, lev->U[pk][pi].z);
+                                PetscFPrintf(mesh->MESH_COMM, fp, "(%*.4lf %*.4lf %*.4lf) ", -15, lev->U[pk][pi].x, -10, lev->U[pk][pi].y, 10, lev->U[pk][pi].z);
                             }
                             // new line
                             PetscFPrintf(mesh->MESH_COMM, fp, "\n");
@@ -4269,7 +4269,7 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
                         {
                             for(PetscInt pi=0; pi<lm3->nspw; pi++)
                             {
-                                PetscFPrintf(mesh->MESH_COMM, fp, "%*.4f ", -15, lev->P[pk][pi]);
+                                PetscFPrintf(mesh->MESH_COMM, fp, "%*.4lf ", -15, lev->P[pk][pi]);
                             }
                             // new line
                             PetscFPrintf(mesh->MESH_COMM, fp, "\n");
@@ -4352,11 +4352,10 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
         for(pi=0; pi<lm3->nspw; pi++)
         {
             // point index in extended notation
-            p = pi*lm3->nspw + pk;
+            p = pk*lm3->nspw + pi;
 
             // find the cell closest to this 3LM mesh point on this processor
             PetscReal minDistMag = 1e20;
-            Cmpnts    minDist;
             cellIds   closestCell;
 
             Cmpnts perturbVec;
@@ -4379,7 +4378,6 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
                 if(distMag < minDistMag)
                 {
                     minDistMag         = distMag;
-                    minDist            = dist;
                     lclosestCells[p].i = i;
                     lclosestCells[p].j = j;
                     lclosestCells[p].k = k;
@@ -4400,12 +4398,14 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
         for(pi=0; pi<lm3->nspw; pi++)
         {
             // point index in extended notation
-            p = pi*lm3->nspw + pk;
+            p = pk*lm3->nspw + pi;
 
             if(gdist[p] == ldist[p])
             {
                 lm3->closestCells[pk][pi].i = lclosestCells[p].i;
                 lm3->closestCells[pk][pi].k = lclosestCells[p].k;
+                //PetscInt jPrint = std::floor((lye + lys) / 2);
+                //PetscPrintf(MPI_COMM_SELF,"point(x,y) = (%.2lf, %.2lf), cellCenter(x,y) = (%.2lf, %.2lf), closesdIds(k,i) = (%ld, %ld)\n",lm3->points[pk][pi].x, lm3->points[pk][pi].y, cent[lclosestCells[p].k][jPrint][lclosestCells[p].i].x, cent[lclosestCells[p].k][jPrint][lclosestCells[p].i].y, lclosestCells[p].k, lclosestCells[p].i);
             }
             else
             {

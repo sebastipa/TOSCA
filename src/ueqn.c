@@ -1232,18 +1232,18 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 {
                     FILE *f;
                     char filen[80];
-                    sprintf(filen, "fringeRegionData");
-                    f = fopen(filen, "a");
-
-                    if(f!=NULL && clock->it == clock->itStart)
-                    {
-                        unlink(filen);
-                    }
-
                     PetscInt width = -20;
+                    sprintf(filen, "fringeRegionData");
 
                     if(clock->it == clock->itStart)
                     {
+                        // eliminate previous file
+                        unlink(filen);
+
+                        // open a new file
+                        f = fopen(filen, "a");
+
+                        // write header line
                         word w1 = "time";
                         word w2 = "errStartPercent";
                         word w3 = "errEndPercent";
@@ -1253,6 +1253,8 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         word w7 = "alpha";
                         PetscFPrintf(PETSC_COMM_WORLD, f, "%*s\t%*s\t%*s\t%*s\t%*s\t%*s\t%*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(), width, w5.c_str(), width, w6.c_str(), width, w7.c_str());
                     }
+
+                    f = fopen(filen, "a");
 
                     PetscFPrintf(PETSC_COMM_WORLD, f, "%*.3f\t%*.3f\t%*.3f\t%*.5f\t%*.3f\t%*.3f\t%*.3f\n", width, clock->time, width, percErrVStart, width, percErrVEnd, width, abl->xDampingVBar, width, abl->xDampingCoeff, width, percTimeFringe, width, abl->xDampingAlpha);
 
@@ -1759,7 +1761,7 @@ PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 (
                     2.0 * K *
                     (
-                        fc * 100.0 * icsi[k][j][i].y
+                        fc * 10.0 * icsi[k][j][i].y
                     )
                 );
 
