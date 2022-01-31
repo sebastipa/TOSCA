@@ -7,12 +7,21 @@ PETSCINC1=$(PETSC)/include/
 PETSCINC2=$(PETSC)/$(PETSC_ARCH)/include/
 
 #Serial HDF5
+<<<<<<< HEAD
 #HDF5INC=/usr/lib/x86_64-linux-gnu/hdf5/serial/include/
 #HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/serial/
 
 #Parallel HDF5
 HDF5INC=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/include/
 HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/
+=======
+HDF5INC=/usr/lib/x86_64-linux-gnu/hdf5/serial/include/
+HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/serial/
+>>>>>>> 4a777d2 (added FringeRegionTest example case)
+
+#Parallel HDF5
+#HDF5INC=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/include/
+#HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/
 
 LIBFLAG =       -lpthread -lrt -ldl -lstdc++ \
 		        -lpetsc -lf2cblas -lf2clapack -lhdf5 -lHYPRE
