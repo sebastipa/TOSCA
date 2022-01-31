@@ -43,7 +43,7 @@ Toolbox fOr Stratified Convective Atmospheres
     
 ## Notes:
   
-    - test cases which contain an empty 'inflowDatabase' folder require the inflow database. A sample database can be downloaded at https://drive.google.com/file/d/17F5wtI5Jc1XGh8crmOVJYVXabC8iQXq1/view?usp=sharing, simply substitute the empty 'inflowDatabase' folder with the downloaded one. 
+    - test cases which contain an empty 'inflowDatabase' file require the inflow database. A sample database can be downloaded at https://drive.google.com/file/d/17F5wtI5Jc1XGh8crmOVJYVXabC8iQXq1/view?usp=sharing, simply substitute the empty 'inflowDatabase' folder with the downloaded one. 
     
 ## Installation:
 
