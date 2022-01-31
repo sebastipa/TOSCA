@@ -4300,7 +4300,7 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
     PetscInt         mx = info.mx, my = info.my, mz = info.mz;
 
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
-    PetscInt         i, j, k, pi, pk, r, p;
+    PetscInt         i, j, k, pi, pk, r;
 
     Cmpnts           ***cent;
 
@@ -4330,18 +4330,25 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
     // processor perturbation (changes between processors)
     PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)nprocs;
 
-    std::vector<PetscReal>  gdist(lm3->nstw*lm3->nspw);
-    std::vector<PetscReal>  ldist(lm3->nstw*lm3->nspw);
-    std::vector<cellIds>    lclosestCells(lm3->nstw*lm3->nspw);
+    std::vector<std::vector<PetscReal>>  gdist(lm3->nstw);
+    std::vector<std::vector<PetscReal>>  ldist(lm3->nstw);
+    std::vector<std::vector<cellIds>>    lclosestCells(lm3->nstw);
 
-    for(p=0; p<lm3->nstw*lm3->nspw; p++)
+    for(pk=0; pk<lm3->nstw; pk++)
     {
-        gdist[p] = 1e20;
-        ldist[p] = 1e20;
+        lclosestCells[pk].resize(lm3->nspw);
+        ldist[pk].resize(lm3->nspw);
+        gdist[pk].resize(lm3->nspw);
 
-        lclosestCells[p].i = 0;
-        lclosestCells[p].j = 0;
-        lclosestCells[p].k = 0;
+        for(pi=0; pi<lm3->nspw; pi++)
+        {
+            gdist[pk][pi] = 1e20;
+            ldist[pk][pi] = 1e20;
+
+            lclosestCells[pk][pi].i = 0;
+            lclosestCells[pk][pi].j = 0;
+            lclosestCells[pk][pi].k = 0;
+        }
     }
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
@@ -4351,9 +4358,6 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
     {
         for(pi=0; pi<lm3->nspw; pi++)
         {
-            // point index in extended notation
-            p = pk*lm3->nspw + pi;
-
             // find the cell closest to this 3LM mesh point on this processor
             PetscReal minDistMag = 1e20;
             cellIds   closestCell;
@@ -4377,50 +4381,50 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
 
                 if(distMag < minDistMag)
                 {
-                    minDistMag         = distMag;
-                    lclosestCells[p].i = i;
-                    lclosestCells[p].j = j;
-                    lclosestCells[p].k = k;
+                    minDistMag = distMag;
+                    lclosestCells[pk][pi].i = i;
+                    lclosestCells[pk][pi].j = j;
+                    lclosestCells[pk][pi].k = k;
                 }
             }
 
             // save this processor minimum
-            ldist[p] = minDistMag;
+            ldist[pk][pi] = minDistMag;
         }
     }
 
     // scatter the minimum dist to all processors
-    MPI_Allreduce(&ldist[0], &gdist[0], lm3->nstw*lm3->nspw, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+    for(pk=0; pk<lm3->nstw; pk++)
+    {
+        MPI_Allreduce(&ldist[pk][0], &gdist[pk][0], lm3->nspw, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+    }
 
     // now compare the lists, where those agree this processor controls this 3LM line
     for(pk=0; pk<lm3->nstw; pk++)
     {
         for(pi=0; pi<lm3->nspw; pi++)
         {
-            // point index in extended notation
-            p = pk*lm3->nspw + pi;
-
-            if(gdist[p] == ldist[p])
+            if(gdist[pk][pi] == ldist[pk][pi])
             {
-                lm3->closestCells[pk][pi].i = lclosestCells[p].i;
-                lm3->closestCells[pk][pi].k = lclosestCells[p].k;
-                //PetscInt jPrint = std::floor((lye + lys) / 2);
-                //PetscPrintf(MPI_COMM_SELF,"point(x,y) = (%.2lf, %.2lf), cellCenter(x,y) = (%.2lf, %.2lf), closesdIds(k,i) = (%ld, %ld)\n",lm3->points[pk][pi].x, lm3->points[pk][pi].y, cent[lclosestCells[p].k][jPrint][lclosestCells[p].i].x, cent[lclosestCells[p].k][jPrint][lclosestCells[p].i].y, lclosestCells[p].k, lclosestCells[p].i);
+                // do nothing: idx have been found on this processor
             }
             else
             {
-                lm3->closestCells[pk][pi].i = 0;
-                lm3->closestCells[pk][pi].k = 0;
+                // zero ids back
+                lclosestCells[pk][pi].i = 0;
+                lclosestCells[pk][pi].j = 0;
+                lclosestCells[pk][pi].k = 0;
             }
-
-            lm3->closestCells[pk][pi].j = 0;
         }
+
+        MPI_Allreduce(&(lclosestCells[pk][0]), &(lm3->closestCells[pk][0]), 3*lm3->nspw, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+        std::vector<PetscReal>  ().swap(gdist[pk]);
+        std::vector<PetscReal>  ().swap(ldist[pk]);
+        std::vector<cellIds>    ().swap(lclosestCells[pk]);
     }
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
-
-    std::vector<PetscReal> ().swap(ldist);
-    std::vector<PetscReal> ().swap(gdist);
 
     PetscTime(&te);
 
