@@ -41,6 +41,7 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         VecDuplicate(mesh->Nvert, &(teqn->Tmprt));       VecSet(teqn->Tmprt,    0.0);
         VecDuplicate(mesh->Nvert, &(teqn->Tmprt_o));     VecSet(teqn->Tmprt_o,  0.0);
         VecDuplicate(mesh->Nvert, &(teqn->Rhs));         VecSet(teqn->Rhs,      0.0);
+        VecDuplicate(mesh->Nvert, &(teqn->Rhs_o));       VecSet(teqn->Rhs_o,    0.0);
         VecDuplicate(mesh->lAj,   &(teqn->lTmprt));      VecSet(teqn->lTmprt,   0.0);
         VecDuplicate(mesh->lAj,   &(teqn->lTmprt_o));    VecSet(teqn->lTmprt_o, 0.0);
 
@@ -742,6 +743,17 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     const PetscReal dt = clock->dt;
 
     FormT(teqn, Rhs, 1.0);
+
+    // add viscous and transport terms
+    if(clock->it > clock->itStart)
+    {
+        VecAXPY(Rhs, 0.5, teqn->Rhs_o);
+        FormT(teqn, Rhs, 0.5);
+    }
+    else
+    {
+        FormT(teqn, Rhs, 1.0);
+    }
 
     if(teqn->access->flags->isXDampingActive)
     {

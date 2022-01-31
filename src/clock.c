@@ -18,6 +18,9 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     clock_        *clock = domain[0].clock;
     flags_        *flags = domain[0].access.flags;
 
+    // save old time step
+    clock->dtOld = clock->dt;
+
     for(PetscInt d=0; d<nDomains; d++)
     {
         acquisition_  *acquisition = domain[d].acquisition;
@@ -218,6 +221,12 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         {
             if(clock->it>clock->itStart) clock->cfl =  maxU * clock->dt / dx_min;
         }
+    }
+
+    // prevent time step from increasing too fast
+    if(clock->dt > 1.5 * clock->dtOld)
+    {
+        clock->dt = 1.5 * clock->dtOld;
     }
 
     // make sure to hit last time

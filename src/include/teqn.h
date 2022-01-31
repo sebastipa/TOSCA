@@ -14,19 +14,20 @@ struct teqn_
     KSP           ksp;                         //!< linear krylov-subspace context
     PC            pc;
     Vec           Rhs;
+    Vec           Rhs_o;
     Vec           TmprtTmp;                    //!< temporary solution
     Vec           Tmprt, lTmprt,
                   Tmprt_o, lTmprt_o;
     Vec           lDivT, lViscT;               //!< viscous and divergence temperature equation fluxes
 
-    PetscReal        absExitTol;                 //!< absolute exit tolerance
-    PetscReal        relExitTol;                 //!< relative exit tolerance
+    PetscReal     absExitTol;                  //!< absolute exit tolerance
+    PetscReal     relExitTol;                  //!< relative exit tolerance
 
     // initial field
-    word           initFieldType;
+    word          initFieldType;
 
     // access
-    access_       *access;                  //!< access database
+    access_       *access;                     //!< access database
 
 };
 

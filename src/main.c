@@ -101,6 +101,10 @@ int main(int argc, char **argv)
             if(flags.isTeqnActive)
             {
                 SolveTEqn(domain[d].teqn);
+
+                // save temperature equation right hand side
+                VecSet(domain[d].teqn->Rhs_o, 0.0);
+                FormT (domain[d].teqn, domain[d].teqn->Rhs_o, 1.0);
             }
 
             MPI_Barrier(domain[d].mesh->MESH_COMM);

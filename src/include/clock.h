@@ -11,7 +11,11 @@ struct clock_
     PetscReal        endTime;                   //!< simulation end time
 
     PetscReal        dt;                        //!< time step
+<<<<<<< HEAD
     PetscReal        startDt;                   //!< time step
+=======
+    PetscReal        dtOld;                     //!< old time step
+>>>>>>> a1ad32b (added alphaOptimized fringe controller and timeStep increment control)
     PetscReal        cfl;                       //!< cfl number
 
     PetscInt         it;                        //!< current iteration value

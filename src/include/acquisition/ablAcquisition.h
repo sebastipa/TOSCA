@@ -23,68 +23,68 @@ typedef struct
 //! \brief Struct defining a gridded point mesh for three layer model data (used for its validation)
 struct data3LM
 {
-    PetscInt      nstw;                           //!< number of points in streamwise direction
-    PetscInt      nspw;                           //!< number of points in the spanwise direction
-    Cmpnts   upDir;                          //!< vertical direction unit vector
-    Cmpnts   streamDir;                      //!< streamwise direction unit vector
-    Cmpnts   spanDir;                        //!< spanwise direction unit vector
-    Cmpnts   **points;                       //!< array of [nstw, nspw] where point coordinates are stored
-    cellIds  **closestCells;                 //!< array of [nstw, nspw] where i and k ids of the averaging line are stored (j is meaningless)
+    PetscInt  nstw;                           //!< number of points in streamwise direction
+    PetscInt  nspw;                           //!< number of points in the spanwise direction
+    Cmpnts    upDir;                          //!< vertical direction unit vector
+    Cmpnts    streamDir;                      //!< streamwise direction unit vector
+    Cmpnts    spanDir;                        //!< spanwise direction unit vector
+    Cmpnts    **points;                       //!< array of [nstw, nspw] where point coordinates are stored
+    cellIds   **closestCells;                 //!< array of [nstw, nspw] where i and k ids of the averaging line are stored (j is meaningless)
 
-    PetscReal   avgStartTime;                   //!< start time of acquisition system
-    PetscReal   avgPrd;                         //!< acquisition time interval (overrides simulation time step if smaller)
+    PetscReal avgStartTime;                   //!< start time of acquisition system
+    PetscReal avgPrd;                         //!< acquisition time interval (overrides simulation time step if smaller)
 
-    PetscInt      avgWeight;                      //!< number of averages taken up to this time step (snapshot weighting)
+    PetscInt  avgWeight;                      //!< number of averages taken up to this time step (snapshot weighting)
 
-    level3LM **levels;                       //!< array of pointers to the three levels of the 3LM model
+    level3LM  **levels;                       //!< array of pointers to the three levels of the 3LM model
 };
 
 //! \brief Struct defining ABL simulation acquisition data
 struct dataABL
 {
-    word     timeName;                       //!< name of the time directory where ABL averages are written
-    PetscReal   avgStartTime;                   //!< start time of acquisition system
-    PetscReal   avgPrd;                         //!< acquisition time interval (overrides simulation time step if smaller)                     //!< number of averages taken up to this time step (snapshot weighting)
+    word      timeName;                       //!< name of the time directory where ABL averages are written
+    PetscReal avgStartTime;                   //!< start time of acquisition system
+    PetscReal avgPrd;                         //!< acquisition time interval (overrides simulation time step if smaller)                     //!< number of averages taken up to this time step (snapshot weighting)
 
-    PetscReal   *cellLevels;                    //!< heights of the averaging planes
-    PetscReal   *totVolPerLevel;                //!< total volume at each cell level
-    PetscInt      *totCelPerLevel;                //!< total number of cells per level
-    PetscReal   *UMean;                         //!< mean x velocity at each level
-    PetscReal   *VMean;                         //!< mean y velocity at each level
-    PetscReal   *WMean;                         //!< mean z velocity at each level
-    PetscReal   *TMean;                         //!< mean temperature at each level
-    PetscReal   *nutMean;                       //!< mean turbulent viscosity at each level
-    Vec      UPrime;                         //!< fluctuating velocity field
-    Vec      TPrime;                         //!< fluctuating temperature field
+    PetscReal *cellLevels;                    //!< heights of the averaging planes
+    PetscReal *totVolPerLevel;                //!< total volume at each cell level
+    PetscInt  *totCelPerLevel;                //!< total number of cells per level
+    PetscReal *UMean;                         //!< mean x velocity at each level
+    PetscReal *VMean;                         //!< mean y velocity at each level
+    PetscReal *WMean;                         //!< mean z velocity at each level
+    PetscReal *TMean;                         //!< mean temperature at each level
+    PetscReal *nutMean;                       //!< mean turbulent viscosity at each level
+    Vec       UPrime;                         //!< fluctuating velocity field
+    Vec       TPrime;                         //!< fluctuating temperature field
 
-    PetscReal   *uuMean;
-    PetscReal   *uvMean;
-    PetscReal   *uwMean;
-    PetscReal   *vvMean;
-    PetscReal   *vwMean;
-    PetscReal   *wwMean;
+    PetscReal *uuMean;
+    PetscReal *uvMean;
+    PetscReal *uwMean;
+    PetscReal *vvMean;
+    PetscReal *vwMean;
+    PetscReal *wwMean;
 
-    PetscReal   *wuuMean;
-    PetscReal   *wuvMean;
-    PetscReal   *wuwMean;
-    PetscReal   *wvvMean;
-    PetscReal   *wvwMean;
-    PetscReal   *wwwMean;
+    PetscReal *wuuMean;
+    PetscReal *wuvMean;
+    PetscReal *wuwMean;
+    PetscReal *wvvMean;
+    PetscReal *wvwMean;
+    PetscReal *wwwMean;
 
-    PetscReal   *R11Mean;
-    PetscReal   *R12Mean;
-    PetscReal   *R13Mean;
-    PetscReal   *R22Mean;
-    PetscReal   *R23Mean;
-    PetscReal   *R33Mean;
+    PetscReal *R11Mean;
+    PetscReal *R12Mean;
+    PetscReal *R13Mean;
+    PetscReal *R22Mean;
+    PetscReal *R23Mean;
+    PetscReal *R33Mean;
 
-    PetscReal   *TuMean;
-    PetscReal   *TvMean;
-    PetscReal   *TwMean;
+    PetscReal *TuMean;
+    PetscReal *TvMean;
+    PetscReal *TwMean;
 
-    PetscReal   *q1Mean;
-    PetscReal   *q2Mean;
-    PetscReal   *q3Mean;
+    PetscReal *q1Mean;
+    PetscReal *q2Mean;
+    PetscReal *q3Mean;
 };
 
 #endif

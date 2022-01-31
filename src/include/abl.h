@@ -20,6 +20,10 @@ struct abl_
     PetscReal    smear;                          //!< Rampanelli Zardi model parameter
     PetscReal    fc;                             //!< Coriolis parameter (omegaEarth * sin(latitude) = 7.292115e-5 * sin(latitude))
 
+    PetscReal   *cellLevels;                     //!< heights of the averaging planes
+    PetscInt    closestLabels[2];                //!< closest height w.r.t. reference height
+    PetscInt    levelWeights[2];                 //!< weights for variables interpolated at closest heights w.r.t. reference height
+
     // velocity controller
     PetscReal    relax;                          //!< source term relaxation factor
     PetscReal    alpha;                          //!< proportional over integral controller action ratio
@@ -27,16 +31,13 @@ struct abl_
     word         controllerType;                 //!< velocity controller type: write/read (writes in postProcessing/momentumSource, reads from momentumSource)
     PetscReal    controllerHeight;               //!< max height of influence of the velocity controller
     PetscReal    sourceAvgStartTime;             //!< if controllerType is 'average', average sources from this time value
-    PetscReal  **preCompSources;                 //!< table of given sources [ntimesteps][time|sourceX|sourceY|sourceZ] for velocity controller type = read.
+    PetscReal    **preCompSources;               //!< table of given sources [ntimesteps][time|sourceX|sourceY|sourceZ] for velocity controller type = read.
     PetscInt     nSourceTimes;                   //!< number of times in the pre-computed sources
     PetscInt     currentCloseIdx;                //!< save the current closest index at each iteration to speed up the interpolation search
-    PetscReal   *cellLevels;                     //!< heights of the averaging planes
-    PetscReal   *totVolPerLevel;                 //!< total volume at each cell level
-    PetscInt    *totCelPerLevel;                 //!< total number of cells per level
-    Cmpnts      cumulatedSource;                 //!< cumulated error of the velocity controller (equalt to gradP at steady state)
-
-    std::vector<std::vector<PetscReal>>
-                 sourceHystory;                  //!< momentum source hystory (only if read)
+    PetscReal    *totVolPerLevel;                //!< total volume at each cell level
+    PetscInt     *totCelPerLevel;                //!< total number of cells per level
+    Cmpnts       cumulatedSource;                //!< cumulated error of the velocity controller (equalt to gradP at steady state)
+    PetscReal    avgTimeStep;                    //!< average time step from the momentum source file
 
     // z damping layer (Rayleigh damping)
     PetscReal    zDampingStart;                  //!< starting height of the Rayleigh damping layer
@@ -51,6 +52,20 @@ struct abl_
     PetscReal    xDampingEnd;                    //!< ending x of the fringe layer
     PetscReal    xDampingDelta;                  //!< damping raise/decay distance (must be less than 0.5*(xDampingEnd - xDampingStart))
     PetscReal    xDampingAlpha;                  //!< damping paramter (see Inoue, Matheou, Teixeira 2014)
+
+    // x damping layer controller parameters
+    word         xDampingControlType;            //!< type of controller: alphaFixed or alphaOptimized
+    PetscReal    xDampingTimeWindow;             //!< time constant for velocity filtering
+    PetscReal    xDampingVBar;                   //!< desired y-velocity sampled from precursor
+    PetscReal    vEnd, vStart;                   //!< line-averaged start and end y-velocity at the fringe region extrema
+    PetscReal    xDampingError;                  //!< error on y-velocity at fringe end w.r.t precursor
+    PetscReal    xDampingLineSamplingYmin;       //!< starting y of the sampling lines
+    PetscReal    xDampingLineSamplingYmax;       //!< ending y of the sampling lines
+    PetscReal    xDampingTimeStart;              //!< last time that alpha was modified
+    PetscReal    xDampingDeltaV;                 //!< y-velocity jump across the fringe
+    PetscReal    xDampingCoeff;                  //!< coeff = |Vend - Vstart| / alpha
+
+    // type of uBar computation
     PetscInt     xFringeUBarSelectionType;       //!< read type of fringe region in uBarSelectionType
     Cmpnts       **uBarInstX;                    //!< array storing the instantaneous velocity field for x damping layer
     PetscReal    **tBarInstX;                    //!< array storing the instantaneous temperature field for x damping layer

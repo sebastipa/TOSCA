@@ -52,13 +52,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
         fatalErrorInFunction("InitializeABL",  error);
     }
 
-    // the vertical direction is the j direction in curvilinear coordinates
-    PetscInt nLevels = my-2;
-
-    PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->cellLevels));
-    PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->totVolPerLevel));
-    PetscMalloc(sizeof(PetscInt) * nLevels, &(abl->totCelPerLevel));
-
     readDictDouble("ABLProperties.dat", "uTau",             &(abl->uTau));
     readDictDouble("ABLProperties.dat", "hRough",           &(abl->hRough));
     readDictDouble("ABLProperties.dat", "uRef",             &(abl->uRef));
@@ -72,7 +65,114 @@ PetscErrorCode InitializeABL(abl_ *abl)
     readDictDouble("ABLProperties.dat", "smearT",           &(abl->smear));
     readDictDouble("ABLProperties.dat", "controllerHeight", &(abl->controllerHeight));
     readDictDouble("ABLProperties.dat", "fCoriolis",        &(abl->fc));
-    readDictWord("ABLProperties.dat",   "controllerType",   &(abl->controllerType));
+    readDictWord  ("ABLProperties.dat", "controllerType",   &(abl->controllerType));
+
+    // the vertical direction is the j direction in curvilinear coordinates
+    PetscInt nLevels = my-2;
+
+    // initialize some useful parameters used in fringe and velocity controller 'write'
+    {
+        PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->cellLevels));
+        PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->totVolPerLevel));
+        PetscMalloc(sizeof(PetscInt)  * nLevels, &(abl->totCelPerLevel));
+
+        // initialize height levels for the velocity controller
+        DMDAVecGetArray(fda, mesh->lCent, &cent);
+        DMDAVecGetArray(da,  mesh->lAj,  &aj);
+
+        std::vector<PetscReal> lLevels(nLevels);
+        std::vector<PetscReal> gLevels(nLevels);
+        std::vector<PetscReal> lVolumes(nLevels);
+        std::vector<PetscReal> gVolumes(nLevels);
+        std::vector<PetscInt>  lCells(nLevels);
+        std::vector<PetscInt>  gCells(nLevels);
+
+        for(l=0; l<nLevels; l++)
+        {
+            lLevels[l]  = 0.0;
+            gLevels[l]  = 0.0;
+            lVolumes[l] = 0.0;
+            gVolumes[l] = 0.0;
+            lCells[l]   = 0;
+            gCells[l]   = 0;
+        }
+
+        for (k=lzs; k<lze; k++)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    lLevels[j-1]  += (cent[k][j][i].z - mesh->bounds.zmin);
+                    lVolumes[j-1] += 1.0 / aj[k][j][i];
+                    lCells[j-1]++;
+                }
+            }
+        }
+
+        MPI_Allreduce(&lLevels[0], &gLevels[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+        MPI_Allreduce(&lVolumes[0], &gVolumes[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+        MPI_Allreduce(&lCells[0], &gCells[0], nLevels, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+        for(l=0; l<nLevels; l++)
+        {
+            gLevels[l] = gLevels[l] / gCells[l];
+        }
+
+        DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
+        DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+        for(l=0; l<nLevels; l++)
+        {
+            abl->cellLevels[l]     = gLevels[l];
+            abl->totVolPerLevel[l] = gVolumes[l];
+            abl->totCelPerLevel[l] = gCells[l];
+        }
+
+        std::vector<PetscReal> absLevelDelta(nLevels);
+
+        for(l=0; l<nLevels; l++)
+        {
+            absLevelDelta[l] = std::fabs(abl->cellLevels[l] - abl->hRef);
+        }
+
+        for(PetscInt errI=0; errI<2; errI++)
+        {
+            PetscReal errMin   = 1e20;
+            PetscReal errValue = 0.0;
+            PetscInt  minLabel = 0;
+
+            for(PetscInt errJ = errI; errJ < nLevels; errJ++)
+            {
+                if(absLevelDelta[errJ] < errMin)
+                {
+                    errValue = absLevelDelta[errJ];
+                    minLabel = errJ;
+                    errMin   = errValue;
+                }
+            }
+
+            // exchange values so that elements are not ovwerwritten
+            absLevelDelta[minLabel] = absLevelDelta[errI];
+
+            // put the min value on the unchanged part at the last index of changed part
+            absLevelDelta[errI] = errValue;
+
+            // save the label adding one since DMDA labeling starts from physical ghost cells
+            abl->closestLabels[errI] = minLabel + 1;
+        }
+
+        abl->levelWeights[0] = (abl->cellLevels[abl->closestLabels[1]-1]-abl->hRef) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
+        abl->levelWeights[1] = (abl->hRef-abl->cellLevels[abl->closestLabels[0]-1]) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
+
+        std::vector<PetscReal> ().swap(lLevels);
+        std::vector<PetscReal> ().swap(gLevels);
+        std::vector<PetscReal> ().swap(lVolumes);
+        std::vector<PetscReal> ().swap(gVolumes);
+        std::vector<PetscInt>  ().swap(lCells);
+        std::vector<PetscInt>  ().swap(gCells);
+        std::vector<PetscReal> ().swap(absLevelDelta);
+    }
 
     // set cumulated sources to zero. They are needed for the integral part of the
     // controller if controllerType is set to 'write' or to store the average
@@ -109,10 +209,19 @@ PetscErrorCode InitializeABL(abl_ *abl)
     // read the recycling fringe region properties
     if(mesh->access->flags->isXDampingActive)
     {
-        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingStart",   &(abl->xDampingStart));
-        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingEnd",     &(abl->xDampingEnd));
-        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingDelta",   &(abl->xDampingDelta));
-        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingAlpha",   &(abl->xDampingAlpha));
+        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingStart",            &(abl->xDampingStart));
+        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingEnd",              &(abl->xDampingEnd));
+        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingDelta",            &(abl->xDampingDelta));
+        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingAlpha",            &(abl->xDampingAlpha));
+        readSubDictWord  ("ABLProperties.dat", "xDampingProperties", "xDampingAlphaControlType", &(abl->xDampingControlType));
+
+        // if fringe controller is alphaOptimized read parameters
+        if(abl->xDampingControlType == "alphaOptimized")
+        {
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingLineSamplingYmin",  &(abl->xDampingLineSamplingYmin));
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingLineSamplingYmax",  &(abl->xDampingLineSamplingYmax));
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingTimeWindow",        &(abl->xDampingTimeWindow));
+        }
 
         // read type of fringe region in uBarSelectionType
         // 1. periodized mapped
@@ -290,59 +399,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
         readDictDouble("ABLProperties.dat", "relaxPI",          &(abl->relax));
         readDictDouble("ABLProperties.dat", "alphaPI",          &(abl->alpha));
         readDictDouble("ABLProperties.dat", "timeWindowPI",     &(abl->timeWindow));
-
-        // initialize height levels for the velocity controller
-        DMDAVecGetArray(fda, mesh->lCent, &cent);
-        DMDAVecGetArray(da,  mesh->lAj,  &aj);
-
-        std::vector<PetscReal> lLevels(nLevels);
-        std::vector<PetscReal> gLevels(nLevels);
-        std::vector<PetscReal> lVolumes(nLevels);
-        std::vector<PetscReal> gVolumes(nLevels);
-        std::vector<PetscInt>    lCells(nLevels);
-        std::vector<PetscInt>    gCells(nLevels);
-
-        for(l=0; l<nLevels; l++)
-        {
-            lLevels[l]  = 0.0;
-            gLevels[l]  = 0.0;
-            lVolumes[l] = 0.0;
-            gVolumes[l] = 0.0;
-            lCells[l]   = 0;
-            gCells[l]   = 0;
-        }
-
-        for (k=lzs; k<lze; k++)
-        {
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    lLevels[j-1]  += (cent[k][j][i].z - mesh->bounds.zmin);
-                    lVolumes[j-1] += 1.0 / aj[k][j][i];
-                    lCells[j-1]++;
-                }
-            }
-        }
-
-        MPI_Allreduce(&lLevels[0], &gLevels[0], nLevels, MPIU_REAL, MPIU_SUM, PETSC_COMM_WORLD);
-        MPI_Allreduce(&lVolumes[0], &gVolumes[0], nLevels, MPIU_REAL, MPIU_SUM, PETSC_COMM_WORLD);
-        MPI_Allreduce(&lCells[0], &gCells[0], nLevels, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD);
-
-        for(l=0; l<nLevels; l++)
-        {
-            gLevels[l] = gLevels[l] / gCells[l];
-        }
-
-        DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
-        DMDAVecRestoreArray(fda, mesh->lCent, &cent);
-
-        for(l=0; l<nLevels; l++)
-        {
-            abl->cellLevels[l]     = gLevels[l];
-            abl->totVolPerLevel[l] = gVolumes[l];
-            abl->totCelPerLevel[l] = gCells[l];
-        }
     }
     // source terms are read or averaged from available database
     else if(abl->controllerType=="read" || abl->controllerType=="average")
@@ -460,16 +516,28 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 }
 
                 // initialize average counter to zero
-                PetscInt nAvgSources = 0;
+                PetscInt  nAvgSources = 0;
+                PetscInt  timeOldSet  = 0;
+                PetscReal timeOld;
+
+                abl->avgTimeStep = 0.0;
 
                 // average source terms
                 for(PetscInt t=0; t<ntimes; t++)
                 {
                     if(abl->preCompSources[t][0] > abl->sourceAvgStartTime)
                     {
+                        if(!timeOldSet)
+                        {
+                            timeOld    = abl->preCompSources[t][0];
+                            timeOldSet = 1;
+                        }
+                        
                         abl->cumulatedSource.x += abl->preCompSources[t][1];
                         abl->cumulatedSource.y += abl->preCompSources[t][2];
                         abl->cumulatedSource.z += abl->preCompSources[t][3];
+                        abl->avgTimeStep       += (abl->preCompSources[t][0] - timeOld);
+                        timeOld                =  abl->preCompSources[t][0];
                         nAvgSources++;
                     }
                 }
@@ -478,8 +546,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 abl->cumulatedSource.x = abl->cumulatedSource.x / nAvgSources;
                 abl->cumulatedSource.y = abl->cumulatedSource.y / nAvgSources;
                 abl->cumulatedSource.z = abl->cumulatedSource.z / nAvgSources;
+                abl->avgTimeStep       = abl->avgTimeStep       / nAvgSources;
 
-                PetscPrintf(mesh->MESH_COMM, "Averaged driving sources: (%e %e %e)\n\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z);
+                PetscPrintf(mesh->MESH_COMM, "average driving sources = (%e %e %e), average time step = %lf\n\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z, abl->avgTimeStep);
             }
         }
     }
@@ -489,7 +558,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
         sprintf(error, "unknown controllerType, available types are:\n        1 : write\n        2 : read\n        3 : average");
         fatalErrorInFunction("ABLInitialize",  error);
     }
-
   }
 
   return(0);

@@ -3720,8 +3720,7 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
                     (
                         2.0 * K *
                         (
-                            - fc * ucat[k][j][i].y * csi[k][j][i].x +
-                              fc * ucat[k][j][i].x * csi[k][j][i].y
+                            - fc * 10.0 * csi[k][j][i].x
                         )
                     );
 
@@ -3731,8 +3730,7 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
                     (
                         2.0 * K *
                         (
-                          - fc * ucat[k][j][i].y * eta[k][j][i].x +
-                            fc * ucat[k][j][i].x * eta[k][j][i].y
+                          0.0
                         )
                     );
 
@@ -3742,8 +3740,7 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
                     (
                         2.0 * K *
                         (
-                          - fc * ucat[k][j][i].y * zet[k][j][i].x +
-                            fc * ucat[k][j][i].x * zet[k][j][i].y
+                           0.0
                         )
                     );
                 }

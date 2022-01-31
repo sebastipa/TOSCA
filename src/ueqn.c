@@ -103,7 +103,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     // set SNES solver type
     SNESSetType(ueqn->snesU, SNESNEWTONTR);          //SNESTR
-    //SNESSetType(user->snesU, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
+    //SNESSetType(ueqn->snesU, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
 
     // set SNES solve and step failures
     SNESSetMaxLinearSolveFailures(ueqn->snesU,10000);
@@ -282,40 +282,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         // find the first two closest levels
         PetscReal nLevels = my-2;
 
-        std::vector<PetscReal> absLevelDelta(nLevels);
-        std::vector<PetscInt>    closestLabels(2);
-
-        for(l=0; l<nLevels; l++)
-        {
-            absLevelDelta[l] = std::fabs(abl->cellLevels[l] - abl->hRef);
-        }
-
-        for(PetscInt errI=0; errI<2; errI++)
-        {
-            PetscReal errMin   = 1e20;
-            PetscReal errValue = 0.0;
-            PetscInt    minLabel = 0;
-
-            for(PetscInt errJ = errI; errJ < nLevels; errJ++)
-            {
-                if(absLevelDelta[errJ] < errMin)
-                {
-                    errValue = absLevelDelta[errJ];
-                    minLabel = errJ;
-                    errMin   = errValue;
-                }
-            }
-
-            // exchange values so that elements are not ovwerwritten
-            absLevelDelta[minLabel] = absLevelDelta[errI];
-
-            // put the min value on the unchanged part at the last index of changed part
-            absLevelDelta[errI] = errValue;
-
-            // save the label adding one since DMDA labeling starts from physical ghost cells
-            closestLabels[errI] = minLabel + 1;
-        }
-
         Cmpnts luMean1; luMean1.x = 0.0; luMean1.y = 0.0; luMean1.z = 0.0;
         Cmpnts luMean2; luMean2.x = 0.0; luMean2.y = 0.0; luMean2.z = 0.0;
         Cmpnts guMean1; guMean1.x = 0.0; guMean1.y = 0.0; guMean1.z = 0.0;
@@ -327,13 +293,13 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    if(j==closestLabels[0])
+                    if(j==abl->closestLabels[0])
                     {
                         luMean1.x += ucat[k][j][i].x / aj[k][j][i];
                         luMean1.y += ucat[k][j][i].y / aj[k][j][i];
                         luMean1.z += ucat[k][j][i].z / aj[k][j][i];
                     }
-                    else if(j==closestLabels[1])
+                    else if(j==abl->closestLabels[1])
                     {
                         luMean2.x += ucat[k][j][i].x / aj[k][j][i];
                         luMean2.y += ucat[k][j][i].y / aj[k][j][i];
@@ -349,61 +315,20 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         MPI_Allreduce(&luMean1, &guMean1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
         MPI_Allreduce(&luMean2, &guMean2, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-        guMean1.x = guMean1.x / abl->totVolPerLevel[closestLabels[0]-1];
-        guMean1.y = guMean1.y / abl->totVolPerLevel[closestLabels[0]-1];
-        guMean1.z = guMean1.z / abl->totVolPerLevel[closestLabels[0]-1];
-        guMean2.x = guMean2.x / abl->totVolPerLevel[closestLabels[1]-1];
-        guMean2.y = guMean2.y / abl->totVolPerLevel[closestLabels[1]-1];
-        guMean2.z = guMean2.z / abl->totVolPerLevel[closestLabels[1]-1];
+        guMean1.x = guMean1.x / abl->totVolPerLevel[abl->closestLabels[0]-1];
+        guMean1.y = guMean1.y / abl->totVolPerLevel[abl->closestLabels[0]-1];
+        guMean1.z = guMean1.z / abl->totVolPerLevel[abl->closestLabels[0]-1];
+        guMean2.x = guMean2.x / abl->totVolPerLevel[abl->closestLabels[1]-1];
+        guMean2.y = guMean2.y / abl->totVolPerLevel[abl->closestLabels[1]-1];
+        guMean2.z = guMean2.z / abl->totVolPerLevel[abl->closestLabels[1]-1];
 
         Cmpnts uMean;
 
-        uMean.x
-        =
-        guMean1.x +
-        (
-            (guMean2.x - guMean1.x) /
-            (
-                abl->cellLevels[closestLabels[1]-1] -
-                abl->cellLevels[closestLabels[0]-1]
-            )
-        ) *
-        (
-            abl->hRef -
-            abl->cellLevels[closestLabels[0]-1]
-        );
+        uMean.x = guMean1.x * abl->levelWeights[0] + guMean2.x * abl->levelWeights[1];
+        uMean.y = guMean1.y * abl->levelWeights[0] + guMean2.y * abl->levelWeights[1];
+        uMean.z = guMean1.z * abl->levelWeights[0] + guMean2.z * abl->levelWeights[1];
 
-        uMean.y
-        =
-        guMean1.y +
-        (
-            (guMean2.y - guMean1.y) /
-            (
-                abl->cellLevels[closestLabels[1]-1] -
-                abl->cellLevels[closestLabels[0]-1]
-            )
-        ) *
-        (
-            abl->hRef -
-            abl->cellLevels[closestLabels[0]-1]
-        );
-
-        uMean.z
-        =
-        guMean1.z +
-        (
-            (guMean2.z - guMean1.z) /
-            (
-                abl->cellLevels[closestLabels[1]-1] -
-                abl->cellLevels[closestLabels[0]-1]
-            )
-        ) *
-        (
-            abl->hRef -
-            abl->cellLevels[closestLabels[0]-1]
-        );
-
-        PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[closestLabels[0]-1], abl->cellLevels[closestLabels[1]-1]);
+        PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
 
         PetscReal magUMean = std::sqrt(uMean.x*uMean.x + uMean.y*uMean.y + uMean.z*uMean.z);
         PetscReal magUDes  = std::sqrt(uDes.x*uDes.x + uDes.y*uDes.y + uDes.z*uDes.z);
@@ -538,16 +463,34 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         // reset the closest index for nex iteration
         abl->currentCloseIdx = idx_1;
 
+        // get also the dt at the time the source was calculated
+        double dtSource1 = std::max((abl->preCompSources[idx_1+1][0] - abl->preCompSources[idx_1][0]), 1e-5);
+        double dtSource2 = std::max((abl->preCompSources[idx_2+1][0] - abl->preCompSources[idx_2][0]), 1e-5);
+
         // do not scale with time step
         s.x = w1 * abl->preCompSources[idx_1][1] + w2 * abl->preCompSources[idx_2][1];
         s.y = w1 * abl->preCompSources[idx_1][2] + w2 * abl->preCompSources[idx_2][2];
         s.z = w1 * abl->preCompSources[idx_1][3] + w2 * abl->preCompSources[idx_2][3];
+
+        // scale with time step
+        // s.x = (w1 * abl->preCompSources[idx_1][1] * dtSource1 + w2 * abl->preCompSources[idx_2][1] * dtSource2) / clock->dt;
+        // s.y = (w1 * abl->preCompSources[idx_1][2] * dtSource1 + w2 * abl->preCompSources[idx_2][2] * dtSource2) / clock->dt;
+        // s.z = (w1 * abl->preCompSources[idx_1][3] * dtSource1 + w2 * abl->preCompSources[idx_2][3] * dtSource2) / clock->dt;
+
 
     }
     else if(abl->controllerType=="average")
     {
         PetscPrintf(mesh->MESH_COMM, "Correcting source terms using source average from time %lf\n", abl->sourceAvgStartTime);
 
+        // scale with dt
+        // PetscReal dtScale = clock->dt / abl->avgTimeStep;
+        //
+        // s.x = abl->cumulatedSource.x * dtScale;
+        // s.y = abl->cumulatedSource.y * dtScale;
+        // s.z = abl->cumulatedSource.z * dtScale;
+
+        // do not scale with dt
         s.x = abl->cumulatedSource.x;
         s.y = abl->cumulatedSource.y;
         s.z = abl->cumulatedSource.z;
@@ -738,7 +681,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
     PetscInt      zs    = info.zs, ze = info.zs + info.zm;
     PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
 
-    Cmpnts        ***ucont, ***cent;
+    Cmpnts        ***ucont, ***cent, ***ucat, ***ucatP;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
@@ -756,10 +699,10 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
         {
             DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
 
-            std::vector<Cmpnts> luBar(my);
-            std::vector<Cmpnts> guBar(my);
-            std::vector<PetscInt>    ln(my);
-            std::vector<PetscInt>    gn(my);
+            std::vector<Cmpnts>   luBar(my);
+            std::vector<Cmpnts>   guBar(my);
+            std::vector<PetscInt> ln(my);
+            std::vector<PetscInt> gn(my);
 
             for(j=0; j<my; j++)
             {
@@ -1117,8 +1060,176 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
         }
         else if(abl->xFringeUBarSelectionType == 3)
         {
+            if(abl->xDampingControlType == "alphaOptimized")
+            {
+                clock_ *clock = ueqn->access->clock;
+
+                // fringe region starting cell lines
+                PetscReal lsumStart1   = 0.0, gsumStart1   = 0.0,
+                          lsumStart2   = 0.0, gsumStart2   = 0.0;
+                PetscInt  lcountStart1 = 0,   gcountStart1 = 0,
+                          lcountStart2 = 0,   gcountStart2 = 0;
+
+                // fringe region ending cell lines
+                PetscReal lsumEnd1   = 0.0, gsumEnd1   = 0.0,
+                          lsumEnd2   = 0.0, gsumEnd2   = 0.0;
+                PetscInt  lcountEnd1 = 0,   gcountEnd1 = 0,
+                          lcountEnd2 = 0,   gcountEnd2 = 0;
+
+                // precursor average desired velocity
+                PetscReal lsum1   = 0.0, gsum1   = 0.0,
+                          lsum2   = 0.0, gsum2   = 0.0;
+                PetscInt  lcount1 = 0,   gcount1 = 0,
+                          lcount2 = 0,   gcount2 = 0;
+
+                precursor_ *precursor = ueqn->access->abl->precursor;
+
+                if(precursor->thisProcessorInFringe)
+                {
+                    DMDAVecGetArray(fda, precursor->domain->ueqn->lUcat, &ucatP);
+                }
+
+                DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+                DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+                for (k=zs; k<lze; k++)
+                {
+                    for (j=lys; j<lye; j++)
+                    {
+                        for (i=lxs; i<lxe; i++)
+                        {
+                            // velocity values at fringe start in successor domain (two levels to interpolate)
+                            if(j == abl->closestLabels[0] && k == precursor->map.kStart + 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
+                            {
+                                lsumStart1 += ucat[k][j][i].y;
+                                lcountStart1 ++;
+                            }
+                            else if(j==abl->closestLabels[1] && k == precursor->map.kStart + 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
+                            {
+                                lsumStart2 += ucat[k][j][i].y;
+                                lcountStart2 ++;
+                            }
+
+                            // velocity values at fringe end in successor domain (two levels to interpolate)
+                            else if(j == abl->closestLabels[0] && k == precursor->map.kEnd - 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
+                            {
+                                lsumEnd1 += ucat[k][j][i].y;
+                                lcountEnd1 ++;
+                            }
+                            else if(j==abl->closestLabels[1] && k == precursor->map.kEnd - 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
+                            {
+                                lsumEnd2 += ucat[k][j][i].y;
+                                lcountEnd2 ++;
+                            }
+
+                            // velocity values at reference height in precursor domain (two levels to interpolate)
+                            if(precursor->thisProcessorInFringe)
+                            {
+                                if(j == abl->closestLabels[0] )
+                                {
+                                    lsum1 += ucatP[k][j][i].y;
+                                    lcount1 ++;
+                                }
+                                else if(j == abl->closestLabels[1])
+                                {
+                                    lsum2 += ucatP[k][j][i].y;
+                                    lcount2 ++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // start line: reduce the values on all processors
+                MPI_Allreduce(&lsumStart1,   &gsumStart1,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&lsumStart2,   &gsumStart2,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&lcountStart1, &gcountStart1, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+                MPI_Allreduce(&lcountStart2, &gcountStart2, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+                // end line: reduce the values on all processors
+                MPI_Allreduce(&lsumEnd1,   &gsumEnd1,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&lsumEnd2,   &gsumEnd2,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&lcountEnd1, &gcountEnd1, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+                MPI_Allreduce(&lcountEnd2, &gcountEnd2, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+                // precursor: reduce the values on all processors
+                MPI_Allreduce(&lsum1,   &gsum1,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&lsum2,   &gsum2,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&lcount1, &gcount1, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+                MPI_Allreduce(&lcount2, &gcount2, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+
+                if(precursor->thisProcessorInFringe)
+                {
+                    DMDAVecRestoreArray(fda, precursor->domain->ueqn->lUcat, &ucatP);
+                }
+
+                DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+                DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+                gsumStart1 = gsumStart1 / gcountStart1;
+                gsumStart2 = gsumStart2 / gcountStart2;
+                gsumEnd1   = gsumEnd1   / gcountEnd1;
+                gsumEnd2   = gsumEnd2   / gcountEnd2;
+                gsum1      = gsum1      / gcount1;
+                gsum2      = gsum2      / gcount2;
+
+                PetscReal vStart   = gsumStart1 * abl->levelWeights[0] + gsumStart2 * abl->levelWeights[1];
+                PetscReal vEnd     = gsumEnd1   * abl->levelWeights[0] + gsumEnd2   * abl->levelWeights[1];
+                PetscReal vBarPrec = gsum1      * abl->levelWeights[0] + gsum2      * abl->levelWeights[1];
+
+                // if first iteration initialize abl->vStart and abl->vEnd after computing instantaneous values for the first time
+                if(clock->it == 0)
+                {
+                    abl->vStart             = vStart;
+                    abl->vEnd               = vEnd;
+                    abl->xDampingVBar       = vBarPrec;
+                    abl->xDampingTimeStart  = clock->startTime;
+                }
+
+                // window-filtering starting and ending y-velocities
+                abl->vStart       = std::exp(-clock->dt / abl->xDampingTimeWindow) * abl->vStart + (clock->dt / abl->xDampingTimeWindow) * vStart;
+                abl->vEnd         = std::exp(-clock->dt / abl->xDampingTimeWindow) * abl->vEnd   + (clock->dt / abl->xDampingTimeWindow) * vEnd;
+                abl->xDampingVBar = std::exp(-clock->dt / abl->xDampingTimeWindow) * abl->xDampingVBar + (clock->dt / abl->xDampingTimeWindow) * vBarPrec;
+
+                // error at fringe exit
+                abl->xDampingError    = fabs(abl->xDampingVBar - abl->vEnd);
+
+                // velocity jump across the fringe
+                abl->xDampingDeltaV   = fabs(abl->vEnd - abl->vStart);
+
+                // predicted angular coefficient for the fringe alpha-relation
+                abl->xDampingCoeff    = abl->xDampingDeltaV / abl->xDampingAlpha;
+
+                PetscReal fringeTime  = clock->time - abl->xDampingTimeStart;
+                PetscReal waitTime    = abl->xDampingTimeWindow; // (abl->xDampingEnd - abl->xDampingStart)/abl->uRef;
+
+
+                // see if must correct alpha
+                if
+                (
+                    (abl->xDampingError/abl->uRef) > 0.01 && // check if error is greater than 1%
+                    fringeTime > waitTime                    // check if allowed to override alpha
+                )
+                {
+                    abl->xDampingAlpha = fabs(abl->xDampingVBar - abl->vStart) / abl->xDampingCoeff;
+                    abl->xDampingTimeStart = clock->time;
+                }
+
+                // bound alpha
+                abl->xDampingAlpha = std::max(std::min(abl->xDampingAlpha, 1.0), 0.0);
+
+                // compute useful print quantities
+                PetscReal percErrVStart  = fabs(abl->xDampingVBar - abl->vStart) / abl->uRef * 100.0;
+                PetscReal percErrVEnd    = abl->xDampingError / abl->uRef * 100.0;
+                PetscReal percTimeFringe = fringeTime / waitTime * 100.0;
+
+                PetscPrintf(mesh->MESH_COMM, "Correcting fringe region: errStart = %.2lf %%, errEnd = %.2lf %%, vBar = %.3lf m/s, mCoeff = %.2lf, tFringe = %.1lf %%, alpha = %.4lf\n", percErrVStart, percErrVEnd, abl->xDampingVBar, abl->xDampingCoeff, percTimeFringe, abl->xDampingAlpha);
+            }
+
+            PetscPrintf(mesh->MESH_COMM, "Solving concurrent precursor:\n");
+
             // solve concurrent precursor
             concurrentPrecursorSolve(abl);
+
+            PetscPrintf(mesh->MESH_COMM, "Solving successor:\n");
         }
     }
 
@@ -1612,8 +1723,7 @@ PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 (
                     2.0 * K *
                     (
-                        - fc * central(ucat[k][j][i].y, ucat[k][j][i+1].y) * icsi[k][j][i].x +
-                          fc * central(ucat[k][j][i].x, ucat[k][j][i+1].x) * icsi[k][j][i].y
+                        fc * 100.0 * icsi[k][j][i].y
                     )
                 );
 
@@ -1625,13 +1735,7 @@ PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     rhs[k][j][i].y
                     +=
                     scale * coeff_j *
-                    (
-                        2.0 * K *
-                        (
-                          - fc * central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].x +
-                            fc * central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].y
-                        )
-                    );
+                    0.0 ;
                 }
 
                 if
@@ -1642,13 +1746,7 @@ PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     rhs[k][j][i].z
                     +=
                     scale * coeff_k *
-                    (
-                        2.0 * K *
-                        (
-                          - fc * central(ucat[k][j][i].y, ucat[k+1][j][i].y) * kzet[k][j][i].x +
-                            fc * central(ucat[k][j][i].x, ucat[k+1][j][i].x) * kzet[k][j][i].y
-                        )
-                    );
+                    0.0 ;
                 }
             }
         }
