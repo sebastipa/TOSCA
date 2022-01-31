@@ -3454,7 +3454,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
 
             if(precursor->thisProcessorInFringe)
             {
-                DMDAVecGetArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucatP);
+                DMDAVecGetArray(pdomain->mesh->fda, pdomain->ueqn->lUcat,  &ucatP);
                 kStart = precursor->map.kStart;
             }
         }
@@ -3642,7 +3642,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
         {
             if(precursor->thisProcessorInFringe)
             {
-                DMDAVecRestoreArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucatP);
+                DMDAVecRestoreArray(pdomain->mesh->fda, pdomain->ueqn->lUcat,  &ucatP);
             }
         }
     }
@@ -3676,7 +3676,7 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
                   xEnd    = ueqn->access->abl->xEndSideF,
                   zEnd    = ueqn->access->abl->zEndSideF;
 
-    double        K       = 5;
+    double        K       = 5.0;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;

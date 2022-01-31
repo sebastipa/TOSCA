@@ -27,6 +27,7 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isIBMActive        = 0;
     flags->isZDampingActive   = 0;
     flags->isXDampingActive   = 0;
+    flags->isSideForceActive  = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",    &(flags->isTeqnActive), PETSC_NULL);
