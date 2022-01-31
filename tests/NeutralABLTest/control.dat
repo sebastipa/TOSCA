@@ -55,8 +55,10 @@
 # ---------------------------------
 -sections                 1
 -probes                   0
--averagingABL             1
--averaging3LM             1
+-averageABL               1
+-average3LM               1
+-avgABLPeriod             5
+-avgABLStartTime          5000
 
 #-computeQ                1
 

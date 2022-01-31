@@ -2782,8 +2782,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
 
                 for(p=0; p<probes->rakes[r].probesNumber; p++)
                 {
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld location                     : (%*.2lf\t%*.2lf\t%*.2lf)\n", p, probes->rakes[r].locations[p][0], probes->rakes[r].locations[p][1], probes->rakes[r].locations[p][2]);
-
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld location                     : (%.2lf %.2lf %.2lf)\n", p, probes->rakes[r].locations[p][0], probes->rakes[r].locations[p][1], probes->rakes[r].locations[p][2]);
                     if(probes->rakes[r].domainID[p] != -1)
                     {
                         Cmpnts        ***cent;
@@ -2806,7 +2805,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
 
                         MPI_Allreduce(&lc[0], &gc[0], 3, MPIU_REAL, MPIU_SUM, probes->rakes[r].RAKE_COMM);
 
-                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld closest cell center location : (%*.2lf\t%*.2lf\t%*.2lf)\n", p, gc[0], gc[1], gc[2]);
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld closest cell center location : (%.2lf\t%.2lf\t%.2lf)\n", p, gc[0], gc[1], gc[2]);
 
                         DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
                     }
@@ -4175,7 +4174,7 @@ PetscErrorCode write3LMPoints(acquisition_ *acquisition)
             {
                 for(PetscInt pi=0; pi<lm3->nspw; pi++)
                 {
-                    PetscFPrintf(mesh->MESH_COMM, fp, "(%*.2f %*.2f %*.2f) ", -15, lm3->points[pk][pi].x, -10, lm3->points[pk][pi].y, 10, lm3->points[pk][pi].z);
+                    PetscFPrintf(mesh->MESH_COMM, fp, "(%*.2lf %*.2lf %*.2lf) ", -15, lm3->points[pk][pi].x, -10, lm3->points[pk][pi].y, 10, lm3->points[pk][pi].z);
                 }
                 // new line
                 PetscFPrintf(mesh->MESH_COMM, fp, "\n");
@@ -4670,7 +4669,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
             {
                 for(l=0; l<nLevels; l++)
                 {
-                    fprintf(f, "%.5f\t", ablStat->cellLevels[l]);
+                    fprintf(f, "%.5lf\t", ablStat->cellLevels[l]);
                 }
                 fprintf(f, "\n");
 
@@ -5458,11 +5457,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->nutMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->nutMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5480,11 +5479,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->q1Mean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->q1Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5502,11 +5501,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->q2Mean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->q2Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5524,11 +5523,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->q3Mean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->q3Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5546,11 +5545,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->R11Mean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->R11Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5568,11 +5567,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->R12Mean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->R12Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5590,11 +5589,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->R13Mean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->R13Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5612,11 +5611,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->R22Mean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->R22Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5634,11 +5633,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->R23Mean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->R23Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5656,11 +5655,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->R33Mean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->R33Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5678,11 +5677,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->TMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->TMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5700,11 +5699,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->TuMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->TuMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5722,11 +5721,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->TvMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->TvMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5744,11 +5743,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->TwMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->TwMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5766,11 +5765,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->UMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->UMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5788,11 +5787,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->uuMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->uuMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5810,11 +5809,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->uvMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->uvMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5832,11 +5831,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->uwMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->uwMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5854,11 +5853,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->VMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->VMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5876,11 +5875,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->vvMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->vvMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5898,11 +5897,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->vwMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->vwMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5920,11 +5919,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->WMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->WMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5942,11 +5941,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->wuuMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->wuuMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5964,11 +5963,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->wuvMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->wuvMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5986,11 +5985,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->wuwMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->wuwMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -6008,11 +6007,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->wvvMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->wvvMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -6030,11 +6029,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->wvwMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->wvwMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -6052,11 +6051,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->wwMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->wwMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -6074,11 +6073,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
                 else
                 {
-                    fprintf(f, "%.5f\t", clock->time);
-                    fprintf(f, "%.5f\t", clock->dt);
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5f\t", ablStat->wwwMean[l]);
+                        fprintf(f, "%.5lf\t", ablStat->wwwMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
