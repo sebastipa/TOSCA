@@ -21,8 +21,8 @@ struct abl_
     PetscReal    fc;                             //!< Coriolis parameter (omegaEarth * sin(latitude) = 7.292115e-5 * sin(latitude))
 
     PetscReal   *cellLevels;                     //!< heights of the averaging planes
-    PetscInt    closestLabels[2];                //!< closest height w.r.t. reference height
-    PetscInt    levelWeights[2];                 //!< weights for variables interpolated at closest heights w.r.t. reference height
+    PetscInt    *closestLabels;                  //!< closest height w.r.t. reference height
+    PetscReal   *levelWeights;                   //!< weights for variables interpolated at closest heights w.r.t. reference height
 
     // velocity controller
     PetscReal    relax;                          //!< source term relaxation factor

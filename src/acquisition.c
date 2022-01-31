@@ -4460,25 +4460,25 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
         // allocate memory
         PetscMalloc(sizeof(dataABL), &(acquisition->statisticsABL));
-        dataABL *ablStat = acquisition->statisticsABL;
+        dataABL       *ablStat = acquisition->statisticsABL;
 
-        clock_  *clock   = acquisition->access->clock;
-        mesh_   *mesh    = acquisition->access->mesh;
+        clock_        *clock   = acquisition->access->clock;
+        mesh_         *mesh    = acquisition->access->mesh;
 
-        ueqn_   *ueqn    = acquisition->access->ueqn;
-        teqn_   *teqn    = acquisition->access->teqn;
+        ueqn_         *ueqn    = acquisition->access->ueqn;
+        teqn_         *teqn    = acquisition->access->teqn;
 
         DM            da = mesh->da, fda = mesh->fda;
         DMDALocalInfo info = mesh->info;
 
-        PetscInt           xs = info.xs, xe = info.xs + info.xm;
-        PetscInt           ys = info.ys, ye = info.ys + info.ym;
-        PetscInt           zs = info.zs, ze = info.zs + info.zm;
-        PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+        PetscInt      xs = info.xs, xe = info.xs + info.xm;
+        PetscInt      ys = info.ys, ye = info.ys + info.ym;
+        PetscInt      zs = info.zs, ze = info.zs + info.zm;
+        PetscInt      mx = info.mx, my = info.my, mz = info.mz;
 
-        PetscMPIInt        rank, nProcs;
-        PetscInt           i, j, k, l;
-        PetscInt           lxs, lxe, lys, lye, lzs, lze;
+        PetscMPIInt   rank, nProcs;
+        PetscInt      i, j, k, l;
+        PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
         Vec           Coor;
 
@@ -4557,8 +4557,8 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
         std::vector<PetscReal> gLevels(nLevels);
         std::vector<PetscReal> lVolumes(nLevels);
         std::vector<PetscReal> gVolumes(nLevels);
-        std::vector<PetscInt>    lCells(nLevels);
-        std::vector<PetscInt>    gCells(nLevels);
+        std::vector<PetscInt>  lCells(nLevels);
+        std::vector<PetscInt>  gCells(nLevels);
 
         for(l=0; l<nLevels; l++)
         {

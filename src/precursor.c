@@ -944,9 +944,11 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         // initialize some useful parameters used in fringe and velocity controller 'write'
         {
+            PetscMalloc(sizeof(PetscReal) * 2,       &(abl->levelWeights));
             PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->cellLevels));
             PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->totVolPerLevel));
             PetscMalloc(sizeof(PetscInt)  * nLevels, &(abl->totCelPerLevel));
+            PetscMalloc(sizeof(PetscInt)  * 2,       &(abl->closestLabels));
 
             // initialize height levels for the velocity controller
             DMDAVecGetArray(fda, mesh->lCent, &cent);

@@ -346,7 +346,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         relError.z = error.z / magUDes;
 
         if(print) PetscPrintf(mesh->MESH_COMM, "                         avg mag U at hRef = %lf m/s, U desired = %lf m/s\n", magUMean, magUDes);
-        if(print) PetscPrintf(mesh->MESH_COMM, "                         U error in perc. of desired: (%.3f %.3f %.3f)\n", relError.x,relError.y, relError.z);
+        if(print) PetscPrintf(mesh->MESH_COMM, "                         U error in perc. of desired: (%.3f %.3f %.3f)\n", relError.x*100,relError.y*100, relError.z*100);
 
         // cumulate the error (integral part of the controller)
         abl->cumulatedSource.x = std::exp(-clock->dt / T) * abl->cumulatedSource.x + (clock->dt / T) * error.x;
@@ -1125,12 +1125,12 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             // velocity values at reference height in precursor domain (two levels to interpolate)
                             if(precursor->thisProcessorInFringe)
                             {
-                                if(j == abl->closestLabels[0] )
+                                if(j == precursor->domain->abl->closestLabels[0])
                                 {
                                     lsum1 += ucatP[k][j][i].y;
                                     lcount1 ++;
                                 }
-                                else if(j == abl->closestLabels[1])
+                                else if(j == precursor->domain->abl->closestLabels[1])
                                 {
                                     lsum2 += ucatP[k][j][i].y;
                                     lcount2 ++;
@@ -1221,7 +1221,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 PetscReal percErrVEnd    = abl->xDampingError / abl->uRef * 100.0;
                 PetscReal percTimeFringe = fringeTime / waitTime * 100.0;
 
-                PetscPrintf(mesh->MESH_COMM, "Correcting fringe region: errStart = %.2lf %%, errEnd = %.2lf %%, vBar = %.3lf m/s, mCoeff = %.2lf, tFringe = %.1lf %%, alpha = %.4lf\n", percErrVStart, percErrVEnd, abl->xDampingVBar, abl->xDampingCoeff, percTimeFringe, abl->xDampingAlpha);
+                PetscPrintf(mesh->MESH_COMM, "Correcting fringe region: errStart = %.3lf %%, errEnd = %.3lf %%, vBar = %.3lf m/s, mCoeff = %.3lf, tFringe = %.1lf %%, alpha = %.5lf\n", percErrVStart, percErrVEnd, abl->xDampingVBar, abl->xDampingCoeff, percTimeFringe, abl->xDampingAlpha);
 
                 // get current process
                 PetscMPIInt   rank;

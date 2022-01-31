@@ -29,7 +29,7 @@ typedef struct
 //! \brief Structure containing a coarser AD mesh located 2.5 D upstrem each turbine for velocity sampling
 typedef struct
 {
-    // mesh level preoperties
+    // mesh level preoperties 
     PetscInt             nPoints;   //!< total number of points
     Cmpnts               *points;   //!< array containing the upstream point coordinates
     PetscReal                *dA;   //!< array containing the element area at each upstream sample point (sums up to rotor area)

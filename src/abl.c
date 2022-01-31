@@ -52,6 +52,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
         fatalErrorInFunction("InitializeABL",  error);
     }
 
+    PetscPrintf(mesh->MESH_COMM, "Reading ABL properties...\n");
+
     readDictDouble("ABLProperties.dat", "uTau",             &(abl->uTau));
     readDictDouble("ABLProperties.dat", "hRough",           &(abl->hRough));
     readDictDouble("ABLProperties.dat", "uRef",             &(abl->uRef));
@@ -67,14 +69,18 @@ PetscErrorCode InitializeABL(abl_ *abl)
     readDictDouble("ABLProperties.dat", "fCoriolis",        &(abl->fc));
     readDictWord  ("ABLProperties.dat", "controllerType",   &(abl->controllerType));
 
+    PetscPrintf(mesh->MESH_COMM, "   initializing levels\n");
+
     // the vertical direction is the j direction in curvilinear coordinates
     PetscInt nLevels = my-2;
 
     // initialize some useful parameters used in fringe and velocity controller 'write'
     {
+        PetscMalloc(sizeof(PetscReal) * 2,       &(abl->levelWeights));
         PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->cellLevels));
         PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->totVolPerLevel));
         PetscMalloc(sizeof(PetscInt)  * nLevels, &(abl->totCelPerLevel));
+        PetscMalloc(sizeof(PetscInt)  * 2,       &(abl->closestLabels));
 
         // initialize height levels for the velocity controller
         DMDAVecGetArray(fda, mesh->lCent, &cent);
@@ -165,6 +171,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
         abl->levelWeights[0] = (abl->cellLevels[abl->closestLabels[1]-1]-abl->hRef) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
         abl->levelWeights[1] = (abl->hRef-abl->cellLevels[abl->closestLabels[0]-1]) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
 
+        PetscPrintf(mesh->MESH_COMM, "   l1 = %lf, l2 = %lf, hRef = %lf\n", abl->cellLevels[abl->closestLabels[0]-1],abl->cellLevels[abl->closestLabels[1]-1], abl->hRef);
+        PetscPrintf(mesh->MESH_COMM, "   sum of weights = %lf, w1 = %lf, w2 = %lf\n", abl->levelWeights[0]+abl->levelWeights[1], abl->levelWeights[0], abl->levelWeights[1]);
+
         std::vector<PetscReal> ().swap(lLevels);
         std::vector<PetscReal> ().swap(gLevels);
         std::vector<PetscReal> ().swap(lVolumes);
@@ -184,6 +193,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
     // read the Rayleigh damping layer properties
     if(mesh->access->flags->isZDampingActive)
     {
+        PetscPrintf(mesh->MESH_COMM, "   reading z-damping properties\n");
+
         readSubDictDouble("ABLProperties.dat", "zDampingProperties", "zDampingStart",   &(abl->zDampingStart));
         readSubDictDouble("ABLProperties.dat", "zDampingProperties", "zDampingEnd",     &(abl->zDampingEnd));
         readSubDictDouble("ABLProperties.dat", "zDampingProperties", "zDampingAlpha",   &(abl->zDampingAlpha));
@@ -209,6 +220,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
     // read the recycling fringe region properties
     if(mesh->access->flags->isXDampingActive)
     {
+        PetscPrintf(mesh->MESH_COMM, "   reading x-damping properties\n");
+
         readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingStart",            &(abl->xDampingStart));
         readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingEnd",              &(abl->xDampingEnd));
         readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingDelta",            &(abl->xDampingDelta));
@@ -387,6 +400,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
     // read the side force region properties
     if(mesh->access->flags->isSideForceActive)
     {
+        PetscPrintf(mesh->MESH_COMM, "   reading side force properties\n");
+
         readSubDictDouble("ABLProperties.dat", "sideForceProperties", "xStartSideF",   &(abl->xStartSideF));
         readSubDictDouble("ABLProperties.dat", "sideForceProperties", "xEndSideF",     &(abl->xEndSideF));
         readSubDictDouble("ABLProperties.dat", "sideForceProperties", "zStartSideF",   &(abl->zStartSideF));
@@ -396,6 +411,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
     // source terms are computed
     if(abl->controllerType == "write")
     {
+        PetscPrintf(mesh->MESH_COMM, "   reading driving controller properties\n");
+
         readDictDouble("ABLProperties.dat", "relaxPI",          &(abl->relax));
         readDictDouble("ABLProperties.dat", "alphaPI",          &(abl->alpha));
         readDictDouble("ABLProperties.dat", "timeWindowPI",     &(abl->timeWindow));
@@ -532,7 +549,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                             timeOld    = abl->preCompSources[t][0];
                             timeOldSet = 1;
                         }
-                        
+
                         abl->cumulatedSource.x += abl->preCompSources[t][1];
                         abl->cumulatedSource.y += abl->preCompSources[t][2];
                         abl->cumulatedSource.z += abl->preCompSources[t][3];
@@ -548,7 +565,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 abl->cumulatedSource.z = abl->cumulatedSource.z / nAvgSources;
                 abl->avgTimeStep       = abl->avgTimeStep       / nAvgSources;
 
-                PetscPrintf(mesh->MESH_COMM, "average driving sources = (%e %e %e), average time step = %lf\n\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z, abl->avgTimeStep);
+                PetscPrintf(mesh->MESH_COMM, "   average driving sources = (%e %e %e), average time step = %lf\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z, abl->avgTimeStep);
             }
         }
     }
@@ -558,7 +575,12 @@ PetscErrorCode InitializeABL(abl_ *abl)
         sprintf(error, "unknown controllerType, available types are:\n        1 : write\n        2 : read\n        3 : average");
         fatalErrorInFunction("ABLInitialize",  error);
     }
+
+    PetscPrintf(mesh->MESH_COMM, "done\n\n");
+
   }
+
+
 
   return(0);
 }
