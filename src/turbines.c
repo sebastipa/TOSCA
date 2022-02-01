@@ -1,4 +1,4 @@
-//! \file  ADM.c
+//! \file  turbines.c
 //! \brief Contains top to bottom level routines for the wind farm modeling.
 
 #include "include/base.h"
@@ -127,8 +127,8 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
             else
             {
                char error[512];
-                sprintf(error, "unknown wind turbine model for turbine %s\n", (*farm->turbineIds[t]).c_str());
-                fatalErrorInFunction("initWindTurbines",  error);
+               sprintf(error, "unknown wind turbine model for turbine %s\n", (*farm->turbineIds[t]).c_str());
+               fatalErrorInFunction("initWindTurbines",  error);
             }
 
             // initialize the tower model
@@ -392,7 +392,7 @@ PetscErrorCode controlBldPitch(farm_ *farm)
                 else
                 {
                     // compute gain scheduling
-                    PetscReal G          = 1.0 / (1.0 + wt->collPitch / wt->pitchS2R);
+                    PetscReal G = 1.0 / (1.0 + wt->collPitch / wt->pitchS2R);
 
                     // save old PID error
                     PetscReal errPID_old = wt->errPID;
@@ -1119,15 +1119,15 @@ PetscErrorCode findControlledPointsSample(farm_ *farm)
 
                 // find the closest cell center
                 PetscReal  r_c_minMag = 1e20;
-                cellIds closestCell;
+                cellIds    closestCell;
 
                 // loop over the sphere cells
                 for(c=0; c<upPoints->nControlled; c++)
                 {
                     // cell indices
                     PetscInt i = upPoints->controlledCells[c].i,
-                        j = upPoints->controlledCells[c].j,
-                        k = upPoints->controlledCells[c].k;
+                             j = upPoints->controlledCells[c].j,
+                             k = upPoints->controlledCells[c].k;
 
                     // compute distance from mesh cell to sample point
                     Cmpnts r_c = nSub(point_p, cent[k][j][i]);
@@ -3964,7 +3964,7 @@ PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base)
 
 PetscErrorCode initALM(windTurbine *wt, Cmpnts &base)
 {
-   char error[512];
+    char error[512];
     sprintf(error, "actuator line model not yet implemented (requested by turbine %s)\n", wt->id.c_str());
     fatalErrorInFunction("initWindTurbines",  error);
 

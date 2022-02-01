@@ -166,7 +166,7 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 if(teqn->access->flags->isXDampingActive)
                 {
                     // compute cell center x at i,j,k
-                    PetscReal x     = (cent[k][j][i].x   - mesh->bounds.xmin);
+                    PetscReal x     = cent[k][j][i].x;
 
                     // compute Nordstrom viscosity at i,j,k
                     PetscReal nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);

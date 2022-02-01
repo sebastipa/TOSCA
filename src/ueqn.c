@@ -1348,10 +1348,10 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 if(ueqn->access->flags->isXDampingActive)
                 {
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    PetscReal x     = (cent[k][j][i].x   - mesh->bounds.xmin);
-                    PetscReal xi    = (cent[k][j][i+1].x - mesh->bounds.xmin);
-                    PetscReal xj    = (cent[k][j+1][i].x - mesh->bounds.xmin);
-                    PetscReal xk    = (cent[k+1][j][i].x - mesh->bounds.xmin);
+                    PetscReal x     = cent[k][j][i].x;
+                    PetscReal xi    = cent[k][j][i+1].x;
+                    PetscReal xj    = cent[k][j+1][i].x;
+                    PetscReal xk    = cent[k+1][j][i].x;
 
                     // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     PetscReal nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
