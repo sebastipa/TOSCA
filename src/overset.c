@@ -192,16 +192,16 @@ PetscErrorCode UpdateOversetInterpolation(domain_ *domain)
 PetscErrorCode readOversetProperties(overset_ *os)
 {
   // to set dynamic overset on
-  readDictInt("OversetInput.dat", "dynamicOverset", &(os->dynamicOverset));
+  readDictInt("Overset/OversetInput.dat", "dynamicOverset", &(os->dynamicOverset));
 
   // read the interpolation type
   new(&(os->interpolationType)) word{};
-  readDictWord("OversetInput.dat", "interpolationType", &(os->interpolationType));
+  readDictWord("Overset/OversetInput.dat", "interpolationType", &(os->interpolationType));
 
   // search radius size = cell size X cell factors
   if( (os->interpolationType == "LS1") || (os->interpolationType == "LS2") || (os->interpolationType == "LS3"))
   {
-    readDictDouble("OversetInput.dat", "cellFactor", &(os->cellFactor));
+    readDictDouble("Overset/OversetInput.dat", "cellFactor", &(os->cellFactor));
   }
 
   //allocate memory for the overset motion struc if dynamicOverset is on
@@ -212,16 +212,16 @@ PetscErrorCode readOversetProperties(overset_ *os)
     oversetMotion *osetMotion = os->oMotion;
 
     // read the prescribed motion switch
-    readSubDictInt("OversetInput.dat", "oversetMotion", "setMotion", &(osetMotion->setMotion));
+    readSubDictInt("Overset/OversetInput.dat", "oversetMotion", "setMotion", &(osetMotion->setMotion));
 
     if(osetMotion->setMotion)
     {
       // read the interpolation type
-      readSubDictWord("OversetInput.dat", "oversetMotion", "motionType", &(osetMotion->motionType));
+      readSubDictWord("Overset/OversetInput.dat", "oversetMotion", "motionType", &(osetMotion->motionType));
 
       if(osetMotion->motionType == "Translation")
       {
-        readSubDictVector("OversetInput.dat", "oversetMotion", "prescribedVel", &(osetMotion->prescribedVel));
+        readSubDictVector("Overset/OversetInput.dat", "oversetMotion", "prescribedVel", &(osetMotion->prescribedVel));
       }
     }
     else
@@ -828,29 +828,29 @@ PetscErrorCode createAcceptorCell(overset_ *os){
                     count++;
                 }
 
-                // count the faces for the acceptor cells at the boundary
+                // count the faces for the acceptor cells at the boundary of first internal cells
 
-                if(k == 1){
+                if(k == 1 && (j!=0 && i!=0 && j!=my-1 && i!=mx-1)){
                     count++;
                 }
 
-                if(k == mz-2){
+                if(k == mz-2 && (j!=0 && i!=0 && j!=my-1 && i!=mx-1)){
                     count++;
                 }
 
-                if(j==1){
+                if(j==1 && (k!=0 && i!=0 && k!=mz-1 && i!=mx-1)){
                     count++;
                 }
 
-                if(j==my-2){
+                if(j==my-2 && (k!=0 && i!=0 && k!=mz-1 && i!=mx-1)){
                     count++;
                 }
 
-                if(i == 1){
+                if(i == 1 && (k!=0 && j!=0 && k!=mz-1 && j!=my-1)){
                     count++;
                 }
 
-                if(i == mx-2){
+                if(i == mx-2 && (k!=0 && j!=0 && k!=mz-1 && j!=my-1)){
                     count++;
                 }
 
@@ -911,7 +911,6 @@ PetscErrorCode createAcceptorCell(overset_ *os){
 
                     laCell[sum_ind].rank = rank;
 
-                    laCell[sum_ind].cell_size = pow( 1./aj[k][j][i], 1./3.);
                     sum_ind++;
                 }
 
@@ -940,7 +939,7 @@ PetscErrorCode createAcceptorCell(overset_ *os){
                 lenJ = 1.0/aj[k][j][i]/areaJ;
                 lenK = 1.0/aj[k][j][i]/areaK;
 
-                if(k == 1){
+                if(k == 1 && (j!=0 && i!=0 && j!=my-1 && i!=mx-1)){
                     laCell[sum_ind].indk = k;
                     laCell[sum_ind].indj = j;
                     laCell[sum_ind].indi = i;
@@ -951,12 +950,11 @@ PetscErrorCode createAcceptorCell(overset_ *os){
 
                     laCell[sum_ind].rank = rank;
 
-                    laCell[sum_ind].cell_size = pow( 1./aj[k][j][i], 1./3.);
                     laCell[sum_ind].face = 5;
                     sum_ind++;
                 }
 
-                if(k == mz-2){
+                if(k == mz-2 && (j!=0 && i!=0 && j!=my-1 && i!=mx-1)){
                     laCell[sum_ind].indk = k;
                     laCell[sum_ind].indj = j;
                     laCell[sum_ind].indi = i;
@@ -967,12 +965,11 @@ PetscErrorCode createAcceptorCell(overset_ *os){
 
                     laCell[sum_ind].rank = rank;
 
-                    laCell[sum_ind].cell_size = pow( 1./aj[k][j][i], 1./3.);
                     laCell[sum_ind].face = 6;
                     sum_ind++;
                 }
 
-                if(j==1){
+                if(j==1 && (k!=0 && i!=0 && k!=mz-1 && i!=mx-1)){
                     laCell[sum_ind].indk = k;
                     laCell[sum_ind].indj = j;
                     laCell[sum_ind].indi = i;
@@ -983,12 +980,11 @@ PetscErrorCode createAcceptorCell(overset_ *os){
 
                     laCell[sum_ind].rank = rank;
 
-                    laCell[sum_ind].cell_size = pow( 1./aj[k][j][i], 1./3.);
                     laCell[sum_ind].face = 3;
                     sum_ind++;
                 }
 
-                if(j==my-2){
+                if(j==my-2 && (k!=0 && i!=0 && k!=mz-1 && i!=mx-1)){
                     laCell[sum_ind].indk = k;
                     laCell[sum_ind].indj = j;
                     laCell[sum_ind].indi = i;
@@ -999,12 +995,11 @@ PetscErrorCode createAcceptorCell(overset_ *os){
 
                     laCell[sum_ind].rank = rank;
 
-                    laCell[sum_ind].cell_size = pow( 1./aj[k][j][i], 1./3.);
                     laCell[sum_ind].face = 4;
                     sum_ind++;
                 }
 
-                if(i == 1){
+                if(i == 1 && (k!=0 && j!=0 && k!=mz-1 && j!=my-1)){
                     laCell[sum_ind].indk = k;
                     laCell[sum_ind].indj = j;
                     laCell[sum_ind].indi = i;
@@ -1015,12 +1010,11 @@ PetscErrorCode createAcceptorCell(overset_ *os){
 
                     laCell[sum_ind].rank = rank;
 
-                    laCell[sum_ind].cell_size = pow( 1./aj[k][j][i], 1./3.);
                     laCell[sum_ind].face = 1;
                     sum_ind++;
                 }
 
-                if(i == mx-2){
+                if(i == mx-2 && (k!=0 && j!=0 && k!=mz-1 && j!=my-1)){
                     laCell[sum_ind].indk = k;
                     laCell[sum_ind].indj = j;
                     laCell[sum_ind].indi = i;
@@ -1031,7 +1025,6 @@ PetscErrorCode createAcceptorCell(overset_ *os){
 
                     laCell[sum_ind].rank = rank;
 
-                    laCell[sum_ind].cell_size = pow( 1./aj[k][j][i], 1./3.);
                     laCell[sum_ind].face = 2;
                     sum_ind++;
                 }
@@ -1122,7 +1115,6 @@ PetscErrorCode acellDcellConnectivity(mesh_ *meshP, mesh_ *mesh)
 
         dist = aCell[b].cell_size * os->cellFactor;
 
-        // include ghost nodes as donors
         for (k=lzs; k<lze; k++)
             for (j=lys; j<lye; j++)
                 for (i=lxs; i<lxe; i++){
@@ -1165,7 +1157,7 @@ PetscErrorCode acellDcellConnectivity(mesh_ *meshP, mesh_ *mesh)
 
     if(size != sizeP)
     {
-     char error[512];
+      char error[512];
       sprintf(error, "current implementation requires the 2 meshes to have same number of processors. Recheck acellDcellConnectivity function\n");
       fatalErrorInFunction("acellDcellConnectivity", error);
     }
@@ -1216,7 +1208,7 @@ PetscErrorCode findClosestDonor(mesh_ *meshP, mesh_ *mesh)
     PetscInt         i, j, k, b, m;
 
     PetscMPIInt      rankP, sizeP, rank, size;
-    PetscReal        ds;
+    PetscReal        ds, ***aj;
 
     Dcell            dCell;
 
@@ -1239,14 +1231,10 @@ PetscErrorCode findClosestDonor(mesh_ *meshP, mesh_ *mesh)
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
     DMDAVecGetArray(fda, meshP->lCent, &cent);
+    DMDAVecGetArray(da, meshP->lAj, &aj);
 
     //vector that stores the closest donor cell of all acceptor cells
     os->closestDonor.resize( aCell.size() );
-
-    // reset the default rank of donor cells to -1 or else it defaults to 0 causing problems
-    for(b = 0; b < aCell.size(); b++) {
-        os->closestDonor[b].rank = -1;
-    }
 
     os->AcellProcMat.resize(size);
 
@@ -1260,7 +1248,11 @@ PetscErrorCode findClosestDonor(mesh_ *meshP, mesh_ *mesh)
     {
 
         // max perturbation amplitude
-        PetscReal maxPerturb  = 1e-10;
+        PetscReal maxPerturb   = 1e-10;
+        PetscReal lClosestSize = 0.0;
+
+        // initialize donor rank to -1
+        dCell.rank = -1;
 
         // processor perturbation (changes between processors)
         PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)sizeP;
@@ -1272,7 +1264,8 @@ PetscErrorCode findClosestDonor(mesh_ *meshP, mesh_ *mesh)
 
         for (k=lzs; k<lze; k++)
             for (j=lys; j<lye; j++)
-                for (i=lxs; i<lxe; i++){
+                for (i=lxs; i<lxe; i++)
+                {
 
                   ds = sqrt
                   (
@@ -1281,7 +1274,8 @@ PetscErrorCode findClosestDonor(mesh_ *meshP, mesh_ *mesh)
                       (cent[k][j][i].z - aCell[b].coorz - procContrib) * (cent[k][j][i].z - aCell[b].coorz - procContrib)
                   );
 
-                    if (ds < lminDist){
+                    if (ds < lminDist)
+                    {
 
                         // save distance value
                         lminDist = ds + procContrib;
@@ -1305,15 +1299,20 @@ PetscErrorCode findClosestDonor(mesh_ *meshP, mesh_ *mesh)
             dCell.indj   = indices[1];
             dCell.indk   = indices[0];
             dCell.dist2p = gminDist;
-            dCell.rank   = rank;
+            dCell.rank   = rankP;
 
+            lClosestSize = pow( 1./aj[dCell.indk][dCell.indj][dCell.indi], 1./3.);
             os->closestDonor[b] = dCell;
-
-            // PetscPrintf(meshP->MESH_COMM, "for %ld, closest index = %ld %ld %ld, dist = %lf %lf\n", b, dCell.indk, dCell.indj, dCell.indi, lminDist, gminDist);
 
             //set the procmatrix for this rank to 1 as the closest donor has been found
             lAcellProcMat[aCell[b].rank][rankP] = 1;
         }
+
+        //scatter the cell size of the closest donor cell, to be used as search radius for Least square method
+        MPI_Allreduce(&lClosestSize, &os->aCell[b].cell_size, 1, MPIU_REAL, MPI_SUM, meshP->MESH_COMM);
+
+        // scatter the donor rank for acceptor cell b to all processes
+        MPI_Allreduce(&dCell.rank, &os->closestDonor[b].rank, 1, MPI_INT, MPI_MAX, meshP->MESH_COMM);
 
     }
 
@@ -1347,6 +1346,7 @@ PetscErrorCode findClosestDonor(mesh_ *meshP, mesh_ *mesh)
     std::vector<std::vector<PetscInt>> ().swap(lAcellProcMat);
 
     DMDAVecRestoreArray(fda, meshP->lCent, &cent);
+    DMDAVecRestoreArray(da, meshP->lAj, &aj);
 
     return 0;
 }

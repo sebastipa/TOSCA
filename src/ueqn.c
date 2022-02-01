@@ -4708,7 +4708,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
 
     // adjust inflow/outflow fluxes to ensure mass conservation
-    if(ueqn->access->flags->isOversetActive && ueqn->access->domainID != 0)
+    if(ueqn->access->flags->isOversetActive && *(ueqn->access->domainID) != 0)
     {
         adjustFluxesOverset(ueqn);
     }
