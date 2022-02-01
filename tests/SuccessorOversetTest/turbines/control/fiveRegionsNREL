@@ -1,0 +1,47 @@
+# OKWind Input file - Wind Turbine Controllers
+# -------------------------------------------
+
+# Parameters used to solve the rotor dynamics equation 
+genInertia               534.116
+hubInertia               115926
+bldIntertia              11776047
+gbxRatioG2R              97
+gbxEfficiency            0.98
+
+# Electrical generator parameters
+genEff                   0.98
+initialGenTorque         43093.55 
+
+genTqControllerParameters
+{
+    genSpeedFilterFreq   2.0
+    cutInGenSpeed        670.0
+    cutInGenTorque       0.0
+    regTwoStartGenSpeed  871.0
+    regTwoEndGenSpeed    1161.963
+    ratedGenTorque       43093.55
+    controllerPGain      0.0255764
+    
+    torqueRateLimiter    1
+    rtrSpeedLimiter      0
+    torqueMaxRate        15000
+    ratedRotorSpeed      12.1
+}
+
+pitchControllerParameters
+{
+    pitchRateLimiter     1
+    pitchAngleLimiter    1
+    pitchMaxRate         8
+    pitchMin             0
+    pitchMax             90
+    controllerPGain      1.82620057
+    controllerIGain      0.78265750
+    controllerDGain      0.0
+    pitchS2R             6.302336
+}
+
+
+
+
+

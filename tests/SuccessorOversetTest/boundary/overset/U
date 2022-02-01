@@ -1,0 +1,29 @@
+# OKWind Input file - U boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    spreadInflow
+#internalField    readField
+
+#boundary patch field
+
+iLeft   	 oversetInterpolate
+
+iRight  	 oversetInterpolate
+
+#jLeft   velocityWallFunction
+#        {
+#            type -3
+#            kRough 0.003
+#            uStarEval localized
+#        }
+#
+jLeft		 oversetInterpolate
+
+jRight  	 oversetInterpolate
+
+kLeft   	 oversetInterpolate
+
+kRight  	 zeroGradient
+

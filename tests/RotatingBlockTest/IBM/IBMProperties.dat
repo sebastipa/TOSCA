@@ -1,7 +1,7 @@
 
 NumberofBodies                      1
 
-InterpolationMethod                 MLS
+InterpolationMethod                 CURVIB
 
 debug                               0
 
@@ -11,9 +11,9 @@ dynamic                             1
 object0
 {
     bodyName                        rotatingBlock
-    fileType                        ucd             #ascii
+    fileType 			    ucd
     attachedMeshID		    0			
-    bodyMotion                      rotation   
+    bodyMotion                      rotation
     baseLocation     	            (0.0 0.0 0.0)
 
     #motion properties
@@ -22,7 +22,7 @@ object0
     rotationAxis            	    (1.0 0.0 0.0) 
     rotationCenter                  (0.0 0.0 0.0)
 
-    
+    #For MLS method 
     searchCellRatio                 3
 }
 

@@ -5,9 +5,9 @@
 # ---------------------------------
 -startTime                 0
 -endTime                   40
--cfl                       0.6
+-cfl                       0.8
 -adjustTimeStep            1
--timeStep                  0.08
+-timeStep                  0.05
 
 # Write Data
 # ---------------------------------
@@ -52,6 +52,8 @@
 # ---------------------------------
 -sections                  1
 #-probes                    1
+#-averagingABL              1
+#-averaging3LM              1
 
 #-computeQ                  1
 

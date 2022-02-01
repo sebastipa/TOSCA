@@ -1,0 +1,25 @@
+
+NumberofBodies                      1
+
+InterpolationMethod                 MLS
+
+debug                               0
+
+dynamic                             0
+#ibm object properties
+
+object0
+{
+    bodyName                        sphere
+    fileType 			    ucd
+    attachedMeshID		    0			
+    bodyMotion                      static
+    baseLocation     	            (0.0 0.0 0.0)
+
+    #motion properties
+
+    #For MLS method 
+    searchCellRatio                 3
+}
+
+

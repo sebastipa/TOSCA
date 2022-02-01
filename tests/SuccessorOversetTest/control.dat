@@ -1,0 +1,77 @@
+# OKWind Input file - Control.dat
+# --------------------------------- 
+
+# Simulation
+# ---------------------------------
+-startTime                 9000.00
+-endTime                   9500
+-cfl                       0.7
+-adjustTimeStep            1
+-timeStep                  0.2
+-timePrecision             2
+# Write Data
+# ---------------------------------
+-intervalType              adjustableTime
+-timeInterval              10
+-purgeWrite                1
+
+# Solution 
+# ---------------------------------
+-imp                       4
+-potentialT                1
+-abl                       1
+-zDampingLayer             1
+-xDampingLayer             0
+-ibm                       0
+-overset                   1
+-absTolU                   1e-6
+-poissonIt                 10
+-poissonTol                1e-10
+
+# Turbulence Model
+# ---------------------------------
+-les                       4
+-max_cs                    10
+
+# Numerical Schemes
+# ---------------------------------
+-divScheme                 centralUpwindW
+
+# Wind Turbine
+# ---------------------------------
+-windplant                1
+
+# Constants 
+# ---------------------------------
+-nu                        1.5e-5
+-rho                       1.225
+-Pr                        0.71
+
+# Mesh
+# ---------------------------------
+-meshFileType             cartesian
+
+
+# Acquisition
+# ---------------------------------
+-sections                 1
+#-probes                   1
+#-averagingABL            1
+#-averaging3LM             1
+
+#-computeQ                1
+
+-averaging                1
+-avgPeriod                5 
+-avgStartTime             0
+
+#-phaseAveraging          3
+#-phaseAvgPeriod          500
+#-phaseAvgStartTime       0
+
+# PostProcessing 
+# ---------------------------------
+-writeRaster              0
+-postProcessFields        1
+
+

@@ -1,0 +1,82 @@
+# OKWind Input file - ABLProperties 
+# --------------------------------- 
+
+# Reference velocity and height for the velocity controller. 
+uRef 8.0
+hRef 90.0
+
+# Reference potential temperature. 
+tRef 300.0
+
+# Initial friction velocity. 
+uTau 0.31
+
+# Equivalent Roughness length. 
+hRough 0.003
+
+# Height of the center of the inversion layer. 
+hInv 750.0
+
+# Width of the inversion layer. 
+dInv 100.0
+
+# Potential temperature jump across the inversion layer. 
+gInv 5.0
+
+# Potential temperature gradient on top of the inversion layer.
+gTop 0.003
+
+# Von Karman Constant.
+vkConst 0.4
+
+# Rampanelli and Zardi temperature model parameter.
+smearT 0.5
+
+# Coriolis parameter: 7.272205217e-5 * sin(latitude)
+fCoriolis 5.156303966e-5
+
+# Velocity controller relaxation factor 
+relaxU 0.7
+
+# Velocity controller type (computed->write, given->read)
+controllerType average
+controllerAvgStartTime 6000.0
+
+# Velocity controller max height of influence 
+controllerHeight 100000.0
+
+# Fringe layers properties (activate in the control.dat - zDampingLayer = 1, xDampingLayer = 1)
+zDampingProperties
+{
+    zDampingStart   1000
+    zDampingEnd     4675.48
+    zDampingAlpha   0.01
+    zDampingAlsoXY  0 
+}    
+
+xDampingProperties
+{
+    xDampingStart   0
+    xDampingEnd     400
+    xDampingDelta   100
+    xDampingAlpha   0.1
+    
+    uBarSelectionType 2
+    n1Inflow 50 
+    n2Inflow 50 
+    n1Periods 1
+    n2Periods 2 
+    cellWidth1 20
+    cellWidth2 20
+}
+    
+# Percentage of domain height (zMax) where peak in perturbation magnitude occurs.
+zPeak 0.015
+
+# Maximum perturbation of streamwise/spanwise flow near surface.
+deltaU 0.25
+deltaV 0.25
+
+# Total periods of perturbations in streamwise/spanwise in the domain.
+Uperiods 12.0
+Vperiods 12.0
