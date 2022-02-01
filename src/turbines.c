@@ -2885,6 +2885,8 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
     clock_ *clock = farm->access->clock;
     io_    *io    = farm->access->io;
 
+    word   turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
+
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     // create/initialize turbines directory (at simulation start only)
@@ -2896,18 +2898,19 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
         if(!rank)
         {
             errno = 0;
-            PetscInt dirRes = mkdir("./postProcessing/turbines", 0777);
+
+            PetscInt dirRes = mkdir(turbineFolderName.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
                char error[512];
-                sprintf(error, "could not create ./postProcessing/turbines directory\n");
+                sprintf(error, "could not create %s directory\n", turbineFolderName.c_str());
                 fatalErrorInFunction("windTurbinesWrite",  error);
             }
 
             // if directory already exist remove everything inside
             if(errno == EEXIST)
             {
-                remove_subdirs(farm->access->mesh->MESH_COMM, "./postProcessing/turbines");
+                remove_subdirs(farm->access->mesh->MESH_COMM, turbineFolderName.c_str());
             }
         }
 
@@ -2923,7 +2926,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
             {
                 FILE *f;
                 char fileName[80];
-                sprintf(fileName, "./postProcessing/turbines/%s", (*farm->turbineIds[t]).c_str());
+                sprintf(fileName, "%s/%s", turbineFolderName.c_str(), (*farm->turbineIds[t]).c_str());
                 f = fopen(fileName, "w");
 
                 if(!f)
@@ -3133,7 +3136,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                 {
                     FILE *f;
                     char fileName[80];
-                    sprintf(fileName, "./postProcessing/turbines/%s", (*farm->turbineIds[t]).c_str());
+                    sprintf(fileName, "%s/%s", turbineFolderName.c_str(), (*farm->turbineIds[t]).c_str());
                     f = fopen(fileName, "a");
 
                     if(!f)
@@ -3216,7 +3219,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
     mesh_       *mesh  = farm->access->mesh;
 
     word        timeName;
-    word        path;
+    word        path, turbineFolderName;
 
     PetscInt    t;
 
@@ -3224,8 +3227,9 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     // set time folder name
-    timeName = getTimeName(clock);
-    path     = "./fields/" + mesh->meshName + "/turbines/" + timeName;
+    timeName          = getTimeName(clock);
+    path              = "./fields/" + mesh->meshName + "/turbines/" + timeName;
+    turbineFolderName = "./fields/" + mesh->meshName + "/turbines";
 
     // create/initialize fields/turbines directory (at simulation start only)
     if
@@ -3233,8 +3237,6 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
         clock->it == clock->itStart && !rank
     )
     {
-        word turbineFolderName = "./fields/" + mesh->meshName + "/turbines";
-
         errno = 0;
         PetscInt dirRes = mkdir(turbineFolderName.c_str(), 0777);
         if(dirRes != 0 && errno != EEXIST)
@@ -3361,7 +3363,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
         MPI_Barrier(mesh->MESH_COMM);
 
         // remove old checkpoint files except last one after all files are written (safe)
-        if(!rank) remove_subdirs_except(mesh->MESH_COMM, "./fields/turbines", timeName);
+        if(!rank) remove_subdirs_except(mesh->MESH_COMM, turbineFolderName.c_str(), timeName);
     }
 
     return(0);
@@ -4543,8 +4545,10 @@ PetscErrorCode writeFarmADMesh(farm_ *farm)
             ncll += nrc_t*nac_t;
         }
 
+        word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
+
         char fileName[256];
-        sprintf(fileName, "./postProcessing/turbines/ADMesh_%.0f.inp", clock->time);
+        sprintf(fileName, "%s/ADMesh_%.0f.inp", turbineFolderName.c_str(), clock->time);
 
         PetscInt width = -20;
 
@@ -4707,8 +4711,10 @@ PetscErrorCode writeFarmTwrMesh(farm_ *farm)
         PetscInt npts = 2*farm->size;
         PetscInt ncll = farm->size;
 
+        word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
+
         char fileName[256];
-        sprintf(fileName, "./postProcessing/turbines/twrMesh.inp");
+        sprintf(fileName, "%s/twrMesh.inp", turbineFolderName.c_str());
 
         PetscInt width = -20;
 
