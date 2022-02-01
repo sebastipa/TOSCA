@@ -215,7 +215,7 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
     if(flags->isOversetActive)
     {
         //checkOversetConditions();
-        readDictInt("OversetInput.dat", "MeshTotal", &(info->nDomains));
+        readDictInt("Overset/OversetInput.dat", "MeshTotal", &(info->nDomains));
 
         // allocate memory for the number of domains
         *domainAddr = new domain_[info->nDomains];
@@ -238,11 +238,11 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
             char userName[256];
 
             sprintf(userName, "Mesh%ld", d);
-            readSubDictIntArray("OversetInput.dat", userName, "parentMesh", os->parentMeshId);
-            readSubDictIntArray("OversetInput.dat", userName, "childMesh",  os->childMeshId);
+            readSubDictIntArray("Overset/OversetInput.dat", userName, "parentMesh", os->parentMeshId);
+            readSubDictIntArray("Overset/OversetInput.dat", userName, "childMesh",  os->childMeshId);
 
             // set mesh name
-            readSubDictWord("OversetInput.dat", userName, "name",  &(domain[d].mesh->meshName));
+            readSubDictWord("Overset/OversetInput.dat", userName, "name",  &(domain[d].mesh->meshName));
 
         }
     }

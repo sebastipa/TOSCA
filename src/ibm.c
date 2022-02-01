@@ -352,7 +352,6 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
     PetscInt      i, j, k;
     PetscInt      b, c;
     Cmpnts        ***cent, dist;
-    cellList      localSearchList;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
@@ -378,7 +377,7 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
         k = ibF[c].cellId.k;
 
         PetscInt      n1, n2, n3;
-        PetscInt      elemID, cellMin = -100;
+        PetscInt      cellMin = -100;
         Cmpnts        dis, elemNorm, p1, p2, p3;
         PetscReal     d_center, dmin = 1.0e20, d;
         Cmpnts        pmin, po, pj;
@@ -402,9 +401,6 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
                 Cmpnts        *eN    = ibMsh->eN;
                 Cmpnts        *nCoor = ibMsh->nCoor;
 
-                //get access to the first search cell in the list
-                cellNode *currentCell = localSearchList.head;
-
                 //loop through the IBM elements
                 for(PetscInt e = 0; e < ibMsh->elems; e++)
                 {
@@ -415,9 +411,9 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
                     // find the ibm mesh element whose bounding sphere center is closest to cent[k][j][i]
                     if(d_center - rvec[e] < dmin)
                     {
-                        n1 = nv1[elemID];
-                        n2 = nv2[elemID];
-                        n3 = nv3[elemID];
+                        n1 = nv1[e];
+                        n2 = nv2[e];
+                        n3 = nv3[e];
 
                         elemNorm = eN[e];
 
@@ -447,42 +443,41 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
                                     bodyID  = b;
                                 }
                             }
+                            // The projected point is on the triangle line
+                            else
+                            {
+                                // po is the projected point on the line and d is the distance to that point from cent[k][j][i]
+                                disP2Line(cent[k][j][i], p1, p2, &po, &d);
+
+                                if (d < dmin)
+                                {
+                                    dmin = d;
+                                    pmin = po;
+                                    cellMin = e;
+                                    bodyID  = b;
+                                }
+
+                                disP2Line(cent[k][j][i], p2, p3, &po, &d);
+
+                                if (d < dmin)
+                                {
+                                    dmin = d;
+                                    pmin = po;
+                                    cellMin = e;
+                                    bodyID  = b;
+                                }
+
+                                disP2Line(cent[k][j][i], p3, p1, &po, &d);
+
+                                if (d < dmin)
+                                {
+                                    dmin = d;
+                                    pmin = po;
+                                    cellMin = e;
+                                    bodyID  = b;
+                                }
+                            }
                         }
-                        // The projected point is on the triangle line
-                        else
-                        {
-                            // po is the projected point on the line and d is the distance to that point from cent[k][j][i]
-                            disP2Line(cent[k][j][i], p1, p2, &po, &d);
-
-                            if (d < dmin)
-                            {
-                                dmin = d;
-                                pmin = po;
-                                cellMin = e;
-                                bodyID  = b;
-                            }
-
-                            disP2Line(cent[k][j][i], p2, p3, &po, &d);
-
-                            if (d < dmin)
-                            {
-                                dmin = d;
-                                pmin = po;
-                                cellMin = e;
-                                bodyID  = b;
-                            }
-
-                            disP2Line(cent[k][j][i], p3, p1, &po, &d);
-
-                            if (d < dmin)
-                            {
-                                dmin = d;
-                                pmin = po;
-                                cellMin = e;
-                                bodyID  = b;
-                            }
-                        }
-
                     }
 
                 }
@@ -612,7 +607,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         mScale(1.0/nfMag, nf);
 
         // background mesh projection point is taken 1 cell distance along this normal directional from the ibm fluid cell
-        cellSize = 2.0 * pow( 1./aj[k][j][i], 1./3.);
+        cellSize = pow( 1./aj[k][j][i], 1./3.);
         bPt = nScale(cellSize, nf);
         mSum(bPt, cent[k][j][i]);
 
@@ -701,6 +696,10 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          // cabot wall model to interpolate the velocity at the ibm fluid node
          sb = ibF[c].minDist;
          sc = sb + cellSize;
+
+         // ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
+         // ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
+         // ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
 
          wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, nf);
          // wallFunctionPowerlaw(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, nf);
@@ -1139,7 +1138,6 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
         }
     }
 
-    // PetscPrintf(PETSC_COMM_SELF, " vel at node %d %d %d = %f %f %f\n", k, j, i, ucat[k][j][i].x, ucat[k][j][i].y, ucat[k][j][i].z);
     for( n = 0; n < 4; n++)
     {
         free(B[n]);
