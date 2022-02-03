@@ -1,0 +1,78 @@
+# OKWind Input file - Turbine Properties
+# -------------------------------------------
+
+# Global wind turbine parameters
+rTip                63.0
+rHub                1.5
+hTower              90.0
+overHang            5.01910
+precone             0.0
+towerDir            (0.0 0.0 1.0)
+rotorDir            (-1 0 0.000000)
+upTilt              0
+includeTower        1
+
+# Controllers 
+genControllerType   fiveRegionsNREL
+pitchControllerType fiveRegionsNREL
+yawControllerType   fiveRegionsNREL
+
+# Actuator disk model parameters
+nBlades             3
+rotationDir         cw
+nRadPts             10
+nAziPts             50
+epsilon             8.0
+debug               1
+initialOmega        10.41
+
+# Uniform actuator disk parameters
+Ct                  0.783
+sampleType          rotorUpstream
+Uref                9.0
+
+# Tower properties 
+towerData
+{
+    Cd              0.5
+    epsilon         15.0
+    nLinPts         90
+    rBase           3
+    rTop            1.5
+}
+
+# names of the foils 
+airfoils
+{
+    Cylinder1 
+    Cylinder2 
+    DU40_A17  
+    DU35_A17  
+    DU30_A17  
+    DU25_A17  
+    DU21_A17  
+    NACA64_A17
+}
+
+
+# Blade parameters given as | radius(m) | c(m) | twist(deg) | airfoilID |
+bladeData
+{ 
+    (2.8667     3.542    13.308     0)
+    (5.6        3.854    13.308     0)
+    (8.3333     4.167    13.308     1)
+    (11.75      4.557    13.308     2)
+    (15.85      4.652    11.48      3)
+    (19.95      4.458    10.162     3)
+    (24.05      4.249    9.011      4) 
+    (28.15      4.007    7.795      5)
+    (32.25      3.748    6.544      5)
+    (36.35      3.502    5.361      6)
+    (40.45      3.256    4.188      6)
+    (44.55      3.01     3.125      7)
+    (48.65      2.764    2.319      7)
+    (52.75      2.518    1.526      7)
+    (56.1667    2.313    0.863      7)
+    (58.9       2.086    0.37       7)
+    (61.6333    1.419    0.106      7)
+}

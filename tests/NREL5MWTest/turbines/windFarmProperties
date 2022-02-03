@@ -1,0 +1,23 @@
+
+windFarmName            Piombino
+
+arraySpecification      onebyone
+
+debug                   1
+
+writeSettings
+{
+    timeStart           10.0
+    intervalType        timeStep
+    timeInterval        1
+}
+
+turbineArray
+{
+    A1
+    (
+        turbineType         NREL5MW
+        turbineModel        uniformADM
+        baseLocation        (0.0 0.0 -90.0)
+    )
+}

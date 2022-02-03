@@ -1,0 +1,11 @@
+# OKWind Input file - nut boundary conditions 
+# -------------------------------------------
+
+internalField spreadInflow
+
+iLeft   periodic
+iRight  periodic
+jLeft   fixedValue 0.0
+jRight  fixedValue 0.0
+kLeft   zeroGradient
+kRight  zeroGradient
