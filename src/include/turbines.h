@@ -29,7 +29,7 @@ typedef struct
 //! \brief Structure containing a coarser AD mesh located 2.5 D upstrem each turbine for velocity sampling
 typedef struct
 {
-    // mesh level preoperties 
+    // mesh level preoperties
     PetscInt             nPoints;   //!< total number of points
     Cmpnts               *points;   //!< array containing the upstream point coordinates
     PetscReal                *dA;   //!< array containing the element area at each upstream sample point (sums up to rotor area)
@@ -49,6 +49,48 @@ typedef struct
     PetscReal               Uref;   //!< wind velocity averaged on the sample points
 
 } upSampling;
+
+//! \brief Actuator Line Model
+typedef struct
+{
+    // mesh level preoperties
+    PetscInt             nPoints;   //!< total number of points
+    Cmpnts               *points;   //!< array containing the AL point coordinates
+    PetscReal                *dr;   //!< array containing the radial mesh size
+
+    PetscInt             nRadial;   //!< number of AL points in the radial direction
+    PetscInt            nAzimuth;   //!< number of AL points in the azimuthal direction
+
+    PetscReal               Uref;   //!< reference velocity to compute CtInf (only used for data writing)
+
+    PetscReal             *chord;   //!< array containing the chord at each AL point
+    PetscReal             *twist;   //!< array containing the twist at each AL point
+    PetscReal          *solidity;   //!< array containing the solidity at each AL point
+    PetscInt           **foilIds;   //!< labels of the 2 airfoils closest to each AL point
+    PetscReal               **iw;   //!< interp. weights for the the 2 airfoils closest to each AL point
+
+    // time-varying variables
+    PetscInt   *thisPtControlled;   //!< flags telling if a point is controlled by this processor
+    cellIds        *closestCells;   //!< indices of the closest cells to this turbine AL points
+    PetscReal                *Cd;   //!< drag coefficient at each point of the AL
+    PetscReal                *Cl;   //!< lift coefficient at each point of the AL
+    PetscReal             *alpha;   //!< angle of attack at each point of the AL
+    Cmpnts                    *U;   //!< flow velocity at each point of the AL (relative to the blade)
+    Cmpnts                    *B;   //!< body force at each point of the AL mesh
+    PetscReal            *axialF;   //!< rotor axial force at each point of the AL mesh
+    PetscReal            *tangtF;   //!< rotor tangential force at each point of the AL mesh
+
+    PetscReal         rtrAvgMagU;   //!< average velocity on the rotor (includes induction from CFD)
+    PetscReal          rtrTorque;   //!< total rotor torque
+    PetscReal          rtrThrust;   //!< total rotor thrust
+    PetscReal            aeroPwr;   //!< total rotor aero power
+
+    PetscReal            azimuth;   //!< azimuthal angle in deg
+
+    // debug switch
+    PetscInt                 dbg;   //!< prints a lot of information
+
+} ALM;
 
 //! \brief Actuator Disk Model
 typedef struct
@@ -193,11 +235,12 @@ typedef struct
     Cmpnts                rtrDir;   //!< (all) unit vector pointing to the rotor orientation in non-tilted position (facing the wind)
     Cmpnts               rtrAxis;   //!< (all) unit vector pointing to the rotor orientation in tilted position (facing the wind)
     Cmpnts             omega_hat;   //!< (AD/AL) turbine angular velocity unit vector (directed as rtrAxis, pointed according to rotDir)
-    PetscReal           rtrOmega;   //!< (AD/AL) turbine angular velocity
+    PetscReal           rtrOmega;   //!< (AD/AL) turbine angular velocity in rad/sec
 
     // wind turbine models
     ADM                      adm;   //!< actuator disk model
     UADM                    uadm;   //!< unform actuator disk model
+    ALM                      alm;   //!< actuator line model
 
     // tower model
     towerModel               twr;   //!< actuator line tower model
@@ -317,6 +360,10 @@ struct farm_
 
     // access database
     access_              *access;
+
+    // CFL control for ALM: blade tip cannot move more than one cell
+    PetscInt       checkCFL;       //!< at least one actuator line model is present in the wind farm
+    PetscReal      maxTipSpeed;    //!< maximum tip speed among all rotors
 };
 
 #endif
@@ -335,6 +382,9 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm);
 
 //! \brief Solve rotor dynamics and compute filtered rot speed
 PetscErrorCode computeRotSpeed(farm_ *farm);
+
+//! \brief Rotate blades (only for ALM)
+PetscErrorCode rotateBlades(windTurbine *wt, PetscReal angle);
 
 //! \brief Compute generator torque with 5-regions control system model
 PetscErrorCode controlGenSpeed(farm_ *farm);
@@ -399,6 +449,9 @@ PetscErrorCode printFarmProperties(farm_ *farm);
 //! \brief Write the wind farm AD mesh to ucd file
 PetscErrorCode writeFarmADMesh(farm_ *wf);
 
+//! \brief Write the wind farm AL mesh to ucd file
+PetscErrorCode writeFarmALMesh(farm_ *farm);
+
 //! \brief Write the wind farm tower mesh to ucd file
 PetscErrorCode writeFarmTwrMesh(farm_ *wf);
 
@@ -422,6 +475,9 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base);
 
 //! \brief Initializes the tower model
 PetscErrorCode initTwrModel(windTurbine *wt, Cmpnts &base);
+
+//! \brief Compute max tip speed and activate CFL control flag
+PetscErrorCode computeMaxTipSpeed(farm_ *farm);
 
 // Reading input files functions
 // -----------------------------------------------------------------------------

@@ -105,7 +105,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
         // output fields
-        if(clock->it>clock->itStart && flags->isAdjustableTime)
+        if(flags->isAdjustableTime)
         {
             clock->dt = clock->cfl * dx_min / maxU;
 
@@ -216,6 +216,35 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     }
                 }
             }
+
+            // check if must limit dt due to ALM rotation
+            if(flags->isWindFarmActive)
+            {
+                farm_ *farm = domain[d].farm;
+
+                // set checkCFL flag
+                if(clock->it == 0)
+                {
+                    // loop over each wind turbine
+                    for(PetscInt t=0; t<farm->size; t++)
+                    {
+                        if((*farm->turbineModels[t]) == "ALM")
+                        {
+                            farm->checkCFL = 1;
+                        }
+                    }
+                }
+
+                if(farm->checkCFL)
+                {
+                    computeMaxTipSpeed(domain[d].farm);
+
+                    PetscReal dtFarm = dx_min / farm->maxTipSpeed;
+                    
+                    clock->dt = std::min(clock->dt, dtFarm);
+                }
+            }
+
         }
         else
         {

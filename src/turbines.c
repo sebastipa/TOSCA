@@ -168,7 +168,7 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
 
 PetscErrorCode computeRotSpeed(farm_ *farm)
 {
-    // turbine and AD mesh point indices
+    // turbine and model mesh point indices
     PetscInt t;
 
     // set physical time clock pointer
@@ -202,7 +202,7 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                     }
                     else if((*farm->turbineModels[t]) == "ALM")
                     {
-                        // not implemented
+                        rtrTorque = wt->alm.rtrTorque;
                     }
 
                     // solve rotor dynamics and update rotor speed
@@ -235,6 +235,13 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                     // compute the generator speed (rpm) with the filtered rotor speed
                     wt->genOmega = wt->rtrOmegaFilt * wt->gbxRatioG2R;
                 }
+
+                // rotate points if turbine model is ALM
+                if((*farm->turbineModels[t]) == "ALM")
+                {
+                    PetscReal angle = clock->dt * wt->rtrOmega;
+                    rotateBlades(wt, angle);
+                }
             }
             else
             {
@@ -246,6 +253,40 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                 wt->rtrOmegaFilt = 0.0;
             }
         }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode rotateBlades(windTurbine *wt, PetscReal angle)
+{
+    // number of points in the AL mesh
+    PetscInt p, npts_t = wt->alm.nPoints;
+
+    // loop over the AL mesh points
+    for(p=0; p<npts_t; p++)
+    {
+        // save this point locally for speed
+        Cmpnts point_p = wt->alm.points[p];
+
+        // this point position from COR
+        mSub(wt->alm.points[p], wt->rotCenter);
+
+        // rotate points in COR ref frame
+        mRot(wt->omega_hat, wt->alm.points[p], angle);
+
+        // add COR ref frame
+        mSum(wt->alm.points[p], wt->rotCenter);
+    }
+
+    wt->alm.azimuth += angle * wt->rad2deg;
+
+    // bound azimuth between 360 and 0
+    if(wt->alm.azimuth >= 360.0)
+    {
+        wt->alm.azimuth -= 360.0;
     }
 
     return(0);
@@ -644,7 +685,19 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                             // actuator line model
                             else if((*farm->turbineModels[t]) == "ALM")
                             {
-                                // not implemented
+                                // number of points in the AL mesh
+                                PetscInt npts_t = wt->alm.nPoints;
+
+                                // loop over the AL mesh points
+                                for(p=0; p<npts_t; p++)
+                                {
+                                    mSub(wt->alm.points[p], wt->rotCenter);
+                                    mRot(wt->twrDir, wt->alm.points[p], angle);
+                                    mSum(wt->alm.points[p], wt->rotCenter);
+                                }
+
+                                // rotate other parameters
+                                mRot(wt->twrDir, wt->omega_hat, angle);
                             }
 
                             // rotate up-sampling points
@@ -768,7 +821,19 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                     // actuator line model
                     else if((*farm->turbineModels[t]) == "ALM")
                     {
-                        // not implemented
+                        // number of points in the AD mesh
+                        PetscInt npts_t = wt->alm.nPoints;
+
+                        // loop over the AD mesh points
+                        for(p=0; p<npts_t; p++)
+                        {
+                            mSub(wt->alm.points[p], wt->rotCenter);
+                            mRot(wt->twrDir, wt->alm.points[p], angle);
+                            mSum(wt->alm.points[p], wt->rotCenter);
+                        }
+
+                        // rotate other parameters
+                        mRot(wt->twrDir, wt->omega_hat, angle);
                     }
 
                     // rotate up-sampling points
@@ -1033,7 +1098,94 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
             {
-                // not implemented
+                // number of points in the AL mesh
+                PetscInt npts_t = wt->alm.nPoints;
+
+                // create temporary vectors
+                std::vector<PetscReal> lminDist(npts_t);
+                std::vector<PetscReal> gminDist(npts_t);
+                std::vector<Cmpnts> perturb(npts_t);
+
+                // loop over the AD mesh points
+                for(p=0; p<npts_t; p++)
+                {
+                    // initialize min dists to a big value
+                    lminDist[p] = 1e20;
+                    gminDist[p] = 1e20;
+
+                    // set point perturbation
+                    perturb[p].x =  procContrib;
+                    perturb[p].y =  procContrib;
+                    perturb[p].z =  procContrib;
+
+                    // save this point locally for speed
+                    Cmpnts point_p = wt->alm.points[p];
+
+                    // perturb the point position
+                    mSum(point_p, perturb[p]);
+
+                    // find the closest cell center
+                    PetscReal  r_c_minMag = 1e20;
+                    cellIds closestCell;
+
+                    // loop over the sphere cells
+                    for(c=0; c<wt->nControlled; c++)
+                    {
+                        // cell indices
+                        PetscInt i = wt->controlledCells[c].i,
+                                 j = wt->controlledCells[c].j,
+                                 k = wt->controlledCells[c].k;
+
+                        // compute distance from mesh cell to AD point
+                        Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                        // compute magnitude
+                        PetscReal r_c_mag = nMag(r_c);
+
+                        if(r_c_mag < r_c_minMag)
+                        {
+                            r_c_minMag = r_c_mag;
+                            closestCell.i = i;
+                            closestCell.j = j;
+                            closestCell.k = k;
+                        }
+                    }
+
+                    // save closest cell indices
+                    wt->alm.closestCells[p].i = closestCell.i;
+                    wt->alm.closestCells[p].j = closestCell.j;
+                    wt->alm.closestCells[p].k = closestCell.k;
+
+                    // save min dist
+                    lminDist[p] = r_c_minMag;
+                }
+
+                // this call can be in the turbineControlled test as long as the communicator is TRB_COMM (will hang otherwise)
+                MPI_Allreduce(&(lminDist[0]), &(gminDist[0]), wt->alm.nPoints, MPIU_REAL, MPIU_MIN, wt->TRB_COMM);
+
+                // now compare the lists, if they have the same min distance then the point
+                // is controlled by this processor, otherwise not. Ties are break by making
+                // the perturbation different among the processors:
+                // distance was not equal: it can't become equal
+                // distance was equal    : it is made different
+                for(p=0; p<npts_t; p++)
+                {
+                    // point is controlled
+                    if(lminDist[p] == gminDist[p])
+                    {
+                        wt->alm.thisPtControlled[p] = 1;
+                    }
+                    // point is not controlled
+                    else
+                    {
+                        wt->alm.thisPtControlled[p] = 0;
+                    }
+                }
+
+                // clean memory
+                std::vector<PetscReal> ().swap(lminDist);
+                std::vector<PetscReal> ().swap(gminDist);
+                std::vector<Cmpnts> ().swap(perturb);
             }
         }
     }
@@ -1666,7 +1818,173 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
             {
-                // not implemented
+                // this turbine angular velocity
+                Cmpnts omega_t = nScale(wt->rtrOmega, wt->omega_hat);
+
+                // number of points in the AD mesh
+                PetscInt npts_t = wt->alm.nPoints;
+
+                // local relative velocity for this processor
+                std::vector<Cmpnts> lU(npts_t);
+
+                // global inflow velocity for this processor
+                std::vector<Cmpnts> lWind(npts_t);
+
+                // global inflow velocity for this processor
+                std::vector<Cmpnts> gWind(npts_t);
+
+                // loop over the AD mesh points
+                for(p=0; p<npts_t; p++)
+                {
+                    // initialize temporary variables
+                    lU[p].x = 0.0;
+                    lU[p].y = 0.0;
+                    lU[p].z = 0.0;
+
+                    lWind[p].x = 0.0;
+                    lWind[p].y = 0.0;
+                    lWind[p].z = 0.0;
+
+                    // save this point locally for speed
+                    Cmpnts point_p = wt->alm.points[p];
+
+                    // this point position from COR
+                    Cmpnts r_p  = nSub(point_p, wt->rotCenter);
+
+                    // compute this blade point blade velocity
+                    Cmpnts u_p  = nCross(omega_t, r_p);
+
+                    // compute this blade point flow velocity
+                    Cmpnts uf_p = nScale(-1.0, u_p);
+
+                    // get the closest cell center
+                    PetscInt i = wt->alm.closestCells[p].i,
+                             j = wt->alm.closestCells[p].j,
+                             k = wt->alm.closestCells[p].k;
+
+                    if(wt->alm.thisPtControlled[p])
+                    {
+                        // get velocity at that point
+                        Cmpnts uc_p = nSet(ucat[k][j][i]);
+
+                        // now we have to sample the velocity from the background mesh,
+                        // uc_p could also be behind the rotor so the estimation
+                        // would be unstable. We use the velocity info to go back along
+                        // the local streamline at a distance equal to uc_p*dt from the rotor,
+                        // and use that as an estimate. This is supported by the fact
+                        // that upon exiting this time iteration, the particle being at a distance
+                        // from the rotor of uc_p*dt will likely be at this AD mesh point.
+
+                        // reverse sign to the velocity (we go backward along streamline)
+                        mScale(-1.0, uc_p);
+
+                        // find the point at which velocity must be sampled
+                        Cmpnts sample = nScale(clock->dt, uc_p);
+                                        mSum(sample, point_p);
+
+                        // find the closest cell indices to the sample point,
+                        // allow for max 2 delta cells to stay in this processor
+                        PetscReal  r_c_minMag = 1e20;
+                        cellIds closestCell;
+                        PetscInt     k1, j1, i1;
+
+                        for (k1=k-2; k1<k+3; k1++)
+                        for (j1=j-2; j1<j+3; j1++)
+                        for (i1=i-2; i1<i+3; i1++)
+                        {
+                            // compute distance from mesh cell to AD point
+                            Cmpnts r_c = nSub(sample, cent[k][j][i]);
+
+                            // compute magnitude
+                            PetscReal r_c_mag = nMag(r_c);
+
+                            if(r_c_mag < r_c_minMag)
+                            {
+                                r_c_minMag = r_c_mag;
+                                closestCell.i = i;
+                                closestCell.j = j;
+                                closestCell.k = k;
+                            }
+                        }
+
+                        // trilinear interpolate
+                        vectorPointLocalVolumeInterpolation
+                        (
+                            mesh,
+                            sample.x, sample.y, sample.z,
+                            closestCell.i, closestCell.j, closestCell.k,
+                            cent, ucat, uc_p
+                        );
+
+                        // compute the relative velocity at the AD point
+                        Cmpnts ur_p  = nSet(uc_p);
+                                       mSum(ur_p, uf_p);
+                        lU[p]        = nSet(ur_p);
+
+                        // compute the inflow wind at the AD point
+                        lWind[p]     = nSet(uc_p);
+                    }
+                }
+
+                MPI_Allreduce(&(lU[0]),  &(wt->alm.U[0]),  wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+                MPI_Allreduce(&(lWind[0]), &(gWind[0]), wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+
+                PetscReal rtrAvgMagU = 0.0;
+                PetscReal areaSum    = 0.0;
+
+                // loop over the AL mesh points
+                for(p=0; p<npts_t; p++)
+                {
+                    // save this point locally for speed
+                    Cmpnts point_p = wt->alm.points[p];
+
+                    // this point position from COR
+                    Cmpnts r_p  = nSub(point_p, wt->rotCenter);
+
+                    // build the blade reference frame based on rotation type:
+                    // 1. if counter-clockwise: z from tip to root,
+                    //    x as rotor axis from nacelle cone to back,
+                    //    y blade tangent, directed as wind due to rotation that blade sees.
+                    // 2. if clockwise: z from root to tip,
+                    //    x as rotor axis from nacelle cone to back,
+                    //    y blade tangent, directed as wind due to rotation that blade sees.
+                    // This is done in order to have the wind vector lying in the positive
+                    // quadrant in each case (it is a standard practice).
+
+                    Cmpnts xb_hat, yb_hat, zb_hat;
+
+                    if(wt->rotDir == "cw")
+                    {
+                        zb_hat = nUnit(r_p);
+                        xb_hat = nScale(-1.0, wt->rtrAxis);
+                        yb_hat = nCross(zb_hat, xb_hat);
+                    }
+                    else if(wt->rotDir == "ccw")
+                    {
+                        zb_hat = nUnit(r_p);
+                                 mScale(-1.0, zb_hat);
+                        xb_hat = nScale(-1.0, wt->rtrAxis);
+                        yb_hat = nCross(zb_hat, xb_hat);
+                    }
+
+                    // transform the velocity in the bladed reference frame and
+                    // remove radial (z) component
+                    PetscReal ub_x = nDot(gWind[p], xb_hat);
+                    PetscReal ub_y = nDot(gWind[p], yb_hat);
+
+                    PetscReal dA   = wt->alm.dr[p] * wt->alm.chord[p];
+
+                    rtrAvgMagU += sqrt(ub_x*ub_x + ub_y*ub_y) * dA;
+
+                    areaSum += dA;
+                }
+
+                wt->alm.rtrAvgMagU = rtrAvgMagU / areaSum;
+
+                // clean memory
+                std::vector<Cmpnts> ().swap(lU);
+                std::vector<Cmpnts> ().swap(lWind);
+                std::vector<Cmpnts> ().swap(gWind);
             }
         }
     }
@@ -2209,7 +2527,162 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
             {
-                // not implemented
+                // zero the rotor torque at this time step
+                wt->alm.rtrTorque = 0.0;
+
+                // cumulate rotor thrust at this time step
+                wt->alm.rtrThrust = 0.0;
+
+                // number of points in the AL mesh
+                PetscInt npts_t = wt->alm.nPoints;
+
+                // loop over the AD mesh points
+                for(p=0; p<npts_t; p++)
+                {
+                    // do not test if this point is inside this processor.
+                    // If at least 1 AD point is inside this processor we have
+                    // to compute the parameters at all AD points.
+                    {
+                        // save this point locally for speed
+                        Cmpnts point_p = wt->alm.points[p];
+
+                        // this point position from COR
+                        Cmpnts r_p  = nSub(point_p, wt->rotCenter);
+
+                        // build the blade reference frame based on rotation type:
+                        // 1. if counter-clockwise: z from tip to root,
+                        //    x as rotor axis from nacelle cone to back,
+                        //    y blade tangent, directed as wind due to rotation that blade sees.
+                        // 2. if clockwise: z from root to tip,
+                        //    x as rotor axis from nacelle cone to back,
+                        //    y blade tangent, directed as wind due to rotation that blade sees.
+                        // This is done in order to have the wind vector lying in the positive
+                        // quadrant in each case (it is a standard practice).
+
+                        Cmpnts xb_hat, yb_hat, zb_hat;
+
+                        if(wt->rotDir == "cw")
+                        {
+                            zb_hat = nUnit(r_p);
+                            xb_hat = nScale(-1.0, rtrAxis);
+                            yb_hat = nCross(zb_hat, xb_hat);
+                        }
+                        else if(wt->rotDir == "ccw")
+                        {
+                            zb_hat = nUnit(r_p);
+                                     mScale(-1.0, zb_hat);
+                            xb_hat = nScale(-1.0, rtrAxis);
+                            yb_hat = nCross(zb_hat, xb_hat);
+                        }
+
+                        // transform the velocity in the bladed reference frame in
+                        // order to compute the angle of attack. Radial (z) component
+                        // is not considered
+                        PetscReal ub_x = nDot(wt->alm.U[p], xb_hat);
+                        PetscReal ub_y = nDot(wt->alm.U[p], yb_hat);
+
+                        // compute angle of angle of attack in degrees: alpha = phi - twist - pitch
+                        wt->alm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->alm.twist[p] - wt->collPitch * wt->rad2deg;
+
+                        // The idea is to interpolate the aero coeffs for the computed
+                        // angle of attack, but the airfoils are discrete in radius.
+                        // So interpolate the cl and cd from the two closest airfoils,
+                        // previously stored.
+
+                        // get the neighboring airfoils interpolation weights and labels
+                        PetscReal af_w1 = wt->alm.iw[p][0],
+                                  af_w2 = wt->alm.iw[p][1];
+                        PetscInt  af_l1 = wt->alm.foilIds[p][0],
+                                  af_l2 = wt->alm.foilIds[p][1];
+
+                        // get the pointers to the aero tables
+                        PetscReal *an1 = wt->foils[af_l1]->aoa;
+                        PetscReal *an2 = wt->foils[af_l2]->aoa;
+                        PetscReal *cl1 = wt->foils[af_l1]->cl;
+                        PetscReal *cl2 = wt->foils[af_l2]->cl;
+                        PetscReal *cd1 = wt->foils[af_l1]->cd;
+                        PetscReal *cd2 = wt->foils[af_l2]->cd;
+
+                        // get the size of the aero tables
+                        PetscInt    s1   = wt->foils[af_l1]->size;
+                        PetscInt    s2   = wt->foils[af_l2]->size;
+
+                        // find interpolation weights for the aero coeffs
+                        PetscReal w[2];
+                        PetscInt  l[2];
+
+                        // interpolate coeffs for the first airfoil
+                        findInterpolationWeigths(w, l, an1, s1, wt->alm.alpha[p]);
+                        PetscReal cl_1 = w[0]*cl1[l[0]] + w[1]*cl1[l[1]];
+                        PetscReal cd_1 = w[0]*cd1[l[0]] + w[1]*cd1[l[1]];
+
+                        // interpolate coeffs for the second airfoil
+                        findInterpolationWeigths(w, l, an2, s2, wt->alm.alpha[p]);
+                        PetscReal cl_2 = w[0]*cl2[l[0]] + w[1]*cl2[l[1]];
+                        PetscReal cd_2 = w[0]*cd2[l[0]] + w[1]*cd2[l[1]];
+
+                        // interpolate between the airfoils and save the values
+                        wt->alm.Cl[p] = af_w1 * cl_1 + af_w2 * cl_2;
+                        wt->alm.Cd[p] = af_w1 * cd_1 + af_w2 * cd_2;
+
+                        // apply tip/root loss correction factors (from AeroDyn theory manual)
+                        PetscReal F;
+                        {
+                            PetscReal g       = 1.0;
+                            PetscReal r_p_mag = nMag(r_p);
+                            PetscReal inflow  = fabs(wt->alm.alpha[p] + wt->alm.twist[p])*wt->deg2rad;
+
+                            PetscReal ftip    = (wt->rTip - r_p_mag) / (r_p_mag * std::sin(inflow));
+                            PetscReal Ftip    = (2.0 / M_PI) * std::acos(PetscMin(1.0, std::exp(-g * ((PetscReal)wt->nBlades/2.0) * ftip)));
+
+                            PetscReal froot   = (r_p_mag - wt->rHub) / (r_p_mag * std::sin(inflow));
+                            PetscReal Froot   = (2.0 / M_PI) * std::acos(PetscMin(1.0, std::exp(-g * ((PetscReal)wt->nBlades/2.0) * froot)));
+
+                            F = Ftip * Froot;
+
+                            wt->alm.Cl[p] *= F;
+                            wt->alm.Cd[p] *= F;
+                        }
+
+                        // get velocity magnitude
+                        PetscReal uMag = sqrt(ub_x*ub_x + ub_y*ub_y);
+
+                        // compute scalar lift and drag per density
+                        PetscReal lift_s = 0.5 * uMag * uMag * wt->alm.chord[p] * wt->alm.dr[p] * wt->alm.Cl[p];
+                        PetscReal drag_s = 0.5 * uMag * uMag * wt->alm.chord[p] * wt->alm.dr[p] * wt->alm.Cd[p];
+
+                        // define the aerodynamic reference frame (x as the flow, y along the blade, z will be lift)
+                        Cmpnts xa_hat = nUnit(wt->alm.U[p]);
+                        Cmpnts ya_hat = nUnit(r_p);
+                        Cmpnts za_hat = nCross(xa_hat, ya_hat);
+
+                        // compute lift and drag vectors in the cartesian frame
+                        Cmpnts lift_v = nScale(lift_s, za_hat);
+                        Cmpnts drag_v = nScale(drag_s, xa_hat);
+
+                        // compute body force (flow on blade)
+                        wt->alm.B[p]  = nSum(lift_v, drag_v);
+
+                        // reverse the body force (blade on flow)
+                        mScale(-1.0, wt->alm.B[p]);
+
+                        // compute axial force
+                        wt->alm.axialF[p] = nDot(wt->alm.B[p], wt->rtrAxis);
+
+                        // compute tangential force
+                        wt->alm.tangtF[p] = nDot(wt->alm.B[p], yb_hat);
+
+                        // cumulate rotor thrust
+                        wt->alm.rtrThrust += wt->alm.axialF[p] * wt->alm.solidity[p] * constants->rho;
+
+                        // cumulate rotor torque
+                        wt->alm.rtrTorque += wt->alm.tangtF[p] * wt->alm.solidity[p] * constants->rho *
+                                             nMag(r_p) * std::cos(wt->deg2rad*wt->precone);
+                    }
+                }
+
+                // aerodynamic power
+                wt->alm.aeroPwr = wt->alm.rtrTorque * wt->rtrOmega;
             }
 
             // electric power (only for AD/AL models)
@@ -2454,7 +2927,99 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
             {
-                // not implemented
+                // number of points in the AL mesh
+                PetscInt npts_t = wt->alm.nPoints;
+
+                // loop over the AD mesh points
+                for(p=0; p<npts_t; p++)
+                {
+                    // do not test if this point is controlled since body force can
+                    // come from other processor, the test is done on the projection radius
+                    {
+                        // save this point locally for speed
+                        Cmpnts point_p    = wt->alm.points[p];
+
+                        // this point position from COR
+                        Cmpnts r_p  = nSub(point_p, wt->rotCenter);
+
+                        // save this point solidity for speed
+                        PetscReal solidity_p = wt->alm.solidity[p];
+
+                        // loop in sphere points
+                        for(c=0; c<wt->nControlled; c++)
+                        {
+                            // cell indices
+                            PetscInt i = wt->controlledCells[c].i,
+                                     j = wt->controlledCells[c].j,
+                                     k = wt->controlledCells[c].k;
+
+                            // compute distance from mesh cell to AD point
+                            Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                            // compute magnitude
+                            PetscReal r_c_mag = nMag(r_c);
+
+                            if(r_c_mag<rPrj)
+                            {
+                                // compute projection factor
+                                PetscReal pf
+                                =
+                                /*
+                                std::exp
+                                (
+                                    -(r_c_mag *r_c_mag) /
+                                     (2.0 * eps * eps)
+                                ) /
+                                (
+                                    pow(eps,    3) *
+                                    pow(2.0*M_PI, 1.5)
+                                );
+                                */
+                                std::exp
+                                (
+                                    -(r_c_mag / eps)*
+                                     (r_c_mag / eps)
+                                ) /
+                                (
+                                    pow(eps,    3) *
+                                    pow(M_PI, 1.5)
+                                );
+
+                                Cmpnts bfCell = nScale(solidity_p * pf, wt->alm.B[p]);
+
+                                sCat[k][j][i].x += bfCell.x;
+                                sCat[k][j][i].y += bfCell.y;
+                                sCat[k][j][i].z += bfCell.z;
+
+                                // cumulate wind farm BF for projection error
+                                PetscReal vCell    = 1.0 / aj[k][j][i];
+                                Cmpnts thrustBF = nScale(vCell*constants->rho, bfCell);
+                                Cmpnts torqueBF = nScale(vCell*constants->rho*nMag(r_p)*std::cos(wt->deg2rad*wt->precone), bfCell);
+
+                                Cmpnts xb_hat, yb_hat, zb_hat;
+
+                                // define the bladed coordinate system
+                                if(wt->rotDir == "cw")
+                                {
+                                    zb_hat = nUnit(r_p);
+                                    xb_hat = nScale(-1.0, wt->rtrAxis);
+                                    yb_hat = nCross(zb_hat, xb_hat);
+                                }
+                                else if(wt->rotDir == "ccw")
+                                {
+                                    zb_hat = nUnit(r_p);
+                                             mScale(-1.0, zb_hat);
+                                    xb_hat = nScale(-1.0, wt->rtrAxis);
+                                    yb_hat = nCross(zb_hat, xb_hat);
+                                }
+
+                                // cumulate contribution from this AD point at this cell
+                                lThrustBFSum += nDot(thrustBF, wt->rtrAxis);
+                                lTorqueBFSum += nDot(torqueBF, yb_hat);
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -2491,7 +3056,9 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             }
             else if((*farm->turbineModels[t]) == "ALM")
             {
-                // not implemented
+                MPI_Reduce(&(wt->alm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                MPI_Reduce(&(wt->alm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                MPI_Reduce(&(wt->alm.rtrTorque), &Trq,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
             }
 
             // electric power
@@ -2876,6 +3443,36 @@ PetscErrorCode bodyForceCartesian2Contravariant(farm_ *farm)
 
 //***************************************************************************************************************//
 
+PetscErrorCode computeMaxTipSpeed(farm_ *farm)
+{
+    mesh_    *mesh = farm->access->mesh;
+
+    PetscReal lmaxTipSpeed = 0.0;
+    PetscReal gmaxTipSpeed = 0.0;
+
+    // loop over each wind turbine
+    for(PetscInt t=0; t<farm->size; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        PetscReal   tipSpeed = wt->rTip * wt->rtrOmega;
+
+        if(tipSpeed > lmaxTipSpeed)
+        {
+            lmaxTipSpeed = tipSpeed;
+        }
+    }
+
+    // compute the maximum among all processors
+    MPI_Allreduce(&lmaxTipSpeed, &gmaxTipSpeed, 1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
+
+    farm->maxTipSpeed = gmaxTipSpeed;
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode windTurbinesWrite(farm_ *farm)
 {
     mesh_ *mesh = farm->access->mesh;
@@ -2963,6 +3560,8 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                     word w14 = "flowAngle [deg]";
                     word w15 = "yawAngle [deg]";
 
+                    word w16 = "azimuth [deg]";
+
                     // actuator disk model
                     if((*farm->turbineModels[t]) == "ADM")
                     {
@@ -2985,7 +3584,17 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                     }
                     else if((*farm->turbineModels[t]) == "ALM")
                     {
-                        // not implemented
+                        fprintf(f, "%*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s ", width, w0.c_str(), width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(), width, w5.c_str(), width, w6.c_str(), width, w7.c_str(), width, w8.c_str(), width, w9.c_str(), width, w16.c_str());
+
+                        if(wt->genControllerType != "none")
+                        {
+                            fprintf(f, "%*s %*s %*s ", width, w10.c_str(), width, w11.c_str(), width, w12.c_str());
+                        }
+
+                        if(wt->pitchControllerType != "none")
+                        {
+                            fprintf(f, "%*s ", width, w13.c_str());
+                        }
                     }
 
                     // yaw controller is not model specific
@@ -3003,8 +3612,8 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
     }
 
     // see if must write to file
-    PetscInt    turbinesWrite = 0;
-    word   intervalType  = farm->intervalType;
+    PetscInt  turbinesWrite = 0;
+    word      intervalType  = farm->intervalType;
     PetscReal timeInterval  = farm->timeInterval;
     PetscReal timeStart     = farm->timeStart;
 
@@ -3065,6 +3674,9 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                 // ADM
                 PetscReal rtrTorque   = 0.0;
                 PetscReal rtrOmega    = 0.0;
+
+                // ALM
+                PetscReal azimuth     = 0.0;
 
                 // controls
                 PetscReal genTorque   = 0.0;
@@ -3128,7 +3740,45 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                 }
                 else if((*farm->turbineModels[t]) == "ALM")
                 {
-                    // not implemented
+                    MPI_Reduce(&(wt->alm.rtrAvgMagU), &rtrAvgMagU,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->alm.rtrThrust),  &rtrThrust,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->alm.aeroPwr),    &aeroPwr,       1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+
+                    MPI_Reduce(&(wt->alm.rtrTorque),  &rtrTorque,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->rtrOmega),       &rtrOmega,      1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+
+                    MPI_Reduce(&(wt->alm.azimuth),    &azimuth,      1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+
+                    if(wt->genControllerType != "none")
+                    {
+                        MPI_Reduce(&(wt->genTorque),   &genTorque,       1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                        MPI_Reduce(&(wt->genPwr),      &genPwr,          1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                        MPI_Reduce(&(wt->genOmega),    &genOmega,      1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+
+                        genTorque    = genTorque  / wt->nProcsTrb / 1.0e3;
+                        genPwr       = genPwr     / wt->nProcsTrb / 1.0e6;
+                        genOmega     = genOmega   / wt->nProcsTrb / wt->rpm2RadSec;
+                    }
+                    if(wt->pitchControllerType != "none")
+                    {
+                        MPI_Reduce(&(wt->collPitch),   &collPitch,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+
+                        collPitch    = collPitch  / wt->nProcsTrb;
+                    }
+
+                    rtrAvgMagU   = rtrAvgMagU / wt->nProcsTrb;
+                    rtrAvgUpMagU = wt->upPoints->Uref;
+                    rtrThrust    = rtrThrust  / wt->nProcsTrb / 1.0e3;
+                    aeroPwr      = aeroPwr    / wt->nProcsTrb / 1.0e6;
+
+                    rtrTorque    = rtrTorque  / wt->nProcsTrb / 1.0e3;
+                    rtrOmega     = rtrOmega   / wt->nProcsTrb / wt->rpm2RadSec;
+
+                    azimuth      = azimuth    / wt->nProcsTrb;
+
+                    ctInf        = (2.0 * rtrThrust * 1.0e3) / (constants->rho * pow(wt->alm.Uref,   2.0) * Ar );
+                    ctLoc        = (2.0 * rtrThrust * 1.0e3) / (constants->rho * pow(rtrAvgMagU,     2.0) * Ar );
+                    ctUp         = (2.0 * rtrThrust * 1.0e3) / (constants->rho * pow(rtrAvgUpMagU,   2.0) * Ar );
                 }
 
                 // write to file
@@ -3171,7 +3821,17 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                         }
                         else if((*farm->turbineModels[t]) == "ALM")
                         {
-                            // not implemented
+                            fprintf(f, "%*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f ", width, clock->time, width, rtrAvgMagU, width, rtrAvgUpMagU, width, rtrThrust, width, aeroPwr, width, ctInf, width, ctLoc, width, ctUp, width, rtrTorque, width, rtrOmega, width, azimuth);
+
+                            if(wt->genControllerType != "none")
+                            {
+                                fprintf(f, "%*.4f %*.4f %*.4f ", width, genTorque, width, genPwr, width, genOmega);
+                            }
+
+                            if(wt->pitchControllerType != "none")
+                            {
+                                fprintf(f, "%*.4f ", width, collPitch*wt->rad2deg);
+                            }
                         }
 
                         // yaw controller is not model specific
@@ -3200,6 +3860,12 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
 
         // write AD mesh
         writeFarmADMesh(farm);
+
+        // write AL mesh
+        writeFarmALMesh(farm);
+
+        // increase write number counter
+        farm->writeNumber++;
     }
 
     // write checkpoint file
@@ -3286,6 +3952,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
                 PetscReal collPitch    = 0.0;
                 PetscReal errPID       = 0.0;
                 PetscReal intErrPID    = 0.0;
+                PetscReal azimuth      = 0.0;
 
                 if((*farm->turbineModels[t]) != "uniformADM")
                 {
@@ -3302,6 +3969,11 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
                         MPI_Reduce(&(wt->collPitch),   &collPitch,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                         MPI_Reduce(&(wt->errPID),      &errPID,       1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                         MPI_Reduce(&(wt->intErrPID),   &intErrPID,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    }
+
+                    if((*farm->turbineModels[t]) == "ALM")
+                    {
+                        MPI_Reduce(&(wt->alm.azimuth), &azimuth,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                     }
                 }
 
@@ -3343,6 +4015,12 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
                                 fprintf(f, "    errPID             %lf\n",         errPID       / wt->nProcsTrb);
                                 fprintf(f, "    intErrPID          %lf\n",         intErrPID    / wt->nProcsTrb);
                             }
+
+                            if((*farm->turbineModels[t]) == "ALM")
+                            {
+                                fprintf(f, "    azimuth          %lf\n",           azimuth    / wt->nProcsTrb);
+                            }
+
                         }
                         if(wt->yawControllerType != "none")
                         {
@@ -3420,6 +4098,10 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
                     readSubDictDouble(dictName, "turbineLevelProperties", "errPID", &(wt->errPID));
                     readSubDictDouble(dictName, "turbineLevelProperties", "intErrPID", &(wt->intErrPID));
                 }
+                if((*farm->turbineModels[t]) == "ALM")
+                {
+                    readSubDictDouble(dictName, "turbineLevelProperties", "azimuth", &(wt->alm.azimuth));
+                }
             }
             if(wt->yawControllerType != "none")
             {
@@ -3480,7 +4162,16 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
                     // actuator line model
                     else if((*farm->turbineModels[t]) == "ALM")
                     {
-                        // not implemented
+                        // number of points in the AD mesh
+                        PetscInt npts_t = wt->alm.nPoints;
+
+                        // loop over the AD mesh points
+                        for(p=0; p<npts_t; p++)
+                        {
+                            mSub(wt->alm.points[p], wt->rotCenter);
+                            mRot(wt->twrDir, wt->alm.points[p], angle);
+                            mSum(wt->alm.points[p], wt->rotCenter);
+                        }
                     }
 
                     // rotate up-sampling points
@@ -3504,6 +4195,12 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
                         }
                     }
                 }
+            }
+
+            // rotate blades
+            if((*farm->turbineModels[t]) == "ALM")
+            {
+                rotateBlades(wt, wt->alm.azimuth);
             }
         }
     }
@@ -3637,7 +4334,7 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base)
 
         // interpolate blade propertes (only depend on r)
         PetscReal  weights[2];
-        PetscInt     labels[2];
+        PetscInt   labels[2];
         PetscReal  rMag = nMag(rvec);
 
         findInterpolationWeigths(weights, labels, wt->blade.radius, wt->blade.size, rMag);
@@ -3964,9 +4661,180 @@ PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base)
 
 PetscErrorCode initALM(windTurbine *wt, Cmpnts &base)
 {
-    char error[512];
-    sprintf(error, "actuator line model not yet implemented (requested by turbine %s)\n", wt->id.c_str());
-    fatalErrorInFunction("initWindTurbines",  error);
+    // allocate memory for the ADM
+    PetscMalloc(sizeof(ALM), &(wt->alm));
+
+    // read necessary properties from file
+    word descrFile = "./turbines/" + wt->type;
+
+    // read from file AD parameters
+    readDictInt(descrFile.c_str(), "nRadPts", &(wt->alm.nRadial));
+    readDictDouble(descrFile.c_str(), "Uref",    &(wt->alm.Uref));
+
+    wt->alm.nAzimuth = wt->nBlades;
+
+    // debug switch
+    readDictInt(descrFile.c_str(), "debug", &(wt->alm.dbg));
+
+    // set total numer of points in the mesh
+    wt->alm.nPoints = wt->alm.nRadial * wt->alm.nAzimuth;
+
+    // set rotor torque and power to zero (will remain zero in the processors
+    // that do not control the turbine for parallel scatter/gather)
+    wt->alm.rtrThrust = 0.0;
+    wt->alm.rtrTorque = 0.0;
+    wt->alm.aeroPwr   = 0.0;
+
+    // set average rotor velocity mag to zero
+    wt->alm.rtrAvgMagU = 0.0;
+
+    // set initial azimuth
+    wt->alm.azimuth = 0.0;
+
+    // build the AD mesh
+
+    // allocate memory for the ADM parameters
+    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.points));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.dr));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.chord));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.twist));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.solidity));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscInt*), &(wt->alm.foilIds));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal*), &(wt->alm.iw));
+
+    // allocate memory for the variables used during the simulation
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscInt), &(wt->alm.thisPtControlled));
+    PetscMalloc(wt->alm.nPoints*sizeof(cellIds),&(wt->alm.closestCells));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.Cd));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.Cl));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.alpha));
+    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.U));
+    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.B));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.axialF));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.tangtF));
+
+    // set tower top point
+    Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
+                    mSum(tower, base);
+
+    // set rotor center point
+    Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
+    Cmpnts center = nSum(tower, overH);
+    wt->rotCenter = center;
+
+    // set the rotor reference frame
+    // x from nacelle back to cone,
+    // y on the rotor at zero azimuth,
+    // z as the right hand rule
+    Cmpnts xr_hat = nUnit(wt->rtrDir);
+    Cmpnts yr_hat = nUnit(wt->twrDir);
+    Cmpnts zr_hat = nCross(xr_hat, yr_hat);
+    mRot(zr_hat, xr_hat, wt->upTilt*wt->deg2rad);  // rotate xr_hat with uptilt
+    mRot(zr_hat, yr_hat, wt->upTilt*wt->deg2rad);  // rotate yr_hat with uptilt
+
+    // set rtrAxis and omega_hat turbine param. here
+    {
+        // set rotor axis (up-tilted, from nacell back to cone)
+        wt->rtrAxis = xr_hat;
+
+        // set the rotor rotation unit vector
+        if(wt->rotDir == "cw")
+        {
+            wt->omega_hat = nScale(-1.0, xr_hat);
+        }
+        else if(wt->rotDir == "ccw")
+        {
+            wt->omega_hat = nSet(xr_hat);
+        }
+        else
+        {
+           char error[512];
+            sprintf(error, "unknown rotationDir, avilable options are 'cw' or 'ccw'\n");
+            fatalErrorInFunction("initALM",  error);
+        }
+    }
+
+    // set the hub radius vector
+    Cmpnts rHub = nScale(wt->rHub, yr_hat);
+
+    // radial mesh cell size size
+    PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+    // delta angle in radiants
+    PetscReal daval = 2 * M_PI / wt->alm.nAzimuth;
+
+    // points counter
+    PetscInt    pi = 0;
+
+    // varying variables
+    PetscReal dr;
+
+    for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+    {
+        // delta radius (beware start and end points)
+        if(ri==0 || ri==wt->alm.nRadial-1) dr = drval / 2;
+        else dr = drval;
+
+        // this station vector radius
+        Cmpnts rvec = nScale(drval*ri, yr_hat);
+
+        // add the initial hub radius
+        mSum(rvec, rHub);
+
+        // interpolate blade propertes (only depend on r)
+        PetscReal  weights[2];
+        PetscInt   labels[2];
+        PetscReal  rMag = nMag(rvec);
+
+        findInterpolationWeigths(weights, labels, wt->blade.radius, wt->blade.size, rMag);
+
+        for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
+        {
+            // set interpolation variables
+            PetscReal w1 = weights[0]; PetscInt l1 = labels[0];
+            PetscReal w2 = weights[1]; PetscInt l2 = labels[1];
+
+            // allocate memory for the 2 closest foil ids
+            PetscMalloc(2*sizeof(PetscInt), &(wt->alm.foilIds[pi]));
+
+            // allocate memory for the 2 interpolation weights
+            PetscMalloc(2*sizeof(PetscReal), &(wt->alm.iw[pi]));
+
+            // set airfoil chord
+            wt->alm.chord[pi] = w1*wt->blade.chord[l1] + w2*wt->blade.chord[l2];
+
+            // set airfoil twist
+            wt->alm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
+
+            // set airfoil ids
+            wt->alm.foilIds[pi][0] = wt->blade.foilIds[l1];
+            wt->alm.foilIds[pi][1] = wt->blade.foilIds[l2];
+
+            // set interpolation weights
+            wt->alm.iw[pi][0] = w1;
+            wt->alm.iw[pi][1] = w2;
+
+            // set the rotor solidity (it is one for the ALM)
+            wt->alm.solidity[pi] = 1.0;
+
+            // new mesh point
+            Cmpnts point = nSet(rvec);
+
+            // rotate the point
+            mRot(xr_hat, point, daval*ai);
+
+            // add the rotor center vector from origin
+            mSum(point, center);
+
+            // set the point value
+            mSet(wt->alm.points[pi], point);
+
+            // set the dr value (uniform for now)
+            wt->alm.dr[pi] = dr;
+
+            pi++;
+        }
+    }
 
     return(0);
 };
@@ -4501,7 +5369,7 @@ PetscErrorCode initSampleControlledCells(farm_ *farm)
 
 PetscErrorCode writeFarmADMesh(farm_ *farm)
 {
-    mesh_ *mesh = farm->access->mesh;
+    mesh_     *mesh = farm->access->mesh;
 
     clock_    *clock = farm->access->clock;
 
@@ -4514,7 +5382,7 @@ PetscErrorCode writeFarmADMesh(farm_ *farm)
         PetscInt ncll = 0;
         for(PetscInt t=0; t<farm->size; t++)
         {
-            PetscInt npts_t, nrc_t, nac_t;
+            PetscInt npts_t = 0, nrc_t = 0, nac_t = 0;
 
             // actuator disk model
             if((*farm->turbineModels[t]) == "ADM")
@@ -4545,152 +5413,152 @@ PetscErrorCode writeFarmADMesh(farm_ *farm)
             ncll += nrc_t*nac_t;
         }
 
-        word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
-
-        char fileName[256];
-        sprintf(fileName, "%s/ADMesh_%.0f.inp", turbineFolderName.c_str(), clock->time);
-
-        PetscInt width = -20;
-
-        FILE *f = fopen(fileName, "w");
-
-        // header
-        PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from OKWind V0521\n");
-        PetscFPrintf(mesh->MESH_COMM, f, "#\n");
-        PetscFPrintf(mesh->MESH_COMM, f, "#\n");
-
-        // number of points, number of cells
-        PetscFPrintf(mesh->MESH_COMM, f, "%*d %*d %*d %*d %*d\n", width, npts, width, ncll, width, 0, width, 0, width, 0);
-
-        // write coordinates
-        npts = 1;
-
-        for(PetscInt t=0; t<farm->size; t++)
+        if(npts>0)
         {
-            // actuator disk model
-            if((*farm->turbineModels[t]) == "ADM")
-            {
-                // number of points in this turbine's AD mesh
-                PetscInt npts_t = farm->wt[t]->adm.nPoints;
+            word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
 
-                for(PetscInt pi=0; pi<npts_t; pi++)
+            char fileName[256];
+            sprintf(fileName, "%s/ADMesh_%.0f.inp", turbineFolderName.c_str(), clock->time);
+
+            PetscInt width = -20;
+
+            FILE *f = fopen(fileName, "w");
+
+            // header
+            PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from OKWind V0521\n");
+            PetscFPrintf(mesh->MESH_COMM, f, "#\n");
+            PetscFPrintf(mesh->MESH_COMM, f, "#\n");
+
+            // number of points, number of cells
+            PetscFPrintf(mesh->MESH_COMM, f, "%*d %*d %*d %*d %*d\n", width, npts, width, ncll, width, 0, width, 0, width, 0);
+
+            // write coordinates
+            npts = 1;
+
+            for(PetscInt t=0; t<farm->size; t++)
+            {
+                // actuator disk model
+                if((*farm->turbineModels[t]) == "ADM")
                 {
-                    Cmpnts point_i;
+                    // number of points in this turbine's AD mesh
+                    PetscInt npts_t = farm->wt[t]->adm.nPoints;
 
-                    point_i.x = farm->wt[t]->adm.points[pi].x;
-                    point_i.y = farm->wt[t]->adm.points[pi].y;
-                    point_i.z = farm->wt[t]->adm.points[pi].z;
-
-                    PetscFPrintf(mesh->MESH_COMM, f, "%*d %*.7f %*.7f %*.7f\n", width, npts, width, point_i.x, width, point_i.y, width, point_i.z);
-
-                    npts++;
-                }
-            }
-            else if((*farm->turbineModels[t]) == "uniformADM")
-            {
-                // number of points in this turbine's AD mesh
-                PetscInt npts_t = farm->wt[t]->uadm.nPoints;
-
-                for(PetscInt pi=0; pi<npts_t; pi++)
-                {
-                    Cmpnts point_i;
-
-                    point_i.x = farm->wt[t]->uadm.points[pi].x;
-                    point_i.y = farm->wt[t]->uadm.points[pi].y;
-                    point_i.z = farm->wt[t]->uadm.points[pi].z;
-
-                    PetscFPrintf(mesh->MESH_COMM, f, "%*d %*.7f %*.7f %*.7f\n", width, npts, width, point_i.x, width, point_i.y, width, point_i.z);
-
-                    npts++;
-                }
-            }
-        }
-
-        // write connectivity
-
-        // storage for the labels
-        PetscInt cellPtLabels[ncll][4];
-
-        npts = 0;
-        ncll = 0;
-
-        // build connectivity
-        for(PetscInt t=0; t<farm->size; t++)
-        {
-            PetscInt nRadCells_t, nAziCells_t;
-            PetscInt nRadPts_t, nAziPts_t;
-
-            // actuator disk model
-            if((*farm->turbineModels[t]) == "ADM")
-            {
-                // radial and azimuthal cells
-                nRadCells_t = farm->wt[t]->adm.nRadial - 1;
-                nAziCells_t = farm->wt[t]->adm.nAzimuth;
-
-                // radial and azimuthal points
-                nRadPts_t = farm->wt[t]->adm.nRadial;
-                nAziPts_t = farm->wt[t]->adm.nAzimuth;
-            }
-            else if((*farm->turbineModels[t]) == "uniformADM")
-            {
-                // radial and azimuthal cells
-                nRadCells_t = farm->wt[t]->uadm.nRadial - 1;
-                nAziCells_t = farm->wt[t]->uadm.nAzimuth;
-
-                // radial and azimuthal points
-                nRadPts_t = farm->wt[t]->uadm.nRadial;
-                nAziPts_t = farm->wt[t]->uadm.nAzimuth;
-            }
-
-            // number of points per turbine
-            PetscInt npt = nRadPts_t*nAziPts_t;
-
-            for(PetscInt ri=0; ri<nRadPts_t; ri++)
-            {
-                for(PetscInt ai=0; ai<nAziPts_t; ai++)
-                {
-                    if(ri < nRadCells_t)
+                    for(PetscInt pi=0; pi<npts_t; pi++)
                     {
-                        // all azi cells except last
-                        if(ai < (nAziCells_t-1))
-                        {
-                            cellPtLabels[ncll][0] = (t*npt) + (ri * nAziPts_t + ai + 1);
-                            cellPtLabels[ncll][1] = (t*npt) + (ri * nAziPts_t + ai + 2);
-                            cellPtLabels[ncll][2] = (t*npt) + ((ri + 1) * nAziPts_t + ai + 2);
-                            cellPtLabels[ncll][3] = (t*npt) + ((ri + 1) * nAziPts_t + ai + 1);
+                        Cmpnts point_i;
 
-                            ncll++;
-                        }
-                        // last cell: pts 0,3 must be connected to pts 0,3 of first azi cell
-                        //            so pt 1,2 become 0,3 of first azi cell
-                        else if (ai == (nAziCells_t-1))
-                        {
-                            cellPtLabels[ncll][0] = (t*npt) + (ri * nAziPts_t + ai + 1);
-                            cellPtLabels[ncll][1] = (t*npt) + (ri * nAziPts_t + 1);
-                            cellPtLabels[ncll][2] = (t*npt) + ((ri + 1) * nAziPts_t + 1);
-                            cellPtLabels[ncll][3] = (t*npt) + ((ri + 1) * nAziPts_t + ai + 1);
+                        point_i.x = farm->wt[t]->adm.points[pi].x;
+                        point_i.y = farm->wt[t]->adm.points[pi].y;
+                        point_i.z = farm->wt[t]->adm.points[pi].z;
 
-                            ncll++;
-                        }
+                        PetscFPrintf(mesh->MESH_COMM, f, "%*d %*.7f %*.7f %*.7f\n", width, npts, width, point_i.x, width, point_i.y, width, point_i.z);
+
+                        npts++;
                     }
-                    npts++;
+                }
+                else if((*farm->turbineModels[t]) == "uniformADM")
+                {
+                    // number of points in this turbine's AD mesh
+                    PetscInt npts_t = farm->wt[t]->uadm.nPoints;
+
+                    for(PetscInt pi=0; pi<npts_t; pi++)
+                    {
+                        Cmpnts point_i;
+
+                        point_i.x = farm->wt[t]->uadm.points[pi].x;
+                        point_i.y = farm->wt[t]->uadm.points[pi].y;
+                        point_i.z = farm->wt[t]->uadm.points[pi].z;
+
+                        PetscFPrintf(mesh->MESH_COMM, f, "%*d %*.7f %*.7f %*.7f\n", width, npts, width, point_i.x, width, point_i.y, width, point_i.z);
+
+                        npts++;
+                    }
                 }
             }
+
+            // write connectivity
+
+            // storage for the labels
+            PetscInt cellPtLabels[ncll][4];
+
+            npts = 0;
+            ncll = 0;
+
+            // build connectivity
+            for(PetscInt t=0; t<farm->size; t++)
+            {
+                PetscInt nRadCells_t, nAziCells_t;
+                PetscInt nRadPts_t, nAziPts_t;
+
+                // actuator disk model
+                if((*farm->turbineModels[t]) == "ADM")
+                {
+                    // radial and azimuthal cells
+                    nRadCells_t = farm->wt[t]->adm.nRadial - 1;
+                    nAziCells_t = farm->wt[t]->adm.nAzimuth;
+
+                    // radial and azimuthal points
+                    nRadPts_t = farm->wt[t]->adm.nRadial;
+                    nAziPts_t = farm->wt[t]->adm.nAzimuth;
+                }
+                else if((*farm->turbineModels[t]) == "uniformADM")
+                {
+                    // radial and azimuthal cells
+                    nRadCells_t = farm->wt[t]->uadm.nRadial - 1;
+                    nAziCells_t = farm->wt[t]->uadm.nAzimuth;
+
+                    // radial and azimuthal points
+                    nRadPts_t = farm->wt[t]->uadm.nRadial;
+                    nAziPts_t = farm->wt[t]->uadm.nAzimuth;
+                }
+
+                // number of points per turbine
+                PetscInt npt = nRadPts_t*nAziPts_t;
+
+                for(PetscInt ri=0; ri<nRadPts_t; ri++)
+                {
+                    for(PetscInt ai=0; ai<nAziPts_t; ai++)
+                    {
+                        if(ri < nRadCells_t)
+                        {
+                            // all azi cells except last
+                            if(ai < (nAziCells_t-1))
+                            {
+                                cellPtLabels[ncll][0] = (t*npt) + (ri * nAziPts_t + ai + 1);
+                                cellPtLabels[ncll][1] = (t*npt) + (ri * nAziPts_t + ai + 2);
+                                cellPtLabels[ncll][2] = (t*npt) + ((ri + 1) * nAziPts_t + ai + 2);
+                                cellPtLabels[ncll][3] = (t*npt) + ((ri + 1) * nAziPts_t + ai + 1);
+
+                                ncll++;
+                            }
+                            // last cell: pts 0,3 must be connected to pts 0,3 of first azi cell
+                            //            so pt 1,2 become 0,3 of first azi cell
+                            else if (ai == (nAziCells_t-1))
+                            {
+                                cellPtLabels[ncll][0] = (t*npt) + (ri * nAziPts_t + ai + 1);
+                                cellPtLabels[ncll][1] = (t*npt) + (ri * nAziPts_t + 1);
+                                cellPtLabels[ncll][2] = (t*npt) + ((ri + 1) * nAziPts_t + 1);
+                                cellPtLabels[ncll][3] = (t*npt) + ((ri + 1) * nAziPts_t + ai + 1);
+
+                                ncll++;
+                            }
+                        }
+                        npts++;
+                    }
+                }
+            }
+
+            width = -5;
+
+            // write
+            for(PetscInt ci=0; ci<ncll; ci++)
+            {
+                PetscFPrintf(mesh->MESH_COMM, f, "%*d %*d %*s %*d %*d %*d %*d\n", width, ci+1, width, 0, width, "quad", width, cellPtLabels[ci][0], width, cellPtLabels[ci][1], width, cellPtLabels[ci][2], width, cellPtLabels[ci][3]);
+            }
+
+            fclose(f);
         }
-
-        width = -5;
-
-        // write
-        for(PetscInt ci=0; ci<ncll; ci++)
-        {
-            PetscFPrintf(mesh->MESH_COMM, f, "%*d %*d %*s %*d %*d %*d %*d\n", width, ci+1, width, 0, width, "quad", width, cellPtLabels[ci][0], width, cellPtLabels[ci][1], width, cellPtLabels[ci][2], width, cellPtLabels[ci][3]);
-        }
-
-        fclose(f);
     }
-
-    // increase write number counter
-    farm->writeNumber++;
 
     return(0);
 }
@@ -4728,9 +5596,6 @@ PetscErrorCode writeFarmTwrMesh(farm_ *farm)
         // number of points, number of cells
         PetscFPrintf(mesh->MESH_COMM, f, "%*d %*d %*d %*d %*d\n", width, npts, width, ncll, width, 0, width, 0, width, 0);
 
-        // write coordinates
-        npts = 1;
-
         for(PetscInt t=0; t<farm->size; t++)
         {
             // set tower top point
@@ -4762,6 +5627,102 @@ PetscErrorCode writeFarmTwrMesh(farm_ *farm)
         }
 
         fclose(f);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode writeFarmALMesh(farm_ *farm)
+{
+    mesh_      *mesh = farm->access->mesh;
+    clock_    *clock = farm->access->clock;
+
+    PetscMPIInt rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    PetscInt    point_id, cell_id;
+
+    if(!rank)
+    {
+        // compute number of points and cells
+        PetscInt npts = 0;
+        PetscInt ncll = 0;
+        for(PetscInt t=0; t<farm->size; t++)
+        {
+            if((*farm->turbineModels[t]) == "ALM")
+            {
+                npts += 6;
+                ncll += 3;
+            }
+        }
+
+        if(npts>0)
+        {
+            word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
+
+            word fileName = turbineFolderName + "/ALMesh_" + getTimeName(clock) + ".inp";
+
+            PetscInt width = -20;
+
+            FILE *f = fopen(fileName.c_str(), "w");
+
+            // header
+            PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from OKWind V0521\n");
+            PetscFPrintf(mesh->MESH_COMM, f, "#\n");
+            PetscFPrintf(mesh->MESH_COMM, f, "#\n");
+
+            // number of points, number of cells
+            PetscFPrintf(mesh->MESH_COMM, f, "%*d %*d %*d %*d %*d\n", width, npts, width, ncll, width, 0, width, 0, width, 0);
+
+            // write coordinates
+            point_id = 0;
+
+            for(PetscInt t=0; t<farm->size; t++)
+            {
+                // define tip/root blade points in reference (vertical) configuration
+                Cmpnts bldTip  = nScale(farm->wt[t]->rTip, farm->wt[t]->twrDir);
+                Cmpnts bldRoot = nScale(farm->wt[t]->rHub, farm->wt[t]->twrDir);
+
+                Cmpnts *points;
+                PetscMalloc(6*sizeof(Cmpnts), &points);
+
+                PetscReal angle = farm->wt[t]->alm.azimuth;
+
+                for(PetscInt b=0; b<3; b++)
+                {
+                    Cmpnts bldTip_b  = nRot(farm->wt[t]->omega_hat, bldTip,  angle*farm->wt[t]->deg2rad);
+                    Cmpnts bldRoot_b = nRot(farm->wt[t]->omega_hat, bldRoot, angle*farm->wt[t]->deg2rad);
+
+                    PetscFPrintf(mesh->MESH_COMM, f, "%*d %*.7f %*.7f %*.7f\n", width, point_id, width, bldTip_b.x, width, bldTip_b.y, width, bldTip_b.z);
+                    point_id++;
+                    PetscFPrintf(mesh->MESH_COMM, f, "%*d %*.7f %*.7f %*.7f\n", width, point_id, width, bldRoot_b.x, width, bldRoot_b.y, width, bldRoot_b.z);
+                    point_id++;
+
+                    angle = angle + 120;
+                }
+            }
+
+            // write connectivity
+            width = -5;
+
+            point_id = 0;
+            cell_id  = 1;
+
+            // build connectivity
+            for(PetscInt t=0; t<farm->size; t++)
+            {
+                for(PetscInt b=0; b<3; b++)
+                {
+                    PetscFPrintf(mesh->MESH_COMM, f, "%*d %*d %*s %*d %*d\n", width, cell_id, width, 0, width, "line", width, point_id, width, point_id+1);
+                    cell_id++;
+                    point_id = point_id + 2;
+                }
+            }
+
+            fclose(f);
+        }
     }
 
     return(0);
@@ -4873,6 +5834,9 @@ PetscErrorCode readFarmProperties(farm_ *farm)
         // read turbine properties
         readTurbineProperties(farm->wt[t], descrFile.c_str(), (*farm->turbineModels[t]));
     }
+
+    // set CFL checking flag to zero
+    farm->checkCFL = 0;
 
     printFarmProperties(farm);
 
@@ -5262,6 +6226,9 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     wt->deg2rad = M_PI / 180.0;
     wt->rad2deg = 180.0 / M_PI;
     wt->rpm2RadSec = 2 * M_PI / 60.0;
+
+    // initialize rotor omega to zero (for CFL check access)
+    wt->rtrOmega = 0.0;
 
     // read parameters for AD/AL models
     if(modelName == "ADM" || modelName == "ALM")
@@ -6183,7 +7150,8 @@ PetscErrorCode checkPointDiscriminationRotor(farm_ *farm)
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
             {
-                // not implemented
+                // number of points in the AD mesh
+                npts_t = wt->alm.nPoints;
             }
 
             laccounted[t].resize(npts_t);
@@ -6242,7 +7210,19 @@ PetscErrorCode checkPointDiscriminationRotor(farm_ *farm)
                 // actuator line model
                 else if((*farm->turbineModels[t]) == "ALM")
                 {
-                    // not implemented
+                    // number of points in the AD mesh
+                    PetscInt npts_t = wt->alm.nPoints;
+
+                    // loop over the AD mesh points
+                    for(p=0; p<npts_t; p++)
+                    {
+                        if(wt->alm.thisPtControlled[p])
+                        {
+                            // set this point as accounted for. This is to check that
+                            // the discrimination algorithm works properly.
+                            laccounted[t][p]++;
+                        }
+                    }
                 }
             }
         }
@@ -6268,7 +7248,8 @@ PetscErrorCode checkPointDiscriminationRotor(farm_ *farm)
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
             {
-                // not implemented
+                // number of points in the AL mesh
+                npts_t = wt->alm.nPoints;
             }
 
             // scatter 'accounted' for processor point owning test
@@ -6292,7 +7273,7 @@ PetscErrorCode checkPointDiscriminationRotor(farm_ *farm)
                 // actuator line model
                 else if((*farm->turbineModels[t]) == "ALM")
                 {
-                    // not implemented
+                    point_p = wt->alm.points[p];
                 }
 
                 // not accounted
