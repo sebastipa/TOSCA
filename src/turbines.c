@@ -174,6 +174,9 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
     // set physical time clock pointer
     clock_ *clock = farm->access->clock;
 
+    // set io pointer
+    io_    *io    = farm->access->io;
+
     // loop over each wind turbine
     for(t=0; t<farm->size; t++)
     {
@@ -251,6 +254,32 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                 wt->rtrOmega     = 0.0;
                 wt->genOmega     = 0.0;
                 wt->rtrOmegaFilt = 0.0;
+
+                if((*farm->turbineModels[t]) == "ALM")
+                {
+                    wt->alm.azimuth = 0.0;
+
+                    // sync rotor azimuts on the master rank for writing
+                    if(io->runTimeWrite)
+                    {
+                        // set azimut to zero before scattering
+                        PetscReal gazimuth;
+
+                        // set mesh pointer
+                        mesh_ *mesh = farm->access->mesh;
+
+                        PetscMPIInt rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+                        // scatter on the master rank
+                        MPI_Reduce(&(wt->alm.azimuth), &gazimuth, 1, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+
+                        // divide by nprocs in turbine communicator
+                        gazimuth = gazimuth / wt->nProcsTrb;
+
+                        // rotate turbines
+                        if(!rank) rotateBlades(wt, gazimuth * wt->deg2rad);
+                    }
+                }
             }
         }
     }
@@ -1833,7 +1862,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                 // global inflow velocity for this processor
                 std::vector<Cmpnts> gWind(npts_t);
 
-                // loop over the AD mesh points
+                // loop over the AL mesh points
                 for(p=0; p<npts_t; p++)
                 {
                     // initialize temporary variables
@@ -1892,7 +1921,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         for (j1=j-2; j1<j+3; j1++)
                         for (i1=i-2; i1<i+3; i1++)
                         {
-                            // compute distance from mesh cell to AD point
+                            // compute distance from mesh cell to AL point
                             Cmpnts r_c = nSub(sample, cent[k][j][i]);
 
                             // compute magnitude
@@ -1916,12 +1945,12 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                             cent, ucat, uc_p
                         );
 
-                        // compute the relative velocity at the AD point
+                        // compute the relative velocity at the AL point
                         Cmpnts ur_p  = nSet(uc_p);
                                        mSum(ur_p, uf_p);
                         lU[p]        = nSet(ur_p);
 
-                        // compute the inflow wind at the AD point
+                        // compute the inflow wind at the AL point
                         lWind[p]     = nSet(uc_p);
                     }
                 }
@@ -2536,11 +2565,11 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                 // number of points in the AL mesh
                 PetscInt npts_t = wt->alm.nPoints;
 
-                // loop over the AD mesh points
+                // loop over the AL mesh points
                 for(p=0; p<npts_t; p++)
                 {
                     // do not test if this point is inside this processor.
-                    // If at least 1 AD point is inside this processor we have
+                    // If at least 1 AL point is inside this processor we have
                     // to compute the parameters at all AD points.
                     {
                         // save this point locally for speed
@@ -4041,7 +4070,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
         MPI_Barrier(mesh->MESH_COMM);
 
         // remove old checkpoint files except last one after all files are written (safe)
-        if(!rank) remove_subdirs_except(mesh->MESH_COMM, turbineFolderName.c_str(), timeName);
+        if(!rank && mesh->access->io->purgeWrite) remove_subdirs_except(mesh->MESH_COMM, turbineFolderName.c_str(), timeName);
     }
 
     return(0);
@@ -4200,7 +4229,7 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
             // rotate blades
             if((*farm->turbineModels[t]) == "ALM")
             {
-                rotateBlades(wt, wt->alm.azimuth);
+                rotateBlades(wt, wt->alm.azimuth * wt->deg2rad);
             }
         }
     }
@@ -5418,7 +5447,7 @@ PetscErrorCode writeFarmADMesh(farm_ *farm)
             word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
 
             char fileName[256];
-            sprintf(fileName, "%s/ADMesh_%.0f.inp", turbineFolderName.c_str(), clock->time);
+            sprintf(fileName, "%s/ADMesh_%ld.inp", turbineFolderName.c_str(), farm->writeNumber);
 
             PetscInt width = -20;
 
@@ -5662,11 +5691,12 @@ PetscErrorCode writeFarmALMesh(farm_ *farm)
         {
             word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
 
-            word fileName = turbineFolderName + "/ALMesh_" + getTimeName(clock) + ".inp";
+            char fileName[256];
+            sprintf(fileName, "%s/ALMesh_%ld.inp", turbineFolderName.c_str(), farm->writeNumber);
 
             PetscInt width = -20;
 
-            FILE *f = fopen(fileName.c_str(), "w");
+            FILE *f = fopen(fileName, "w");
 
             // header
             PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from OKWind V0521\n");
