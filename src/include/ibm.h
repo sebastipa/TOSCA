@@ -7,32 +7,32 @@
 //! \brief Node struct
 typedef struct node
 {
-  PetscInt              Node;
-  struct node     *next;
+    PetscInt              Node;
+    struct node           *next;
 } node;
 
 typedef struct cellNode
 {
-  cellIds              Node;
-  struct cellNode     *next;
+    cellIds         Node;
+    struct cellNode *next;
 } cellNode;
 
 //! \brief Node list
 typedef struct list
 {
-  node            *head;
+    node         *head;
 } list;
 
 //! \brief cell Node list
 typedef struct cellList
 {
-  cellNode            *head;
+    cellNode     *head;
 } cellList;
 
 typedef struct
 {
-  PetscInt             ncx, ncy, ncz;                  //!< number of search cells in x,y and z direction
-  PetscReal          dcx, dcy, dcz;                  //!< search cell size in x,y and z direction
+    PetscInt     ncx, ncy, ncz;                //!< number of search cells in x,y and z direction
+    PetscReal    dcx, dcy, dcz;                //!< search cell size in x,y and z direction
 } searchBox;
 
 
@@ -143,15 +143,19 @@ struct ibm_
 // FUNCTIONS
 // =============================================================================
 
+//! \brief initialize ibm: top level function
 PetscErrorCode InitializeIBM(domain_ *domain);
 
+//! \brief update imb: top level function
 PetscErrorCode ibmUpdate(ibm_ *ibm);
 
+//! \brief writes the angular position when the body is rotating
 PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b);
 
 //! \brief read the IBMProperties.dat file , IBM mesh files and allocate memory for the objects
 PetscErrorCode readIBMProperties(ibm_ *ibm);
 
+// \brief read the IBM mesh
 PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b);
 
 //! \brief read the ibm mesh in ASCII format
@@ -160,6 +164,7 @@ PetscErrorCode readIBMFileASCIIRaster(ibmObject *ibmBody);
 //! \brief read the ibm mesh in ucd format
 PetscErrorCode readIBMFileUCD(ibmObject *ibmBody);
 
+//! \brief write the STL mesh
 PetscErrorCode writeSTLFile(ibmObject *ibmBody);
 
 //! \brief update the ibm mesh when the ibm body is moving
@@ -210,6 +215,7 @@ PetscErrorCode destroyLists(ibm_ *ibm);
 //! \brief ray tracing algorithm
 PetscReal rayCastingTest(Cmpnts p, ibmMesh *ibmMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList);
 
+//! \brief find element bounding sphere
 PetscErrorCode elementBoundingSphere(ibmMesh *ibMesh);
 
 //! \brief inline function to generate a random direction along the z index of the search cell for the ray casting algorithm
@@ -239,4 +245,5 @@ inline void disP2Line(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts *po, PetscReal *d);
 //! \brief find the interpolation weights of a point inside a triangle from its nodes
 inline void triangleIntp(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3, ibmFluidCell *ibF);
 
+//! \brief used for debugging
 PetscErrorCode printstuff(ibm_ *ibm);

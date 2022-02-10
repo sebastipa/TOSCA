@@ -11,76 +11,72 @@
 
 PetscErrorCode InitializeIBM(domain_ *domain)
 {
-  PetscInt nDomains = domain[0].info.nDomains;
-  flags_ flags = domain[0].flags;
+    PetscInt nDomains = domain[0].info.nDomains;
+    flags_ flags = domain[0].flags;
 
-  if(flags.isIBMActive)
-  {
-
-    // loop through the domains to set the domain ibm pointer
-    for(PetscInt d = 0; d < nDomains; d++)
+    if(flags.isIBMActive)
     {
-      readIBMProperties(domain[d].ibm);
+        // loop through the domains to set the domain ibm pointer
+        for(PetscInt d = 0; d < nDomains; d++)
+        {
+            readIBMProperties(domain[d].ibm);
 
-      findBodyBoundingBox(domain[d].ibm);
+            findBodyBoundingBox(domain[d].ibm);
 
-      setDomainIBMObjectInteraction(domain[d].ibm, d);
+            setDomainIBMObjectInteraction(domain[d].ibm, d);
 
-      findSearchCellDim(domain[d].ibm);
+            findSearchCellDim(domain[d].ibm);
 
-      createSearchCellList(domain[d].ibm);
+            createSearchCellList(domain[d].ibm);
 
-      // ibm search algorithm
-      if(domain[d].ueqn->initFieldType != "readField")
-      {
-        PetscPrintf(PETSC_COMM_WORLD, "IBM search algorithm...");
-        ibmSearch(domain[d].ibm);
-        PetscPrintf(PETSC_COMM_WORLD, "done\n");
-      }
+            // ibm search algorithm
+            if(domain[d].ueqn->initFieldType != "readField")
+            {
+                PetscPrintf(PETSC_COMM_WORLD, "IBM search algorithm...");
+                ibmSearch(domain[d].ibm);
+                PetscPrintf(PETSC_COMM_WORLD, "done\n");
+            }
 
-      MPI_Barrier(domain[d].mesh->MESH_COMM);
+            MPI_Barrier(domain[d].mesh->MESH_COMM);
 
-      checkIBMexists(domain[d].ibm);
+            checkIBMexists(domain[d].ibm);
 
-      findIBMFluidCells(domain[d].ibm);
+            findIBMFluidCells(domain[d].ibm);
 
-      if (domain[d].ibm->IBInterpolationModel == "MLS")
-      {
-        findFluidSupportNodes(domain[d].ibm);
+            if (domain[d].ibm->IBInterpolationModel == "MLS")
+            {
+                findFluidSupportNodes(domain[d].ibm);
 
-        findIBMMeshSupportNodes(domain[d].ibm);
+                findIBMMeshSupportNodes(domain[d].ibm);
 
-        MPI_Barrier(domain[d].mesh->MESH_COMM);
+                MPI_Barrier(domain[d].mesh->MESH_COMM);
 
-        // MLS interpolation algorithm
-        MLSInterpolation(domain[d].ibm);
+                // MLS interpolation algorithm
+                MLSInterpolation(domain[d].ibm);
+            }
+            else if (domain[d].ibm->IBInterpolationModel == "CURVIB")
+            {
+                findClosestIBMElement(domain[d].ibm);
 
-      }
-      else if (domain[d].ibm->IBInterpolationModel == "CURVIB")
-      {
-        findClosestIBMElement(domain[d].ibm);
+                CurvibInterpolation(domain[d].ibm);
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "incorrect IB interpolation method. Use MLS or CURVIB");
+                fatalErrorInFunction("InitializeIBM",  error);
+            }
 
-        CurvibInterpolation(domain[d].ibm);
-      }
-      else
-      {
-         char error[512];
-          sprintf(error, "incorrect IB interpolation method. Use MLS or CURVIB");
-          fatalErrorInFunction("InitializeIBM",  error);
-      }
+            MPI_Barrier(domain[d].mesh->MESH_COMM);
 
-      MPI_Barrier(domain[d].mesh->MESH_COMM);
+            //update the boundary condition around ibm cells
+            UpdateImmersedBCs(domain[d].ibm);
 
-      //update the boundary condition around ibm cells
-      UpdateImmersedBCs(domain[d].ibm);
-
-      contravariantToCartesian(domain[d].ueqn);
-
+            contravariantToCartesian(domain[d].ueqn);
+        }
     }
 
-  }
-
-  return(0);
+    return(0);
 }
 
 //***************************************************************************************************************//
@@ -143,6 +139,7 @@ PetscErrorCode ibmUpdate(ibm_ *ibm)
     {
         destroyLists(ibm);
     }
+
     //update the boundary condition around ibm cells
     UpdateImmersedBCs(ibm);
 
@@ -172,6 +169,7 @@ PetscErrorCode UpdateIBMesh(ibm_ *ibm)
             }
         }
     }
+
     return(0);
 }
 
@@ -239,7 +237,7 @@ PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b)
         mScale(1/3.0, ibMsh->eCent[i]);
     }
 
-    //write the current angular position of the ibm to a file
+    // write the current angular position of the ibm to a file
     writeAngularPosition(ibm, b);
 
     return (0);
@@ -625,11 +623,14 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
             if(k1 == k && j1 == j && i1 == i) continue;
 
             if
-            ((
-                k1>=1 && k1<mz-1 &&
-                j1>=1 && j1<my-1 &&
-                i1>=1 && i1<mx-1
-            ) && isFluidCell(k1, j1, i1, nvert))
+            (
+                (
+                    k1>=1 && k1<mz-1 &&
+                    j1>=1 && j1<my-1 &&
+                    i1>=1 && i1<mx-1
+                ) &&
+                isFluidCell(k1, j1, i1, nvert)
+            )
             {
                 d = pow((bPt.x - cent[k1][j1][i1].x), 2) +
                     pow((bPt.y - cent[k1][j1][i1].y), 2) +
@@ -703,7 +704,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 
          wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, nf);
          // wallFunctionPowerlaw(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, nf);
- 
+
 
          if (flags->isTeqnActive)
          {

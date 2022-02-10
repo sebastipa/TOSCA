@@ -50,6 +50,30 @@ typedef struct
 
 } upSampling;
 
+//! \brief Actuator Farm Model
+typedef struct
+{
+    Cmpnts                 point;   //!< point coordinates
+    PetscReal               Uref;   //!< reference velocity to compute CtInf (only used for data writing)
+    PetscReal                 Ct;   //!< imposed thrust coefficient
+
+    // time-varying variables
+    cellIds          closestCell;   //!< indices of the closest cells to this turbine AL points
+    Cmpnts                     U;   //!< flow velocity at the AF point
+    Cmpnts                     B;   //!< body force at the AF point
+    PetscReal             axialF;   //!< rotor axial force at the AF point
+
+    PetscReal          rtrThrust;   //!< total rotor thrust
+    PetscReal            aeroPwr;   //!< total rotor aero power
+
+    PetscInt    thisPtControlled;   //!< flag telling if this processor controls the AF point
+    PetscInt          searchDone;   //!< flag telling if the closest cell search has been done
+
+    // debug switch
+    PetscInt                 dbg;   //!< prints a lot of information
+
+} AFM;
+
 //! \brief Actuator Line Model
 typedef struct
 {
@@ -241,6 +265,7 @@ typedef struct
     ADM                      adm;   //!< actuator disk model
     UADM                    uadm;   //!< unform actuator disk model
     ALM                      alm;   //!< actuator line model
+    AFM                      afm;   //!< actuator farm model
 
     // tower model
     towerModel               twr;   //!< actuator line tower model
@@ -472,6 +497,9 @@ PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base);
 
 //! \brief Initializes the ALM reading from files and allocating memory
 PetscErrorCode initALM(windTurbine *wt, Cmpnts &base);
+
+//! \brief Initializes the AFM reading from files and allocating memory
+PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base);
 
 //! \brief Initializes the tower model
 PetscErrorCode initTwrModel(windTurbine *wt, Cmpnts &base);

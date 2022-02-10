@@ -124,6 +124,11 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
                 // initialize actuator line model parameters
                 initALM(farm->wt[t], farm->base[t]);
             }
+            else if((*farm->turbineModels[t]) == "AFM")
+            {
+                // initialize actuator farm model parameters
+                initAFM(farm->wt[t], farm->base[t]);
+            }
             else
             {
                char error[512];
@@ -182,7 +187,7 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        if((*farm->turbineModels[t]) != "uniformADM")
+        if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
         {
             // test if this processor controls this turbine
             if(wt->turbineControlled)
@@ -258,27 +263,31 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                 if((*farm->turbineModels[t]) == "ALM")
                 {
                     wt->alm.azimuth = 0.0;
+                }
+            }
 
-                    // sync rotor azimuts on the master rank for writing
-                    if(io->runTimeWrite)
-                    {
-                        // set azimut to zero before scattering
-                        PetscReal gazimuth;
+            // sync rotor azimuts on the master rank for writing (only for ALM)
+            if(io->runTimeWrite && (*farm->turbineModels[t]) == "ALM")
+            {
+                // set azimut to zero before scattering
+                PetscReal gazimuth;
 
-                        // set mesh pointer
-                        mesh_ *mesh = farm->access->mesh;
+                // set mesh pointer
+                mesh_ *mesh = farm->access->mesh;
 
-                        PetscMPIInt rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+                PetscMPIInt rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
-                        // scatter on the master rank
-                        MPI_Reduce(&(wt->alm.azimuth), &gazimuth, 1, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+                // scatter on the master rank
+                MPI_Reduce(&(wt->alm.azimuth), &gazimuth, 1, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
 
-                        // divide by nprocs in turbine communicator
-                        gazimuth = gazimuth / wt->nProcsTrb;
+                // divide by nprocs in turbine communicator
+                gazimuth = gazimuth / wt->nProcsTrb;
 
-                        // rotate turbines
-                        if(!rank) rotateBlades(wt, gazimuth * wt->deg2rad);
-                    }
+                // rotate turbines
+                if(!rank)
+                {
+                    PetscReal angle = (gazimuth - wt->alm.azimuth) * wt->deg2rad;
+                    rotateBlades(wt, angle);
                 }
             }
         }
@@ -340,7 +349,7 @@ PetscErrorCode controlGenSpeed(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        if((*farm->turbineModels[t]) != "uniformADM")
+        if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
         {
             // test if this processor controls this turbine
             if(wt->turbineControlled)
@@ -447,7 +456,7 @@ PetscErrorCode controlBldPitch(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        if((*farm->turbineModels[t]) != "uniformADM")
+        if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
         {
             // test if this processor controls this turbine
             if(wt->turbineControlled)
@@ -613,8 +622,8 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                         {
                             // cell indices
                             PetscInt i = upPoints->controlledCells[c].i,
-                                j = upPoints->controlledCells[c].j,
-                                k = upPoints->controlledCells[c].k;
+                                     j = upPoints->controlledCells[c].j,
+                                     k = upPoints->controlledCells[c].k;
 
                             Cmpnts distVec = nSub(upPoint, cent[k][j][i]);
                                              mSub(distVec, perturbVec);
@@ -728,6 +737,10 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                                 // rotate other parameters
                                 mRot(wt->twrDir, wt->omega_hat, angle);
                             }
+                            else if((*farm->turbineModels[t]) == "AFM")
+                            {
+                                // nothing to do
+                            }
 
                             // rotate up-sampling points
                             {
@@ -749,10 +762,10 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                                     mSum(upPoints->points[p], wt->rotCenter);
                                 }
                             }
-
-                            // turbine point search will be performed
-                            wt->yawChanged = 1;
                         }
+
+                        // turbine point search will be performed
+                        wt->yawChanged = 1;
                     }
                     else if(wt->yawSamplingType == "anemometer")
                     {
@@ -864,6 +877,10 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                         // rotate other parameters
                         mRot(wt->twrDir, wt->omega_hat, angle);
                     }
+                    else if((*farm->turbineModels[t]) == "AFM")
+                    {
+                        // nothing to do
+                    }
 
                     // rotate up-sampling points
                     {
@@ -948,7 +965,7 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                 // create temporary vectors
                 std::vector<PetscReal> lminDist(npts_t);
                 std::vector<PetscReal> gminDist(npts_t);
-                std::vector<Cmpnts> perturb(npts_t);
+                std::vector<Cmpnts>    perturb(npts_t);
 
                 // loop over the AD mesh points
                 for(p=0; p<npts_t; p++)
@@ -977,8 +994,8 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                     {
                         // cell indices
                         PetscInt i = wt->controlledCells[c].i,
-                            j = wt->controlledCells[c].j,
-                            k = wt->controlledCells[c].k;
+                                 j = wt->controlledCells[c].j,
+                                 k = wt->controlledCells[c].k;
 
                         // compute distance from mesh cell to AD point
                         Cmpnts r_c = nSub(point_p, cent[k][j][i]);
@@ -1069,8 +1086,8 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                     {
                         // cell indices
                         PetscInt i = wt->controlledCells[c].i,
-                            j = wt->controlledCells[c].j,
-                            k = wt->controlledCells[c].k;
+                                 j = wt->controlledCells[c].j,
+                                 k = wt->controlledCells[c].k;
 
                         // compute distance from mesh cell to AD point
                         Cmpnts r_c = nSub(point_p, cent[k][j][i]);
@@ -1216,6 +1233,68 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                 std::vector<PetscReal> ().swap(gminDist);
                 std::vector<Cmpnts> ().swap(perturb);
             }
+            // actuator farm model
+            else if((*farm->turbineModels[t]) == "AFM" && !wt->afm.searchDone)
+            {
+                Cmpnts perturbVec;
+                       perturbVec.x = procContrib;
+                       perturbVec.y = procContrib;
+                       perturbVec.z = procContrib;
+
+                // we must find the closest cell to the AF point
+                Cmpnts rotor_c = wt->afm.point;
+
+                PetscReal gmindist, lmindist = 1e10;
+                cellIds   closestCell;
+
+                // loop over the sphere cells
+                for(c=0; c<wt->nControlled; c++)
+                {
+                    // cell indices
+                    PetscInt i = wt->controlledCells[c].i,
+                             j = wt->controlledCells[c].j,
+                             k = wt->controlledCells[c].k;
+
+                    // compute cell center to point distance
+                    Cmpnts dist = nSub(cent[k][j][i], rotor_c);
+                                  mSub(dist, perturbVec);
+
+                    // compute distance magnitude
+                    PetscReal distMag = nMag(dist);
+
+                    // test if inside sphere
+                    if(distMag < lmindist)
+                    {
+                        closestCell.i = i;
+                        closestCell.j = j;
+                        closestCell.k = k;
+
+                        lmindist = distMag;
+                    }
+                }
+
+                // find the overall minimum distance
+                MPI_Allreduce(&lmindist, &gmindist, 1, MPIU_REAL, MPIU_MIN, wt->TRB_COMM);
+
+                // compare the lists, where they agree the point is in this processor
+                if(lmindist == gmindist)
+                {
+                    // set closest cell indices
+                    wt->afm.closestCell.i = closestCell.i;
+                    wt->afm.closestCell.j = closestCell.j;
+                    wt->afm.closestCell.k = closestCell.k;
+
+                    // set controlled flag
+                    wt->afm.thisPtControlled = 1;
+                }
+                else
+                {
+                    // set controlled flag
+                    wt->afm.thisPtControlled = 0;
+                }
+
+                wt->afm.searchDone = 1;
+            }
         }
     }
 
@@ -1244,8 +1323,8 @@ PetscErrorCode findControlledPointsSample(farm_ *farm)
 
     Cmpnts           ***cent;   // local vector (no ambiguity in this context)
 
-    PetscMPIInt           nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
-    PetscMPIInt           rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
     lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
@@ -1278,7 +1357,7 @@ PetscErrorCode findControlledPointsSample(farm_ *farm)
             // create temporary vectors
             std::vector<PetscReal> lminDist(npts_t);
             std::vector<PetscReal> gminDist(npts_t);
-            std::vector<Cmpnts> perturb(npts_t);
+            std::vector<Cmpnts>    perturb(npts_t);
 
             // loop over the sample mesh points
             for(p=0; p<npts_t; p++)
@@ -1354,7 +1433,7 @@ PetscErrorCode findControlledPointsSample(farm_ *farm)
             // clean memory
             std::vector<PetscReal> ().swap(lminDist);
             std::vector<PetscReal> ().swap(gminDist);
-            std::vector<Cmpnts> ().swap(perturb);
+            std::vector<Cmpnts>    ().swap(perturb);
         }
 
         // set yaw changed to zero (will be overwritten by controlNacYaw if applicable)
@@ -1385,8 +1464,8 @@ PetscErrorCode findControlledPointsTower(farm_ *farm)
 
     Cmpnts           ***cent;   // local vector (no ambiguity in this context)
 
-    PetscMPIInt           nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
-    PetscMPIInt           rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
     lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
@@ -1749,8 +1828,8 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
 
                     // get the closest cell center
                     PetscInt i = wt->uadm.closestCells[p].i,
-                        j = wt->uadm.closestCells[p].j,
-                        k = wt->uadm.closestCells[p].k;
+                             j = wt->uadm.closestCells[p].j,
+                             k = wt->uadm.closestCells[p].k;
 
                     if(wt->uadm.thisPtControlled[p])
                     {
@@ -2014,6 +2093,85 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                 std::vector<Cmpnts> ().swap(lU);
                 std::vector<Cmpnts> ().swap(lWind);
                 std::vector<Cmpnts> ().swap(gWind);
+            }
+            else if((*farm->turbineModels[t]) == "AFM")
+            {
+                // this processor velocity
+                Cmpnts lU;
+
+                if(wt->afm.thisPtControlled)
+                {
+                    // save this point locally for speed
+                    Cmpnts point_p = wt->afm.point;
+
+                    // get the closest cell center
+                    PetscInt i = wt->afm.closestCell.i,
+                             j = wt->afm.closestCell.j,
+                             k = wt->afm.closestCell.k;
+
+                    // get velocity at that point
+                    Cmpnts uc_p = nSet(ucat[k][j][i]);
+
+                    // now we have to sample the velocity from the background mesh,
+                    // uc_p could also be behind the rotor so the estimation
+                    // would be unstable. We use the velocity info to go back along
+                    // the local streamline at a distance equal to uc_p*dt from the rotor,
+                    // and use that as an estimate. This is supported by the fact
+                    // that upon exiting this time iteration, the particle being at a distance
+                    // from the rotor of uc_p*dt will likely be at this AF mesh point.
+
+                    // reverse sign to the velocity (we go backward along streamline)
+                    mScale(-1.0, uc_p);
+
+                    // find the point at which velocity must be sampled
+                    Cmpnts sample = nScale(clock->dt, uc_p);
+                                    mSum(sample, point_p);
+
+                    // find the closest cell indices to the sample point,
+                    // allow for max 2 delta cells to stay in this processor
+                    PetscReal  r_c_minMag = 1e20;
+                    cellIds    closestCell;
+                    PetscInt   k1, j1, i1;
+
+                    for (k1=k-2; k1<k+3; k1++)
+                    for (j1=j-2; j1<j+3; j1++)
+                    for (i1=i-2; i1<i+3; i1++)
+                    {
+                        // compute distance from mesh cell to AF point
+                        Cmpnts r_c = nSub(sample, cent[k][j][i]);
+
+                        // compute magnitude
+                        PetscReal r_c_mag = nMag(r_c);
+
+                        if(r_c_mag < r_c_minMag)
+                        {
+                            r_c_minMag = r_c_mag;
+                            closestCell.i = i;
+                            closestCell.j = j;
+                            closestCell.k = k;
+                        }
+                    }
+
+                    // trilinear interpolate
+                    vectorPointLocalVolumeInterpolation
+                    (
+                        mesh,
+                        sample.x, sample.y, sample.z,
+                        closestCell.i, closestCell.j, closestCell.k,
+                        cent, ucat, uc_p
+                    );
+
+                    // compute the inflow at the AF point
+                    lU = nSet(uc_p);
+                }
+                else
+                {
+                    lU.x = 0.0;
+                    lU.y = 0.0;
+                    lU.z = 0.0;
+                }
+
+                MPI_Allreduce(&lU, &(wt->afm.U), 3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
             }
         }
     }
@@ -2713,9 +2871,27 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                 // aerodynamic power
                 wt->alm.aeroPwr = wt->alm.rtrTorque * wt->rtrOmega;
             }
+            else if((*farm->turbineModels[t]) == "AFM")
+            {
+                // compute induction factor
+                PetscReal a_t     = (1.0 - std::sqrt(1.0 - wt->afm.Ct)) / 2.0;
+
+                // compute freestream velocity
+                PetscReal Uref  = nMag(wt->afm.U) / (1.0 - 2.0 * a_t);
+
+                // compute body force
+                PetscReal bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * wt->afm.Ct;
+                wt->afm.B = nScale(bMag, wt->rtrAxis);
+
+                // aerodynamic thrust
+                wt->afm.rtrThrust = bMag * constants->rho;
+
+                // aerodynamic power
+                wt->afm.aeroPwr   = wt->afm.rtrThrust * (1-a_t) * Uref;
+            }
 
             // electric power (only for AD/AL models)
-            if((*farm->turbineModels[t]) != "uniformADM")
+            if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
             {
                 // second test inside because this variable is not defined for UADM
                 if(wt->genControllerType != "none")
@@ -2778,7 +2954,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
 
         // projection parameters
         PetscReal rPrj = wt->eps * wt->prjNSigma,
-               eps  = wt->eps;
+                  eps  = wt->eps;
 
         // test if this processor controls this turbine
         if(wt->turbineControlled)
@@ -2900,8 +3076,8 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                         {
                             // cell indices
                             PetscInt i = wt->controlledCells[c].i,
-                                j = wt->controlledCells[c].j,
-                                k = wt->controlledCells[c].k;
+                                     j = wt->controlledCells[c].j,
+                                     k = wt->controlledCells[c].k;
 
                             // compute distance from mesh cell to AD point
                             Cmpnts r_c = nSub(point_p, cent[k][j][i]);
@@ -3050,6 +3226,67 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                     }
                 }
             }
+            else if((*farm->turbineModels[t]) == "AFM")
+            {
+                // save this point locally for speed
+                Cmpnts point_p    = wt->afm.point;
+
+                // loop in sphere points
+                for(c=0; c<wt->nControlled; c++)
+                {
+                    // cell indices
+                    PetscInt i = wt->controlledCells[c].i,
+                             j = wt->controlledCells[c].j,
+                             k = wt->controlledCells[c].k;
+
+                    // compute distance from mesh cell to AF point
+                    Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                    // compute magnitude
+                    PetscReal r_c_mag = nMag(r_c);
+
+                    //if(r_c_mag < 2.0*wt->rTip)
+                    {
+                        // compute projection factor
+                        PetscReal pf
+                        =
+                        /*
+                        std::exp
+                        (
+                            -(r_c_mag *r_c_mag) /
+                             (2.0 * eps * eps)
+                        ) /
+                        (
+                            pow(eps,    3) *
+                            pow(2.0*M_PI, 1.5)
+                        );
+                        */
+                        std::exp
+                        (
+                            -(r_c_mag / eps)*
+                             (r_c_mag / eps)
+                        ) /
+                        (
+                            pow(eps,    3) *
+                            pow(M_PI, 1.5)
+                        );
+
+                        Cmpnts bfCell = nScale(pf, wt->afm.B);
+
+                        sCat[k][j][i].x += bfCell.x;
+                        sCat[k][j][i].y += bfCell.y;
+                        sCat[k][j][i].z += bfCell.z;
+
+                        // cumulate wind farm BF for projection error
+                        PetscReal vCell = 1.0 / aj[k][j][i];
+                        Cmpnts thrustBF = nScale(vCell*constants->rho, bfCell);
+
+                        // cumulate contribution from this AF point at this cell
+                        lThrustBFSum += nDot(thrustBF, wt->rtrAxis);
+                        lTorqueBFSum += 0.0;
+                    }
+                }
+            }
         }
     }
 
@@ -3068,7 +3305,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
         for(t=0; t<farm->size; t++)
         {
             windTurbine  *wt = farm->wt[t];
-            PetscReal       aeroPwr = 0.0, genPwr = 0.0,
+            PetscReal    aeroPwr = 0.0, genPwr = 0.0,
                          Thr     = 0.0, Trq    = 0.0;
 
             // reduce turbine parameters
@@ -3089,9 +3326,14 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                 MPI_Reduce(&(wt->alm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                 MPI_Reduce(&(wt->alm.rtrTorque), &Trq,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
             }
+            else if((*farm->turbineModels[t]) == "AFM")
+            {
+                MPI_Reduce(&(wt->afm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                MPI_Reduce(&(wt->afm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+            }
 
             // electric power
-            if((*farm->turbineModels[t]) != "uniformADM")
+            if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
             {
                 // second test inside because this variable is not defined for UADM
                 if(wt->genControllerType != "none")
@@ -3109,7 +3351,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                 Thr     /= wt->nProcsTrb;
                 Trq     /= wt->nProcsTrb;
 
-                if((*farm->turbineModels[t]) != "uniformADM")
+                if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
                 {
                     // second test inside because this variable is not defined for UADM
                     if(wt->genControllerType != "none")
@@ -3121,7 +3363,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                 // print turbine level information
                 if(wt->dbg)
                 {
-                    if((*farm->turbineModels[t]) == "uniformADM")
+                    if((*farm->turbineModels[t]) == "uniformADM" || (*farm->turbineModels[t]) == "AFM")
                     {
                         printf("Turbine %s: aero pwr = %.5f MW, Thrust on rtr axis = %.5f KN\n",(*farm->turbineIds[t]).c_str(), aeroPwr/1.0e6, Thr/1000.0);
                     }
@@ -3153,7 +3395,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
 
             word percent = "%";
 
-            // all models are uniformADM (no torque)
+            // all models are uniformADM/AFM (no torque)
             if(gTorqueSum <= 1e-10)
             {
                 // print projection error info
@@ -3611,6 +3853,11 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                     {
                         fprintf(f, "%*s %*s %*s %*s %*s %*s %*s %*s ", width, w0.c_str(), width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(), width, w5.c_str(), width, w6.c_str(), width, w7.c_str());
                     }
+                    // actuator farm model
+                    else if((*farm->turbineModels[t]) == "AFM")
+                    {
+                        fprintf(f, "%*s %*s %*s ", width, w0.c_str(), width, w3.c_str(), width, w4.c_str());
+                    }
                     else if((*farm->turbineModels[t]) == "ALM")
                     {
                         fprintf(f, "%*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s ", width, w0.c_str(), width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(), width, w5.c_str(), width, w6.c_str(), width, w7.c_str(), width, w8.c_str(), width, w9.c_str(), width, w16.c_str());
@@ -3767,6 +4014,14 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                     ctLoc        = (2.0 * rtrThrust * 1.0e3) / (constants->rho * pow(rtrAvgMagU,     2.0) * Ar );
                     ctUp         = (2.0 * rtrThrust * 1.0e3) / (constants->rho * pow(rtrAvgUpMagU,   2.0) * Ar );
                 }
+                else if((*farm->turbineModels[t]) == "AFM")
+                {
+                    MPI_Reduce(&(wt->afm.rtrThrust),  &rtrThrust,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->afm.aeroPwr),    &aeroPwr,       1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+
+                    rtrThrust    = rtrThrust  / wt->nProcsTrb / 1.0e3;
+                    aeroPwr      = aeroPwr    / wt->nProcsTrb / 1.0e6;
+                }
                 else if((*farm->turbineModels[t]) == "ALM")
                 {
                     MPI_Reduce(&(wt->alm.rtrAvgMagU), &rtrAvgMagU,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
@@ -3847,6 +4102,11 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                         else if((*farm->turbineModels[t]) == "uniformADM")
                         {
                             fprintf(f, "%*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f ", width, clock->time, width, rtrAvgMagU, width, rtrAvgUpMagU, width, rtrThrust, width, aeroPwr, width, ctInf, width, ctLoc, width, ctUp);
+                        }
+                        // actuator farm model
+                        else if((*farm->turbineModels[t]) == "AFM")
+                        {
+                            fprintf(f, "%*.4f %*.4f %*.4f ", width, clock->time, width, rtrThrust, width, aeroPwr);
                         }
                         else if((*farm->turbineModels[t]) == "ALM")
                         {
@@ -3983,7 +4243,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
                 PetscReal intErrPID    = 0.0;
                 PetscReal azimuth      = 0.0;
 
-                if((*farm->turbineModels[t]) != "uniformADM")
+                if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
                 {
                     MPI_Reduce(&(wt->rtrOmega), &rtrOmega,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
 
@@ -4027,7 +4287,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
                         fprintf(f, "    rtrDir             (%lf %lf %lf)\n", wt->rtrDir.x, wt->rtrDir.y, wt->rtrDir.z);
                         fprintf(f, "    rtrAxis            (%lf %lf %lf)\n", wt->rtrAxis.x, wt->rtrAxis.y, wt->rtrAxis.z);
 
-                        if((*farm->turbineModels[t]) != "uniformADM")
+                        if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
                         {
                             fprintf(f, "    omega_hat          (%lf %lf %lf)\n", wt->omega_hat.x, wt->omega_hat.y, wt->omega_hat.z);
                             fprintf(f, "    rtrOmega           %lf\n",         rtrOmega / wt->nProcsTrb);
@@ -4110,7 +4370,7 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
             readSubDictVector(dictName, "turbineLevelProperties", "rtrDir", &(wt->rtrDir));
             readSubDictVector(dictName, "turbineLevelProperties", "rtrAxis", &(wt->rtrAxis));
 
-            if((*farm->turbineModels[t]) != "uniformADM")
+            if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
             {
                 readSubDictVector(dictName, "turbineLevelProperties", "omega_hat", &(wt->omega_hat));
                 readSubDictDouble(dictName, "turbineLevelProperties", "rtrOmega", &(wt->rtrOmega));
@@ -4201,6 +4461,10 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
                             mRot(wt->twrDir, wt->alm.points[p], angle);
                             mSum(wt->alm.points[p], wt->rotCenter);
                         }
+                    }
+                    else if((*farm->turbineModels[t]) == "AFM")
+                    {
+                        // nothing to rotate
                     }
 
                     // rotate up-sampling points
@@ -4592,10 +4856,10 @@ PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base)
     upPoints->nPoints = nAzimuth * nRadial;
 
     // allocate objects memory
-    PetscMalloc(upPoints->nPoints*sizeof(Cmpnts),  &(upPoints->points));
-    PetscMalloc(upPoints->nPoints*sizeof(cellIds), &(upPoints->closestCells));
-    PetscMalloc(upPoints->nPoints*sizeof(PetscInt),     &(upPoints->thisPtControlled));
-    PetscMalloc(upPoints->nPoints*sizeof(PetscReal),  &(upPoints->dA));
+    PetscMalloc(upPoints->nPoints*sizeof(Cmpnts),    &(upPoints->points));
+    PetscMalloc(upPoints->nPoints*sizeof(cellIds),   &(upPoints->closestCells));
+    PetscMalloc(upPoints->nPoints*sizeof(PetscInt),  &(upPoints->thisPtControlled));
+    PetscMalloc(upPoints->nPoints*sizeof(PetscReal), &(upPoints->dA));
 
     // set tower top point
     Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
@@ -4870,6 +5134,48 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base)
 
 //***************************************************************************************************************//
 
+PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base)
+{
+    // allocate memory for the AFM
+    PetscMalloc(sizeof(AFM), &(wt->afm));
+
+    // read necessary properties from file
+    word descrFile = "./turbines/" + wt->type;
+
+    readDictDouble(descrFile.c_str(), "Ct",         &(wt->afm.Ct));
+    readDictDouble(descrFile.c_str(), "Uref",       &(wt->afm.Uref));
+
+    // set tower top point
+    Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
+                    mSum(tower, base);
+
+    // set rotor center point
+    Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
+    Cmpnts center = nSum(tower, overH);
+
+    wt->afm.point  = center;
+    wt->rotCenter  = center;
+
+    // set the rotor reference frame
+    // x from nacelle back to cone,
+    // y on the rotor at zero azimuth,
+    // z as the right hand rule
+    Cmpnts xr_hat = nUnit(wt->rtrDir);
+    Cmpnts yr_hat = nUnit(wt->twrDir);
+    Cmpnts zr_hat = nCross(xr_hat, yr_hat);
+    mRot(zr_hat, xr_hat, wt->upTilt*wt->deg2rad);  // rotate xr_hat with uptilt
+    mRot(zr_hat, yr_hat, wt->upTilt*wt->deg2rad);  // rotate yr_hat with uptilt
+
+    // set rotor axis (up-tilted, from nacell back to cone)
+    wt->rtrAxis = xr_hat;
+
+    wt->afm.searchDone = 0;
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode initTwrModel(windTurbine *wt, Cmpnts &base)
 {
     // set tower thrust to zero
@@ -4975,8 +5281,17 @@ PetscErrorCode initControlledCells(farm_ *farm)
         // set flag determining if this proc has cells for this turbine to zero
         hasCells = 0;
 
-        // this turbine radius
-        PetscReal radius_t = wt->rTip + wt->eps * wt->prjNSigma;
+        // this tursphere radius
+        PetscReal radius_t;
+
+        if((*farm->turbineModels[t]) != "AFM")
+        {
+            radius_t = wt->rTip + wt->eps * wt->prjNSigma;
+        }
+        else
+        {
+            radius_t = wt->eps * wt->prjNSigma;
+        }
 
         // this turbine rotor center
         Cmpnts rotor_c = wt->rotCenter;
@@ -5290,7 +5605,7 @@ PetscErrorCode initSampleControlledCells(farm_ *farm)
 
     Cmpnts           ***cent;
 
-    PetscMPIInt           rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    PetscMPIInt      rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
     lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
@@ -5313,7 +5628,7 @@ PetscErrorCode initSampleControlledCells(farm_ *farm)
         // set flag determining if this proc has cells for this turbine to zero
         hasCells = 0;
 
-        // this turbine radius
+        // this sphere radius
         PetscReal radius_t = 3.0 * (2.0*farm->wt[t]->rTip);
 
         // this turbine rotor center
@@ -6237,7 +6552,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     readDictDouble(dictName, "upTilt",      &(wt->upTilt));
 
     // read and compute plade projection radius
-    readDictDouble(dictName, "epsilon", &(wt->eps));
+    readDictDouble(dictName, "epsilon",     &(wt->eps));
 
     // set projection confidence interval as number of standard deviations (harcoded to 2.7)
     wt->prjNSigma = sqrt(std::log(1.0/0.001));
@@ -6330,7 +6645,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
         }
     }
 
-    // read yaw controller parameters (all models: ADM/ALM/UADM)
+    // read yaw controller parameters (all models: ADM/ALM/UADM/AFM)
     readDictWord(dictName,   "yawControllerType", &(wt->yawControllerType));
 
     if(wt->yawControllerType   != "none") readYawControllerParameters(wt,   wt->yawControllerType.c_str());
@@ -7183,6 +7498,11 @@ PetscErrorCode checkPointDiscriminationRotor(farm_ *farm)
                 // number of points in the AD mesh
                 npts_t = wt->alm.nPoints;
             }
+            else if((*farm->turbineModels[t]) == "AFM")
+            {
+                // number of points in the AD mesh
+                npts_t = 1;
+            }
 
             laccounted[t].resize(npts_t);
             gaccounted[t].resize(npts_t);
@@ -7254,6 +7574,14 @@ PetscErrorCode checkPointDiscriminationRotor(farm_ *farm)
                         }
                     }
                 }
+                else if((*farm->turbineModels[t]) == "AFM")
+                {
+                    // number of points in the AD mesh
+                    if(wt->afm.thisPtControlled)
+                    {
+                        laccounted[t][0]++;
+                    }
+                }
             }
         }
 
@@ -7281,6 +7609,11 @@ PetscErrorCode checkPointDiscriminationRotor(farm_ *farm)
                 // number of points in the AL mesh
                 npts_t = wt->alm.nPoints;
             }
+            else if((*farm->turbineModels[t]) == "AFM")
+            {
+                // number of points in the AL mesh
+                npts_t = 1;
+            }
 
             // scatter 'accounted' for processor point owning test
             MPI_Allreduce(&(laccounted[t][0]), &(gaccounted[t][0]), npts_t, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
@@ -7305,19 +7638,23 @@ PetscErrorCode checkPointDiscriminationRotor(farm_ *farm)
                 {
                     point_p = wt->alm.points[p];
                 }
+                else if((*farm->turbineModels[t]) == "AFM")
+                {
+                    point_p = wt->afm.point;
+                }
 
                 // not accounted
                 if(gaccounted[t][p] == 0)
                 {
                     char warning[256];
-                    sprintf(warning, "AD point %ld at location (%.2f %.2f %.2f) was not accounted for\n", p, point_p.x, point_p.y, point_p.z);
+                    sprintf(warning, "turbine point %ld at location (%.2f %.2f %.2f) was not accounted for\n", p, point_p.x, point_p.y, point_p.z);
                     warningInFunction("checkPointDiscriminationRotor",  warning);
                 }
                 // accounted twice
                 else if(gaccounted[t][p] == 2)
                 {
                     char warning[256];
-                    sprintf(warning, "AD point %ld at location (%.2f %.2f %.2f) was accounted twice\n", p, point_p.x, point_p.y, point_p.z);
+                    sprintf(warning, "turbine point %ld at location (%.2f %.2f %.2f) was accounted twice\n", p, point_p.x, point_p.y, point_p.z);
                     warningInFunction("checkPointDiscriminationRotor",  warning);
                 }
             }
@@ -7511,15 +7848,15 @@ PetscErrorCode checkPointDiscriminationSample(farm_ *farm)
                 if(gaccounted[t][p] == 0)
                 {
                     char warning[256];
-                    sprintf(warning, "tower point %ld at location (%.2f %.2f %.2f) was not accounted for\n", p, point_p.x, point_p.y, point_p.z);
-                    warningInFunction("checkPointDiscriminationTower",  warning);
+                    sprintf(warning, "sample point %ld at location (%.2f %.2f %.2f) was not accounted for\n", p, point_p.x, point_p.y, point_p.z);
+                    warningInFunction("checkPointDiscriminationSample",  warning);
                 }
                 // accounted twice
                 else if(gaccounted[t][p] == 2)
                 {
                     char warning[256];
-                    sprintf(warning, "tower point %ld at location (%.2f %.2f %.2f) was accounted twice\n", p, point_p.x, point_p.y, point_p.z);
-                    warningInFunction("checkPointDiscriminationTower",  warning);
+                    sprintf(warning, "sample point %ld at location (%.2f %.2f %.2f) was accounted twice\n", p, point_p.x, point_p.y, point_p.z);
+                    warningInFunction("checkPointDiscriminationSample",  warning);
                 }
             }
 
@@ -7565,7 +7902,7 @@ PetscErrorCode printFarmProperties(farm_ *farm)
             PetscPrintf(mesh->MESH_COMM," Model   : %s\n", (*farm->turbineModels[i]).c_str());
             PetscPrintf(mesh->MESH_COMM," Base    : (%lf, %lf, %lf)\n", farm->base[i].x, farm->base[i].y, farm->base[i].z);
 
-            if((*farm->turbineModels[i]) != "uniformADM")
+            if((*farm->turbineModels[i]) != "uniformADM" && (*farm->turbineModels[i]) != "AFM")
             {
                 PetscPrintf(mesh->MESH_COMM," Airfoils: ");
 
