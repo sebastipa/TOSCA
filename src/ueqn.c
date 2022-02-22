@@ -595,10 +595,10 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     if(ueqn->access->flags->isXDampingActive)
                     {
                         // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                        double x     = (cent[k][j][i].x   - mesh->bounds.xmin);
-                        double xi    = (cent[k][j][i+1].x - mesh->bounds.xmin);
-                        double xj    = (cent[k][j+1][i].x - mesh->bounds.xmin);
-                        double xk    = (cent[k+1][j][i].x - mesh->bounds.xmin);
+                        double x     = cent[k][j][i].x;
+                        double xi    = cent[k][j][i+1].x;
+                        double xj    = cent[k][j+1][i].x;
+                        double xk    = cent[k+1][j][i].x;
 
                         // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                         double nud_x   = viscStipa(xS, xE, xD, x);
@@ -681,7 +681,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
     PetscInt      zs    = info.zs, ze = info.zs + info.zm;
     PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
 
-    Cmpnts        ***ucont, ***cent, ***ucat, ***ucatP;
+    Cmpnts        ***cent, ***ucat, ***ucatP;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
@@ -697,77 +697,99 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
         // if only z component damping is active the uBar is zero.
         if(abl->zDampingAlsoXY)
         {
-            DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
-
             std::vector<Cmpnts>   luBar(my);
             std::vector<Cmpnts>   guBar(my);
-            std::vector<PetscInt> ln(my);
-            std::vector<PetscInt> gn(my);
 
-            for(j=0; j<my; j++)
+            if(abl->zDampingXYType == 1)
             {
-                luBar[j].x = 0.0;
-                luBar[j].y = 0.0;
-                luBar[j].z = 0.0;
-                guBar[j].x = 0.0;
-                guBar[j].y = 0.0;
-                guBar[j].z = 0.0;
-                ln[j]      = 0;
-                gn[j]      = 0;
-            }
+                std::vector<PetscInt> ln(my);
+                std::vector<PetscInt> gn(my);
 
-            // compute uBar: the i-line averaged contravariant fluxes at the first internal
-            // face. They only depend on the j-index.
+                DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
 
-            // test if this processor is on k-left boundary
-            if(zs == 0)
-            {
-                for (j=lys; j<lye; j++)
+                // compute uBar: the i-line averaged contravariant fluxes at the first internal
+                // face. They only depend on the j-index.
+
+                // test if this processor is on k-left boundary
+                if(zs == 0)
                 {
-                    for (i=lxs; i<lxe; i++)
+                    for (j=lys; j<lye; j++)
                     {
-                        luBar[j].x += ucont[lzs][j][i].x;
-                        luBar[j].y += ucont[lzs][j][i].y;
-                        luBar[j].z += ucont[lzs][j][i].z;
+                        for (i=lxs; i<lxe; i++)
+                        {
+                            luBar[j].x += ucat[lzs][j][i].x;
+                            luBar[j].y += ucat[lzs][j][i].y;
+                            luBar[j].z += ucat[lzs][j][i].z;
 
-                        ln[j]++;
+                            ln[j]++;
+                        }
                     }
+                }
+
+                // reduce the value
+                MPI_Allreduce(&(luBar[0]), &(guBar[0]), 3*my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&(ln[0]),    &(gn[0]),      my, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+
+                // compute global mean
+                for(j=1; j<my-1; j++)
+                {
+                    mScale(1.0/(PetscReal)gn[j], guBar[j]);
+                }
+
+                // set time averaging weights
+                PetscReal mN = (PetscReal)abl->avgWeight;
+                PetscReal m1 = mN  / (mN + 1.0);
+                PetscReal m2 = 1.0 / (mN + 1.0);
+
+                // cumulate uBarMean
+                for(j=1; j<my-1; j++)
+                {
+                    abl->uBarMeanZ[j].x = m1 * abl->uBarMeanZ[j].x + m2 * guBar[j].x;
+                    abl->uBarMeanZ[j].y = m1 * abl->uBarMeanZ[j].y + m2 * guBar[j].y;
+                    abl->uBarMeanZ[j].z = m1 * abl->uBarMeanZ[j].z + m2 * guBar[j].z;
+                }
+
+                // increase snapshot weighting
+                abl->avgWeight++;
+
+                DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+
+                std::vector<PetscInt>    ().swap(ln);
+                std::vector<PetscInt>    ().swap(gn);
+            }
+            else if(abl->zDampingXYType == 2)
+            {
+                precursor_ *precursor = abl->precursor;
+                dataABL    *ablStat   = precursor->domain->acquisition->statisticsABL;
+
+                PetscMPIInt rank; MPI_Comm_rank(precursor->domain->mesh->MESH_COMM, &rank);
+
+                // get the averages from the master rank of the precursor mesh comm
+                if(!rank)
+                {
+                    for(j=1; j<my-1; j++)
+                    {
+                        luBar[j].x = ablStat->UMean[j-1];
+                        luBar[j].y = ablStat->VMean[j-1];
+                        luBar[j].z = 0.0;
+                    }
+                }
+
+                // reduce the value
+                MPI_Allreduce(&(luBar[0]), &(guBar[0]), 3*my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+                // assign to this processor
+                for(j=1; j<my-1; j++)
+                {
+                    abl->uBarMeanZ[j].x = guBar[j].x;
+                    abl->uBarMeanZ[j].y = guBar[j].y;
+                    abl->uBarMeanZ[j].z = guBar[j].z;
                 }
             }
 
-            // reduce the value
-            MPI_Allreduce(&(luBar[0]), &(guBar[0]), 3*my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-            MPI_Allreduce(&(ln[0]), &(gn[0]), my, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
-
-            // compute global mean
-            for(j=1; j<my-1; j++)
-            {
-                mScale(1.0/(PetscReal)gn[j], guBar[j]);
-            }
-
-            // set time averaging weights
-            PetscReal mN = (PetscReal)abl->avgWeight;
-            PetscReal m1 = mN  / (mN + 1.0);
-            PetscReal m2 = 1.0 / (mN + 1.0);
-
-            // cumulate uBarMean
-            for(j=1; j<my-1; j++)
-            {
-                abl->uBarMeanZ[j].x = m1 * abl->uBarMeanZ[j].x + m2 * guBar[j].x;
-                abl->uBarMeanZ[j].y = m1 * abl->uBarMeanZ[j].y + m2 * guBar[j].y;
-                abl->uBarMeanZ[j].z = m1 * abl->uBarMeanZ[j].z + m2 * guBar[j].z;
-            }
-
-            // increase snapshot weighting
-            abl->avgWeight++;
-
             // clean local vectors
-            std::vector<Cmpnts> ().swap(luBar);
-            std::vector<Cmpnts> ().swap(guBar);
-            std::vector<PetscInt>    ().swap(ln);
-            std::vector<PetscInt>    ().swap(gn);
-
-            DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+            std::vector<Cmpnts>      ().swap(luBar);
+            std::vector<Cmpnts>      ().swap(guBar);
         }
     }
 
@@ -1337,6 +1359,24 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal xE     = abl->xDampingEnd;
     PetscReal xD     = abl->xDampingDelta;
 
+    // cell center coordinates
+    PetscReal x, xi, xj, xk;
+    PetscReal z, zi, zj, zk;
+
+    // Nordstrom viscosities
+    PetscReal nud_x, nudi_x, nudj_x, nudk_x;
+
+    // Rayleigh viscosities
+    PetscReal nud_z, nudi_z, nudj_z, nudk_z;
+
+    // Stipa viscosities
+    PetscReal nud_x_s, nudi_x_s, nudj_x_s, nudk_x_s;
+
+    // damping viscosity for zDamping exlusion in fringe region
+    PetscReal nudI = 1.0;
+    PetscReal nudJ = 1.0;
+    PetscReal nudK = 1.0;
+
     // loop over internal cell faces - include right boundary faces which will be periodic
     // at the beginning. Then they will be zeroed if applicable when building the SNES rhs.
     for (k=lzs; k<lze; k++)
@@ -1348,16 +1388,27 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 if(ueqn->access->flags->isXDampingActive)
                 {
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    PetscReal x     = cent[k][j][i].x;
-                    PetscReal xi    = cent[k][j][i+1].x;
-                    PetscReal xj    = cent[k][j+1][i].x;
-                    PetscReal xk    = cent[k+1][j][i].x;
+                    x     = cent[k][j][i].x;
+                    xi    = cent[k][j][i+1].x;
+                    xj    = cent[k][j+1][i].x;
+                    xk    = cent[k+1][j][i].x;
 
                     // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    PetscReal nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
-                    PetscReal nudi_x  = viscNordstrom(alphaX, xS, xE, xD, xi);
-                    PetscReal nudj_x  = viscNordstrom(alphaX, xS, xE, xD, xj);
-                    PetscReal nudk_x  = viscNordstrom(alphaX, xS, xE, xD, xk);
+                    nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
+                    nudi_x  = viscNordstrom(alphaX, xS, xE, xD, xi);
+                    nudj_x  = viscNordstrom(alphaX, xS, xE, xD, xj);
+                    nudk_x  = viscNordstrom(alphaX, xS, xE, xD, xk);
+
+                    // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    nud_x_s    = viscStipa(xS, xE, xD, x);
+                    nudi_x_s   = viscStipa(xS, xE, xD, xi);
+                    nudj_x_s   = viscStipa(xS, xE, xD, xj);
+                    nudk_x_s   = viscStipa(xS, xE, xD, xk);
+
+                    // interpolate Stipa viscosity at cell faces
+                    nudI       = central(nud_x_s, nudi_x_s);
+                    nudJ       = central(nud_x_s, nudj_x_s);
+                    nudK       = central(nud_x_s, nudk_x_s);
 
                     // X DAMPING LAYER
                     // ---------------
@@ -1410,6 +1461,8 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         PetscReal uBarContJ;
                         PetscReal uBarContI;
 
+                        // note: here we can use contravariant fluxes since uBar is defined at every point
+
                         if(precursor->thisProcessorInFringe)
                         {
                             uBarContI = ucontP[k+kStart][j][i].x;
@@ -1454,47 +1507,45 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 if(ueqn->access->flags->isZDampingActive)
                 {
                     // compute cell center z at i,j,k and i,j+1,k points
-                    PetscReal z     = (cent[k][j][i].z   - mesh->bounds.zmin);
-                    PetscReal zj    = (cent[k][j+1][i].z - mesh->bounds.zmin);
+                    z     = (cent[k][j][i].z   - mesh->bounds.zmin);
+                    zj    = (cent[k][j+1][i].z - mesh->bounds.zmin);
 
                     // compute Rayleigh viscosity at i,j,k and i,j+1,k points
-                    PetscReal nud_z   = viscRayleigh(alphaZ, zS, zE, z);
-                    PetscReal nudj_z  = viscRayleigh(alphaZ, zS, zE, zj);
+                    nud_z   = viscRayleigh(alphaZ, zS, zE, z);
+                    nudj_z  = viscRayleigh(alphaZ, zS, zE, zj);
 
                     // damp also x and y components
                     if(abl->zDampingAlsoXY)
                     {
                         // compute cell center z at i+1,j,k and i,j,k+1 points
-                        PetscReal zi    = (cent[k][j][i+1].z - mesh->bounds.zmin);
-                        PetscReal zk    = (cent[k+1][j][i].z - mesh->bounds.zmin);
+                        zi    = (cent[k][j][i+1].z - mesh->bounds.zmin);
+                        zk    = (cent[k+1][j][i].z - mesh->bounds.zmin);
 
                         // compute Rayleigh viscosity at i+1,j,k and i,j,k+1 points
-                        PetscReal nudi_z  = viscRayleigh(alphaZ, zS, zE, zi);
-                        PetscReal nudk_z  = viscRayleigh(alphaZ, zS, zE, zk);
+                        nudi_z  = viscRayleigh(alphaZ, zS, zE, zi);
+                        nudk_z  = viscRayleigh(alphaZ, zS, zE, zk);
 
                         // i-fluxes: dampen w.r.t. uBarMean
                         rhs[k][j][i].x
                         +=
-                        scale * central(nud_z, nudi_z) *
+                        scale * central(nud_z, nudi_z) * nudI *
                         (
-                            abl->uBarMeanZ[j].x -
                             (
-                                central(ucat[k][j][i].x, ucat[k][j][i+1].x) * icsi[k][j][i].x +
-                                central(ucat[k][j][i].y, ucat[k][j][i+1].y) * icsi[k][j][i].y +
-                                central(ucat[k][j][i].z, ucat[k][j][i+1].z) * icsi[k][j][i].z
+                                (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                                (abl->uBarMeanZ[j].y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                                (abl->uBarMeanZ[j].z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
                             )
                         );
 
                         // k-fluxes: dampen w.r.t. uBarMean
                         rhs[k][j][i].z
                         +=
-                        scale * central(nud_z, nudk_z) *
+                        scale * central(nud_z, nudk_z) * nudK *
                         (
-                            abl->uBarMeanZ[j].z -
                             (
-                                central(ucat[k][j][i].x, ucat[k+1][j][i].x) * kzet[k][j][i].x +
-                                central(ucat[k][j][i].y, ucat[k+1][j][i].y) * kzet[k][j][i].y +
-                                central(ucat[k][j][i].z, ucat[k+1][j][i].z) * kzet[k][j][i].z
+                                (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                                (abl->uBarMeanZ[j].y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                                (abl->uBarMeanZ[j].z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
                             )
                         );
                     }
@@ -1502,13 +1553,12 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // j-fluxes: total damping to reach no penetration at jRight
                     rhs[k][j][i].y
                     +=
-                    scale * central(nud_z, nudj_z) *
+                    scale * central(nud_z, nudj_z) * nudJ *
                     (
-                        -1.0 *
                         (
-                            central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].x +
-                            central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].y +
-                            central(ucat[k][j][i].z, ucat[k][j+1][i].z) * jeta[k][j][i].z
+                            (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                            (abl->uBarMeanZ[j].y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                            (abl->uBarMeanZ[j].z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
                         )
                     );
                 }
@@ -1609,10 +1659,10 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 if(ueqn->access->flags->isXDampingActive)
                 {
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    double x     = (cent[k][j][i].x   - mesh->bounds.xmin);
-                    double xi    = (cent[k][j][i+1].x - mesh->bounds.xmin);
-                    double xj    = (cent[k][j+1][i].x - mesh->bounds.xmin);
-                    double xk    = (cent[k+1][j][i].x - mesh->bounds.xmin);
+                    double x     = cent[k][j][i].x;
+                    double xi    = cent[k][j][i+1].x;
+                    double xj    = cent[k][j+1][i].x;
+                    double xk    = cent[k+1][j][i].x;
 
                     // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     double nud_x   = viscStipa(xS, xE, xD, x);

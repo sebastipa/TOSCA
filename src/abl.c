@@ -190,33 +190,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
     abl->cumulatedSource.y = 0.0;
     abl->cumulatedSource.z = 0.0;
 
-    // read the Rayleigh damping layer properties
-    if(mesh->access->flags->isZDampingActive)
-    {
-        PetscPrintf(mesh->MESH_COMM, "   reading z-damping properties\n");
-
-        readSubDictDouble("ABLProperties.dat", "zDampingProperties", "zDampingStart",   &(abl->zDampingStart));
-        readSubDictDouble("ABLProperties.dat", "zDampingProperties", "zDampingEnd",     &(abl->zDampingEnd));
-        readSubDictDouble("ABLProperties.dat", "zDampingProperties", "zDampingAlpha",   &(abl->zDampingAlpha));
-        readSubDictInt   ("ABLProperties.dat", "zDampingProperties", "zDampingAlsoXY",  &(abl->zDampingAlsoXY));
-
-        if(abl->zDampingAlsoXY)
-        {
-            // set average weight to zero
-            abl->avgWeight = 0;
-
-            // allocate memory for uBarMeanZ and set to zero
-            PetscMalloc(my*sizeof(Cmpnts), &(abl->uBarMeanZ));
-
-            for(j=0; j<my; j++)
-            {
-                abl->uBarMeanZ[j].x = 0.0;
-                abl->uBarMeanZ[j].y = 0.0;
-                abl->uBarMeanZ[j].z = 0.0;
-            }
-        }
-    }
-
     // read the recycling fringe region properties
     if(mesh->access->flags->isXDampingActive)
     {
@@ -397,6 +370,62 @@ PetscErrorCode InitializeABL(abl_ *abl)
         }
     }
 
+    // read the Rayleigh damping layer properties
+    if(mesh->access->flags->isZDampingActive)
+    {
+        PetscPrintf(mesh->MESH_COMM, "   reading z-damping properties\n");
+
+        readSubDictDouble("ABLProperties.dat", "zDampingProperties", "zDampingStart",   &(abl->zDampingStart));
+        readSubDictDouble("ABLProperties.dat", "zDampingProperties", "zDampingEnd",     &(abl->zDampingEnd));
+        readSubDictDouble("ABLProperties.dat", "zDampingProperties", "zDampingAlpha",   &(abl->zDampingAlpha));
+        readSubDictInt   ("ABLProperties.dat", "zDampingProperties", "zDampingAlsoXY",  &(abl->zDampingAlsoXY));
+
+        if(abl->zDampingAlsoXY)
+        {
+            // read the type of XY computation for uBar
+            readSubDictInt   ("ABLProperties.dat", "zDampingProperties", "zDampingXYType",  &(abl->zDampingXYType));
+
+            if(abl->zDampingXYType == 2)
+            {
+                // check that xDampingLayer is activated and concurrent precursor is active
+                if(!mesh->access->flags->isXDampingActive)
+                {
+                    char error[512];
+                    sprintf(error, "inconsistent zDampingXYType = 2. Activate xDamping layer");
+                    fatalErrorInFunction("ABLInitialize",  error);
+                }
+                else
+                {
+                    if(abl->xFringeUBarSelectionType != 3)
+                    {
+                        char error[512];
+                        sprintf(error, "inconsistent zDampingXYType = 2. Set uBarSelectionType = 3 to activate concurrent precursor");
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    }
+                }
+            }
+            else if (abl->zDampingXYType != 1)
+            {
+                char error[512];
+                sprintf(error, "unknown zDampingXYType. Available types are 1 or 2");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
+
+            // set average weight to zero
+            abl->avgWeight = 0;
+
+            // allocate memory for uBarMeanZ and set to zero
+            PetscMalloc(my*sizeof(Cmpnts), &(abl->uBarMeanZ));
+
+            for(j=0; j<my; j++)
+            {
+                abl->uBarMeanZ[j].x = 0.0;
+                abl->uBarMeanZ[j].y = 0.0;
+                abl->uBarMeanZ[j].z = 0.0;
+            }
+        }
+    }
+
     // read the side force region properties
     if(mesh->access->flags->isSideForceActive)
     {
@@ -511,7 +540,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // check that average start time is in the list
             if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
                 fatalErrorInFunction("ABLInitialize",  error);
             }

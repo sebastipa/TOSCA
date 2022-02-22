@@ -2572,9 +2572,9 @@ PetscErrorCode computeBladeForce(farm_ *farm)
 
                         // get the neighboring airfoils interpolation weights and labels
                         PetscReal af_w1 = wt->adm.iw[p][0],
-                               af_w2 = wt->adm.iw[p][1];
-                        PetscInt    af_l1 = wt->adm.foilIds[p][0],
-                               af_l2 = wt->adm.foilIds[p][1];
+                                  af_w2 = wt->adm.iw[p][1];
+                        PetscInt  af_l1 = wt->adm.foilIds[p][0],
+                                  af_l2 = wt->adm.foilIds[p][1];
 
                         // get the pointers to the aero tables
                         PetscReal *an1 = wt->foils[af_l1]->aoa;

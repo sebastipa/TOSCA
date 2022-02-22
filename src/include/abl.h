@@ -46,6 +46,7 @@ struct abl_
     Cmpnts       *uBarMeanZ;                     //!< array storing the reference velocity (averages along i at the k = 1 faces, size = my)
     PetscInt     avgWeight;
     PetscInt     zDampingAlsoXY;                 //!< damp also x and y velocity components (if 0 only z component is damped)
+    PetscInt     zDampingXYType;                 //!< type 1 (default) averages at inlet, type (2) requires concurrent precursor and xDamping and uses planar averages
 
     // x damping layer (recycling fringe region)
     PetscReal    xDampingStart;                  //!< starting x of the fringe layer

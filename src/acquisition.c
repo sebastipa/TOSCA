@@ -5284,7 +5284,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
             PetscReal volCell;
             PetscReal tprimeCell;
-            Cmpnts uprimeCell;
+            Cmpnts    uprimeCell;
 
             for (k=lzs; k<lze; k++)
             {
