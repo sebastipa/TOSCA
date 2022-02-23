@@ -156,7 +156,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
   else
   {
    char error[512];
-    sprintf(error, "Invalid initial field keyword. Available initial fields are:\n\n        1. uniform\n        2. ABLFlow\n        3. spreadInflow\n        4. readField\n");
+    sprintf(error, "Invalid initial field keyword. Available initial fields are:\n        1. uniform\n        2. ABLFlow\n        3. spreadInflow\n        4. readField\n");
     fatalErrorInFunction("SetInitialFieldU", error);
   }
 

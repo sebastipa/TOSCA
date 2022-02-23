@@ -5140,7 +5140,8 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
         (
             clock->time >= startTimeAvg &&
             (clock->time - startTimeAvg ) / timeIntervalAvg -
-            std::floor((clock->time - startTimeAvg) / timeIntervalAvg) < 1e-10
+            std::floor((clock->time - startTimeAvg) / timeIntervalAvg) < 1e-10 ||
+            clock->it == clock->itStart
         )
         {
             accumulateAvg = 1;

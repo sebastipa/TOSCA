@@ -229,13 +229,13 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     constants_    *cst   = teqn->access->constants;
     DM            da     = mesh->da, fda = mesh->fda;
     DMDALocalInfo info   = mesh->info;
-    PetscInt           xs     = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys     = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs     = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx     = info.mx, my = info.my, mz = info.mz;
+    PetscInt      xs     = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys     = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs     = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx     = info.mx, my = info.my, mz = info.mz;
 
-    PetscInt           i, j, k;
-    PetscInt           lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
     Cmpnts        ***ucont;
 

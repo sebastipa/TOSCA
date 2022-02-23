@@ -2752,7 +2752,6 @@ PetscErrorCode UpdateWallModels(ueqn_ *ueqn)
     DMDAVecGetArray(fda, mesh->lJEta, &jeta);
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
-
     DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
 
     // wall function -3: opposite mechanism, whatever value of nut is applied at the wall

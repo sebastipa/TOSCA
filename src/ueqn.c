@@ -690,109 +690,6 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    // update uBar for zDampingLayer (average at kLeft patch)
-    if(ueqn->access->flags->isZDampingActive)
-    {
-        // do it only if also x and y velocity component have to be damped, otherwise
-        // if only z component damping is active the uBar is zero.
-        if(abl->zDampingAlsoXY)
-        {
-            std::vector<Cmpnts>   luBar(my);
-            std::vector<Cmpnts>   guBar(my);
-
-            if(abl->zDampingXYType == 1)
-            {
-                std::vector<PetscInt> ln(my);
-                std::vector<PetscInt> gn(my);
-
-                DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
-
-                // compute uBar: the i-line averaged contravariant fluxes at the first internal
-                // face. They only depend on the j-index.
-
-                // test if this processor is on k-left boundary
-                if(zs == 0)
-                {
-                    for (j=lys; j<lye; j++)
-                    {
-                        for (i=lxs; i<lxe; i++)
-                        {
-                            luBar[j].x += ucat[lzs][j][i].x;
-                            luBar[j].y += ucat[lzs][j][i].y;
-                            luBar[j].z += ucat[lzs][j][i].z;
-
-                            ln[j]++;
-                        }
-                    }
-                }
-
-                // reduce the value
-                MPI_Allreduce(&(luBar[0]), &(guBar[0]), 3*my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-                MPI_Allreduce(&(ln[0]),    &(gn[0]),      my, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
-
-                // compute global mean
-                for(j=1; j<my-1; j++)
-                {
-                    mScale(1.0/(PetscReal)gn[j], guBar[j]);
-                }
-
-                // set time averaging weights
-                PetscReal mN = (PetscReal)abl->avgWeight;
-                PetscReal m1 = mN  / (mN + 1.0);
-                PetscReal m2 = 1.0 / (mN + 1.0);
-
-                // cumulate uBarMean
-                for(j=1; j<my-1; j++)
-                {
-                    abl->uBarMeanZ[j].x = m1 * abl->uBarMeanZ[j].x + m2 * guBar[j].x;
-                    abl->uBarMeanZ[j].y = m1 * abl->uBarMeanZ[j].y + m2 * guBar[j].y;
-                    abl->uBarMeanZ[j].z = m1 * abl->uBarMeanZ[j].z + m2 * guBar[j].z;
-                }
-
-                // increase snapshot weighting
-                abl->avgWeight++;
-
-                DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
-
-                std::vector<PetscInt>    ().swap(ln);
-                std::vector<PetscInt>    ().swap(gn);
-            }
-            else if(abl->zDampingXYType == 2)
-            {
-                precursor_ *precursor = abl->precursor;
-                dataABL    *ablStat   = precursor->domain->acquisition->statisticsABL;
-
-                PetscMPIInt rank; MPI_Comm_rank(precursor->domain->mesh->MESH_COMM, &rank);
-
-                // get the averages from the master rank of the precursor mesh comm
-                if(!rank)
-                {
-                    for(j=1; j<my-1; j++)
-                    {
-                        luBar[j].x = ablStat->UMean[j-1];
-                        luBar[j].y = ablStat->VMean[j-1];
-                        luBar[j].z = 0.0;
-                    }
-                }
-
-                // reduce the value
-                MPI_Allreduce(&(luBar[0]), &(guBar[0]), 3*my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-                // assign to this processor
-                for(j=1; j<my-1; j++)
-                {
-                    abl->uBarMeanZ[j].x = guBar[j].x;
-                    abl->uBarMeanZ[j].y = guBar[j].y;
-                    abl->uBarMeanZ[j].z = guBar[j].z;
-                }
-            }
-
-            // clean local vectors
-            std::vector<Cmpnts>      ().swap(luBar);
-            std::vector<Cmpnts>      ().swap(guBar);
-        }
-    }
-
     // update uBar for xDampingLayer (read from inflow data)
     if(ueqn->access->flags->isXDampingActive)
     {
@@ -1290,6 +1187,109 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
             concurrentPrecursorSolve(abl);
 
             PetscPrintf(mesh->MESH_COMM, "Solving successor:\n");
+        }
+    }
+
+    // update uBar for zDampingLayer (average at kLeft patch)
+    if(ueqn->access->flags->isZDampingActive)
+    {
+        // do it only if also x and y velocity component have to be damped, otherwise
+        // if only z component damping is active the uBar is zero.
+        if(abl->zDampingAlsoXY)
+        {
+            std::vector<Cmpnts>   luBar(my);
+            std::vector<Cmpnts>   guBar(my);
+
+            if(abl->zDampingXYType == 1)
+            {
+                std::vector<PetscInt> ln(my);
+                std::vector<PetscInt> gn(my);
+
+                DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+
+                // compute uBar: the i-line averaged contravariant fluxes at the first internal
+                // face. They only depend on the j-index.
+
+                // test if this processor is on k-left boundary
+                if(zs == 0)
+                {
+                    for (j=lys; j<lye; j++)
+                    {
+                        for (i=lxs; i<lxe; i++)
+                        {
+                            luBar[j].x += ucat[lzs][j][i].x;
+                            luBar[j].y += ucat[lzs][j][i].y;
+                            luBar[j].z += ucat[lzs][j][i].z;
+
+                            ln[j]++;
+                        }
+                    }
+                }
+
+                // reduce the value
+                MPI_Allreduce(&(luBar[0]), &(guBar[0]), 3*my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&(ln[0]),    &(gn[0]),      my, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+
+                // compute global mean
+                for(j=1; j<my-1; j++)
+                {
+                    mScale(1.0/(PetscReal)gn[j], guBar[j]);
+                }
+
+                // set time averaging weights
+                PetscReal mN = (PetscReal)abl->avgWeight;
+                PetscReal m1 = mN  / (mN + 1.0);
+                PetscReal m2 = 1.0 / (mN + 1.0);
+
+                // cumulate uBarMean
+                for(j=1; j<my-1; j++)
+                {
+                    abl->uBarMeanZ[j].x = m1 * abl->uBarMeanZ[j].x + m2 * guBar[j].x;
+                    abl->uBarMeanZ[j].y = m1 * abl->uBarMeanZ[j].y + m2 * guBar[j].y;
+                    abl->uBarMeanZ[j].z = m1 * abl->uBarMeanZ[j].z + m2 * guBar[j].z;
+                }
+
+                // increase snapshot weighting
+                abl->avgWeight++;
+
+                DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+
+                std::vector<PetscInt>    ().swap(ln);
+                std::vector<PetscInt>    ().swap(gn);
+            }
+            else if(abl->zDampingXYType == 2)
+            {
+                precursor_ *precursor = abl->precursor;
+                dataABL    *ablStat   = precursor->domain->acquisition->statisticsABL;
+
+                PetscMPIInt rank; MPI_Comm_rank(precursor->domain->mesh->MESH_COMM, &rank);
+
+                // get the averages from the master rank of the precursor mesh comm
+                if(!rank)
+                {
+                    for(j=1; j<my-1; j++)
+                    {
+                        luBar[j].x = ablStat->UMean[j-1];
+                        luBar[j].y = ablStat->VMean[j-1];
+                        luBar[j].z = 0.0;
+                    }
+                }
+
+                // reduce the value
+                MPI_Allreduce(&(luBar[0]), &(guBar[0]), 3*my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+                // assign to this processor
+                for(j=1; j<my-1; j++)
+                {
+                    abl->uBarMeanZ[j].x = guBar[j].x;
+                    abl->uBarMeanZ[j].y = guBar[j].y;
+                    abl->uBarMeanZ[j].z = guBar[j].z;
+                }
+            }
+
+            // clean local vectors
+            std::vector<Cmpnts>      ().swap(luBar);
+            std::vector<Cmpnts>      ().swap(guBar);
         }
     }
 

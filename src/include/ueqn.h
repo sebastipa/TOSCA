@@ -8,13 +8,14 @@
 struct Shumann
 {
     word             wfEvalType;
-    PetscReal           roughness;
+    PetscReal        roughness;
+    
 };
 
 //! \brief structure storing the Shumann wall models information
 struct Cabot
 {
-    PetscReal           roughness;
+    PetscReal        roughness;
 };
 
 //! \brief wall models container
@@ -50,8 +51,8 @@ struct ueqn_
 
     // momentum settings
     word          divScheme;                  //!< divergence scheme
-    PetscReal        relExitTol;                 //!< relative exit tolerance
-    PetscReal        absExitTol;                 //!< absolute exit tolerance
+    PetscReal     relExitTol;                 //!< relative exit tolerance
+    PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscInt      inviscid;                   //!< inviscid run
     PetscInt      buoyancy;                   //!< buoyancy term
     PetscInt      coriolis;                   //!< coriolis term
