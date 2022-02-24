@@ -1260,18 +1260,23 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
             else if(abl->zDampingXYType == 2)
             {
                 precursor_ *precursor = abl->precursor;
-                dataABL    *ablStat   = precursor->domain->acquisition->statisticsABL;
+                dataABL    *ablStat;
 
-                PetscMPIInt rank; MPI_Comm_rank(precursor->domain->mesh->MESH_COMM, &rank);
-
-                // get the averages from the master rank of the precursor mesh comm
-                if(!rank)
+                if(precursor->thisProcessorInFringe)
                 {
-                    for(j=1; j<my-1; j++)
+                    ablStat = precursor->domain->acquisition->statisticsABL;
+
+                    PetscMPIInt rank; MPI_Comm_rank(precursor->domain->mesh->MESH_COMM, &rank);
+
+                    // get the averages from the master rank of the precursor mesh comm
+                    if(!rank)
                     {
-                        luBar[j].x = ablStat->UMean[j-1];
-                        luBar[j].y = ablStat->VMean[j-1];
-                        luBar[j].z = 0.0;
+                        for(j=1; j<my-1; j++)
+                        {
+                            luBar[j].x = ablStat->UMean[j-1];
+                            luBar[j].y = ablStat->VMean[j-1];
+                            luBar[j].z = 0.0;
+                        }
                     }
                 }
 

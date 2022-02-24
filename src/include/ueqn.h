@@ -4,28 +4,6 @@
 #ifndef _UEQN_H_
 #define _UEQN_H_
 
-//! \brief structure storing the Shumann wall models information
-struct Shumann
-{
-    word             wfEvalType;
-    PetscReal        roughness;
-    
-};
-
-//! \brief structure storing the Shumann wall models information
-struct Cabot
-{
-    PetscReal        roughness;
-};
-
-//! \brief wall models container
-struct wallModel
-{
-    Shumann          *wmShumann;
-    Cabot            *wmCabot;
-    patchVectorField tauWall;
-};
-
 //! \brief structure storing momentum equation
 struct ueqn_
 {

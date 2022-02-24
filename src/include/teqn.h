@@ -8,20 +8,26 @@
 struct teqn_
 {
     // temperature variables
-    SNES          snesT;                       //!< non linear matrix free context
-    Mat           JT;                          //!< non linear matrix free preconditioner
+    SNES          snesT;                      //!< non linear matrix free context
+    Mat           JT;                         //!< non linear matrix free preconditioner
     Mat           AT, CT;
-    KSP           ksp;                         //!< linear krylov-subspace context
+    KSP           ksp;                        //!< linear krylov-subspace context
     PC            pc;
     Vec           Rhs;
     Vec           Rhs_o;
-    Vec           TmprtTmp;                    //!< temporary solution
+    Vec           TmprtTmp;                   //!< temporary solution
     Vec           Tmprt, lTmprt,
                   Tmprt_o, lTmprt_o;
-    Vec           lDivT, lViscT;               //!< viscous and divergence temperature equation fluxes
+    Vec           lDivT, lViscT;              //!< viscous and divergence temperature equation fluxes
 
-    PetscReal     absExitTol;                  //!< absolute exit tolerance
-    PetscReal     relExitTol;                  //!< relative exit tolerance
+    PetscReal     absExitTol;                 //!< absolute exit tolerance
+    PetscReal     relExitTol;                 //!< relative exit tolerance
+
+    // wall model patch
+    wallModel     *iLWM;                      //!< wall model on the i-left patch
+    wallModel     *iRWM;                      //!< wall model on the i-right patch
+    wallModel     *jLWM;                      //!< wall model on the j-left patch
+    wallModel     *jRWM;                      //!< wall model on the j-right patch
 
     // initial field
     word          initFieldType;

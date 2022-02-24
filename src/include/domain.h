@@ -12,6 +12,7 @@
 #include "overset.h"
 #include "ibm.h"
 #include "acquisition.h"
+#include "wallmodel.h"
 #include "ueqn.h"
 #include "peqn.h"
 #include "teqn.h"

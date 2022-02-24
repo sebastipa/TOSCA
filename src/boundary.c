@@ -2765,12 +2765,13 @@ PetscErrorCode UpdateWallModels(ueqn_ *ueqn)
         // compute some averaged global parameters first depending on the wall model
         PetscReal UParallelMeanMag  = 0.0;
         PetscReal dist              = 0.0;
-        PetscInt    nCells            = 0;
+        PetscInt  nCells            = 0;
         PetscReal frictionVel       = 0.0;
+        PetscReal phiM, L;
 
         PetscReal lUParallelMeanMag = 0.0;
         PetscReal ldist             = 0.0;
-        PetscInt    lnCells           = 0;
+        PetscInt  lnCells           = 0;
 
         // compute average friction velocity
         if(wm->wfEvalType=="averaged")
@@ -2786,50 +2787,30 @@ PetscErrorCode UpdateWallModels(ueqn_ *ueqn)
                     for (i=lxs; i<lxe; i++)
                     {
                         // get the cell area
-                        PetscReal area
-                        =
-                        sqrt
-                        (
-                            eta[k][j][i].x*eta[k][j][i].x +
-                            eta[k][j][i].y*eta[k][j][i].y +
-                            eta[k][j][i].z*eta[k][j][i].z
-                        );
-
-                        PetscReal s;
-                        PetscReal ni[3], nj[3], nk[3];
-                        Cmpnts Ucell;
+                        PetscReal area = nMag(eta[k][j][i]);
 
                         // distance from wall and velocity at point b
-                        s = 0.5/aj[k][j][i]/area;
-                        Ucell = ucat[k][j][i];
+                        PetscReal s = 0.5/aj[k][j][i]/area;
 
+                        // get cell velocity
+                        Cmpnts    Ucell = nSet(ucat[k][j][i]);
+
+                        PetscReal ni[3], nj[3], nk[3];
                         calculateNormal(csi[k][j][i], eta[k][j][i], zet[k][j][i], ni, nj, nk);
 
-                        PetscReal nx=nj[0], ny=nj[1], nz=nj[2];
+                        // get j normal
+                        Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
 
                         // compute wall-normal velocity
-                        Cmpnts UcellNormal;
-                        UcellNormal.x = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * nx;
-                        UcellNormal.y = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * ny;
-                        UcellNormal.z = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * nz;
+                        Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
 
                         // compute wall-parallel velocity
-                        Cmpnts UcellParallel;
-                        UcellParallel.x = Ucell.x - UcellNormal.x;
-                        UcellParallel.y = Ucell.y - UcellNormal.y;
-                        UcellParallel.z = Ucell.z - UcellNormal.z;
+                        Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
                         if (isFluidCell(k, j, i, nvert))
                         {
                             // increment velocity
-                            lUParallelMeanMag
-                            +=
-                            std::sqrt
-                            (
-                                    UcellParallel.x*UcellParallel.x +
-                                    UcellParallel.y*UcellParallel.y +
-                                    UcellParallel.z*UcellParallel.z
-                            );
+                            lUParallelMeanMag += nMag(UcellParallel);
 
                             // increment distance
                             ldist += s;
@@ -2847,7 +2828,13 @@ PetscErrorCode UpdateWallModels(ueqn_ *ueqn)
 
             UParallelMeanMag = UParallelMeanMag / nCells;
             dist             = dist / nCells;
-            frictionVel      = (0.4 * UParallelMeanMag) / (std::log(dist / wm->roughness));
+
+            uStarShumann
+            (
+                UParallelMeanMag, dist, wm->roughness,
+                wm->gammaM, wm->kappa, wm->qWall, wm->thetaRef,
+                frictionVel, phiM, L
+            );
 
             // print information (debugging)
             // PetscPrintf(mesh->MESH_COMM, "ShumannGrotzbach: uStar = %lf, <U_||> = %lf\n", frictionVel, UParallelMeanMag);
@@ -2865,36 +2852,23 @@ PetscErrorCode UpdateWallModels(ueqn_ *ueqn)
                 for (i=lxs; i<lxe; i++)
                 {
                     // get the cell area
-                    PetscReal area
-                    =
-                    sqrt
-                    (
-                        eta[k][j+1][i].x*eta[k][j+1][i].x +
-                        eta[k][j+1][i].y*eta[k][j+1][i].y +
-                        eta[k][j+1][i].z*eta[k][j+1][i].z
-                    );
+                    PetscReal area = nMag(eta[k][j+1][i]);
 
+                    // get cell normals
                     PetscReal ni[3], nj[3], nk[3];
-                    Cmpnts Ucell;
-
-                    // velocity at point b
-                    Ucell = ucat[k][j+1][i];
-
                     calculateNormal(csi[k][j+1][i], eta[k][j+1][i], zet[k][j+1][i], ni, nj, nk);
 
-                    PetscReal nx=nj[0], ny=nj[1], nz=nj[2];
+                    // get j normal
+                    Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
+
+                    // velocity at point b
+                    Cmpnts Ucell = nSet(ucat[k][j+1][i]);
 
                     // compute wall-normal velocity
-                    Cmpnts UcellNormal;
-                    UcellNormal.x = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * nx;
-                    UcellNormal.y = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * ny;
-                    UcellNormal.z = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * nz;
+                    Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
 
                     // compute wall-parallel velocity
-                    Cmpnts UcellParallel;
-                    UcellParallel.x = Ucell.x - UcellNormal.x;
-                    UcellParallel.y = Ucell.y - UcellNormal.y;
-                    UcellParallel.z = Ucell.z - UcellNormal.z;
+                    Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
                     // compute local friction velocity
                     if(wm->wfEvalType=="localized")
@@ -2903,16 +2877,14 @@ PetscErrorCode UpdateWallModels(ueqn_ *ueqn)
                         PetscReal s;
                         s = 0.5/aj[k][j][i]/area;
 
-                        UParallelMeanMag
-                        =
-                        std::sqrt
-                        (
-                                UcellParallel.x*UcellParallel.x +
-                                UcellParallel.y*UcellParallel.y +
-                                UcellParallel.z*UcellParallel.z
-                        );
+                        UParallelMeanMag = nMag(UcellParallel);
 
-                        frictionVel = (0.4 * UParallelMeanMag) / (std::log(s / wm->roughness));
+                        uStarShumann
+                        (
+                            UParallelMeanMag, s, wm->roughness,
+                            wm->gammaM, wm->kappa, wm->qWall, wm->thetaRef,
+                            frictionVel, phiM, L
+                        );
                     }
 
                     PetscReal TauXZ = - frictionVel*frictionVel * (UcellParallel.x / PetscMax(UParallelMeanMag, 1e-5));
@@ -2936,12 +2908,12 @@ PetscErrorCode UpdateWallModels(ueqn_ *ueqn)
         // compute some averaged global parameters first depending on the wall model
         PetscReal UParallelMeanMag  = 0.0;
         PetscReal dist              = 0.0;
-        PetscInt    nCells            = 0;
+        PetscInt  nCells            = 0;
         PetscReal frictionVel       = 0.0;
 
         PetscReal lUParallelMeanMag = 0.0;
         PetscReal ldist             = 0.0;
-        PetscInt    lnCells           = 0;
+        PetscInt  lnCells           = 0;
 
         // compute average friction velocity
         if(wm->wfEvalType=="averaged")
@@ -2957,53 +2929,32 @@ PetscErrorCode UpdateWallModels(ueqn_ *ueqn)
                     for (i=lxs; i<lxe; i++)
                     {
                         // get the cell area
-                        PetscReal area
-                        =
-                        sqrt
-                        (
-                            eta[k][j][i].x*eta[k][j][i].x +
-                            eta[k][j][i].y*eta[k][j][i].y +
-                            eta[k][j][i].z*eta[k][j][i].z
-                        );
-
-                        PetscReal s;
-                        PetscReal ni[3], nj[3], nk[3];
-                        Cmpnts Ucell;
+                        PetscReal area = nMag(eta[k][j][i]);
 
                         // distance from wall and velocity at point b
-                        s = 0.5/aj[k][j][i]/area;
-                        Ucell = ucat[k][j][i];
+                        PetscReal s = 0.5/aj[k][j][i]/area;
 
+                        // get cell normals and flip them
+                        PetscReal ni[3], nj[3], nk[3];
                         calculateNormal(csi[k][j][i], eta[k][j][i], zet[k][j][i], ni, nj, nk);
-
-                        // flip the normals
                         nj[0]*=-1, nj[1]*=-1, nj[2]*=-1;
 
-                        PetscReal nx=nj[0], ny=nj[1], nz=nj[2];
+                        // get j normal
+                        Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
+
+                        // velocity at point b
+                        Cmpnts Ucell = nSet(ucat[k][j+1][i]);
 
                         // compute wall-normal velocity
-                        Cmpnts UcellNormal;
-                        UcellNormal.x = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * nx;
-                        UcellNormal.y = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * ny;
-                        UcellNormal.z = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * nz;
+                        Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
 
                         // compute wall-parallel velocity
-                        Cmpnts UcellParallel;
-                        UcellParallel.x = Ucell.x - UcellNormal.x;
-                        UcellParallel.y = Ucell.y - UcellNormal.y;
-                        UcellParallel.z = Ucell.z - UcellNormal.z;
+                        Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
                         if (isFluidCell(k, j, i, nvert))
                         {
                             // increment velocity
-                            lUParallelMeanMag
-                            +=
-                            std::sqrt
-                            (
-                                UcellParallel.x*UcellParallel.x +
-                                UcellParallel.y*UcellParallel.y +
-                                UcellParallel.z*UcellParallel.z
-                            );
+                            lUParallelMeanMag += nMag(UcellParallel);
 
                             // increment distance
                             ldist += s;
@@ -3039,55 +2990,32 @@ PetscErrorCode UpdateWallModels(ueqn_ *ueqn)
                 for (i=lxs; i<lxe; i++)
                 {
                     // get the cell area
-                    PetscReal area
-                    =
-                    sqrt
-                    (
-                        eta[k][j][i].x*eta[k][j][i].x +
-                        eta[k][j][i].y*eta[k][j][i].y +
-                        eta[k][j][i].z*eta[k][j][i].z
-                    );
+                    PetscReal area = nMag(eta[k][j][i]);
 
+                    // get cell normals and flip them
                     PetscReal ni[3], nj[3], nk[3];
-                    Cmpnts Ucell;
-
-                    // velocity at point b
-                    Ucell = ucat[k][j][i];
-
                     calculateNormal(csi[k][j][i], eta[k][j][i], zet[k][j][i], ni, nj, nk);
-
-                    // flip the normals
                     nj[0]*=-1, nj[1]*=-1, nj[2]*=-1;
 
-                    PetscReal nx=nj[0], ny=nj[1], nz=nj[2];
+                    // get j normal
+                    Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
+
+                    // velocity at point b
+                    Cmpnts Ucell = nSet(ucat[k][j+1][i]);
 
                     // compute wall-normal velocity
-                    Cmpnts UcellNormal;
-                    UcellNormal.x = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * nx;
-                    UcellNormal.y = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * ny;
-                    UcellNormal.z = (Ucell.x * nx + Ucell.y * ny + Ucell.z * nz) * nz;
+                    Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
 
                     // compute wall-parallel velocity
-                    Cmpnts UcellParallel;
-                    UcellParallel.x = Ucell.x - UcellNormal.x;
-                    UcellParallel.y = Ucell.y - UcellNormal.y;
-                    UcellParallel.z = Ucell.z - UcellNormal.z;
+                    Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
                     // compute local friction velocity
                     if(wm->wfEvalType=="localized")
                     {
                         // distance from wall and velocity at point b
-                        PetscReal s;
-                        s = 0.5/aj[k][j][i]/area;
+                        PetscReal s = 0.5/aj[k][j][i]/area;
 
-                        UParallelMeanMag
-                        =
-                        std::sqrt
-                        (
-                                UcellParallel.x*UcellParallel.x +
-                                UcellParallel.y*UcellParallel.y +
-                                UcellParallel.z*UcellParallel.z
-                        );
+                        UParallelMeanMag = nMag(UcellParallel);
 
                         frictionVel = (0.4 * UParallelMeanMag) / (std::log(s / wm->roughness));
                     }
@@ -3230,29 +3158,34 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
 
 PetscErrorCode SetWallModels(ueqn_ *ueqn)
 {
-    // set mesh pointer
-    mesh_          *mesh = ueqn->access->mesh;
+    // set useful pointers
+    mesh_         *mesh  = ueqn->access->mesh;
+    flags_        *flags = ueqn->access->flags;
+    teqn_         *teqn;
 
     DMDALocalInfo info = mesh->info;
-    PetscInt           xs  = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys  = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs  = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx  = info.mx, my = info.my, mz = info.mz;
+    PetscInt      xs  = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys  = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs  = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx  = info.mx, my = info.my, mz = info.mz;
 
-    PetscInt           i, j, k;
+    PetscInt      i, j, k;
 
     word          fileName = "./boundary/" + mesh->meshName + "/U";
-
 
     // read wall functions subdictionaries for wall function bc and set type
     // set type to zero otherwise so that its allocated for the cartesian BC update
     PetscPrintf(mesh->MESH_COMM, "Reading wall model...");
+
+    // get teqn pointer
+    if(flags->isTeqnActive) teqn = ueqn->access->teqn;
 
     // i-left boundary wall function
     if (mesh->boundaryU.iLeft == "velocityWallFunction")
     {
         readSubDictInt(fileName.c_str(), "velocityWallFunction", "type", &(mesh->boundaryU.iLWF));
 
+        // allocate memory and connect pointers
         PetscMalloc(sizeof(wallModel), &(ueqn->iLWM));
 
         // initialize the patch field for Visc term at the wall in the momentum eqn.
@@ -3271,41 +3204,61 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
         {
             for (j = 0; j < my; j++)
             {
-                ueqn->iLWM->tauWall.x[k][j]
-                =
-                ueqn->iLWM->tauWall.y[k][j]
-                =
-                ueqn->iLWM->tauWall.z[k][j]
-                =
-                0.0;
+                ueqn->iLWM->tauWall.x[k][j] = 0.0;
+                ueqn->iLWM->tauWall.y[k][j] = 0.0;
+                ueqn->iLWM->tauWall.z[k][j] = 0.0;
+            }
+        }
+
+        if(flags->isTeqnActive)
+        {
+            // set pointer
+            teqn->iLWM = ueqn->iLWM;
+
+            // initialize the patch field for Visc term at the wall in the temperature eqn.
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iLWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iLWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iLWM->qWall.z));
+
+            for (k = 0; k < mz; k++)
+            {
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iLWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iLWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iLWM->qWall.z[k]));
+            }
+
+            for (k = 0; k < mz; k++)
+            {
+                for (j = 0; j < my; j++)
+                {
+                    teqn->iLWM->qWall.x[k][j] = 0.0;
+                    teqn->iLWM->qWall.y[k][j] = 0.0;
+                    teqn->iLWM->qWall.z[k][j] = 0.0;
+                }
             }
         }
 
         if(mesh->boundaryU.iLWF == -1)
         {
-          PetscMalloc(sizeof(Cabot), &(ueqn->iLWM->wmCabot));
+            PetscMalloc(sizeof(Cabot), &(ueqn->iLWM->wmCabot));
 
-          Cabot *wm = ueqn->iLWM->wmCabot;
-
-          readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(ueqn->iLWM->wmCabot->roughness));
+            Cabot *wm = ueqn->iLWM->wmCabot;
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
 
         }
         else if (mesh->boundaryU.iLWF == -3)
         {
+            PetscMalloc(sizeof(Shumann), &(ueqn->iLWM->wmShumann));
 
-          PetscMalloc(sizeof(Shumann), &(ueqn->iLWM->wmShumann));
-
-          Shumann *wm = ueqn->iLWM->wmShumann;
-
-          readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-
-          readSubDictWord(fileName.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+            Shumann *wm = ueqn->iLWM->wmShumann;
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+            readSubDictWord  (fileName.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
         }
         else
         {
-         char error[512];
-          sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
-          fatalErrorInFunction("SetWallModels", error);
+            char error[512];
+            sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+            fatalErrorInFunction("SetWallModels", error);
         }
     }
     else
@@ -3317,61 +3270,82 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
     // i-right boundary wall function
     if (mesh->boundaryU.iRight == "velocityWallFunction")
     {
-      readSubDictInt(fileName.c_str(), "velocityWallFunction", "type", &(mesh->boundaryU.iRWF));
+        readSubDictInt(fileName.c_str(), "velocityWallFunction", "type", &(mesh->boundaryU.iRWF));
 
-      PetscMalloc(sizeof(wallModel), &(ueqn->iRWM));
+        PetscMalloc(sizeof(wallModel), &(ueqn->iRWM));
 
-      // initialize the patch field for Visc term at the wall in the momentum eqn.
-      PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iRWM->tauWall.x));
-      PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iRWM->tauWall.y));
-      PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iRWM->tauWall.z));
+        // initialize the patch field for Visc term at the wall in the momentum eqn.
+        PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iRWM->tauWall.x));
+        PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iRWM->tauWall.y));
+        PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iRWM->tauWall.z));
 
-      for (k = 0; k < mz; k++)
-      {
-          PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iRWM->tauWall.x[k]));
-          PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iRWM->tauWall.y[k]));
-          PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iRWM->tauWall.z[k]));
-      }
+        for (k = 0; k < mz; k++)
+        {
+            PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iRWM->tauWall.x[k]));
+            PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iRWM->tauWall.y[k]));
+            PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iRWM->tauWall.z[k]));
+        }
 
-      for (k = 0; k < mz; k++)
-      {
-          for (j = 0; j < my; j++)
-          {
-              ueqn->iRWM->tauWall.x[k][j]
-              =
-              ueqn->iRWM->tauWall.y[k][j]
-              =
-              ueqn->iRWM->tauWall.z[k][j]
-              =
-              0.0;
-          }
-      }
+        for (k = 0; k < mz; k++)
+        {
+            for (j = 0; j < my; j++)
+            {
+                ueqn->iRWM->tauWall.x[k][j] =
+                ueqn->iRWM->tauWall.y[k][j] =
+                ueqn->iRWM->tauWall.z[k][j] =
+                0.0;
+            }
+        }
 
-      if(mesh->boundaryU.iRWF == -1)
-      {
-        PetscMalloc(sizeof(Cabot), &(ueqn->iRWM->wmCabot));
+        if(flags->isTeqnActive)
+        {
+            // set pointer
+            teqn->iRWM = ueqn->iRWM;
 
-        Cabot *wm = ueqn->iRWM->wmCabot;
+            // initialize the patch field for Visc term at the wall in the momentum eqn.
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iRWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iRWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iRWM->qWall.z));
 
-        readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-      }
-      else if (mesh->boundaryU.iRWF == -3)
-      {
+            for (k = 0; k < mz; k++)
+            {
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iRWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iRWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iRWM->qWall.z[k]));
+            }
 
-        PetscMalloc(sizeof(Shumann), &(ueqn->iRWM->wmShumann));
+            for (k = 0; k < mz; k++)
+            {
+                for (j = 0; j < my; j++)
+                {
+                    teqn->iRWM->qWall.x[k][j] = 0.0;
+                    teqn->iRWM->qWall.y[k][j] = 0.0;
+                    teqn->iRWM->qWall.z[k][j] = 0.0;
+                }
+            }
+        }
 
-        Shumann *wm = ueqn->iLWM->wmShumann;
+        if(mesh->boundaryU.iRWF == -1)
+        {
+            PetscMalloc(sizeof(Cabot), &(ueqn->iRWM->wmCabot));
 
-        readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+            Cabot *wm = ueqn->iRWM->wmCabot;
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+        }
+        else if (mesh->boundaryU.iRWF == -3)
+        {
+            PetscMalloc(sizeof(Shumann), &(ueqn->iRWM->wmShumann));
 
-        readSubDictWord(fileName.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-      }
-      else
-      {
-       char error[512];
-        sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
-        fatalErrorInFunction("SetWallModels", error);
-      }
+            Shumann *wm = ueqn->iLWM->wmShumann;
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+            readSubDictWord  (fileName.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+            fatalErrorInFunction("SetWallModels", error);
+        }
     }
     else
     {
@@ -3402,41 +3376,65 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
         {
             for (i = 0; i < mx; i++)
             {
-                ueqn->jLWM->tauWall.x[k][i]
-                =
-                ueqn->jLWM->tauWall.y[k][i]
-                =
-                ueqn->jLWM->tauWall.z[k][i]
-                =
-                0.0;
+                ueqn->jLWM->tauWall.x[k][i] = 0.0;
+                ueqn->jLWM->tauWall.y[k][i] = 0.0;
+                ueqn->jLWM->tauWall.z[k][i] = 0.0;
+            }
+        }
+
+        if(flags->isTeqnActive)
+        {
+            // set pointer
+            teqn->jLWM = ueqn->jLWM;
+
+            // initialize the patch field for Visc term at the wall in the momentum eqn.
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jLWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jLWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jLWM->qWall.z));
+
+            for (k = 0; k < mz; k++)
+            {
+                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jLWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jLWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jLWM->qWall.z[k]));
+            }
+
+            for (k = 0; k < mz; k++)
+            {
+                for (i = 0; i < mx; i++)
+                {
+                    teqn->jLWM->qWall.x[k][i] = 0.0;
+                    teqn->jLWM->qWall.y[k][i] = 0.0;
+                    teqn->jLWM->qWall.z[k][i] = 0.0;
+                }
             }
         }
 
         if(mesh->boundaryU.jLWF == -1)
         {
-          PetscMalloc(sizeof(Cabot), &(ueqn->jLWM->wmCabot));
+            PetscMalloc(sizeof(Cabot), &(ueqn->jLWM->wmCabot));
 
-          Cabot *wm = ueqn->jLWM->wmCabot;
-
-          readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+            Cabot *wm = ueqn->jLWM->wmCabot;
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
 
         }
         else if (mesh->boundaryU.jLWF == -3)
         {
+            PetscMalloc(sizeof(Shumann), &(ueqn->jLWM->wmShumann));
 
-          PetscMalloc(sizeof(Shumann), &(ueqn->jLWM->wmShumann));
-
-          Shumann *wm = ueqn->jLWM->wmShumann;
-
-          readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-
-          readSubDictWord(fileName.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+            Shumann *wm = ueqn->jLWM->wmShumann;
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "qWall",     &(wm->qWall));
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+            readSubDictWord  (fileName.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
         }
         else
         {
-         char error[512];
-          sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
-          fatalErrorInFunction("SetWallModels", error);
+            char error[512];
+            sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+            fatalErrorInFunction("SetWallModels", error);
         }
     }
     else
@@ -3448,63 +3446,81 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
     // i-right boundary wall function
     if (mesh->boundaryU.jRight == "velocityWallFunction")
     {
-      readSubDictInt(fileName.c_str(), "velocityWallFunction", "type", &(mesh->boundaryU.jRWF));
+        readSubDictInt(fileName.c_str(), "velocityWallFunction", "type", &(mesh->boundaryU.jRWF));
 
-      PetscMalloc(sizeof(wallModel), &(ueqn->jRWM));
+        PetscMalloc(sizeof(wallModel), &(ueqn->jRWM));
 
-      // initialize the patch field for Visc term at the wall in the momentum eqn.
-      PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->tauWall.x));
-      PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->tauWall.y));
-      PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->tauWall.z));
+        // initialize the patch field for Visc term at the wall in the momentum eqn.
+        PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->tauWall.x));
+        PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->tauWall.y));
+        PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->tauWall.z));
 
-      for (k = 0; k < mz; k++)
-      {
-          PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->tauWall.x[k]));
-          PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->tauWall.y[k]));
-          PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->tauWall.z[k]));
-      }
+        for (k = 0; k < mz; k++)
+        {
+            PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->tauWall.x[k]));
+            PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->tauWall.y[k]));
+            PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->tauWall.z[k]));
+        }
 
-      for (k = 0; k < mz; k++)
-      {
-          for (i = 0; i < mx; i++)
-          {
-              ueqn->jRWM->tauWall.x[k][i]
-              =
-              ueqn->jRWM->tauWall.y[k][i]
-              =
-              ueqn->jRWM->tauWall.z[k][i]
-              =
-              0.0;
-          }
-      }
+        for (k = 0; k < mz; k++)
+        {
+            for (i = 0; i < mx; i++)
+            {
+                ueqn->jRWM->tauWall.x[k][i] = 0.0;
+                ueqn->jRWM->tauWall.y[k][i] = 0.0;
+                ueqn->jRWM->tauWall.z[k][i] = 0.0;
+            }
+        }
 
-      if(mesh->boundaryU.jRWF == -1)
-      {
-        PetscMalloc(sizeof(Cabot), &(ueqn->jRWM->wmCabot));
+        if(flags->isTeqnActive)
+        {
+            // set pointer
+            teqn->jRWM = ueqn->jRWM;
 
-        Cabot *wm = ueqn->jRWM->wmCabot;
+            // initialize the patch field for Visc term at the wall in the momentum eqn.
+            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->qWall.z));
 
-        readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+            for (k = 0; k < mz; k++)
+            {
+                PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->qWall.z[k]));
+            }
 
-      }
-      else if (mesh->boundaryU.jRWF == -3)
-      {
+            for (k = 0; k < mz; k++)
+            {
+                for (i = 0; i < mx; i++)
+                {
+                    ueqn->jRWM->qWall.x[k][i] = 0.0;
+                    ueqn->jRWM->qWall.y[k][i] = 0.0;
+                    ueqn->jRWM->qWall.z[k][i] = 0.0;
+                }
+            }
+        }
 
-        PetscMalloc(sizeof(Shumann), &(ueqn->jRWM->wmShumann));
+        if(mesh->boundaryU.jRWF == -1)
+        {
+            PetscMalloc(sizeof(Cabot), &(ueqn->jRWM->wmCabot));
 
-        Shumann *wm = ueqn->jLWM->wmShumann;
+            Cabot *wm = ueqn->jRWM->wmCabot;
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+        }
+        else if (mesh->boundaryU.jRWF == -3)
+        {
+            PetscMalloc(sizeof(Shumann), &(ueqn->jRWM->wmShumann));
 
-        readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-
-        readSubDictWord(fileName.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-
-      }
-      else
-      {
-       char error[512];
-        sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
-        fatalErrorInFunction("SetWallModels", error);
-      }
+            Shumann *wm = ueqn->jLWM->wmShumann;
+            readSubDictDouble(fileName.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+            readSubDictWord  (fileName.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+            fatalErrorInFunction("SetWallModels", error);
+        }
     }
     else
     {
@@ -3515,5 +3531,6 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
     PetscPrintf(mesh->MESH_COMM, "done\n\n");
 
     MPI_Barrier(mesh->MESH_COMM);
+
     return(0);
 }

@@ -6,6 +6,125 @@ PetscInt     pre_integrate_flag = 0;
 PetscReal    *integration_buffer;
 PetscReal    *integration_buffer_rough;
 
+void uStarShumann
+(
+    PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
+    PetscReal &gammaM, PetscReal &kappa, PetscReal &qwall, PetscReal &thetaRef,
+    PetscReal &uStar, PetscReal &phiM, PetscReal &L
+)
+{
+    PetscReal uStar0 = (kappa * UParallelMeanMag) / std::log(wallDist / z0);
+    PetscReal uStar1 = uStar0 + 1e-5;
+    PetscReal f0, f1;
+
+    PetscReal g      = 9.81;
+
+    PetscInt  iter = 0, iterMax = 100;
+    PetscReal tol  = 1e-5;
+
+    if(qwall == 0.0)
+    {
+        uStar = uStar0;
+        L     = 1e30;
+        phiM  = 1.0;
+        return;
+    }
+    else if(qwall < 0.0)
+    {
+        do
+        {
+            // set initial guesses at L
+            PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qwall);
+            PetscReal L1 = -(std::pow(uStar1,3.0)) / (kappa * (g/thetaRef) * qwall);
+
+            // limit L to always be positive and finite
+            L0 = std::max(1e-10,L0);
+            L1 = std::max(1e-10,L1);
+
+            // form the "zeta" variable
+            PetscReal zeta0 = wallDist/L0;
+            PetscReal zeta1 = wallDist/L1;
+
+            // form psiM
+            PetscReal psiM0 = -gammaM * zeta0;
+            PetscReal psiM1 = -gammaM * zeta1;
+
+            // form the function that we are driving to zero
+            PetscReal denom0 = std::max(std::log(wallDist/z0) - psiM0, 1e-10);
+            PetscReal denom1 = std::max(std::log(wallDist/z0) - psiM1, 1e-10);
+
+            f0 = uStar0 - ((UParallelMeanMag * kappa) / denom0);
+            f1 = uStar1 - ((UParallelMeanMag * kappa) / denom1);
+
+            // update uStar
+            PetscReal slope = std::max((f1 - f0) / (uStar1 - uStar0), 1e-10);
+            PetscReal uStarTmp = uStar1;
+            uStar1 = std::max(0.0, uStar0 - (f0 / slope));
+            uStar0 = uStarTmp;
+
+            uStar  = uStar1;
+            L      = L1;
+            phiM   = 1.0 + (gammaM * zeta1);
+
+            iter++;
+
+        } while(fabs(f1)>tol && uStar0 != uStar1 && iter < iterMax);
+
+        if(iter == iterMax)
+        {
+            printf("max uStar iteration reached\n");
+        }
+
+        // if uStar is close zero it means that the zero does not exist, but a maximum exists
+        if(uStar < 1e-2)
+        {
+            PetscReal duStar = 0.5 / 100.0;
+            uStar0 = 1e-10;
+            uStar1 = uStar + duStar;
+
+            printf("uStar is zero, looking for maximum...");
+
+            do
+            {
+                // set initial guesses at L
+                PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qwall);
+                PetscReal L1 = -(std::pow(uStar1,3.0)) / (kappa * (g/thetaRef) * qwall);
+
+                // limit L to always be positive and finite
+                L0 = std::max(1e-10,L0);
+                L1 = std::max(1e-10,L1);
+
+                // form the "zeta" variable
+                PetscReal zeta0 = wallDist/L0;
+                PetscReal zeta1 = wallDist/L1;
+
+                // form psiM
+                PetscReal psiM0 = -gammaM * zeta0;
+                PetscReal psiM1 = -gammaM * zeta1;
+
+                // form the function that we are driving to zero
+                f0 = UParallelMeanMag - (uStar0/kappa)*(std::log(wallDist/z0) - psiM0);
+                f1 = UParallelMeanMag - (uStar1/kappa)*(std::log(wallDist/z0) - psiM1);
+
+                uStar = uStar0;
+                L     = L0;
+                phiM  = 1.0 + (gammaM * zeta0);
+
+            } while (f1 > f0);
+
+            printf("uStar = %f\n", uStar);
+        }
+
+        return;
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "wall model for unstable flow not yet implemented");
+        fatalErrorInFunction("uStarShumann", error);
+    }
+}
+
 inline PetscReal near_wall_eddy_viscosity(PetscReal yplus)
 {
     PetscReal   kappa = 0.41;

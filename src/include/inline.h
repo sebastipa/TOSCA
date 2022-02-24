@@ -272,6 +272,19 @@ inline Cmpnts nSet(Cmpnts &value)
 
 //***************************************************************************************************************//
 
+inline Cmpnts nSetFromComponents(PetscReal &vx, PetscReal &vy, PetscReal &vz)
+{
+    Cmpnts newVector;
+
+    newVector.x = vx;
+    newVector.y = vy;
+    newVector.z = vz;
+
+    return(newVector);
+}
+
+//***************************************************************************************************************//
+
 inline Cmpnts nSetZero()
 {
     Cmpnts newVector;
