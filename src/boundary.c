@@ -1829,22 +1829,22 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 }
 
                 // zeroGradient boundary condition on i-left patch
-                if (mesh->boundaryT.iLeft=="zeroGradient" || mesh->boundaryT.iLeft=="thetaWallFunction" && i==1)
+                if ((mesh->boundaryT.iLeft=="zeroGradient" || mesh->boundaryT.iLeft=="thetaWallFunction") && i==1)
                 {
                     t[k][j][i-1] = lt[k][j][i];
                 }
                 // zeroGradient boundary condition on i-right patch
-                if (mesh->boundaryT.iRight=="zeroGradient" || mesh->boundaryT.iRight=="thetaWallFunction" && i==mx-2)
+                if ((mesh->boundaryT.iRight=="zeroGradient" || mesh->boundaryT.iRight=="thetaWallFunction") && i==mx-2)
                 {
                     t[k][j][i+1] = lt[k][j][i];
                 }
                 // zeroGradient boundary condition on j-left patch
-                if (mesh->boundaryT.jLeft=="zeroGradient" || mesh->boundaryT.jLeft=="thetaWallFunction" && j==1)
+                if ((mesh->boundaryT.jLeft=="zeroGradient" || mesh->boundaryT.jLeft=="thetaWallFunction") && j==1)
                 {
                     t[k][j-1][i] = lt[k][j][i];
                 }
                 // zeroGradient boundary condition on j-right patch
-                if (mesh->boundaryT.jRight=="zeroGradient" || mesh->boundaryT.jRight=="thetaWallFunction" && j==my-2)
+                if ((mesh->boundaryT.jRight=="zeroGradient" || mesh->boundaryT.jRight=="thetaWallFunction") && j==my-2)
                 {
                     t[k][j+1][i] = lt[k][j][i];
                 }

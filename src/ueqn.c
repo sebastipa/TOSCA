@@ -4560,7 +4560,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
     // update wall model (optional)
-    // UpdateWallModelsU(ueqn);
+    UpdateWallModelsU(ueqn);
 
     // initialize the rhs vector
     VecSet(Rhs, 0.0);

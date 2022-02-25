@@ -17,7 +17,6 @@ jLeft   velocityWallFunction
             kRough 0.003
             gammaM 4.9
             kappa  0.4
-            qWall  -0.0000001
             thetaRef 300.0
             uStarEval averaged
         }

@@ -781,7 +781,7 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
     // update wall model (optional)
-    // UpdateWallModelsT(teqn);
+    UpdateWallModelsT(teqn);
 
     // initialize the rhs vector
     VecSet(Rhs, 0.0);
