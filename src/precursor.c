@@ -533,6 +533,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         if(domain->flags.isTeqnActive)
         {
             VecCopy(domain->teqn->Tmprt, domain->teqn->Tmprt_o);
+            UpdateWallModelsT(domain->teqn);
         }
 
         if(domain->ueqn->centralUpwindDiv || domain->flags.isTeqnActive)
@@ -544,7 +545,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         {
             UpdateCs (domain->les);
             UpdateNut(domain->les);
-            UpdateWallModels(domain->ueqn);
+            UpdateWallModelsU(domain->ueqn);
         }
 
         if(domain->flags.isAblActive)

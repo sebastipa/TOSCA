@@ -1,19 +1,19 @@
-# TOSCA Input file - T boundary conditions 
+# TOSCA Input file - nut boundary conditions 
 # -------------------------------------------
 
-#internal field 
+# internal field 
 
 internalField    ABLFlow
-
+                 
 # boundary patches
 
 iLeft   periodic
 
 iRight  periodic
 
-jLeft   zeroGradient
+jLeft   fixedValue 0.0
 
-jRight  fixedGradient 0.003
+jRight  fixedValue 0.0
 
 kLeft   periodic
 

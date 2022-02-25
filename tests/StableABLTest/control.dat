@@ -1,31 +1,30 @@
 # TOSCA Input file - control dictionary
-# --------------------------------- 
+# ------------------------------------------- 
 
 # Simulation
 # ---------------------------------
--startTime                 9000.00
--endTime                   9500
--cfl                       0.7
+-startTime                 0
+-endTime                   10000
+-cfl                       0.9
 -adjustTimeStep            1
--timeStep                  0.2
--timePrecision             2
+-timeStep                  0.5
+
 # Write Data
 # ---------------------------------
 -intervalType              adjustableTime
--timeInterval              10
--purgeWrite                1
+-timeInterval              50
+-purgeWrite                0
 
 # Solution 
 # ---------------------------------
 -imp                       4
 -potentialT                1
 -abl                       1
--zDampingLayer             1
+-zDampingLayer             0
 -xDampingLayer             0
--ibm                       0
--overset                   1
--absTolU                   1e-6
--poissonIt                 10
+
+-absTolU                   1e-5
+-poissonIt                 20
 -poissonTol                1e-10
 
 # Turbulence Model
@@ -39,7 +38,7 @@
 
 # Wind Turbine
 # ---------------------------------
--windplant                1
+-windplant                 0
 
 # Constants 
 # ---------------------------------
@@ -55,19 +54,17 @@
 # Acquisition
 # ---------------------------------
 -sections                 1
-#-probes                   1
-#-averagingABL            1
-#-averaging3LM             1
+-probes                   0
+-averageABL               1
+-average3LM               0
+-avgABLPeriod             5
+-avgABLStartTime          5000
 
 #-computeQ                1
 
 -averaging                1
--avgPeriod                5 
--avgStartTime             0
-
-#-phaseAveraging          3
-#-phaseAvgPeriod          500
-#-phaseAvgStartTime       0
+-avgPeriod                50 
+-avgStartTime             1000
 
 # PostProcessing 
 # ---------------------------------

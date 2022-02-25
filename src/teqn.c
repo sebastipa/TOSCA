@@ -400,6 +400,28 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
 
                     kappaEff = (nu / cst->Pr) + (nut / Prt);
+
+                    // wall model i-left/right patch
+                    if
+                    (
+                        (mesh->boundaryT.iLeft=="thetaWallFunction" && i==0) ||
+                        (mesh->boundaryT.iRight=="thetaWallFunction" && i==mx-2)
+                    )
+                    {
+                        PetscReal signQ =  1.0;
+                        if(i==0)  signQ = -1.0;
+
+                        visc[k][j][i].y
+                        =
+                        signQ *
+                        (
+                            teqn->iRWM->qWall.x[k][j] * icsi[k][j][i].x +
+                            teqn->iRWM->qWall.y[k][j] * icsi[k][j][i].y +
+                            teqn->iRWM->qWall.z[k][j] * icsi[k][j][i].z
+                        );
+
+                        kappaEff = 0.0;
+                    }
                 }
                 else
                 {
@@ -513,6 +535,28 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
 
                     kappaEff = (nu / cst->Pr) + (nut / Prt);
+
+                    // wall model j-left patch
+                    if
+                    (
+                        (mesh->boundaryT.jLeft=="thetaWallFunction"  && j==0) ||
+                        (mesh->boundaryT.jRight=="thetaWallFunction" && j==my-2)
+                    )
+                    {
+                        PetscReal signQ =  1.0;
+                        if(j==0)  signQ = -1.0;
+
+                        visc[k][j][i].y
+                        =
+                        signQ *
+                        (
+                            teqn->jLWM->qWall.x[k][i] * jeta[k][j][i].x +
+                            teqn->jLWM->qWall.y[k][i] * jeta[k][j][i].y +
+                            teqn->jLWM->qWall.z[k][i] * jeta[k][j][i].z
+                        );
+
+                        kappaEff = 0.0;
+                    }
                 }
                 else
                 {
@@ -735,6 +779,9 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
 
     // reset temperature periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
+
+    // update wall model (optional)
+    // UpdateWallModelsT(teqn);
 
     // initialize the rhs vector
     VecSet(Rhs, 0.0);

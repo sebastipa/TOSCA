@@ -2011,8 +2011,8 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
 {
     mesh_           *mesh = ueqn->access->mesh;
-    DM             da   = mesh->da, fda = mesh->fda;
-    DMDALocalInfo  info = mesh->info;
+    DM               da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
     PetscInt         xs = info.xs, xe = info.xs + info.xm;
     PetscInt         ys = info.ys, ye = info.ys + info.ym;
     PetscInt         zs = info.zs, ze = info.zs + info.zm;
@@ -2026,7 +2026,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
     PetscReal        ***aj, ***nvert;
     Cmpnts           ***ucat, ***lucont;
 
-    PetscReal q[3]; //local working array
+    PetscReal q[3];  // local working array
 
     // indices for internal cells
     lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
@@ -3581,25 +3581,16 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // wall model i-left patch
                     if
                     (
-                            mesh->boundaryU.iLeft=="velocityWallFunction" && i==0
+                            (mesh->boundaryU.iLeft=="velocityWallFunction"  && i==0) ||
+                            (mesh->boundaryU.iRight=="velocityWallFunction" && i==mx-2)
                     )
                     {
-                        visc1[k][j][i].x = ueqn->iLWM->tauWall.x[k][j];
-                        visc1[k][j][i].y = ueqn->iLWM->tauWall.y[k][j];
-                        visc1[k][j][i].z = ueqn->iLWM->tauWall.z[k][j];
+                        PetscReal signTau =  1.0;
+                        if(i==0)  signTau = -1.0;
 
-                        nut = 0.0;
-                    }
-
-                    // wall model i-right patch
-                    if
-                    (
-                            mesh->boundaryU.iRight=="velocityWallFunction" && i==mx-2
-                    )
-                    {
-                        visc1[k][j][i].x = ueqn->iRWM->tauWall.x[k][j];
-                        visc1[k][j][i].y = ueqn->iRWM->tauWall.y[k][j];
-                        visc1[k][j][i].z = ueqn->iRWM->tauWall.z[k][j];
+                        visc1[k][j][i].x = signTau * ueqn->iLWM->tauWall.x[k][j];
+                        visc1[k][j][i].y = signTau * ueqn->iLWM->tauWall.y[k][j];
+                        visc1[k][j][i].z = signTau * ueqn->iLWM->tauWall.z[k][j];
 
                         nut = 0.0;
                     }
@@ -3882,25 +3873,16 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // wall model j-left patch
                     if
                     (
-                            mesh->boundaryU.jLeft=="velocityWallFunction" && j==0
+                            (mesh->boundaryU.jLeft=="velocityWallFunction" && j==0) ||
+                            (mesh->boundaryU.jRight=="velocityWallFunction" && j==my-2)
                     )
                     {
-                        visc2[k][j][i].x = ueqn->jLWM->tauWall.x[k][i];
-                        visc2[k][j][i].y = ueqn->jLWM->tauWall.y[k][i];
-                        visc2[k][j][i].z = ueqn->jLWM->tauWall.z[k][i];
+                        PetscReal signTau =  1.0;
+                        if(j==0)  signTau = -1.0;
 
-                        nut = 0.0;
-                    }
-
-                    // wall model j-right patch
-                    if
-                    (
-                            mesh->boundaryU.jRight=="velocityWallFunction" && j==my-2
-                    )
-                    {
-                        visc2[k][j][i].x = ueqn->jRWM->tauWall.x[k][i];
-                        visc2[k][j][i].y = ueqn->jRWM->tauWall.y[k][i];
-                        visc2[k][j][i].z = ueqn->jRWM->tauWall.z[k][i];
+                        visc2[k][j][i].x = signTau * ueqn->jLWM->tauWall.x[k][i];
+                        visc2[k][j][i].y = signTau * ueqn->jLWM->tauWall.y[k][i];
+                        visc2[k][j][i].z = signTau * ueqn->jLWM->tauWall.z[k][i];
 
                         nut = 0.0;
                     }
@@ -4578,7 +4560,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
     // update wall model (optional)
-    UpdateWallModels(ueqn);
+    // UpdateWallModelsU(ueqn);
 
     // initialize the rhs vector
     VecSet(Rhs, 0.0);

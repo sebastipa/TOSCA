@@ -136,4 +136,7 @@ PetscErrorCode UpdatePhiBCs(peqn_ *peqn);
 PetscErrorCode UpdateImmersedBCs(ibm_ *ibm);
 
 //! \brief Update wall model for specified wall shear stress
-PetscErrorCode UpdateWallModels(ueqn_ *ueqn);
+PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn);
+
+//! \brief Update wall model for specified wall heat flux
+PetscErrorCode UpdateWallModelsT(teqn_ *teqn);

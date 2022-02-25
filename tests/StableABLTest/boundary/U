@@ -1,6 +1,12 @@
 # TOSCA Input file - U boundary conditions 
 # -------------------------------------------
 
+# internal field 
+
+internalField    ABLFlow
+
+# boundary patches
+
 iLeft   periodic
 
 iRight  periodic
@@ -9,12 +15,15 @@ jLeft   velocityWallFunction
         {
             type -3
             kRough 0.003
-            uStarEval localized
+            gammaM 4.9
+            kappa  0.4
+            qWall  -0.0000001
+            thetaRef 300.0
+            uStarEval averaged
         }
         
 jRight  slip
 
 kLeft   periodic
-kRight  periodic  
-
-internalField    readField
+        
+kRight  periodic   

@@ -53,6 +53,7 @@ int main(int argc, char **argv)
             if(flags.isTeqnActive)
             {
                 VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
+                UpdateWallModelsT(domain[d].teqn);
             }
 
             if(domain[d].ueqn->centralUpwindDiv || flags.isTeqnActive)
@@ -64,7 +65,7 @@ int main(int argc, char **argv)
             {
                 UpdateCs (domain[d].les);
                 UpdateNut(domain[d].les);
-                UpdateWallModels(domain[d].ueqn);
+                UpdateWallModelsU(domain[d].ueqn);
             }
 
             if(flags.isAblActive)

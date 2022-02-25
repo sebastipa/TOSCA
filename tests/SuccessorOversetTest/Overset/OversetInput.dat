@@ -1,28 +1,31 @@
-### This file handles the mesh input data and connectivity tree for Overset method simulation
+# TOSCA Input file - Overset Input Properties
+# -------------------------------------------
+
+# This file handles the mesh input data and connectivity tree for Overset method simulation
 
 # The sub entries for each mesh are integer arrays indicating the interaction between different overset meshes.
 
 # 	parentMesh - indicates the parent mesh of the current mesh
 # 	childMesh - if the given mesh has another (child) mesh in its domain
  	
-# These parameters cannot be left blank. Set value to -1 indicates null value
-### --------------------------------------------------------------------
+# these parameters cannot be left blank. Set value to -1 indicates null value
+# --------------------------------------------------------------------
 
 #General Overset properties
 MeshTotal		2
 
 Mesh0
 {
- name           background
- parentMesh 	(-1)
- childMesh 	    (1)
+    name           background
+    parentMesh 	   (-1)
+    childMesh 	   (1)
 }
 
 Mesh1
 {
- name           overset
- parentMesh 	(0)
- childMesh 	(-1)
+    name           overset
+    parentMesh 	   (0)
+    childMesh 	   (-1)
 }
 
 
@@ -40,7 +43,7 @@ cellFactor		3.1 #scaling the search radius with the size of local background mes
 #Parameters for dynamic Overset
 oversetMotion
 {
- setMotion	1
- motionType	Translation
- prescribedVel  (1.0 0.0 0.0)
+    setMotion	   1
+    motionType	   Translation
+    prescribedVel  (1.0 0.0 0.0)
 }

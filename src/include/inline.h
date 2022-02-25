@@ -47,6 +47,16 @@ inline PetscReal sign(PetscReal a)
 
 }
 
+// ============================================================================================================= //
+
+inline PetscReal signNonZero(PetscReal a)
+{
+    if (a > 0)      return  1.0;
+    else if (a < 0) return -1.0;
+    else            return  1.0;
+
+}
+
 // VECTOR ALGEBRA
 // ============================================================================================================= //
 
@@ -546,6 +556,8 @@ inline bool atleastOneIBM(ibm_ *ibm)
   return (ibm->ibmControlled == 1);
 }
 
+//***************************************************************************************************************//
+
 //! check if ibm cell within the neighbouring box of i,j,k
 inline bool isBoxIBMCell (int k, int j, int i, PetscReal ***nvert)
 {
@@ -557,6 +569,8 @@ inline bool isBoxIBMCell (int k, int j, int i, PetscReal ***nvert)
             nvert[k  ][j  ][i+1] +
             nvert[k  ][j  ][i-1] > 0.1);
 }
+
+//***************************************************************************************************************//
 
 //! \brief check if purely a fluid cell
 inline bool isFluidCell (PetscInt k, PetscInt j, PetscInt i, PetscReal ***nvert)
@@ -739,8 +753,8 @@ inline void resetNonResolvedCellCentersScalar(mesh_ *mesh,  Vec &V)
 }
 
 //***************************************************************************************************************//
-// interpolate cartesian velocity at cell center from the contravariant flux around a cell
 
+//! \brief Interpolates cartesian velocity at cell center from the contravariant flux around a cell
 inline void ContravariantToCartesianPoint(Cmpnts &csi, Cmpnts &eta, Cmpnts &zet, Cmpnts &ucont, Cmpnts *ucat)
 {
     // solving the linear system using Cramer method

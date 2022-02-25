@@ -19,3 +19,11 @@ void uStarShumann
     PetscReal &gammaM, PetscReal &kappa, PetscReal &qwall, PetscReal &thetaRef,
     PetscReal &uStar, PetscReal &phiM, PetscReal &L
 );
+
+void qWallShumann
+(
+    PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
+    PetscReal &gammaM, PetscReal &gammaH, PetscReal &alphaH,
+    PetscReal &thetaRef, PetscReal &deltaTheta, PetscReal &kappa,
+    PetscReal &qWall, PetscReal &uStar, PetscReal &phiM, PetscReal &phiH, PetscReal &L
+);

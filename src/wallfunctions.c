@@ -1,5 +1,6 @@
 #include "include/base.h"
 #include "include/domain.h"
+#include "include/inline.h"
 #include "include/wallfunctions.h"
 
 PetscInt     pre_integrate_flag = 0;
@@ -80,12 +81,13 @@ void uStarShumann
         {
             PetscReal duStar = 0.5 / 100.0;
             uStar0 = 1e-10;
-            uStar1 = uStar + duStar;
-
-            printf("uStar is zero, looking for maximum...");
+            uStar1 = uStar0 + duStar;
 
             do
             {
+                uStar0 = uStar1;
+                uStar1 = uStar0 + duStar;
+
                 // set initial guesses at L
                 PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qwall);
                 PetscReal L1 = -(std::pow(uStar1,3.0)) / (kappa * (g/thetaRef) * qwall);
@@ -112,7 +114,7 @@ void uStarShumann
 
             } while (f1 > f0);
 
-            printf("uStar = %f\n", uStar);
+            printf("uStar is zero, looking for maximum: uStar = %lf\n", uStar);
         }
 
         return;
@@ -122,6 +124,96 @@ void uStarShumann
         char error[512];
         sprintf(error, "wall model for unstable flow not yet implemented");
         fatalErrorInFunction("uStarShumann", error);
+    }
+}
+
+void qWallShumann
+(
+    PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
+    PetscReal &gammaM, PetscReal &gammaH, PetscReal &alphaH,
+    PetscReal &thetaRef, PetscReal &deltaTheta, PetscReal &kappa,
+    PetscReal &qWall, PetscReal &uStar, PetscReal &phiM, PetscReal &phiH, PetscReal &L
+)
+{
+    PetscReal uStar0 = std::max(0.0, (kappa * UParallelMeanMag) / std::log(wallDist / z0));
+    PetscReal qWall0 = (-deltaTheta * uStar0 * kappa) / (alphaH * std::log(wallDist / z0));
+
+    if(fabs(qWall0) < 1e-6)
+    {
+        qWall0 = signNonZero(qWall) * 1e-6;
+    }
+
+    PetscReal g      = 9.81;
+
+    PetscInt  iter = 0, iterMax = 100;
+    PetscReal tol  = 1e-5;
+
+    if(deltaTheta == 0.0)
+    {
+        uStar = uStar0;
+        qWall = qWall0;
+        L     = 1e30;
+        phiM  = 1.0;
+        phiH  = alphaH;
+        return;
+    }
+    else if(deltaTheta > 0.0)
+    {
+        PetscReal uStarDiff = 1e30;
+        PetscReal qWallDiff = 1e30;
+
+        do
+        {
+            // set initial guesses at L
+            PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qWall0);
+
+            // limit L to always be positive and finite
+            L0 = std::max(1e-10,L0);
+
+            // form the "zeta" variable
+            PetscReal zeta0 = wallDist/L0;
+
+            // form psiM
+            PetscReal psiM0 = -gammaM * zeta0;
+
+            // form psiH
+            PetscReal psiH0 = -gammaH * zeta0;
+
+            // update uStar
+            PetscReal uStarOld = uStar0;
+            uStar0 = std::max(0.0, (kappa * UParallelMeanMag) / (std::log(wallDist / z0) - psiM0));
+
+            // update qWall
+            PetscReal qWallOld = qWall0;
+            qWall0 = (-deltaTheta * uStar0 * kappa) / (alphaH * std::log(wallDist / z0) - psiH0);
+
+            // compute change in uStar and qWall
+            uStarDiff = uStar0 - uStarOld;
+            qWallDiff = qWall0 - qWallOld;
+
+            // evaluate in case it is converged
+            uStar  = uStar0;
+            qWall  = qWall0;
+            L      = L0;
+            phiM   = 1.0 + (gammaM * zeta0);
+            phiH   = alphaH + (gammaH * zeta0);
+
+            iter++;
+
+        } while((fabs(uStarDiff)>tol || abs(qWallDiff)>tol) && iter < iterMax);
+
+        if(iter == iterMax)
+        {
+            printf("max uStar iteration reached\n");
+        }
+
+        return;
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "wall model for unstable flow not yet implemented");
+        fatalErrorInFunction("qWallShumann", error);
     }
 }
 
