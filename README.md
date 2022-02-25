@@ -39,7 +39,7 @@ Toolbox fOr Stratified Convective Atmospheres
 
 ## Future Implementations:
 
-    - Boundary condition for wall heat flux with similarity theories
+    - IBM pressure and viscous forces computation
     
 ## Notes:
   
