@@ -12,13 +12,6 @@ iLeft   	 oversetInterpolate
 
 iRight  	 oversetInterpolate
 
-#jLeft   velocityWallFunction
-#        {
-#            type -3
-#            kRough 0.003
-#            uStarEval localized
-#        }
-#
 jLeft		 oversetInterpolate
 
 jRight  	 oversetInterpolate

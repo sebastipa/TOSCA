@@ -1489,13 +1489,13 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             uBarContI - ucont[k][j][i].x
                         );
 
-                        // j-fluxes
+                        // j-fluxes (do not perform damping on vertical velocity)
                         rhs[k][j][i].y
-                        +=
-                        scale * central(nud_x, nudj_x) *
-                        (
-                            uBarContJ - ucont[k][j][i].y
-                        );
+                        += 0.0;
+                        //scale * central(nud_x, nudj_x) *
+                        //(
+                        //    uBarContJ - ucont[k][j][i].y
+                        //);
 
                         // k-fluxes
                         rhs[k][j][i].z
@@ -1519,7 +1519,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     nud_z   = viscRayleigh(alphaZ, zS, zE, z);
                     nudj_z  = viscRayleigh(alphaZ, zS, zE, zj);
 
-                    // damp also x and y components
+                    // damp also x and y components (exclude in xFringe if present)
                     if(abl->zDampingAlsoXY)
                     {
                         // compute cell center z at i+1,j,k and i,j,k+1 points
@@ -1555,16 +1555,12 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         );
                     }
 
-                    // j-fluxes: total damping to reach no penetration at jRight
+                    // j-fluxes: total damping to reach no penetration at jRight (damp also in xFringe if present)
                     rhs[k][j][i].y
                     +=
-                    scale * central(nud_z, nudj_z) * nudJ *
+                    scale * central(nud_z, nudj_z) *
                     (
-                        (
-                            (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
-                            (abl->uBarMeanZ[j].y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
-                            (abl->uBarMeanZ[j].z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
-                        )
+                        central(ucat[k][j][i].z, ucat[k][j+1][i].z) * jeta[k][j][i].z
                     );
                 }
             }

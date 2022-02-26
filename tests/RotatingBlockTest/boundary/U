@@ -11,12 +11,6 @@ iLeft            noSlip
 
 iRight           noSlip
 
-#jLeft            velocityWallFunction
-#                 {
-#            	 	type -1
-#            		kRough 0.003
-#            		uStarEval localized
-#        	 }
 jLeft		 noSlip
         
 jRight  	 noSlip
