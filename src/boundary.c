@@ -2902,7 +2902,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
 
     if(flags->isTeqnActive)
     {
-        DMDAVecGetArray(da, teqn->lTmprt,  &t);
+        DMDAVecRestoreArray(da, teqn->lTmprt,  &t);
     }
 
     return(0);

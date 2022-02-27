@@ -1981,9 +1981,9 @@ PetscErrorCode SetRHS(peqn_ *peqn)
 
     HYPRE_IJVectorAssemble(peqn->hypreRhs);
 
-    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
-    DMDAVecGetArray(da,  mesh->lNvert,  &nvert);
-    DMDAVecGetArray(da,  peqn->lGid,    &gid);
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
+    DMDAVecRestoreArray(da,  peqn->lGid,    &gid);
 
     return(0);
 }

@@ -1558,8 +1558,10 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // j-fluxes: total damping to reach no penetration at jRight (damp also in xFringe if present)
                     rhs[k][j][i].y
                     +=
-                    scale * central(nud_z, nudj_z) *
+                    -1.0 * scale * central(nud_z, nudj_z) * 
                     (
+                        central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].x +
+                        central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].y +
                         central(ucat[k][j][i].z, ucat[k][j+1][i].z) * jeta[k][j][i].z
                     );
                 }
@@ -2036,7 +2038,6 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
     DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
-
     DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
     DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
 
