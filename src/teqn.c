@@ -804,7 +804,8 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
 
     if(teqn->access->flags->isXDampingActive)
     {
-        dampingSourceT(teqn, Rhs, 1.0);
+        // this is causing spurious oscillation: deactivate
+        //dampingSourceT(teqn, Rhs, 1.0);
     }
 
     // multiply for dt

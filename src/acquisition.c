@@ -2379,10 +2379,10 @@ PetscErrorCode kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, V
 PetscErrorCode ProbesInitialize(domain_ *domain)
 {
     // indices for domain, rake and probes
-    PetscInt d, r, p;
+    PetscInt       d, r, p;
 
     // get number of domains
-    PetscInt nDomains = domain[0].info.nDomains;
+    PetscInt       nDomains = domain[0].info.nDomains;
 
     // get clock anf flags from first domain (they are all the same)
     clock_        *clock  = domain[0].clock;
@@ -2437,7 +2437,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
 
                     if(!f)
                     {
-                       char error[530];
+                        char error[530];
                         sprintf(error, "cannot open file %s\n", fileName);
                         fatalErrorInFunction("ProbesInitialize",  error);
                     }
@@ -2446,7 +2446,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                     readError = fscanf(f, "%s %ld\n", tmp, &(probes->rakes[nRakes].probesNumber));
 
                     // set the total number of probes in rakes
-                    PetscMalloc(sizeof(PetscReal*) * probes->rakes[nRakes].probesNumber, &(probes->rakes[nRakes].locations));
+                    PetscMalloc(sizeof(PetscReal*)   * probes->rakes[nRakes].probesNumber, &(probes->rakes[nRakes].locations));
                     PetscMalloc(sizeof(PetscInt*)    * probes->rakes[nRakes].probesNumber, &(probes->rakes[nRakes].cells));
                     PetscMalloc(sizeof(PetscInt)     * probes->rakes[nRakes].probesNumber, &(probes->rakes[nRakes].owner));
                     PetscMalloc(sizeof(PetscInt)     * probes->rakes[nRakes].probesNumber, &(probes->rakes[nRakes].domainID));
@@ -2455,7 +2455,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                     {
                         // set the dimension of data attributes (vector and indices set)
                         PetscMalloc(sizeof(PetscReal) * 3, &(probes->rakes[nRakes].locations[p]));
-                        PetscMalloc(sizeof(PetscInt)    * 3, &(probes->rakes[nRakes].cells[p]));
+                        PetscMalloc(sizeof(PetscInt)  * 3, &(probes->rakes[nRakes].cells[p]));
                     }
 
                     // set rake name
@@ -2495,7 +2495,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                     for(p=0; p<probes->rakes[nRakes].probesNumber; p++)
                     {
                         PetscReal px, py, pz;
-                        PetscInt    pi, pj, pk;
+                        PetscInt  pi, pj, pk;
 
                         // read rake location
                         readError = fscanf(f, "%lf %lf %lf\n", &px, &py, &pz);
@@ -2503,9 +2503,9 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                         probes->rakes[nRakes].locations[p][1] = py;
                         probes->rakes[nRakes].locations[p][2] = pz;
 
-                        std::vector<cellIds> cells(nDomains);
-                        std::vector<PetscInt>     owner(nDomains);
-                        std::vector<PetscInt>     domainID(nDomains);
+                        std::vector<cellIds>  cells(nDomains);
+                        std::vector<PetscInt> owner(nDomains);
+                        std::vector<PetscInt> domainID(nDomains);
 
                         // loop over domains and see which domain controls this probe
                         for(d=0; d<nDomains; d++)
@@ -2540,9 +2540,9 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                             PetscReal maxPerturb  = 1e-10;
 
                             // processor perturbation (changes between processors)
-                            PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)nProcs;
+                            PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1.0) / (PetscReal)nProcs;
 
-                            // find the closest cell
+                            // find the closest cell in this processor
                             PetscReal lminDist = 1e20;
                             PetscReal gminDist = 1e20;
                             std::vector<PetscInt> indices{0, 0, 0};
@@ -2576,7 +2576,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                                 }
                             }
 
-                            // scatter the local distance to global using MIN operator
+                            // scatter the local distance to global using MIN operator (take the minimum)
                             MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
 
                             std::vector<PetscInt> lindices{0, 0, 0};
@@ -2589,10 +2589,13 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                             // now compare the distances: where they agree, this processor controls the probe
                             if(lminDist == gminDist)
                             {
-                                // furthest possible distance as 2 * cellWidth
-                                PetscReal cellWidth = 2*pow(1.0/aj[indices[0]][indices[1]][indices[2]], 1.0/3.0);
+                                // if multiple domains are used, the probe could be outside of this domain but inside the
+                                // biggest one. Test if is in the proximity of the closest cell.
 
-                                // probe is inside this domain
+                                // furthest possible distance as 5.0 * cellWidth (w have to make this check more precise for high AR cell)
+                                PetscReal cellWidth = 5.0*pow(1.0/aj[indices[0]][indices[1]][indices[2]], 1.0/3.0);
+
+                                // next to closest cell: is inside this domain
                                 if(gminDist < cellWidth)
                                 {
                                     // save indices
@@ -2601,15 +2604,15 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                                     lindices[2] = indices[2];
 
                                     // save owner rank
-                                    lownerRank = rank;
+                                    lownerRank  = rank;
 
                                     // set domain ID
-                                    ldomainID = d;
+                                    ldomainID   = d;
                                 }
-                                // probe is outside this domain
+                                // far from closest cell: is outside this domain
                                 else
                                 {
-                                    // set everything to -1
+                                    // set everything to -1: it should happen only for the process containing the closest cell
                                     lindices[0] = -1;
                                     lindices[1] = -1;
                                     lindices[2] = -1;
@@ -2618,7 +2621,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                                 }
                             }
 
-                            // scatter indices and owner
+                            // scatter indices and owner: if inside domain has values, if outside it is all -1
                             MPI_Allreduce(&lindices[0], &gindices[0], 3, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
                             MPI_Allreduce(&lownerRank, &gownerRank, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
                             MPI_Allreduce(&ldomainID, &gdomainID, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
@@ -2633,10 +2636,10 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                             DMDAVecRestoreArray(fda, mesh->lCent, &cent);
                             DMDAVecRestoreArray(da, mesh->lAj, &aj);
 
-                        }
+                        } // end of loop over domains
 
-                        // choose the domain characterized by the finer mesh to be the
-                        // one controlling this probe
+                        // probe can be in more than one domain, so choose the domain characterized
+                        // by the finer mesh to be the one controlling this probe
                         PetscInt finerID = -1;
 
                         for(d=0; d<nDomains; d++)
@@ -2667,9 +2670,11 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                         else
                         {
                             char warning[256];
-                            sprintf(warning, "Ignoring probe at location (%lf, %lf, %lf) in rake %s since it is outside the domain", probes->rakes[r].locations[p][0], probes->rakes[r].locations[p][1], probes->rakes[r].locations[p][2], probes->rakes[r].rakeName.c_str());
+                            sprintf(warning, "Ignoring probe at location (%lf, %lf, %lf) in rake %s since it is outside the domain", probes->rakes[nRakes].locations[p][0], probes->rakes[nRakes].locations[p][1], probes->rakes[nRakes].locations[p][2], probes->rakes[nRakes].rakeName.c_str());
                             warningInFunction("ProbesInitialize",  warning);
                         }
+
+                        MPI_Barrier(PETSC_COMM_WORLD);
                     }
 
                     // get this processor rank in the global communicator
