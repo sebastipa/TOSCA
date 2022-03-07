@@ -21,6 +21,7 @@
 -abl                       1
 -zDampingLayer             1
 -xDampingLayer             1
+-precursorSpinUp           1
 
 -absTolU                   1e-5
 -poissonIt                 20
