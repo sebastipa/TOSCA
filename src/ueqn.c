@@ -1494,7 +1494,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             uBarContI - ucont[k][j][i].x
                         );
 
-                        // j-fluxes 
+                        // j-fluxes
                         rhs[k][j][i].y
                         +=
                         scale * central(nud_x, nudj_x) *
@@ -4718,9 +4718,6 @@ PetscErrorCode UeqnEuler(ueqn_ *ueqn)
 
     PetscReal ts,te;
 
-    PetscTime(&ts);
-    PetscPrintf(mesh->MESH_COMM, "Explicit Euler: Solving for Ucont, ");
-
     // compute the right hand side
     FormExplicitRhsU(ueqn);
 
@@ -4736,10 +4733,6 @@ PetscErrorCode UeqnEuler(ueqn_ *ueqn)
     // scatter to local values
     DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-
-    // compute elapsed time
-    PetscTime(&te);
-    PetscPrintf(mesh->MESH_COMM,"Elapsed Time = %f\n", te-ts);
 
     return(0);
 }

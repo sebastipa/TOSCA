@@ -992,6 +992,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
     if(domain->abl != NULL)
     {
         mesh_         *mesh = domain->mesh;
+        flags_        *flags = domain->access.flags;
         DM            da   = mesh->da, fda = mesh->fda;
         DMDALocalInfo info = mesh->info;
 
@@ -1025,19 +1026,12 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         if(mesh->meshFileType != "cartesian")
         {
-           char error[512];
+            char error[512];
             sprintf(error, "ABL capabilites only available for cartesian meshes\n");
             fatalErrorInFunction("ABLInitializePrecursor",  error);
         }
 
-        // the vertical direction is the j direction in curvilinear coordinates
-        PetscInt nLevels = my-2;
-
         abl_ *abl =  domain->abl;
-
-        PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->cellLevels));
-        PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->totVolPerLevel));
-        PetscMalloc(sizeof(PetscInt) * nLevels, &(abl->totCelPerLevel));
 
         readDictDouble("ABLProperties.dat", "uTau",             &(abl->uTau));
         readDictDouble("ABLProperties.dat", "hRough",           &(abl->hRough));
@@ -1054,8 +1048,14 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
         readDictDouble("ABLProperties.dat", "fCoriolis",        &(abl->fc));
         readDictWord  ("ABLProperties.dat", "controllerType",   &(abl->controllerType));
 
-        // overwrite controller type
-        abl->controllerType = "write";
+        // overwrite controller type if precursor is periodic, use same as successor otherwise
+        if(!flags->isPrecursorSpinUp)
+        {
+            abl->controllerType = "write";
+        }
+
+        // the vertical direction is the j direction in curvilinear coordinates
+        PetscInt nLevels = my-2;
 
         // initialize some useful parameters used in fringe and velocity controller 'write'
         {
