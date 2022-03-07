@@ -673,7 +673,7 @@ PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
         // store the inflow data by scattering the information on all nodes
         for(j=0; j<my; j++)
         {
-            MPI_Allreduce(&lpatchField[j][0], &gpatchField[j][0], mx*3, MPIU_REAL, MPIU_SUM, PETSC_COMM_WORLD);
+            MPI_Allreduce(&lpatchField[j][0], &gpatchField[j][0], mx*3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
         }
 
         // loop on the internal cells and set the cartesian velocity
@@ -742,7 +742,7 @@ PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
         // store the inflow data by scattering the information on all nodes
         for(j=0; j<my; j++)
         {
-            MPI_Allreduce(&lpatchField[j][0], &gpatchField[j][0], mx*3, MPIU_REAL, MPIU_SUM, PETSC_COMM_WORLD);
+            MPI_Allreduce(&lpatchField[j][0], &gpatchField[j][0], mx*3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
         }
 
         // loop on the internal cells and set the cartesian velocity
@@ -810,7 +810,7 @@ PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
         // store the inflow data by scattering the information on all nodes
         for(k=0; k<mz; k++)
         {
-            MPI_Allreduce(&lpatchField[k][0], &gpatchField[k][0], mx*3, MPIU_REAL, MPIU_SUM, PETSC_COMM_WORLD);
+            MPI_Allreduce(&lpatchField[k][0], &gpatchField[k][0], mx*3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
         }
 
         // loop on the internal cells and set the cartesian velocity
@@ -878,7 +878,7 @@ PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
         // store the inflow data by scattering the information on all nodes
         for(k=0; k<mz; k++)
         {
-            MPI_Allreduce(&lpatchField[k][0], &gpatchField[k][0], mx*3, MPIU_REAL, MPIU_SUM, PETSC_COMM_WORLD);
+            MPI_Allreduce(&lpatchField[k][0], &gpatchField[k][0], mx*3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
         }
 
         // loop on the internal cells and set the cartesian velocity
@@ -1185,7 +1185,7 @@ PetscErrorCode SpreadInletFlowT(teqn_ *teqn)
     // store the inflow data by scattering the information on all nodes
     for(j=0; j<my; j++)
     {
-        MPI_Allreduce(&lpatchField[j][0], &gpatchField[j][0], mx, MPIU_REAL, MPIU_SUM, PETSC_COMM_WORLD);
+        MPI_Allreduce(&lpatchField[j][0], &gpatchField[j][0], mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     }
 
     // loop on the internal cells and set the temperature
