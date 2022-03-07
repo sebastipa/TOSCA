@@ -36,39 +36,20 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     ueqn->centralUpwindWDiv = 0;
     ueqn->weno3Div          = 0;
     ueqn->quickDiv          = 0;
-    ueqn->relExitTol        = 1e-30;
-    ueqn->absExitTol        = 1e-5;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-inviscid", &(ueqn->inviscid),   PETSC_NULL);
-    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU",  &(ueqn->relExitTol), PETSC_NULL);
-    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU",  &(ueqn->absExitTol), PETSC_NULL);
 
     // read time discretization scheme
-    readDictWord("control.dat", "-ddtScheme", &(ueqn->ddtScheme));
+    readDictWord("control.dat", "-dUdtScheme", &(ueqn->ddtScheme));
 
     // read divergence scheme
     readDictWord("control.dat", "-divScheme", &(ueqn->divScheme));
 
-    if(ueqn->divScheme == "centralUpwind")
-    {
-      ueqn->centralUpwindDiv = 1;
-    }
-    else if(ueqn->divScheme == "centralUpwindW")
-    {
-      ueqn->centralUpwindWDiv = 1;
-    }
-    else if(ueqn->divScheme == "central")
-    {
-      ueqn->centralDiv = 1;
-    }
-    else if(ueqn->divScheme == "weno3")
-    {
-      ueqn->weno3Div = 1;
-    }
-    else if(ueqn->divScheme == "quickDiv")
-    {
-      ueqn->quickDiv = 1;
-    }
+    if(     ueqn->divScheme == "centralUpwind")  ueqn->centralUpwindDiv  = 1;
+    else if(ueqn->divScheme == "centralUpwindW") ueqn->centralUpwindWDiv = 1;
+    else if(ueqn->divScheme == "central")        ueqn->centralDiv        = 1;
+    else if(ueqn->divScheme == "weno3")          ueqn->weno3Div          = 1;
+    else if(ueqn->divScheme == "quickDiv")       ueqn->quickDiv          = 1;
 
     VecDuplicate(mesh->Cent, &(ueqn->Utmp));      VecSet(ueqn->Utmp,    0.0);
     VecDuplicate(mesh->Cent, &(ueqn->Rhs));       VecSet(ueqn->Rhs,     0.0);
@@ -93,8 +74,14 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     VecDuplicate(mesh->lAj, &(ueqn->lUstar));     VecSet(ueqn->lUstar,  0.0);
 
-    if(ueqn->ddtScheme == "implicit")
+    if(ueqn->ddtScheme == "backwardEuler")
     {
+        ueqn->relExitTol        = 1e-30;
+        ueqn->absExitTol        = 1e-5;
+
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU",  &(ueqn->relExitTol), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU",  &(ueqn->absExitTol), PETSC_NULL);
+
         // create the SNES solver
         SNESCreate(mesh->MESH_COMM, &(ueqn->snesU));
         SNESMonitorSet(ueqn->snesU, SNESMonitorU, (void*)&(mesh->MESH_COMM), PETSC_NULL);
@@ -145,14 +132,14 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         PetscReal rtol=ueqn->relExitTol, atol=ueqn->absExitTol, dtol=PETSC_DEFAULT;
         KSPSetTolerances(ueqn->ksp, rtol, atol, dtol, 1000);
     }
-    else if(ueqn->ddtScheme == "explicit")
+    else if(ueqn->ddtScheme == "forwardEuler" || ueqn->ddtScheme == "rungeKutta4")
     {
-        // RungeKutta4
+        // explicit schemes
     }
     else
     {
          char error[512];
-         sprintf(error, "unknown ddtScheme %s, available schemes are\n    1. implicit\n    2. explicit", ueqn->ddtScheme.c_str());
+         sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. backwardEuler\n    2. forwardEuler\n    3. rungeKutta4", ueqn->ddtScheme.c_str());
          fatalErrorInFunction("InitializeUEqn", error);
     }
 
@@ -484,14 +471,14 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         double dtSource2 = std::max((abl->preCompSources[idx_2+1][0] - abl->preCompSources[idx_2][0]), 1e-5);
 
         // do not scale with time step
-        s.x = w1 * abl->preCompSources[idx_1][1] + w2 * abl->preCompSources[idx_2][1];
-        s.y = w1 * abl->preCompSources[idx_1][2] + w2 * abl->preCompSources[idx_2][2];
-        s.z = w1 * abl->preCompSources[idx_1][3] + w2 * abl->preCompSources[idx_2][3];
+        // s.x = w1 * abl->preCompSources[idx_1][1] + w2 * abl->preCompSources[idx_2][1];
+        // s.y = w1 * abl->preCompSources[idx_1][2] + w2 * abl->preCompSources[idx_2][2];
+        // s.z = w1 * abl->preCompSources[idx_1][3] + w2 * abl->preCompSources[idx_2][3];
 
         // scale with time step
-        // s.x = (w1 * abl->preCompSources[idx_1][1] * dtSource1 + w2 * abl->preCompSources[idx_2][1] * dtSource2) / clock->dt;
-        // s.y = (w1 * abl->preCompSources[idx_1][2] * dtSource1 + w2 * abl->preCompSources[idx_2][2] * dtSource2) / clock->dt;
-        // s.z = (w1 * abl->preCompSources[idx_1][3] * dtSource1 + w2 * abl->preCompSources[idx_2][3] * dtSource2) / clock->dt;
+        s.x = (w1 * abl->preCompSources[idx_1][1] / dtSource1 + w2 * abl->preCompSources[idx_2][1] / dtSource2) * clock->dt;
+        s.y = (w1 * abl->preCompSources[idx_1][2] / dtSource1 + w2 * abl->preCompSources[idx_2][2] / dtSource2) * clock->dt;
+        s.z = (w1 * abl->preCompSources[idx_1][3] / dtSource1 + w2 * abl->preCompSources[idx_2][3] / dtSource2) * clock->dt;
 
 
     }
@@ -499,17 +486,19 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     {
         // PetscPrintf(mesh->MESH_COMM, "Correcting source terms using source average from time %lf\n", abl->sourceAvgStartTime);
 
-        // scale with dt
-        // PetscReal dtScale = clock->dt / abl->avgTimeStep;
-        //
-        // s.x = abl->cumulatedSource.x * dtScale;
-        // s.y = abl->cumulatedSource.y * dtScale;
-        // s.z = abl->cumulatedSource.z * dtScale;
-
         // do not scale with dt
-        s.x = abl->cumulatedSource.x;
-        s.y = abl->cumulatedSource.y;
-        s.z = abl->cumulatedSource.z;
+        // s.x = abl->cumulatedSource.x;
+        // s.y = abl->cumulatedSource.y;
+        // s.z = abl->cumulatedSource.z;
+
+        // scale with dt
+        PetscReal dtScale = clock->dt / abl->avgTimeStep;
+
+        s.x = abl->cumulatedSource.x * dtScale;
+        s.y = abl->cumulatedSource.y * dtScale;
+        s.z = abl->cumulatedSource.z * dtScale;
+
+
     }
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
@@ -1505,13 +1494,13 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             uBarContI - ucont[k][j][i].x
                         );
 
-                        // j-fluxes (do not perform damping on vertical velocity)
+                        // j-fluxes 
                         rhs[k][j][i].y
-                        += 0.0;
-                        //scale * central(nud_x, nudj_x) *
-                        //(
-                        //    uBarContJ - ucont[k][j][i].y
-                        //);
+                        +=
+                        scale * central(nud_x, nudj_x) *
+                        (
+                            uBarContJ - ucont[k][j][i].y
+                        );
 
                         // k-fluxes
                         rhs[k][j][i].z
@@ -4648,82 +4637,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
 
 //***************************************************************************************************************//
 
-PetscErrorCode UeqnEuler(ueqn_ *ueqn, Vec &U)
-{
-    mesh_  *mesh  = ueqn->access->mesh;
-    clock_ *clock = ueqn->access->clock;
-
-    // reset no penetration fluxes to zero (override numerical errors)
-    resetNoPenetrationFluxes(ueqn);
-
-    // reset contravariant periodic fluxes to be consistent if the flow is periodic
-    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
-
-    // transform to cartesian
-    contravariantToCartesian(ueqn);
-
-    // reset cartesian periodic fluxes to be consistent if the flow is periodic
-    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
-
-    // get time step
-    PetscReal dt = clock->dt;
-
-    // add pressure gradient term
-    VecAXPY(ueqn->Rhs, -1.0, ueqn->dP);
-
-    // add coriolis source terms
-    if(ueqn->access->flags->isAblActive)
-    {
-        Coriolis(ueqn, ueqn->Rhs, 1.0);
-    }
-
-    if(ueqn->access->flags->isTeqnActive)
-    {
-        Buoyancy(ueqn, ueqn->Rhs, 1.0);
-    }
-
-    // add viscous and transport terms
-    FormU(ueqn, ueqn->Rhs, 1.0);
-
-    // add new wind farm models
-    if(ueqn->access->flags->isWindFarmActive)
-    {
-        VecAXPY(ueqn->Rhs, 1.0, ueqn->access->farm->sourceFarmCont);
-    }
-
-    if
-    (
-        ueqn->access->flags->isXDampingActive ||
-        ueqn->access->flags->isZDampingActive
-    )
-    {
-        dampingSourceU(ueqn, ueqn->Rhs, 1.0);
-    }
-
-
-    // multiply for dt
-    VecScale(ueqn->Rhs, dt);
-
-    // add driving source terms after as it is not scaled by 1/dt
-    if(ueqn->access->flags->isAblActive)
-    {
-        sourceU(ueqn, ueqn->Rhs, 1.0);
-    }
-
-    resetNonResolvedCellFaces(mesh, ueqn->Rhs);
-
-    // add time derivative term
-    VecAXPY(ueqn->Rhs, 1, ueqn->Ucont);
-
-    // store the solution
-    VecCopy(ueqn->Rhs,  ueqn->Ucont);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode FormRHS(ueqn_ *ueqn)
+PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
 {
     mesh_  *mesh  = ueqn->access->mesh;
     clock_ *clock = ueqn->access->clock;
@@ -4797,6 +4711,103 @@ PetscErrorCode FormRHS(ueqn_ *ueqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode UeqnEuler(ueqn_ *ueqn)
+{
+    mesh_  *mesh  = ueqn->access->mesh;
+    clock_ *clock = ueqn->access->clock;
+
+    PetscReal ts,te;
+
+    PetscTime(&ts);
+    PetscPrintf(mesh->MESH_COMM, "Explicit Euler: Solving for Ucont, ");
+
+    // compute the right hand side
+    FormExplicitRhsU(ueqn);
+
+    // multiply for dt
+    VecScale(ueqn->Rhs, clock->dt);
+
+    // add time derivative term
+    VecAXPY(ueqn->Rhs, 1, ueqn->Ucont);
+
+    // store the solution
+    VecCopy(ueqn->Rhs,  ueqn->Ucont);
+
+    // scatter to local values
+    DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    // compute elapsed time
+    PetscTime(&te);
+    PetscPrintf(mesh->MESH_COMM,"Elapsed Time = %f\n", te-ts);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode UeqnRK4(ueqn_ *ueqn)
+{
+    mesh_  *mesh  = ueqn->access->mesh;
+    clock_ *clock = ueqn->access->clock;
+
+    PetscReal ts,te;
+
+    PetscTime(&ts);
+    PetscPrintf(mesh->MESH_COMM, "RungeKutta-4: Solving for Ucont, Stage ");
+
+    PetscInt  s = 4;
+    PetscReal b[4];
+    PetscReal a[4];
+
+    b[0] = 1.0 / 6.0;
+    b[0] = 1.0 / 3.0;
+    b[1] = 1.0 / 3.0;
+    b[2] = 1.0 / 6.0;
+
+    a[0] = 0.0;
+    a[1] = 0.5;
+    a[2] = 0.5;
+    a[3] = 1.0;
+
+    PetscReal dt = clock->dt;
+
+    // Ucont_o contribution
+    VecCopy(ueqn->Ucont_o, ueqn->Utmp);
+
+    // contribution from K2, K3, K4
+    for (PetscInt i=0; i<s; i++)
+    {
+        PetscPrintf(mesh->MESH_COMM, "%ld, ", i+1);
+
+        // compute intermediate U guess and evaluate RHS
+        if(i!=0)
+        {
+            VecWAXPY(ueqn->Ucont, a[i] * dt, ueqn->Rhs, ueqn->Ucont_o);
+            DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+            DMGlobalToLocalEnd(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+        }
+
+        // compute function guess
+        FormExplicitRhsU(ueqn);
+
+        // add contribution from K1, K2, K3, K4
+        VecAXPY(ueqn->Utmp, dt * b[i], ueqn->Rhs);
+    }
+
+    VecCopy(ueqn->Utmp, ueqn->Ucont);
+    DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    // compute elapsed time
+    PetscTime(&te);
+    PetscPrintf(mesh->MESH_COMM,"Elapsed Time = %f\n", te-ts);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode SolveUEqn(ueqn_ *ueqn)
 {
     mesh_          *mesh = ueqn->access->mesh;
@@ -4805,7 +4816,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     // set the right hand side to zero
     VecSet (ueqn->Rhs, 0.0);
 
-    if(ueqn->ddtScheme == "implicit")
+    if(ueqn->ddtScheme == "backwardEuler")
     {
         PetscReal     norm;
         PetscInt      iter;
@@ -4832,9 +4843,13 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
         PetscTime(&te);
         PetscPrintf(mesh->MESH_COMM,"Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n", norm, iter, te-ts);
     }
-    else if (ueqn->ddtScheme == "explicit")
+    else if (ueqn->ddtScheme == "forwardEuler")
     {
-        RungeKutta(ueqn);
+        UeqnEuler(ueqn);
+    }
+    else if (ueqn->ddtScheme == "rungeKutta4")
+    {
+        UeqnRK4(ueqn);
     }
 
     // reset no penetration fluxes to zero (override numerical errors)
@@ -4852,66 +4867,6 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     {
         adjustFluxes(ueqn);
     }
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode RungeKutta(ueqn_ *ueqn)
-{
-    mesh_  *mesh  = ueqn->access->mesh;
-    clock_ *clock = ueqn->access->clock;
-
-    PetscInt  s = 4;
-    PetscReal b[4];
-    PetscReal a[4];
-
-    b[0] = 1.0 / 6.0;
-    b[0] = 1.0 / 3.0;
-    b[1] = 1.0 / 3.0;
-    b[2] = 1.0 / 6.0;
-
-    a[0] = 0.0;
-    a[1] = 0.5;
-    a[2] = 0.5;
-    a[3] = 1.0;
-
-    PetscReal ts,te;
-
-    PetscTime(&ts);
-    PetscPrintf(mesh->MESH_COMM, "RungeKutta4: Solving for Ucont, Stage 1, ");
-
-    PetscReal dt = clock->dt;
-
-    // Ucont_o contribution
-    VecCopy(ueqn->Ucont_o, ueqn->Utmp);
-
-    // contribution from K1
-    VecAXPY(ueqn->Utmp, dt * b[0], ueqn->Rhs_o);
-
-    // contribution from K2, K3, K4
-    for (PetscInt i=1; i<s; i++)
-    {
-        PetscPrintf(mesh->MESH_COMM, "%ld, ", i+1);
-
-        // compute intermediate U guess and evaluate RHS
-        VecWAXPY(ueqn->Ucont, a[i] * dt, ueqn->Rhs, ueqn->Ucont_o);
-        DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-        DMGlobalToLocalEnd(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-        FormRHS(ueqn);
-
-        // add contribution from K2, K3, K4
-        VecAXPY(ueqn->Utmp, dt * b[i], ueqn->Rhs);
-    }
-
-    VecCopy(ueqn->Utmp, ueqn->Ucont);
-    DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-    DMGlobalToLocalEnd(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-
-    // compute elapsed time
-    PetscTime(&te);
-    PetscPrintf(mesh->MESH_COMM,"Elapsed Time = %f\n", te-ts);
 
     return(0);
 }

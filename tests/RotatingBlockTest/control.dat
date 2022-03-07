@@ -30,7 +30,7 @@
 
 # Numerical Schemes
 # ---------------------------------
--ddtScheme                 implicit
+-dUdtScheme                backwardEuler
 -divScheme                 centralUpwind
 
 # Wind Turbine

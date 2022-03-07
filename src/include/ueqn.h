@@ -107,7 +107,10 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn);
 PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr);
 
 //! \brief Solves ueqn using 4 stages runge kutta
-PetscErrorCode RungeKutta(ueqn_ *ueqn);
+PetscErrorCode UeqnRK4(ueqn_ *ueqn);
 
-//! \brief Computed RHS of momentum equation using current lUcont (updates lUcat), data put in ueqn->Rhs
-PetscErrorCode FormRHS(ueqn_ *ueqn);
+//! \brief Solves ueqn using explicit euler
+PetscErrorCode UeqnEuler(ueqn_ *ueqn);
+
+//! \brief Computed RHS of momentum equation using current lUcont (updates Rhs), data put in ueqn->Rhs
+PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn);

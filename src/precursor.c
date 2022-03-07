@@ -576,8 +576,11 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
             SolveTEqn(domain->teqn);
 
             // save temperature equation right hand side
-            VecSet(domain->teqn->Rhs_o, 0.0);
-            FormT (domain->teqn, domain->teqn->Rhs_o, 1.0);
+            if(domain->teqn->ddtScheme=="backwardEuler")
+            {
+                VecSet(domain->teqn->Rhs_o, 0.0);
+                FormT (domain->teqn, domain->teqn->Rhs_o, 1.0);
+            }
         }
 
         MPI_Barrier(domain->mesh->MESH_COMM);
@@ -586,8 +589,11 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         ContinuityErrors(domain->peqn);
 
         // save momentum right hand side
-        VecSet(domain->ueqn->Rhs_o, 0.0);
-        FormU (domain->ueqn, domain->ueqn->Rhs_o, 1.0);
+        if(domain->ueqn->ddtScheme=="backwardEuler")
+        {
+            VecSet(domain->ueqn->Rhs_o, 0.0);
+            FormU (domain->ueqn, domain->ueqn->Rhs_o, 1.0);
+        }
 
         if(domain->flags.isTeqnActive)
         {
@@ -621,23 +627,23 @@ PetscErrorCode SetBoundaryConditionsPrecursor(mesh_ *mesh)
 
     // read U boundary conditions
     readVectorBC(location, "U", &(mesh->boundaryU));
-    mesh->boundaryU.kLeft    = "inletFunction";
-    mesh->boundaryU.kRight   = "zeroGradient" ;
+    //mesh->boundaryU.kLeft    = "inletFunction";
+    //mesh->boundaryU.kRight   = "zeroGradient" ;
 
     // read nut boundary conditions
     if (mesh->access->flags->isLesActive)
     {
         readScalarBC(location, "nut", &(mesh->boundaryNut));
-        mesh->boundaryNut.kLeft  = "inletFunction";
-        mesh->boundaryNut.kRight = "zeroGradient" ;
+        //mesh->boundaryNut.kLeft  = "inletFunction";
+        //mesh->boundaryNut.kRight = "zeroGradient" ;
     }
 
     // read T boundary conditions
     if (mesh->access->flags->isTeqnActive)
     {
         readScalarBC(location, "T", &(mesh->boundaryT));
-        mesh->boundaryT.kLeft    = "inletFunction";
-        mesh->boundaryT.kRight   = "zeroGradient" ;
+        //mesh->boundaryT.kLeft    = "inletFunction";
+        //mesh->boundaryT.kRight   = "zeroGradient" ;
     }
 
     // check boundary conditions
@@ -652,8 +658,8 @@ PetscErrorCode SetBoundaryConditionsPrecursor(mesh_ *mesh)
     SetPeriodicConnectivity(mesh, meshFileName);
 
     // overwrite periodic connectivity info
-    mesh->k_periodic         = 0;
-    mesh->kk_periodic        = 0;
+    // mesh->k_periodic         = 0;
+    // mesh->kk_periodic        = 0;
 
     return(0);
 }

@@ -23,6 +23,8 @@ struct teqn_
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscReal     relExitTol;                 //!< relative exit tolerance
 
+    word          ddtScheme;                  //!< time derivative scheme
+
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch
     wallModel     *iRWM;                      //!< wall model on the i-right patch
@@ -53,3 +55,9 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
 
 //! \brief RHS of the potential temperature transport equation
 PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
+
+//! \brief solve Teqn using RungeKutta 4
+PetscErrorCode TeqnRK4(teqn_ *teqn);
+
+//! \brief Computed RHS of temperature equation using current lTmprt (updates Rhs), data put in ueqn->Rhs
+PetscErrorCode FormExplicitRhsT(teqn_ *teqn);

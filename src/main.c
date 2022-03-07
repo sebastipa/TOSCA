@@ -102,8 +102,11 @@ int main(int argc, char **argv)
                 SolveTEqn(domain[d].teqn);
 
                 // save temperature equation right hand side
-                VecSet(domain[d].teqn->Rhs_o, 0.0);
-                FormT (domain[d].teqn, domain[d].teqn->Rhs_o, 1.0);
+                if(domain[d].teqn->ddtScheme=="backwardEuler")
+                {
+                    VecSet(domain[d].teqn->Rhs_o, 0.0);
+                    FormT (domain[d].teqn, domain[d].teqn->Rhs_o, 1.0);
+                }
             }
 
             MPI_Barrier(domain[d].mesh->MESH_COMM);
@@ -112,8 +115,11 @@ int main(int argc, char **argv)
             ContinuityErrors(domain[d].peqn);
 
             // save momentum right hand side
-            VecSet(domain[d].ueqn->Rhs_o, 0.0);
-            FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);
+            if(domain[d].ueqn->ddtScheme=="backwardEuler")
+            {
+                VecSet(domain[d].ueqn->Rhs_o, 0.0);
+                FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);
+            }
 
             if(flags.isIBMActive)
             {
