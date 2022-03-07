@@ -18,7 +18,6 @@
 
 # Solution 
 # ---------------------------------
--imp                       4
 -potentialT                0
 -abl                       0
 -zDampingLayer             0
@@ -35,6 +34,7 @@
 
 # Numerical Schemes
 # ---------------------------------
+-ddtScheme                 implicit
 -divScheme                 centralUpwind
 
 # Wind Turbine

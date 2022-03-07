@@ -7,13 +7,15 @@
 //! \brief structure storing momentum equation
 struct ueqn_
 {
-    // momentum variables
+    // Implicit time stepping
     SNES          snesU;                      //!< non linear matrix free context for momentum equation
     Mat           JU;                         //!< non linear matrix free preconditioner
     Mat           A, C;
     KSP           ksp;                        //!< linear krylov-subspace context
     PC            pc;
-    Vec           Utmp;                       //!< temporary solution passed to the SNES evaluation function
+
+    // momentum variables
+    Vec           Utmp;                       //!< temporary solution passed to the SNES evaluation function or used for RK4
     Vec           Rhs;                        //!< rhs of the momentum equation (stores transport and viscous fluxes), low level use in FormU
     Vec           Rhs_o;                      //!< rhs of the momentum equation at previous time step
     Vec           lFp;                        //!< rhs of the momentum equation prior to dotting with curv. coords basis (becomes Rhs)
@@ -28,6 +30,7 @@ struct ueqn_
     Vec           lUstar;
 
     // momentum settings
+    word          ddtScheme;                  //!< time derivative scheme
     word          divScheme;                  //!< divergence scheme
     PetscReal     relExitTol;                 //!< relative exit tolerance
     PetscReal     absExitTol;                 //!< absolute exit tolerance
@@ -102,3 +105,9 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn);
 
 //! \brief SNES evaluation function
 PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr);
+
+//! \brief Solves ueqn using 4 stages runge kutta
+PetscErrorCode RungeKutta(ueqn_ *ueqn);
+
+//! \brief Computed RHS of momentum equation using current lUcont (updates lUcat), data put in ueqn->Rhs
+PetscErrorCode FormRHS(ueqn_ *ueqn);

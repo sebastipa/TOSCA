@@ -60,7 +60,7 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
 
         if(!meshFileID)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "cannot open mesh file %s\n", meshFileName.c_str());
             fatalErrorInFunction("SetDistributedArrays", error);
         }
