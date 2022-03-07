@@ -12,7 +12,7 @@
 PetscErrorCode SetInitialField(domain_ *domain)
 {
     PetscInt    nDomains = domain[0].info.nDomains;
-    flags_ *flags   = domain[0].access.flags;
+    flags_      *flags   = domain[0].access.flags;
 
     for(PetscInt d=0; d<nDomains; d++)
     {
@@ -248,10 +248,6 @@ PetscErrorCode SetInitialFieldP(peqn_ *peqn)
 
 PetscErrorCode SetInitialFieldLES(les_ *les)
 {
-    // initialize fields to 0
-    VecSet(les->lNu_t,0.);
-    VecSet(les->lCs,0.);
-
     if(les->initFieldType == "readField")
     {
         // all fields read together later

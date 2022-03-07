@@ -1565,7 +1565,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
         // this domain communicator master rank
         MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
-        // create/initialize fields directory (at simulation start only)
+        // create/initialize fields/domainName directory (at simulation start only)
         if
         (
             clock->it == clock->itStart && !rank
@@ -1575,7 +1575,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
             dirRes = mkdir(writeDir.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create %s directory", writeDir.c_str());
                 fatalErrorInFunction("setRunTimeWrite",  error);
             }
@@ -1584,7 +1584,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
             if(errno == EEXIST)
             {
                 word startTimeName = getStartTimeName(clock);
-                remove_subdirs_except2(mesh->MESH_COMM, writeDir.c_str(), startTimeName.c_str(), "turbines");
+                remove_subdirs_except3(mesh->MESH_COMM, writeDir.c_str(), startTimeName.c_str(), "turbines", "precursor");
             }
         }
 
@@ -1629,7 +1629,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
             (intervalType != "adjustableTime")
         )
         {
-           char error[512];
+            char error[512];
             sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", intervalType.c_str());
             fatalErrorInFunction("setRunTimeWrite",  error);
         }

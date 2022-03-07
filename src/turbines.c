@@ -4204,7 +4204,8 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
         // if directory already exist remove everything inside except the start time (safe)
         if(errno == EEXIST)
         {
-            remove_subdirs_except(mesh->MESH_COMM, turbineFolderName.c_str(), path.c_str());
+            word startTimeName = getStartTimeName(clock);
+            remove_subdirs_except(mesh->MESH_COMM, turbineFolderName.c_str(), startTimeName.c_str());
         }
     }
 

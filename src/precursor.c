@@ -7,6 +7,7 @@
 #include "include/inline.h"
 #include "include/inflow.h"
 #include "include/initialization.h"
+#include "include/initialField.h"
 
 //***************************************************************************************************************//
 
@@ -28,11 +29,13 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isZDampingActive   = 0;
     flags->isXDampingActive   = 0;
     flags->isSideForceActive  = 0;
+    flags->isPrecursorSpinUp  = 0;
 
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",    &(flags->isTeqnActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-abl",           &(flags->isAblActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",            &(flags->isLesActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",     &(flags->isTeqnActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-abl",            &(flags->isAblActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep", &(flags->isAdjustableTime), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-precursorSpinUp",&(flags->isPrecursorSpinUp), PETSC_NULL);
 
     // set acquisition flags
     PetscInt isProbesActive         = 0;
@@ -133,6 +136,7 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
 {
     precursor_ *precursor = abl->precursor;
     domain_    *domain    = precursor->domain;
+    flags_     *flags     = precursor->domain->access.flags;
 
     // get precursor and successor meshes
     mesh_         *mesh_s = abl->access->mesh;
@@ -248,7 +252,8 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
     PetscInt M, N, P = 0;
     PetscInt m, n, p;
 
-    DMBoundaryType bx, by, bz = DM_BOUNDARY_PERIODIC;
+    DMBoundaryType bx, by,       bz = DM_BOUNDARY_PERIODIC;
+    if(flags->isPrecursorSpinUp) bz = DM_BOUNDARY_GHOSTED;
     DMDAGetInfo(da, PETSC_NULL, &M, &N, PETSC_NULL, &m, &n, PETSC_NULL, PETSC_NULL, PETSC_NULL, &bx, &by, PETSC_NULL, PETSC_NULL);
 
     // set number of processors in the k direction
@@ -399,12 +404,16 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
             Vec      lCoorP, lCoorS, gCoorP;
             Cmpnts   ***lcoorp, ***lcoors, ***gcoorp;
 
-            PetscInt      i, j, k;
+            PetscInt i, j, k;
             PetscInt lxs, lxe, lys, lye, lzs, lze;
 
             lxe = xe; if (xe == mx) lxe = xe - 1;
             lye = ye; if (ye == my) lye = ye - 1;
             lze = ze; if (ze == mz) lze = ze - 1;
+
+            // global working vectors for writing mesh file
+            std::vector<PetscReal> lxpoints(mesh_p->KM-1), lypoints(mesh_p->IM-1), lzpoints(mesh_p->JM-1),
+                                   gxpoints(mesh_p->KM-1), gypoints(mesh_p->IM-1), gzpoints(mesh_p->JM-1);
 
             // get successor data
             DMGetCoordinatesLocal(mesh_s->da, &lCoorS);
@@ -434,6 +443,19 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
                             gcoorp[k][j][i].x = lcoors[k+kStart][j][i].x;
                             gcoorp[k][j][i].y = lcoors[k+kStart][j][i].y;
                             gcoorp[k][j][i].z = lcoors[k+kStart][j][i].z;
+
+                            if(gcoorp[k][j][i].y==0.0 && gcoorp[k][j][i].z==0.0)
+                            {
+                                lxpoints[k] = gcoorp[k][j][i].x;
+                            }
+                            if(gcoorp[k][j][i].z==0.0 && gcoorp[k][j][i].x==0.0)
+                            {
+                                lypoints[i] = gcoorp[k][j][i].y;
+                            }
+                            if(gcoorp[k][j][i].x==0.0 && gcoorp[k][j][i].y==0.0)
+                            {
+                                lzpoints[j] = gcoorp[k][j][i].z;
+                            }
                         }
                     }
                 }
@@ -450,6 +472,56 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
 
             // restore successor arrays
             DMDAVecRestoreArray(mesh_s->fda, lCoorS, &lcoors);
+
+            // write mesh
+            MPI_Reduce(&lxpoints[0], &gxpoints[0], mesh_p->KM-1, MPIU_REAL, MPIU_SUM, 0, mesh_p->MESH_COMM);
+            MPI_Reduce(&lypoints[0], &gypoints[0], mesh_p->IM-1, MPIU_REAL, MPIU_SUM, 0, mesh_p->MESH_COMM);
+            MPI_Reduce(&lzpoints[0], &gzpoints[0], mesh_p->JM-1, MPIU_REAL, MPIU_SUM, 0, mesh_p->MESH_COMM);
+
+            // get current process
+            PetscMPIInt   rank;
+            MPI_Comm_rank(mesh_p->MESH_COMM, &rank);
+
+            if(!rank)
+            {
+                FILE *f;
+                char filen[80];
+                PetscInt width = -10;
+                sprintf(filen, "precursor.xyz");
+
+                // open a new file
+                f = fopen(filen, "w");
+
+                if(bz == DM_BOUNDARY_PERIODIC) PetscFPrintf(mesh_p->MESH_COMM, f, "-kPeriodicType 2\n");
+                if(by == DM_BOUNDARY_PERIODIC) PetscFPrintf(mesh_p->MESH_COMM, f, "-jPeriodicType 2\n");
+                if(bx == DM_BOUNDARY_PERIODIC) PetscFPrintf(mesh_p->MESH_COMM, f, "-iPeriodicType 2\n");
+                PetscFPrintf(mesh_p->MESH_COMM, f, "%ld\t%ld\t%ld\n", mesh_p->KM-1, mesh_p->IM-1, mesh_p->JM-1);
+
+                PetscReal zero = 0.0;
+
+                for (k=0; k<mesh_p->KM-1; k++)
+                {
+                    PetscFPrintf(mesh_p->MESH_COMM, f, "%*.4f\t%*.4f\t%*.4f\n", width, gxpoints[k], width, zero, width, zero);
+                }
+                for (i=0; i<mesh_p->IM-1; i++)
+                {
+                    PetscFPrintf(mesh_p->MESH_COMM, f, "%*.4f\t%*.4f\t%*.4f\n", width, zero, width, gypoints[i], width, zero);
+                }
+                for (j=0; j<mesh_p->JM-1; j++)
+                {
+                    PetscFPrintf(mesh_p->MESH_COMM, f, "%*.4f\t%*.4f\t%*.4f\n", width, zero, width, zero, width, gzpoints[j]);
+                }
+
+                fclose(f);
+            }
+
+            // free memory
+            std::vector<PetscReal> ().swap(gxpoints);
+            std::vector<PetscReal> ().swap(gypoints);
+            std::vector<PetscReal> ().swap(gzpoints);
+            std::vector<PetscReal> ().swap(lxpoints);
+            std::vector<PetscReal> ().swap(lypoints);
+            std::vector<PetscReal> ().swap(lzpoints);
 
             // initialize mesh fields and evaliate metrics
             DMCreateGlobalVector(fda, &(mesh_p->Cent));
@@ -516,15 +588,35 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
     precursor_ *precursor = abl->precursor;
     domain_    *domain    = precursor->domain;
     clock_     *clock     = domain->clock;
+    flags_     *flags     = domain->access.flags;
 
     if(precursor->thisProcessorInFringe)
     {
         setRunTimeWrite(domain);
 
+        // set initial field
         if(clock->it == clock->itStart)
         {
-            // map initial fields
-            MapInitialConditionPrecursor(abl);
+            // set initial fields
+            if(flags->isPrecursorSpinUp)
+            {
+                domain->ueqn->initFieldType = "spreadInflow";
+                if(flags->isTeqnActive) domain->teqn->initFieldType = "spreadInflow";
+                if(flags->isLesActive)  domain->les->initFieldType  = "spreadInflow";
+
+                PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: spreadInflow\n");
+                SpreadInletFlowU(domain->ueqn);
+                SpreadInletFlowT(domain->teqn);
+            }
+            else
+            {
+                domain->ueqn->initFieldType = "readField";
+                if(flags->isTeqnActive) domain->teqn->initFieldType = "readField";
+                if(flags->isLesActive)  domain->les->initFieldType  = "readField";
+
+                PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: readField\n");
+                readFields(domain, clock->startTime);
+            }
         }
 
         // create old fields
@@ -622,28 +714,42 @@ PetscErrorCode SetBoundaryConditionsPrecursor(mesh_ *mesh)
     // overwrite k-left and k-right BCs for concurrent precursor run
     // to interpolated mapped after reading
 
+    flags_ *flags = mesh->access->flags;
+
     // always take the boundary conditions of the
     word location = "./boundary/" + mesh->meshName + "/";
 
     // read U boundary conditions
     readVectorBC(location, "U", &(mesh->boundaryU));
-    //mesh->boundaryU.kLeft    = "inletFunction";
-    //mesh->boundaryU.kRight   = "zeroGradient" ;
+
+    if(flags->isPrecursorSpinUp)
+    {
+        mesh->boundaryU.kLeft    = "inletFunction";
+        mesh->boundaryU.kRight   = "zeroGradient" ;
+    }
 
     // read nut boundary conditions
     if (mesh->access->flags->isLesActive)
     {
         readScalarBC(location, "nut", &(mesh->boundaryNut));
-        //mesh->boundaryNut.kLeft  = "inletFunction";
-        //mesh->boundaryNut.kRight = "zeroGradient" ;
+
+        if(flags->isPrecursorSpinUp)
+        {
+            mesh->boundaryNut.kLeft  = "inletFunction";
+            mesh->boundaryNut.kRight = "zeroGradient" ;
+        }
     }
 
     // read T boundary conditions
     if (mesh->access->flags->isTeqnActive)
     {
         readScalarBC(location, "T", &(mesh->boundaryT));
-        //mesh->boundaryT.kLeft    = "inletFunction";
-        //mesh->boundaryT.kRight   = "zeroGradient" ;
+
+        if(flags->isPrecursorSpinUp)
+        {
+            mesh->boundaryT.kLeft    = "inletFunction";
+            mesh->boundaryT.kRight   = "zeroGradient" ;
+        }
     }
 
     // check boundary conditions
@@ -658,8 +764,11 @@ PetscErrorCode SetBoundaryConditionsPrecursor(mesh_ *mesh)
     SetPeriodicConnectivity(mesh, meshFileName);
 
     // overwrite periodic connectivity info
-    // mesh->k_periodic         = 0;
-    // mesh->kk_periodic        = 0;
+    if(flags->isPrecursorSpinUp)
+    {
+        mesh->k_periodic         = 0;
+        mesh->kk_periodic        = 0;
+    }
 
     return(0);
 }

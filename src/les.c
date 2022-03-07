@@ -13,44 +13,43 @@ const PetscReal std_cs  = 0.0289; // standard Cs value for HIT
 
 PetscErrorCode InitializeLES(les_ *les)
 {
-  if(les != NULL)
-  {
-    // set pointer to mesh
-    mesh_ *mesh = les->access->mesh;
-
-    les->maxCs  = 0.5;
-
-    // input file
-    PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
-
-    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-max_cs",  &(les->maxCs), PETSC_NULL);
-
-    if(les->access->flags->isLesActive)
+    if(les != NULL)
     {
-        VecDuplicate(mesh->lAj, &(les->lCs));
-        VecDuplicate(mesh->lAj, &(les->lNu_t));
+        // set pointer to mesh
+        mesh_ *mesh = les->access->mesh;
 
-        if (les->access->flags->isLesActive > 1)
+        les->maxCs  = 0.5;
+
+        // input file
+        PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
+
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-max_cs",  &(les->maxCs), PETSC_NULL);
+
+        if(les->access->flags->isLesActive)
         {
-            VecDuplicate(mesh->lAj, &(les->lLM));
-            VecDuplicate(mesh->lAj, &(les->lMM));
+            VecDuplicate(mesh->lAj, &(les->lCs));     VecSet(les->lCs,0.);
+            VecDuplicate(mesh->lAj, &(les->lNu_t));   VecSet(les->lNu_t,0.);
 
-            VecDuplicate(mesh->lCsi, &les->lSx);
-            VecDuplicate(mesh->lCsi, &les->lSy);
-            VecDuplicate(mesh->lCsi, &les->lSz);
-            VecDuplicate(mesh->lAj, &(les->lS));
-
-            if (les->access->flags->isLesActive == 4)
+            if (les->access->flags->isLesActive > 1)
             {
-                VecDuplicate(mesh->lAj, &(les->lLM_old));
-                VecDuplicate(mesh->lAj, &(les->lMM_old));
+                VecDuplicate(mesh->lAj, &(les->lLM));  VecSet(les->lLM,0.);
+                VecDuplicate(mesh->lAj, &(les->lMM));  VecSet(les->lMM,0.);
+
+                VecDuplicate(mesh->lCsi, &les->lSx);   VecSet(les->lSx,0.);
+                VecDuplicate(mesh->lCsi, &les->lSy);   VecSet(les->lSy,0.);
+                VecDuplicate(mesh->lCsi, &les->lSz);   VecSet(les->lSz,0.);
+                VecDuplicate(mesh->lAj, &(les->lS));   VecSet(les->lS,0.);
+
+                if (les->access->flags->isLesActive == 4)
+                {
+                    VecDuplicate(mesh->lAj, &(les->lLM_old));   VecSet(les->lLM_old,0.);
+                    VecDuplicate(mesh->lAj, &(les->lMM_old));   VecSet(les->lMM_old,0.);
+                }
             }
         }
     }
 
-  }
-
-  return(0);
+    return(0);
 }
 
 //***************************************************************************************************************//

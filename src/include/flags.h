@@ -17,6 +17,7 @@ struct flags_
     PetscInt isZDampingActive;
     PetscInt isXDampingActive;
     PetscInt isSideForceActive;
+    PetscInt isPrecursorSpinUp;
 };
 
 #endif
