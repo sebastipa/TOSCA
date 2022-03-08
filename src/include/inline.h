@@ -2185,28 +2185,54 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
             for (i=xs; i<lxe; i++)
             {
                 // noslip BC
-                if(i==0 && mesh->boundaryU.iLeft=="noSlip") ucont[k][j][i].x = 0;
-                if(i==mx-1 && mesh->boundaryU.iRight=="noSlip") ucont[k][j][i-1].x = 0;
-                if(j==0 && mesh->boundaryU.jLeft=="noSlip") ucont[k][j][i].y = 0;
-                if(j==my-1 && mesh->boundaryU.jRight=="noSlip") ucont[k][j-1][i].y = 0;
-                if(k==0 && mesh->boundaryU.kLeft=="noSlip") ucont[k][j][i].z = 0;
-                if(k==mz-1 && mesh->boundaryU.kRight=="noSlip") ucont[k-1][j][i].z = 0;
+                if(i==0 && mesh->boundaryU.iLeft=="noSlip")     ucont[k][j][i].x = 0.0;
+                if(i==mx-2 && mesh->boundaryU.iRight=="noSlip") ucont[k][j][i].x = 0.0;
+                if(j==0 && mesh->boundaryU.jLeft=="noSlip")     ucont[k][j][i].y = 0.0;
+                if(j==my-2 && mesh->boundaryU.jRight=="noSlip") ucont[k][j][i].y = 0.0;
+                if(k==0 && mesh->boundaryU.kLeft=="noSlip")     ucont[k][j][i].z = 0.0;
+                if(k==mz-2 && mesh->boundaryU.kRight=="noSlip") ucont[k][j][i].z = 0.0;
 
                 // wall models
-                if(i==0 && mesh->boundaryU.iLeft=="velocityWallFunction") ucont[k][j][i].x = 0;
-                if(i==mx-1 && mesh->boundaryU.iRight=="velocityWallFunction") ucont[k][j][i-1].x = 0;
-                if(j==0 && mesh->boundaryU.jLeft=="velocityWallFunction") ucont[k][j][i].y = 0;
-                if(j==my-1 && mesh->boundaryU.jRight=="velocityWallFunction") ucont[k][j-1][i].y = 0;
-                if(k==0 && mesh->boundaryU.kLeft=="velocityWallFunction") ucont[k][j][i].z = 0;
-                if(k==mz-1 && mesh->boundaryU.kRight=="velocityWallFunction") ucont[k-1][j][i].z = 0;
+                if(i==0 && mesh->boundaryU.iLeft=="velocityWallFunction")     ucont[k][j][i].x = 0.0;
+                if(i==mx-2 && mesh->boundaryU.iRight=="velocityWallFunction") ucont[k][j][i].x = 0.0;
+                if(j==0 && mesh->boundaryU.jLeft=="velocityWallFunction")     ucont[k][j][i].y = 0.0;
+                if(j==my-2 && mesh->boundaryU.jRight=="velocityWallFunction") ucont[k][j][i].y = 0.0;
+                if(k==0 && mesh->boundaryU.kLeft=="velocityWallFunction")     ucont[k][j][i].z = 0.0;
+                if(k==mz-2 && mesh->boundaryU.kRight=="velocityWallFunction") ucont[k][j][i].z = 0.0;
 
-                //slip BC
-                if (mesh->boundaryU.iLeft=="slip" && i==0) ucont[k][j][i].x = 0;
-                if (mesh->boundaryU.iRight=="slip" && i==mx-1) ucont[k][j][i-1].x = 0;
-                if (mesh->boundaryU.jLeft=="slip" && j==0) ucont[k][j][i].y = 0;
-                if (mesh->boundaryU.jRight=="slip" && j==my-1) ucont[k][j-1][i].y = 0;
-                if (mesh->boundaryU.kLeft=="slip" && k==0) ucont[k][j][i].z = 0;
-                if (mesh->boundaryU.kRight=="slip" && k==mz-1) ucont[k-1][j][i].z = 0;
+                // slip BC
+                if (mesh->boundaryU.iLeft=="slip" && i==0)     ucont[k][j][i].x = 0.0;
+                if (mesh->boundaryU.iRight=="slip" && i==mx-2) ucont[k][j][i].x = 0.0;
+                if (mesh->boundaryU.jLeft=="slip" && j==0)     ucont[k][j][i].y = 0.0;
+                if (mesh->boundaryU.jRight=="slip" && j==my-2) ucont[k][j][i].y = 0.0;
+                if (mesh->boundaryU.kLeft=="slip" && k==0)     ucont[k][j][i].z = 0.0;
+                if (mesh->boundaryU.kRight=="slip" && k==mz-2) ucont[k][j][i].z = 0.0;
+
+                // zero gradient BC (if reverse flow)
+                if (mesh->boundaryU.iLeft=="zeroGradient" && i==0)
+                {
+                    if(ucont[k][j][i].x > 0.0) ucont[k][j][i].x = 0.0;
+                }
+                if (mesh->boundaryU.iRight=="zeroGradient" && i==mx-2)
+                {
+                    if(ucont[k][j][i].x < 0.0) ucont[k][j][i].x = 0.0;
+                }
+                if (mesh->boundaryU.jLeft=="zeroGradient" && j==0)
+                {
+                    if(ucont[k][j][i].y > 0.0) ucont[k][j][i].y = 0.0;
+                }
+                if (mesh->boundaryU.jRight=="zeroGradient" && j==my-2)
+                {
+                    if(ucont[k][j][i].y < 0.0) ucont[k][j][i].y = 0.0;
+                }
+                if (mesh->boundaryU.kLeft=="zeroGradient" && k==0)
+                {
+                    if(ucont[k][j][i].z > 0.0) ucont[k][j][i].z = 0.0;
+                }
+                if (mesh->boundaryU.kRight=="zeroGradient" && k==mz-2)
+                {
+                    if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
+                }
             }
         }
     }

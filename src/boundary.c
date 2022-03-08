@@ -754,6 +754,32 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     ucont[k][j][i].z = 0;
                 }
 
+                // zero gradient is solved, but set flux to zero if reverse flow
+                if (mesh->boundaryU.iLeft=="zeroGradient" && i==0)
+                {
+                    if(ucont[k][j][i].x > 0.0) ucont[k][j][i].x = 0.0;
+                }
+                if (mesh->boundaryU.iRight=="zeroGradient" && i==mx-2)
+                {
+                    if(ucont[k][j][i].x < 0.0) ucont[k][j][i].x = 0.0;
+                }
+                if (mesh->boundaryU.jLeft=="zeroGradient" && j==0)
+                {
+                    if(ucont[k][j][i].y > 0.0) ucont[k][j][i].y = 0.0;
+                }
+                if (mesh->boundaryU.jRight=="zeroGradient" && j==my-2)
+                {
+                    if(ucont[k][j][i].y < 0.0) ucont[k][j][i].y = 0.0;
+                }
+                if (mesh->boundaryU.kLeft=="zeroGradient" && k==0)
+                {
+                    if(ucont[k][j][i].z > 0.0) ucont[k][j][i].z = 0.0;
+                }
+                if (mesh->boundaryU.kRight=="zeroGradient" && k==mz-2)
+                {
+                    if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
+                }
+
                 // i,j,k  or ii, jj, kk periodic boundary conditions: the right
                 // boundary velocity has been solved in this case: put it on the
                 // left boundary
