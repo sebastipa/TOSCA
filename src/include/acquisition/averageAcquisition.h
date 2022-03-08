@@ -8,10 +8,12 @@
 struct avgFields
 {
     // source terms
-    Vec           Coriolis;                   //!< coriolis source 
+    Vec           Coriolis;                   //!< coriolis source
     Vec           Driving;                    //!< driving pressure gradient source
     Vec           xDamping;                   //!< x damping layer (x fringe region source)
     Vec           SideForce;                  //!< side force for fringe region testing
+
+    Vec           windFarmForce;              //!< wind farm body force
 
     // turbulence criterions
     Vec           Q;                          //!< Q criterion field

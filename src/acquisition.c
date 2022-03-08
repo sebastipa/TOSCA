@@ -253,7 +253,7 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
     mesh_  *mesh  = acquisition->access->mesh;
     flags_ *flags = acquisition->access->flags;
 
-    if(io->averaging || io->phaseAveraging || io->qCrit || io->l2Crit || io->sources)
+    if(io->averaging || io->phaseAveraging || io->qCrit || io->l2Crit || io->sources || io->windFarmForce)
     {
         PetscMalloc(sizeof(avgFields), &(acquisition->fields));
         avgFields *avg = acquisition->fields;
@@ -266,6 +266,11 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
         if(io->l2Crit)
         {
             VecDuplicate(mesh->Nvert, &(avg->L2));  VecSet(avg->L2,0.);
+        }
+
+        if(io->windFarmForce)
+        {
+            VecDuplicate(mesh->Cent, &(avg->windFarmForce)); VecSet(avg->windFarmForce, 0.);
         }
 
         if(io->sources)

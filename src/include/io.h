@@ -26,6 +26,7 @@ struct io_
 
     PetscInt  qCrit;
     PetscInt  l2Crit;
+    PetscInt  windFarmForce;
     PetscInt  sources;
 
     // access database

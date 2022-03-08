@@ -256,6 +256,7 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                 // zero the rotor and generator speeds in those processors which do not
                 // control this wind turbine (in order obtain correct values when summing
                 // among processors and dividing by the number of controlling processors)
+                wt->genPwr       = 0.0;
                 wt->rtrOmega     = 0.0;
                 wt->genOmega     = 0.0;
                 wt->rtrOmegaFilt = 0.0;
@@ -1669,8 +1670,8 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
 
                     // get the closest cell center
                     PetscInt i = wt->adm.closestCells[p].i,
-                        j = wt->adm.closestCells[p].j,
-                        k = wt->adm.closestCells[p].k;
+                             j = wt->adm.closestCells[p].j,
+                             k = wt->adm.closestCells[p].k;
 
                     if(wt->adm.thisPtControlled[p])
                     {
@@ -1695,8 +1696,8 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         // find the closest cell indices to the sample point,
                         // allow for max 2 delta cells to stay in this processor
                         PetscReal  r_c_minMag = 1e20;
-                        cellIds closestCell;
-                        PetscInt     k1, j1, i1;
+                        cellIds    closestCell;
+                        PetscInt   k1, j1, i1;
 
                         for (k1=k-2; k1<k+3; k1++)
                         for (j1=j-2; j1<j+3; j1++)
@@ -1993,8 +1994,8 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         // find the closest cell indices to the sample point,
                         // allow for max 2 delta cells to stay in this processor
                         PetscReal  r_c_minMag = 1e20;
-                        cellIds closestCell;
-                        PetscInt     k1, j1, i1;
+                        cellIds    closestCell;
+                        PetscInt   k1, j1, i1;
 
                         for (k1=k-2; k1<k+3; k1++)
                         for (j1=j-2; j1<j+3; j1++)
@@ -2240,8 +2241,8 @@ PetscErrorCode computeWindVectorsTower(farm_ *farm)
                     if(wt->twr.thisPtControlled[p])
                     {
                         PetscInt i = wt->twr.closestCells[p].i,
-                            j = wt->twr.closestCells[p].j,
-                            k = wt->twr.closestCells[p].k;
+                                 j = wt->twr.closestCells[p].j,
+                                 k = wt->twr.closestCells[p].k;
 
                         // get velocity at that point
                         Cmpnts uc_p = nSet(ucat[k][j][i]);
@@ -2590,7 +2591,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
 
                         // find interpolation weights for the aero coeffs
                         PetscReal w[2];
-                        PetscInt    l[2];
+                        PetscInt  l[2];
 
                         // interpolate coeffs for the first airfoil
                         findInterpolationWeigths(w, l, an1, s1, wt->adm.alpha[p]);
@@ -2935,10 +2936,10 @@ PetscErrorCode projectBladeForce(farm_ *farm)
 
     // global sums of thrust and torque over the entire wind farm
     // used for the computation of the body force projection error
-    PetscReal lThrustSum   = 0, gThrustSum   = 0;
-    PetscReal lTorqueSum   = 0, gTorqueSum   = 0;
-    PetscReal lThrustBFSum = 0, gThrustBFSum = 0;
-    PetscReal lTorqueBFSum = 0, gTorqueBFSum = 0;
+    PetscReal lThrustSum   = 0.0, gThrustSum   = 0.0;
+    PetscReal lTorqueSum   = 0.0, gTorqueSum   = 0.0;
+    PetscReal lThrustBFSum = 0.0, gThrustBFSum = 0.0;
+    PetscReal lTorqueBFSum = 0.0, gTorqueBFSum = 0.0;
 
     // zero out the body force
     VecSet(farm->lsourceFarmCat, 0.0);
@@ -2985,8 +2986,8 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                         {
                             // cell indices
                             PetscInt i = wt->controlledCells[c].i,
-                                j = wt->controlledCells[c].j,
-                                k = wt->controlledCells[c].k;
+                                     j = wt->controlledCells[c].j,
+                                     k = wt->controlledCells[c].k;
 
                             // compute distance from mesh cell to AD point
                             Cmpnts r_c = nSub(point_p, cent[k][j][i]);
@@ -3027,7 +3028,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                                 sCat[k][j][i].z += bfCell.z;
 
                                 // cumulate wind farm BF for projection error
-                                PetscReal vCell    = 1.0 / aj[k][j][i];
+                                PetscReal vCell = 1.0 / aj[k][j][i];
                                 Cmpnts thrustBF = nScale(vCell*constants->rho, bfCell);
                                 Cmpnts torqueBF = nScale(vCell*constants->rho*nMag(r_p)*std::cos(wt->deg2rad*wt->precone), bfCell);
 
@@ -3308,74 +3309,78 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             PetscReal    aeroPwr = 0.0, genPwr = 0.0,
                          Thr     = 0.0, Trq    = 0.0;
 
-            // reduce turbine parameters
-            if((*farm->turbineModels[t]) == "ADM")
+            if(wt->turbineControlled)
             {
-                MPI_Reduce(&(wt->adm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-                MPI_Reduce(&(wt->adm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-                MPI_Reduce(&(wt->adm.rtrTorque), &Trq,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-            }
-            else if((*farm->turbineModels[t]) == "uniformADM")
-            {
-                MPI_Reduce(&(wt->uadm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-                MPI_Reduce(&(wt->uadm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-            }
-            else if((*farm->turbineModels[t]) == "ALM")
-            {
-                MPI_Reduce(&(wt->alm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-                MPI_Reduce(&(wt->alm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-                MPI_Reduce(&(wt->alm.rtrTorque), &Trq,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-            }
-            else if((*farm->turbineModels[t]) == "AFM")
-            {
-                MPI_Reduce(&(wt->afm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-                MPI_Reduce(&(wt->afm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-            }
-
-            // electric power
-            if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
-            {
-                // second test inside because this variable is not defined for UADM
-                if(wt->genControllerType != "none")
+                // reduce turbine parameters
+                if((*farm->turbineModels[t]) == "ADM")
                 {
-                    MPI_Reduce(&(wt->genPwr), &genPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->adm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->adm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->adm.rtrTorque), &Trq,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                 }
-            }
+                else if((*farm->turbineModels[t]) == "uniformADM")
+                {
+                    MPI_Reduce(&(wt->uadm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->uadm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                }
+                else if((*farm->turbineModels[t]) == "ALM")
+                {
+                    MPI_Reduce(&(wt->alm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->alm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->alm.rtrTorque), &Trq,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                }
+                else if((*farm->turbineModels[t]) == "AFM")
+                {
+                    MPI_Reduce(&(wt->afm.aeroPwr),   &aeroPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->afm.rtrThrust), &Thr,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                }
 
-            if(rank == wt->writerRank)
-            {
-                // divide the summed up turbine parameters by the n of processors
-                // that control this turbine since all had the data in the reduce operation
-
-                aeroPwr /= wt->nProcsTrb;
-                Thr     /= wt->nProcsTrb;
-                Trq     /= wt->nProcsTrb;
-
+                // electric power
                 if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
                 {
                     // second test inside because this variable is not defined for UADM
                     if(wt->genControllerType != "none")
                     {
-                        genPwr  /= wt->nProcsTrb;
+                        MPI_Reduce(&(wt->genPwr), &genPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                     }
                 }
 
-                // print turbine level information
-                if(wt->dbg)
+
+                if(rank == wt->writerRank)
                 {
-                    if((*farm->turbineModels[t]) == "uniformADM" || (*farm->turbineModels[t]) == "AFM")
-                    {
-                        printf("Turbine %s: aero pwr = %.5f MW, Thrust on rtr axis = %.5f KN\n",(*farm->turbineIds[t]).c_str(), aeroPwr/1.0e6, Thr/1000.0);
-                    }
-                    else
-                    {
-                        printf("Turbine %s: electrical pwr = %.5f MW, aero pwr = %.5f MW, Thrust on rtr axis = %.5f KN, Torque on rot dir = %.5f KNm\n",(*farm->turbineIds[t]).c_str(), genPwr/1.0e6, aeroPwr/1.0e6, Thr/1000.0, Trq/1000.0);
-                    }
-                }
+                    // divide the summed up turbine parameters by the n of processors
+                    // that control this turbine since all had the data in the reduce operation
 
-                // cumulate forces from this turbine
-                lThrustSum += Thr;
-                lTorqueSum += Trq;
+                    aeroPwr /= wt->nProcsTrb;
+                    Thr     /= wt->nProcsTrb;
+                    Trq     /= wt->nProcsTrb;
+
+                    if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
+                    {
+                        // second test inside because this variable is not defined for UADM
+                        if(wt->genControllerType != "none")
+                        {
+                            genPwr  /= wt->nProcsTrb;
+                        }
+                    }
+
+                    // print turbine level information
+                    if(wt->dbg)
+                    {
+                        if((*farm->turbineModels[t]) == "uniformADM" || (*farm->turbineModels[t]) == "AFM")
+                        {
+                            printf("Turbine %s: aero pwr = %.5f MW, Thrust on rtr axis = %.5f KN\n",(*farm->turbineIds[t]).c_str(), aeroPwr/1.0e6, Thr/1000.0);
+                        }
+                        else
+                        {
+                            printf("Turbine %s: electrical pwr = %.5f MW, aero pwr = %.5f MW, Thrust on rtr axis = %.5f KN, Torque on rot dir = %.5f KNm\n",(*farm->turbineIds[t]).c_str(), genPwr/1.0e6, aeroPwr/1.0e6, Thr/1000.0, Trq/1000.0);
+                        }
+                    }
+
+                    // cumulate forces from this turbine
+                    lThrustSum += Thr;
+                    lTorqueSum += Trq;
+                }
             }
         }
 
@@ -4593,7 +4598,7 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base)
         }
         else
         {
-           char error[512];
+            char error[512];
             sprintf(error, "unknown rotationDir, avilable options are 'cw' or 'ccw'\n");
             fatalErrorInFunction("initADM",  error);
         }
@@ -4985,9 +4990,9 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base)
     // set initial azimuth
     wt->alm.azimuth = 0.0;
 
-    // build the AD mesh
+    // build the AL mesh
 
-    // allocate memory for the ADM parameters
+    // allocate memory for the ALM parameters
     PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.points));
     PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.dr));
     PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.chord));
@@ -5042,7 +5047,7 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base)
         }
         else
         {
-           char error[512];
+            char error[512];
             sprintf(error, "unknown rotationDir, avilable options are 'cw' or 'ccw'\n");
             fatalErrorInFunction("initALM",  error);
         }

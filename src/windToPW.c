@@ -462,6 +462,21 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
         );
     }
 
+    if(io->windFarmForce)
+    {
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "bf",
+            acquisition->fields->windFarmForce
+        );
+    }
+
     if(io->sources)
     {
         writeVectorToXMF

@@ -43,6 +43,10 @@ PetscErrorCode InitializeIO(io_ *io)
     io->l2Crit          = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2", &(io->l2Crit), PETSC_NULL);
 
+    // read wind farm body force flag
+    io->windFarmForce       = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeFarmForce", &(io->windFarmForce), PETSC_NULL);
+
     // read sources post processing
     io->sources         = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeSources", &(io->sources), PETSC_NULL);
@@ -79,18 +83,18 @@ PetscErrorCode InitializeIO(io_ *io)
 
 PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
 {
-    PetscViewer viewer;
-    PetscInt    N;
-    ueqn_       *ueqn  = domain->ueqn;
-    mesh_       *mesh  = domain->mesh;
-    peqn_       *peqn  = domain->peqn;
-    teqn_       *teqn  = domain->teqn;
-    les_        *les   = domain->les;
-    clock_      *clock = domain->clock;
-    io_         *io    = domain->io;
-    flags_      *flags = io->access->flags;
+    PetscViewer  viewer;
+    PetscInt     N;
+    ueqn_        *ueqn  = domain->ueqn;
+    mesh_        *mesh  = domain->mesh;
+    peqn_        *peqn  = domain->peqn;
+    teqn_        *teqn  = domain->teqn;
+    les_         *les   = domain->les;
+    clock_       *clock = domain->clock;
+    io_          *io    = domain->io;
+    flags_       *flags = io->access->flags;
     acquisition_ *acquisition = domain->acquisition;
-    word        fileName, field, location;
+    word         fileName, field, location;
 
     VecGetSize(ueqn->Ucont, &N);
 
@@ -442,6 +446,28 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscPrintf(mesh->MESH_COMM, "Reading Q...\n");
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(acquisition->fields->Q,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+    }
+
+    if(io->windFarmForce)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // read pAvgU
+        field = "/bf";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading windFarmForce...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->windFarmForce,viewer);
             PetscViewerDestroy(&viewer);
         }
         MPI_Barrier(mesh->MESH_COMM);
@@ -859,6 +885,57 @@ PetscErrorCode writeFields(io_ *io)
             MPI_Barrier(mesh->MESH_COMM);
             VecDestroy(&Cs);
             VecDestroy(&Nut);
+        }
+
+        if(io->windFarmForce && flags->isWindFarmActive)
+        {
+            farm_ *farm = io->access->farm;
+
+            Vec Bf;
+
+            VecDuplicate(ueqn->Ucat, &Bf);
+            VecSet(Bf, 0.);
+
+            DM            da = mesh->da, fda = mesh->fda;
+            DMDALocalInfo info = mesh->info;
+            PetscInt      xs = info.xs, xe = info.xs + info.xm;
+            PetscInt      ys = info.ys, ye = info.ys + info.ym;
+            PetscInt      zs = info.zs, ze = info.zs + info.zm;
+            PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+            PetscInt      lxs, lxe, lys, lye, lzs, lze;
+            PetscInt      i, j, k;
+
+            Cmpnts        ***bf, ***lbf;
+
+            lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+            lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+            lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+            DMDAVecGetArray(fda, farm->lsourceFarmCat, &lbf);
+            DMDAVecGetArray(fda, Bf, &bf);
+
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        bf[k][j][i].x = lbf[k][j][i].x;
+                        bf[k][j][i].y = lbf[k][j][i].y;
+                        bf[k][j][i].z = lbf[k][j][i].z;
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(fda, farm->lsourceFarmCat, &lbf);
+            DMDAVecRestoreArray(fda, Bf, &bf);
+
+            fieldName = timeName + "/bf";
+            writeBinaryField(mesh->MESH_COMM, Bf, fieldName.c_str());
+
+            MPI_Barrier(mesh->MESH_COMM);
+            VecDestroy(&Bf);
         }
 
         // write Q-Criterion
