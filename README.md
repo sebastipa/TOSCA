@@ -68,33 +68,33 @@ We suggest to create a folder named 'software', where the PETSc, HYPRE and TOSCA
 Prior to install TOSCA, we suggest creating a folder named `Software` inside $HOME, where all the following steps will be performed.
 In order to compile TOSCA on your system, please follow these steps:
 
-    0. Check your compiler version with `gcc --version`
+* Check your compiler version with `gcc --version`
 
-    1. Download PETSc into `$HOME/Software/`
+* Download PETSc into `$HOME/Software/`
 
-    2. Download HYPRE `$HOME/Software/`
+* Download HYPRE `$HOME/Software/`
 
-    3. Download Open MPI: you can download the binaries or compile from source (the latter is recommended if use `environment-modules`).
-       If you have only one version of Open MPI installed on your system in the `/usr` directory (using sudo for example), you can omit the
-       `--with-mpi-dir='your--path--to--mpicc'` at point 4: Open MPI will be found by the 'ld' library locator.
+* Download Open MPI: you can download the binaries or compile from source (the latter is recommended if use `environment-modules`).
+  If you have only one version of Open MPI installed on your system in the `/usr` directory (using sudo for example), you can omit the
+  `--with-mpi-dir='your--path--to--mpicc'` at point 4: Open MPI will be found by the 'ld' library locator.
 
-    4. Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:
-       `./configure --with-fc=0 --download-f2cblaslapack --with-mpi-dir='your--path--to--mpicc' --download-hypre='your--path--to--hypre \
-       --with-64-bit-indices=1 --with-debugging=0`
+* Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:
+  `./configure --with-fc=0 --download-f2cblaslapack --with-mpi-dir='your--path--to--mpicc' --download-hypre='your--path--to--hypre \
+  --with-64-bit-indices=1 --with-debugging=0`
 
-    5. Make PETSc with `make all`
+* Make PETSc with `make all`
 
-    6. Test PETSc with `make check`
+* Test PETSc with `make check`
 
-    7. Save an alias that will tell TOSCA where PETSc is installed in your .bashrc:
-       `echo "export PETSC_DIR=$HOME/your--path--to--petsh" >> $HOME/.bashrc`
+* Save an alias that will tell TOSCA where PETSc is installed in your .bashrc:
+  `echo "export PETSC_DIR=$HOME/your--path--to--petsh" >> $HOME/.bashrc`
 
-    8. Reload the environment with `source $HOME/.bashrc`
+* Reload the environment with `source $HOME/.bashrc`
 
-    9. Go inside TOSCA/src directory and compile the executables with `make tosca` and `make windToPW`
+* Go inside TOSCA/src directory and compile the executables with `make tosca` and `make windToPW`
 
-    10. Test the installation by copying `tosca` and `windToPW` in one of the example cases and run the simulation
-        and the post-processing with `./tosca` and `./windToPW` respectively. To run in parallel you have to use
-        `mpirun -np 'your-number-of-processors' ./tosca`
+* Test the installation by copying `tosca` and `windToPW` in one of the example cases and run the simulation
+  and the post-processing with `./tosca` and `./windToPW` respectively. To run in parallel you have to use
+  `mpirun -np 'your-number-of-processors' ./tosca`
 
 Credits and Copyright: Sebastiano Stipa - Arjun Ajay - Mohammad Hadi - The University of British Columbia
