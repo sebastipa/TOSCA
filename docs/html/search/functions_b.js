@@ -1,6 +1,4 @@
 var searchData=
 [
-  ['mapinitialconditionprecursor_905',['MapInitialConditionPrecursor',['../precursor_8c.html#af3c6f2be652f4965679073f4d07ced62',1,'MapInitialConditionPrecursor(abl_ *abl):&#160;precursor.c'],['../precursor_8h.html#af3c6f2be652f4965679073f4d07ced62',1,'MapInitialConditionPrecursor(abl_ *abl):&#160;precursor.c']]],
-  ['mappedinflowinitialize_906',['mappedInflowInitialize',['../inflow_8h.html#a1d5ffb2cde2bb35b5886889d196942c3',1,'inflow.c']]],
-  ['mlsinterpolation_907',['MLSInterpolation',['../ibm_8c.html#a30f648d428bc38794f33bd95e379f1be',1,'MLSInterpolation(ibm_ *ibm):&#160;ibm.c'],['../ibm_8h.html#a30f648d428bc38794f33bd95e379f1be',1,'MLSInterpolation(ibm_ *ibm):&#160;ibm.c']]]
+  ['l2normhypre_1044',['L2NormHypre',['../peqn_8c.html#ad70bea1744fa4be27bffab83f74e350b',1,'L2NormHypre(peqn_ *peqn, HYPRE_IJMatrix &amp;A, HYPRE_IJVector &amp;X, HYPRE_IJVector &amp;B):&#160;peqn.c'],['../peqn_8h.html#ad70bea1744fa4be27bffab83f74e350b',1,'L2NormHypre(peqn_ *peqn, HYPRE_IJMatrix &amp;A, HYPRE_IJVector &amp;X, HYPRE_IJVector &amp;B):&#160;peqn.c']]]
 ];

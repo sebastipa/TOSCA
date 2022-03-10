@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['ksectionloadvector_901',['kSectionLoadVector',['../windToPW_8h.html#ac58cd31840d6c3f294697987885ab9fb',1,'windToPW.c']]],
-  ['ksectionsavescalar_902',['kSectionSaveScalar',['../acquisition_8c.html#a75064ac59494bfe3dd43a41bf0e08bad',1,'kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c'],['../acquisition_8h.html#a75064ac59494bfe3dd43a41bf0e08bad',1,'kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c']]],
-  ['ksectionsavevector_903',['kSectionSaveVector',['../acquisition_8c.html#ac2fb6e54541435cb8b87de0b7d13736c',1,'kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c'],['../acquisition_8h.html#ac2fb6e54541435cb8b87de0b7d13736c',1,'kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c']]]
+  ['jsectionloadvector_1038',['jSectionLoadVector',['../windToPW_8h.html#a9f5b13c8317e48f8e619355681657511',1,'windToPW.c']]],
+  ['jsectionsavescalar_1039',['jSectionSaveScalar',['../acquisition_8c.html#ace36e53e6bbb23e824d79687c8e86197',1,'jSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt jplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c'],['../acquisition_8h.html#ace36e53e6bbb23e824d79687c8e86197',1,'jSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt jplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c']]],
+  ['jsectionsavevector_1040',['jSectionSaveVector',['../acquisition_8c.html#a2b8ce43a178c145225191c5983d13d62',1,'jSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt jplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c'],['../acquisition_8h.html#a2b8ce43a178c145225191c5983d13d62',1,'jSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt jplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c']]]
 ];

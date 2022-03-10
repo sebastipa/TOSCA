@@ -13,7 +13,7 @@ struct storing temperature equation
 \begin{DoxyCompactItemize}
 \item 
 \mbox{\Hypertarget{structteqn___a2865fe0e750ba802a6c12f60be2dda16}\label{structteqn___a2865fe0e750ba802a6c12f60be2dda16}} 
-SNES \mbox{\hyperlink{structteqn___a2865fe0e750ba802a6c12f60be2dda16}{snesT}}
+S\+N\+ES \mbox{\hyperlink{structteqn___a2865fe0e750ba802a6c12f60be2dda16}{snesT}}
 \begin{DoxyCompactList}\small\item\em non linear matrix free context \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___a03b1113ce97d47de49c716ca3dc6d9a8}\label{structteqn___a03b1113ce97d47de49c716ca3dc6d9a8}} 
 Mat \mbox{\hyperlink{structteqn___a03b1113ce97d47de49c716ca3dc6d9a8}{JT}}
@@ -25,13 +25,16 @@ Mat {\bfseries AT}
 Mat {\bfseries CT}
 \item 
 \mbox{\Hypertarget{structteqn___a583644edf19caad4402dd19a6e1a7b9e}\label{structteqn___a583644edf19caad4402dd19a6e1a7b9e}} 
-KSP \mbox{\hyperlink{structteqn___a583644edf19caad4402dd19a6e1a7b9e}{ksp}}
+K\+SP \mbox{\hyperlink{structteqn___a583644edf19caad4402dd19a6e1a7b9e}{ksp}}
 \begin{DoxyCompactList}\small\item\em linear krylov-\/subspace context \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___a06266f906507b4270abbce2879119e0a}\label{structteqn___a06266f906507b4270abbce2879119e0a}} 
 PC {\bfseries pc}
 \item 
 \mbox{\Hypertarget{structteqn___a6b04a0448ae6c477683c5dd1e1dddc87}\label{structteqn___a6b04a0448ae6c477683c5dd1e1dddc87}} 
 Vec {\bfseries Rhs}
+\item 
+\mbox{\Hypertarget{structteqn___a4bf56d8d4c70b937ad4d0e5a62b6c34e}\label{structteqn___a4bf56d8d4c70b937ad4d0e5a62b6c34e}} 
+Vec {\bfseries Rhs\+\_\+o}
 \item 
 \mbox{\Hypertarget{structteqn___a08719992a8b9e7b5fe04c0c8c2876f24}\label{structteqn___a08719992a8b9e7b5fe04c0c8c2876f24}} 
 Vec \mbox{\hyperlink{structteqn___a08719992a8b9e7b5fe04c0c8c2876f24}{Tmprt\+Tmp}}
@@ -60,6 +63,21 @@ Petsc\+Real \mbox{\hyperlink{structteqn___a753aecc71dfd88a1c882b548adef5b1f}{abs
 \mbox{\Hypertarget{structteqn___a58f4daea64a4af85adb457275300ad7f}\label{structteqn___a58f4daea64a4af85adb457275300ad7f}} 
 Petsc\+Real \mbox{\hyperlink{structteqn___a58f4daea64a4af85adb457275300ad7f}{rel\+Exit\+Tol}}
 \begin{DoxyCompactList}\small\item\em relative exit tolerance \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structteqn___aaa59e54999e6a82c3be430be46827521}\label{structteqn___aaa59e54999e6a82c3be430be46827521}} 
+word \mbox{\hyperlink{structteqn___aaa59e54999e6a82c3be430be46827521}{ddt\+Scheme}}
+\begin{DoxyCompactList}\small\item\em time derivative scheme \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd}\label{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd}} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd}{i\+L\+WM}}
+\begin{DoxyCompactList}\small\item\em wall model on the i-\/left patch \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structteqn___a250a5c3086987e57dd0465adf283b6fc}\label{structteqn___a250a5c3086987e57dd0465adf283b6fc}} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___a250a5c3086987e57dd0465adf283b6fc}{i\+R\+WM}}
+\begin{DoxyCompactList}\small\item\em wall model on the i-\/right patch \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structteqn___abd50b696b61ef432378b52a61d3400da}\label{structteqn___abd50b696b61ef432378b52a61d3400da}} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___abd50b696b61ef432378b52a61d3400da}{j\+L\+WM}}
+\begin{DoxyCompactList}\small\item\em wall model on the j-\/left patch \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structteqn___a6258db96c7be61a905b6db6c07705c25}\label{structteqn___a6258db96c7be61a905b6db6c07705c25}} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___a6258db96c7be61a905b6db6c07705c25}{j\+R\+WM}}
+\begin{DoxyCompactList}\small\item\em wall model on the j-\/right patch \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___afd937742eebf6b4b548cf05a869d8135}\label{structteqn___afd937742eebf6b4b548cf05a869d8135}} 
 word {\bfseries init\+Field\+Type}
 \item 

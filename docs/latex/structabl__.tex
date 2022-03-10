@@ -39,6 +39,15 @@ Petsc\+Real \mbox{\hyperlink{structabl___a4f37e6b0af726d992358b3e834e8b348}{smea
 \mbox{\Hypertarget{structabl___a1b092b5fa13ec3c1fdd8566de9effeaf}\label{structabl___a1b092b5fa13ec3c1fdd8566de9effeaf}} 
 Petsc\+Real \mbox{\hyperlink{structabl___a1b092b5fa13ec3c1fdd8566de9effeaf}{fc}}
 \begin{DoxyCompactList}\small\item\em Coriolis parameter (omega\+Earth $\ast$ sin(latitude) = 7.\+292115e-\/5 $\ast$ sin(latitude)) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a38d711ba7c73a6d3e06bf609f3700ee5}\label{structabl___a38d711ba7c73a6d3e06bf609f3700ee5}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structabl___a38d711ba7c73a6d3e06bf609f3700ee5}{cell\+Levels}}
+\begin{DoxyCompactList}\small\item\em heights of the averaging planes \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a089f9bb6e42ac7a1cef419fedb51e7c3}\label{structabl___a089f9bb6e42ac7a1cef419fedb51e7c3}} 
+Petsc\+Int $\ast$ \mbox{\hyperlink{structabl___a089f9bb6e42ac7a1cef419fedb51e7c3}{closest\+Labels}}
+\begin{DoxyCompactList}\small\item\em closest height w.\+r.\+t. reference height \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___ad8d15ba01c8309d2ffa8951aa1b251ab}\label{structabl___ad8d15ba01c8309d2ffa8951aa1b251ab}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structabl___ad8d15ba01c8309d2ffa8951aa1b251ab}{level\+Weights}}
+\begin{DoxyCompactList}\small\item\em weights for variables interpolated at closest heights w.\+r.\+t. reference height \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structabl___aa7a759b82d05659158dfe2645cf68bf4}\label{structabl___aa7a759b82d05659158dfe2645cf68bf4}} 
 Petsc\+Real \mbox{\hyperlink{structabl___aa7a759b82d05659158dfe2645cf68bf4}{relax}}
 \begin{DoxyCompactList}\small\item\em source term relaxation factor \end{DoxyCompactList}\item 
@@ -66,9 +75,6 @@ Petsc\+Int \mbox{\hyperlink{structabl___ad1acc36e1df5602ee77ec593c90f84b7}{n\+So
 \mbox{\Hypertarget{structabl___a28ff2b56d0d1e1447e664f9387002c27}\label{structabl___a28ff2b56d0d1e1447e664f9387002c27}} 
 Petsc\+Int \mbox{\hyperlink{structabl___a28ff2b56d0d1e1447e664f9387002c27}{current\+Close\+Idx}}
 \begin{DoxyCompactList}\small\item\em save the current closest index at each iteration to speed up the interpolation search \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{structabl___a38d711ba7c73a6d3e06bf609f3700ee5}\label{structabl___a38d711ba7c73a6d3e06bf609f3700ee5}} 
-Petsc\+Real $\ast$ \mbox{\hyperlink{structabl___a38d711ba7c73a6d3e06bf609f3700ee5}{cell\+Levels}}
-\begin{DoxyCompactList}\small\item\em heights of the averaging planes \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structabl___a2383f45c333625e0eb38db603598e5f0}\label{structabl___a2383f45c333625e0eb38db603598e5f0}} 
 Petsc\+Real $\ast$ \mbox{\hyperlink{structabl___a2383f45c333625e0eb38db603598e5f0}{tot\+Vol\+Per\+Level}}
 \begin{DoxyCompactList}\small\item\em total volume at each cell level \end{DoxyCompactList}\item 
@@ -78,9 +84,9 @@ Petsc\+Int $\ast$ \mbox{\hyperlink{structabl___ac9434a6f32f0b2c55cf73c53ce4f7950
 \mbox{\Hypertarget{structabl___af2526caf4d5521bafd0d2315acac11f1}\label{structabl___af2526caf4d5521bafd0d2315acac11f1}} 
 \mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structabl___af2526caf4d5521bafd0d2315acac11f1}{cumulated\+Source}}
 \begin{DoxyCompactList}\small\item\em cumulated error of the velocity controller (equalt to gradP at steady state) \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{structabl___accda17137151dcc5ad673d300d192d62}\label{structabl___accda17137151dcc5ad673d300d192d62}} 
-std\+::vector$<$ std\+::vector$<$ Petsc\+Real $>$ $>$ \mbox{\hyperlink{structabl___accda17137151dcc5ad673d300d192d62}{source\+Hystory}}
-\begin{DoxyCompactList}\small\item\em momentum source hystory (only if read) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a68a91e9d5dc3987bf7f4d8c40f9d65f7}\label{structabl___a68a91e9d5dc3987bf7f4d8c40f9d65f7}} 
+Petsc\+Real \mbox{\hyperlink{structabl___a68a91e9d5dc3987bf7f4d8c40f9d65f7}{avg\+Time\+Step}}
+\begin{DoxyCompactList}\small\item\em average time step from the momentum source file \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structabl___a922e8ba983bea9c1d95efe9a0d3be433}\label{structabl___a922e8ba983bea9c1d95efe9a0d3be433}} 
 Petsc\+Real \mbox{\hyperlink{structabl___a922e8ba983bea9c1d95efe9a0d3be433}{z\+Damping\+Start}}
 \begin{DoxyCompactList}\small\item\em starting height of the Rayleigh damping layer \end{DoxyCompactList}\item 
@@ -99,6 +105,9 @@ Petsc\+Int {\bfseries avg\+Weight}
 \mbox{\Hypertarget{structabl___a69abd109845cfac4f34218651071eb76}\label{structabl___a69abd109845cfac4f34218651071eb76}} 
 Petsc\+Int \mbox{\hyperlink{structabl___a69abd109845cfac4f34218651071eb76}{z\+Damping\+Also\+XY}}
 \begin{DoxyCompactList}\small\item\em damp also x and y velocity components (if 0 only z component is damped) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a2d8e77f8e50f69685ca54c1f11ed6b83}\label{structabl___a2d8e77f8e50f69685ca54c1f11ed6b83}} 
+Petsc\+Int \mbox{\hyperlink{structabl___a2d8e77f8e50f69685ca54c1f11ed6b83}{z\+Damping\+X\+Y\+Type}}
+\begin{DoxyCompactList}\small\item\em type 1 (default) averages at inlet, type (2) requires concurrent precursor and x\+Damping and uses planar averages \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structabl___ab1a65b797ff7d7ff9ec813e06603d6bd}\label{structabl___ab1a65b797ff7d7ff9ec813e06603d6bd}} 
 Petsc\+Real \mbox{\hyperlink{structabl___ab1a65b797ff7d7ff9ec813e06603d6bd}{x\+Damping\+Start}}
 \begin{DoxyCompactList}\small\item\em starting x of the fringe layer \end{DoxyCompactList}\item 
@@ -111,8 +120,41 @@ Petsc\+Real \mbox{\hyperlink{structabl___a86cdb1b84dc0a20e2e56a07909800a99}{x\+D
 \mbox{\Hypertarget{structabl___a95ca99fba1da597016e53f6767f977fc}\label{structabl___a95ca99fba1da597016e53f6767f977fc}} 
 Petsc\+Real \mbox{\hyperlink{structabl___a95ca99fba1da597016e53f6767f977fc}{x\+Damping\+Alpha}}
 \begin{DoxyCompactList}\small\item\em damping paramter (see Inoue, Matheou, Teixeira 2014) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___aac5ab23151e356bb1d52bea7d3280967}\label{structabl___aac5ab23151e356bb1d52bea7d3280967}} 
+word \mbox{\hyperlink{structabl___aac5ab23151e356bb1d52bea7d3280967}{x\+Damping\+Control\+Type}}
+\begin{DoxyCompactList}\small\item\em type of controller\+: alpha\+Fixed or alpha\+Optimized \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a9be88226aab5ee082c5743165fcaee00}\label{structabl___a9be88226aab5ee082c5743165fcaee00}} 
+Petsc\+Real \mbox{\hyperlink{structabl___a9be88226aab5ee082c5743165fcaee00}{x\+Damping\+Time\+Window}}
+\begin{DoxyCompactList}\small\item\em time constant for velocity filtering \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a94b14b15f992950cb1af50cee0a1e97c}\label{structabl___a94b14b15f992950cb1af50cee0a1e97c}} 
+Petsc\+Real \mbox{\hyperlink{structabl___a94b14b15f992950cb1af50cee0a1e97c}{x\+Damping\+V\+Bar}}
+\begin{DoxyCompactList}\small\item\em desired y-\/velocity sampled from precursor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a901e670339e14bab4990fa4443547f62}\label{structabl___a901e670339e14bab4990fa4443547f62}} 
+Petsc\+Real {\bfseries v\+End}
+\item 
+\mbox{\Hypertarget{structabl___af02a0a70fafa2e53bf82b888e7a6c370}\label{structabl___af02a0a70fafa2e53bf82b888e7a6c370}} 
+Petsc\+Real \mbox{\hyperlink{structabl___af02a0a70fafa2e53bf82b888e7a6c370}{v\+Start}}
+\begin{DoxyCompactList}\small\item\em line-\/averaged start and end y-\/velocity at the fringe region extrema \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a35d53c93b95781a43ce414eda563dea1}\label{structabl___a35d53c93b95781a43ce414eda563dea1}} 
+Petsc\+Real \mbox{\hyperlink{structabl___a35d53c93b95781a43ce414eda563dea1}{x\+Damping\+Error}}
+\begin{DoxyCompactList}\small\item\em error on y-\/velocity at fringe end w.\+r.\+t precursor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a4d6519dd04d4dfd1d4dba6bdff2f4b34}\label{structabl___a4d6519dd04d4dfd1d4dba6bdff2f4b34}} 
+Petsc\+Real \mbox{\hyperlink{structabl___a4d6519dd04d4dfd1d4dba6bdff2f4b34}{x\+Damping\+Line\+Sampling\+Ymin}}
+\begin{DoxyCompactList}\small\item\em starting y of the sampling lines \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a9c563a72d38c4e2290ab5e7b44ac3226}\label{structabl___a9c563a72d38c4e2290ab5e7b44ac3226}} 
+Petsc\+Real \mbox{\hyperlink{structabl___a9c563a72d38c4e2290ab5e7b44ac3226}{x\+Damping\+Line\+Sampling\+Ymax}}
+\begin{DoxyCompactList}\small\item\em ending y of the sampling lines \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___add05f30e721d46d446470d4e77143ef6}\label{structabl___add05f30e721d46d446470d4e77143ef6}} 
+Petsc\+Real \mbox{\hyperlink{structabl___add05f30e721d46d446470d4e77143ef6}{x\+Damping\+Time\+Start}}
+\begin{DoxyCompactList}\small\item\em last time that alpha was modified \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___ad8506da0c0ea7031196bc9f1bc248dcf}\label{structabl___ad8506da0c0ea7031196bc9f1bc248dcf}} 
+Petsc\+Real \mbox{\hyperlink{structabl___ad8506da0c0ea7031196bc9f1bc248dcf}{x\+Damping\+DeltaV}}
+\begin{DoxyCompactList}\small\item\em y-\/velocity jump across the fringe \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___ad188482c237a149da2e62ffb4ae3e82e}\label{structabl___ad188482c237a149da2e62ffb4ae3e82e}} 
+Petsc\+Real \mbox{\hyperlink{structabl___ad188482c237a149da2e62ffb4ae3e82e}{x\+Damping\+Coeff}}
+\begin{DoxyCompactList}\small\item\em coeff = $\vert$\+Vend -\/ Vstart$\vert$ / alpha \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structabl___a989768efc95117b2064ba49bc5e5c4c6}\label{structabl___a989768efc95117b2064ba49bc5e5c4c6}} 
-Petsc\+Int \mbox{\hyperlink{structabl___a989768efc95117b2064ba49bc5e5c4c6}{x\+Fringe\+UBar\+Selection\+Type}}
+Petsc\+Int \mbox{\hyperlink{structabl___a989768efc95117b2064ba49bc5e5c4c6}{x\+Fringe\+U\+Bar\+Selection\+Type}}
 \begin{DoxyCompactList}\small\item\em read type of fringe region in u\+Bar\+Selection\+Type \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structabl___a71065a2e84185fca412eb9c81e25e58e}\label{structabl___a71065a2e84185fca412eb9c81e25e58e}} 
 \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$$\ast$ \mbox{\hyperlink{structabl___a71065a2e84185fca412eb9c81e25e58e}{u\+Bar\+InstX}}
@@ -121,8 +163,20 @@ Petsc\+Int \mbox{\hyperlink{structabl___a989768efc95117b2064ba49bc5e5c4c6}{x\+Fr
 Petsc\+Real $\ast$$\ast$ \mbox{\hyperlink{structabl___a394cb2b5be9118a738fc99dec706068e}{t\+Bar\+InstX}}
 \begin{DoxyCompactList}\small\item\em array storing the instantaneous temperature field for x damping layer \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structabl___a7253b6009191c2202b7cf2ef790dc763}\label{structabl___a7253b6009191c2202b7cf2ef790dc763}} 
-Petsc\+Int $\ast$$\ast$ \mbox{\hyperlink{structabl___a7253b6009191c2202b7cf2ef790dc763}{n\+Procs\+KLine}}
-\begin{DoxyCompactList}\small\item\em number of processors in each k-\/line, used to average after MPI\+\_\+\+Allreduce \end{DoxyCompactList}\item 
+Petsc\+Int $\ast$$\ast$ \mbox{\hyperlink{structabl___a7253b6009191c2202b7cf2ef790dc763}{n\+Procs\+K\+Line}}
+\begin{DoxyCompactList}\small\item\em number of processors in each k-\/line, used to average after M\+P\+I\+\_\+\+Allreduce \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___ad56cef112f122d7e2e22cf29c9c27c9b}\label{structabl___ad56cef112f122d7e2e22cf29c9c27c9b}} 
+Petsc\+Real {\bfseries x\+Start\+SideF}
+\item 
+\mbox{\Hypertarget{structabl___a948b24e3d844447f652b0e8d950c5904}\label{structabl___a948b24e3d844447f652b0e8d950c5904}} 
+Petsc\+Real \mbox{\hyperlink{structabl___a948b24e3d844447f652b0e8d950c5904}{x\+End\+SideF}}
+\begin{DoxyCompactList}\small\item\em x start and ending coordinates of the region where the side force is applied \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structabl___a0d17c97be9e9f3801adebbcd9291ad18}\label{structabl___a0d17c97be9e9f3801adebbcd9291ad18}} 
+Petsc\+Real {\bfseries z\+Start\+SideF}
+\item 
+\mbox{\Hypertarget{structabl___ae6ff71e04c4e1c77592b256be0f75395}\label{structabl___ae6ff71e04c4e1c77592b256be0f75395}} 
+Petsc\+Real \mbox{\hyperlink{structabl___ae6ff71e04c4e1c77592b256be0f75395}{z\+End\+SideF}}
+\begin{DoxyCompactList}\small\item\em z start and ending coordinates of the region where the side force is applied \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structabl___a1e312ce26b9359bfbcd99fa64411a1eb}\label{structabl___a1e312ce26b9359bfbcd99fa64411a1eb}} 
 Petsc\+Real {\bfseries z\+Peak}
 \item 

@@ -1,0 +1,58 @@
+\hypertarget{structAFM}{}\doxysection{A\+FM Struct Reference}
+\label{structAFM}\index{AFM@{AFM}}
+
+
+Actuator Farm Model.  
+
+
+
+
+{\ttfamily \#include $<$turbines.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structAFM_aaf23cd539b3020cf4d72682642b2ec0b}\label{structAFM_aaf23cd539b3020cf4d72682642b2ec0b}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structAFM_aaf23cd539b3020cf4d72682642b2ec0b}{point}}
+\begin{DoxyCompactList}\small\item\em point coordinates \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_a0748e6d27aa0badbb8d8b977206ed435}\label{structAFM_a0748e6d27aa0badbb8d8b977206ed435}} 
+Petsc\+Real \mbox{\hyperlink{structAFM_a0748e6d27aa0badbb8d8b977206ed435}{Uref}}
+\begin{DoxyCompactList}\small\item\em reference velocity to compute Ct\+Inf (only used for data writing) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_aebd773779c116e5a992a8e90d9d1b2b1}\label{structAFM_aebd773779c116e5a992a8e90d9d1b2b1}} 
+Petsc\+Real \mbox{\hyperlink{structAFM_aebd773779c116e5a992a8e90d9d1b2b1}{Ct}}
+\begin{DoxyCompactList}\small\item\em imposed thrust coefficient \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_a2667c23e22d633387aec9f3634d923e1}\label{structAFM_a2667c23e22d633387aec9f3634d923e1}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} \mbox{\hyperlink{structAFM_a2667c23e22d633387aec9f3634d923e1}{closest\+Cell}}
+\begin{DoxyCompactList}\small\item\em indices of the closest cells to this turbine AL points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_a8e961bc8e62e6c7df977e6bcaebcfae6}\label{structAFM_a8e961bc8e62e6c7df977e6bcaebcfae6}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structAFM_a8e961bc8e62e6c7df977e6bcaebcfae6}{U}}
+\begin{DoxyCompactList}\small\item\em flow velocity at the AF point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_a25a63eaf04c762ec38681d1ed21a4525}\label{structAFM_a25a63eaf04c762ec38681d1ed21a4525}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structAFM_a25a63eaf04c762ec38681d1ed21a4525}{B}}
+\begin{DoxyCompactList}\small\item\em body force at the AF point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_a791fabb675aa5f6c0c9bd2d9469aa64d}\label{structAFM_a791fabb675aa5f6c0c9bd2d9469aa64d}} 
+Petsc\+Real \mbox{\hyperlink{structAFM_a791fabb675aa5f6c0c9bd2d9469aa64d}{axialF}}
+\begin{DoxyCompactList}\small\item\em rotor axial force at the AF point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_ad98a42cd6a3948a148d0ca057388c325}\label{structAFM_ad98a42cd6a3948a148d0ca057388c325}} 
+Petsc\+Real \mbox{\hyperlink{structAFM_ad98a42cd6a3948a148d0ca057388c325}{rtr\+Thrust}}
+\begin{DoxyCompactList}\small\item\em total rotor thrust \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_a1627d396ccf9199910edd3ac7406b34a}\label{structAFM_a1627d396ccf9199910edd3ac7406b34a}} 
+Petsc\+Real \mbox{\hyperlink{structAFM_a1627d396ccf9199910edd3ac7406b34a}{aero\+Pwr}}
+\begin{DoxyCompactList}\small\item\em total rotor aero power \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_a7d2c4590c5c8faffc73bb7509f190924}\label{structAFM_a7d2c4590c5c8faffc73bb7509f190924}} 
+Petsc\+Int \mbox{\hyperlink{structAFM_a7d2c4590c5c8faffc73bb7509f190924}{this\+Pt\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flag telling if this processor controls the AF point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_a119fb8512e47f1ab536f914d8c5caae9}\label{structAFM_a119fb8512e47f1ab536f914d8c5caae9}} 
+Petsc\+Int \mbox{\hyperlink{structAFM_a119fb8512e47f1ab536f914d8c5caae9}{search\+Done}}
+\begin{DoxyCompactList}\small\item\em flag telling if the closest cell search has been done \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structAFM_ad3e3aa4d2432e26b50d3587cc5da8fb1}\label{structAFM_ad3e3aa4d2432e26b50d3587cc5da8fb1}} 
+Petsc\+Int \mbox{\hyperlink{structAFM_ad3e3aa4d2432e26b50d3587cc5da8fb1}{dbg}}
+\begin{DoxyCompactList}\small\item\em prints a lot of information \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Actuator Farm Model. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/turbines.\+h\end{DoxyCompactItemize}

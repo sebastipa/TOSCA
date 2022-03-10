@@ -2,27 +2,60 @@
 \label{structShumann}\index{Shumann@{Shumann}}
 
 
-\textbackslash{}breif structure storing the \mbox{\hyperlink{structShumann}{Shumann}} wall models information  
+structure storing the \mbox{\hyperlink{structShumann}{Shumann}} wall models information for U and T  
 
 
 
 
-{\ttfamily \#include $<$ueqn.\+h$>$}
+{\ttfamily \#include $<$wallmodel.\+h$>$}
 
 \doxysubsection*{Public Attributes}
 \begin{DoxyCompactItemize}
 \item 
 \mbox{\Hypertarget{structShumann_a8841bfd1cb2c5b538169c871a1091ef8}\label{structShumann_a8841bfd1cb2c5b538169c871a1091ef8}} 
-word {\bfseries wf\+Eval\+Type}
-\item 
+word \mbox{\hyperlink{structShumann_a8841bfd1cb2c5b538169c871a1091ef8}{wf\+Eval\+Type}}
+\begin{DoxyCompactList}\small\item\em type of u\+Star evaluation localized/averaged \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_af6f0ced1be1e8201c94672ae47008b08}\label{structShumann_af6f0ced1be1e8201c94672ae47008b08}} 
+Petsc\+Real \mbox{\hyperlink{structShumann_af6f0ced1be1e8201c94672ae47008b08}{kappa}}
+\begin{DoxyCompactList}\small\item\em von karman constant (usually 0.\+4) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_a668de4640a1387eb867f523f74c07465}\label{structShumann_a668de4640a1387eb867f523f74c07465}} 
+Petsc\+Real \mbox{\hyperlink{structShumann_a668de4640a1387eb867f523f74c07465}{theta\+Ref}}
+\begin{DoxyCompactList}\small\item\em reference potential temperature \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structShumann_a85ba4d4e81ad2b38c3b752f6ac264809}\label{structShumann_a85ba4d4e81ad2b38c3b752f6ac264809}} 
-Petsc\+Real {\bfseries roughness}
-\end{DoxyCompactItemize}
+Petsc\+Real \mbox{\hyperlink{structShumann_a85ba4d4e81ad2b38c3b752f6ac264809}{roughness}}
+\begin{DoxyCompactList}\small\item\em equivalent roughness height \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_ac966769d1be99825ab41504ef009c7ca}\label{structShumann_ac966769d1be99825ab41504ef009c7ca}} 
+Petsc\+Real \mbox{\hyperlink{structShumann_ac966769d1be99825ab41504ef009c7ca}{gammaM}}
+\begin{DoxyCompactList}\small\item\em momentum gammaM from Paulson 1970 (stable BL) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_a4a2de2842f524177447c5c88fca1261b}\label{structShumann_a4a2de2842f524177447c5c88fca1261b}} 
+Petsc\+Real \mbox{\hyperlink{structShumann_a4a2de2842f524177447c5c88fca1261b}{betaM}}
+\begin{DoxyCompactList}\small\item\em momentum betaM from Pauslon 1970 (unstable BL) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_a88fccc418c73c7090c40a43e2ab2a0b9}\label{structShumann_a88fccc418c73c7090c40a43e2ab2a0b9}} 
+Petsc\+Real \mbox{\hyperlink{structShumann_a88fccc418c73c7090c40a43e2ab2a0b9}{gammaH}}
+\begin{DoxyCompactList}\small\item\em pot. temp. gammaH from Paulson 1970 (stable BL) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_a02350a4c88aa8dfb6f5b20801c5bcb46}\label{structShumann_a02350a4c88aa8dfb6f5b20801c5bcb46}} 
+Petsc\+Real \mbox{\hyperlink{structShumann_a02350a4c88aa8dfb6f5b20801c5bcb46}{betaH}}
+\begin{DoxyCompactList}\small\item\em pot. temp. betaH from Paulson 1970 (stable BL) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_a85e684feb4efa30270c9b3b750767cca}\label{structShumann_a85e684feb4efa30270c9b3b750767cca}} 
+Petsc\+Real \mbox{\hyperlink{structShumann_a85e684feb4efa30270c9b3b750767cca}{alphaH}}
+\begin{DoxyCompactList}\small\item\em pot. temp. alphaH from Paulson 1970 (stable BL) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_a27bfe23acf172558413a3f808525f1de}\label{structShumann_a27bfe23acf172558413a3f808525f1de}} 
+Petsc\+Real \mbox{\hyperlink{structShumann_a27bfe23acf172558413a3f808525f1de}{t\+Last}}
+\begin{DoxyCompactList}\small\item\em time at which the last theta update was done \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_a90b005ea57af1988ec0106d6be689007}\label{structShumann_a90b005ea57af1988ec0106d6be689007}} 
+Petsc\+Real \mbox{\hyperlink{structShumann_a90b005ea57af1988ec0106d6be689007}{heating\+Rate}}
+\begin{DoxyCompactList}\small\item\em surface heating rate \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_ad7bd1e4eadb75b1e9c06033e26188294}\label{structShumann_ad7bd1e4eadb75b1e9c06033e26188294}} 
+Petsc\+Real $\ast$$\ast$ \mbox{\hyperlink{structShumann_ad7bd1e4eadb75b1e9c06033e26188294}{surface\+Theta}}
+\begin{DoxyCompactList}\small\item\em surface temperature \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structShumann_a52ee92b3777d1effffd40a207f13931e}\label{structShumann_a52ee92b3777d1effffd40a207f13931e}} 
+Petsc\+Int \mbox{\hyperlink{structShumann_a52ee92b3777d1effffd40a207f13931e}{surface\+Theta\+Set}}
+\begin{DoxyCompactList}\small\item\em surface temperature has been initialized \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
 \doxysubsection{Detailed Description}
-\textbackslash{}breif structure storing the \mbox{\hyperlink{structShumann}{Shumann}} wall models information 
+structure storing the \mbox{\hyperlink{structShumann}{Shumann}} wall models information for U and T 
 
 The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
 \item 
-src/include/\mbox{\hyperlink{ueqn_8h}{ueqn.\+h}}\end{DoxyCompactItemize}
+src/include/\mbox{\hyperlink{wallmodel_8h}{wallmodel.\+h}}\end{DoxyCompactItemize}

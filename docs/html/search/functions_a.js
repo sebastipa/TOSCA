@@ -1,4 +1,6 @@
 var searchData=
 [
-  ['l2normhypre_904',['L2NormHypre',['../peqn_8c.html#ad70bea1744fa4be27bffab83f74e350b',1,'L2NormHypre(peqn_ *peqn, HYPRE_IJMatrix &amp;A, HYPRE_IJVector &amp;X, HYPRE_IJVector &amp;B):&#160;peqn.c'],['../peqn_8h.html#ad70bea1744fa4be27bffab83f74e350b',1,'L2NormHypre(peqn_ *peqn, HYPRE_IJMatrix &amp;A, HYPRE_IJVector &amp;X, HYPRE_IJVector &amp;B):&#160;peqn.c']]]
+  ['ksectionloadvector_1041',['kSectionLoadVector',['../windToPW_8h.html#ac58cd31840d6c3f294697987885ab9fb',1,'windToPW.c']]],
+  ['ksectionsavescalar_1042',['kSectionSaveScalar',['../acquisition_8c.html#a75064ac59494bfe3dd43a41bf0e08bad',1,'kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c'],['../acquisition_8h.html#a75064ac59494bfe3dd43a41bf0e08bad',1,'kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c']]],
+  ['ksectionsavevector_1043',['kSectionSaveVector',['../acquisition_8c.html#ac2fb6e54541435cb8b87de0b7d13736c',1,'kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c'],['../acquisition_8h.html#ac2fb6e54541435cb8b87de0b7d13736c',1,'kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &amp;V, const char *fieldName):&#160;acquisition.c']]]
 ];
