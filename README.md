@@ -88,7 +88,7 @@ In order to compile TOSCA on your system, please follow these steps:
 * Test PETSc with `make check`
 
 * Save an alias that will tell TOSCA where PETSc is installed in your .bashrc:
-  `echo "export PETSC_DIR=$HOME/your--path--to--petsh" >> $HOME/.bashrc`
+  `echo "export PETSC_DIR=$HOME/your--path--to--petsc" >> $HOME/.bashrc`
 
 * Reload the environment with `source $HOME/.bashrc`
 
