@@ -58,11 +58,12 @@ In order to be installed, TOSCA requires a working C/C++ compiler, PETSc (versio
 HYPRE (needed by PETSs in order to build some of the matrix solvers we use). TOSCA has been tested with the above version combinations,
 it could work with other combinations or versions but it has not been tested (especially older versions).
 We recommend the following versions of the above libraries:
- - gcc      : 9.2.0  (https://gcc.gnu.org/)
- - PETSc    : 3.15.5 (https://ftp.mcs.anl.gov/pub/petsc/)
- - Open MPI : 4.1.2  (https://www.open-mpi.org/software/ompi/v4.1/)
- - HYPRE    : 2.20.0 (https://github.com/hypre-space/hypre/tree/hypre_petsc) (check version in /src/CMakeLists.txt)
- - HDF5     : 1.12.1 (https://www.hdfgroup.org/downloads/hdf5/)
+ * gcc      : 9.2.0  (https://gcc.gnu.org/).
+ * PETSc    : 3.15.5 (https://ftp.mcs.anl.gov/pub/petsc/).
+ * Open MPI : 4.1.2  (https://www.open-mpi.org/software/ompi/v4.1/).
+ * HYPRE    : 2.20.0 (https://github.com/hypre-space/hypre/tree/hypre_petsc) (check version in /src/CMakeLists.txt).
+ * HDF5     : 1.12.1 (https://www.hdfgroup.org/downloads/hdf5/).
+
 We suggest to create a folder named 'software', where the PETSc, HYPRE and TOSCA folders will be located.
 
 Prior to install TOSCA, we suggest creating a folder named `Software` inside $HOME, where all the following steps will be performed.
