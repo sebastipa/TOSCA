@@ -1,4 +1,4 @@
-<img src="docs/images/tosca.png" width="500">
+<img src="docs/images/tosca.png" width="400">
 
 Toolbox fOr Stratified Convective Atmospheres
 
@@ -64,9 +64,7 @@ We recommend the following versions of the above libraries:
  * HYPRE    : 2.20.0 (https://github.com/hypre-space/hypre/tree/hypre_petsc) (check version in /src/CMakeLists.txt).
  * HDF5     : 1.12.1 (https://www.hdfgroup.org/downloads/hdf5/).
 
-We suggest to create a folder named 'software', where the PETSc, HYPRE and TOSCA folders will be located.
-
-Prior to install TOSCA, we suggest creating a folder named `Software` inside $HOME, where all the following steps will be performed.
+Prior to install TOSCA, we suggest to create a folder named `Software` inside `$HOME`, where the PETSc, HYPRE and TOSCA folders will be located.
 In order to compile TOSCA on your system, please follow these steps:
 
 * Check your compiler version with `gcc --version`
