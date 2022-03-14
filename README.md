@@ -1,4 +1,4 @@
-<img src="docs/images/tosca.png" width="200">
+<img src="docs/images/tosca.png" width="500">
 
 Toolbox fOr Stratified Convective Atmospheres
 
