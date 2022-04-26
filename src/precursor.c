@@ -597,26 +597,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         // set initial field
         if(clock->it == clock->itStart)
         {
-            // set initial fields
-            if(flags->isPrecursorSpinUp)
-            {
-                domain->ueqn->initFieldType = "spreadInflow";
-                if(flags->isTeqnActive) domain->teqn->initFieldType = "spreadInflow";
-                if(flags->isLesActive)  domain->les->initFieldType  = "spreadInflow";
-
-                PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: spreadInflow\n");
-                SpreadInletFlowU(domain->ueqn);
-                SpreadInletFlowT(domain->teqn);
-            }
-            else
-            {
-                domain->ueqn->initFieldType = "readField";
-                if(flags->isTeqnActive) domain->teqn->initFieldType = "readField";
-                if(flags->isLesActive)  domain->les->initFieldType  = "readField";
-
-                PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: readField\n");
-                readFields(domain, clock->startTime);
-            }
+            SetInitialFieldPrecursor(abl);
         }
 
         // create old fields
@@ -826,48 +807,19 @@ PetscErrorCode MapInitialConditionPrecursor(abl_ *abl)
     mesh_      *mesh_p     = domain->mesh;
     mesh_      *mesh_s     = abl->access->mesh;
 
-    if(precursor->thisProcessorInFringe)
+    // map cartesian velocity
+    successorPrecursorMapVectorField(abl, abl->access->ueqn->Ucat,  domain->ueqn->Ucat, domain->ueqn->lUcat);
+
+    // map contravariant velocity
+    successorPrecursorMapVectorField(abl, abl->access->ueqn->Ucont, domain->ueqn->Ucont, domain->ueqn->lUcont);
+
+    // map pressure
+    successorPrecursorMapScalarField(abl, abl->access->peqn->P,  domain->peqn->P, domain->peqn->lP);
+
+    // map temperature
+    if(domain->flags.isTeqnActive)
     {
-        // set IB markup to zero
-        VecSet(mesh_p->Nvert,       0.0);
-        VecSet(mesh_p->Nvert_o,     0.0);
-        VecSet(mesh_p->fluxLimiter, 0.5);
-
-        // scatter local to local
-        DMGlobalToLocalBegin(mesh_p->da, mesh_p->Nvert,   INSERT_VALUES, mesh_p->lNvert  );
-        DMGlobalToLocalEnd  (mesh_p->da, mesh_p->Nvert,   INSERT_VALUES, mesh_p->lNvert  );
-        DMGlobalToLocalBegin(mesh_p->da, mesh_p->Nvert_o, INSERT_VALUES, mesh_p->lNvert_o);
-        DMGlobalToLocalEnd  (mesh_p->da, mesh_p->Nvert_o, INSERT_VALUES, mesh_p->lNvert_o);
-
-        // map cartesian velocity
-        successorPrecursorMapVectorField(abl, abl->access->ueqn->Ucat,  domain->ueqn->Ucat, domain->ueqn->lUcat);
-        UpdateCartesianBCs(domain->ueqn);
-
-        // map contravariant velocity
-        successorPrecursorMapVectorField(abl, abl->access->ueqn->Ucont, domain->ueqn->Ucont, domain->ueqn->lUcont);
-        UpdateContravariantBCs(domain->ueqn);
-
-        // map pressure
-        successorPrecursorMapScalarField(abl, abl->access->peqn->P,  domain->peqn->P, domain->peqn->lP);
-        UpdatePressureBCs(domain->peqn);
-
-        // map temperature
-        if(domain->flags.isTeqnActive)
-        {
-            successorPrecursorMapScalarField(abl, abl->access->teqn->Tmprt,  domain->teqn->Tmprt, domain->teqn->lTmprt);
-            UpdateTemperatureBCs(domain->teqn);
-        }
-
-        if(domain->flags.isLesActive)
-        {
-            VecSet(domain->les->lNu_t, 0.0);
-            VecSet(domain->les->lCs ,  0.0);
-        }
-
-        if(domain->flags.isAblActive)
-        {
-            VecSet(domain->ueqn->sourceU,  0.0);
-        }
+        successorPrecursorMapScalarField(abl, abl->access->teqn->Tmprt,  domain->teqn->Tmprt, domain->teqn->lTmprt);
     }
 
     return(0);

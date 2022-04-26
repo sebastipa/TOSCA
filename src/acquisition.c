@@ -4142,6 +4142,10 @@ PetscErrorCode write3LMPoints(acquisition_ *acquisition)
 
     PetscMPIInt rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
+    word   lm3FolderName     = "./postProcessing/" + mesh->meshName + "/3LM";
+    word   lm3FolderTimeName = "./postProcessing/" + mesh->meshName + "/3LM/" + getStartTimeName(clock);
+    word   pointFileName     = lm3FolderTimeName + "/points";
+
     // create directories
     if
     (
@@ -4149,11 +4153,20 @@ PetscErrorCode write3LMPoints(acquisition_ *acquisition)
     )
     {
         errno = 0;
-        PetscInt dirRes = mkdir("./postProcessing/3LM/", 0777);
+        PetscInt dirRes;
+
+        dirRes = mkdir(lm3FolderName.c_str(), 0777);
         if(dirRes != 0 && errno != EEXIST)
         {
-           char error[512];
-            sprintf(error, "could not create postProcessing/3LM directory\n");
+            char error[512];
+            sprintf(error, "could not create %s directory\n", lm3FolderName.c_str());
+            fatalErrorInFunction("write3LMPoints",  error);
+        }
+        dirRes = mkdir(lm3FolderTimeName.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+            char error[512];
+            sprintf(error, "could not create %s directory\n", lm3FolderTimeName.c_str());
             fatalErrorInFunction("write3LMPoints",  error);
         }
     }
@@ -4161,7 +4174,7 @@ PetscErrorCode write3LMPoints(acquisition_ *acquisition)
     // write 3LM mesh points
     if(!rank)
     {
-        FILE *fp = fopen("postProcessing/3LM/points", "w");
+        FILE *fp = fopen(pointFileName.c_str(), "w");
         if(!fp)
         {
            char error[512];
@@ -4202,8 +4215,11 @@ PetscErrorCode write3LMPoints(acquisition_ *acquisition)
 PetscErrorCode write3LMFields(acquisition_ *acquisition)
 {
     mesh_  *mesh  = acquisition->access->mesh;
+    clock_ *clock = acquisition->access->clock;
     data3LM *lm3  = acquisition->LM3;
     io_     *io   = acquisition->access->io;
+
+    word   lm3FolderTimeName = "./postProcessing/" + mesh->meshName + "/3LM/" + getStartTimeName(clock);
 
     // check if must write
     if(io->runTimeWrite)
@@ -4221,7 +4237,7 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
                 // write velocity
                 {
                     char fileName[256];
-                    sprintf(fileName, "postProcessing/3LM/U_L%ld",l+1);
+                    sprintf(fileName, "%s/U_L%ld",lm3FolderTimeName.c_str(), l+1);
 
                     FILE *fp = fopen(fileName, "w");
                     if(!fp)
@@ -4256,7 +4272,7 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
                 // write pressure
                 {
                     char fileName[256];
-                    sprintf(fileName, "postProcessing/3LM/P_L%ld",l+1);
+                    sprintf(fileName, "%s/P_L%ld",lm3FolderTimeName.c_str(), l+1);
 
                     FILE *fp = fopen(fileName, "w");
                     if(!fp)
@@ -5305,22 +5321,22 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     {
                         // pre-set base variables for speed
                         PetscReal dudc, dvdc, dwdc,
-                               dude, dvde, dwde,
-                               dudz, dvdz, dwdz;
+                                  dude, dvde, dwde,
+                                  dudz, dvdz, dwdz;
                         PetscReal du_dx, du_dy, du_dz,
-                               dv_dx, dv_dy, dv_dz,
-                               dw_dx, dw_dy, dw_dz;
+                                  dv_dx, dv_dy, dv_dz,
+                                  dw_dx, dw_dy, dw_dz;
                         PetscReal ajc  = aj[k][j][i];
 
                         PetscReal csi0 = csi[k][j][i].x,
-                               csi1 = csi[k][j][i].y,
-                               csi2 = csi[k][j][i].z;
+                                  csi1 = csi[k][j][i].y,
+                                  csi2 = csi[k][j][i].z;
                         PetscReal eta0 = eta[k][j][i].x,
-                               eta1 = eta[k][j][i].y,
-                               eta2 = eta[k][j][i].z;
+                                  eta1 = eta[k][j][i].y,
+                                  eta2 = eta[k][j][i].z;
                         PetscReal zet0 = zet[k][j][i].x,
-                               zet1 = zet[k][j][i].y,
-                               zet2 = zet[k][j][i].z;
+                                  zet1 = zet[k][j][i].y,
+                                  zet2 = zet[k][j][i].z;
 
                         // pre-set variables for speed
                         volCell      = 1.0 / ajc;
@@ -5371,7 +5387,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         lR[j-1].xz += ( - nut[k][j][i] * (dw_dx + du_dz)) * volCell;
                         lR[j-1].yy += (2.0/3.0 * tke - 2.0 * nut[k][j][i] * dv_dy) * volCell;
                         lR[j-1].yz += ( - nut[k][j][i] * (dv_dz + dw_dy)) * volCell;
-                        lR[j-1].zz += (2.0/3.0 * tke - 2.0 * nut[k][j][i] * du_dx) * volCell;
+                        lR[j-1].zz += (2.0/3.0 * tke - 2.0 * nut[k][j][i] * dw_dz) * volCell;
                     }
                 }
             }
@@ -5406,12 +5422,12 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 ablStat->TwMean[l] = gTU[l].z / totVolPerLevel;
 
                 // set to zero remaining statistics (not yet implemented)
-                ablStat->R11Mean[l] = gR[j].xx / totVolPerLevel;
-                ablStat->R12Mean[l] = gR[j].xy / totVolPerLevel;
-                ablStat->R13Mean[l] = gR[j].xz / totVolPerLevel;
-                ablStat->R22Mean[l] = gR[j].yy / totVolPerLevel;
-                ablStat->R23Mean[l] = gR[j].yz / totVolPerLevel;
-                ablStat->R33Mean[l] = gR[j].zz / totVolPerLevel;
+                ablStat->R11Mean[l] = gR[l].xx / totVolPerLevel;
+                ablStat->R12Mean[l] = gR[l].xy / totVolPerLevel;
+                ablStat->R13Mean[l] = gR[l].xz / totVolPerLevel;
+                ablStat->R22Mean[l] = gR[l].yy / totVolPerLevel;
+                ablStat->R23Mean[l] = gR[l].yz / totVolPerLevel;
+                ablStat->R33Mean[l] = gR[l].zz / totVolPerLevel;
 
                 ablStat->q1Mean[l] = 0.0 / totVolPerLevel;
                 ablStat->q2Mean[l] = 0.0 / totVolPerLevel;
@@ -5560,7 +5576,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5lf\t", ablStat->R11Mean[l]);
+                        fprintf(f, "%.6lf\t", ablStat->R11Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5582,7 +5598,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5lf\t", ablStat->R12Mean[l]);
+                        fprintf(f, "%.6lf\t", ablStat->R12Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5604,7 +5620,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5lf\t", ablStat->R13Mean[l]);
+                        fprintf(f, "%.6lf\t", ablStat->R13Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5626,7 +5642,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5lf\t", ablStat->R22Mean[l]);
+                        fprintf(f, "%.6lf\t", ablStat->R22Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5648,7 +5664,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5lf\t", ablStat->R23Mean[l]);
+                        fprintf(f, "%.6lf\t", ablStat->R23Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
@@ -5670,7 +5686,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     fprintf(f, "%.5lf\t", clock->dt);
                     for(l=0; l<nLevels; l++)
                     {
-                        fprintf(f, "%.5lf\t", ablStat->R33Mean[l]);
+                        fprintf(f, "%.6lf\t", ablStat->R33Mean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);

@@ -240,7 +240,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     computeMaxTipSpeed(domain[d].farm);
 
                     PetscReal dtFarm = dx_min / farm->maxTipSpeed;
-                    
+
                     clock->dt = std::min(clock->dt, dtFarm);
                 }
             }
@@ -269,6 +269,8 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         clock->dt = clock->startDt;
     }
     clock->time = clock->time + clock->dt;
+
+    cfl = clock->dt * maxU / dx_min;
 
     PetscPrintf(PETSC_COMM_WORLD, "\n\nTime: %lf\n\n", clock->time);
     PetscPrintf(PETSC_COMM_WORLD, "Iteration = %ld, CFL = %lf, uMax = %.6f, dt = %.6f, deltaMin = %.6f, adjust due to write flag: %ld\n", clock->it, cfl, maxU, clock->dt, dx_min, flag);

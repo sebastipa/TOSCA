@@ -3758,7 +3758,8 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
     clock_ *clock = farm->access->clock;
     io_    *io    = farm->access->io;
 
-    word   turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
+    word   turbineFolderName     = "./postProcessing/" + mesh->meshName + "/turbines";
+    word   turbineFolderTimeName = "./postProcessing/" + mesh->meshName + "/turbines/" + getStartTimeName(clock);
 
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
@@ -3771,19 +3772,28 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
         if(!rank)
         {
             errno = 0;
+            PetscInt dirRes;
 
-            PetscInt dirRes = mkdir(turbineFolderName.c_str(), 0777);
+            dirRes = mkdir(turbineFolderName.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create %s directory\n", turbineFolderName.c_str());
+                fatalErrorInFunction("windTurbinesWrite",  error);
+            }
+
+            dirRes = mkdir(turbineFolderTimeName.c_str(), 0777);
+            if(dirRes != 0 && errno != EEXIST)
+            {
+                char error[512];
+                sprintf(error, "could not create %s directory\n", turbineFolderTimeName.c_str());
                 fatalErrorInFunction("windTurbinesWrite",  error);
             }
 
             // if directory already exist remove everything inside
             if(errno == EEXIST)
             {
-                remove_subdirs(farm->access->mesh->MESH_COMM, turbineFolderName.c_str());
+                remove_subdirs(farm->access->mesh->MESH_COMM, turbineFolderTimeName.c_str());
             }
         }
 
@@ -3799,7 +3809,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
             {
                 FILE *f;
                 char fileName[80];
-                sprintf(fileName, "%s/%s", turbineFolderName.c_str(), (*farm->turbineIds[t]).c_str());
+                sprintf(fileName, "%s/%s", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
                 f = fopen(fileName, "w");
 
                 if(!f)
@@ -4075,12 +4085,12 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                 {
                     FILE *f;
                     char fileName[80];
-                    sprintf(fileName, "%s/%s", turbineFolderName.c_str(), (*farm->turbineIds[t]).c_str());
+                    sprintf(fileName, "%s/%s", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
                     f = fopen(fileName, "a");
 
                     if(!f)
                     {
-                       char error[512];
+                        char error[512];
                         sprintf(error, "cannot open file %s\n", fileName);
                         fatalErrorInFunction("windTurbinesWrite",  error);
                     }
@@ -5720,7 +5730,6 @@ PetscErrorCode initSampleControlledCells(farm_ *farm)
 PetscErrorCode writeFarmADMesh(farm_ *farm)
 {
     mesh_     *mesh = farm->access->mesh;
-
     clock_    *clock = farm->access->clock;
 
     PetscMPIInt rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
@@ -5765,17 +5774,17 @@ PetscErrorCode writeFarmADMesh(farm_ *farm)
 
         if(npts>0)
         {
-            word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
+            word   turbineFolderTimeName = "./postProcessing/" + mesh->meshName + "/turbines/" + getStartTimeName(clock);
 
             char fileName[256];
-            sprintf(fileName, "%s/ADMesh_%ld.inp", turbineFolderName.c_str(), farm->writeNumber);
+            sprintf(fileName, "%s/ADMesh_%ld.inp", turbineFolderTimeName.c_str(), farm->writeNumber);
 
             PetscInt width = -20;
 
             FILE *f = fopen(fileName, "w");
 
             // header
-            PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from OKWind V0521\n");
+            PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from TOSCA: Toolbox fOr Stratified Convective Atmospheres\n");
             PetscFPrintf(mesh->MESH_COMM, f, "#\n");
             PetscFPrintf(mesh->MESH_COMM, f, "#\n");
 
@@ -5917,7 +5926,8 @@ PetscErrorCode writeFarmADMesh(farm_ *farm)
 
 PetscErrorCode writeFarmTwrMesh(farm_ *farm)
 {
-    mesh_ *mesh = farm->access->mesh;
+    mesh_  *mesh  = farm->access->mesh;
+    clock_ *clock = farm->access->clock;
 
     PetscMPIInt           rank;
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
@@ -5929,17 +5939,17 @@ PetscErrorCode writeFarmTwrMesh(farm_ *farm)
         PetscInt npts = 2*farm->size;
         PetscInt ncll = farm->size;
 
-        word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
+        word   turbineFolderTimeName = "./postProcessing/" + mesh->meshName + "/turbines/" + getStartTimeName(clock);
 
         char fileName[256];
-        sprintf(fileName, "%s/twrMesh.inp", turbineFolderName.c_str());
+        sprintf(fileName, "%s/twrMesh.inp", turbineFolderTimeName.c_str());
 
         PetscInt width = -20;
 
         FILE *f = fopen(fileName, "w");
 
         // header
-        PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from OKWind V0521\n");
+        PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from TOSCA: Toolbox fOr Stratified Convective Atmospheres\n");
         PetscFPrintf(mesh->MESH_COMM, f, "#\n");
         PetscFPrintf(mesh->MESH_COMM, f, "#\n");
 
@@ -6010,17 +6020,17 @@ PetscErrorCode writeFarmALMesh(farm_ *farm)
 
         if(npts>0)
         {
-            word turbineFolderName = "./postProcessing/" + mesh->meshName + "/turbines";
+            word   turbineFolderTimeName = "./postProcessing/" + mesh->meshName + "/turbines/" + getStartTimeName(clock);
 
             char fileName[256];
-            sprintf(fileName, "%s/ALMesh_%ld.inp", turbineFolderName.c_str(), farm->writeNumber);
+            sprintf(fileName, "%s/ALMesh_%ld.inp", turbineFolderTimeName.c_str(), farm->writeNumber);
 
             PetscInt width = -20;
 
             FILE *f = fopen(fileName, "w");
 
             // header
-            PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from OKWind V0521\n");
+            PetscFPrintf(mesh->MESH_COMM, f, "#UCD geometry file from TOSCA: Toolbox fOr Stratified Convective Atmospheres\n");
             PetscFPrintf(mesh->MESH_COMM, f, "#\n");
             PetscFPrintf(mesh->MESH_COMM, f, "#\n");
 

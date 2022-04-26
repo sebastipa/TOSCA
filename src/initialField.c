@@ -71,6 +71,72 @@ PetscErrorCode SetInitialField(domain_ *domain)
 
 //***************************************************************************************************************//
 
+PetscErrorCode SetInitialFieldPrecursor(abl_ *abl)
+{
+    // set pointer to precursor database
+    precursor_ *precursor = abl->precursor;
+    domain_    *domain    = precursor->domain;
+    flags_     *flags     = domain->access.flags;
+    mesh_      *mesh      = domain->access.mesh;
+    clock_     *clock     = domain->clock;
+
+    // set IB markup to zero
+    VecSet(mesh->Nvert,       0.0);
+    VecSet(mesh->Nvert_o,     0.0);
+    VecSet(mesh->fluxLimiter, 0.5);
+
+    // scatter local to local
+    DMGlobalToLocalBegin(mesh->da, mesh->Nvert,   INSERT_VALUES, mesh->lNvert  );
+    DMGlobalToLocalEnd  (mesh->da, mesh->Nvert,   INSERT_VALUES, mesh->lNvert  );
+    DMGlobalToLocalBegin(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
+    DMGlobalToLocalEnd  (mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
+
+    // set initial fields: spread inflow
+    if(flags->isPrecursorSpinUp==1)
+    {
+        domain->ueqn->initFieldType = "spreadInflow";
+        if(flags->isTeqnActive) domain->teqn->initFieldType = "spreadInflow";
+        if(flags->isLesActive)  domain->les->initFieldType  = "spreadInflow";
+
+        PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: spreadInflow\n");
+        SpreadInletFlowU(domain->ueqn);
+        SpreadInletFlowT(domain->teqn);
+    }
+    // set initial fields: map fields
+    else if (flags->isPrecursorSpinUp==2)
+    {
+        MapInitialConditionPrecursor(abl);
+    }
+    // set initial fields: read fields
+    else
+    {
+        domain->ueqn->initFieldType = "readField";
+        if(flags->isTeqnActive) domain->teqn->initFieldType = "readField";
+        if(flags->isLesActive)  domain->les->initFieldType  = "readField";
+
+        PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: readField\n");
+        readFields(domain, clock->startTime);
+    }
+
+    // reset periodic and non penetration fluxes
+    resetNoPenetrationFluxes(domain->ueqn);
+    resetFacePeriodicFluxesVector(mesh, domain->ueqn->Ucont, domain->ueqn->lUcont, "globalToLocal");
+
+    // update boundary conditions
+    UpdateCartesianBCs(domain->ueqn);
+    UpdateContravariantBCs(domain->ueqn);
+    UpdatePressureBCs(domain->peqn);
+
+    if(domain->flags.isTeqnActive)
+    {
+        UpdateTemperatureBCs(domain->teqn);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
 {
     clock_ *clock     = ueqn->access->clock;

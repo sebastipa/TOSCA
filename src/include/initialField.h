@@ -8,6 +8,9 @@
 //!< \brief set the initial internal fields
 PetscErrorCode SetInitialField(domain_ *domain);
 
+//!< \brief set the initial internal fields for the concurrent precursor simulation
+PetscErrorCode SetInitialFieldPrecursor(abl_ *abl);
+
 //!< \brief set the initial internal contravariant and cartesian velocity field
 PetscErrorCode SetInitialFieldU(ueqn_ *ueqn);
 
