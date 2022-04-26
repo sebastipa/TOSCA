@@ -34,7 +34,7 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
             PetscInt dirRes = mkdir("./postProcessing", 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create postProcessing directory\n");
                 fatalErrorInFunction("InitializeAcquisition",  error);
             }
@@ -71,18 +71,18 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
         {
             for(PetscInt d=0; d<nDomains; d++)
             {
-              if(!rank)
-              {
-                errno = 0;
-                word domainFolderName = "./postProcessing/" + domain[d].mesh->meshName;
-                PetscInt dirRes = mkdir(domainFolderName.c_str(), 0777);
-                if(dirRes != 0 && errno != EEXIST)
+                if(!rank)
                 {
-                   char error[512];
-                    sprintf(error, "could not create %s directory", domainFolderName.c_str());
-                    fatalErrorInFunction("InitializeAcquisition",  error);
+                    errno = 0;
+                    word domainFolderName = "./postProcessing/" + domain[d].mesh->meshName;
+                    PetscInt dirRes = mkdir(domainFolderName.c_str(), 0777);
+                    if(dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create %s directory", domainFolderName.c_str());
+                        fatalErrorInFunction("InitializeAcquisition",  error);
+                    }
                 }
-              }
             }
         }
     }
@@ -172,7 +172,7 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
             PetscInt dirRes = mkdir(domainFolderName.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create %s directory", domainFolderName.c_str());
                 fatalErrorInFunction("InitializeAcquisition",  error);
             }
@@ -284,7 +284,6 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
         // allocate averaging vectors
         if(io->averaging)
         {
-
             // allocate memory and set to zero
             VecDuplicate(mesh->Cent,  &(avg->avgU));        VecSet(avg->avgU,0.);
             VecDuplicate(mesh->Nvert, &(avg->avgP));        VecSet(avg->avgP,0.);
@@ -420,22 +419,22 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
             PetscInt       i, j, k;
             PetscInt       lxs, lxe, lys, lye, lzs, lze;
 
-            Cmpnts    ***ucat, ***csi, ***eta, ***zet;
-            PetscReal ***p, ***nut, ***cs, ***nvert, ***aj;
+            Cmpnts         ***ucat, ***csi, ***eta, ***zet;
+            PetscReal      ***p, ***nut, ***cs, ***nvert, ***aj;
 
-            Cmpnts    ***u_mean, ***maguu_mean, ***w_mean,
-                      ***u_phase, ***maguu_phase, ***w_phase;
+            Cmpnts         ***u_mean, ***maguu_mean, ***w_mean,
+                           ***u_phase, ***maguu_phase, ***w_phase;
 
-            PetscReal ***p_mean, ***p2_mean, ***udgp_mean, ***maggradu_mean, ***nut_mean, ***cs_mean,
-                      ***p_phase, ***p2_phase, ***udgp_phase, ***maggradu_phase, ***nut_phase, ***cs_phase;
+            PetscReal      ***p_mean, ***p2_mean, ***udgp_mean, ***maggradu_mean, ***nut_mean, ***cs_mean,
+                           ***p_phase, ***p2_phase, ***udgp_phase, ***maggradu_phase, ***nut_phase, ***cs_phase;
 
-            symmTensor ***uu_mean, ***uu_phase, ***ww_mean, ***ww_phase;
+            symmTensor     ***uu_mean, ***uu_phase, ***ww_mean, ***ww_phase;
 
-            PetscReal     ts, te;
+            PetscReal      ts, te;
 
             // averaging weights
-            PetscReal        aN, pN;
-            PetscReal        m1, m2, p1, p2;
+            PetscReal       aN, pN;
+            PetscReal       m1, m2, p1, p2;
 
             PetscTime(&ts);
 
@@ -535,28 +534,28 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
                     {
                         // pre-set base variables for speed
                         PetscReal U = ucat[k][j][i].x,
-                               V = ucat[k][j][i].y,
-                               W = ucat[k][j][i].z,
-                               P = p[k][j][i];
+                                  V = ucat[k][j][i].y,
+                                  W = ucat[k][j][i].z,
+                                  P = p[k][j][i];
 
                         PetscReal dudc, dvdc, dwdc,
-                               dude, dvde, dwde,
-                               dudz, dvdz, dwdz;
+                                  dude, dvde, dwde,
+                                  dudz, dvdz, dwdz;
                         PetscReal du_dx, du_dy, du_dz,
-                               dv_dx, dv_dy, dv_dz,
-                               dw_dx, dw_dy, dw_dz;
+                                  dv_dx, dv_dy, dv_dz,
+                                  dw_dx, dw_dy, dw_dz;
                         PetscReal dpdc, dpde, dpdz;
                         PetscReal dp_dx, dp_dy, dp_dz;
 
                         PetscReal csi0 = csi[k][j][i].x,
-                               csi1 = csi[k][j][i].y,
-                               csi2 = csi[k][j][i].z;
+                                  csi1 = csi[k][j][i].y,
+                                  csi2 = csi[k][j][i].z;
                         PetscReal eta0 = eta[k][j][i].x,
-                               eta1 = eta[k][j][i].y,
-                               eta2 = eta[k][j][i].z;
+                                  eta1 = eta[k][j][i].y,
+                                  eta2 = eta[k][j][i].z;
                         PetscReal zet0 = zet[k][j][i].x,
-                               zet1 = zet[k][j][i].y,
-                               zet2 = zet[k][j][i].z;
+                                  zet1 = zet[k][j][i].y,
+                                  zet2 = zet[k][j][i].z;
                         PetscReal ajc  = aj[k][j][i];
 
                         Compute_du_center
@@ -590,8 +589,8 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
                         );
 
                         PetscReal omega_x = dw_dy - dv_dz,
-                               omega_y = du_dz - dw_dx,
-                               omega_z = dv_dx - du_dy;
+                                  omega_y = du_dz - dw_dx,
+                                  omega_z = dv_dx - du_dy;
 
                         // cumulate the averaged fields
                         if(accumulateAvg)

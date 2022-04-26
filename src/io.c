@@ -11,9 +11,9 @@ PetscErrorCode InitializeIO(io_ *io)
 {
     mesh_          *mesh = io->access->mesh;
     flags_         *flags = io->access->flags;
-    PetscMPIInt    rank, nProcs;
+    PetscMPIInt     rank, nProcs;
 
-    char          dataLoc[256], fileName[500];
+    char            dataLoc[256], fileName[500];
 
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
     MPI_Comm_size(mesh->MESH_COMM, &nProcs);
@@ -59,7 +59,7 @@ PetscErrorCode InitializeIO(io_ *io)
         readDictDouble("control.dat", "-avgPeriod", &(io->avgPrd));
         readDictDouble("control.dat", "-avgStartTime", &(io->avgStartTime));
 
-        // initialize snapshot weighting
+        // initialize snapshot weighting (overwrittten if read averages)
         io->avgWeight = 0;
 
     }
@@ -71,7 +71,7 @@ PetscErrorCode InitializeIO(io_ *io)
         readDictDouble("control.dat", "-phaseAvgPeriod", &(io->phAvgPrd));
         readDictDouble("control.dat", "-phaseAvgStartTime", &(io->phAvgStartTime));
 
-        // initialize snapshot weighting
+        // initialize snapshot weighting (overwrittten if read averages)
         io->pAvgWeight = 0;
     }
 
@@ -236,198 +236,6 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     DMGlobalToLocalBegin(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
     DMGlobalToLocalEnd(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
 
-    // read averaged fields
-    if(io->averaging)
-    {
-        // open file to check the existence, then read it with PETSc
-        FILE *fp;
-
-        // read avgU
-        field = "/avgU";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "Reading avgU...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(acquisition->fields->avgU,viewer);
-            PetscViewerDestroy(&viewer);
-        }
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // read avgP
-        field = "/avgP";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "Reading avgP...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(acquisition->fields->avgP,viewer);
-            PetscViewerDestroy(&viewer);
-        }
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // read avgUU
-        field = "/avgUU";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "Reading avgUU...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(acquisition->fields->avgUU,viewer);
-            PetscViewerDestroy(&viewer);
-        }
-        MPI_Barrier(mesh->MESH_COMM);
-
-        if(les)
-        {
-            // read avgNut
-            field = "/avgNut";
-            fileName = location + field;
-            fp=fopen(fileName.c_str(), "r");
-
-            if(fp!=NULL)
-            {
-                fclose(fp);
-
-                PetscPrintf(mesh->MESH_COMM, "Reading avgNut...\n");
-                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-                VecLoad(acquisition->fields->avgNut,viewer);
-                PetscViewerDestroy(&viewer);
-            }
-            MPI_Barrier(mesh->MESH_COMM);
-
-            // read avgCs
-            field = "/avgCs";
-            fileName = location + field;
-            fp=fopen(fileName.c_str(), "r");
-
-            if(fp!=NULL)
-            {
-                fclose(fp);
-
-                PetscPrintf(mesh->MESH_COMM, "Reading avgCs...\n");
-                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-                VecLoad(acquisition->fields->avgCs,viewer);
-                PetscViewerDestroy(&viewer);
-            }
-            MPI_Barrier(mesh->MESH_COMM);
-        }
-
-        if(io->averaging > 1)
-        {
-            // read avgOmega
-            field = "/avgOmega";
-            fileName = location + field;
-            fp=fopen(fileName.c_str(), "r");
-
-            if(fp!=NULL)
-            {
-                fclose(fp);
-
-                PetscPrintf(mesh->MESH_COMM, "Reading avgOmega...\n");
-                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-                VecLoad(acquisition->fields->avgOmega,viewer);
-                PetscViewerDestroy(&viewer);
-            }
-            MPI_Barrier(mesh->MESH_COMM);
-
-            if(io->averaging > 2)
-            {
-                // read avgP2
-                field = "/avgP2";
-                fileName = location + field;
-                fp=fopen(fileName.c_str(), "r");
-
-                if(fp!=NULL)
-                {
-                    fclose(fp);
-
-                    PetscPrintf(mesh->MESH_COMM, "Reading avgPsq...\n");
-                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-                    VecLoad(acquisition->fields->avgP2,viewer);
-                    PetscViewerDestroy(&viewer);
-                }
-                MPI_Barrier(mesh->MESH_COMM);
-
-                // read avgOmegaOmega
-                field = "/avgOmegaOmega";
-                fileName = location + field;
-                fp=fopen(fileName.c_str(), "r");
-
-                if(fp!=NULL)
-                {
-                    fclose(fp);
-
-                    PetscPrintf(mesh->MESH_COMM, "Reading avgOmegaOmega...\n");
-                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-                    VecLoad(acquisition->fields->avgOmegaOmega,viewer);
-                    PetscViewerDestroy(&viewer);
-                }
-                MPI_Barrier(mesh->MESH_COMM);
-
-                // read avgUdotGradP
-                field = "/avgUdotGradP";
-                fileName = location + field;
-                fp=fopen(fileName.c_str(), "r");
-
-                if(fp!=NULL)
-                {
-                    fclose(fp);
-
-                    PetscPrintf(mesh->MESH_COMM, "Reading avgUdotGradP...\n");
-                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-                    VecLoad(acquisition->fields->avgUdotGradP,viewer);
-                    PetscViewerDestroy(&viewer);
-                }
-                MPI_Barrier(mesh->MESH_COMM);
-
-                // read avgMagGradU
-                field = "/avgMagGradU";
-                fileName = location + field;
-                fp=fopen(fileName.c_str(), "r");
-
-                if(fp!=NULL)
-                {
-                    fclose(fp);
-
-                    PetscPrintf(mesh->MESH_COMM, "Reading avgMagGradU...\n");
-                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-                    VecLoad(acquisition->fields->avgMagGradU,viewer);
-                    PetscViewerDestroy(&viewer);
-                }
-                MPI_Barrier(mesh->MESH_COMM);
-
-                // read avgMagUU
-                field = "/avgMagUU";
-                fileName = location + field;
-                fp=fopen(fileName.c_str(), "r");
-
-                if(fp!=NULL)
-                {
-                    fclose(fp);
-
-                    PetscPrintf(mesh->MESH_COMM, "Reading avgMagUU...\n");
-                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-                    VecLoad(acquisition->fields->avgMagUU,viewer);
-                    PetscViewerDestroy(&viewer);
-                }
-                MPI_Barrier(mesh->MESH_COMM);
-            }
-        }
-    }
-
     // read Q-Criterion
     if(io->qCrit)
     {
@@ -549,6 +357,212 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         }
     }
 
+    // read averaged fields
+    PetscInt avgAvailable      = 0;
+    PetscInt phaseAvgAvailable = 0;
+
+    if(io->averaging)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // read avgU
+        field = "/avgU";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgU...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->avgU,viewer);
+            PetscViewerDestroy(&viewer);
+            avgAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgP
+        field = "/avgP";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgP...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->avgP,viewer);
+            PetscViewerDestroy(&viewer);
+            avgAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgUU
+        field = "/avgUU";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgUU...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->avgUU,viewer);
+            PetscViewerDestroy(&viewer);
+            avgAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        if(les)
+        {
+            // read avgNut
+            field = "/avgNut";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading avgNut...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->fields->avgNut,viewer);
+                PetscViewerDestroy(&viewer);
+                avgAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // read avgCs
+            field = "/avgCs";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading avgCs...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->fields->avgCs,viewer);
+                PetscViewerDestroy(&viewer);
+                avgAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        if(io->averaging > 1)
+        {
+            // read avgOmega
+            field = "/avgOmega";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading avgOmega...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->fields->avgOmega,viewer);
+                PetscViewerDestroy(&viewer);
+                avgAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+
+            if(io->averaging > 2)
+            {
+                // read avgP2
+                field = "/avgP2";
+                fileName = location + field;
+                fp=fopen(fileName.c_str(), "r");
+
+                if(fp!=NULL)
+                {
+                    fclose(fp);
+
+                    PetscPrintf(mesh->MESH_COMM, "Reading avgPsq...\n");
+                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                    VecLoad(acquisition->fields->avgP2,viewer);
+                    PetscViewerDestroy(&viewer);
+                    avgAvailable++;
+                }
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // read avgOmegaOmega
+                field = "/avgOmegaOmega";
+                fileName = location + field;
+                fp=fopen(fileName.c_str(), "r");
+
+                if(fp!=NULL)
+                {
+                    fclose(fp);
+
+                    PetscPrintf(mesh->MESH_COMM, "Reading avgOmegaOmega...\n");
+                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                    VecLoad(acquisition->fields->avgOmegaOmega,viewer);
+                    PetscViewerDestroy(&viewer);
+                    avgAvailable++;
+                }
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // read avgUdotGradP
+                field = "/avgUdotGradP";
+                fileName = location + field;
+                fp=fopen(fileName.c_str(), "r");
+
+                if(fp!=NULL)
+                {
+                    fclose(fp);
+
+                    PetscPrintf(mesh->MESH_COMM, "Reading avgUdotGradP...\n");
+                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                    VecLoad(acquisition->fields->avgUdotGradP,viewer);
+                    PetscViewerDestroy(&viewer);
+                    avgAvailable++;
+                }
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // read avgMagGradU
+                field = "/avgMagGradU";
+                fileName = location + field;
+                fp=fopen(fileName.c_str(), "r");
+
+                if(fp!=NULL)
+                {
+                    fclose(fp);
+
+                    PetscPrintf(mesh->MESH_COMM, "Reading avgMagGradU...\n");
+                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                    VecLoad(acquisition->fields->avgMagGradU,viewer);
+                    PetscViewerDestroy(&viewer);
+                    avgAvailable++;
+                }
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // read avgMagUU
+                field = "/avgMagUU";
+                fileName = location + field;
+                fp=fopen(fileName.c_str(), "r");
+
+                if(fp!=NULL)
+                {
+                    fclose(fp);
+
+                    PetscPrintf(mesh->MESH_COMM, "Reading avgMagUU...\n");
+                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                    VecLoad(acquisition->fields->avgMagUU,viewer);
+                    PetscViewerDestroy(&viewer);
+                    avgAvailable++;
+                }
+                MPI_Barrier(mesh->MESH_COMM);
+            }
+        }
+    }
+
     // read phase averaged fields
     if(io->phaseAveraging)
     {
@@ -568,6 +582,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(acquisition->fields->pAvgU,viewer);
             PetscViewerDestroy(&viewer);
+            phaseAvgAvailable++;
         }
         MPI_Barrier(mesh->MESH_COMM);
 
@@ -584,6 +599,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(acquisition->fields->pAvgP,viewer);
             PetscViewerDestroy(&viewer);
+            phaseAvgAvailable++;
         }
         MPI_Barrier(mesh->MESH_COMM);
 
@@ -600,6 +616,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(acquisition->fields->pAvgUU,viewer);
             PetscViewerDestroy(&viewer);
+            phaseAvgAvailable++;
         }
         MPI_Barrier(mesh->MESH_COMM);
 
@@ -618,6 +635,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
                 PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                 VecLoad(acquisition->fields->pAvgNut,viewer);
                 PetscViewerDestroy(&viewer);
+                phaseAvgAvailable++;
             }
             MPI_Barrier(mesh->MESH_COMM);
 
@@ -634,6 +652,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
                 PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                 VecLoad(acquisition->fields->pAvgCs,viewer);
                 PetscViewerDestroy(&viewer);
+                phaseAvgAvailable++;
             }
             MPI_Barrier(mesh->MESH_COMM);
         }
@@ -653,6 +672,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
                 PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                 VecLoad(acquisition->fields->pAvgOmega,viewer);
                 PetscViewerDestroy(&viewer);
+                phaseAvgAvailable++;
             }
             MPI_Barrier(mesh->MESH_COMM);
 
@@ -671,6 +691,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
                     PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                     VecLoad(acquisition->fields->pAvgP2,viewer);
                     PetscViewerDestroy(&viewer);
+                    phaseAvgAvailable++;
                 }
                 MPI_Barrier(mesh->MESH_COMM);
 
@@ -687,6 +708,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
                     PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                     VecLoad(acquisition->fields->pAvgOmegaOmega,viewer);
                     PetscViewerDestroy(&viewer);
+                    phaseAvgAvailable++;
                 }
                 MPI_Barrier(mesh->MESH_COMM);
 
@@ -703,6 +725,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
                     PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                     VecLoad(acquisition->fields->pAvgUdotGradP,viewer);
                     PetscViewerDestroy(&viewer);
+                    phaseAvgAvailable++;
                 }
                 MPI_Barrier(mesh->MESH_COMM);
 
@@ -719,6 +742,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
                     PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                     VecLoad(acquisition->fields->pAvgMagGradU,viewer);
                     PetscViewerDestroy(&viewer);
+                    phaseAvgAvailable++;
                 }
                 MPI_Barrier(mesh->MESH_COMM);
 
@@ -735,10 +759,28 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
                     PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                     VecLoad(acquisition->fields->pAvgMagUU,viewer);
                     PetscViewerDestroy(&viewer);
+                    phaseAvgAvailable++;
                 }
                 MPI_Barrier(mesh->MESH_COMM);
             }
         }
+    }
+
+    // read average and phase average weights
+    if(avgAvailable)
+    {
+        field = "/fieldInfo";
+        fileName = location + field;
+        readDictInt(fileName.c_str(), "avgWeight", &(io->avgWeight));
+        PetscPrintf(mesh->MESH_COMM, "Reading average weight: %d and counting...\n",io->avgWeight);
+    }
+
+    if(phaseAvgAvailable)
+    {
+        field = "/fieldInfo";
+        fileName = location + field;
+        readDictInt(fileName.c_str(), "phaseAvgWeight", &(io->pAvgWeight));
+        PetscPrintf(mesh->MESH_COMM, "Reading average weight: %d and counting...\n",io->pAvgWeight);
     }
 
     PetscPrintf(mesh->MESH_COMM, "\n");
@@ -1046,6 +1088,25 @@ PetscErrorCode writeFields(io_ *io)
                     MPI_Barrier(mesh->MESH_COMM);
                 }
             }
+
+            // write weights
+            if(!rank)
+            {
+                FILE *f;
+                fieldName = timeName + "/fieldInfo";
+                f = fopen(fieldName.c_str(), "w");
+
+                if(!f)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                    fatalErrorInFunction("writeFields",  error);
+                }
+
+                fprintf(f, "avgWeight\t\t%d\n", io->avgWeight);
+
+                fclose(f);
+            }
         }
 
         if(io->phaseAveraging)
@@ -1112,6 +1173,25 @@ PetscErrorCode writeFields(io_ *io)
                     writeBinaryField(mesh->MESH_COMM, acquisition->fields->pAvgMagUU, fieldName.c_str());
                     MPI_Barrier(mesh->MESH_COMM);
                 }
+            }
+
+            // write weights
+            if(!rank)
+            {
+                FILE *f;
+                fieldName = timeName + "/fieldInfo";
+                f = fopen(fieldName.c_str(), "w");
+
+                if(!f)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                    fatalErrorInFunction("writeFields",  error);
+                }
+
+                fprintf(f, "phaseAvgWeight\t\t%d\n", io->pAvgWeight);
+
+                fclose(f);
             }
         }
 
