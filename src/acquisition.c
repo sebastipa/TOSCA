@@ -1372,6 +1372,9 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
             PetscReal     lsum      = 0.0, gsum      = 0.0;
             PetscInt      lcount    = 0,   gcount    = 0;
 
+            // debug
+            PetscReal     maxmd,  maxf, maxeps, maxs, maxp, maxfp;
+
             for (k = lzs; k < lze; k++)
             {
                 for (j = lys; j < lye; j++)
@@ -1390,19 +1393,38 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
 
                             error_p = flux + convection + dissipation;
 
+                            if(fabs(flux)        > maxf)   maxf   = fabs(flux);
+                            if(fabs(convection)  > maxmd)  maxmd  = fabs(convection);
+                            if(fabs(dissipation) > maxeps) maxeps = fabs(dissipation);
+
                             if(flags->isWindFarmActive)
                             {
                                 error_p += pf[k][j][i];
+
+                                if(fabs(pf[k][j][i]) > maxfp)
+                                {
+                                    maxfp = fabs(pf[k][j][i]);
+                                }
                             }
 
                             if(flags->isAblActive)
                             {
                                 error_p -= pinf[k][j][i];
+
+                                if(fabs(pinf[k][j][i]) > maxs)
+                                {
+                                    maxs = fabs(pinf[k][j][i]);
+                                }
                             }
 
                             if(flags->isAblActive && flags->isTeqnActive)
                             {
                                 error_p += ptheta[k][j][i];
+
+                                if(fabs(ptheta[k][j][i]) > maxp)
+                                {
+                                    maxp = fabs(ptheta[k][j][i]);
+                                }
                             }
 
                             // cumulate with sign
@@ -1421,7 +1443,7 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
                 }
             }
 
-            // printf(" Max D = %f, Max F = %f, Max Eps = %f, Max Pinf = %f, Max Ptheta = %f, Max Pfarm = %f\n", lmaxmd,  lmaxf, lmaxeps, lmaxs, lmaxp, lmaxfp);
+            printf(" Max D = %f, Max F = %f, Max Eps = %f, Max Pinf = %f, Max Ptheta = %f, Max Pfarm = %f\n", maxmd,  maxf, maxeps, maxs, maxp, maxfp);
 
             MPI_Allreduce(&lmaxerror, &gmaxerror, 1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
             MPI_Allreduce(&lavgerror, &gavgerror, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);

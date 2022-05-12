@@ -304,6 +304,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
     mesh_  *mesh  = domain->mesh;
     clock_ *clock = domain->clock;
     io_    *io    = domain->io;
+    flags_ *flags = &(domain->flags);
     acquisition_ *acquisition = domain->acquisition;
 
     // HDF5 file with path
@@ -815,6 +816,84 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                     acquisition->fields->pAvgMagUU
                 );
             }
+        }
+    }
+
+    if(io->keBudgets)
+    {
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "keErr",
+            acquisition->keBudFields->Error
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "keEm",
+            acquisition->keBudFields->lEm
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "keD",
+            acquisition->keBudFields->D
+        );
+
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "keF",
+            acquisition->keBudFields->F
+        );
+
+        writeSymmTensorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "keUpUp",
+            acquisition->keBudFields->lavgUpUp
+        );
+
+        if(flags->isWindFarmActive)
+        {
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "keFarm",
+                acquisition->keBudFields->Pf
+            );
         }
     }
 

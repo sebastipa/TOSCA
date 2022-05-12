@@ -833,6 +833,23 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         // open file to check the existence, then read it with PETSc
         FILE *fp;
 
+        // read Error
+        field = "/keErr";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading keErr (mech. KE eqn. error)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->keBudFields->Error,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
         // read D
         field = "/D";
         fileName = location + field;
@@ -942,6 +959,28 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscViewerDestroy(&viewer);
             keBudAvailable++;
         }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read Em
+        Vec Em;
+        VecDuplicate(mesh->Nvert, &Em);
+        field = "/keEm";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Em (mech. energy)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(Em,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        DMGlobalToLocalBegin(mesh->da, Em, INSERT_VALUES, acquisition->keBudFields->lEm);
+        DMGlobalToLocalEnd(mesh->da, Em, INSERT_VALUES, acquisition->keBudFields->lEm);
+        VecDestroy(&Em);
         MPI_Barrier(mesh->MESH_COMM);
 
         // read avgPm
@@ -1499,6 +1538,11 @@ PetscErrorCode writeFields(io_ *io)
 
         if(io->keBudgets)
         {
+            // write Err
+            fieldName = timeName + "/keErr";
+            writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Error, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
             // write D
             fieldName = timeName + "/D";
             writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->D, fieldName.c_str());
@@ -1539,13 +1583,14 @@ PetscErrorCode writeFields(io_ *io)
             MPI_Barrier(mesh->MESH_COMM);
 
             // write avgUpUp
-            Vec avgUpUp, avgUm, avgPm, avgUpUpUp, avgUmTauSGS, avgUpPp;
+            Vec avgUpUp, avgUm, avgPm, avgUpUpUp, avgUmTauSGS, avgUpPp, avgEm;
             symmTensor     ***upup_mean,   ***lupup_mean;
             Cmpnts         ***um_mean,     ***lum_mean;
             Cmpnts         ***upupup_mean, ***lupupup_mean;
             Cmpnts         ***umtau_mean,  ***lumtau_mean;
             Cmpnts         ***uppp_mean,   ***luppp_mean;
             PetscReal      ***pm_mean,     ***lpm_mean;
+            PetscReal      ***em_mean,          ***lem_mean;
 
             DMCreateGlobalVector(sda, &(avgUpUp)); VecSet(avgUpUp,0.);
             DMCreateGlobalVector(fda, &(avgUm)); VecSet(avgUm,0.);
@@ -1553,6 +1598,7 @@ PetscErrorCode writeFields(io_ *io)
             DMCreateGlobalVector(fda, &(avgUmTauSGS)); VecSet(avgUmTauSGS,0.);
             DMCreateGlobalVector(fda, &(avgUpPp)); VecSet(avgUpPp,0.);
             DMCreateGlobalVector(da,  &(avgPm)); VecSet(avgPm,0.);
+            DMCreateGlobalVector(da,  &(avgEm)); VecSet(avgEm,0.);
 
             DMDAVecGetArray(sda, avgUpUp,     &upup_mean);
             DMDAVecGetArray(fda, avgUm,       &um_mean);
@@ -1560,12 +1606,14 @@ PetscErrorCode writeFields(io_ *io)
             DMDAVecGetArray(fda, avgUmTauSGS, &umtau_mean);
             DMDAVecGetArray(fda, avgUpPp,     &uppp_mean);
             DMDAVecGetArray(da,  avgPm,       &pm_mean);
+            DMDAVecGetArray(da,  avgEm,       &em_mean);
             DMDAVecGetArray(sda, acquisition->keBudFields->lavgUpUp,     &lupup_mean);
             DMDAVecGetArray(fda, acquisition->keBudFields->lavgUm,       &lum_mean);
             DMDAVecGetArray(fda, acquisition->keBudFields->lavgUpUpUp,   &lupupup_mean);
             DMDAVecGetArray(fda, acquisition->keBudFields->lavgUmTauSGS, &lumtau_mean);
             DMDAVecGetArray(fda, acquisition->keBudFields->lavgUpPp,     &luppp_mean);
             DMDAVecGetArray(da,  acquisition->keBudFields->lavgPm,       &lpm_mean);
+            DMDAVecGetArray(da,  acquisition->keBudFields->lEm,          &lem_mean);
 
             for (k=lzs; k<lze; k++)
             {
@@ -1591,7 +1639,8 @@ PetscErrorCode writeFields(io_ *io)
                         uppp_mean[k][j][i].x   =  luppp_mean[k][j][i].x;
                         uppp_mean[k][j][i].y   =  luppp_mean[k][j][i].y;
                         uppp_mean[k][j][i].z   =  luppp_mean[k][j][i].z;
-                        pm_mean[k][j][i]      = lpm_mean[k][j][i];
+                        pm_mean[k][j][i]       =  lpm_mean[k][j][i];
+                        em_mean[k][j][i]       =  lem_mean[k][j][i];
                     }
                 }
             }
@@ -1602,12 +1651,19 @@ PetscErrorCode writeFields(io_ *io)
             DMDAVecRestoreArray(fda, avgUmTauSGS, &umtau_mean);
             DMDAVecRestoreArray(fda, avgUpPp,     &uppp_mean);
             DMDAVecRestoreArray(da,  avgPm,       &pm_mean);
+            DMDAVecRestoreArray(da,  avgEm,       &em_mean);
             DMDAVecRestoreArray(sda, acquisition->keBudFields->lavgUpUp,     &lupup_mean);
             DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUm,       &lum_mean);
             DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUpUpUp,   &lupupup_mean);
             DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUmTauSGS, &lumtau_mean);
             DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUpPp,     &luppp_mean);
             DMDAVecRestoreArray(da,  acquisition->keBudFields->lavgPm,       &lpm_mean);
+            DMDAVecRestoreArray(da,  acquisition->keBudFields->lEm,          &lem_mean);
+
+            // write avgPm
+            fieldName = timeName + "/keEm";
+            writeBinaryField(mesh->MESH_COMM, avgEm, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
 
             // write avgPm
             fieldName = timeName + "/avgPm";
@@ -1664,6 +1720,7 @@ PetscErrorCode writeFields(io_ *io)
             VecDestroy(&avgUpUpUp);
             VecDestroy(&avgUmTauSGS);
             VecDestroy(&avgUpPp);
+            VecDestroy(&avgEm);
         }
 
         // delete all other folders if purge is active (recommended for big cases)
