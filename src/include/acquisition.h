@@ -8,12 +8,14 @@
 #include "acquisition/probesAcquisition.h"
 #include "acquisition/sectionsAcquisition.h"
 #include "acquisition/ablAcquisition.h"
+#include "acquisition/keAcquisition.h"
 
 //! \brief Struct containing all acquisition data structures
 struct acquisition_
 {
     rakes         *probes;                    //!< probe rakes
     avgFields     *fields;                    //!< average and turbulence fields
+    keFields      *keBudFields;               //!< kinetic energy budjets
     sections      *kSections;                 //!< information about the k-sections
     sections      *jSections;                 //!< information about the j-sections
     sections      *iSections;                 //!< information about the i-sections
@@ -105,6 +107,15 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition);
 
 //! \brief Compute side force for I/O in cartesian form
 PetscErrorCode computeSideForceIO(acquisition_ *acquisition);
+
+// MKE BUDGETS ACQUISITION
+// ============================================================================================================= //
+
+//! \brief Initializes ke budgets fields acquisition
+PetscErrorCode averageKEBudgetsInitialize(acquisition_ *acquisition);
+
+//! \brief Compute MKE budgets
+PetscErrorCode averageKEBudgets(acquisition_ *acquisition);
 
 // 3LM ACQUISITION
 // ============================================================================================================= //

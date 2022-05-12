@@ -3365,12 +3365,69 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     // update pressure
     UpdatePressure(peqn);
 
+    // set pressure reference
+    SetPressureReference(peqn);
+
     // update velocity
     ProjectVelocity(peqn);
 
     PetscTime(&te);
 
     PetscPrintf(mesh->MESH_COMM, "%lf\n", te-ts);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetPressureReference(peqn_ *peqn)
+{
+    mesh_         *mesh = peqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***p, ***lp;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, peqn->lP, &lp);
+    DMDAVecGetArray(da, peqn->P, &p);
+
+    // test if this processor contains the 0,0,0 cell
+    PetscReal lscale = 0.0, gscale = 0.0;
+    if(xs==0 && ys == 0 && zs==0)
+    {
+        lscale = p[1][1][1];
+    }
+
+    MPI_Allreduce(&lscale, &gscale, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                p[k][j][i] -= gscale;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, peqn->lP, &lp);
+    DMDAVecRestoreArray(da, peqn->P, &p);
+
+    // scatter Phi from global to local
+    DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
+    DMGlobalToLocalEnd  (da, peqn->P, INSERT_VALUES, peqn->lP);
 
     return(0);
 }

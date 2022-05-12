@@ -43,6 +43,9 @@ int main(int argc, char **argv)
         // adjust time step
         adjustTimeStep(domain);
 
+        // re-read input file
+        RereadIO(domain);
+
         setRunTimeWrite(domain);
 
         for(PetscInt d=0; d<info.nDomains; d++)

@@ -60,7 +60,7 @@ inline PetscReal signNonZero(PetscReal a)
 // VECTOR ALGEBRA
 // ============================================================================================================= //
 
-inline Cmpnts nScale(PetscReal c, Cmpnts &v)
+inline Cmpnts nScale(PetscReal c, Cmpnts v)
 {
     Cmpnts vScaled;
 
@@ -73,7 +73,7 @@ inline Cmpnts nScale(PetscReal c, Cmpnts &v)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nScaleX(PetscReal c, Cmpnts &v)
+inline Cmpnts nScaleX(PetscReal c, Cmpnts v)
 {
     Cmpnts vScaled;
 
@@ -86,7 +86,7 @@ inline Cmpnts nScaleX(PetscReal c, Cmpnts &v)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nScaleY(PetscReal c, Cmpnts &v)
+inline Cmpnts nScaleY(PetscReal c, Cmpnts v)
 {
     Cmpnts vScaled;
 
@@ -99,7 +99,7 @@ inline Cmpnts nScaleY(PetscReal c, Cmpnts &v)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nScaleZ(PetscReal c, Cmpnts &v)
+inline Cmpnts nScaleZ(PetscReal c, Cmpnts v)
 {
     Cmpnts vScaled;
 
@@ -112,7 +112,7 @@ inline Cmpnts nScaleZ(PetscReal c, Cmpnts &v)
 
 //***************************************************************************************************************//
 
-inline PetscReal nDot(Cmpnts &v1, Cmpnts &v2)
+inline PetscReal nDot(Cmpnts v1, Cmpnts v2)
 {
     return
     (
@@ -124,7 +124,7 @@ inline PetscReal nDot(Cmpnts &v1, Cmpnts &v2)
 
 //***************************************************************************************************************//
 
-inline PetscReal nMag(Cmpnts &v)
+inline PetscReal nMag(Cmpnts v)
 {
     return
     (
@@ -139,7 +139,7 @@ inline PetscReal nMag(Cmpnts &v)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nCross(Cmpnts &v1, Cmpnts &v2)
+inline Cmpnts nCross(Cmpnts v1, Cmpnts v2)
 {
     Cmpnts vCross;
 
@@ -159,7 +159,7 @@ inline Cmpnts nCross(Cmpnts &v1, Cmpnts &v2)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nRot(Cmpnts &axis, Cmpnts &vStart, PetscReal theta)
+inline Cmpnts nRot(Cmpnts axis, Cmpnts vStart, PetscReal theta)
 {
     Cmpnts vRotated = {0.0,0.0,0.0};
     PetscReal costheta,sintheta;
@@ -208,7 +208,7 @@ inline Cmpnts nRot(Cmpnts &axis, Cmpnts &vStart, PetscReal theta)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nTra(Cmpnts &point, Cmpnts &translation)
+inline Cmpnts nTra(Cmpnts point, Cmpnts translation)
 {
     Cmpnts vTranslated;
 
@@ -221,7 +221,7 @@ inline Cmpnts nTra(Cmpnts &point, Cmpnts &translation)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nUnit(Cmpnts &v)
+inline Cmpnts nUnit(Cmpnts v)
 {
     PetscReal vMag
     =
@@ -243,7 +243,7 @@ inline Cmpnts nUnit(Cmpnts &v)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nSum(Cmpnts &v1, Cmpnts &v2)
+inline Cmpnts nSum(Cmpnts v1, Cmpnts v2)
 {
     Cmpnts vSum;
 
@@ -256,7 +256,7 @@ inline Cmpnts nSum(Cmpnts &v1, Cmpnts &v2)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nSub(Cmpnts &v1, Cmpnts &v2)
+inline Cmpnts nSub(Cmpnts v1, Cmpnts v2)
 {
     Cmpnts vSub;
 
@@ -269,7 +269,7 @@ inline Cmpnts nSub(Cmpnts &v1, Cmpnts &v2)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nSet(Cmpnts &value)
+inline Cmpnts nSet(Cmpnts value)
 {
     Cmpnts newVector;
 
@@ -282,7 +282,7 @@ inline Cmpnts nSet(Cmpnts &value)
 
 //***************************************************************************************************************//
 
-inline Cmpnts nSetFromComponents(PetscReal &vx, PetscReal &vy, PetscReal &vz)
+inline Cmpnts nSetFromComponents(PetscReal vx, PetscReal vy, PetscReal vz)
 {
     Cmpnts newVector;
 
@@ -328,7 +328,7 @@ inline void mUnit(Cmpnts &base)
 
 //***************************************************************************************************************//
 
-inline void mSum(Cmpnts &base, Cmpnts &add)
+inline void mSum(Cmpnts &base, Cmpnts add)
 {
     base.x = base.x + add.x;
     base.y = base.y + add.y;
@@ -339,7 +339,7 @@ inline void mSum(Cmpnts &base, Cmpnts &add)
 
 //***************************************************************************************************************//
 
-inline void mSub(Cmpnts &base, Cmpnts &sub)
+inline void mSub(Cmpnts &base, Cmpnts sub)
 {
     base.x = base.x - sub.x;
     base.y = base.y - sub.y;
@@ -388,7 +388,7 @@ inline void mScaleZ(PetscReal c, Cmpnts &v)
 
 //***************************************************************************************************************//
 
-inline void mSetScale(PetscReal scale, Cmpnts &a, Cmpnts &b)
+inline void mSetScale(PetscReal scale, Cmpnts &a, Cmpnts b)
 {
     a.x = scale*b.x;
     a.y = scale*b.y;
@@ -397,7 +397,7 @@ inline void mSetScale(PetscReal scale, Cmpnts &a, Cmpnts &b)
 
 //***************************************************************************************************************//
 
-inline void mRot(Cmpnts &axis, Cmpnts &v, PetscReal theta)
+inline void mRot(Cmpnts axis, Cmpnts &v, PetscReal theta)
 {
     Cmpnts vRotated = {0.0,0.0,0.0};
     PetscReal costheta,sintheta;
@@ -449,7 +449,7 @@ inline void mRot(Cmpnts &axis, Cmpnts &v, PetscReal theta)
 
 //***************************************************************************************************************//
 
-inline void mTra(Cmpnts &point, Cmpnts &translation)
+inline void mTra(Cmpnts &point, Cmpnts translation)
 {
     point.x = point.x + translation.x;
     point.y = point.y + translation.y;
@@ -460,7 +460,7 @@ inline void mTra(Cmpnts &point, Cmpnts &translation)
 
 //***************************************************************************************************************//
 
-inline void mSet(Cmpnts &base, Cmpnts &value)
+inline void mSet(Cmpnts &base, Cmpnts value)
 {
     base.x = value.x;
     base.y = value.y;
@@ -1040,6 +1040,227 @@ inline bool isOnCornerCellCenters(PetscInt i, PetscInt j, PetscInt k, DMDALocalI
 
 // STENCILS
 // ============================================================================================================= //
+
+//! \brief Get cell's idxs of a 3 cell-sencil in csi direction given the cell idx. NEVER USE GHOSTS
+inline void getCell2Cell3StencilCsiNoGhost(mesh_ *mesh, PetscInt i, PetscInt mx, PetscInt *iL, PetscInt *iR)
+{
+    // apply zero gradient at boundaries
+    if(i == 1)
+    {
+        *iL = i;
+        *iR = i + 1;
+    }
+    if(i == mx-2)
+    {
+        *iL = i - 1;
+        *iR = i;
+    }
+    else
+    {
+        *iL = i-1, *iR = i+1;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get cell's idxs of a 3 cell-sencil in eta direction given the cell idx. NEVER USE GHOSTS
+inline void getCell2Cell3StencilEtaNoGhost(mesh_ *mesh, PetscInt j, PetscInt my, PetscInt *jL, PetscInt *jR)
+{
+    // apply zero gradient at boundaries
+    if(j == 1)
+    {
+        *jL = j;
+        *jR = j + 1;
+    }
+    else if(j == my-2)
+    {
+        *jL = j-1;
+        *jR = j;
+    }
+    else
+    {
+        *jL = j-1, *jR = j+1;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get cell's idxs of a 3 cell-sencil in zet direction given the cell idx. NEVER USE GHOSTS
+inline void getCell2Cell3StencilZetNoGhost(mesh_ *mesh, PetscInt k, PetscInt mz, PetscInt *kL, PetscInt *kR)
+{
+    // apply zero gradient at boundaries
+    if(k == 1)
+    {
+        *kL = k;
+        *kR = k + 1;
+    }
+    else if(k == mz-2)
+    {
+        *kL = k-1;
+        *kR = k;
+    }
+    else
+    {
+        *kL = k-1, *kR = k+1;
+    }
+
+    return;
+}
+
+//! \brief Get cell's idxs of a 3 cell-sencil in csi direction given the cell idx
+inline void getCell2Cell3StencilCsi(mesh_ *mesh, PetscInt i, PetscInt mx, PetscInt *iL, PetscInt *iR)
+{
+    // if on non-periodic boundary return 2 cell-stencil extrema idxs, if periodic
+    // get the right data.
+    if(i==1 || i==mx-2)
+    {
+        if(mesh->i_periodic  && i==mx-2)
+        {
+            *iL = mx-3, *iR = 1;
+        }
+        if(mesh->i_periodic  && i==1)
+        {
+            *iL = mx-2, *iR = 2;
+        }
+        else if(mesh->ii_periodic && i==mx-2)
+        {
+            *iR = mx+1;
+            *iL = i-1;
+        }
+        else if(mesh->ii_periodic && i==1)
+        {
+            *iL = -2;
+            *iR =  2;
+        }
+        else
+        {
+            if(i == 1)
+            {
+                *iL = i;
+                *iR = i + 1;
+            }
+
+            if(i == mx-2)
+            {
+                *iL = i - 1;
+                *iR = i;
+            }
+        }
+    }
+
+    else
+    {
+        *iL = i-1, *iR = i+1;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get cell's idxs of a 3 cell-sencil in eta direction given the cell idx
+inline void getCell2Cell3StencilEta(mesh_ *mesh, PetscInt j, PetscInt my, PetscInt *jL, PetscInt *jR)
+{
+    // if on non-periodic boundary return 2 cell-stencil extrema idxs, if periodic
+    // get the right data.
+    if(j==1 || j==my-2)
+    {
+        if(mesh->j_periodic  && j==my-2)
+        {
+            *jL = my-3, *jR = 1;
+        }
+        if(mesh->j_periodic  && j==1)
+        {
+            *jL = my-2, *jR = 2;
+        }
+        else if(mesh->jj_periodic && j==my-2)
+        {
+            *jR = my+1;
+            *jL = j-1;
+        }
+        else if(mesh->jj_periodic && j==1)
+        {
+            *jL= -2;
+            *jR = 2;
+        }
+        else
+        {
+            if(j == 1)
+            {
+                *jL = j;
+                *jR = j + 1;
+            }
+
+            if(j == my-2)
+            {
+                *jL = j-1;
+                *jR = j;
+            }
+        }
+    }
+
+    else
+    {
+        *jL = j-1, *jR = j+1;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get cell's idxs of a 3 cell-sencil in zet direction given the cell idx
+inline void getCell2Cell3StencilZet(mesh_ *mesh, PetscInt k, PetscInt mz, PetscInt *kL, PetscInt *kR)
+{
+    // if on non-periodic boundary return 2 cell-stencil extrema idxs, if periodic
+    // get the right data.
+    if(k==1 || k==mz-2)
+    {
+        if(mesh->k_periodic && k==mz-2)
+        {
+            *kL = mz-3, *kR = 1;
+        }
+        if(mesh->k_periodic && k==1)
+        {
+            *kL = mz-2, *kR = 2;
+        }
+        else if(mesh->kk_periodic && k==mz-2)
+        {
+            *kR = mz+1;
+            *kL = k-1;
+        }
+        else if(mesh->kk_periodic && k==1)
+        {
+            *kL = -2;
+            *kR =  2;
+        }
+        else
+        {
+            if(k == 1)
+            {
+                *kL = k;
+                *kR = k + 1;
+            }
+
+            if(k == mz-2)
+            {
+                *kL = k-1;
+                *kR = k;
+            }
+        }
+    }
+
+    else
+    {
+        *kL = k-1, *kR = k+1;
+    }
+
+    return;
+}
 
 //! \brief Get outmost cell's idxs of a 4 cell-sencil in csi direction given the face idx
 inline void getFace2Cell4StencilCsi(mesh_ *mesh, PetscInt i, PetscInt mx, PetscInt *iL, PetscInt *iR, PetscReal *denom)
@@ -1877,6 +2098,33 @@ inline PetscReal central(PetscReal f0, PetscReal f1)
 
 //***************************************************************************************************************//
 
+inline Cmpnts centralVec(Cmpnts f0, Cmpnts f1)
+{
+    Cmpnts result;
+    result.x = 0.5 * (f0.x + f1.x);
+    result.y = 0.5 * (f0.y + f1.y);
+    result.z = 0.5 * (f0.z + f1.z);
+
+    return result;
+}
+
+//***************************************************************************************************************//
+
+inline symmTensor centralSymmT(symmTensor f0, symmTensor f1)
+{
+    symmTensor result;
+    result.xx = 0.5 * (f0.xx + f1.xx);
+    result.yy = 0.5 * (f0.yy + f1.yy);
+    result.zz = 0.5 * (f0.zz + f1.zz);
+    result.xy = 0.5 * (f0.xy + f1.xy);
+    result.xz = 0.5 * (f0.xz + f1.xz);
+    result.yz = 0.5 * (f0.yz + f1.yz);
+
+    return result;
+}
+
+//***************************************************************************************************************//
+
 inline PetscReal wCentral(PetscReal f0, PetscReal f1, PetscReal d0, PetscReal d1)
 {
     // distance btw upwind and downwind cell centers
@@ -2624,6 +2872,22 @@ inline double viscStipa(double &hS, double &hE, double &delta, double &h)
     viscosity = 1.0 - (s1 - s2);
 
     return(viscosity);
+}
+
+// FLUID QUANTITIES
+// ============================================================================================================= //
+
+//! \brief Computes mechanical energy (Em = <u><u> + <v><v> + <w><w> + <u'u'> + <v'v'> + <w'w'> + <p>/rho)
+inline double computeEm(Cmpnts &avgU, symmTensor &avgUprimeUprime, PetscReal avgP)
+{
+    return
+    (
+        0.5 *
+        (
+            avgU.x*avgU.x + avgU.y*avgU.y + avgU.z*avgU.z +
+            avgUprimeUprime.xx + avgUprimeUprime.yy + avgUprimeUprime.zz
+        ) + avgP
+    );
 }
 
 // INTERPOLATION

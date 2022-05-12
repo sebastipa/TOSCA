@@ -148,10 +148,11 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       // LES model initialize
       InitializeLES(domain[d].les);
 
-      // averages initialize
+      // averages and kebudgets initialize
       if(flags->isAquisitionActive)
       {
           averageFieldsInitialize(domain[d].acquisition);
+          averageKEBudgetsInitialize(domain[d].acquisition);
       }
 
       PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");

@@ -10,7 +10,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
 {
     PetscInt nDomains = domain[0].info.nDomains;
 
-    PetscInt    flag   = 0;
+    PetscInt  flag   = 0;
     PetscReal cfl    = 1e10;
     PetscReal dx_min = 1e10;
     PetscReal maxU   = 0.0;
@@ -131,6 +131,15 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             {
                 timeStart    = domain[d].io->phAvgStartTime;
                 timeInterval = domain[d].io->phAvgPrd;
+
+                timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+            }
+
+            // ke budgets
+            if(domain[d].io->keBudgets)
+            {
+                timeStart    = domain[d].io->keBudStartTime;
+                timeInterval = domain[d].io->keBudPrd;
 
                 timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
             }

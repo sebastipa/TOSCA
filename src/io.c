@@ -15,6 +15,11 @@ PetscErrorCode InitializeIO(io_ *io)
 
     char            dataLoc[256], fileName[500];
 
+    // read last modification date of control file
+    struct stat attributes;
+    stat("control.dat", &attributes);
+    io->lastModification = asctime(gmtime(&(attributes.st_mtime)));
+
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
     MPI_Comm_size(mesh->MESH_COMM, &nProcs);
 
@@ -28,12 +33,14 @@ PetscErrorCode InitializeIO(io_ *io)
     io->purgeWrite     = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-purgeWrite", &(io->purgeWrite), PETSC_NULL);
 
-    // read averaging settings (optional entries)
+    // read averaging and keBudget settings (optional entries)
     io->averaging      = 0;
     io->phaseAveraging = 0;
+    io->keBudgets      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averaging", &(io->averaging), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-phaseAveraging", &(io->phaseAveraging), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-keBudgets", &(io->keBudgets), PETSC_NULL);
 
     // read q-criterion flag
     io->qCrit          = 0;
@@ -74,8 +81,62 @@ PetscErrorCode InitializeIO(io_ *io)
         // initialize snapshot weighting (overwrittten if read averages)
         io->pAvgWeight = 0;
     }
+    // allocate memory and initialize keBudget fields
+    if(io->keBudgets)
+    {
+        PetscPrintf(mesh->MESH_COMM, "MKE Budgets: yes\n\n");
+
+        readDictDouble("control.dat", "-keAvgPeriod", &(io->keBudPrd));
+        readDictDouble("control.dat", "-keAvgStartTime", &(io->keBudStartTime));
+
+        // initialize snapshot weighting (overwritten if read keBudgets)
+        io->keAvgWeight = 0;
+    }
 
     MPI_Barrier(mesh->MESH_COMM);
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode RereadIO(domain_ *domain)
+{
+    PetscInt        nDomains = domain[0].info.nDomains;
+    clock_          *clock   = domain[0].clock;
+
+    for(PetscInt d=0; d < nDomains; d++)
+    {
+        mesh_          *mesh  = domain[d].mesh;
+        io_            *io = domain[d].io;
+        PetscMPIInt     rank, nProcs;
+
+        struct stat attributes;
+        stat("control.dat", &attributes);
+        word controlFileDataNow = asctime(gmtime(&(attributes.st_mtime)));
+
+        if(controlFileDataNow !=  io->lastModification)
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "\n   RereadIO::re-reading control.dat file...");
+
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
+            MPI_Comm_size(mesh->MESH_COMM, &nProcs);
+
+            PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
+
+            // read writing settings (mandatory entries)
+            readDictWord  ("control.dat", "-intervalType", &(io->intervalType));
+            readDictDouble("control.dat", "-timeInterval", &(io->timeInterval));
+
+            // read purge write (optional)
+            io->purgeWrite     = 0;
+            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-purgeWrite", &(io->purgeWrite), PETSC_NULL);
+
+            PetscPrintf(PETSC_COMM_WORLD, "done\n\n");
+
+            io->lastModification = controlFileDataNow;
+        }
+    }
+
     return(0);
 }
 
@@ -360,6 +421,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     // read averaged fields
     PetscInt avgAvailable      = 0;
     PetscInt phaseAvgAvailable = 0;
+    PetscInt keBudAvailable    = 0;
 
     if(io->averaging)
     {
@@ -766,7 +828,256 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         }
     }
 
-    // read average and phase average weights
+    if(io->keBudgets)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // read D
+        field = "/D";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading D (mech. KE divergence)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->keBudFields->D,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read F
+        field = "/F";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading F (net KE flux due to turbulent transport)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->keBudFields->F,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read Pinf
+        if(flags->isAblActive)
+        {
+            field = "/Pinf";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading Pinf (mean background pressure)...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->keBudFields->Pinf,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        // read Pf
+        if(flags->isWindFarmActive)
+        {
+            field = "/Pf";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading Pf (wind turbine power extraction)...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->keBudFields->Pf,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        // read Ptheta
+        if(flags->isAblActive && flags->isTeqnActive)
+        {
+            field = "/Ptheta";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading Ptheta (kin. to pot. energy conversion)...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->keBudFields->Ptheta,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        // read Eps
+        field = "/Eps";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Eps (turbulent dissipation)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->keBudFields->Eps,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgPm
+        Vec avgPm;
+        VecDuplicate(mesh->Nvert, &avgPm);
+        field = "/avgPm";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgPm (average pressure)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(avgPm,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        DMGlobalToLocalBegin(mesh->da, avgPm, INSERT_VALUES, acquisition->keBudFields->lavgPm);
+        DMGlobalToLocalEnd(mesh->da, avgPm, INSERT_VALUES, acquisition->keBudFields->lavgPm);
+        VecDestroy(&avgPm);
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgUm
+        Vec avgUm;
+        VecDuplicate(mesh->Cent, &avgUm);
+        field = "/avgUm";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgUm\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(avgUm,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        DMGlobalToLocalBegin(mesh->fda, avgUm, INSERT_VALUES, acquisition->keBudFields->lavgUm);
+        DMGlobalToLocalEnd(mesh->fda, avgUm, INSERT_VALUES, acquisition->keBudFields->lavgUm);
+        VecDestroy(&avgUm);
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgUpUp
+        Vec avgUpUp;
+        DMCreateGlobalVector(mesh->sda, &avgUpUp);
+        field = "/avgUpUp";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgUpUp\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(avgUpUp,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        DMGlobalToLocalBegin(mesh->sda, avgUpUp, INSERT_VALUES, acquisition->keBudFields->lavgUpUp);
+        DMGlobalToLocalEnd(mesh->sda, avgUpUp, INSERT_VALUES, acquisition->keBudFields->lavgUpUp);
+        VecDestroy(&avgUpUp);
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgUpUpUp
+        Vec avgUpUpUp;
+        DMCreateGlobalVector(mesh->fda, &avgUpUpUp);
+        field = "/avgUpUpUp";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgUpUpUp\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(avgUpUpUp,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        DMGlobalToLocalBegin(mesh->fda, avgUpUpUp, INSERT_VALUES, acquisition->keBudFields->lavgUpUpUp);
+        DMGlobalToLocalEnd(mesh->fda, avgUpUpUp, INSERT_VALUES, acquisition->keBudFields->lavgUpUpUp);
+        VecDestroy(&avgUpUpUp);
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgUmTauSGS
+        Vec avgUmTauSGS;
+        DMCreateGlobalVector(mesh->fda, &avgUmTauSGS);
+        field = "/avgUmTauSGS";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgUmTauSGS\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(avgUmTauSGS,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        DMGlobalToLocalBegin(mesh->fda, avgUmTauSGS, INSERT_VALUES, acquisition->keBudFields->lavgUmTauSGS);
+        DMGlobalToLocalEnd(mesh->fda, avgUmTauSGS, INSERT_VALUES, acquisition->keBudFields->lavgUmTauSGS);
+        VecDestroy(&avgUmTauSGS);
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgUpPp
+        Vec avgUpPp;
+        DMCreateGlobalVector(mesh->fda, &avgUpPp);
+        field = "/avgUpPp";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgUpPp\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(avgUpPp,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        DMGlobalToLocalBegin(mesh->fda, avgUpPp, INSERT_VALUES, acquisition->keBudFields->lavgUpPp);
+        DMGlobalToLocalEnd(mesh->fda, avgUpPp, INSERT_VALUES, acquisition->keBudFields->lavgUpPp);
+        VecDestroy(&avgUpPp);
+        MPI_Barrier(mesh->MESH_COMM);
+    }
+
+    // read average, phase and ke budget average weights
     if(avgAvailable)
     {
         field = "/fieldInfo";
@@ -780,7 +1091,15 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         field = "/fieldInfo";
         fileName = location + field;
         readDictInt(fileName.c_str(), "phaseAvgWeight", &(io->pAvgWeight));
-        PetscPrintf(mesh->MESH_COMM, "Reading average weight: %d and counting...\n",io->pAvgWeight);
+        PetscPrintf(mesh->MESH_COMM, "Reading phase average weight: %d and counting...\n",io->pAvgWeight);
+    }
+
+    if(keBudAvailable)
+    {
+        field = "/fieldInfo";
+        fileName = location + field;
+        readDictInt(fileName.c_str(), "keAvgWeight", &(io->keAvgWeight));
+        PetscPrintf(mesh->MESH_COMM, "Reading MKE budget average weight: %d and counting...\n",io->avgWeight);
     }
 
     PetscPrintf(mesh->MESH_COMM, "\n");
@@ -831,6 +1150,20 @@ PetscErrorCode writeFields(io_ *io)
     PetscMPIInt         rank;
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
+    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
     // check and write
     if(io->runTimeWrite)
     {
@@ -869,32 +1202,17 @@ PetscErrorCode writeFields(io_ *io)
 
         if(flags->isLesActive)
         {
+            // we cannot use INSERT_VALUE mode from local to global because it is not capable
+            // of handling more than one periodic boundary, PETSc will throw an error.
+            // So we set it explicitly
+
             Vec Cs, Nut;
+            PetscReal     ***cs, ***lcs, ***nut, ***lnut;
 
             VecDuplicate(peqn->P, &Cs);
             VecDuplicate(peqn->P, &Nut);
             VecSet(Cs, 0.);
             VecSet(Nut, 0.);
-
-            // we cannot use INSERT_VALUE mode from local to global because it is not capable
-            // of handling more than one periodic boundary, PETSc will throw an error.
-            // So we set it explicitly
-
-            DM            da = mesh->da, fda = mesh->fda;
-            DMDALocalInfo info = mesh->info;
-            PetscInt      xs = info.xs, xe = info.xs + info.xm;
-            PetscInt      ys = info.ys, ye = info.ys + info.ym;
-            PetscInt      zs = info.zs, ze = info.zs + info.zm;
-            PetscInt      mx = info.mx, my = info.my, mz = info.mz;
-
-            PetscInt      lxs, lxe, lys, lye, lzs, lze;
-            PetscInt      i, j, k;
-
-            PetscReal     ***cs, ***lcs, ***nut, ***lnut;
-
-            lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-            lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-            lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
             DMDAVecGetArray(da, Cs, &cs);
             DMDAVecGetArray(da, les->lCs, &lcs);
@@ -932,27 +1250,11 @@ PetscErrorCode writeFields(io_ *io)
         if(io->windFarmForce && flags->isWindFarmActive)
         {
             farm_ *farm = io->access->farm;
-
             Vec Bf;
+            Cmpnts        ***bf, ***lbf;
 
             VecDuplicate(ueqn->Ucat, &Bf);
             VecSet(Bf, 0.);
-
-            DM            da = mesh->da, fda = mesh->fda;
-            DMDALocalInfo info = mesh->info;
-            PetscInt      xs = info.xs, xe = info.xs + info.xm;
-            PetscInt      ys = info.ys, ye = info.ys + info.ym;
-            PetscInt      zs = info.zs, ze = info.zs + info.zm;
-            PetscInt      mx = info.mx, my = info.my, mz = info.mz;
-
-            PetscInt      lxs, lxe, lys, lye, lzs, lze;
-            PetscInt      i, j, k;
-
-            Cmpnts        ***bf, ***lbf;
-
-            lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-            lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-            lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
             DMDAVecGetArray(fda, farm->lsourceFarmCat, &lbf);
             DMDAVecGetArray(fda, Bf, &bf);
@@ -1094,7 +1396,7 @@ PetscErrorCode writeFields(io_ *io)
             {
                 FILE *f;
                 fieldName = timeName + "/fieldInfo";
-                f = fopen(fieldName.c_str(), "w");
+                f = fopen(fieldName.c_str(), "a");
 
                 if(!f)
                 {
@@ -1180,7 +1482,7 @@ PetscErrorCode writeFields(io_ *io)
             {
                 FILE *f;
                 fieldName = timeName + "/fieldInfo";
-                f = fopen(fieldName.c_str(), "w");
+                f = fopen(fieldName.c_str(), "a");
 
                 if(!f)
                 {
@@ -1193,6 +1495,175 @@ PetscErrorCode writeFields(io_ *io)
 
                 fclose(f);
             }
+        }
+
+        if(io->keBudgets)
+        {
+            // write D
+            fieldName = timeName + "/D";
+            writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->D, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write F
+            fieldName = timeName + "/F";
+            writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->F, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write Pinf
+            if(flags->isAblActive)
+            {
+                fieldName = timeName + "/Pinf";
+                writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Pinf, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+            }
+
+            // write Pf
+            if(flags->isWindFarmActive)
+            {
+                fieldName = timeName + "/Pf";
+                writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Pf, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+            }
+
+            // write Ptheta
+            if(flags->isAblActive && flags->isTeqnActive)
+            {
+                fieldName = timeName + "/Ptheta";
+                writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Ptheta, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+            }
+
+            // write Eps
+            fieldName = timeName + "/Eps";
+            writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Eps, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write avgUpUp
+            Vec avgUpUp, avgUm, avgPm, avgUpUpUp, avgUmTauSGS, avgUpPp;
+            symmTensor     ***upup_mean,   ***lupup_mean;
+            Cmpnts         ***um_mean,     ***lum_mean;
+            Cmpnts         ***upupup_mean, ***lupupup_mean;
+            Cmpnts         ***umtau_mean,  ***lumtau_mean;
+            Cmpnts         ***uppp_mean,   ***luppp_mean;
+            PetscReal      ***pm_mean,     ***lpm_mean;
+
+            DMCreateGlobalVector(sda, &(avgUpUp)); VecSet(avgUpUp,0.);
+            DMCreateGlobalVector(fda, &(avgUm)); VecSet(avgUm,0.);
+            DMCreateGlobalVector(fda, &(avgUpUpUp)); VecSet(avgUpUpUp,0.);
+            DMCreateGlobalVector(fda, &(avgUmTauSGS)); VecSet(avgUmTauSGS,0.);
+            DMCreateGlobalVector(fda, &(avgUpPp)); VecSet(avgUpPp,0.);
+            DMCreateGlobalVector(da,  &(avgPm)); VecSet(avgPm,0.);
+
+            DMDAVecGetArray(sda, avgUpUp,     &upup_mean);
+            DMDAVecGetArray(fda, avgUm,       &um_mean);
+            DMDAVecGetArray(fda, avgUpUpUp,   &upupup_mean);
+            DMDAVecGetArray(fda, avgUmTauSGS, &umtau_mean);
+            DMDAVecGetArray(fda, avgUpPp,     &uppp_mean);
+            DMDAVecGetArray(da,  avgPm,       &pm_mean);
+            DMDAVecGetArray(sda, acquisition->keBudFields->lavgUpUp,     &lupup_mean);
+            DMDAVecGetArray(fda, acquisition->keBudFields->lavgUm,       &lum_mean);
+            DMDAVecGetArray(fda, acquisition->keBudFields->lavgUpUpUp,   &lupupup_mean);
+            DMDAVecGetArray(fda, acquisition->keBudFields->lavgUmTauSGS, &lumtau_mean);
+            DMDAVecGetArray(fda, acquisition->keBudFields->lavgUpPp,     &luppp_mean);
+            DMDAVecGetArray(da,  acquisition->keBudFields->lavgPm,       &lpm_mean);
+
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        upup_mean[k][j][i].xx  = lupup_mean[k][j][i].xx;
+                        upup_mean[k][j][i].yy  = lupup_mean[k][j][i].yy;
+                        upup_mean[k][j][i].zz  = lupup_mean[k][j][i].zz;
+                        upup_mean[k][j][i].xy  = lupup_mean[k][j][i].xy;
+                        upup_mean[k][j][i].xz  = lupup_mean[k][j][i].xz;
+                        upup_mean[k][j][i].yz  = lupup_mean[k][j][i].yz;
+                        um_mean[k][j][i].x     = lum_mean[k][j][i].x;
+                        um_mean[k][j][i].y     = lum_mean[k][j][i].y;
+                        um_mean[k][j][i].z     = lum_mean[k][j][i].z;
+                        upupup_mean[k][j][i].x =  lupupup_mean[k][j][i].x;
+                        upupup_mean[k][j][i].y =  lupupup_mean[k][j][i].y;
+                        upupup_mean[k][j][i].z =  lupupup_mean[k][j][i].z;
+                        umtau_mean[k][j][i].x  =  lumtau_mean[k][j][i].x;
+                        umtau_mean[k][j][i].y  =  lumtau_mean[k][j][i].y;
+                        umtau_mean[k][j][i].z  =  lumtau_mean[k][j][i].z;
+                        uppp_mean[k][j][i].x   =  luppp_mean[k][j][i].x;
+                        uppp_mean[k][j][i].y   =  luppp_mean[k][j][i].y;
+                        uppp_mean[k][j][i].z   =  luppp_mean[k][j][i].z;
+                        pm_mean[k][j][i]      = lpm_mean[k][j][i];
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(sda, avgUpUp,     &upup_mean);
+            DMDAVecRestoreArray(fda, avgUm,       &um_mean);
+            DMDAVecRestoreArray(fda, avgUpUpUp,   &upupup_mean);
+            DMDAVecRestoreArray(fda, avgUmTauSGS, &umtau_mean);
+            DMDAVecRestoreArray(fda, avgUpPp,     &uppp_mean);
+            DMDAVecRestoreArray(da,  avgPm,       &pm_mean);
+            DMDAVecRestoreArray(sda, acquisition->keBudFields->lavgUpUp,     &lupup_mean);
+            DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUm,       &lum_mean);
+            DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUpUpUp,   &lupupup_mean);
+            DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUmTauSGS, &lumtau_mean);
+            DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUpPp,     &luppp_mean);
+            DMDAVecRestoreArray(da,  acquisition->keBudFields->lavgPm,       &lpm_mean);
+
+            // write avgPm
+            fieldName = timeName + "/avgPm";
+            writeBinaryField(mesh->MESH_COMM, avgPm, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write avgUm
+            fieldName = timeName + "/avgUm";
+            writeBinaryField(mesh->MESH_COMM, avgUm, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            fieldName = timeName + "/avgUpUp";
+            writeBinaryField(mesh->MESH_COMM, avgUpUp, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write avgUpUpUp
+            fieldName = timeName + "/avgUpUpUp";
+            writeBinaryField(mesh->MESH_COMM, avgUpUpUp, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write avgUmTauSGS
+            fieldName = timeName + "/avgUmTauSGS";
+            writeBinaryField(mesh->MESH_COMM, avgUmTauSGS, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write avgUpPp
+            fieldName = timeName + "/avgUpPp";
+            writeBinaryField(mesh->MESH_COMM, avgUpPp, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write weights
+            if(!rank)
+            {
+                FILE *f;
+                fieldName = timeName + "/fieldInfo";
+                f = fopen(fieldName.c_str(), "a");
+
+                if(!f)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                    fatalErrorInFunction("writeFields",  error);
+                }
+
+                fprintf(f, "keAvgWeight\t\t%d\n", io->keAvgWeight);
+
+                fclose(f);
+            }
+
+            // destroy global vectors
+            VecDestroy(&avgUpUp);
+            VecDestroy(&avgPm);
+            VecDestroy(&avgUm);
+            VecDestroy(&avgUpUpUp);
+            VecDestroy(&avgUmTauSGS);
+            VecDestroy(&avgUpPp);
         }
 
         // delete all other folders if purge is active (recommended for big cases)
@@ -1779,15 +2250,24 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
         {
             io->runTimeWrite = 1;
         }
+        else if(intervalType == "writeNow")
+        {
+            // write at this time step
+            io->runTimeWrite = 1;
+
+            // force simulation to end
+            clock->endTime = clock->time;
+        }
         // check for unkwnown type
         else if
         (
             (intervalType != "timeStep") &&
-            (intervalType != "adjustableTime")
+            (intervalType != "adjustableTime") &&
+            (intervalType != "writeNow")
         )
         {
             char error[512];
-            sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", intervalType.c_str());
+            sprintf(error, "unknown interval type %s. Known types are timeStep, adjustableTime and writeNow\n", intervalType.c_str());
             fatalErrorInFunction("setRunTimeWrite",  error);
         }
         // don't write at this time step

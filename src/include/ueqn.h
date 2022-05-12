@@ -74,12 +74,16 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print);
 //! \brief Correct damping source terms
 PetscErrorCode correctDampingSources(ueqn_ *ueqn);
 
-//! \brief Transform contravariant to cartesian
+//! \brief Transform velocity from contravariant to cartesian
 PetscErrorCode contravariantToCartesian(ueqn_ *ueqn);
+
+//! \brief Transform generic local vector from contravariant to cartesian
+PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCat);
 
 //! \brief Adjust fluxes to obey mass conservation
 PetscErrorCode adjustFluxes(ueqn_ *ueqn);
 
+//! \brief Adjust fluxes to obey mass conservation in the overset domain
 PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn);
 
 //! \brief Compute driving source term

@@ -171,6 +171,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscInt isAverage3LMActive     = 0;
     PetscInt isPhaseAveragingActive = 0;
     PetscInt isAveragingActive      = 0;
+    PetscInt isKEBudgetsActive      = 0;
     PetscInt isQCritActive          = 0;
     PetscInt isL2CritActive         = 0;
     PetscInt isSourcesActive        = 0;
@@ -180,6 +181,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averageABL",    &isAverageABLActive,     PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-average3LM",    &isAverage3LMActive,     PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averaging",     &isAveragingActive,      PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-keBudgets",     &isKEBudgetsActive,      PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-phaseAveraging",&isPhaseAveragingActive, PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQ",      &isQCritActive,          PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2",     &isL2CritActive,         PETSC_NULL);
@@ -189,7 +191,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     =
     PetscMin(
     (
-        isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive +
+        isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive + isKEBudgetsActive +
         isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isSourcesActive),
         1
     );

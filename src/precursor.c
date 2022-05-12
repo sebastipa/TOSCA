@@ -44,6 +44,7 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     PetscInt isAverage3LMActive     = 0;
     PetscInt isPhaseAveragingActive = 0;
     PetscInt isAveragingActive      = 0;
+    PetscInt isKEBudgetsActive      = 0;
     PetscInt isQCritActive          = 0;
     PetscInt isL2CritActive         = 0;
 
@@ -51,7 +52,7 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     =
     PetscMin((PetscInt)
     (
-        isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive +
+        isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive + isKEBudgetsActive +
         isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive),
         1
     );

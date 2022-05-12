@@ -2120,6 +2120,113 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCat)
+{
+    DM               da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k;
+
+    PetscReal        mat[3][3], det, det0, det1, det2;
+
+    PetscReal        ***aj, ***nvert;
+    Cmpnts           ***lcat, ***lcont;
+    Cmpnts           ***csi,  ***eta,  ***zet;
+
+    PetscReal q[3];  // local working array
+
+    // indices for internal cells
+    lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+    lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+    lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+    DMDAVecGetArray(da,  mesh->lAj,  &aj);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(fda, lCont, &lcont);
+    DMDAVecGetArray(fda, lCat,  &lcat);
+
+    // interpolate ucont from faces to cell centers
+    // transform from contravariant to cartesian
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if ( isFluidCell(k, j, i, nvert) )
+                {
+                    mat[0][0] = (csi[k][j][i].x);
+                    mat[0][1] = (csi[k][j][i].y);
+                    mat[0][2] = (csi[k][j][i].z);
+
+                    mat[1][0] = (eta[k][j][i].x);
+                    mat[1][1] = (eta[k][j][i].y);
+                    mat[1][2] = (eta[k][j][i].z);
+
+                    mat[2][0] = (zet[k][j][i].x);
+                    mat[2][1] = (zet[k][j][i].y);
+                    mat[2][2] = (zet[k][j][i].z);
+
+
+                    PetscInt iL = i-1,  iR = i;
+                    PetscInt jL = j-1,  jR = j;
+                    PetscInt kL = k-1,  kR = k;
+
+                    // interpolate ucont from opposite faces to cell centers
+                    q[0] = central( lcont[k][j][iL].x, lcont[k][j][iR].x);
+                    q[1] = central( lcont[k][jL][i].y, lcont[k][jR][i].y);
+                    q[2] = central( lcont[kL][j][i].z, lcont[kR][j][i].z);
+
+                    // transform to cartesian
+                    det =   mat[0][0] * (mat[1][1] * mat[2][2] - mat[1][2] * mat[2][1]) -
+                            mat[0][1] * (mat[1][0] * mat[2][2] - mat[1][2] * mat[2][0]) +
+                            mat[0][2] * (mat[1][0] * mat[2][1] - mat[1][1] * mat[2][0]);
+
+                    det0 =  q[0] * (mat[1][1] * mat[2][2] - mat[1][2] * mat[2][1]) -
+                            q[1] * (mat[0][1] * mat[2][2] - mat[0][2] * mat[2][1]) +
+                            q[2] * (mat[0][1] * mat[1][2] - mat[0][2] * mat[1][1]);
+
+                    det1 = -q[0] * (mat[1][0] * mat[2][2] - mat[1][2] * mat[2][0]) +
+                            q[1] * (mat[0][0] * mat[2][2] - mat[0][2] * mat[2][0]) -
+                            q[2] * (mat[0][0] * mat[1][2] - mat[0][2] * mat[1][0]);
+
+                    det2 =  q[0] * (mat[1][0] * mat[2][1] - mat[1][1] * mat[2][0]) -
+                            q[1] * (mat[0][0] * mat[2][1] - mat[0][1] * mat[2][0]) +
+                            q[2] * (mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0]);
+
+                    lcat[k][j][i].x = det0 / det;
+                    lcat[k][j][i].y = det1 / det;
+                    lcat[k][j][i].z = det2 / det;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray (fda, lCat,  &lcat);
+    DMLocalToLocalBegin(fda, lCat, INSERT_VALUES, lCat);
+    DMLocalToLocalEnd  (fda, lCat, INSERT_VALUES, lCat);
+    DMDAVecRestoreArray (fda, lCont, &lcont);
+
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode adjustFluxes(ueqn_ *ueqn)
 {
     mesh_           *mesh = ueqn->access->mesh;
@@ -4698,7 +4805,8 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         dampingSourceU(ueqn, ueqn->Rhs, 1.0);
     }
 
-    // add driving source terms after as it is not scaled by 1/dt
+    // source term is pre-scaled by dt, so here we have to divide it again since
+    // the rhs is not multiplied by dt in this function
     if(ueqn->access->flags->isAblActive)
     {
         sourceU(ueqn, ueqn->Rhs, 1.0 / clock->dt);

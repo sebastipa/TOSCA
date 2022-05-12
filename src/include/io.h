@@ -20,14 +20,21 @@ struct io_
     PetscInt  phaseAveraging;                 //!< compute the phase-averaged solution fields
     PetscReal phAvgPrd;                       //!< sampling period in seconds
     PetscReal phAvgStartTime;                 //!< start time of phase averaging procedure
+    PetscInt  keBudgets;                      //!< compute kinetic energy budget terms
+    PetscReal keBudPrd;                       //!< sampling periods in seconds
+    PetscReal keBudStartTime;                 //!< start time of the keBudget terms
 
     PetscInt  avgWeight;                      //!< number of average snapshots (cumulated at runtime)
     PetscInt  pAvgWeight;                     //!< number of phase average snapshots (cumulated at runtime)
+    PetscInt  keAvgWeight;                    //!< number of keBudget average snapshots (cumulated at runtime)
 
     PetscInt  qCrit;
     PetscInt  l2Crit;
     PetscInt  windFarmForce;
     PetscInt  sources;
+
+    // runtime modifiable
+    word      lastModification;
 
     // access database
     access_   *access;
@@ -83,6 +90,9 @@ void writeBinaryField(mesh_ *mesh, Vec &V, char *file);
 
 //! \brief Initializes io data structure
 PetscErrorCode InitializeIO(io_ *io);
+
+//! \brief Re-read IO write parameters
+PetscErrorCode RereadIO(domain_ *domain);
 
 //! \brief read and save the different fields stored in the fields/meshName/time folder
 PetscErrorCode readFields(domain_ *domain, PetscReal timeValue);
