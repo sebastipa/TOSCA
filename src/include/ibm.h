@@ -7,26 +7,26 @@
 //! \brief Node struct
 typedef struct node
 {
-    PetscInt              Node;
-    struct node           *next;
+    PetscInt              Node;             //! node id
+    struct node           *next;            //! pointer to the next node
 } node;
 
 typedef struct cellNode
 {
-    cellIds         Node;
-    struct cellNode *next;
+    cellIds         Node;                   //! cell id
+    struct cellNode *next;                  //! pointer to the next cell
 } cellNode;
 
 //! \brief Node list
 typedef struct list
 {
-    node         *head;
+    node         *head;                     //! pointer to the head of the integer node list
 } list;
 
 //! \brief cell Node list
 typedef struct cellList
 {
-    cellNode     *head;
+    cellNode     *head;                     //! pointer to the head of the cell list
 } cellList;
 
 typedef struct
@@ -41,16 +41,19 @@ typedef struct
     PetscInt     nodes;                        //!< number of nodes in the IBM Body
     PetscInt     elems;                        //!< number of elements in the IBM body
 
+    PetscInt     *flipNormal;
     Cmpnts       *nCoor;                       //!< pointer to the co-ordinates of the nodes
     PetscInt	 *nID1 , *nID2 , *nID3 ;       //!< pointer to the 3 node ids of a triangular mesh element
     Cmpnts	     *eN;                          //!< pointers to the component of face normal in x, y and z direction of element
+    Cmpnts       *eT1;                         //!< pointers to the component of face tangential1 (eT1 = eN x k, where k is unit normal along z, which is taken as a generic direction)
+    Cmpnts       *eT2;                         //!< pointers to the component of face tangential2 (eT2 = eN x eT1)
 
     PetscReal    *eA;                          //!< area of the element
     Cmpnts       *eCent;                       //!< coordinate of the element center
     Cmpnts       *nU;                          //!< velocity of the nodes
 
-    Cmpnts       *eQVec;
-    PetscReal    *eRVec;
+    Cmpnts       *eQVec;                       //!< center of the smallest bounding sphere of an ibm element
+    PetscReal    *eRVec;                       //!< radius of the smallest bounding sphere of an ibm element
 }ibmMesh;
 
 typedef struct
@@ -83,9 +86,11 @@ typedef struct
 
     boundingBox   *bound;
 
-    PetscInt      attachedDomain;
-
     list          *searchCellList;
+
+    PetscReal     *ibmPressure;
+
+    PetscReal     *ibmWallShear1, *ibmWallShear2;
 
 }ibmObject;
 
@@ -102,11 +107,12 @@ typedef struct
   PetscReal       rad;                                        //!< support radius of the ibm fluid cell
 
   PetscInt        closestElem;                                //!< closest ibm mesh element to the ibm fluid cell
-  Cmpnts          pMin;
-  PetscReal       minDist;
+  Cmpnts          pMin;                                       //!< projected point on the ibm mesh element from the ibm fluid cell
+  PetscReal       minDist;                                    //!< dist to the ibm mesh element from the ibm fluid cell
   PetscInt        bodyID;
 
-  PetscReal       cs1, cs2, cs3;
+  PetscReal       cs1, cs2, cs3;                              //!< ibm interpolation coefficient of the projected point from the ibm element nodes
+
 } ibmFluidCell;
 
 
@@ -120,11 +126,11 @@ struct ibm_
 
     PetscInt           dynamic;
 
+    PetscInt           computeForce;
+
+    PetscInt           checkNormal;
+
     ibmObject          **ibmBody;                     //!<  array of pointers to ibm objects
-
-    PetscInt           *ibmDomain;                    //!<  array of pointers to the ibm object controlled by each user. domain 0 has access to all IBM bodies
-
-    PetscInt           ibmControlled;                 //!< flag indicating that this domain controls atleast one ibm object
 
     searchBox          *sBox;                         //!< array of searchBox with number of search cells and their size for each ibm object
 
@@ -144,7 +150,9 @@ struct ibm_
 // =============================================================================
 
 //! \brief initialize ibm: top level function
-PetscErrorCode InitializeIBM(domain_ *domain);
+PetscErrorCode InitializeIBM(ibm_ *ibm);
+
+PetscErrorCode InitializeIBMInterpolation(domain_ *domain);
 
 //! \brief update imb: top level function
 PetscErrorCode ibmUpdate(ibm_ *ibm);
@@ -176,9 +184,6 @@ PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b);
 //! \brief find the bounding box around an ibm body
 PetscErrorCode findBodyBoundingBox(ibm_ *ibm);
 
-//! \brief set the domain ibm object connectivity matrix
-PetscErrorCode setDomainIBMObjectInteraction(ibm_ *ibm, PetscInt domainId);
-
 //! \brief find the search cell (coarser mesh around the ibm) dimension
 PetscErrorCode findSearchCellDim(ibm_ *ibm);
 
@@ -203,6 +208,8 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm);
 //! \brief CURVIB normal projection interpolation algorithm
 PetscErrorCode CurvibInterpolation(ibm_ *ibm);
 
+PetscErrorCode ComputeForceMoment(ibm_ *ibm);
+
 // check if a given body exists in the mesh based on the IBMProperties.dat file
 PetscErrorCode checkIBMexists(ibm_ *ibm);
 
@@ -211,6 +218,8 @@ PetscErrorCode createSearchCellList(ibm_ *ibm);
 
 //! \brief destroy the ibm search cell list
 PetscErrorCode destroyLists(ibm_ *ibm);
+
+PetscErrorCode computeIBMElementNormal(ibm_ *ibm);
 
 //! \brief ray tracing algorithm
 PetscReal rayCastingTest(Cmpnts p, ibmMesh *ibmMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList);

@@ -44,6 +44,9 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
     VecDuplicate(mesh->lNvert, &(peqn->lPhi));      VecSet(peqn->lPhi,0.0);
     VecDuplicate(mesh->lNvert, &(peqn->lGid));
     VecDuplicate(mesh->lNvert, &(peqn->lLid));
+    VecDuplicate(mesh->lCent,  &(peqn->pIBMPt));    VecSet(peqn->pIBMPt,  0.0);
+    VecDuplicate(mesh->lCent,  &(peqn->pIBMCell));  VecSet(peqn->pIBMCell,   0.0);
+
 
     // default parameters
     peqn->hypreSolverType = 1;
@@ -70,6 +73,12 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
 
     // create solver framework
     CreateHypreSolver(peqn);
+
+    // if ibm active set the pressure interpolation cells for coefficient matrix
+    if(peqn->access->flags->isIBMActive)
+    {
+        updateIBMPhi(peqn->access->ibm);
+    }
 
     // set coefficient matrix
     SetCoeffMatrix(peqn);
@@ -142,9 +151,13 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
         {
             for (i = lxs; i < lxe; i++)
             {
-                if(isIBMCell(k,j,i,nvert))
+                if(isIBMSolidCell(k,j,i,nvert))
                 {
                     // do nothing, i,j,k is solid
+                }
+                else if(isIBMFluidCell(k,j,i,nvert))
+                {
+                    gid[k][j][i] = -2;
                 }
                 else
                 {
@@ -467,9 +480,136 @@ PetscErrorCode DestroyHypreSolver(peqn_ *peqn)
 
 //***************************************************************************************************************//
 
+cellIds GetIdFromStencil(int stencil, int k, int j, int i)
+{
+    cellIds SId;
+    if(stencil == CP)
+    {
+        SId.k = k;
+        SId.j = j;
+        SId.i = i;
+    }
+    else if (stencil == EP)
+    {
+        SId.k = k;
+        SId.j = j;
+        SId.i = i+1;
+    }
+    else if (stencil == WP)
+    {
+        SId.k = k;
+        SId.j = j;
+        SId.i = i-1;
+    }
+    else if (stencil == NP)
+    {
+        SId.k = k;
+        SId.j = j+1;
+        SId.i = i;
+    }
+    else if (stencil == SP)
+    {
+        SId.k = k;
+        SId.j = j-1;
+        SId.i = i;
+    }
+    else if (stencil == TP)
+    {
+        SId.k = k+1;
+        SId.j = j;
+        SId.i = i;
+    }
+    else if (stencil == BP)
+    {
+        SId.k = k-1;
+        SId.j = j;
+        SId.i = i;
+    }
+    else if (stencil == NE)
+    {
+        SId.k = k;
+        SId.j = j+1;
+        SId.i = i+1;
+    }
+    else if (stencil == SE)
+    {
+        SId.k = k;
+        SId.j = j-1;
+        SId.i = i+1;
+    }
+    else if (stencil == NW)
+    {
+        SId.k = k;
+        SId.j = j+1;
+        SId.i = i-1;
+    }
+    else if (stencil == SW)
+    {
+        SId.k = k;
+        SId.j = j-1;
+        SId.i = i-1;
+    }
+    else if (stencil == TN)
+    {
+        SId.k = k+1;
+        SId.j = j+1;
+        SId.i = i;
+    }
+    else if (stencil == BN)
+    {
+        SId.k = k-1;
+        SId.j = j+1;
+        SId.i = i;
+    }
+    else if (stencil == TS)
+    {
+        SId.k = k+1;
+        SId.j = j-1;
+        SId.i = i;
+    }
+    else if (stencil == BS)
+    {
+        SId.k = k-1;
+        SId.j = j-1;
+        SId.i = i;
+    }
+    else if (stencil == TE)
+    {
+        SId.k = k+1;
+        SId.j = j;
+        SId.i = i+1;
+    }
+    else if (stencil == BE)
+    {
+        SId.k = k-1;
+        SId.j = j;
+        SId.i = i+1;
+    }
+    else if (stencil == TW)
+    {
+        SId.k = k+1;
+        SId.j = j;
+        SId.i = i-1;
+    }
+    else if (stencil == BW)
+    {
+        SId.k = k-1;
+        SId.j = j;
+        SId.i = i-1;
+    }
+    else
+    {
+        fatalErrorInFunction("GetIdFromStencil",  "wrong stencil");
+    }
+    return SId;
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
 {
     mesh_         *mesh  = peqn->access->mesh;
+    flags_         *flags = peqn->access->flags;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -484,6 +624,8 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     Cmpnts        ***icsi, ***ieta, ***izet;
     Cmpnts        ***jcsi, ***jeta, ***jzet;
     Cmpnts        ***kcsi, ***keta, ***kzet;
+    Cmpnts        ***cent;
+    Cmpnts        ***pibmpt, ***pibmcell;
 
     PetscReal     ***aj, ***iaj, ***jaj, ***kaj;
     PetscReal     ***nvert, ***gid;
@@ -519,8 +661,12 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     DMDAVecGetArray(da,  mesh->lKAj,  &kaj);
 
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     DMDAVecGetArray(da, peqn->lGid, &gid);
+
+    DMDAVecGetArray(fda, peqn->pIBMPt, &pibmpt);
+    DMDAVecGetArray(fda, peqn->pIBMCell, &pibmcell);
 
     // create metric tensor
     VecDuplicate(mesh->lAj, &G11);
@@ -627,710 +773,612 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     }
 
                     // contribution from east face in i-direction (i+1/2)
+
+                    PetscReal r = 1.0;
+
+                    // dpdc{i} = (p_{i+1} - p_{i}) * g11_{i}
+
                     if
                     (
-                        isFluidCell(k, j, i+1, nvert)
+                        i != mx-2  || // exclude boundary cell for zero gradient BC if non-periodic
+                        mesh->i_periodic ||
+                        mesh->ii_periodic
+
                     )
                     {
-                        PetscReal r = 1.0;
+                        vol[CP] -= g11[k][j][i] / r; // i, j, k
+                        vol[EP] += g11[k][j][i] / r; // i+1, j, k
+                    }
 
-                        // dpdc{i} = (p_{i+1} - p_{i}) * g11_{i}
+                    // dpde{i} = ({p_{i+1,j+1} + p{i, j+1} - p{i+1, j-1} - p{i, j-1}) * 0.25 * g12[k][j][i]
 
-                        if
+                    if
+                    (
+                        // j-right boundary -> use upwind only at the corner faces
                         (
-                            i != mx-2  || // exclude boundary cell for zero gradient BC if non-periodic
-                            mesh->i_periodic ||
-                            mesh->ii_periodic
-
+                            j==my-2 &&
+                            i==mx-2
                         )
+                    )
+                    {
+                        if ( j!=1 )
                         {
-                            vol[CP] -= g11[k][j][i] / r; // i, j, k
-                            vol[EP] += g11[k][j][i] / r; // i+1, j, k
+                            // upwind differencing
+                            vol[CP] += g12[k][j][i] * 0.5 / r; // i, j, k
+                            vol[EP] += g12[k][j][i] * 0.5 / r; // i+1, j, k
+                            vol[SP] -= g12[k][j][i] * 0.5 / r; // i, j-1, k
+                            vol[SE] -= g12[k][j][i] * 0.5 / r; // i+1, j-1, k
                         }
-
-                        // dpde{i} = ({p_{i+1,j+1} + p{i, j+1} - p{i+1, j-1} - p{i, j-1}) * 0.25 * g12[k][j][i]
-
-                        if
+                    }
+                    else if
+                    (
+                        // j-left boundary -> use upwind  only at the corner faces
                         (
-                            // j-right boundary -> use upwind only at the corner faces
-                            (
-                                j==my-2 &&
-                                i==mx-2
-                            ) || isIBMIFace(k, j+1, i, i+1, nvert)
+                            j == 1 &&
+                            i == mx-2
                         )
-                        {
-                            if (isFluidIFace(k, j-1, i, i+1, nvert) && j!=1 )
-                            {
-                                // upwind differencing
-                                vol[CP] += g12[k][j][i] * 0.5 / r; // i, j, k
-                                vol[EP] += g12[k][j][i] * 0.5 / r; // i+1, j, k
-                                vol[SP] -= g12[k][j][i] * 0.5 / r; // i, j-1, k
-                                vol[SE] -= g12[k][j][i] * 0.5 / r; // i+1, j-1, k
-                            }
-                        }
-                        else if
-                        (
-                            // j-left boundary -> use upwind  only at the corner faces
-                            (
-                                j == 1 &&
-                                i == mx-2
-                            ) ||
-                            isIBMIFace(k, j-1, i, i+1, nvert)
-                        )
-                        {
-                            if (isFluidIFace(k, j+1, i, i+1, nvert))
-                            {
-                                // upwind differencing
-                                vol[NP] += g12[k][j][i] * 0.5 / r; // i, j+1, k
-                                vol[NE] += g12[k][j][i] * 0.5 / r; // i+1, j+1, k
-                                vol[CP] -= g12[k][j][i] * 0.5 / r; // i, j, k
-                                vol[EP] -= g12[k][j][i] * 0.5 / r; // i+1, j, k
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[NP] += g12[k][j][i] * 0.25 / r; // i, j+1, k
-                            vol[NE] += g12[k][j][i] * 0.25 / r; // i+1, j+1, k
-                            vol[SP] -= g12[k][j][i] * 0.25 / r; // i, j-1, k
-                            vol[SE] -= g12[k][j][i] * 0.25 / r; // i+1, j-1, k
-                        }
+                    )
+                    {
+                        // upwind differencing
+                        vol[NP] += g12[k][j][i] * 0.5 / r; // i, j+1, k
+                        vol[NE] += g12[k][j][i] * 0.5 / r; // i+1, j+1, k
+                        vol[CP] -= g12[k][j][i] * 0.5 / r; // i, j, k
+                        vol[EP] -= g12[k][j][i] * 0.5 / r; // i+1, j, k
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[NP] += g12[k][j][i] * 0.25 / r; // i, j+1, k
+                        vol[NE] += g12[k][j][i] * 0.25 / r; // i+1, j+1, k
+                        vol[SP] -= g12[k][j][i] * 0.25 / r; // i, j-1, k
+                        vol[SE] -= g12[k][j][i] * 0.25 / r; // i+1, j-1, k
+                    }
 
-                        // dpdz{i}=(p_{i,k+1} + p{i+1,k+1} - p{i, k-1} - p{i+1, k-1}) * 0.25 / r * g13[k][j][i]
-                        if
+                    // dpdz{i}=(p_{i,k+1} + p{i+1,k+1} - p{i, k-1} - p{i+1, k-1}) * 0.25 / r * g13[k][j][i]
+                    if
+                    (
+                        // k-right boundary -> use upwind  only at the corner faces
                         (
-                            // k-right boundary -> use upwind  only at the corner faces
-                            (
-                                k==mz-2 &&
-                                i==mx-2
-                            ) || isIBMIFace(k+1, j, i, i+1, nvert)
-
+                            k==mz-2 &&
+                            i==mx-2
                         )
+                    )
+                    {
+                        if (k!=1)
                         {
-                            if (isFluidIFace(k-1, j, i, i+1, nvert) && k!=1)
-                            {
-                                // upwind differencing
-                                vol[CP] += g13[k][j][i] * 0.5 / r; // i, j, k
-                                vol[EP] += g13[k][j][i] * 0.5 / r; // i+1, j, k
-                                vol[BP] -= g13[k][j][i] * 0.5 / r; // i, j, k-1
-                                vol[BE] -= g13[k][j][i] * 0.5 / r; // i+1, j, k-1
-                            }
+                            // upwind differencing
+                            vol[CP] += g13[k][j][i] * 0.5 / r; // i, j, k
+                            vol[EP] += g13[k][j][i] * 0.5 / r; // i+1, j, k
+                            vol[BP] -= g13[k][j][i] * 0.5 / r; // i, j, k-1
+                            vol[BE] -= g13[k][j][i] * 0.5 / r; // i+1, j, k-1
                         }
-                        else if
+                    }
+                    else if
+                    (
+                        // k-left boundary  -> use upwind  only at the corner faces
                         (
-                            // k-left boundary  -> use upwind  only at the corner faces
-                            (
-                                k==1 &&
-                                i==mx-2
-                            ) ||
-                            isIBMIFace(k-1, j, i, i+1, nvert)
+                            k==1 &&
+                            i==mx-2
                         )
-                        {
-                            if (isFluidIFace(k+1, j, i, i+1, nvert))
-                            {
-                                // upwind differencing
-                                vol[TP] += g13[k][j][i] * 0.5 / r; // i, j, k+1
-                                vol[TE] += g13[k][j][i] * 0.5 / r; // i+1, j, k+1
-                                vol[CP] -= g13[k][j][i] * 0.5 / r; // i, j, k
-                                vol[EP] -= g13[k][j][i] * 0.5 / r; // i+1, j, k
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[TP] += g13[k][j][i] * 0.25 / r; //i, j, k+1
-                            vol[TE] += g13[k][j][i] * 0.25 / r; //i+1, j, k+1
-                            vol[BP] -= g13[k][j][i] * 0.25 / r; //i, j, k-1
-                            vol[BE] -= g13[k][j][i] * 0.25 / r; //i+1, j, k-1
-                        }
-                    } // end of i+1/2
+                    )
+                    {
+                        // upwind differencing
+                        vol[TP] += g13[k][j][i] * 0.5 / r; // i, j, k+1
+                        vol[TE] += g13[k][j][i] * 0.5 / r; // i+1, j, k+1
+                        vol[CP] -= g13[k][j][i] * 0.5 / r; // i, j, k
+                        vol[EP] -= g13[k][j][i] * 0.5 / r; // i+1, j, k
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[TP] += g13[k][j][i] * 0.25 / r; //i, j, k+1
+                        vol[TE] += g13[k][j][i] * 0.25 / r; //i+1, j, k+1
+                        vol[BP] -= g13[k][j][i] * 0.25 / r; //i, j, k-1
+                        vol[BE] -= g13[k][j][i] * 0.25 / r; //i+1, j, k-1
+                    }
 
                     // contribution from west face in i-direction (i-1/2)
+
+                    // -dpdc{i-1} = -(p_{i} - p_{i-1}) * g11_{i}
+
                     if
                     (
-                        isFluidCell(k, j, i-1, nvert)
+                        i != 1 ||  // exclude boundary cell for zero gradient BC if non-periodic
+                        mesh->i_periodic ||
+                        mesh->ii_periodic
                     )
                     {
-                        PetscReal r=1.0;
+                        vol[CP] -= g11[k][j][i-1] / r;  //i, j, k
+                        vol[WP] += g11[k][j][i-1] / r;  //i-1, j, k
+                    }
 
-                        // -dpdc{i-1} = -(p_{i} - p_{i-1}) * g11_{i}
+                    // -dpde{i-1} = -({p_{i,j+1}+p{i-1, j+1} - p{i, j-1}-p{i-1, j-1}) * 0.25 / r * g12[k][j][i-1]
 
-                        if
+                    if
+                    (
+                        // j-right boundary -> use upwind only at the corner faces
                         (
-                            i != 1 ||  // exclude boundary cell for zero gradient BC if non-periodic
-                            mesh->i_periodic ||
-                            mesh->ii_periodic
+                            j==my-2 &&
+                            i==1
                         )
+                    )
+                    {
+                        if ( j!=1 )
                         {
-                            vol[CP] -= g11[k][j][i-1] / r;  //i, j, k
-                            vol[WP] += g11[k][j][i-1] / r;  //i-1, j, k
+                            // upwind differencing
+                            vol[CP] -= g12[k][j][i-1] * 0.5 / r; // i, j, k
+                            vol[WP] -= g12[k][j][i-1] * 0.5 / r; // i-1, j, k
+                            vol[SP] += g12[k][j][i-1] * 0.5 / r; // i, j-1, k
+                            vol[SW] += g12[k][j][i-1] * 0.5 / r; // i-1, j-1, k
                         }
+                    }
+                    else if
+                    (
+                        // j-left boundary -> use upwind  only at the corner faces
+                        (
+                            j==1 &&
+                            i==1
+                        )
+                    )
+                    {
+                        // upwind differencing
+                        vol[NP] -= g12[k][j][i-1] * 0.5 / r; // i, j+1, k
+                        vol[NW] -= g12[k][j][i-1] * 0.5 / r; // i-1, j+1, k
+                        vol[CP] += g12[k][j][i-1] * 0.5 / r; // i, j, k
+                        vol[WP] += g12[k][j][i-1] * 0.5 / r; // i-1, j, k
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[NP] -= g12[k][j][i-1] * 0.25 / r; // i, j+1, k
+                        vol[NW] -= g12[k][j][i-1] * 0.25 / r; // i-1, j+1, k
+                        vol[SP] += g12[k][j][i-1] * 0.25 / r; // i, j-1, k
+                        vol[SW] += g12[k][j][i-1] * 0.25 / r; // i-1, j-1, k
+                    }
 
-                        // -dpde{i-1} = -({p_{i,j+1}+p{i-1, j+1} - p{i, j-1}-p{i-1, j-1}) * 0.25 / r * g12[k][j][i-1]
-
-                        if
+                    // -dpdz{i-1}=-(p_{i,k+1}+p{i-1,k+1} - p{i, k-1}-p{i-1, k-1}) * 0.25 / r * g13[k][j][i]
+                    if
+                    (
+                        // k-right boundary -> use upwind  only at the corner faces
                         (
-                            // j-right boundary -> use upwind only at the corner faces
-                            (
-                                j==my-2 &&
-                                i==1
-                            ) || isIBMIFace(k, j+1, i, i-1, nvert)
+                            k==mz-2 &&
+                            i==1
                         )
+                    )
+                    {
+                        if (k!=1)
                         {
-                            if (isFluidIFace(k, j-1, i, i-1, nvert) && j!=1 )
-                            {
-                                // upwind differencing
-                                vol[CP] -= g12[k][j][i-1] * 0.5 / r; // i, j, k
-                                vol[WP] -= g12[k][j][i-1] * 0.5 / r; // i-1, j, k
-                                vol[SP] += g12[k][j][i-1] * 0.5 / r; // i, j-1, k
-                                vol[SW] += g12[k][j][i-1] * 0.5 / r; // i-1, j-1, k
-                            }
+                            // upwind differencing
+                            vol[CP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k
+                            vol[WP] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k
+                            vol[BP] += g13[k][j][i-1] * 0.5 / r; // i, j, k-1
+                            vol[BW] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k-1
                         }
-                        else if
+                    }
+                    else if
+                    (
+                        // k-left boundary  -> use upwind  only at the corner faces
                         (
-                            // j-left boundary -> use upwind  only at the corner faces
-                            (
-                                j==1 &&
-                                i==1
-                            ) ||
-                            isIBMIFace(k, j-1, i, i-1, nvert)
+                            k==1 &&
+                            i==1
                         )
-                        {
-                            if (isFluidIFace(k, j+1, i, i-1, nvert))
-                            {
-                                // upwind differencing
-                                vol[NP] -= g12[k][j][i-1] * 0.5 / r; // i, j+1, k
-                                vol[NW] -= g12[k][j][i-1] * 0.5 / r; // i-1, j+1, k
-                                vol[CP] += g12[k][j][i-1] * 0.5 / r; // i, j, k
-                                vol[WP] += g12[k][j][i-1] * 0.5 / r; // i-1, j, k
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[NP] -= g12[k][j][i-1] * 0.25 / r; // i, j+1, k
-                            vol[NW] -= g12[k][j][i-1] * 0.25 / r; // i-1, j+1, k
-                            vol[SP] += g12[k][j][i-1] * 0.25 / r; // i, j-1, k
-                            vol[SW] += g12[k][j][i-1] * 0.25 / r; // i-1, j-1, k
-                        }
-
-                        // -dpdz{i-1}=-(p_{i,k+1}+p{i-1,k+1} - p{i, k-1}-p{i-1, k-1}) * 0.25 / r * g13[k][j][i]
-                        if
-                        (
-                            // k-right boundary -> use upwind  only at the corner faces
-                            (
-                                k==mz-2 &&
-                                i==1
-                            ) ||
-                            isIBMIFace(k+1, j, i, i-1, nvert)
-                        )
-                        {
-                            if (isFluidIFace(k-1, j, i, i-1, nvert) && k!=1)
-                            {
-                                // upwind differencing
-                                vol[CP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k
-                                vol[WP] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k
-                                vol[BP] += g13[k][j][i-1] * 0.5 / r; // i, j, k-1
-                                vol[BW] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k-1
-                            }
-                        }
-                        else if
-                        (
-                            // k-left boundary  -> use upwind  only at the corner faces
-                            (
-                                k==1 &&
-                                i==1
-                            ) ||
-                            isIBMIFace(k-1, j, i, i-1, nvert)
-                        )
-                        {
-                            if (isFluidIFace(k+1, j, i, i-1, nvert))
-                            {
-                                // upwind differencing
-                                vol[TP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k+1
-                                vol[TW] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k+1
-                                vol[CP] += g13[k][j][i-1] * 0.5 / r; // i, j, k
-                                vol[WP] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[TP] -= g13[k][j][i-1] * 0.25 / r; // i, j, k+1
-                            vol[TW] -= g13[k][j][i-1] * 0.25 / r; // i-1, j, k+1
-                            vol[BP] += g13[k][j][i-1] * 0.25 / r; // i, j, k-1
-                            vol[BW] += g13[k][j][i-1] * 0.25 / r; // i-1, j, k-1
-                        }
-                    } // end of i-1/2
+                    )
+                    {
+                        // upwind differencing
+                        vol[TP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k+1
+                        vol[TW] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k+1
+                        vol[CP] += g13[k][j][i-1] * 0.5 / r; // i, j, k
+                        vol[WP] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[TP] -= g13[k][j][i-1] * 0.25 / r; // i, j, k+1
+                        vol[TW] -= g13[k][j][i-1] * 0.25 / r; // i-1, j, k+1
+                        vol[BP] += g13[k][j][i-1] * 0.25 / r; // i, j, k-1
+                        vol[BW] += g13[k][j][i-1] * 0.25 / r; // i-1, j, k-1
+                    }
 
                     // contribution from north face in j-direction (j+1/2)
+
+                    // dpdc{j} = (p_{i+1,j}+p{i+1,j+1} - p{i-1,j}-p{i-1,j+1}) * 0.25 / r
                     if
                     (
-                        isFluidCell(k, j+1, i, nvert)
+                        // i-right boundary -> use upwind  only at the corner faces
+                        (
+                            i==mx-2 &&
+                            j==my-2
+                        )
                     )
                     {
-                        PetscReal r=1.0;
+                        if (i!=1 )
+                        {
+                            // upwind differencing
+                            vol[CP] += g21[k][j][i] * 0.5 / r; // i, j, k
+                            vol[NP] += g21[k][j][i] * 0.5 / r; // i, j+1, k
+                            vol[WP] -= g21[k][j][i] * 0.5 / r; // i-1, j, k
+                            vol[NW] -= g21[k][j][i] * 0.5 / r; // i-1, j+1, k
+                        }
+                    }
+                    else if
+                    (
+                        // i-left boundary -> use upwind  only at the corner faces
+                        (
+                            i==1 &&
+                            j==my-2
+                        )
+                    )
+                    {
+                        // upwind differencing
+                        vol[EP] += g21[k][j][i] * 0.5 / r; // i+1, j, k
+                        vol[NE] += g21[k][j][i] * 0.5 / r; // i+1, j+1, k
+                        vol[CP] -= g21[k][j][i] * 0.5 / r; // i, j, k
+                        vol[NP] -= g21[k][j][i] * 0.5 / r; // i, j+1, k
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[EP] += g21[k][j][i] * 0.25 / r; // i+1, j, k
+                        vol[NE] += g21[k][j][i] * 0.25 / r; // i+1, j+1, k
+                        vol[WP] -= g21[k][j][i] * 0.25 / r; // i-1, j, k
+                        vol[NW] -= g21[k][j][i] * 0.25 / r; // i-1, j+1, k
+                    }
 
-                        // dpdc{j} = (p_{i+1,j}+p{i+1,j+1} - p{i-1,j}-p{i-1,j+1}) * 0.25 / r
-                        if
-                        (
-                            // i-right boundary -> use upwind  only at the corner faces
-                            (
-                                i==mx-2 &&
-                                j==my-2
-                            ) ||
-                            isIBMJFace(k, j, i+1, j+1, nvert)
-                        )
-                        {
-                            if (isFluidJFace(k, j, i-1, j+1, nvert) && i!=1 )
-                            {
-                                // upwind differencing
-                                vol[CP] += g21[k][j][i] * 0.5 / r; // i, j, k
-                                vol[NP] += g21[k][j][i] * 0.5 / r; // i, j+1, k
-                                vol[WP] -= g21[k][j][i] * 0.5 / r; // i-1, j, k
-                                vol[NW] -= g21[k][j][i] * 0.5 / r; // i-1, j+1, k
-                            }
-                        }
-                        else if
-                        (
-                            // i-left boundary -> use upwind  only at the corner faces
-                            (
-                                i==1 &&
-                                j==my-2
-                            ) ||
-                            isIBMJFace(k, j, i-1, j+1, nvert)
-                        )
-                        {
-                            if (isFluidJFace(k, j, i+1, j+1, nvert))
-                            {
-                                // upwind differencing
-                                vol[EP] += g21[k][j][i] * 0.5 / r; // i+1, j, k
-                                vol[NE] += g21[k][j][i] * 0.5 / r; // i+1, j+1, k
-                                vol[CP] -= g21[k][j][i] * 0.5 / r; // i, j, k
-                                vol[NP] -= g21[k][j][i] * 0.5 / r; // i, j+1, k
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[EP] += g21[k][j][i] * 0.25 / r; // i+1, j, k
-                            vol[NE] += g21[k][j][i] * 0.25 / r; // i+1, j+1, k
-                            vol[WP] -= g21[k][j][i] * 0.25 / r; // i-1, j, k
-                            vol[NW] -= g21[k][j][i] * 0.25 / r; // i-1, j+1, k
-                        }
+                    // dpde{j} = (p{j+1} - p{j}) * g22[k][j][i]
+                    if
+                    (
+                        j != my-2  ||
+                        mesh->j_periodic ||
+                        mesh->jj_periodic
+                    )
+                    {
+                        vol[CP] -= g22[k][j][i] / r;
+                        vol[NP] += g22[k][j][i] / r;
+                    }
 
-                        // dpde{j} = (p{j+1} - p{j}) * g22[k][j][i]
-                        if
+                    // dpdz{j} = (p{j, k+1}+p{j+1,k+1} - p{j,k-1}-p{j+1,k-1}) *0.25 / r
+                    if
+                    (
+                        // k-right boundary -> use upwind  only at the corner faces
                         (
-                            j != my-2  ||
-                            mesh->j_periodic ||
-                            mesh->jj_periodic
+                            k==mz-2 &&
+                            j==my-2
                         )
+                    )
+                    {
+                        if (k!=1)
                         {
-                            vol[CP] -= g22[k][j][i] / r;
-                            vol[NP] += g22[k][j][i] / r;
+                            // upwind differencing
+                            vol[CP] += g23[k][j][i] * 0.5 / r; //i,j,k
+                            vol[NP] += g23[k][j][i] * 0.5 / r; //i, j+1, k
+                            vol[BP] -= g23[k][j][i] * 0.5 / r;//i, j, k-1
+                            vol[BN] -= g23[k][j][i] * 0.5 / r;//i, j+1, k-1
                         }
-
-                        // dpdz{j} = (p{j, k+1}+p{j+1,k+1} - p{j,k-1}-p{j+1,k-1}) *0.25 / r
-                        if
+                    }
+                    else if
+                    (
+                        // k-left boundary -> use upwind  only at the corner faces
                         (
-                            // k-right boundary -> use upwind  only at the corner faces
-                            (
-                                k==mz-2 &&
-                                j==my-2
-                            ) ||
-                            isIBMJFace(k+1, j, i, j+1, nvert)
+                            k==1 &&
+                            j==my-2
                         )
-                        {
-                            if (isFluidJFace(k-1, j, i, j+1, nvert) && k!=1)
-                            {
-                                // upwind differencing
-                                vol[CP] += g23[k][j][i] * 0.5 / r; //i,j,k
-                                vol[NP] += g23[k][j][i] * 0.5 / r; //i, j+1, k
-                                vol[BP] -= g23[k][j][i] * 0.5 / r;//i, j, k-1
-                                vol[BN] -= g23[k][j][i] * 0.5 / r;//i, j+1, k-1
-                            }
-                        }
-                        else if
-                        (
-                            // k-left boundary -> use upwind  only at the corner faces
-                            (
-                                k==1 &&
-                                j==my-2
-                            ) ||
-                            isIBMJFace(k-1, j, i, j+1, nvert)
-                        )
-                        {
-                            if (isFluidJFace(k+1, j, i, j+1, nvert))
-                            {
-                                // upwind differencing
-                                vol[TP] += g23[k][j][i] * 0.5 / r; //i, j, k+1
-                                vol[TN] += g23[k][j][i] * 0.5 / r;//i, j+1, k+1
-                                vol[CP] -= g23[k][j][i] * 0.5 / r;//i, j, k
-                                vol[NP] -= g23[k][j][i] * 0.5 / r;//i, j+1, k
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[TP] += g23[k][j][i] * 0.25 / r; // i, j, k+1
-                            vol[TN] += g23[k][j][i] * 0.25 / r; // i, j+1, k+1
-                            vol[BP] -= g23[k][j][i] * 0.25 / r; // i, j, k-1
-                            vol[BN] -= g23[k][j][i] * 0.25 / r; // i, j+1, k-1
-                        }
-                    } // end of j+1/2
+                    )
+                    {
+                        // upwind differencing
+                        vol[TP] += g23[k][j][i] * 0.5 / r; //i, j, k+1
+                        vol[TN] += g23[k][j][i] * 0.5 / r;//i, j+1, k+1
+                        vol[CP] -= g23[k][j][i] * 0.5 / r;//i, j, k
+                        vol[NP] -= g23[k][j][i] * 0.5 / r;//i, j+1, k
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[TP] += g23[k][j][i] * 0.25 / r; // i, j, k+1
+                        vol[TN] += g23[k][j][i] * 0.25 / r; // i, j+1, k+1
+                        vol[BP] -= g23[k][j][i] * 0.25 / r; // i, j, k-1
+                        vol[BN] -= g23[k][j][i] * 0.25 / r; // i, j+1, k-1
+                    }
 
                     // contribution from south face in j-direction (j-1/2)
+
+                    // -dpdc{j-1} = -(p_{i+1,j}+p{i+1,j-1} - p{i-1,j}-p{i-1,j-1}) * 0.25 / r * g21[k][j-1][i]
                     if
                     (
-                        isFluidCell(k, j-1, i, nvert)
+                        // i-right boundary -> use upwind  only at the corner faces
+                        (
+                            i==mx-2 &&
+                            j==1
+                        )
                     )
                     {
-                        PetscReal r=1.0;
+                        if (i!=1 )
+                        {
+                            // upwind differencing
+                            vol[CP] -= g21[k][j-1][i] * 0.5 / r; // i, j, k
+                            vol[SP] -= g21[k][j-1][i] * 0.5 / r; // i, j-1, k
+                            vol[WP] += g21[k][j-1][i] * 0.5 / r; // i-1, j, k
+                            vol[SW] += g21[k][j-1][i] * 0.5 / r; // i-1, j-1, k
+                        }
+                    }
+                    else if
+                    (
+                        // i-left boundary -> use upwind  only at the corner faces
+                        (
+                            i==1 &&
+                            j==1
+                        )
+                    )
+                    {
+                        // upwind differencing
+                        vol[EP] -= g21[k][j-1][i] * 0.5 / r; // i+1, j, k
+                        vol[SE] -= g21[k][j-1][i] * 0.5 / r; // i+1, j-1, k
+                        vol[CP] += g21[k][j-1][i] * 0.5 / r; // i, j, k
+                        vol[SP] += g21[k][j-1][i] * 0.5 / r; // i, j-1, k
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[EP] -= g21[k][j-1][i] * 0.25 / r; // i+1, j, k
+                        vol[SE] -= g21[k][j-1][i] * 0.25 / r; // i+1, j-1, k
+                        vol[WP] += g21[k][j-1][i] * 0.25 / r; // i-1, j, k
+                        vol[SW] += g21[k][j-1][i] * 0.25 / r; // i-1, j-1, k
+                    }
 
-                        // -dpdc{j-1} = -(p_{i+1,j}+p{i+1,j-1} - p{i-1,j}-p{i-1,j-1}) * 0.25 / r * g21[k][j-1][i]
-                        if
-                        (
-                            // i-right boundary -> use upwind  only at the corner faces
-                            (
-                                i==mx-2 &&
-                                j==1
-                            ) ||
-                            isIBMJFace(k, j, i+1, j-1, nvert)
-                        )
-                        {
-                            if (isFluidJFace(k, j, i-1, j-1, nvert) && i!=1 )
-                            {
-                                // upwind differencing
-                                vol[CP] -= g21[k][j-1][i] * 0.5 / r; // i, j, k
-                                vol[SP] -= g21[k][j-1][i] * 0.5 / r; // i, j-1, k
-                                vol[WP] += g21[k][j-1][i] * 0.5 / r; // i-1, j, k
-                                vol[SW] += g21[k][j-1][i] * 0.5 / r; // i-1, j-1, k
-                            }
-                        }
-                        else if
-                        (
-                            // i-left boundary -> use upwind  only at the corner faces
-                            (
-                                i==1 &&
-                                j==1
-                            ) ||
-                            isIBMJFace(k, j, i-1, j-1, nvert)
-                        )
-                        {
-                            if (isFluidJFace(k, j, i+1, j-1, nvert))
-                            {
-                                // upwind differencing
-                                vol[EP] -= g21[k][j-1][i] * 0.5 / r; // i+1, j, k
-                                vol[SE] -= g21[k][j-1][i] * 0.5 / r; // i+1, j-1, k
-                                vol[CP] += g21[k][j-1][i] * 0.5 / r; // i, j, k
-                                vol[SP] += g21[k][j-1][i] * 0.5 / r; // i, j-1, k
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[EP] -= g21[k][j-1][i] * 0.25 / r; // i+1, j, k
-                            vol[SE] -= g21[k][j-1][i] * 0.25 / r; // i+1, j-1, k
-                            vol[WP] += g21[k][j-1][i] * 0.25 / r; // i-1, j, k
-                            vol[SW] += g21[k][j-1][i] * 0.25 / r; // i-1, j-1, k
-                        }
+                    // -dpde{j-1} = -(p{j} - p{j-1}) * g22[k][j-1][i]
+                    if
+                    (
+                        j!=1       ||
+                        mesh->j_periodic ||
+                        mesh->jj_periodic
+                    )
+                    {
+                        vol[CP] -= g22[k][j-1][i] / r;
+                        vol[SP] += g22[k][j-1][i] / r;
+                    }
 
-                        // -dpde{j-1} = -(p{j} - p{j-1}) * g22[k][j-1][i]
-                        if
+                    // -dpdz{j-1} = -(p{j,k+1}+p{j-1,k+1} - p{j,k-1}-p{j-1,k-1}) * 0.25 / r * g23[k][j-1][i]
+                    if
+                    (
+                        // k-right boundary -> use upwind  only at the corner faces
                         (
-                            j!=1       ||
-                            mesh->j_periodic ||
-                            mesh->jj_periodic
+                            k==mz-2 &&
+                            j==1
                         )
+                    )
+                    {
+                        if (k!=1)
                         {
-                            vol[CP] -= g22[k][j-1][i] / r;
-                            vol[SP] += g22[k][j-1][i] / r;
+                            // upwind differencing
+                            vol[CP] -= g23[k][j-1][i] * 0.5 / r; //i, j, k
+                            vol[SP] -= g23[k][j-1][i] * 0.5 / r; //i, j-1, k
+                            vol[BP] += g23[k][j-1][i] * 0.5 / r; //i, j, k-1
+                            vol[BS] += g23[k][j-1][i] * 0.5 / r; //i, j-1, k-1
                         }
-
-                        // -dpdz{j-1} = -(p{j,k+1}+p{j-1,k+1} - p{j,k-1}-p{j-1,k-1}) * 0.25 / r * g23[k][j-1][i]
-                        if
+                    }
+                    else if
+                    (
+                        // k-left boundary -> use upwind  only at the corner faces
                         (
-                            // k-right boundary -> use upwind  only at the corner faces
-                            (
-                                k==mz-2 &&
-                                j==1
-                            ) ||
-                            isIBMJFace(k+1, j, i, j-1, nvert)
+                            k==1 &&
+                            j==1
                         )
-                        {
-                            if (isFluidJFace(k-1, j, i, j-1, nvert) && k!=1)
-                            {
-                                // upwind differencing
-                                vol[CP] -= g23[k][j-1][i] * 0.5 / r; //i, j, k
-                                vol[SP] -= g23[k][j-1][i] * 0.5 / r; //i, j-1, k
-                                vol[BP] += g23[k][j-1][i] * 0.5 / r; //i, j, k-1
-                                vol[BS] += g23[k][j-1][i] * 0.5 / r; //i, j-1, k-1
-                            }
-                        }
-                        else if
-                        (
-                            // k-left boundary -> use upwind  only at the corner faces
-                            (
-                                k==1 &&
-                                j==1
-                            ) ||
-                            isIBMJFace(k-1, j, i, j-1, nvert)
-                        )
-                        {
-                            if (isFluidJFace(k+1, j, i, j-1, nvert))
-                            {
-                                // upwind differencing
-                                vol[TP] -= g23[k][j-1][i] * 0.5 / r; // i, j, k+1
-                                vol[TS] -= g23[k][j-1][i] * 0.5 / r; // i, j-1, k+1
-                                vol[CP] += g23[k][j-1][i] * 0.5 / r; // i, j, k
-                                vol[SP] += g23[k][j-1][i] * 0.5 / r; // i, j-1, k
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[TP] -= g23[k][j-1][i] * 0.25 / r; // i, j, k+1
-                            vol[TS] -= g23[k][j-1][i] * 0.25 / r; // i, j-1, k+1
-                            vol[BP] += g23[k][j-1][i] * 0.25 / r; // i, j, k-1
-                            vol[BS] += g23[k][j-1][i] * 0.25 / r; // i, j-1, k-1
-                        }
-                    } // end of j-1/2
+                    )
+                    {
+                        // upwind differencing
+                        vol[TP] -= g23[k][j-1][i] * 0.5 / r; // i, j, k+1
+                        vol[TS] -= g23[k][j-1][i] * 0.5 / r; // i, j-1, k+1
+                        vol[CP] += g23[k][j-1][i] * 0.5 / r; // i, j, k
+                        vol[SP] += g23[k][j-1][i] * 0.5 / r; // i, j-1, k
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[TP] -= g23[k][j-1][i] * 0.25 / r; // i, j, k+1
+                        vol[TS] -= g23[k][j-1][i] * 0.25 / r; // i, j-1, k+1
+                        vol[BP] += g23[k][j-1][i] * 0.25 / r; // i, j, k-1
+                        vol[BS] += g23[k][j-1][i] * 0.25 / r; // i, j-1, k-1
+                    }
 
                     // contribution from top face in k-direction (k+1/2)
+
+                    // dpdc{k} = (p{i+1,k}+p{i+1,k+1} - p{i-1,k}-p{i-1,k+1}) * 0.25 / r * g31[k][j][i]
                     if
                     (
-                        isFluidCell(k+1, j, i, nvert)
+                        // i-right boundary -> use upwind  only at the corner faces
+                        (
+                            i==mx-2 &&
+                            k==mz-2
+                        )
                     )
                     {
-                        PetscReal r=1.0;
+                        if (i!=1 )
+                        {
+                            // upwind differencing
+                            vol[CP] += g31[k][j][i] * 0.5 / r; // i, j, k
+                            vol[TP] += g31[k][j][i] * 0.5 / r; // i, j, k+1
+                            vol[WP] -= g31[k][j][i] * 0.5 / r; // i-1, j, k
+                            vol[TW] -= g31[k][j][i] * 0.5 / r; // i-1, j, k+1
+                        }
+                    }
+                    else if
+                    (
+                        // i-left boundary -> use upwind  only at the corner faces
+                        (
+                            i==1 &&
+                            k==mz-2
+                        )
+                    )
+                    {
+                        // upwind differencing
+                        vol[EP] += g31[k][j][i] * 0.5 / r; // i+1, j, k
+                        vol[TE] += g31[k][j][i] * 0.5 / r; // i+1, j, k+1
+                        vol[CP] -= g31[k][j][i] * 0.5 / r; // i, j, k
+                        vol[TP] -= g31[k][j][i] * 0.5 / r; // i, j, k+1
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[EP] += g31[k][j][i] * 0.25 / r; // i+1, j, k
+                        vol[TE] += g31[k][j][i] * 0.25 / r; // i+1, j, k+1
+                        vol[WP] -= g31[k][j][i] * 0.25 / r; // i-1, j, k
+                        vol[TW] -= g31[k][j][i] * 0.25 / r; // i-1, j, k+1
+                    }
 
-                        // dpdc{k} = (p{i+1,k}+p{i+1,k+1} - p{i-1,k}-p{i-1,k+1}) * 0.25 / r * g31[k][j][i]
-                        if
+                    // dpde{k} = (p{j+1, k}+p{j+1,k+1} - p{j-1, k}-p{j-1,k+1}) * 0.25 / r * g32[k][j][i]
+                    if
+                    (
+                        // j-right boundary -> use upwind  only at the corner faces
                         (
-                            // i-right boundary -> use upwind  only at the corner faces
-                            (
-                                i==mx-2 &&
-                                k==mz-2
-                            ) ||
-                            isIBMKFace(k, j, i+1, k+1, nvert)
+                            j==my-2 &&
+                            k==mz-2
                         )
+                    )
+                    {
+                        if (j!=1)
                         {
-                            if (isFluidKFace(k, j, i-1, k+1, nvert) && i!=1 )
-                            {
-                                // upwind differencing
-                                vol[CP] += g31[k][j][i] * 0.5 / r; // i, j, k
-                                vol[TP] += g31[k][j][i] * 0.5 / r; // i, j, k+1
-                                vol[WP] -= g31[k][j][i] * 0.5 / r; // i-1, j, k
-                                vol[TW] -= g31[k][j][i] * 0.5 / r; // i-1, j, k+1
-                            }
+                            // upwind differencing
+                            vol[CP] += g32[k][j][i] * 0.5 / r; // i, j,k
+                            vol[TP] += g32[k][j][i] * 0.5 / r; // i, j, k+1
+                            vol[SP] -= g32[k][j][i] * 0.5 / r; // i, j-1, k
+                            vol[TS] -= g32[k][j][i] * 0.5 / r; // i, j-1, k+1
                         }
-                        else if
+                    }
+                    else if
+                    (
+                        // j-left boundary -> use upwind  only at the corner faces
                         (
-                            // i-left boundary -> use upwind  only at the corner faces
-                            (
-                                i==1 &&
-                                k==mz-2
-                            ) ||
-                            isIBMKFace(k, j, i-1, k+1, nvert)
+                            j==1 &&
+                            k==mz-2
                         )
-                        {
-                            if (isFluidKFace(k, j, i+1, k+1, nvert))
-                            {
-                                // upwind differencing
-                                vol[EP] += g31[k][j][i] * 0.5 / r; // i+1, j, k
-                                vol[TE] += g31[k][j][i] * 0.5 / r; // i+1, j, k+1
-                                vol[CP] -= g31[k][j][i] * 0.5 / r; // i, j, k
-                                vol[TP] -= g31[k][j][i] * 0.5 / r; // i, j, k+1
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[EP] += g31[k][j][i] * 0.25 / r; // i+1, j, k
-                            vol[TE] += g31[k][j][i] * 0.25 / r; // i+1, j, k+1
-                            vol[WP] -= g31[k][j][i] * 0.25 / r; // i-1, j, k
-                            vol[TW] -= g31[k][j][i] * 0.25 / r; // i-1, j, k+1
-                        }
+                    )
+                    {
+                        // upwind differencing
+                        vol[NP] += g32[k][j][i] * 0.5 / r; // i, j+1, k
+                        vol[TN] += g32[k][j][i] * 0.5 / r; // i, j+1, k+1
+                        vol[CP] -= g32[k][j][i] * 0.5 / r; // i, j, k
+                        vol[TP] -= g32[k][j][i] * 0.5 / r; // i, j, k+1
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[NP] += g32[k][j][i] * 0.25 / r;//i, j+1, k
+                        vol[TN] += g32[k][j][i] * 0.25 / r;//i, j+1, k+1
+                        vol[SP] -= g32[k][j][i] * 0.25 / r;//i, j-1, k
+                        vol[TS] -= g32[k][j][i] * 0.25 / r;//i, j-1, k+1
+                    }
 
-                        // dpde{k} = (p{j+1, k}+p{j+1,k+1} - p{j-1, k}-p{j-1,k+1}) * 0.25 / r * g32[k][j][i]
-                        if
-                        (
-                            // j-right boundary -> use upwind  only at the corner faces
-                            (
-                                j==my-2 &&
-                                k==mz-2
-                            ) ||
-                            isIBMKFace(k, j+1, i, k+1, nvert)
-                        )
-                        {
-                            if (isFluidKFace(k, j-1, i, k+1, nvert) && j!=1)
-                            {
-                                // upwind differencing
-                                vol[CP] += g32[k][j][i] * 0.5 / r; // i, j,k
-                                vol[TP] += g32[k][j][i] * 0.5 / r; // i, j, k+1
-                                vol[SP] -= g32[k][j][i] * 0.5 / r; // i, j-1, k
-                                vol[TS] -= g32[k][j][i] * 0.5 / r; // i, j-1, k+1
-                            }
-                        }
-                        else if
-                        (
-                            // j-left boundary -> use upwind  only at the corner faces
-                            (
-                                j==1 &&
-                                k==mz-2
-                            ) ||
-                            isIBMKFace(k, j-1, i, k+1, nvert)
-                        )
-                        {
-                            if (isFluidKFace(k, j+1, i, k+1, nvert))
-                            {
-                                // upwind differencing
-                                vol[NP] += g32[k][j][i] * 0.5 / r; // i, j+1, k
-                                vol[TN] += g32[k][j][i] * 0.5 / r; // i, j+1, k+1
-                                vol[CP] -= g32[k][j][i] * 0.5 / r; // i, j, k
-                                vol[TP] -= g32[k][j][i] * 0.5 / r; // i, j, k+1
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[NP] += g32[k][j][i] * 0.25 / r;//i, j+1, k
-                            vol[TN] += g32[k][j][i] * 0.25 / r;//i, j+1, k+1
-                            vol[SP] -= g32[k][j][i] * 0.25 / r;//i, j-1, k
-                            vol[TS] -= g32[k][j][i] * 0.25 / r;//i, j-1, k+1
-                        }
-
-                        // dpdz{k} = p{k+1} - p{k}
-                        if
-                        (
-                            k != mz-2  ||
-                            mesh->k_periodic ||
-                            mesh->kk_periodic
-                        )
-                        {
-                            vol[CP] -= g33[k][j][i] / r; // i, j, k
-                            vol[TP] += g33[k][j][i] / r; // i, j, k+1
-                        }
-                    } // end of k+1/2
+                    // dpdz{k} = p{k+1} - p{k}
+                    if
+                    (
+                        k != mz-2  ||
+                        mesh->k_periodic ||
+                        mesh->kk_periodic
+                    )
+                    {
+                        vol[CP] -= g33[k][j][i] / r; // i, j, k
+                        vol[TP] += g33[k][j][i] / r; // i, j, k+1
+                    }
 
                     // contribution from bottom face in k-direction (k-1/2)
+
+                    // -dpdc{k-1} = -(p{i+1,k}+p{i+1,k-1} - p{i-1,k}-p{i-1,k-1}) * 0.25 / r * g31[k-1][j][i]
                     if
                     (
-                        isFluidCell(k-1, j, i, nvert)
+                        // i-right boundary -> use upwind  only at the corner faces
+                        (
+                            i==mx-2 &&
+                            k==1
+                        )
                     )
                     {
-                        PetscReal r=1.0;
+                        if (i!=1 )
+                        {
+                            // upwind differencing
+                            vol[CP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k
+                            vol[BP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k-1
+                            vol[WP] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k
+                            vol[BW] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k-1
+                        }
+                    }
+                    else if
+                    (
+                        // i-left boundary -> use upwind  only at the corner faces
+                        (
+                            i==1 &&
+                            k==1
+                        )
+                    )
+                    {
+                        // upwind differencing
+                        vol[EP] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k
+                        vol[BE] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k-1
+                        vol[CP] += g31[k-1][j][i] * 0.5 / r; // i, j, k
+                        vol[BP] += g31[k-1][j][i] * 0.5 / r; // i, j, k-1
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[EP] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k
+                        vol[BE] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k-1
+                        vol[WP] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k
+                        vol[BW] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k-1
+                    }
 
-                        // -dpdc{k-1} = -(p{i+1,k}+p{i+1,k-1} - p{i-1,k}-p{i-1,k-1}) * 0.25 / r * g31[k-1][j][i]
-                        if
+                    // -dpde{k-1} = -(p{j+1, k}+p{j+1,k-1} - p{j-1, k}-p{j-1,k-1}) *  0.25 / r * g32[k-1][j][i]
+                    // ( p{i, j+1,k-1/2} - p{i, j-1,k-1/2} ) / (2eta)
+                    if
+                    (
+                        // j-right boundary -> use upwind  only at the corner faces
                         (
-                            // i-right boundary -> use upwind  only at the corner faces
-                            (
-                                i==mx-2 &&
-                                k==1
-                            ) ||
-                            isIBMKFace(k, j, i+1, k-1, nvert)
+                            j==my-2 &&
+                            k==1
                         )
+                    )
+                    {
+                        if ( j!=1 )
                         {
-                            if (isFluidKFace(k, j, i-1, k-1, nvert) && i!=1 )
-                            {
-                                // upwind differencing
-                                vol[CP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k
-                                vol[BP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k-1
-                                vol[WP] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k
-                                vol[BW] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k-1
-                            }
+                            // upwind differencing
+                            vol[CP] -= g32[k-1][j][i] * 0.5 / r; // i, j,k
+                            vol[BP] -= g32[k-1][j][i] * 0.5 / r; // i, j, k-1
+                            vol[SP] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k
+                            vol[BS] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k-1
                         }
-                        else if
+                    }
+                    else if
+                    (
+                        // j-left boundary -> use upwind  only at the corner faces
                         (
-                            // i-left boundary -> use upwind  only at the corner faces
-                            (
-                                i==1 &&
-                                k==1
-                            ) ||
-                            isIBMKFace(k, j, i-1, k-1, nvert)
+                            j==1 &&
+                            k==1
                         )
-                        {
-                            if (isFluidKFace(k, j, i+1, k-1, nvert))
-                            {
-                                // upwind differencing
-                                vol[EP] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k
-                                vol[BE] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k-1
-                                vol[CP] += g31[k-1][j][i] * 0.5 / r; // i, j, k
-                                vol[BP] += g31[k-1][j][i] * 0.5 / r; // i, j, k-1
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[EP] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k
-                            vol[BE] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k-1
-                            vol[WP] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k
-                            vol[BW] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k-1
-                        }
+                    )
+                    {
+                        // upwind differencing
+                        vol[NP] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k
+                        vol[BN] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k-1
+                        vol[CP] += g32[k-1][j][i] * 0.5 / r; // i, j, k
+                        vol[BP] += g32[k-1][j][i] * 0.5 / r; // i, j, k-1
+                    }
+                    else
+                    {
+                        // central differencing
+                        vol[NP] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k
+                        vol[BN] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k-1
+                        vol[SP] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k
+                        vol[BS] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k-1
+                    }
 
-                        // -dpde{k-1} = -(p{j+1, k}+p{j+1,k-1} - p{j-1, k}-p{j-1,k-1}) *  0.25 / r * g32[k-1][j][i]
-                        // ( p{i, j+1,k-1/2} - p{i, j-1,k-1/2} ) / (2eta)
-                        if
-                        (
-                            // j-right boundary -> use upwind  only at the corner faces
-                            (
-                                j==my-2 &&
-                                k==1
-                            ) ||
-                            isIBMKFace(k, j+1, i, k-1, nvert)
-                        )
-                        {
-                            if (isFluidKFace(k, j-1, i, k-1, nvert) && j!=1 )
-                            {
-                                // upwind differencing
-                                vol[CP] -= g32[k-1][j][i] * 0.5 / r; // i, j,k
-                                vol[BP] -= g32[k-1][j][i] * 0.5 / r; // i, j, k-1
-                                vol[SP] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k
-                                vol[BS] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k-1
-                            }
-                        }
-                        else if
-                        (
-                            // j-left boundary -> use upwind  only at the corner faces
-                            (
-                                j==1 &&
-                                k==1
-                            ) ||
-                            isIBMKFace(k, j-1, i, k-1, nvert)
-                        )
-                        {
-                            if (isFluidKFace(k, j+1, i, k-1, nvert))
-                            {
-                                // upwind differencing
-                                vol[NP] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k
-                                vol[BN] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k-1
-                                vol[CP] += g32[k-1][j][i] * 0.5 / r; // i, j, k
-                                vol[BP] += g32[k-1][j][i] * 0.5 / r; // i, j, k-1
-                            }
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[NP] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k
-                            vol[BN] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k-1
-                            vol[SP] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k
-                            vol[BS] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k-1
-                        }
-
-                        // -dpdz{k-1} = -(p{k} - p{k-1}) * g33[k-1][j][i]
-                        if
-                        (
-                            k != 1     ||
-                            mesh->k_periodic ||
-                            mesh->kk_periodic
-                        )
-                        {
-                            vol[CP] -= g33[k-1][j][i] / r; // i, j, k
-                            vol[BP] += g33[k-1][j][i] / r; //i, j, k-1
-                        }
-                    } // end of k-1/2
+                    // -dpdz{k-1} = -(p{k} - p{k-1}) * g33[k-1][j][i]
+                    if
+                    (
+                        k != 1     ||
+                        mesh->k_periodic ||
+                        mesh->kk_periodic
+                    )
+                    {
+                        vol[CP] -= g33[k-1][j][i] / r; // i, j, k
+                        vol[BP] += g33[k-1][j][i] / r; //i, j, k-1
+                    }
 
                     idx[CP] = matID(i  , j  , k  );
                     idx[EP] = matID(i+1, j  , k  );
@@ -1373,6 +1421,59 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             // not putting values on other processors' elements.
                             HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
 
+                        }
+
+                        // FOR IBM  phi contribution only if stencil has an ibm fluid cell
+                        if(fabs(vol[m]) > 1.e-10 && idx[m] < -1)
+                        {
+                            // the number of values to be set with this call
+                            HYPRE_Int nrows = 1, ncols = 1;
+
+                            // Id of the ibm fluid cell from its relative stencil position
+                            cellIds Id = GetIdFromStencil(m, k, j, i);
+
+                            cellIds pCell;
+                            pCell.i = (PetscInt)pibmcell[Id.k][Id.j][Id.i].x;
+                            pCell.j = (PetscInt)pibmcell[Id.k][Id.j][Id.i].y;
+                            pCell.k = (PetscInt)pibmcell[Id.k][Id.j][Id.i].z;
+
+                            // interpolation weights of the 8 cells around the point
+                            PetscReal intWts[8];
+
+                            // cell ids of the cells - kL, kR, jL, jR, iL, iR
+                            PetscInt  intId[6];
+
+                            // get weights and ids of interpolation cells
+
+                            scalarPointInterpolationWeights
+                            (
+                                    mesh,
+                                    pibmpt[Id.k][Id.j][Id.i].x, pibmpt[Id.k][Id.j][Id.i].y, pibmpt[Id.k][Id.j][Id.i].z,
+                                    pCell.i, pCell.j, pCell.k,
+                                    cent,
+                                    intWts,
+                                    intId
+                            );
+
+                            PetscScalar coeff;
+                            PetscInt  ctr = 0;
+
+                            // loop over interpolation cells
+                            for (PetscInt kk = 0; kk<2; kk++)
+                            for (PetscInt jj = 0; jj<2; jj++)
+                            for (PetscInt ii = 0; ii<2; ii++)
+                            {
+                                HYPRE_Int col = matID(intId[ii+4], intId[jj+2], intId[kk]);
+                                if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                                {
+                                    printf("ibm cell - %ld %ld %ld, ibm cell in matrix %ld %ld %ld, indices = %ld %ld %ld %ld %ld %ld\n", Id.k, Id.j, Id.i, intId[kk], intId[jj+2], intId[ii+4], intId[0], intId[1], intId[2], intId[3], intId[4], intId[5]);
+                                }
+                                coeff = intWts[ctr] * vol[m];
+                                ctr++;
+
+                                HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &coeff);
+
+                            }
                         }
                     }
                 }
@@ -1422,8 +1523,12 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     DMDAVecRestoreArray(da,  mesh->lKAj,  &kaj);
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
     DMDAVecRestoreArray(da, peqn->lGid, &gid);
+
+    DMDAVecRestoreArray(fda, peqn->pIBMPt, &pibmpt);
+    DMDAVecRestoreArray(fda, peqn->pIBMCell, &pibmcell);
 
     return(0);
 }
@@ -1619,8 +1724,6 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    VecSet(peqn->Phi, 0.0);
-
     VecGetArray(peqn->phi, &phi1d);
     DMDAVecGetArray(da, peqn->Phi, &phi);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
@@ -1644,8 +1747,6 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
             }
         }
     }
-
-    // printstuff(peqn->access->ibm);
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
     DMDAVecRestoreArray(da, peqn->Phi, &phi);
@@ -2357,13 +2458,13 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
     clock_        *clock = peqn->access->clock;
     DM            da     = mesh->da, fda = mesh->fda;
     DMDALocalInfo info   = mesh->info;
-    PetscInt           xs     = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys     = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs     = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx     = info.mx, my = info.my, mz = info.mz;
+    PetscInt      xs     = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys     = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs     = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx     = info.mx, my = info.my, mz = info.mz;
 
-    PetscInt           i, j, k;
-    PetscInt           lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
     Cmpnts        ***icsi, ***ieta, ***izet;
     Cmpnts        ***jcsi, ***jeta, ***jzet;
@@ -2421,13 +2522,10 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 i==0 ||
                                 i==mx-2
                             )
-                        ) || isIBMIFace(k, j+1, i, i+1, nvert)
+                        )
                     )
                     {
-                        if (isFluidIFace(k, j-1, i, i+1, nvert))
-                        {
-                            dpde = (phi[k][j][i] + phi[k][j][i + 1] - phi[k][j - 1][i] - phi[k][j - 1][i + 1]) * 0.5;
-                        }
+                        dpde = (phi[k][j][i] + phi[k][j][i + 1] - phi[k][j - 1][i] - phi[k][j - 1][i + 1]) * 0.5;
                     }
                     else if
                     (
@@ -2439,13 +2537,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 i == mx - 2
                             )
                          )
-                         || isIBMIFace(k, j-1, i, i+1, nvert)
                      )
                      {
-                         if (isFluidIFace(k, j+1, i, i+1, nvert))
-                         {
-                             dpde = (phi[k][j+1][i] + phi[k][j+1][i+1] - phi[k][j][i] - phi[k][j][i+1])* 0.5;
-                         }
+                         dpde = (phi[k][j+1][i] + phi[k][j+1][i+1] - phi[k][j][i] - phi[k][j][i+1])* 0.5;
                      }
                      else
                      {
@@ -2463,13 +2557,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 i==mx-2
                             )
                         )
-                        || isIBMIFace(k+1, j, i, i+1, nvert)
                     )
                     {
-                        if (isFluidIFace(k-1, j, i, i+1, nvert))
-                        {
-                            dpdz = (phi[k][j][i] + phi[k][j][i+1] - phi[k-1][j][i] - phi[k-1][j][i+1]) * 0.5;
-                        }
+                        dpdz = (phi[k][j][i] + phi[k][j][i+1] - phi[k-1][j][i] - phi[k-1][j][i+1]) * 0.5;
                     }
                     else if
                     (
@@ -2481,13 +2571,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 i==mx-2
                             )
                         )
-                        || isIBMIFace(k-1, j, i, i+1, nvert)
                     )
                     {
-                        if (isFluidIFace(k+1, j, i, i+1, nvert))
-                        {
-                            dpdz = (phi[k+1][j][i] + phi[k+1][j][i+1]- phi[k][j][i] - phi[k][j][i+1]) * 0.5;
-                        }
+                        dpdz = (phi[k+1][j][i] + phi[k+1][j][i+1]- phi[k][j][i] - phi[k][j][i+1]) * 0.5;
                     }
                     else
                     {
@@ -2540,16 +2626,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 j==my-2
                             )
                         )
-                        || isIBMJFace(k, j, i+1, j+1, nvert)
                     )
                     {
-                        if
-                        (
-                                isFluidJFace(k, j, i-1, j+1, nvert)
-                        )
-                        {
-                            dpdc = (phi[k][j][i] + phi[k][j+1][i] - phi[k][j][i-1] - phi[k][j+1][i-1]) * 0.5;
-                        }
+                        dpdc = (phi[k][j][i] + phi[k][j+1][i] - phi[k][j][i-1] - phi[k][j+1][i-1]) * 0.5;
                     }
                     else if
                     (
@@ -2561,13 +2640,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 j==my-2
                             )
                         )
-                        || isIBMJFace(k, j, i-1, j+1, nvert)
                     )
                     {
-                        if (isFluidJFace(k, j, i+1, j+1, nvert))
-                        {
-                            dpdc = (phi[k][j][i+1] + phi[k][j+1][i+1] - phi[k][j][i] - phi[k][j+1][i]) * 0.5;
-                        }
+                        dpdc = (phi[k][j][i+1] + phi[k][j+1][i+1] - phi[k][j][i] - phi[k][j+1][i]) * 0.5;
                     }
                     else
                     {
@@ -2587,13 +2662,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 j== my-2
                             )
                         )
-                        || isIBMJFace(k+1, j, i, j+1, nvert)
                     )
                     {
-                        if (isFluidJFace(k-1, j, i, j+1, nvert) && k != 1)
-                        {
-                            dpdz = (phi[k][j][i] + phi[k][j+1][i] - phi[k-1][j][i] - phi[k - 1][j + 1][i]) * 0.5;
-                        }
+                        dpdz = (phi[k][j][i] + phi[k][j+1][i] - phi[k-1][j][i] - phi[k - 1][j + 1][i]) * 0.5;
                     }
                     else if
                     (
@@ -2605,13 +2676,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 j== my-2
                             )
                         )
-                        || isIBMJFace(k-1, j, i, j+1, nvert)
                     )
                     {
-                        if (isFluidJFace(k+1, j, i, j+1, nvert))
-                        {
-                            dpdz = (phi[k + 1][j][i] + phi[k + 1][j + 1][i] - phi[k][j][i] - phi[k][j + 1][i]) * 0.5;
-                        }
+                        dpdz = (phi[k + 1][j][i] + phi[k + 1][j + 1][i] - phi[k][j][i] - phi[k][j + 1][i]) * 0.5;
                     }
                     else
                     {
@@ -2665,13 +2732,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 k==mz-2
                             )
                         )
-                        || isIBMKFace(k, j, i+1, k+1, nvert)
                     )
                     {
-                        if (isFluidKFace(k, j, i-1, k+1, nvert))
-                        {
-                            dpdc = (phi[k][j][i] + phi[k+1][j][i] - phi[k][j][i-1] - phi[k+1][j][i-1]) * 0.5;
-                        }
+                        dpdc = (phi[k][j][i] + phi[k+1][j][i] - phi[k][j][i-1] - phi[k+1][j][i-1]) * 0.5;
                     }
                     else if
                     (
@@ -2683,16 +2746,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 k == mz - 2
                             )
                         )
-                        || isIBMKFace(k, j, i-1, k+1, nvert)
                     )
                     {
-                        if
-                        (
-                                isFluidKFace(k, j, i+1, k+1, nvert)
-                        )
-                        {
-                            dpdc = (phi[k][j][i+1] + phi[k+1][j][i+1] - phi[k][j][i] - phi[k+1][j][i])* 0.5;
-                        }
+                        dpdc = (phi[k][j][i+1] + phi[k+1][j][i+1] - phi[k][j][i] - phi[k+1][j][i])* 0.5;
                     }
                     else
                     {
@@ -2709,13 +2765,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 k==mz-2
                             )
                         )
-                        || isIBMKFace(k, j+1, i, k+1, nvert)
                     )
                     {
-                        if(isFluidKFace(k, j-1, i, k+1, nvert))
-                        {
-                            dpde = (phi[k][j][i] + phi[k+1][j][i] - phi[k][j-1][i] - phi[k+1][j-1][i]) * 0.5;
-                        }
+                        dpde = (phi[k][j][i] + phi[k+1][j][i] - phi[k][j-1][i] - phi[k+1][j-1][i]) * 0.5;
                     }
                     else if
                     (
@@ -2727,13 +2779,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 k==mz-2
                             )
                         )
-                        || isIBMKFace(k, j-1, i, k+1, nvert)
                     )
                     {
-                        if (isFluidKFace(k, j+1, i, k+1, nvert))
-                        {
-                            dpde = (phi[k][j+1][i] + phi[k+1][j+1][i] - phi[k][j][i] - phi[k+1][j][i]) * 0.5;
-                        }
+                        dpde = (phi[k][j+1][i] + phi[k+1][j+1][i] - phi[k][j][i] - phi[k+1][j][i]) * 0.5;
                     }
                     else
                     {
@@ -2830,18 +2878,19 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
 
     // update pressure and average
+
     for (k=zs; k<ze; k++)
     {
         for (j=ys; j<ye; j++)
         {
             for (i=xs; i<xe; i++)
             {
-              if (isIBMCell(k, j, i, nvert))
+              if (isIBMSolidCell(k, j, i, nvert))
               {
                       continue;
               }
 
-              if (isFluidCell(k, j, i, nvert))
+              if (isFluidCell(k, j, i, nvert) || isIBMFluidCell(k, j, i, nvert))
               {
                   p[k][j][i] += lphi[k][j][i];
                   lPsum += p[k][j][i];
@@ -2863,7 +2912,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-              if (isFluidCell(k, j, i, nvert))
+              if (isFluidCell(k, j, i, nvert) || isIBMFluidCell(k, j, i, nvert))
               {
                   p[k][j][i] -= gPsum;
               }
@@ -2883,6 +2932,227 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     DMGlobalToLocalEnd  (da, peqn->P, INSERT_VALUES, peqn->lP);
 
     return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode updateIBMPhi(ibm_ *ibm)
+{
+    PetscInt           i, j, k, c, b;
+    PetscInt           cElem;
+    ibmFluidCell       *ibF = ibm->ibmFCells;
+    Cmpnts             eN;                                     // unit normal from the closest IBM mesh element of the IBM fluid cell
+    Cmpnts             eC;                                     // unit vector along the line joining IBM fluid cell (k,j,i) to the cell (kc, jc, ic)
+    Cmpnts             checkPt;                           // point where the pressure needs to be interpolated
+    Cmpnts             del, delCheckPt;
+    PetscReal          refLength;                              // reference length set as the average cell size
+    PetscReal          baseLength, checkLength;
+
+    mesh_              *mesh = ibm->access->mesh;
+    peqn_              *peqn = ibm->access->peqn;
+
+    DM                 da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts             ***cent, ***pibmpt, ***pibmcell;
+    PetscReal          ***aj, ***nvert, ***lPhi, ***gPhi;
+
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+    DMDAVecGetArray(da, peqn->lPhi, &lPhi);
+    DMDAVecGetArray(da, peqn->Phi, &gPhi);
+
+    DMDAVecGetArray(fda, peqn->pIBMPt, &pibmpt);
+    DMDAVecGetArray(fda, peqn->pIBMCell, &pibmcell);
+
+    for(c = 0; c < ibm->numIBMFluid; c++)
+    {
+
+        //cell indices
+        i = ibF[c].cellId.i;
+        j = ibF[c].cellId.j;
+        k = ibF[c].cellId.k;
+
+        cElem = ibF[c].closestElem;
+        b     = ibF[c].bodyID;
+
+        ibmObject     *ibmBody = ibm->ibmBody[b];
+        ibmMesh   *ibMsh = ibmBody->ibMsh;
+
+        eN = ibMsh->eN[cElem];
+        refLength = pow( 1./aj[k][j][i], 1./3.);
+
+        checkPt = nScale(refLength, eN);
+        mSum(checkPt, cent[k][j][i]);
+
+        //find the closest neighbour of k,j,i to checkPt
+        PetscInt    i1, j1, k1;
+        PetscReal   dmin = 10e6, d;
+        PetscInt    ic, jc, kc;
+
+        for (k1=k-1; k1<k+2; k1++)
+        for (j1=j-1; j1<j+2; j1++)
+        for (i1=i-1; i1<i+2; i1++)
+        {
+            if
+            (
+                (
+                    k1>=1 && k1<mz-1 &&
+                    j1>=1 && j1<my-1 &&
+                    i1>=1 && i1<mx-1
+                ) && isFluidCell(k1, j1, i1, nvert)
+            )
+            {
+                d = pow((checkPt.x - cent[k1][j1][i1].x), 2) +
+                    pow((checkPt.y - cent[k1][j1][i1].y), 2) +
+                    pow((checkPt.z - cent[k1][j1][i1].z), 2);
+
+                if
+                (
+                    d < dmin
+                )
+                {
+                    dmin  = d;
+                    ic = i1;
+                    jc = j1;
+                    kc = k1;
+                }
+            }
+        }
+
+        PetscInt intId[6];
+        PetscInt intFlag = 1;
+
+        // get the trilinear interpolation cells
+        scalarPointInterpolationCells
+        (
+                mesh,
+                checkPt.x, checkPt.y, checkPt.z,
+                ic, jc, kc,
+                cent,
+                intId
+        );
+
+        while (intFlag && isInsideSimDomain(checkPt, mesh->bounds))
+        {
+            PetscInt ibmCellCtr = 0;
+            PetscInt icc, jcc, kcc;
+
+            for (PetscInt kk = 0; kk<2; kk++)
+            for (PetscInt jj = 0; jj<2; jj++)
+            for (PetscInt ii = 0; ii<2; ii++)
+            {
+                if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                {
+                    ibmCellCtr ++;
+                }
+
+            }
+
+            if (ibmCellCtr > 0)
+            {
+                del =  nScale(0.5 * refLength, eN);
+                mSum(checkPt, del);
+                dmin = 10e6;
+
+                for (k1=kc-1; k1<kc+2; k1++)
+                for (j1=jc-1; j1<jc+2; j1++)
+                for (i1=ic-1; i1<ic+2; i1++)
+                {
+
+                    if
+                    (
+                        (
+                            k1>=1 && k1<mz-1 &&
+                            j1>=1 && j1<my-1 &&
+                            i1>=1 && i1<mx-1
+                        ) && isFluidCell(k1, j1, i1, nvert)
+                    )
+                    {
+                        d = pow((checkPt.x - cent[k1][j1][i1].x), 2) +
+                            pow((checkPt.y - cent[k1][j1][i1].y), 2) +
+                            pow((checkPt.z - cent[k1][j1][i1].z), 2);
+
+                        if
+                        (
+                            d < dmin
+                        )
+                        {
+                            dmin  = d;
+                            icc = i1;
+                            jcc = j1;
+                            kcc = k1;
+                        }
+                    }
+
+                }
+
+                kc = kcc; jc = jcc; ic = icc;
+
+                scalarPointInterpolationCells
+                (
+                        mesh,
+                        checkPt.x, checkPt.y, checkPt.z,
+                        ic, jc, kc,
+                        cent,
+                        intId
+                );
+            }
+            else
+            {
+                intFlag = 0;
+
+                scalarPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        checkPt.x, checkPt.y, checkPt.z,
+                        ic, jc, kc,
+                        cent,
+                        lPhi,
+                        gPhi[k][j][i]
+                );
+            }
+        }
+
+        if(intFlag == 1)
+        {
+            char warning[512];
+            sprintf(warning, "reference length along the ibm element normal lies outside the domain. Setting the ibm fluid cell %ld, %ld, %ld pressure to 0\n", k, j, i);
+            warningInFunction("updateIBMPressure",  warning);
+            gPhi[k][j][i] = 0.;
+        }
+
+        // save the interpolation point
+        pibmpt[k][j][i] = nSet(checkPt);
+
+        //save the pCell id for use in poisson coefficient matrix
+        pibmcell[k][j][i].x = (PetscReal)ic;
+        pibmcell[k][j][i].y = (PetscReal)jc;
+        pibmcell[k][j][i].z = (PetscReal)kc;
+
+    }
+
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, peqn->lPhi, &lPhi);
+    DMDAVecRestoreArray(da, peqn->Phi, &gPhi);
+
+    DMDAVecRestoreArray(fda, peqn->pIBMPt, &pibmpt);
+    DMDAVecRestoreArray(fda, peqn->pIBMCell, &pibmcell);
+
+    DMLocalToLocalBegin(fda, peqn->pIBMPt, INSERT_VALUES, peqn->pIBMPt);
+    DMLocalToLocalEnd  (fda, peqn->pIBMPt, INSERT_VALUES, peqn->pIBMPt);
+
+    DMLocalToLocalBegin(fda, peqn->pIBMCell, INSERT_VALUES, peqn->pIBMCell);
+    DMLocalToLocalEnd  (fda, peqn->pIBMCell, INSERT_VALUES, peqn->pIBMCell);
+
+    DMGlobalToLocalBegin(da, peqn->Phi, INSERT_VALUES, peqn->lPhi);
+    DMGlobalToLocalEnd  (da, peqn->Phi, INSERT_VALUES, peqn->lPhi);
+
+    return (0);
 }
 
 //***************************************************************************************************************//
@@ -2962,7 +3232,6 @@ PetscErrorCode GradP(peqn_ *peqn)
 
                 if
                 (
-                    isIBMIFace(k, j+1, i, i+1, nvert) ||
                     // j-right boundary -> use upwind only at the corner faces
                     (
                         j==my-2 &&
@@ -2976,7 +3245,6 @@ PetscErrorCode GradP(peqn_ *peqn)
                 }
                 else if
                 (
-                    isIBMIFace(k, j-1, i, i+1, nvert) ||
                     // j-left boundary -> use upwind  only at the corner faces
                     (
                         j == 1 &&
@@ -2995,7 +3263,6 @@ PetscErrorCode GradP(peqn_ *peqn)
 
                 if
                 (
-                    isIBMIFace(k+1, j, i, i+1, nvert) ||
                     // k-right boundary -> use upwind  only at the corner faces
                     (
                         k == mz - 2 &&
@@ -3009,7 +3276,6 @@ PetscErrorCode GradP(peqn_ *peqn)
                 }
                 else if
                 (
-                    isIBMIFace(k-1, j, i, i+1, nvert) ||
                     // k-left boundary  -> use upwind  only at the corner faces
                     (
                         k == 1 &&
@@ -3031,7 +3297,6 @@ PetscErrorCode GradP(peqn_ *peqn)
                 // pressure gradient in the j-direction
                 if
                 (
-                    isIBMJFace(k, j, i+1, j+1, nvert) ||
                     // i-right boundary -> use upwind  only at the corner faces
                     (
                         i == mx-2 &&
@@ -3045,7 +3310,6 @@ PetscErrorCode GradP(peqn_ *peqn)
                 }
                 else if
                 (
-                    isIBMJFace(k, j, i-1, j+1, nvert) ||
                     // i-left boundary -> use upwind  only at the corner faces
                     (
                         i == 1 &&
@@ -3073,7 +3337,6 @@ PetscErrorCode GradP(peqn_ *peqn)
 
                 if
                 (
-                    isIBMJFace(k+1, j, i, j+1, nvert) ||
                     // k-right boundary -> use upwind  only at the corner faces
                     (
                         k == mz-2 &&
@@ -3087,7 +3350,6 @@ PetscErrorCode GradP(peqn_ *peqn)
                 }
                 else if
                 (
-                    isIBMJFace(k-1, j, i, j+1, nvert) ||
                     // k-left boundary -> use upwind  only at the corner faces
                     (
                         k == 1 &&
@@ -3109,7 +3371,6 @@ PetscErrorCode GradP(peqn_ *peqn)
                 // pressure gradient in the k-direction
                 if
                 (
-                    isIBMKFace(k, j, i+1, k+1, nvert) ||
                     // i-right boundary -> use upwind  only at the corner faces
                     (
                         i == mx - 2 &&
@@ -3123,7 +3384,6 @@ PetscErrorCode GradP(peqn_ *peqn)
                 }
                 else if
                 (
-                    isIBMKFace(k, j, i-1, k+1, nvert) ||
                     // i-left boundary -> use upwind  only at the corner faces
                     (
                         i == 1 &&
@@ -3142,7 +3402,6 @@ PetscErrorCode GradP(peqn_ *peqn)
 
                 if
                 (
-                    isIBMKFace(k, j+1, i, k+1, nvert) ||
                     // j-right boundary -> use upwind  only at the corner faces
                     (
                         j == my - 2 &&
@@ -3156,7 +3415,6 @@ PetscErrorCode GradP(peqn_ *peqn)
                 }
                 else if
                 (
-                    isIBMKFace(k, j-1, i, k+1, nvert) ||
                     // j-left boundary -> use upwind  only at the corner faces
                     (
                         j == 1 &&
@@ -3188,21 +3446,21 @@ PetscErrorCode GradP(peqn_ *peqn)
                 // non-periodic: set to zero also on right boundaries since the contrav. velocity is not solved there
                 if
                 (
-                    i==0 || isIBMIFace(k, j, i, i+1, nvert) || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2)
+                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2)
                 )
                 {
                     dp[k][j][i].x = 0;
                 }
                 if
                 (
-                    j==0 || isIBMJFace(k, j, i, j+1, nvert) || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2)
+                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2)
                 )
                 {
                     dp[k][j][i].y = 0;
                 }
                 if
                 (
-                    k==0 || isIBMKFace(k, j, i, k+1, nvert) || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2)
+                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2)
                 )
                 {
                     dp[k][j][i].z = 0;
@@ -3248,16 +3506,16 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     // add flux correction
     if(flags->isIBMActive)
     {
-        if(atleastOneIBM(peqn->access->ibm))
-        {
-            AdjustIBMFlux(peqn);
-        }
+
+        AdjustIBMFlux(peqn);
+
+        MPI_Barrier(mesh->MESH_COMM);
+
     }
 
     if(flags->isIBMActive)
     {
-        if(atleastOneIBM(peqn->access->ibm))
-        {
+
             if( (clock->it == clock->itStart) || (peqn->access->ibm->dynamic) )
             {
                 // destroy the initialized hypre matrix
@@ -3279,10 +3537,18 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
                 CreateHypreSolver(peqn);
 
+                // if ibm active set the pressure interpolation cells for coefficient matrix
+                if(peqn->access->flags->isIBMActive)
+                {
+                    updateIBMPhi(peqn->access->ibm);
+                }
+
                 // set coefficient matrix
                 SetCoeffMatrix(peqn);
+
+                MPI_Barrier(mesh->MESH_COMM);
             }
-        }
+
     }
 
     // compute the RHS (divergence of predicted velocity)
@@ -3364,7 +3630,7 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
     // update pressure
     UpdatePressure(peqn);
-
+	
     // set pressure reference
     SetPressureReference(peqn);
 

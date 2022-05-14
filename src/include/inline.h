@@ -489,7 +489,19 @@ inline void AxByC ( PetscReal a, Cmpnts &X, PetscReal b, Cmpnts &Y, Cmpnts *C)
 
     return;
 }
+//***************************************************************************************************************//
 
+// domain checks
+inline bool isInsideSimDomain ( Cmpnts pt, const boundingBox &simBox)
+{
+    return (pt.x > simBox.xmin
+       &&   pt.x < simBox.xmax
+       &&   pt.y > simBox.ymin
+       &&   pt.y < simBox.ymax
+       &&   pt.z > simBox.zmin
+       &&   pt.z < simBox.zmax ) ;
+
+}
 // MESH OPERATIONS
 // ============================================================================================================= //
 
@@ -549,12 +561,6 @@ inline void calculateNormal(Cmpnts &csi, Cmpnts &eta, Cmpnts &zet, PetscReal ni[
 
 // CELL DEFINITION TEST
 // ============================================================================================================= //
-
-//! \brief check if atleast one ibm body in the domain
-inline bool atleastOneIBM(ibm_ *ibm)
-{
-  return (ibm->ibmControlled == 1);
-}
 
 //***************************************************************************************************************//
 
@@ -3177,6 +3183,431 @@ inline void scalarPointLocalVolumeInterpolation
 
 //***************************************************************************************************************//
 
+//! \brief Trilinear volume interpolation function for scalars to return interpolation Weights
+inline void scalarPointInterpolationWeights
+(
+    mesh_ *mesh,
+    PetscReal px, PetscReal py, PetscReal pz,
+    PetscInt ic, PetscInt jc, PetscInt kc,
+    Cmpnts ***cent,
+    PetscReal *intWts,
+    PetscInt *intId
+)
+{
+    // Given generic point coordinates px, py, pz and the indices of the closest
+    // cell center, this functions finds the closest 8 cells to the given point which form
+    // its surrounding box and interpolates the point value using the values at the 8
+    // surrounding cell centers (tri-linear interpolation).
+    // Note: cell indices passed to this function must be internal cells, not ghosts.
+    // Throws an error otherwise.
+    // Interpolation weights are bounded from 0 to 1 to handle query points lying outside
+    // of the boundaries: this means that those points are projected on the boundaries and
+    // the value there is returned (Prevents extrapolation ouside of boundaries).
+
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         i, j, k;
+
+    PetscInt iL, iR;
+
+    // do the search if surrounded by cells
+    if(ic > 1 && ic < mx-2)
+    {
+        PetscReal dcsiRightSq
+        =
+        std::pow(cent[kc][jc][ic+1].x - px,2) +
+        std::pow(cent[kc][jc][ic+1].y - py,2) +
+        std::pow(cent[kc][jc][ic+1].z - pz,2);
+
+        PetscReal dcsiLeftSq
+        =
+        std::pow(px - cent[kc][jc][ic-1].x,2) +
+        std::pow(py - cent[kc][jc][ic-1].y,2) +
+        std::pow(pz - cent[kc][jc][ic-1].z,2);
+
+        if(dcsiRightSq <= dcsiLeftSq)
+        {
+            iR = ic + 1; iL = ic;
+        }
+        else
+        {
+            iR = ic; iL = ic-1;
+        }
+    }
+    // on boundary, already know where to pick data
+    else if(ic == 1)
+    {
+        iR = ic + 1; iL = ic;
+    }
+    // on boundary, already know where to pick data
+    else if(ic == mx-2)
+    {
+        iR = ic; iL = ic-1;
+    }
+    // outside the boundary: the Vec V might not contain useful data.
+    else
+    {
+       char error[512];
+        sprintf(error, "i-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
+        fatalErrorInFunction("scalarPointInterpolationWeights",  error);
+    }
+
+    PetscInt jL, jR;
+    // do the search if surrounded by cells
+    if(jc > 1 && jc < my-2)
+    {
+        PetscReal detaRightSq
+        =
+        std::pow(cent[kc][jc+1][ic].x - px,2) +
+        std::pow(cent[kc][jc+1][ic].y - py,2) +
+        std::pow(cent[kc][jc+1][ic].z - pz,2);
+
+        PetscReal detaLeftSq
+        =
+        std::pow(px - cent[kc][jc-1][ic].x,2) +
+        std::pow(py - cent[kc][jc-1][ic].y,2) +
+        std::pow(pz - cent[kc][jc-1][ic].z,2);
+
+        if(detaRightSq <= detaLeftSq)
+        {
+            jR = jc + 1; jL = jc;
+        }
+        else
+        {
+            jR = jc; jL = jc-1;
+        }
+    }
+    // on boundary, already know where to pick data
+    else if(jc == 1)
+    {
+        jR = jc + 1; jL = jc;
+    }
+    // on boundary, already know where to pick data
+    else if(jc == my-2)
+    {
+        jR = jc; jL = jc-1;
+    }
+    // outside the boundary: the Vec V might not contain useful data.
+    else
+    {
+       char error[512];
+        sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
+        fatalErrorInFunction("scalarPointInterpolationWeights",  error);
+    }
+
+    PetscInt kL, kR;
+    // do the search if surrounded by cells
+    if(kc > 1 && kc < mz-2)
+    {
+        PetscReal dzetRightSq
+        =
+        std::pow(cent[kc+1][jc][ic].x - px,2) +
+        std::pow(cent[kc+1][jc][ic].y - py,2) +
+        std::pow(cent[kc+1][jc][ic].z - pz,2);
+
+        PetscReal dzetLeftSq
+        =
+        std::pow(px - cent[kc-1][jc][ic].x,2) +
+        std::pow(py - cent[kc-1][jc][ic].y,2) +
+        std::pow(pz - cent[kc-1][jc][ic].z,2);
+
+        if(dzetRightSq <= dzetLeftSq)
+        {
+            kR = kc + 1; kL = kc;
+        }
+        else
+        {
+            kR = kc; kL = kc-1;
+        }
+    }
+    // on boundary, already know where to pick data
+    else if(kc == 1)
+    {
+        kR = kc + 1; kL = kc;
+    }
+    // on boundary, already know where to pick data
+    else if(kc == mz-2)
+    {
+        kR = kc; kL = kc-1;
+    }
+    // outside the boundary: the Vec V might not contain useful data.
+    else
+    {
+       char error[512];
+        sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
+        fatalErrorInFunction("scalarPointInterpolationWeights",  error);
+    }
+
+    intId[0] = kL;
+    intId[1] = kR;
+    intId[2] = jL;
+    intId[3] = jR;
+    intId[4] = iL;
+    intId[5] = iR;
+
+    // find directional gradients
+    Cmpnts csiHat, etaHat, zetHat;
+    PetscReal csiNor, etaNor, zetNor;
+
+    csiHat.x = cent[kL][jL][iR].x - cent[kL][jL][iL].x;
+    csiHat.y = cent[kL][jL][iR].y - cent[kL][jL][iL].y;
+    csiHat.z = cent[kL][jL][iR].z - cent[kL][jL][iL].z;
+
+    etaHat.x = cent[kL][jR][iL].x - cent[kL][jL][iL].x;
+    etaHat.y = cent[kL][jR][iL].y - cent[kL][jL][iL].y;
+    etaHat.z = cent[kL][jR][iL].z - cent[kL][jL][iL].z;
+
+    zetHat.x = cent[kR][jL][iL].x - cent[kL][jL][iL].x;
+    zetHat.y = cent[kR][jL][iL].y - cent[kL][jL][iL].y;
+    zetHat.z = cent[kR][jL][iL].z - cent[kL][jL][iL].z;
+
+    csiNor = std::sqrt(csiHat.x*csiHat.x + csiHat.y*csiHat.y + csiHat.z*csiHat.z);
+    etaNor = std::sqrt(etaHat.x*etaHat.x + etaHat.y*etaHat.y + etaHat.z*etaHat.z);
+    zetNor = std::sqrt(zetHat.x*zetHat.x + zetHat.y*zetHat.y + zetHat.z*zetHat.z);
+
+    csiHat.x = csiHat.x / csiNor; csiHat.y = csiHat.y / csiNor; csiHat.z = csiHat.z / csiNor;
+    etaHat.x = etaHat.x / etaNor; etaHat.y = etaHat.y / etaNor; etaHat.z = etaHat.z / etaNor;
+    zetHat.x = zetHat.x / zetNor; zetHat.y = zetHat.y / zetNor; zetHat.z = zetHat.z / zetNor;
+
+    // bound deltas from 0 to 1: this means that if the query point is outside of boundaries (we have
+    // no data there), we project that point on the boundary and give the interpolated value at that
+    // point as a result.
+
+    PetscReal deltaCsi
+    =
+    PetscMax
+    (
+        PetscMin
+        (
+            (
+                csiHat.x * (px - cent[kL][jL][iL].x) +
+                csiHat.y * (py - cent[kL][jL][iL].y) +
+                csiHat.z * (pz - cent[kL][jL][iL].z)
+
+            ) / csiNor,
+            1.0
+        ),
+        0.0
+    );
+
+    PetscReal deltaEta
+    =
+    PetscMax
+    (
+        PetscMin
+        (
+            (
+                etaHat.x * (px - cent[kL][jL][iL].x) +
+                etaHat.y * (py - cent[kL][jL][iL].y) +
+                etaHat.z * (pz - cent[kL][jL][iL].z)
+
+            ) / etaNor,
+            1.0
+        ),
+        0.0
+    );
+
+    PetscReal deltaZet
+    =
+    PetscMax
+    (
+        PetscMin
+        (
+            (
+                zetHat.x * (px - cent[kL][jL][iL].x) +
+                zetHat.y * (py - cent[kL][jL][iL].y) +
+                zetHat.z * (pz - cent[kL][jL][iL].z)
+
+            ) / zetNor,
+            1.0
+        ),
+        0.0
+    );
+
+    // find interpolation weights
+    intWts[0] = 1 - deltaCsi - deltaEta - deltaZet + (deltaCsi * deltaEta) + (deltaEta * deltaZet) + (deltaZet * deltaCsi) - (deltaCsi * deltaEta * deltaZet),
+    intWts[1] = deltaCsi - (deltaCsi * deltaEta) - (deltaZet * deltaCsi) + (deltaCsi * deltaEta * deltaZet),
+    intWts[2] = deltaEta - (deltaCsi * deltaEta) - (deltaEta * deltaZet) + (deltaCsi * deltaEta * deltaZet),
+    intWts[3] = (deltaCsi * deltaEta) - (deltaCsi * deltaEta * deltaZet),
+    intWts[4] = deltaZet - (deltaEta * deltaZet) - (deltaZet * deltaCsi) + (deltaCsi * deltaEta * deltaZet),
+    intWts[5] = (deltaZet * deltaCsi) - (deltaCsi * deltaEta * deltaZet),
+    intWts[6] = (deltaEta * deltaZet) - (deltaCsi * deltaEta * deltaZet),
+    intWts[7] = (deltaCsi * deltaEta * deltaZet);
+
+    return;
+}
+//***************************************************************************************************************//
+//! \brief Trilinear volume interpolation function for scalars to return interpolation cells
+inline void scalarPointInterpolationCells
+(
+    mesh_ *mesh,
+    PetscReal px, PetscReal py, PetscReal pz,
+    PetscInt ic, PetscInt jc, PetscInt kc,
+    Cmpnts ***cent,
+    PetscInt *intId
+)
+{
+    // Given generic point coordinates px, py, pz and the indices of the closest
+    // cell center, this functions finds the closest 8 cells to the given point which form
+    // its surrounding box and interpolates the point value using the values at the 8
+    // surrounding cell centers (tri-linear interpolation).
+    // Note: cell indices passed to this function must be internal cells, not ghosts.
+    // Throws an error otherwise.
+    // Interpolation weights are bounded from 0 to 1 to handle query points lying outside
+    // of the boundaries: this means that those points are projected on the boundaries and
+    // the value there is returned (Prevents extrapolation ouside of boundaries).
+
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         i, j, k;
+
+    PetscInt iL, iR;
+    // do the search if surrounded by cells
+    if(ic > 1 && ic < mx-2)
+    {
+        PetscReal dcsiRightSq
+        =
+        std::pow(cent[kc][jc][ic+1].x - px,2) +
+        std::pow(cent[kc][jc][ic+1].y - py,2) +
+        std::pow(cent[kc][jc][ic+1].z - pz,2);
+
+        PetscReal dcsiLeftSq
+        =
+        std::pow(px - cent[kc][jc][ic-1].x,2) +
+        std::pow(py - cent[kc][jc][ic-1].y,2) +
+        std::pow(pz - cent[kc][jc][ic-1].z,2);
+
+        if(dcsiRightSq <= dcsiLeftSq)
+        {
+            iR = ic + 1; iL = ic;
+        }
+        else
+        {
+            iR = ic; iL = ic-1;
+        }
+    }
+    // on boundary, already know where to pick data
+    else if(ic == 1)
+    {
+        iR = ic + 1; iL = ic;
+    }
+    // on boundary, already know where to pick data
+    else if(ic == mx-2)
+    {
+        iR = ic; iL = ic-1;
+    }
+    // outside the boundary: the Vec V might not contain useful data.
+    else
+    {
+       char error[512];
+        sprintf(error, "i-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
+        fatalErrorInFunction("scalarPointInterpolationCells",  error);
+    }
+
+    PetscInt jL, jR;
+    // do the search if surrounded by cells
+    if(jc > 1 && jc < my-2)
+    {
+        PetscReal detaRightSq
+        =
+        std::pow(cent[kc][jc+1][ic].x - px,2) +
+        std::pow(cent[kc][jc+1][ic].y - py,2) +
+        std::pow(cent[kc][jc+1][ic].z - pz,2);
+
+        PetscReal detaLeftSq
+        =
+        std::pow(px - cent[kc][jc-1][ic].x,2) +
+        std::pow(py - cent[kc][jc-1][ic].y,2) +
+        std::pow(pz - cent[kc][jc-1][ic].z,2);
+
+        if(detaRightSq <= detaLeftSq)
+        {
+            jR = jc + 1; jL = jc;
+        }
+        else
+        {
+            jR = jc; jL = jc-1;
+        }
+    }
+    // on boundary, already know where to pick data
+    else if(jc == 1)
+    {
+        jR = jc + 1; jL = jc;
+    }
+    // on boundary, already know where to pick data
+    else if(jc == my-2)
+    {
+        jR = jc; jL = jc-1;
+    }
+    // outside the boundary: the Vec V might not contain useful data.
+    else
+    {
+       char error[512];
+        sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
+        fatalErrorInFunction("scalarPointInterpolationCells",  error);
+    }
+
+    PetscInt kL, kR;
+    // do the search if surrounded by cells
+    if(kc > 1 && kc < mz-2)
+    {
+        PetscReal dzetRightSq
+        =
+        std::pow(cent[kc+1][jc][ic].x - px,2) +
+        std::pow(cent[kc+1][jc][ic].y - py,2) +
+        std::pow(cent[kc+1][jc][ic].z - pz,2);
+
+        PetscReal dzetLeftSq
+        =
+        std::pow(px - cent[kc-1][jc][ic].x,2) +
+        std::pow(py - cent[kc-1][jc][ic].y,2) +
+        std::pow(pz - cent[kc-1][jc][ic].z,2);
+
+        if(dzetRightSq <= dzetLeftSq)
+        {
+            kR = kc + 1; kL = kc;
+        }
+        else
+        {
+            kR = kc; kL = kc-1;
+        }
+    }
+    // on boundary, already know where to pick data
+    else if(kc == 1)
+    {
+        kR = kc + 1; kL = kc;
+    }
+    // on boundary, already know where to pick data
+    else if(kc == mz-2)
+    {
+        kR = kc; kL = kc-1;
+    }
+    // outside the boundary: the Vec V might not contain useful data.
+    else
+    {
+       char error[512];
+        sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
+        fatalErrorInFunction("scalarPointInterpolationCells",  error);
+    }
+
+    intId[0] = kL;
+    intId[1] = kR;
+    intId[2] = jL;
+    intId[3] = jR;
+    intId[4] = iL;
+    intId[5] = iR;
+
+    return;
+}
+//***************************************************************************************************************//
 //! \brief Trilinear volume interpolation function for vectors
 inline void vectorPointLocalVolumeInterpolation
 (

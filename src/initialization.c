@@ -101,6 +101,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // initialize ABL parameters
         InitializeABL(domain[d].abl);
 
+        // initialize ibm
+        InitializeIBM(domain[d].ibm);
+        
         // momentum equation initialize
         InitializeUEqn(domain[d].ueqn);
 
@@ -129,8 +132,7 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
     InitializeOverset(domain);
 
     // initialize ibm
-    InitializeIBM(domain);
-
+    InitializeIBMInterpolation(domain);
     return(0);
 
 }

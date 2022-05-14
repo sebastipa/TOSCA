@@ -11,6 +11,7 @@ struct peqn_
     Vec           Phi, lPhi;                  //!< pressure correction for frac. step method
     Vec           P, lP;                      //!< pressure at current and previous time step
     Vec           lLid, lGid;                 //!< matrixFree - matrixBased connectivity (used to build the poisson coeff. matrix)
+    Vec           pIBMPt, pIBMCell;           //!< point where the ibm pressure is interpolated and its closest cell id
     HYPRE_Int     thisRankSize,               //!< number of cells owned by this processore (used to build the poisson coeff. matrix)
                   thisRankStart,              //!< first cell ID owned by this processor in global indexing (used to build the poisson coeff. matrix)
                   thisRankEnd;                //!< last cell ID owned by this processor in global indexing (thisRankStart + thisRankSize - 1)
@@ -100,6 +101,8 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn);
 //! \brief Update pressure and subtract average
 PetscErrorCode UpdatePressure(peqn_ *peqn);
 
+PetscErrorCode updateIBMPhi(ibm_ *ibm);
+
 //! \brief Project Ucont into an incompressible space
 PetscErrorCode ProjectVelocity(peqn_ *peqn);
 
@@ -111,3 +114,6 @@ PetscErrorCode SetPressureReference(peqn_ *peqn);
 
 //! \brief Compute continuity errors
 PetscErrorCode ContinuityErrors(peqn_ *peqn);
+
+//! \brief get the cell id from stencil position
+cellIds GetIdFromStencil(int stencil, int k, int j, int i);

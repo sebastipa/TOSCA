@@ -126,8 +126,6 @@ int main(int argc, char **argv)
 
             if(flags.isIBMActive)
             {
-                if(atleastOneIBM(domain[d].ibm))
-                {
                     PetscReal ibmTimeStart, ibmTimeEnd;
                     PetscTime(&ibmTimeStart);
 
@@ -135,7 +133,6 @@ int main(int argc, char **argv)
 
                     PetscTime(&ibmTimeEnd);
                     PetscPrintf(domain[d].mesh->MESH_COMM, "ibm update time = %lf s\n", ibmTimeEnd - ibmTimeStart);
-                }
             }
 
             if(flags.isTeqnActive)
