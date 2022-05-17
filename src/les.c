@@ -161,7 +161,7 @@ PetscErrorCode UpdateCs (les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // if on body skip
-                if( isIBMSolidCell(k, j, i, nvert))
+                if( isIBMCell(k, j, i, nvert))
                 {
                     continue;
                 }
@@ -270,7 +270,7 @@ PetscErrorCode UpdateCs (les_ *les)
     for (i=lxs; i<lxe; i++)
     {
         // set to zero if solid and skip
-        if(isIBMSolidCell(k, j, i, nvert))
+        if(isIBMCell(k, j, i, nvert))
         {
             LM[k][j][i] = MM[k][j][i] = 0;
             continue;
@@ -430,7 +430,7 @@ PetscErrorCode UpdateCs (les_ *les)
             // fluid
             if
             (
-                (isFluidCell(K, J, I, nvert)) &&
+                (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
                 //!isOnCornerCellCenters(I, J, K, mesh->info) <- use also ghost? Not for now
                 (I!=0 && I!=mx-1 && J!=0 && J!=my-1 && K!=0 && K!=mz-1)
             )
@@ -585,11 +585,13 @@ PetscErrorCode UpdateCs (les_ *les)
             // Note: matrix product is row by row in the product between parenthesis
             //       and row by column between the first matrix and the result of previous one.
             denom += Mij[n][m] * Mij[n][l] * G[m][l];
+
         }
 
         // store in LM and MM
         LM[k][j][i] = num;
         MM[k][j][i] = denom;
+
     }
 
     DMDAVecRestoreArray(da, les->lLM, &LM);
@@ -741,7 +743,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         k1>=1 && k1<mz-1 &&
                         j1>=1 && j1<my-1 &&
                         i1>=1 && i1<mx-1
-                    ) && isFluidCell(k1, j1, i1, nvert))
+                    ) && (!isIBMSolidCell(k1, j1, i1, nvert)) )
                     {
                         d = pow((X_old.x - cent[k1][j1][i1].x), 2) +
                             pow((X_old.y - cent[k1][j1][i1].y), 2) +
@@ -766,8 +768,17 @@ PetscErrorCode UpdateCs (les_ *les)
                 // if there is an IBM or overset cell around the given cell, use nearest cell
                 if(isBoxIBMCell(k_old, j_old, i_old, nvert))
                 {
-                    _LM_old = LM_old[k_old][j_old][i_old];
-                    _MM_old = MM_old[k_old][j_old][i_old];
+                    if(isIBMFluidCell(k_old, j_old, i_old, nvert))
+                    {
+                        _LM_old = LM_old[k][j][i];
+                        _MM_old = MM_old[k][j][i];
+                    }
+                    else
+                    {
+                        _LM_old = LM_old[k_old][j_old][i_old];
+                        _MM_old = MM_old[k_old][j_old][i_old];
+                    }
+
                 }
                 else
                 {
@@ -868,7 +879,7 @@ PetscErrorCode UpdateCs (les_ *les)
     for (i=lxs; i<lxe; i++)
     {
         // body
-        if(isIBMSolidCell(k, j, i, nvert))
+        if(isIBMCell(k, j, i, nvert))
         {
             Cs[k][j][i] = 0;
             continue;
@@ -1000,17 +1011,12 @@ PetscErrorCode UpdateCs (les_ *les)
     for (i=xs; i<xe; i++)
     {
         // set Cs to zero if solid or on box corners
-        if(isIBMSolidCell(k, j, i, nvert) || k==0 || k==mz-1 || j==0 || j==my-1 || i==0 || i==mx-1)
+        if(isIBMCell(k, j, i, nvert) || k==0 || k==mz-1 || j==0 || j==my-1 || i==0 || i==mx-1)
         {
             Cs[k][j][i] = 0;
         }
         else
         {
-            // add viscosity near the wall with IBM to stabilize the solution
-            if(isIBMFluidCell(k, j, i, nvert))
-            {
-                Cs[k][j][i] = PetscMax(wall_cs, Cs[k][j][i]);    // stabilize at high Re, osl 0.005
-            }
 
             // clip Cs between upper and lower bound
             Cs[k][j][i] = PetscMin( PetscMax(Cs[k][j][i], 0.0), les->maxCs);
@@ -1119,7 +1125,7 @@ PetscErrorCode UpdateNut(les_ *les)
     for (j=lys; j<lye; j++)
     for (i=lxs; i<lxe; i++)
     {
-        if(isIBMSolidCell(k, j, i, nvert))
+        if(isIBMCell(k, j, i, nvert))
         {
             lnu_t[k][j][i]=0;
             continue;

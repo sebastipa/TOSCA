@@ -3685,7 +3685,18 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     ueqn->access->flags->isLesActive
                 )
                 {
-                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
+                    if(isIBMCell(k, j, i, nvert))
+                    {
+                        nut = lnu_t[k][j][i+1];
+                    }
+                    else if (isIBMCell(k, j, i+1, nvert))
+                    {
+                        nut = lnu_t[k][j][i];
+                    }
+                    else
+                    {
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
+                    }
 
                     // wall model i-left patch
                     if
@@ -3977,7 +3988,18 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     ueqn->access->flags->isLesActive
                 )
                 {
-                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
+                    if(isIBMCell(k, j, i, nvert))
+                    {
+                        nut = lnu_t[k][j+1][i];
+                    }
+                    else if (isIBMCell(k, j+1, i, nvert))
+                    {
+                        nut = lnu_t[k][j][i];
+                    }
+                    else
+                    {
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
+                    }
 
                     // wall model j-left patch
                     if
@@ -4270,7 +4292,18 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     ueqn->access->flags->isLesActive
                 )
                 {
-                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
+                    if(isIBMCell(k, j, i, nvert))
+                    {
+                        nut = lnu_t[k+1][j][i];
+                    }
+                    else if (isIBMCell(k+1, j, i, nvert))
+                    {
+                        nut = lnu_t[k][j][i];
+                    }
+                    else
+                    {
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
+                    }
 
                     // wall models not present in k direction
 

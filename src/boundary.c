@@ -2120,40 +2120,8 @@ PetscErrorCode UpdateNutBCs(les_ *les)
         {
             for (i=lxs; i<lxe; i++)
             {
-                // if ghost cells are solid set to zero and skip
-                if (isIBMCell(k, j, i-1, nvert) && i==1)
-                {
-                    nut[k][j][i-1] = 0.0;
-                    continue;
-                }
-                if (isIBMCell(k, j, i+1, nvert) && i==mx-2)
-                {
-                    nut[k][j][i+1] = 0.0;
-                    continue;
-                }
-                if (isIBMCell(k, j-1, i, nvert) && j==1)
-                {
-                    nut[k][j-1][i] = 0.0;
-                    continue;
-                }
-                if (isIBMCell(k, j+1, i, nvert) && j==my-2)
-                {
-                    nut[k][j+1][i] = 0.0;
-                    continue;
-                }
-                if (isIBMCell(k-1, j, i, nvert) && k==1)
-                {
-                    nut[k-1][j][i] = 0.0;
-                    continue;
-                }
-                if (isIBMCell(k+1, j, i, nvert) && k==mz-2)
-                {
-                    nut[k+1][j][i] = 0.0;
-                    continue;
-                }
-
                 // set to zero at solid internal cells and skip
-                if(isIBMSolidCell(k, j, i, nvert))
+                if(isIBMCell(k, j, i, nvert))
                 {
                     nut[k][j][i] = 0.0;
                     continue;
