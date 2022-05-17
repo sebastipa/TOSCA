@@ -1444,7 +1444,7 @@ PetscErrorCode writeFields(io_ *io)
                     fatalErrorInFunction("writeFields",  error);
                 }
 
-                fprintf(f, "avgWeight\t\t%d\n", io->avgWeight);
+                fprintf(f, "avgWeight\t\t%ld\n", io->avgWeight);
 
                 fclose(f);
             }
@@ -1530,7 +1530,7 @@ PetscErrorCode writeFields(io_ *io)
                     fatalErrorInFunction("writeFields",  error);
                 }
 
-                fprintf(f, "phaseAvgWeight\t\t%d\n", io->pAvgWeight);
+                fprintf(f, "phaseAvgWeight\t\t%ld\n", io->pAvgWeight);
 
                 fclose(f);
             }
@@ -1708,7 +1708,7 @@ PetscErrorCode writeFields(io_ *io)
                     fatalErrorInFunction("writeFields",  error);
                 }
 
-                fprintf(f, "keAvgWeight\t\t%d\n", io->keAvgWeight);
+                fprintf(f, "keAvgWeight\t\t%ld\n", io->keAvgWeight);
 
                 fclose(f);
             }
