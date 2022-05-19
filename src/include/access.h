@@ -23,6 +23,7 @@ struct access_
     acquisition_ *acquisition;
     ibm_         *ibm;
     PetscInt     *domainID;
+    vents_       *vents;
 };
 
 #endif

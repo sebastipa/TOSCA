@@ -1,0 +1,27 @@
+# OKWind Input file - U boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    spreadInflow
+
+# boundary patches
+
+iLeft            noSlip
+
+iRight           noSlip
+
+#jLeft            velocityWallFunction
+#                 {
+#            	 	type -1
+#            		kRough 0.003
+#            		uStarEval localized
+#        	 }
+jLeft		 noSlip
+        
+jRight  	 noSlip
+
+kLeft   	 fixedValue (1.0 0.0 0.0) 
+        
+kRight  	 zeroGradient  
+ 

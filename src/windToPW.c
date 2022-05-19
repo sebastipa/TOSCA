@@ -3889,6 +3889,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
         fp = fopen(jSecName.c_str(), "r");
         if(fp!=NULL)
         {
+                       
             isjavail = 1;
             fclose(fp);
         }

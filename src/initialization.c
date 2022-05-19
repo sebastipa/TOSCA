@@ -10,6 +10,8 @@
 #include "include/abl.h"
 #include "include/turbines.h"
 #include "include/initialization.h"
+#include "include/vents.h"
+
 //***************************************************************************************************************//
 
 PetscErrorCode PrintOkWindLogo()
@@ -125,6 +127,10 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
     // initialize acquisitions
     InitializeAcquisition(domain);
 
+    // initialize vents
+    initializeVents(domain);
+
+
     // Set the initial field
     SetInitialField(domain);
 
@@ -154,6 +160,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isZDampingActive   = 0;
     flags->isXDampingActive   = 0;
     flags->isSideForceActive  = 0;
+    flags->isVentsActive      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",       &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);
@@ -165,6 +172,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer", &(flags->isXDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sideForce",     &(flags->isSideForceActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-vents",&(flags->isVentsActive), PETSC_NULL);
 
     // read acquisition flags
     PetscInt isProbesActive         = 0;
@@ -339,6 +347,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     domain->teqn        = NULL;
     domain->les         = NULL;
     domain->ibm         = NULL;
+    domain->vents       = NULL;
     domain->abl         = NULL;
     domain->os          = NULL;
     domain->farm        = NULL;
@@ -356,6 +365,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     if(domain->flags.isWindFarmActive)   domain->farm        = new farm_;
     if(domain->flags.isAquisitionActive) domain->acquisition = new acquisition_;
     if(domain->flags.isIBMActive)        domain->ibm         = new ibm_;
+    if(domain->flags.isVentsActive)      domain->vents       = new vents_;
 
     return(0);
 }
@@ -423,10 +433,12 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
         domain->os->access        = &(domain->access);
     }
 
-    if(domain->flags.isAblActive)
+    domain->access.abl        = domain->abl;
+
+    if (domain->flags.isAblActive)
     {
         // les model two way access
-        domain->access.abl        = domain->abl;
+
         domain->abl->access       = &(domain->access);
     }
 
@@ -441,6 +453,12 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
     {
         domain->access.ibm  = domain->ibm;
         domain->ibm->access = &(domain->access);
+    }
+
+    if(domain->flags.isVentsActive)
+    {
+        domain->access.vents  = domain->vents;
+        domain->vents->access = &(domain->access);
     }
 
     return(0);

@@ -1884,7 +1884,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                   gravity.x = 0;
                   gravity.y = 0;
                   gravity.z = -9.81;
-    PetscReal     tRef      = ueqn->access->abl->tRef;
+    PetscReal     tRef;      //= ueqn->access->abl->tRef;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1896,6 +1896,15 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
 
+    if (ueqn->access->abl == NULL)
+    {
+        //printf("\nABL NULL ....\n");
+        tRef = 20;
+    }
+    else
+    {
+        tRef = ueqn->access->abl->tRef;
+    }
     // loop over i-face centers
     for(k=zs; k<lze; k++)
     {
@@ -1963,7 +1972,8 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale *
                     (
                         gcont[k][j][i].x *
-                        (2* tRef - tempI) / tRef
+                        //(2* tRef - tempI) / tRef
+                        (tempI - tRef)/tRef
                     );
                 }
 
@@ -1978,7 +1988,8 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale *
                     (
                         gcont[k][j][i].y *
-                        (2* tRef - tempJ) / tRef
+                        //(2* tRef - tempJ) / tRef
+                        (tempJ - tRef)/tRef
                     );
                 }
 
@@ -1993,7 +2004,8 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale *
                     (
                         gcont[k][j][i].z *
-                        (2* tRef - tempK) / tRef
+                        //(2* tRef - tempK) / tRef
+                        (tempK - tRef)/tRef
                     );
                 }
 
@@ -2772,6 +2784,1487 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
 
     return(0);
 }
+
+//***************************************************************************************************************//
+
+PetscErrorCode adjustFluxesVents(ueqn_ *ueqn)
+{
+    mesh_           *mesh = ueqn->access->mesh;
+    vents_          *vents = ueqn->access->vents;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k, q;
+
+    Cmpnts           ***ucont, ***lucont,
+                     ***coor;
+
+    PetscInt         ***markVent;
+
+    PetscScalar      fluxDif = 0.0, fluxDifCellLeak = 0.0,
+                     fluxDifCellOutlet = 0.0, fluxDifCellInlet = 0.0;
+
+    PetscScalar      lFluxInlet = 0.0, lFluxOutlet = 0.0,
+                     fluxInlet = 0.0, fluxOutlet = 0.0,
+                     lFluxLeak = 0.0, fluxLeak = 0.0;
+
+
+    PetscInt      numCellsLeak = 0, numCellsVentsOut = 0, numCellsVentsIn = 0;
+
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
+    DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
+
+    //sum intiial leak, out, and in fluxes.
+    if
+    (
+        (!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)
+    )
+    {
+
+      for (k=lzs; k<lze; k++)
+      {
+         for (j=lys; j<lye; j++)
+         {
+            for (i=lxs; i<lxe; i++)
+            {
+
+                if (markVent[k][j][i] > 0)
+                {
+                    q=markVent[k][j][i]-1;
+
+                    if (vents->vent[q]->dir == "outlet")
+                    {
+
+                        if (vents->vent[q]->face == "iLeft")
+                        {
+
+                            if (ucont[k][j][i-1].x < 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j][i-1].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i-1].x = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "iRight")
+                        {
+
+                            if (ucont[k][j][i].x > 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j][i].x);
+                                //printf("here ueqn iRight != 0............\n");
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].x = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jLeft")
+                        {
+
+                            if (ucont[k][j-1][i].y < 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j-1][i].y);
+
+                            }
+
+                            else
+                            {
+                               ucont[k][j-1][i].y = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jRight")
+                        {
+
+                            if (ucont[k][j][i].y > 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].y = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kLeft")
+                        {
+
+                            if (ucont[k-1][j][i].z < 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k-1][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k-1][j][i].z = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kRight")
+                        {
+
+                            if (ucont[k][j][i].z > 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].z = 0;  //another backflow prevention
+                            }
+                        }
+
+                    }
+                    if (vents->vent[q]->dir == "inlet")
+                    {
+
+                        if (vents->vent[q]->face == "iLeft")
+                        {
+
+                            if (ucont[k][j][i-1].x > 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j][i-1].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i-1].x = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "iRight")
+                        {
+
+                            if (ucont[k][j][i].x < 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j][i].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i].x = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jLeft")
+                        {
+
+                            if (ucont[k][j-1][i].y > 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j-1][i].y);
+                            }
+
+                            else
+                            {
+                               ucont[k][j-1][i].y = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jRight")
+                        {
+
+                            if (ucont[k][j][i].y < 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j][i].y);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i].y = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kLeft")
+                        {
+
+                            if (ucont[k-1][j][i].z > 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k-1][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k-1][j][i].z = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kRight")
+                        {
+
+                            if (ucont[k][j][i].z < 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j][i].z);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i].z = 0;  //another backflow prevention
+                            }
+                        }
+
+                    }
+                    if (vents->vent[q]->dir == "leak" && vents->roomPressure == "neg")
+                    {
+                        if (vents->vent[q]->face == "iLeft")
+                        {
+
+                            if (ucont[k][j][i-1].x > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i-1].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i-1].x = 0; //in a negative pressure room, all leaks go into the room.
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "iRight")
+                        {
+
+                            if (ucont[k][j][i].x < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].x);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].x = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jLeft")
+                        {
+
+                            if (ucont[k][j-1][i].y > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j-1][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j-1][i].y = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jRight")
+                        {
+
+                            if (ucont[k][j][i].y < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].y = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kLeft")
+                        {
+
+                            if (ucont[k-1][j][i].z > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k-1][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k-1][j][i].z = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kRight")
+                        {
+
+                            if (ucont[k][j][i].z < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].z = 0;
+                            }
+                        }
+                    }
+                    if (vents->vent[q]->dir == "leak" && vents->roomPressure == "pos")
+                    {
+                        if (vents->vent[q]->face == "iLeft")
+                        {
+
+                            if (ucont[k][j][i-1].x < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i-1].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i-1].x = 0; //in a positive pressure room, all leaks go out of the room.
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "iRight")
+                        {
+
+                            if (ucont[k][j][i].x > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].x);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].x = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jLeft")
+                        {
+
+                            if (ucont[k][j-1][i].y < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j-1][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j-1][i].y = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jRight")
+                        {
+
+                            if (ucont[k][j][i].y > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].y = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kLeft")
+                        {
+
+                            if (ucont[k-1][j][i].z < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k-1][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k-1][j][i].z = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kRight")
+                        {
+
+                            if (ucont[k][j][i].z > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].z = 0;
+                            }
+                        }
+                    }
+
+                }
+                else // make all wall ucont's = 0
+                {
+                    if (i==1)
+                    {
+                       ucont[k][j][i-1].x = 0;
+                    }
+
+                    if (i==mx-2)
+                    {
+                       ucont[k][j][i].x = 0;
+                    }
+
+                    if (j==1)
+                    {
+                       ucont[k][j-1][i].y = 0;
+                    }
+
+                    if (j==my-2)
+                    {
+                       ucont[k][j][i].y = 0;
+                    }
+
+                    if (k==1)
+                    {
+                       ucont[k-1][j][i].z = 0;
+                    }
+
+                    if (k==mz-2)
+                    {
+                       ucont[k][j][i].z = 0;
+                    }
+                }
+
+            }
+          }
+       }
+
+       // Maybe add a loop that zeros ucont at all noSlip wall.
+    }
+
+      MPI_Allreduce(&lFluxInlet, &fluxInlet, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+      MPI_Allreduce(&lFluxOutlet, &fluxOutlet, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+      MPI_Allreduce(&lFluxLeak, &fluxLeak, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+
+      PetscPrintf(mesh->MESH_COMM, "\n Before adjustment, fluxInlet = %lf, fluxOutlet = %lf fluxLeak= % lf\n", fluxInlet, fluxOutlet, fluxLeak);
+
+      //determine if vents or leak should be adjusted based on flux differences and room pressure.
+      if (vents->roomPressure == "neg")
+      {
+          //leak will be same  direction as inlet in neg pressure rooms.Add leak to fluxdif before printing.
+         fluxDif = fabs(fluxInlet - fluxOutlet + fluxLeak);
+         PetscPrintf(mesh->MESH_COMM, "\n Before adjustment, fluxDif = %lf\n", fluxDif);
+
+         //reduce leak in this case
+         if (fabs(fluxOutlet) > fabs(fluxInlet) && fabs(fluxInlet + fluxLeak) > fabs(fluxOutlet))
+         {
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "leak")
+                 numCellsLeak += vents->vent[q]->nCellsVent;
+             }
+
+             //MPI_Allreduce(&lNumCellsLeak, &numCellsLeak, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+             fluxDifCellLeak= fluxDif/numCellsLeak;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellLeak = %f\n", fluxDif, fluxDifCellLeak);
+
+             for (k=lzs; k<lze; k++)
+             {
+                for (j=lys; j<lye; j++)
+                {
+                   for (i=lxs; i<lxe; i++)
+                   {
+                       if (markVent[k][j][i] > 0)
+                       {
+                           q=markVent[k][j][i] - 1;
+
+                           if (vents->vent[q]->dir == "leak")
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                  ucont[k][j][i-1].x -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+                                  ucont[k][j][i].x += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+                                  ucont[k][j-1][i].y -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                  ucont[k][j][i].y += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+                                  ucont[k-1][j][i].z -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+                                  ucont[k][j][i].z += fluxDifCellLeak;
+                               }
+
+                           }
+                       }
+                    }
+                 }
+               }
+         }
+         //increase leak in this case
+         if (fabs(fluxOutlet) > fabs(fluxInlet) && fabs(fluxInlet + fluxLeak) < fabs(fluxOutlet))
+         {
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "leak")
+                 numCellsLeak += vents->vent[q]->nCellsVent;
+             }
+
+             //MPI_Allreduce(&lNumCellsLeak, &numCellsLeak, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+             fluxDifCellLeak= fluxDif/numCellsLeak;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellLeak = %f\n", fluxDif, fluxDifCellLeak);
+
+             for (k=lzs; k<lze; k++)
+             {
+                for (j=lys; j<lye; j++)
+                {
+                   for (i=lxs; i<lxe; i++)
+                   {
+                       if (markVent[k][j][i] > 0)
+                       {
+                           q=markVent[k][j][i] - 1;
+
+                           if (vents->vent[q]->dir == "leak")
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                  ucont[k][j][i-1].x += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+                                  ucont[k][j][i].x -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+                                  ucont[k][j-1][i].y += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                  ucont[k][j][i].y -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+                                  ucont[k-1][j][i].z += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+                                  ucont[k][j][i].z -= fluxDifCellLeak;
+                               }
+
+                           }
+                       }
+                    }
+                 }
+               }
+         }
+         //adjust vents in this case
+         if (fabs(fluxOutlet) < fabs(fluxInlet))
+         {
+             //determine how many cells to divide up the flux difference amongst.
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "outlet")
+                 numCellsVentsOut += vents->vent[q]->nCellsVent;
+             }
+
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "inlet")
+                 numCellsVentsIn += vents->vent[q]->nCellsVent;
+             }
+
+             //MPI_Allreduce(&lNumCellsVentsOut, &numCellsVentsOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+             //MPI_Allreduce(&lNumCellsVentsIn, &numCellsVentsIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+             fluxDifCellOutlet = (0.5*fluxDif)/numCellsVentsOut;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellOutlet = %f\n", 0.5*fluxDif, fluxDifCellOutlet);
+
+             fluxDifCellInlet = (0.5*fluxDif)/numCellsVentsIn;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellInlet = %f\n", 0.5*fluxDif, fluxDifCellInlet);
+
+             for (k=lzs; k<lze; k++)
+             {
+                for (j=lys; j<lye; j++)
+                {
+                   for (i=lxs; i<lxe; i++)
+                   {
+                       if (markVent[k][j][i] > 0)
+                       {
+                           q=markVent[k][j][i] - 1;
+
+                           //converges closer to proper value if only outlet is adjusted for some reason ...
+                           if (vents->vent[q]->dir == "outlet")
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                           ucont[k][j][i-1].x -= 2*fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+
+                                           ucont[k][j][i].x += 2*fluxDifCellOutlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+
+                                           ucont[k][j-1][i].y -= 2*fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                   ucont[k][j][i].y += 2*fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+
+                                           ucont[k-1][j][i].z -= 2*fluxDifCellOutlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+
+                                           ucont[k][j][i].z += 2*fluxDifCellOutlet;
+                               }
+
+                           }
+
+
+                           /*if (vents->vent[q]->dir == "inlet" )
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                           ucont[k][j][i-1].x -= fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+
+                                           ucont[k][j][i].x += fluxDifCellInlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+
+                                           ucont[k][j-1][i].y -= fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                   ucont[k][j][i].y += fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+
+                                           ucont[k-1][j][i].z -= fluxDifCellInlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+
+                                           ucont[k][j][i].z += fluxDifCellInlet;
+                               }
+
+                           }*/
+                       }
+                    }
+                 }
+               }
+         }
+      }
+
+      if (vents->roomPressure == "pos")
+      {
+          //in pos pressure rooms leak will be same direction as outlet. Subtract leak before printing fluxDif.
+         fluxDif = fabs(fluxInlet - fluxOutlet - fluxLeak);
+         PetscPrintf(mesh->MESH_COMM, "\n Before adjustment, fluxDif = %lf\n", fluxDif);
+         //increase leak in this case
+         if (fabs(fluxInlet) > fabs(fluxOutlet) && fabs(fluxInlet) > fabs(fluxOutlet + fluxLeak))
+         {
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "leak")
+                 numCellsLeak += vents->vent[q]->nCellsVent;
+             }
+
+             //MPI_Allreduce(&lNumCellsLeak, &numCellsLeak, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+             fluxDifCellLeak= fluxDif/numCellsLeak;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellLeak = %f\n", fluxDif, fluxDifCellLeak);
+
+             for (k=lzs; k<lze; k++)
+             {
+                for (j=lys; j<lye; j++)
+                {
+                   for (i=lxs; i<lxe; i++)
+                   {
+                       if (markVent[k][j][i] > 0)
+                       {
+                           q=markVent[k][j][i] - 1;
+
+                           if (vents->vent[q]->dir == "leak")
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                  ucont[k][j][i-1].x -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+                                  ucont[k][j][i].x += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+                                  ucont[k][j-1][i].y -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                  ucont[k][j][i].y += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+                                  ucont[k-1][j][i].z -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+                                  ucont[k][j][i].z += fluxDifCellLeak;
+                               }
+
+                           }
+                       }
+                    }
+                 }
+               }
+         }
+         //reduce leak in this case
+         if (fabs(fluxInlet) > fabs(fluxOutlet) && fabs(fluxInlet) < fabs(fluxOutlet + fluxLeak))
+         {
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "leak")
+                 numCellsLeak += vents->vent[q]->nCellsVent;
+             }
+
+             //MPI_Allreduce(&lNumCellsLeak, &numCellsLeak, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+             fluxDifCellLeak= fluxDif/numCellsLeak;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellLeak = %f\n", fluxDif, fluxDifCellLeak);
+
+             for (k=lzs; k<lze; k++)
+             {
+                for (j=lys; j<lye; j++)
+                {
+                   for (i=lxs; i<lxe; i++)
+                   {
+                       if (markVent[k][j][i] > 0)
+                       {
+                           q=markVent[k][j][i] - 1;
+
+                           if (vents->vent[q]->dir == "leak")
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                  ucont[k][j][i-1].x += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+                                  ucont[k][j][i].x -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+                                  ucont[k][j-1][i].y += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                  ucont[k][j][i].y -= fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+                                  ucont[k-1][j][i].z += fluxDifCellLeak;
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+                                  ucont[k][j][i].z -= fluxDifCellLeak;
+                               }
+
+                           }
+                       }
+                    }
+                 }
+               }
+         }
+         //adjust vents in this case
+         if (fabs(fluxInlet) < fabs(fluxOutlet))
+         {
+             //determine how many cells to divide up the flux difference amongst.
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "outlet")
+                 numCellsVentsOut += vents->vent[q]->nCellsVent;
+             }
+
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "inlet")
+                 numCellsVentsIn += vents->vent[q]->nCellsVent;
+             }
+
+             //MPI_Allreduce(&lNumCellsVentsOut, &numCellsVentsOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+             //MPI_Allreduce(&lNumCellsVentsIn, &numCellsVentsIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+             fluxDifCellOutlet = (0.5*fluxDif)/numCellsVentsOut;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellOutlet = %f\n", 0.5*fluxDif, fluxDifCellOutlet);
+
+             fluxDifCellInlet = (0.5*fluxDif)/numCellsVentsIn;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellInlet = %f\n", 0.5*fluxDif, fluxDifCellInlet);
+
+             for (k=lzs; k<lze; k++)
+             {
+                for (j=lys; j<lye; j++)
+                {
+                   for (i=lxs; i<lxe; i++)
+                   {
+                       if (markVent[k][j][i] > 0)
+                       {
+                           q=markVent[k][j][i] - 1;
+
+                           if (vents->vent[q]->dir == "outlet")
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                           ucont[k][j][i-1].x += fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+
+                                           ucont[k][j][i].x -= fluxDifCellOutlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+
+                                           ucont[k][j-1][i].y += fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                   ucont[k][j][i].y -= fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+
+                                           ucont[k-1][j][i].z += fluxDifCellOutlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+
+                                           ucont[k][j][i].z -= fluxDifCellOutlet;
+                               }
+
+                           }
+
+
+                           if (vents->vent[q]->dir == "inlet" )
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                           ucont[k][j][i-1].x += fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+
+                                           ucont[k][j][i].x -= fluxDifCellInlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+
+                                           ucont[k][j-1][i].y += fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                   ucont[k][j][i].y -= fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+
+                                           ucont[k-1][j][i].z += fluxDifCellInlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+
+                                           ucont[k][j][i].z -= fluxDifCellInlet;
+                               }
+
+                           }
+                       }
+                    }
+                 }
+               }
+         }
+      }
+
+      // Recalculate fluxDif to check if corrected
+      lFluxInlet = 0.0, lFluxOutlet = 0.0,
+      fluxInlet  = 0.0, fluxOutlet  = 0.0;
+      lFluxLeak = 0.0, fluxLeak = 0.0;
+
+      for (k=lzs; k<lze; k++)
+      {
+         for (j=lys; j<lye; j++)
+         {
+            for (i=lxs; i<lxe; i++)
+            {
+
+                if (markVent[k][j][i] > 0)
+                {
+                    q=markVent[k][j][i]-1;
+
+                    if (vents->vent[q]->dir == "outlet")
+                    {
+
+                        if (vents->vent[q]->face == "iLeft")
+                        {
+
+                            if (ucont[k][j][i-1].x < 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j][i-1].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i-1].x = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "iRight")
+                        {
+
+                            if (ucont[k][j][i].x > 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j][i].x);
+                                //printf("here ueqn iRight != 0............\n");
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].x = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jLeft")
+                        {
+
+                            if (ucont[k][j-1][i].y < 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j-1][i].y);
+
+                            }
+
+                            else
+                            {
+                               ucont[k][j-1][i].y = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jRight")
+                        {
+
+                            if (ucont[k][j][i].y > 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].y = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kLeft")
+                        {
+
+                            if (ucont[k-1][j][i].z < 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k-1][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k-1][j][i].z = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kRight")
+                        {
+
+                            if (ucont[k][j][i].z > 0)
+                            {
+                                lFluxOutlet   +=  fabs(ucont[k][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].z = 0;  //another backflow prevention
+                            }
+                        }
+
+                    }
+                    if (vents->vent[q]->dir == "inlet")
+                    {
+
+                        if (vents->vent[q]->face == "iLeft")
+                        {
+
+                            if (ucont[k][j][i-1].x > 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j][i-1].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i-1].x = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "iRight")
+                        {
+
+                            if (ucont[k][j][i].x < 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j][i].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i].x = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jLeft")
+                        {
+
+                            if (ucont[k][j-1][i].y > 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j-1][i].y);
+                            }
+
+                            else
+                            {
+                               ucont[k][j-1][i].y = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jRight")
+                        {
+
+                            if (ucont[k][j][i].y < 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j][i].y);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i].y = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kLeft")
+                        {
+
+                            if (ucont[k-1][j][i].z > 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k-1][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k-1][j][i].z = 0;  //another backflow prevention
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kRight")
+                        {
+
+                            if (ucont[k][j][i].z < 0)
+                            {
+                                lFluxInlet   +=  fabs(ucont[k][j][i].z);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i].z = 0;  //another backflow prevention
+                            }
+                        }
+
+                    }
+                    if (vents->vent[q]->dir == "leak" && vents->roomPressure == "neg")
+                    {
+                        if (vents->vent[q]->face == "iLeft")
+                        {
+
+                            if (ucont[k][j][i-1].x > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i-1].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i-1].x = 0; //in a negative pressure room, all leaks go into the room.
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "iRight")
+                        {
+
+                            if (ucont[k][j][i].x < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].x);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].x = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jLeft")
+                        {
+
+                            if (ucont[k][j-1][i].y > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j-1][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j-1][i].y = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jRight")
+                        {
+
+                            if (ucont[k][j][i].y < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].y = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kLeft")
+                        {
+
+                            if (ucont[k-1][j][i].z > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k-1][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k-1][j][i].z = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kRight")
+                        {
+
+                            if (ucont[k][j][i].z < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].z = 0;
+                            }
+                        }
+                    }
+                    if (vents->vent[q]->dir == "leak" && vents->roomPressure == "pos")
+                    {
+                        if (vents->vent[q]->face == "iLeft")
+                        {
+
+                            if (ucont[k][j][i-1].x < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i-1].x);
+                            }
+
+                            else
+                            {
+                               ucont[k][j][i-1].x = 0; //in a positive pressure room, all leaks go out of the room.
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "iRight")
+                        {
+
+                            if (ucont[k][j][i].x > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].x);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].x = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jLeft")
+                        {
+
+                            if (ucont[k][j-1][i].y < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j-1][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j-1][i].y = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jRight")
+                        {
+
+                            if (ucont[k][j][i].y > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].y);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].y = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kLeft")
+                        {
+
+                            if (ucont[k-1][j][i].z < 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k-1][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k-1][j][i].z = 0;
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "kRight")
+                        {
+
+                            if (ucont[k][j][i].z > 0)
+                            {
+                                lFluxLeak   +=  fabs(ucont[k][j][i].z);
+                            }
+
+                            else
+                            {
+                                ucont[k][j][i].z = 0;
+                            }
+                        }
+                    }
+
+                }
+            }
+          }
+       }
+
+    // cumulate the net influx and net outflux.
+    MPI_Allreduce(&lFluxInlet, &fluxInlet, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lFluxOutlet, &fluxOutlet, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lFluxLeak, &fluxLeak, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    PetscPrintf(mesh->MESH_COMM, "\n After leak correction fluxInlet = %lf, fluxOutlet = %lf fluxLeak = %lf\n", fluxInlet, fluxOutlet, fluxLeak);
+
+    if (vents->roomPressure == "neg")
+    {
+       fluxDif = fabs(fluxInlet - fluxOutlet + fluxLeak);
+       PetscPrintf(mesh->MESH_COMM, "\n After adjustment, fluxDif = %lf\n", fluxDif);
+    }
+
+    if (vents->roomPressure == "pos")
+    {
+       fluxDif = fabs(fluxInlet - fluxOutlet - fluxLeak);
+       PetscPrintf(mesh->MESH_COMM, "\n After adjustment, fluxDif = %lf\n", fluxDif);
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
+    DMDAVecRestoreArray(da, mesh->ventMarkers, &markVent);
+
+    // scatter new contravariant velocity values
+    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    return(0);
+ }
+
+//***************************************************************************************************************//
+
+PetscErrorCode printVentFluxes(ueqn_ *ueqn)
+{
+      mesh_           *mesh = ueqn->access->mesh;
+      vents_          *vents = ueqn->access->vents;
+      DM               da = mesh->da, fda = mesh->fda;
+      DMDALocalInfo    info = mesh->info;
+      PetscInt         xs = info.xs, xe = info.xs + info.xm;
+      PetscInt         ys = info.ys, ye = info.ys + info.ym;
+      PetscInt         zs = info.zs, ze = info.zs + info.zm;
+      PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+      PetscInt         lxs, lxe, lys, lye, lzs, lze;
+      PetscInt         i, j, k, q;
+
+      Cmpnts           ***ucont, ***lucont,
+                       ***coor;
+
+      PetscInt         ***markVent;
+
+      PetscScalar     totalFluxIn = 0.0, totalFluxOut = 0.0,
+                      desiredTotalFluxIn =0.0, desiredTotalFluxOut = 0.0;
+
+      PetscScalar      lVentFlux[vents->numberOfVents] = { };
+      PetscScalar      ventFlux[vents->numberOfVents] = { };
+
+
+      lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+      lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+      lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+      DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+      DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
+      DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
+
+      //sum the fluxes at each vent
+        for (k=lzs; k<lze; k++)
+        {
+           for (j=lys; j<lye; j++)
+           {
+              for (i=lxs; i<lxe; i++)
+              {
+
+                  if (markVent[k][j][i] > 0)
+                  {
+                      q=markVent[k][j][i]-1;
+
+                          if (vents->vent[q]->face == "iLeft")
+                          {
+                             lVentFlux[q] += fabs(ucont[k][j][i-1].x);
+                          }
+
+                          if (vents->vent[q]->face == "iRight")
+                          {
+                             lVentFlux[q] += fabs(ucont[k][j][i].x);
+                                  //printf("here ueqn lFluxVent add............\n");
+                          }
+
+                          if (vents->vent[q]->face == "jLeft")
+                          {
+                             lVentFlux[q] += fabs(ucont[k][j-1][i].y);
+                          }
+
+                          if (vents->vent[q]->face == "jRight")
+                          {
+                             lVentFlux[q] += fabs(ucont[k][j][i].y);
+                                  //printf("here ueqn lFluxVent add............\n");
+                          }
+
+                          if (vents->vent[q]->face == "kLeft")
+                          {
+                             lVentFlux[q] += fabs(ucont[k-1][j][i].z);
+                          }
+
+                          if (vents->vent[q]->face == "kRight")
+                          {
+                             lVentFlux[q] += fabs(ucont[k][j][i].z);
+                                  //printf("here ueqn lFluxVent add............\n");
+                          }
+                  }
+              }
+            }
+          }
+
+
+      //Print vent fluxes and compare with ventDesiredFlux
+      for  (q=0; q < vents->numberOfVents; q++)
+      {
+          MPI_Allreduce(&lVentFlux[q], &ventFlux[q], 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+          //ventVelocityAvg[q] = ventFlux[q]/vents->vent[q]->nCellsVent;
+          PetscPrintf(mesh->MESH_COMM, "\nvent%ld flux = %lf, number of cells = %ld Desired Flux = %lf\n", q, ventFlux[q], vents->vent[q]->nCellsVent, vents->vent[q]->ventDesiredFlux);
+          vents->vent[q]->lFluxVent = ventFlux[q];
+
+          if (vents->vent[q]->dir == "inlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "neg"))
+          {
+             totalFluxIn += ventFlux[q];
+             desiredTotalFluxIn += vents->vent[q]->ventDesiredFlux;
+          }
+
+          if (vents->vent[q]->dir == "outlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "pos"))
+          {
+             totalFluxOut += ventFlux[q];
+             desiredTotalFluxOut += vents->vent[q]->ventDesiredFlux;
+          }
+      }
+
+      //ventVelocityAvg[q] = ventFlux[q]/vents->vent[q]->nCellsVent;
+      PetscPrintf(mesh->MESH_COMM, "\nTotal Flux In = %lf, Total Flux Out = %lf Desired Flux In = %lf Desired Flux Out = %lf\n", totalFluxIn, totalFluxOut, desiredTotalFluxIn, desiredTotalFluxOut);
+
+      DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+      DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
+      DMDAVecRestoreArray(da, mesh->ventMarkers, &markVent);
+
+      // scatter new contravariant velocity values
+      DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+      DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+      return(0);
+   }
 
 //***************************************************************************************************************//
 
@@ -4649,16 +6142,23 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     ueqn_  *ueqn  = (ueqn_*)ptr;
     mesh_  *mesh  = ueqn->access->mesh;
     clock_ *clock = ueqn->access->clock;
+    Cmpnts        ***ucont;
 
     VecCopy(Ucont, ueqn->Ucont);
+
 
     // scatter new contravariant velocity values
     DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
 
-    // reset no penetration fluxes to zero (override numerical errors)
-    resetNoPenetrationFluxes(ueqn);
+    DMDAVecGetArray(mesh->fda, ueqn->Ucont,  &ucont);
 
+    // reset no penetration fluxes to zero (override numerical errors)
+    //printf("PreresetNOPEN Uconty at outletVent %f\n", ucont[65][0][65].y);
+    //printf("PreresetNOPEN Uconty at outletVent1 %f\n", ucont[65][1][65].y);
+    resetNoPenetrationFluxes(ueqn);
+    //printf("resetNOPEN Uconty at outletVent %f\n", ucont[65][0][65].y);
+    //printf("resetNOPEN Uconty at outletVent1 %f\n", ucont[65][1][65].y);
     // reset contravariant periodic fluxes to be consistent if the flow is periodic
     resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
 
@@ -4733,8 +6233,11 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         sourceU(ueqn, Rhs, 1.0);
     }
 
+    //printf("PreresetNONRES Uconty at outletVent %f\n", ucont[65][0][65].y);
+    //printf("PreresetNONRES Uconty at outletVent1 %f\n", ucont[65][1][65].y);
     resetNonResolvedCellFaces(mesh, Rhs);
-
+    //printf("resetNONRES Uconty at outletVent %f\n", ucont[65][0][65].y);
+    //printf("resetNONRES Uconty at outletVent1 %f\n", ucont[65][1][65].y);
     // add time derivative term
     VecAXPY(Rhs, -1.0, Ucont);
     VecAXPY(Rhs,  1.0, ueqn->Ucont_o);
@@ -4913,8 +6416,12 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
 {
     mesh_          *mesh = ueqn->access->mesh;
     clock_         *clock = ueqn->access->clock;
+    vents_       *vents = ueqn->access->vents;
+    Cmpnts       ***ucont;
+    DM            fda   = mesh->fda;
 
-    // set the right hand side to zero
+
+
     VecSet (ueqn->Rhs, 0.0);
 
     if(ueqn->ddtScheme == "backwardEuler")
@@ -4923,11 +6430,13 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
         PetscInt      iter;
         PetscReal     ts,te;
 
+        DMDAVecGetArray(fda, ueqn->Ucont,  &ucont);
         PetscTime(&ts);
         PetscPrintf(mesh->MESH_COMM, "TRSNES: Solving for Ucont, Initial residual = ");
 
         // copy the solution in the tmp variable
         VecCopy(ueqn->Ucont, ueqn->Utmp);
+
 
         // solve momentum equation and compute solution norm and iteration number
         SNESSolve(ueqn->snesU, PETSC_NULL, ueqn->Utmp);
@@ -4953,10 +6462,8 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
         UeqnRK4(ueqn);
     }
 
-    // reset no penetration fluxes to zero (override numerical errors)
     resetNoPenetrationFluxes(ueqn);
 
-    // reset periodic fluxes to be consistent if the flow is periodic
     resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
 
     // adjust inflow/outflow fluxes to ensure mass conservation
@@ -4964,10 +6471,18 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     {
         adjustFluxesOverset(ueqn);
     }
+    else if (ueqn->access->flags->isVentsActive)
+    {
+        printVentFluxes(ueqn);
+        adjustFluxesVents(ueqn);
+        printVentFluxes(ueqn);
+    }
     else
     {
         adjustFluxes(ueqn);
     }
+
+    DMDAVecRestoreArray(fda, ueqn->Ucont,  &ucont);
 
     return(0);
 }
