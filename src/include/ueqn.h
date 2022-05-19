@@ -86,6 +86,10 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn);
 //! \brief Adjust fluxes to obey mass conservation in the overset domain
 PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn);
 
+PetscErrorCode adjustFluxesVents(ueqn_ *ueqn); //needed to push vents simulations in right direction.
+
+PetscErrorCode printVentFluxes(ueqn_ *ueqn);
+
 //! \brief Compute driving source term
 PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 

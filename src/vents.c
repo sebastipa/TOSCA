@@ -1,0 +1,485 @@
+//! \file  ibm.c
+//! \brief Contains Immersed boundary method function definitions
+
+#include "include/base.h"
+#include "include/domain.h"
+#include "include/io.h"
+#include "include/inline.h"
+#include "include/inflow.h"
+#include "include/wallfunctions.h"
+
+
+//***************************************************************************************************************//
+
+PetscErrorCode initializeVents(domain_ *domain)
+{
+  PetscInt nDomains = domain[0].info.nDomains;
+  flags_ flags = domain[0].flags;
+
+  if(flags.isVentsActive)
+  {
+
+    // loop through the domains to set the domain vents pointer
+    for(PetscInt d = 0; d < nDomains; d++)
+    {
+      readVentsProperties(domain[d].vents);
+
+      MPI_Barrier(domain[d].mesh->MESH_COMM);
+
+      ventSetAndPrint(domain[d].vents);
+
+      MPI_Barrier(domain[d].mesh->MESH_COMM);
+
+
+    }
+
+  }
+
+  return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readVentsProperties(vents_ *vents)
+{
+  PetscMPIInt rank;
+
+  mesh_ *mesh = vents->access->mesh;
+  flags_ *flags = vents->access->flags;
+
+  MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+  PetscPrintf(PETSC_COMM_WORLD, "\nVents initialization...\n");
+
+  // read number of vents total and room type. This info flags other functions later.
+  readDictInt("./vents/ventsProperties.dat", "numberOfVents", &(vents->numberOfVents));
+  readDictWord("./vents/ventsProperties.dat", "roomPressure", &(vents->roomPressure));
+
+
+  // allocate memory for each vent object
+  PetscMalloc(vents->numberOfVents * sizeof(ventObject*), &(vents->vent));
+
+  char ventName[256];
+
+  for  (PetscInt  i=0; i < vents->numberOfVents; i++)
+  {
+      sprintf(ventName, "vent%ld", i);
+
+    PetscMalloc(sizeof(ventObject), &(vents->vent[i]));
+
+    //read vent info, start with vent location and direction of flow info
+    readSubDictWord("./vents/ventsProperties.dat", ventName, "face", &(vents->vent[i]->face));
+    readSubDictWord("./vents/ventsProperties.dat", ventName, "dir", &(vents->vent[i]->dir));
+
+    if (vents->vent[i]->face  == "iLeft" || vents->vent[i]->face == "iRight")
+    {
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "xBound1", &(vents->vent[i]->xBound1));
+
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "xBound2", &(vents->vent[i]->xBound2));
+
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "zBound1", &(vents->vent[i]->zBound1));
+
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "zBound2", &(vents->vent[i]->zBound2));
+
+    }
+
+    if (vents->vent[i]->face  == "jLeft" || vents->vent[i]->face == "jRight")
+    {
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "xBound1", &(vents->vent[i]->xBound1));
+
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "xBound2", &(vents->vent[i]->xBound2));
+
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "yBound1", &(vents->vent[i]->yBound1));
+
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "yBound2", &(vents->vent[i]->yBound2));
+
+    }
+
+    if (vents->vent[i]->face  == "kLeft" || vents->vent[i]->face == "kRight")
+    {
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "yBound1", &(vents->vent[i]->yBound1));
+
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "yBound2", &(vents->vent[i]->yBound2));
+
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "zBound1", &(vents->vent[i]->zBound1));
+
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "zBound2", &(vents->vent[i]->zBound2));
+
+    }
+
+    // read U and Nut BCs
+    readSubDictWord("./vents/ventsProperties.dat", ventName, "ventBC", &(vents->vent[i]->ventBC));
+
+    readSubDictWord("./vents/ventsProperties.dat", ventName, "ventBCNut", &(vents->vent[i]->ventBCNut));
+
+    //read fixed value flux value if needed
+    if (vents->vent[i]->ventBC == "fixedValue")
+    {
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "ventDesiredFlux", &(vents->vent[i]->ventDesiredFlux));
+    }
+
+    //nut BC is usually ZG for vents. May change later.
+    if (vents->vent[i]->ventBCNut == "fixedValue")
+    {
+        readSubDictDouble("./vents/ventsProperties.dat", ventName, "ventBCNutReal", &(vents->vent[i]->ventBCNutReal));
+    }
+
+    // vent velocity, area, # of cells, all calculated in SetVentsAndPrint fnc using the info read above.
+    vents->vent[i]->nCellsVent = 0;
+    vents->vent[i]->lFluxVent = 0; //lFluxVent should converge to ventDesiredFlux.
+    vents->vent[i]->ventArea = 0;
+    vents->vent[i]->ventBCVec.x = 0;
+    vents->vent[i]->ventBCVec.y = 0;
+    vents->vent[i]->ventBCVec.z = 0;
+
+    // read temp BC info
+    if(flags->isTeqnActive)
+    {
+        readSubDictWord("./vents/ventsProperties.dat", ventName, "ventTBC", &(vents->vent[i]->ventTBC));
+
+        if (vents->vent[i]->ventTBC == "fixedValue" || vents->vent[i]->ventTBC == "fixedGradient")
+        {
+            readSubDictDouble("./vents/ventsProperties.dat", ventName, "ventTBCVal", &(vents->vent[i]->ventTBCVal));
+        }
+    }
+
+  }
+
+
+  return 0;
+}
+
+ //***************************************************************************************************************//
+
+ PetscErrorCode ventSetAndPrint(vents_ *vents)
+ {
+     mesh_        *mesh = vents->access->mesh;
+     DM            da   = mesh->da, fda = mesh->fda;
+     DMDALocalInfo info = mesh->info;
+     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+     PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+     PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+     Cmpnts        ***cent;
+
+     PetscMPIInt   rank;
+
+     PetscInt      lxs, lxe, lys, lye, lzs, lze;
+     PetscInt      i, j, k;
+
+     PetscInt      q;
+
+     PetscInt     ***markVent;
+
+     PetscInt     lNumCellsVent[vents->numberOfVents] = { };
+     PetscInt     numCellsVent[vents->numberOfVents] = { };
+     PetscScalar  cellArea = 0;
+
+     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+     MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+     DMDAVecGetArray(fda, mesh->lCent, &cent);
+     DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
+
+     // Label each vent cell locations and track the number of cells in each vent.
+     for (q=0; q < vents->numberOfVents; q++)
+     {
+
+       if (vents->vent[q]->face == "iLeft")
+       {
+
+                  i=1; //loops over internal cell centers that border jRight face only
+
+                      for (k=lzs; k<lze; k++)
+                      {
+                       for (j=lys; j<lye; j++)
+                       {
+
+                         if (vents->vent[q]->zBound1 < cent[k][j][i].z && vents->vent[q]->zBound2 > cent[k][j][i].z && vents->vent[q]->xBound1 < cent[k][j][i].x && vents->vent[q]->xBound2 > cent[k][j][i].x)
+                         {
+
+                          markVent[k][j][i] = q+1; //marks vent with vent #q+1 in ventMarkers array.For vent0 q=1, Vent1 q=2.
+                          lNumCellsVent[q] = lNumCellsVent[q] + 1;
+                         }
+
+                       }
+                      }
+
+       }
+
+       if (vents->vent[q]->face == "iRight")
+       {
+                   i=lxe-1; //loops over internal cell centers that border jRight face only
+
+                       for (k=lzs; k<lze; k++)
+                       {
+                        for (j=lys; j<lye; j++)
+                        {
+
+                          if (vents->vent[q]->zBound1 < cent[k][j][i].z && vents->vent[q]->zBound2 > cent[k][j][i].z && vents->vent[q]->xBound1 < cent[k][j][i].x && vents->vent[q]->xBound2 > cent[k][j][i].x)
+                          {
+
+                           markVent[k][j][i] = q+1; //marks vent with vent #q in ventMarkers array.
+                           lNumCellsVent[q] = lNumCellsVent[q] + 1;
+                          }
+
+                        }
+                       }
+
+       }
+
+       if (vents->vent[q]->face == "jLeft")
+       {
+
+           j=1; //loops over internal cell centers that border jLeft face only
+
+               for (k=lzs; k<lze; k++)
+               {
+                for (i=lxs; i<lxe; i++)
+                {
+
+                  if (vents->vent[q]->yBound1 < cent[k][j][i].y && vents->vent[q]->yBound2 > cent[k][j][i].y && vents->vent[q]->xBound1 < cent[k][j][i].x && vents->vent[q]->xBound2 > cent[k][j][i].x)
+                  {
+
+                   markVent[k][j][i] = q+1; //marks vent with vent #q+1 in ventMarkers array.For vent0 q=1, Vent1 q=2.
+                   lNumCellsVent[q] = lNumCellsVent[q] + 1;
+                  }
+
+                }
+               }
+
+       }
+
+       if (vents->vent[q]->face == "jRight")
+       {
+            j=lye-1; //loops over internal cell centers that border jRight face only
+
+                for (k=lzs; k<lze; k++)
+                {
+                 for (i=lxs; i<lxe; i++)
+                 {
+
+                   if (vents->vent[q]->yBound1 < cent[k][j][i].y && vents->vent[q]->yBound2 > cent[k][j][i].y && vents->vent[q]->xBound1 < cent[k][j][i].x && vents->vent[q]->xBound2 > cent[k][j][i].x)
+                   {
+
+
+                    markVent[k][j][i] = q+1; //marks vent with vent #q in ventMarkers array.
+                    lNumCellsVent[q] = lNumCellsVent[q] + 1;
+                   }
+
+                 }
+                }
+
+       }
+
+       if (vents->vent[q]->face == "kLeft")
+       {
+
+                k=1; //loops over internal cell centers that border jRight face only
+
+                    for (j=lys; j<lye; j++)
+                    {
+                     for (i=lxs; i<lxe; i++)
+                     {
+
+                       if (vents->vent[q]->yBound1 < cent[k][j][i].y && vents->vent[q]->yBound2 > cent[k][j][i].y && vents->vent[q]->zBound1 < cent[k][j][i].z && vents->vent[q]->zBound2 > cent[k][j][i].z)
+                       {
+
+                        markVent[k][j][i] = q+1; //marks vent with vent #q+1 in ventMarkers array.For vent0 q=1, Vent1 q=2.
+                        lNumCellsVent[q] = lNumCellsVent[q] + 1;
+                       }
+
+                     }
+                    }
+
+        }
+
+       if (vents->vent[q]->face == "kRight")
+       {
+                 k=lze-1; //loops over internal cell centers that border jRight face only
+
+                     for (j=lys; j<lye; j++)
+                     {
+                      for (i=lxs; i<lxe; i++)
+                      {
+
+                        if (vents->vent[q]->yBound1 < cent[k][j][i].y && vents->vent[q]->yBound2 > cent[k][j][i].y && vents->vent[q]->zBound1 < cent[k][j][i].z && vents->vent[q]->zBound2 > cent[k][j][i].z)
+                        {
+
+
+                         markVent[k][j][i] = q+1; //marks vent with vent #q in ventMarkers array.
+                         lNumCellsVent[q] = lNumCellsVent[q] + 1;
+                        }
+
+                      }
+                     }
+
+        }
+
+               MPI_Allreduce(&lNumCellsVent[q], &numCellsVent[q], 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+               vents->vent[q]->nCellsVent = numCellsVent[q];
+    }
+
+     // find the area of each vent in m^2 and use that to set the velocity BC of each vent.
+     for (q=0; q < vents->numberOfVents; q++)
+     {
+                if (vents->vent[q]->face == "iLeft")
+                {
+                    cellArea = (mesh->bounds.Lx / mesh->KM) * (mesh->bounds.Lz / mesh->JM);
+                    vents->vent[q]->ventArea = cellArea * vents->vent[q]->nCellsVent;
+
+                    // determine the direction of the vent flow.
+                    if (vents->vent[q]->dir == "inlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "neg"))
+                    {
+                        vents->vent[q]->ventBCVec.x = 0;
+                        vents->vent[q]->ventBCVec.y = vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea;
+                        vents->vent[q]->ventBCVec.z = 0;
+
+                    }
+
+                    if (vents->vent[q]->dir == "outlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "pos"))
+                    {
+                        vents->vent[q]->ventBCVec.x = 0;
+                        vents->vent[q]->ventBCVec.y = -(vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+                        vents->vent[q]->ventBCVec.z = 0;
+
+                    }
+
+                 }
+
+                if (vents->vent[q]->face == "iRight")
+                {
+                     cellArea = (mesh->bounds.Lx / mesh->KM) * (mesh->bounds.Lz / mesh->JM);
+                     vents->vent[q]->ventArea = cellArea * vents->vent[q]->nCellsVent;
+
+                     // determine the direction of the vent flow.
+                     if (vents->vent[q]->dir == "inlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "neg"))
+                     {
+                         vents->vent[q]->ventBCVec.x = 0;
+                         vents->vent[q]->ventBCVec.y = -(vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+                         vents->vent[q]->ventBCVec.z = 0;
+
+                     }
+
+                     if (vents->vent[q]->dir == "outlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "pos"))
+                     {
+                         vents->vent[q]->ventBCVec.x = 0;
+                         vents->vent[q]->ventBCVec.y = (vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+                         vents->vent[q]->ventBCVec.z = 0;
+
+                     }
+
+                  }
+
+                if (vents->vent[q]->face == "jLeft")
+                {
+                     cellArea = (mesh->bounds.Lx / mesh->KM) * (mesh->bounds.Ly / mesh->IM);
+                     vents->vent[q]->ventArea = cellArea * vents->vent[q]->nCellsVent;
+
+                     // determine the direction of the vent flow.
+                     if (vents->vent[q]->dir == "inlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "neg"))
+                     {
+                         vents->vent[q]->ventBCVec.x = 0;
+                         vents->vent[q]->ventBCVec.y = 0;
+                         vents->vent[q]->ventBCVec.z = (vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+
+                     }
+
+                     if (vents->vent[q]->dir == "outlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "pos"))
+                     {
+                         vents->vent[q]->ventBCVec.x = 0;
+                         vents->vent[q]->ventBCVec.y = 0;
+                         vents->vent[q]->ventBCVec.z = -(vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+
+                     }
+
+                 }
+
+                if (vents->vent[q]->face == "jRight")
+                {
+                      cellArea = (mesh->bounds.Lx / mesh->KM) * (mesh->bounds.Ly / mesh->IM);
+                      vents->vent[q]->ventArea = cellArea * vents->vent[q]->nCellsVent;
+
+                      // determine the direction of the vent flow.
+                      if (vents->vent[q]->dir == "inlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "neg"))
+                      {
+                          vents->vent[q]->ventBCVec.x = 0;
+                          vents->vent[q]->ventBCVec.y = 0;
+                          vents->vent[q]->ventBCVec.z = -(vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+
+                      }
+
+                      if (vents->vent[q]->dir == "outlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "pos"))
+                      {
+                          vents->vent[q]->ventBCVec.x = 0;
+                          vents->vent[q]->ventBCVec.y = 0;
+                          vents->vent[q]->ventBCVec.z = (vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+
+                      }
+
+                  }
+
+                if (vents->vent[q]->face == "kLeft")
+                {
+                     cellArea = (mesh->bounds.Lz / mesh->JM) * (mesh->bounds.Ly / mesh->IM);
+                     vents->vent[q]->ventArea = cellArea * vents->vent[q]->nCellsVent;
+
+                     // determine the direction of the vent flow.
+                     if (vents->vent[q]->dir == "inlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "neg"))
+                     {
+                         vents->vent[q]->ventBCVec.x = (vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+                         vents->vent[q]->ventBCVec.y = 0;
+                         vents->vent[q]->ventBCVec.z = 0;
+
+                     }
+
+                     if (vents->vent[q]->dir == "outlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "pos"))
+                     {
+                         vents->vent[q]->ventBCVec.x = -(vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+                         vents->vent[q]->ventBCVec.y = 0;
+                         vents->vent[q]->ventBCVec.z = 0;
+
+                     }
+
+                 }
+
+                if (vents->vent[q]->face == "kRight")
+                {
+                      cellArea = (mesh->bounds.Lz / mesh->JM) * (mesh->bounds.Ly / mesh->IM);
+                      vents->vent[q]->ventArea = cellArea * vents->vent[q]->nCellsVent;
+
+                      // determine the direction of the vent flow.
+                      if (vents->vent[q]->dir == "inlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "neg"))
+                      {
+                          vents->vent[q]->ventBCVec.x = -(vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+                          vents->vent[q]->ventBCVec.y = 0;
+                          vents->vent[q]->ventBCVec.z = 0;
+
+                      }
+
+                      if (vents->vent[q]->dir == "outlet" || (vents->vent[q]->dir == "leak" && vents->roomPressure == "pos"))
+                      {
+                          vents->vent[q]->ventBCVec.x = (vents->vent[q]->ventDesiredFlux / vents->vent[q]->ventArea);
+                          vents->vent[q]->ventBCVec.y = 0;
+                          vents->vent[q]->ventBCVec.z = 0;
+
+                      }
+
+                  }
+
+           PetscPrintf(mesh->MESH_COMM, "vent%ld: vel x %lf, vel y %lf, vel z %lf\n", q, vents->vent[q]->ventBCVec.x, vents->vent[q]->ventBCVec.y, vents->vent[q]->ventBCVec.z);
+      }
+
+
+     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+     DMDAVecRestoreArray(da, mesh->ventMarkers,  &markVent);
+
+
+    return 0;
+  }
+
+ //***************************************************************************************************************//

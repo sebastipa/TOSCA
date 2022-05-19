@@ -805,44 +805,211 @@ inline void ContravariantToCartesianPoint(Cmpnts &csi, Cmpnts &eta, Cmpnts &zet,
 inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
 {
     DMDALocalInfo    info = mesh->info;
+    vents_          *vents = mesh->access->vents;
     PetscInt         xs = info.xs, xe = info.xs + info.xm;
     PetscInt         ys = info.ys, ye = info.ys + info.ym;
     PetscInt         zs = info.zs, ze = info.zs + info.zm;
 
     PetscInt         mx = info.mx, my = info.my, mz = info.mz;
 
-    PetscInt         i, j, k;
+    PetscInt         i, j, k, q;
+    PetscInt         i2, j2, k2;
+
+    PetscInt      ***markVent;
 
     PetscReal        ***nvert;
     Cmpnts           ***v;
 
     DMDAVecGetArray(mesh->fda, V, &v);
+    DMDAVecGetArray(mesh->da, mesh->ventMarkers, &markVent);
 
     // Resets to zero the values of a vector field at the non-resolved
     // faces of the mesh. Note: doesn't scatter to local.
 
-
+    //printf("v0 = %f\n", 100000*v[65][0][65].y);
+    //printf("v1 = %f\n", 100000*v[65][1][65].y);
     for (k=zs; k<ze; k++)
     {
         for (j=ys; j<ye; j++)
         {
             for (i=xs; i<xe; i++)
             {
+
+                /*if (i == 0 || j == 0 || k == 0 || i == 1 || j == 1 || k == 1)
+                {
+
+                    if (i == 0 || i == 1)
+                    {
+                        i2 = i+1;
+                    }
+                    else
+                    {
+                        i2 = i;
+                    }
+
+                    if (j == 0 || j == 1)
+                    {
+                        j2 = j+1;
+                    }
+                    else
+                    {
+                        j2 = j;
+                    }
+
+                    if (k == 0 || k == 1)
+                    {
+                        k2 = k+1;
+                    }
+                    else
+                    {
+                        k2 = k;
+                    }
+
+                    q = markVent[k2][j2][i2];
+                    if (k == 65 && j == 0 && i == 65) {printf("\nq = %i k,j,i = %i,%i,%i\n", q, k, j, i);}
+                }
+                else if (k == mz - 1 || j == my - 1 || i == mx - 1)
+                {
+                    q = 0;
+                }
+                else
+                {
+                    q = markVent[k][j][i]; //  q = 1, 2, 3 .. if point of interest is within borders of vent 0,1,2 .
+                }
+
+               if (q > 0) // this won't work if a vent is in the corner of the mesh, but I dont see a vent ever being in the very corner of a room.
+               {
+                    //printf("in Cont .... %i,%i,%i\n", k, j, i); // check for if continue is working properly
+                   q = q - 1;
+                   //if (j!=my-2) {printf("\nq = %i k,j,i = %i,%i,%i\n", q, k, j, i);}
+
+                   if(i==0)
+                   {
+                     if(vents->vent[q]->face == "iLeft" && vents->vent[q]->ventBC == "zeroGradient")
+                     {
+                         //
+                     }
+                     else
+                     {
+                       v[k][j][i].x = 0.0;
+                     }
+                   }
+                   else if(i==mx-1)
+                   {
+                       v[k][j][i].x = 0.0;
+                   }
+                   else if(i==mx-2 && !(mesh->i_periodic) && !(mesh->ii_periodic))
+                   {
+                     if(vents->vent[q]->face == "iRight" && vents->vent[q]->ventBC =="zeroGradient")
+                     {
+                       //
+                     }
+                     else
+                     {
+                       v[k][j][i].x = 0.0;
+                     }
+                   }
+
+                   //jface
+                   if(j==0)
+                   {
+                     if(vents->vent[q]->face == "jLeft" && vents->vent[q]->ventBC =="zeroGradient")
+                     {
+                         //printf("HERE reset faces ....k,j,i = %i,%i,%i\n", k, j, i); //
+                         //printf("v0 = %f\n", 100000*v[k][j][i].y);
+                         //printf("v1 = %f\n", 100000*v[k][j+1][i].y);
+                     }
+                     else
+                     {
+                       v[k][j][i].y = 0.0;
+                       if (k == 65 && j == 0 && i == 65) printf("HERE BAD reset faces2..........................");
+                     }
+                   }
+                   else if(j==my-1)
+                   {
+                       v[k][j][i].y = 0.0;
+                   }
+                   else if(j==my-2 && !(mesh->j_periodic) && !(mesh->jj_periodic))
+                   {
+                     if(vents->vent[q]->face == "jRight" && vents->vent[q]->ventBC == "zeroGradient")
+                     {
+                       //
+                     }
+                     else
+                     {
+                       v[k][j][i].y = 0.0;
+                     }
+                   }
+
+                   //kface
+                   if(k==0)
+                   {
+                     if(vents->vent[q]->face == "kLeft" && vents->vent[q]->ventBC == "zeroGradient")
+                     {
+                         //
+                     }
+                     else
+                     {
+                       v[k][j][i].z = 0.0;
+                     }
+                   }
+                   else if(k==mz-1)
+                   {
+                       v[k][j][i].z = 0.0;
+                   }
+                   else if(k==mz-2 && !(mesh->k_periodic) && !(mesh->kk_periodic))
+                   {
+                     if(vents->vent[q]->face == "kRight" && vents->vent[q]->ventBC =="zeroGradient")
+                     {
+                       //
+                     }
+                     else
+                     {
+                       v[k][j][i].z = 0.0;
+                     }
+                   }
+
+                   continue;
+               }*/
               //iface
+
+              //if (k == 65 && j == 0 && i == 65) printf("HERE BAD inline 2..........................");
+
               if(i==0)
               {
                 if(mesh->boundaryU.iLeft=="zeroGradient")
                 {
                     //
                 }
+
+                else if (mesh->boundaryU.iLeft=="vents" && markVent[k][j][i+1] > 0)
+                {
+                    q = markVent[k][j][i+1] - 1;
+
+                    if (vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                        //printf("resetNonResolvedCellFaces outet %i,%i,%i\n", k,j,i);
+                    }
+                    else
+                    {
+                      v[k][j][i].x = 0.0;
+                      //if (k == 65 && j == 0 && i == 65)
+                      //{printf("resetNonResolvedCellFaces BAD.................");}
+                    }
+                }
+
                 else
                 {
                   v[k][j][i].x = 0.0;
+                  //if (k == 65 && j == 0 && i == 65)
+                  //{printf("resetNonResolvedCellFaces BAD.................");}
                 }
               }
               else if(i==mx-1)
               {
                   v[k][j][i].x = 0.0;
+                  //if (k == 65 && j == 0 && i == 65)
+                  //{printf("resetNonResolvedCellFaces BAD.................");}
               }
               else if(i==mx-2 && !(mesh->i_periodic) && !(mesh->ii_periodic))
               {
@@ -850,9 +1017,29 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 {
                   //
                 }
+
+                else if (mesh->boundaryU.iRight=="vents" && markVent[k][j][i] > 0)
+                {
+                    q = markVent[k][j][i] - 1;
+
+                    if (vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                        //
+                    }
+                    else
+                    {
+                      //printf("resetNonResolvedCellFaces inlet %i,%i,%i\n", k,j,i);
+                      v[k][j][i].x = 0.0;
+                      //if (k == 65 && i == 65)
+                      //{printf("resetNonResolvedCellFaces BAD.................");}
+                    }
+                }
+
                 else
                 {
                   v[k][j][i].x = 0.0;
+                  //if (k == 65 && j == 0 && i == 65)
+                  //{printf("resetNonResolvedCellFaces BAD.................");}
                 }
               }
 
@@ -863,14 +1050,35 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 {
                     //
                 }
+
+                else if (mesh->boundaryU.jLeft=="vents" && markVent[k][j+1][i] > 0)
+                {
+                    q = markVent[k][j+1][i] - 1;
+
+                    if (vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                        //printf("resetNonResolvedCellFaces outet %i,%i,%i\n", k,j,i);
+                    }
+                    else
+                    {
+                      v[k][j][i].y = 0.0;
+                      //if (k == 65 && j == 0 && i == 65)
+                      //{printf("resetNonResolvedCellFaces BAD.................");}
+                    }
+                }
+
                 else
                 {
                   v[k][j][i].y = 0.0;
+                  //if (k == 65 && j == 0 && i == 65)
+                  //{printf("resetNonResolvedCellFaces BAD.................");}
                 }
               }
               else if(j==my-1)
               {
                   v[k][j][i].y = 0.0;
+                  //if (k == 65 && j == 0 && i == 65)
+                  //{printf("resetNonResolvedCellFaces BAD.................");}
               }
               else if(j==my-2 && !(mesh->j_periodic) && !(mesh->jj_periodic))
               {
@@ -878,9 +1086,28 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 {
                   //
                 }
+                else if (mesh->boundaryU.jRight=="vents" && markVent[k][j][i] > 0)
+                {
+                    q = markVent[k][j][i] - 1;
+
+                    if (vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                        //
+                    }
+                    else
+                    {
+                      //printf("resetNonResolvedCellFaces inlet %i,%i,%i\n", k,j,i);
+                      v[k][j][i].y = 0.0;
+                      //if (k == 65 && i == 65)
+                      //{printf("resetNonResolvedCellFaces BAD.................");}
+                    }
+                }
+
                 else
                 {
                   v[k][j][i].y = 0.0;
+                  //if (k == 65 && i == 65)
+                  //{printf("resetNonResolvedCellFaces BAD.................");}
                 }
               }
 
@@ -894,11 +1121,15 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 else
                 {
                   v[k][j][i].z = 0.0;
+                  //if (k == 65 && j == 0 && i == 65)
+                  //{printf("resetNonResolvedCellFaces BAD.................");}
                 }
               }
               else if(k==mz-1)
               {
                   v[k][j][i].z = 0.0;
+                  //if (k == 65 && j == 0 && i == 65)
+                  //{printf("resetNonResolvedCellFaces BAD.................");}
               }
               else if(k==mz-2 && !(mesh->k_periodic) && !(mesh->kk_periodic))
               {
@@ -909,6 +1140,8 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 else
                 {
                   v[k][j][i].z = 0.0;
+                  //if (k == 65 && j == 0 && i == 65)
+                  //{printf("resetNonResolvedCellFaces BAD.................");}
                 }
               }
 
@@ -917,6 +1150,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
     }
 
     DMDAVecRestoreArray(mesh->fda, V, &v);
+    DMDAVecRestoreArray(mesh->da, mesh->ventMarkers, &markVent);
 
     return;
 }
@@ -2414,6 +2648,7 @@ inline PetscReal weno5(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, P
 inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
 {
     mesh_             *mesh = ueqn->access->mesh;
+    vents_            *vents = ueqn->access->vents;
     DM               da = mesh->da, fda = mesh->fda;
     DMDALocalInfo    info = mesh->info;
     PetscInt         xs = info.xs, xe = info.xs + info.xm;
@@ -2421,8 +2656,11 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
     PetscInt         zs = info.zs, ze = info.zs + info.zm;
     PetscInt         mx = info.mx, my = info.my, mz = info.mz;
 
+    PetscInt      ***markVent;
+
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
-    PetscInt         i, j, k;
+    PetscInt         i, j, k, q;
+    PetscInt         i2, j2, k2;
 
     Cmpnts           ***ucont;
 
@@ -2436,6 +2674,7 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
     // exactly zero at the wall.
 
     DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
 
     for (k=zs; k<lze; k++)
     {
@@ -2443,60 +2682,152 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
         {
             for (i=xs; i<lxe; i++)
             {
-                // noslip BC
-                if(i==0 && mesh->boundaryU.iLeft=="noSlip")     ucont[k][j][i].x = 0.0;
-                if(i==mx-2 && mesh->boundaryU.iRight=="noSlip") ucont[k][j][i].x = 0.0;
-                if(j==0 && mesh->boundaryU.jLeft=="noSlip")     ucont[k][j][i].y = 0.0;
-                if(j==my-2 && mesh->boundaryU.jRight=="noSlip") ucont[k][j][i].y = 0.0;
-                if(k==0 && mesh->boundaryU.kLeft=="noSlip")     ucont[k][j][i].z = 0.0;
-                if(k==mz-2 && mesh->boundaryU.kRight=="noSlip") ucont[k][j][i].z = 0.0;
+                //printf("inline............................................");
+                if (i == 0 || j == 0 || k == 0 || i == 1 || j == 1 || k == 1)
+                {
 
-                // wall models
-                if(i==0 && mesh->boundaryU.iLeft=="velocityWallFunction")     ucont[k][j][i].x = 0.0;
-                if(i==mx-2 && mesh->boundaryU.iRight=="velocityWallFunction") ucont[k][j][i].x = 0.0;
-                if(j==0 && mesh->boundaryU.jLeft=="velocityWallFunction")     ucont[k][j][i].y = 0.0;
-                if(j==my-2 && mesh->boundaryU.jRight=="velocityWallFunction") ucont[k][j][i].y = 0.0;
-                if(k==0 && mesh->boundaryU.kLeft=="velocityWallFunction")     ucont[k][j][i].z = 0.0;
-                if(k==mz-2 && mesh->boundaryU.kRight=="velocityWallFunction") ucont[k][j][i].z = 0.0;
+                    if (i == 0 || i == 1)
+                    {
+                        i2 = i+1;
+                    }
+                    else
+                    {
+                        i2 = i;
+                    }
 
-                // slip BC
-                if (mesh->boundaryU.iLeft=="slip" && i==0)     ucont[k][j][i].x = 0.0;
-                if (mesh->boundaryU.iRight=="slip" && i==mx-2) ucont[k][j][i].x = 0.0;
-                if (mesh->boundaryU.jLeft=="slip" && j==0)     ucont[k][j][i].y = 0.0;
-                if (mesh->boundaryU.jRight=="slip" && j==my-2) ucont[k][j][i].y = 0.0;
-                if (mesh->boundaryU.kLeft=="slip" && k==0)     ucont[k][j][i].z = 0.0;
-                if (mesh->boundaryU.kRight=="slip" && k==mz-2) ucont[k][j][i].z = 0.0;
+                    if (j == 0 || j == 1)
+                    {
+                        j2 = j+1;
+                    }
+                    else
+                    {
+                        j2 = j;
+                    }
 
-                // zero gradient BC (if reverse flow)
-                if (mesh->boundaryU.iLeft=="zeroGradient" && i==0)
-                {
-                    if(ucont[k][j][i].x > 0.0) ucont[k][j][i].x = 0.0;
+                    if (k == 0 || k == 1)
+                    {
+                        k2 = k+1;
+                    }
+                    else
+                    {
+                        k2 = k;
+                    }
+
+                    q = markVent[k2][j2][i2] - 1;
                 }
-                if (mesh->boundaryU.iRight=="zeroGradient" && i==mx-2)
+                else
                 {
-                    if(ucont[k][j][i].x < 0.0) ucont[k][j][i].x = 0.0;
+                    q = markVent[k][j][i] - 1; //  q = 0, 1, 2 .. if point of interest is within borders of vent 0,1,2. q =-1 if no vent.
                 }
-                if (mesh->boundaryU.jLeft=="zeroGradient" && j==0)
+
+                if (q >= 0)
                 {
-                    if(ucont[k][j][i].y > 0.0) ucont[k][j][i].y = 0.0;
+                    if (vents->vent[q]->ventBC == "zeroGradient" && i==0)
+                    //(q > 0 && vents->vent[q]->face == "jLeft" && vents->vent[q]->ventBC == "zeroGradient" && j == 0)
+                        {
+                            //printf("No Pen outet %i,%i,%i\n", k,j,i);
+                            if(ucont[k][j][i].x > 0.0)
+                            {
+                                ucont[k][j][i].x = 0.0;
+                                //if (k == 65 && j == 0 && i == 65)
+                                //{printf("resetNonResolvedCellFaces BAD.................");}
+                            }
+                        }
+                    if (vents->vent[q]->ventBC == "zeroGradient" && i==mx-2)
+                    //(q > 0 && vents->vent[q]->face == "jRight" && vents->vent[q]->ventBC == "zeroGradient" && j == my-2)
+                        {
+                            if(ucont[k][j][i].x < 0.0) ucont[k][j][i].x = 0.0;
+                        }
+
+                    if (vents->vent[q]->ventBC == "zeroGradient" && j==0)
+                    //(q > 0 && vents->vent[q]->face == "jLeft" && vents->vent[q]->ventBC == "zeroGradient" && j == 0)
+                        {
+                            //printf("No Pen outet %i,%i,%i\n", k,j,i);
+                            if(ucont[k][j][i].y > 0.0)
+                            {
+                                ucont[k][j][i].y = 0.0;
+                                //if (k == 65 && j == 0 && i == 65)
+                                //{printf("resetNonResolvedCellFaces BAD.................");}
+                            }
+                        }
+                    if (vents->vent[q]->ventBC == "zeroGradient" && j==my-2)
+                    //(q > 0 && vents->vent[q]->face == "jRight" && vents->vent[q]->ventBC == "zeroGradient" && j == my-2)
+                        {
+                            if(ucont[k][j][i].y < 0.0) ucont[k][j][i].y = 0.0;
+                        }
                 }
-                if (mesh->boundaryU.jRight=="zeroGradient" && j==my-2)
+
+                else
                 {
-                    if(ucont[k][j][i].y < 0.0) ucont[k][j][i].y = 0.0;
-                }
-                if (mesh->boundaryU.kLeft=="zeroGradient" && k==0)
-                {
-                    if(ucont[k][j][i].z > 0.0) ucont[k][j][i].z = 0.0;
-                }
-                if (mesh->boundaryU.kRight=="zeroGradient" && k==mz-2)
-                {
-                    if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
+                    //if (k==65 && j==0 && i==65) printf("HERE BAD INLINE.............................");
+                    // noslip BC
+                    if(i==0 && mesh->boundaryU.iLeft=="noSlip")     ucont[k][j][i].x = 0.0;
+                    if(i==mx-2 && (mesh->boundaryU.iRight=="noSlip" || mesh->boundaryU.iRight=="vents")) ucont[k][j][i].x = 0.0;
+                    if(j==0 && (mesh->boundaryU.jLeft=="noSlip" || mesh->boundaryU.jLeft=="vents"))
+                    {
+                        ucont[k][j][i].y = 0.0;
+                        //if (k == 65 && j == 0 && i == 65)
+                        //{printf("resetNoPenetrationFluxes BAD.................");}
+                    }
+                    if(j==my-2 && (mesh->boundaryU.jRight=="noSlip" || mesh->boundaryU.jRight=="vents")) ucont[k][j][i].y = 0.0;
+                    if(k==0 && mesh->boundaryU.kLeft=="noSlip")     ucont[k][j][i].z = 0.0;
+                    if(k==mz-2 && mesh->boundaryU.kRight=="noSlip") ucont[k][j][i].z = 0.0;
+
+                    // wall models
+                    if(i==0 && mesh->boundaryU.iLeft=="velocityWallFunction")     ucont[k][j][i].x = 0.0;
+                    if(i==mx-2 && mesh->boundaryU.iRight=="velocityWallFunction") ucont[k][j][i].x = 0.0;
+                    if(j==0 && mesh->boundaryU.jLeft=="velocityWallFunction")     ucont[k][j][i].y = 0.0;
+                    if(j==my-2 && mesh->boundaryU.jRight=="velocityWallFunction") ucont[k][j][i].y = 0.0;
+                    if(k==0 && mesh->boundaryU.kLeft=="velocityWallFunction")     ucont[k][j][i].z = 0.0;
+                    if(k==mz-2 && mesh->boundaryU.kRight=="velocityWallFunction") ucont[k][j][i].z = 0.0;
+
+                    // slip BC
+                    if (mesh->boundaryU.iLeft=="slip" && i==0)     ucont[k][j][i].x = 0.0;
+                    if (mesh->boundaryU.iRight=="slip" && i==mx-2) ucont[k][j][i].x = 0.0;
+                    if (mesh->boundaryU.jLeft=="slip" && j==0)     ucont[k][j][i].y = 0.0;
+                    if (mesh->boundaryU.jRight=="slip" && j==my-2) ucont[k][j][i].y = 0.0;
+                    if (mesh->boundaryU.kLeft=="slip" && k==0)     ucont[k][j][i].z = 0.0;
+                    if (mesh->boundaryU.kRight=="slip" && k==mz-2) ucont[k][j][i].z = 0.0;
+
+                    // zero gradient BC (if reverse flow)
+                    if (mesh->boundaryU.iLeft=="zeroGradient" && i==0)
+                        {
+                            if(ucont[k][j][i].x > 0.0) ucont[k][j][i].x = 0.0;
+                        }
+
+                    if (mesh->boundaryU.iRight=="zeroGradient" && i==mx-2)
+                    //(q > 0 && vents->vent[q]->face == "iRight" && vents->vent[q]->ventBC == "zeroGradient" && i == mx-2)
+                        {
+                            if(ucont[k][j][i].x < 0.0) ucont[k][j][i].x = 0.0;
+                        }
+
+                    if (mesh->boundaryU.jLeft=="zeroGradient" && j==0)
+                    //(q > 0 && vents->vent[q]->face == "jLeft" && vents->vent[q]->ventBC == "zeroGradient" && j == 0)
+                        {
+                            if(ucont[k][j][i].y > 0.0) ucont[k][j][i].y = 0.0;
+                        }
+                    if (mesh->boundaryU.jRight=="zeroGradient" && j==my-2)
+                    //(q > 0 && vents->vent[q]->face == "jRight" && vents->vent[q]->ventBC == "zeroGradient" && j == my-2)
+                        {
+                            if(ucont[k][j][i].y < 0.0) ucont[k][j][i].y = 0.0;
+                        }
+                    if (mesh->boundaryU.kLeft=="zeroGradient" && k==0) //||
+                    //(q > 0 && vents->vent[q]->face == "kLeft" && vents->vent[q]->ventBC == "zeroGradient" && k == 0)
+                        {
+                            if(ucont[k][j][i].z > 0.0) ucont[k][j][i].z = 0.0;
+                        }
+                    if (mesh->boundaryU.kRight=="zeroGradient" && k==mz-2) //||
+                    //(q > 0 && vents->vent[q]->face == "kRight" && vents->vent[q]->ventBC == "zeroGradient" && k == mz-2)
+                        {
+                            if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
+                        }
                 }
             }
         }
     }
 
     DMDAVecRestoreArray (fda, ueqn->Ucont, &ucont);
+    DMDAVecRestoreArray(da, mesh->ventMarkers, &markVent);
 
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
