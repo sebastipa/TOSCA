@@ -3696,16 +3696,11 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     // wait until al processes reach this point
     MPI_Barrier(mesh->MESH_COMM);
 
-    //printf("\nPreUpP outlet Cont k,j,i.... %i,%i,%i\n", 65, 50, 65);
-   // printf("%f\n", ucont[65][50][65].y);
-    //printf("\nPreUpP outlet Cont k,j,i.... %i,%i,%i\n", 65, 49, 65);
-    //printf("%f\n", ucont[65][49][65].y);
-    //printf("\nPreUpP outlet Cont k,j,i.... %i,%i,%i\n", 65, 48, 65);
-   // printf("%f\n", ucont[65][48][65].y);
-    // update pressure
+
     UpdatePressure(peqn);
     // set pressure reference
     SetPressureReference(peqn);
+
 
     // update velocity
     ProjectVelocity(peqn);
