@@ -3655,27 +3655,14 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     // wait until al processes reach this point
     MPI_Barrier(mesh->MESH_COMM);
 
-    //printf("\nPreUpP outlet Cont k,j,i.... %i,%i,%i\n", 65, 50, 65);
-   // printf("%f\n", ucont[65][50][65].y);
-    //printf("\nPreUpP outlet Cont k,j,i.... %i,%i,%i\n", 65, 49, 65);
-    //printf("%f\n", ucont[65][49][65].y);
-    //printf("\nPreUpP outlet Cont k,j,i.... %i,%i,%i\n", 65, 48, 65);
-   // printf("%f\n", ucont[65][48][65].y);
-    // update pressure
+
     UpdatePressure(peqn);
-<<<<<<< HEAD
-	
+
+
     // set pressure reference
     SetPressureReference(peqn);
-=======
-    //printf("\nUpP outlet Cont k,j,i.... %i,%i,%i\n", 65, 50, 65);
-    //printf("%f\n", ucont[65][50][65].y);
-   // printf("\nUpP outlet Cont k,j,i.... %i,%i,%i\n", 65, 49, 65);
-   // printf("%f\n", ucont[65][49][65].y);
-    //printf("\nUpP outlet Cont k,j,i.... %i,%i,%i\n", 65, 48, 65);
-    //printf("%f\n", ucont[65][48][65].y);
->>>>>>> vents.h added, vents.c added to mark vent location. mesh.c updated to include markVent array. boundary.c updated to read vent BCs for T, Nut, U. ueqn.c updated to include new adjust flux fnc and resetnoPEnFLuxes adapted. inline.h updated to read vent BCs for U.
 
+    
     // update velocity
     ProjectVelocity(peqn);
 
