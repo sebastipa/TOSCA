@@ -2239,7 +2239,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
     {
         io_         *io    = domain[d].io;
         mesh_       *mesh  = domain[d].mesh;
-
+        PetscReal   epsilon = 1e-10;
         writeDir = "fields/" + mesh->meshName;
 
         // all fields are written in fields/time_/fieldName.
@@ -2284,7 +2284,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
                 (clock->time - clock->startTime) / timeInterval -
                 std::floor
                 (
-                    (clock->time - clock->startTime) / timeInterval
+                    (clock->time - clock->startTime) / timeInterval + epsilon
                 ) < 1e-10
             )
         )
