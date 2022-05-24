@@ -12,10 +12,10 @@
 PetscErrorCode SetInitialField(domain_ *domain)
 {
     PetscInt    nDomains = domain[0].info.nDomains;
-    flags_      *flags   = domain[0].access.flags;
 
     for(PetscInt d=0; d<nDomains; d++)
     {
+        flags_ *flags      = domain[d].access.flags;
         mesh_  *mesh       = domain[d].mesh;
         word   filenameU   = "./boundary/" + mesh->meshName + "/U";
         word   filenameT   = "./boundary/" + mesh->meshName + "/T";

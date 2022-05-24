@@ -21,30 +21,33 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
     // domain folder flag
     PetscInt createDomainFolder = 0;
 
-    // test if some post processing is present
-    if(flags->isAquisitionActive || flags->isWindFarmActive)
+    for(PetscInt d=0; d<nDomains; d++)
     {
-        // create post processing folder
-        PetscMPIInt rank;
-        MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+        flags_   *flags   = domain[d].access.flags;
 
-        if(!rank)
+        // test if some post processing is present
+        if(flags->isAquisitionActive || flags->isWindFarmActive)
         {
-            errno = 0;
-            PetscInt dirRes = mkdir("./postProcessing", 0777);
-            if(dirRes != 0 && errno != EEXIST)
+            // create post processing folder
+            PetscMPIInt rank;
+            MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+
+            if(!rank)
             {
-                char error[512];
-                sprintf(error, "could not create postProcessing directory\n");
-                fatalErrorInFunction("InitializeAcquisition",  error);
+                errno = 0;
+                PetscInt dirRes = mkdir("./postProcessing", 0777);
+                if(dirRes != 0 && errno != EEXIST)
+                {
+                    char error[512];
+                    sprintf(error, "could not create postProcessing directory\n");
+                    fatalErrorInFunction("InitializeAcquisition",  error);
+                }
             }
-        }
 
-        // read/allocate acquisition objects
-        if(flags->isAquisitionActive)
-        {
-            for(PetscInt d=0; d<nDomains; d++)
+            // read/allocate acquisition objects
+            if(flags->isAquisitionActive)
             {
+
                 acquisition_ *acquisition = domain[d].acquisition;
 
                 // read acquisition flags
@@ -60,32 +63,34 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
 
                 // set domain folder flag to 1 is sections are active
                 if(acquisition->isSectionsActive) createDomainFolder = 1;
+
             }
-        }
 
-        // set domain folder flag to 1 if wind farm is active
-        if(flags->isWindFarmActive) createDomainFolder = 1;
+            // set domain folder flag to 1 if wind farm is active
+            if(flags->isWindFarmActive) createDomainFolder = 1;
 
-        // create domain folders
-        if(createDomainFolder)
-        {
-            for(PetscInt d=0; d<nDomains; d++)
+            // create domain folders
+            if(createDomainFolder)
             {
-                if(!rank)
+                for(PetscInt d=0; d<nDomains; d++)
                 {
-                    errno = 0;
-                    word domainFolderName = "./postProcessing/" + domain[d].mesh->meshName;
-                    PetscInt dirRes = mkdir(domainFolderName.c_str(), 0777);
-                    if(dirRes != 0 && errno != EEXIST)
+                    if(!rank)
                     {
-                        char error[512];
-                        sprintf(error, "could not create %s directory", domainFolderName.c_str());
-                        fatalErrorInFunction("InitializeAcquisition",  error);
+                        errno = 0;
+                        word domainFolderName = "./postProcessing/" + domain[d].mesh->meshName;
+                        PetscInt dirRes = mkdir(domainFolderName.c_str(), 0777);
+                        if(dirRes != 0 && errno != EEXIST)
+                        {
+                            char error[512];
+                            sprintf(error, "could not create %s directory", domainFolderName.c_str());
+                            fatalErrorInFunction("InitializeAcquisition",  error);
+                        }
                     }
                 }
             }
         }
     }
+
 
     if(flags->isAquisitionActive)
     {
@@ -221,6 +226,9 @@ PetscErrorCode WriteAcquisition(domain_ *domain)
 
     for(PetscInt d=0; d<nDomains; d++)
     {
+        //set domain specific flags
+        flags_   flags    = domain[d].flags;
+
         if(flags.isAquisitionActive)
         {
             acquisition_ *acquisition = domain[d].acquisition;
@@ -369,7 +377,7 @@ PetscErrorCode averageKEBudgetsInitialize(acquisition_ *acquisition)
         PetscMalloc(sizeof(keFields), &(acquisition->keBudFields));
         keFields *ke = acquisition->keBudFields;
 
-        // read flags 
+        // read flags
         readDictInt("sampling/keBudgets", "cartesian", &(ke->cartesian));
         readDictInt("sampling/keBudgets", "debug", &(ke->debug));
 

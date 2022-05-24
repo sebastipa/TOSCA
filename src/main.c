@@ -53,6 +53,9 @@ int main(int argc, char **argv)
             // create old fields
             VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
 
+            // reset flags based on domain preferences
+            flags = domain[d].flags;
+
             if(flags.isTeqnActive)
             {
                 VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);

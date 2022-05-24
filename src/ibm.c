@@ -62,12 +62,13 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
 PetscErrorCode InitializeIBMInterpolation(domain_ *domain)
 {
     PetscInt nDomains = domain[0].info.nDomains;
-    flags_ flags = domain[0].flags;
 
-    if(flags.isIBMActive)
+    // loop through the domains to set the domain ibm pointer
+    for(PetscInt d = 0; d < nDomains; d++)
     {
-        // loop through the domains to set the domain ibm pointer
-        for(PetscInt d = 0; d < nDomains; d++)
+        flags_ flags = domain[d].flags;
+
+        if(flags.isIBMActive)
         {
             if (domain[d].ibm->IBInterpolationModel == "MLS")
             {
@@ -94,6 +95,7 @@ PetscErrorCode InitializeIBMInterpolation(domain_ *domain)
 
         }
     }
+    
     return (0);
 }
 
@@ -1679,7 +1681,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
 
     if(ibm->ibmBody[i]->fileType == "inp")
     {
-        
+
     }
 
     // read the ibm motion

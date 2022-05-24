@@ -103,7 +103,7 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
 
         // initialize ibm
         InitializeIBM(domain[d].ibm);
-        
+
         // momentum equation initialize
         InitializeUEqn(domain[d].ueqn);
 
@@ -218,7 +218,6 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
     // set the overset pointer
     if(flags->isOversetActive)
     {
-        //checkOversetConditions();
         readDictInt("Overset/OversetInput.dat", "MeshTotal", &(info->nDomains));
 
         // allocate memory for the number of domains
@@ -228,8 +227,22 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
 
         for(PetscInt d=0; d<info->nDomains; d++)
         {
+            char userName[256];
+            sprintf(userName, "Mesh%ld", d);
+
             domain[d].info  = *info;
             domain[d].flags = *flags;
+
+            //set domain specific flags
+            if(domain[d].flags.isIBMActive)
+            {
+                readSubDictInt("Overset/OversetInput.dat", userName,"ibm", &(domain[d].flags.isIBMActive));
+            }
+
+            if(domain[d].flags.isWindFarmActive)
+            {
+                readSubDictInt("Overset/OversetInput.dat", userName,"windplant", &(domain[d].flags.isWindFarmActive));
+            }
 
             // allocate memory for domain objects
             SetDomainMemory(&(domain[d]));
@@ -239,9 +252,7 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
 
             overset_ *os = domain[d].os;
 
-            char userName[256];
 
-            sprintf(userName, "Mesh%ld", d);
             readSubDictIntArray("Overset/OversetInput.dat", userName, "parentMesh", os->parentMeshId);
             readSubDictIntArray("Overset/OversetInput.dat", userName, "childMesh",  os->childMeshId);
 

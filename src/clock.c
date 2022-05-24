@@ -16,13 +16,13 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     PetscReal maxU   = 0.0;
 
     clock_        *clock = domain[0].clock;
-    flags_        *flags = domain[0].access.flags;
 
     // save old time step
     clock->dtOld = clock->dt;
 
     for(PetscInt d=0; d<nDomains; d++)
     {
+        flags_        *flags = domain[d].access.flags;
         acquisition_  *acquisition = domain[d].acquisition;
         mesh_         *mesh  = domain[d].mesh;
         ueqn_         *ueqn  = domain[d].ueqn;

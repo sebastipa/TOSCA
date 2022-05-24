@@ -14,10 +14,11 @@ PetscErrorCode InitializeOverset(domain_ *domain)
 {
 
   PetscInt nDomains = domain[0].info.nDomains;
-  flags_ flags = domain[0].flags;
 
   for(PetscInt d = 0; d < nDomains; d++)
   {
+    flags_ flags = domain[d].flags;
+
     if(domain[d].os!=NULL)
     {
       overset_ *os   = domain[d].os;
