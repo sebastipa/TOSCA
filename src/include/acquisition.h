@@ -114,8 +114,20 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition);
 //! \brief Initializes ke budgets fields acquisition
 PetscErrorCode averageKEBudgetsInitialize(acquisition_ *acquisition);
 
+//! \brief Read box array
+PetscErrorCode readKeBoxArray(keFields *ke);
+
+//! \brief Search box bounds and define communicators
+PetscErrorCode setKeBoundsAndComms(mesh_ *mesh, keFields *ke);
+
 //! \brief Compute MKE budgets
 PetscErrorCode averageKEBudgets(acquisition_ *acquisition);
+
+//! \brief Compute MKE budgets in cartesian form
+PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition);
+
+//! \brief Compute MKE budgets in generalized curvilinaer form w/o mesh stretching
+PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition);
 
 // 3LM ACQUISITION
 // ============================================================================================================= //

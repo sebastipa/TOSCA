@@ -2889,7 +2889,7 @@ inline double viscStipa(double &hS, double &hE, double &delta, double &h)
 // ============================================================================================================= //
 
 //! \brief Computes mechanical energy (Em = <u><u> + <v><v> + <w><w> + <u'u'> + <v'v'> + <w'w'> + <p>/rho)
-inline double computeEm(Cmpnts &avgU, symmTensor &avgUprimeUprime, PetscReal avgP)
+inline PetscReal computeEm(Cmpnts &avgU, symmTensor &avgUprimeUprime, PetscReal avgP)
 {
     return
     (
@@ -2898,6 +2898,41 @@ inline double computeEm(Cmpnts &avgU, symmTensor &avgUprimeUprime, PetscReal avg
             avgU.x*avgU.x + avgU.y*avgU.y + avgU.z*avgU.z +
             avgUprimeUprime.xx + avgUprimeUprime.yy + avgUprimeUprime.zz
         ) + avgP
+    );
+}
+
+//! \brief Computes modified mechanical energy (Em = <U><U> + <V><V> + <W><W> + <U'U'> + <V'V'> + <W'W'>) using contrav. fluxes
+inline PetscReal computeEmTilde(Cmpnts &avgU, symmTensor &avgUprimeUprime)
+{
+    return
+    (
+        0.5 *
+        (
+            avgU.x*avgU.x + avgU.y*avgU.y + avgU.z*avgU.z +
+            avgUprimeUprime.xx + avgUprimeUprime.yy + avgUprimeUprime.zz
+        )
+    );
+}
+
+inline PetscReal computeMKE(Cmpnts &avgU)
+{
+    return
+    (
+        0.5 *
+        (
+            avgU.x*avgU.x + avgU.y*avgU.y + avgU.z*avgU.z
+        )
+    );
+}
+
+inline PetscReal computeTKE(symmTensor &avgUprimeUprime)
+{
+    return
+    (
+        0.5 *
+        (
+            avgUprimeUprime.xx + avgUprimeUprime.yy + avgUprimeUprime.zz
+        )
     );
 }
 

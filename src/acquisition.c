@@ -369,11 +369,57 @@ PetscErrorCode averageKEBudgetsInitialize(acquisition_ *acquisition)
         PetscMalloc(sizeof(keFields), &(acquisition->keBudFields));
         keFields *ke = acquisition->keBudFields;
 
-        VecDuplicate(mesh->Nvert, &(ke->Error));  VecSet(ke->Error,0.);
-        VecDuplicate(mesh->lNvert, &(ke->lEm));   VecSet(ke->lEm,0.);
-        VecDuplicate(mesh->Nvert, &(ke->D));      VecSet(ke->D,0.);
-        VecDuplicate(mesh->Cent,  &(ke->F));      VecSet(ke->F,0.);
-        VecDuplicate(mesh->Nvert, &(ke->Eps));    VecSet(ke->Eps,0.);
+        // read flags 
+        readDictInt("sampling/keBudgets", "cartesian", &(ke->cartesian));
+        readDictInt("sampling/keBudgets", "debug", &(ke->debug));
+
+        // read box array properties
+        readKeBoxArray(ke);
+
+        // set bounds and create comms
+        setKeBoundsAndComms(mesh, ke);
+
+        VecDuplicate(mesh->Nvert,   &(ke->Error)); VecSet(ke->Error,0.);
+        VecDuplicate(mesh->Nvert,   &(ke->D));     VecSet(ke->D, 0.);
+        VecDuplicate(mesh->Nvert,   &(ke->F));     VecSet(ke->F, 0.);
+        VecDuplicate(mesh->Nvert,   &(ke->Eps));   VecSet(ke->Eps,0.);
+
+        VecDuplicate(mesh->lNvert,  &(ke->lEm));   VecSet(ke->lEm,0.);
+        VecDuplicate(mesh->lCent,   &(ke->lF));     VecSet(ke->lF,0.);
+        VecDuplicate(mesh->lCent,   &(ke->lDum));   VecSet(ke->lDum,0.);
+        VecDuplicate(mesh->lCent,   &(ke->lDup));   VecSet(ke->lDup,0.);
+
+        if(ke->cartesian)
+        {
+            // these are local vectors because we need to interpolate them at cell faces
+            VecDuplicate(mesh->lNvert, &(ke->lPm));          VecSet(ke->lPm,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lUm));          VecSet(ke->lUm,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVmTauSGS));    VecSet(ke->lVmTauSGS,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVm));          VecSet(ke->lVm,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVpVpVp));      VecSet(ke->lVpVpVp,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lDpm));         VecSet(ke->lDpm,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lDpp));         VecSet(ke->lDpp,0.);
+            DMCreateLocalVector(mesh->sda, &(ke->lVpVp   )); VecSet(ke->lVpVp   ,0.);
+        }
+        else
+        {
+            // these are the local vectors for the budget in GCC
+            VecDuplicate(mesh->lCent,  &(ke->lVmVpVp)); VecSet(ke->lVmVpVp,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVpVpVp)); VecSet(ke->lVpVpVp,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVDm));    VecSet(ke->lVDm,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVmPmG));  VecSet(ke->lVmPmG,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVpPpG));  VecSet(ke->lVpPpG,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lDdVm));   VecSet(ke->lDdVm,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVmCsi));  VecSet(ke->lVmCsi,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVmEta));  VecSet(ke->lVmEta,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVmZet));  VecSet(ke->lVmZet,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lVm));     VecSet(ke->lVm,0.);
+            VecDuplicate(mesh->lCent,  &(ke->lPm));     VecSet(ke->lPm,0.);
+            DMCreateLocalVector(mesh->sda, &(ke->lVpVpCsi)); VecSet(ke->lVpVpCsi,0.);
+            DMCreateLocalVector(mesh->sda, &(ke->lVpVpEta)); VecSet(ke->lVpVpEta,0.);
+            DMCreateLocalVector(mesh->sda, &(ke->lVpVpZet)); VecSet(ke->lVpVpZet,0.);
+            DMCreateLocalVector(mesh->sda, &(ke->lVpVp   )); VecSet(ke->lVpVp   ,0.);
+        }
 
         if(flags->isWindFarmActive)
         {
@@ -389,14 +435,648 @@ PetscErrorCode averageKEBudgetsInitialize(acquisition_ *acquisition)
         {
             VecDuplicate(mesh->Nvert, &(ke->Pinf));   VecSet(ke->Pinf,0.);
         }
+    }
 
-        // these are local vectors because we need to interpolate them at cell faces
-        VecDuplicate(mesh->lNvert, &(ke->lavgPm));       VecSet(ke->lavgPm,0.);
-        VecDuplicate(mesh->lCent,  &(ke->lavgUm));       VecSet(ke->lavgUm,0.);
-        VecDuplicate(mesh->lCent,  &(ke->lavgUpUpUp));   VecSet(ke->lavgUpUpUp,0.);
-        VecDuplicate(mesh->lCent,  &(ke->lavgUmTauSGS)); VecSet(ke->lavgUmTauSGS,0.);
-        VecDuplicate(mesh->lCent,  &(ke->lavgUpPp));     VecSet(ke->lavgUpPp,0.);
-        DMCreateLocalVector(mesh->sda, &(ke->lavgUpUp)); VecSet(ke->lavgUpUp,0.);
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode setKeBoundsAndComms(mesh_ *mesh, keFields *ke)
+{
+    // search the min and max faces in the i,j,k directions and
+    // define communicators
+
+    if(mesh->meshFileType == "cartesian")
+    {
+        flags_ *flags = mesh->access->flags;
+
+        DMDALocalInfo info = mesh->info;
+        DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+
+        PetscInt       xs = info.xs, xe = info.xs + info.xm;
+        PetscInt       ys = info.ys, ye = info.ys + info.ym;
+        PetscInt       zs = info.zs, ze = info.zs + info.zm;
+        PetscInt       mx = info.mx, my = info.my, mz = info.mz;
+
+        PetscInt       i, j, k, b;
+        PetscInt       lxs, lxe, lys, lye, lzs, lze;
+
+        Vec            Coor;
+        Cmpnts         ***coor;
+
+        // max perturbation amplitude
+        PetscReal maxPerturb  = 1e-10;
+
+        // get global parallel info
+        PetscMPIInt nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+        PetscMPIInt rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+        // processor perturbation for search (changes between processors)
+        PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)nprocs;
+
+        // indices for internal cells
+        lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+        lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+        lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+        DMGetCoordinatesLocal(da, &Coor);
+        DMDAVecGetArray(fda, Coor, &coor);
+
+        // do 1D search of each box
+        for(b=0; b<ke->nBox; b++)
+        {
+            keBox *box = &(ke->box[b]);
+
+            PetscInt commColor;
+
+            PetscReal xmin_b = box->center.x - 0.5 * box->sizeX,
+                      xmax_b = box->center.x + 0.5 * box->sizeX,
+                      ymin_b = box->center.y - 0.5 * box->sizeY,
+                      ymax_b = box->center.y + 0.5 * box->sizeY,
+                      zmin_b = box->center.z - 0.5 * box->sizeZ,
+                      zmax_b = box->center.z + 0.5 * box->sizeZ;
+
+            if
+            (
+                (
+                    coor[zs ][ys ][xs ].x >= xmin_b  && coor[zs ][ys ][xs ].x <= xmax_b ||
+                    coor[lze][lye][lze].x >= xmin_b  && coor[lze][lye][lze].x <= xmax_b
+                ) &&
+                (
+                    coor[zs ][ys ][xs ].y >= ymin_b  && coor[zs ][ys ][xs ].y <= ymax_b ||
+                    coor[lze][lye][lze].y >= ymin_b  && coor[lze][lye][lze].y <= ymax_b
+                ) &&
+                (
+                    coor[zs ][ys ][xs ].z >= zmin_b  && coor[zs ][ys ][xs ].z <= zmax_b ||
+                    coor[lze][lye][lze].z >= zmin_b  && coor[lze][lye][lze].z <= zmax_b
+                )
+            )
+            {
+                commColor = 1;
+            }
+            else
+            {
+                commColor = 0;
+            }
+
+            // create communicator
+            MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(box->KEBOX_COMM));
+
+            // find writer rank number as seen in the MESH_COMM
+            PetscMPIInt thisTrbRank = 10, lwriterRank;
+            MPI_Comm_rank(box->KEBOX_COMM, &thisTrbRank);
+
+            if(!thisTrbRank && commColor == 1) lwriterRank = rank;
+            else                               lwriterRank = 0;
+
+            // scatter this info among all processors in the box->KEBOX_COMM
+            MPI_Allreduce(&lwriterRank, &(box->writerRank), 1, MPI_INT, MPI_SUM, mesh->MESH_COMM);
+
+            // now find start and ending face indices
+            if(commColor)
+            {
+                PetscInt  iS, jS, kS, iE, jE, kE;
+
+                PetscReal lstartDist, gstartDist;
+                PetscReal lendDist, gendDist;
+
+                // k start/end: x direction
+                lstartDist = 1e30, gstartDist = 1e30;
+                lendDist   = 1e30, gendDist   = 1e30;
+
+                for (k = lzs; k < lze; k++)
+                {
+                    PetscReal startDist = fabs(coor[k][ys][xs].x - xmin_b);
+                    PetscReal endDist   = fabs(coor[k][ys][xs].x - xmax_b);
+
+                    if(startDist < lstartDist)
+                    {
+                        lstartDist = startDist + procContrib;
+                        kS = k;
+                    }
+
+                    if(endDist < lendDist)
+                    {
+                        lendDist = endDist + procContrib;
+                        kE = k;
+                    }
+                }
+
+                MPI_Allreduce(&lstartDist, &gstartDist, 1, MPIU_REAL, MPIU_MIN, box->KEBOX_COMM);
+                MPI_Allreduce(&lendDist, &gendDist, 1, MPIU_REAL, MPIU_MIN, box->KEBOX_COMM);
+
+                // compare global and local, where they agree this processor contains start/end faces
+                if(lstartDist != gstartDist) kS = 0;
+                if(lendDist != gendDist) kE = 0;
+
+                // j start/end: z direction
+                lstartDist = 1e30, gstartDist = 1e30;
+                lendDist   = 1e30, gendDist   = 1e30;
+
+                for (j = lys; j < lye; j++)
+                {
+                    PetscReal startDist = fabs(coor[zs][j][xs].z - zmin_b);
+                    PetscReal endDist   = fabs(coor[zs][j][xs].z - zmax_b);
+
+                    if(startDist < lstartDist)
+                    {
+                        lstartDist = startDist + procContrib;
+                        jS = j;
+                    }
+
+                    if(endDist < lendDist)
+                    {
+                        lendDist = endDist + procContrib;
+                        jE = j;
+                    }
+                }
+
+                MPI_Allreduce(&lstartDist, &gstartDist, 1, MPIU_REAL, MPIU_MIN, box->KEBOX_COMM);
+                MPI_Allreduce(&lendDist, &gendDist, 1, MPIU_REAL, MPIU_MIN, box->KEBOX_COMM);
+
+                // compare global and local, where they agree this processor contains start/end faces
+                if(lstartDist != gstartDist) jS = 0;
+                if(lendDist != gendDist) jE = 0;
+
+                // j start/end: z direction
+                lstartDist = 1e30, gstartDist = 1e30;
+                lendDist   = 1e30, gendDist   = 1e30;
+
+                for (i = lxs; i < lxe; i++)
+                {
+                    PetscReal startDist = fabs(coor[zs][ys][i].y - ymin_b);
+                    PetscReal endDist   = fabs(coor[zs][ys][i].y - ymax_b);
+
+                    if(startDist < lstartDist)
+                    {
+                        lstartDist = startDist + procContrib;
+                        iS = i;
+                    }
+
+                    if(endDist < lendDist)
+                    {
+                        lendDist = endDist + procContrib;
+                        iE = i;
+                    }
+                }
+
+                MPI_Allreduce(&lstartDist, &gstartDist, 1, MPIU_REAL, MPIU_MIN, box->KEBOX_COMM);
+                MPI_Allreduce(&lendDist, &gendDist, 1, MPIU_REAL, MPIU_MIN, box->KEBOX_COMM);
+
+                // compare global and local, where they agree this processor contains start/end faces
+                if(lstartDist != gstartDist) iS = 0;
+                if(lendDist != gendDist) iE = 0;
+
+                // scatter indices to all processors belonging to the KEBOX_COMM
+                MPI_Allreduce(&kS, &(box->minKFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
+                MPI_Allreduce(&kE, &(box->maxKFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
+                MPI_Allreduce(&jS, &(box->minJFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
+                MPI_Allreduce(&jE, &(box->maxJFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
+                MPI_Allreduce(&iS, &(box->minIFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
+                MPI_Allreduce(&iE, &(box->maxIFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
+            }
+
+            if(ke->debug)
+            {
+                PetscPrintf(box->KEBOX_COMM, " > start k face idx = %ld, end k face idx = %ld\n", box->minKFace, box->maxKFace);
+                PetscPrintf(box->KEBOX_COMM, " > start j face idx = %ld, end j face idx = %ld\n", box->minJFace, box->maxJFace);
+                PetscPrintf(box->KEBOX_COMM, " > start i face idx = %ld, end i face idx = %ld\n", box->minIFace, box->maxIFace);
+                PetscPrintf(box->KEBOX_COMM, "\n");
+            }
+        }
+
+        DMDAVecRestoreArray(fda, Coor, &coor);
+
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "keBudgets on box geometries is only defined for cartesian meshes\n");
+        fatalErrorInFunction("setKeBoundsAndComms",  error);
+    }
+
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readKeBoxArray(keFields *ke)
+{
+    // define the local variables
+    std::vector<std::string>   boxName;
+    std::vector<Cmpnts>        center;
+    std::vector<Cmpnts>        dimXYZ;
+
+    std::string boxName_i;
+    Cmpnts      center_i, dimXYZ_i;
+
+    PetscInt    nBox = 0;
+
+    // pointer for strtod and strtol
+    char        *eptr;
+
+    // file stream
+    std::ifstream indata;
+
+    // word by word read
+    char word[256];
+    std::string token;
+
+    // dictionary name
+    std::string dictName("./sampling/keBudgets");
+
+    // open dictionary
+    indata.open(dictName);
+
+    if(!indata)
+    {
+        char error[512];
+        sprintf(error, "could not open %s dictionary\n", dictName.c_str());
+        fatalErrorInFunction("readBoxArray",  error);
+    }
+    else
+    {
+        // get word by word till end of dictionary
+        while(!indata.eof())
+        {
+            indata >> word;
+
+            // test if found subdictionary
+            if
+            (
+                strcmp
+                (
+                    "boxArray",
+                    word
+                ) == 0
+            )
+            {
+                // read the first "{"
+                indata >> word;
+
+                std::string token1(word);
+
+                // test if braket is the first word after the subdictionary entry
+                if(trim(token1)=="{")
+                {
+                    // read all boxes until end of file (should find "}" before eof)
+                    while(!indata.eof())
+                    {
+                        // from here start to read the boxes
+
+                        // read box ID
+                        indata >> word;
+                        boxName_i = word;
+
+                        // check if have hit the end of the list
+                        if(trim(boxName_i)=="}")
+                        {
+                            if(nBox>0)
+                            {
+                                // close the file
+                                indata.close();
+
+                                // allocate memory and store the variables
+                                ke->box = new keBox[nBox];
+
+                                // center locations
+                                for(PetscInt p=0; p<nBox; p++)
+                                {
+                                    // assign the pointers to the singly created variables in memory
+                                    ke->box[p].name   = boxName[p];
+                                    ke->box[p].center = nSet(center[p]);
+                                    ke->box[p].sizeX  = dimXYZ[p].x;
+                                    ke->box[p].sizeY  = dimXYZ[p].y;
+                                    ke->box[p].sizeZ  = dimXYZ[p].z;
+
+                                    if(ke->debug)
+                                    {
+                                        PetscPrintf(PETSC_COMM_WORLD,"keDebug: Box %s\n",ke->box[p].name.c_str());
+                                        PetscPrintf(PETSC_COMM_WORLD," > center  (%f %f %f)\n",ke->box[p].center.x, ke->box[p].center.y, ke->box[p].center.z);
+                                        PetscPrintf(PETSC_COMM_WORLD," > sizeXYZ (%f %f %f)\n",ke->box[p].sizeX, ke->box[p].sizeY, ke->box[p].sizeZ);
+                                    }
+                                }
+
+                                // wind farm size
+                                ke->nBox = nBox;
+
+                                // clear the local variables
+                                std::vector<std::string>   ().swap(boxName);
+                                std::vector<Cmpnts>        ().swap(center);
+                                std::vector<Cmpnts>        ().swap(dimXYZ);
+
+                                return(0);
+                            }
+                            else
+                            {
+                                char error[512];
+                                sprintf(error, "expected at least one box in subdictionary boxArray of %s dictionary\n", dictName.c_str());
+                                fatalErrorInFunction("readBoxArray",  error);
+                            }
+                        }
+
+                        // check if have hit another list (this was not closed with "}")
+                        if(trim(boxName_i)=="{")
+                        {
+                            char error[512];
+                            sprintf(error, "missing '}' token in subdictionary boxArray of %s dictionary\n", dictName.c_str());
+                            fatalErrorInFunction("readBoxArray",  error);
+                        }
+
+                        // store the box name
+                        boxName.push_back(boxName_i);
+
+                        // parameters are enclosed by '()', so read the first
+                        indata >> word;
+                        token = word;
+                        if(trim(token)=="(")
+                        {
+                            // read boxCenter keyword
+                            indata >> word;
+                            token = word;
+                            if(trim(token)=="boxCenter")
+                            {
+                                // read the turbine base vector
+
+                                // start reading vector ------------------------------------------------------------------------------------------------------------------------------------------------
+
+                                // the vector is in (x y z) format, so
+                                // 1. read the first parenthesis
+                                // 2. read the 3 doubles
+                                // 3. look for the closing parethesis
+
+                                // read the first component (contains "(" character)
+                                indata >> word;
+
+                                std::string first(word);
+                                if (first.find ("(") != std::string::npos)
+                                {
+                                    // remove "("" character from the first component
+                                    PetscInt l1 = first.size();
+                                    for(PetscInt i=0;i<l1;i++)
+                                    {
+                                        // save the first component
+                                        word[i] = word[i+1];
+                                    }
+
+                                    center_i.x = std::strtod(word, &eptr);
+
+                                    // check if the first component is a PetscReal, throw error otherwise
+                                    std::string cmp1(word);
+
+                                    if(isNumber(cmp1))
+                                    {
+                                        if (cmp1.find ('.') == std::string::npos)
+                                        {
+                                            char error[512];
+                                            sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                            fatalErrorInFunction("readBoxArray",  error);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        char error[512];
+                                        sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                        fatalErrorInFunction("readBoxArray",  error);
+                                    }
+
+                                    // read the second component
+                                    indata >> word;
+                                    center_i.y = std::strtod(word, &eptr);
+
+                                    // check if the second component is a PetscReal, throw error otherwise
+                                    std::string cmp2(word);
+
+                                    if(isNumber(cmp2))
+                                    {
+                                        if (cmp2.find ('.') == std::string::npos)
+                                        {
+                                            char error[512];
+                                            sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                            fatalErrorInFunction("readBoxArray",  error);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        char error[512];
+                                        sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                        fatalErrorInFunction("readBoxArray",  error);
+                                    }
+
+                                    // read the third component (contains ")" character)
+                                    indata >> word;
+
+                                    std::string last(word);
+                                    if (last.find (")") != std::string::npos)
+                                    {
+                                        // remove ") character from the last component and store
+                                        center_i.z = std::strtod(word, &eptr);
+
+                                        // check if the first component is a PetscReal, throw error otherwise
+                                        std::string cmp3(word);
+
+                                        if(isNumber(cmp3))
+                                        {
+                                            if (cmp3.find ('.') == std::string::npos)
+                                            {
+                                                char error[512];
+                                                sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                                fatalErrorInFunction("readBoxArray",  error);
+                                            }
+                                        }
+                                        else
+                                        {
+                                           char error[512];
+                                           sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                           fatalErrorInFunction("readBoxArray",  error);
+                                        }
+
+                                        // save the base location
+                                        center.push_back(center_i);
+
+                                        // read the size of the box
+                                        // read sizeXYZ keyword
+                                        indata >> word;
+                                        token = word;
+                                        if(trim(token)=="sizeXYZ")
+                                        {
+                                            // read the box size vector
+
+                                            // the vector is in (x y z) format, so
+                                            // 1. read the first parenthesis
+                                            // 2. read the 3 doubles
+                                            // 3. look for the closing parethesis
+
+                                            // read the first component (contains "(" character)
+                                            indata >> word;
+
+                                            std::string first(word);
+                                            if (first.find ("(") != std::string::npos)
+                                            {
+                                               // remove "("" character from the first component
+                                               PetscInt l1 = first.size();
+                                               for(PetscInt i=0;i<l1;i++)
+                                               {
+                                                   // save the first component
+                                                   word[i] = word[i+1];
+                                               }
+
+                                               dimXYZ_i.x = std::strtod(word, &eptr);
+
+                                               // check if the first component is a PetscReal, throw error otherwise
+                                               std::string cmp1(word);
+
+                                               if(isNumber(cmp1))
+                                               {
+                                                   if (cmp1.find ('.') == std::string::npos)
+                                                   {
+                                                       char error[512];
+                                                       sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                                       fatalErrorInFunction("readBoxArray",  error);
+                                                   }
+                                               }
+                                               else
+                                               {
+                                                   char error[512];
+                                                   sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                                   fatalErrorInFunction("readBoxArray",  error);
+                                               }
+
+                                               // read the second component
+                                               indata >> word;
+                                               dimXYZ_i.y = std::strtod(word, &eptr);
+
+                                               // check if the second component is a PetscReal, throw error otherwise
+                                               std::string cmp2(word);
+
+                                               if(isNumber(cmp2))
+                                               {
+                                                   if (cmp2.find ('.') == std::string::npos)
+                                                   {
+                                                       char error[512];
+                                                       sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                                       fatalErrorInFunction("readBoxArray",  error);
+                                                   }
+                                               }
+                                               else
+                                               {
+                                                   char error[512];
+                                                   sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                                   fatalErrorInFunction("readBoxArray",  error);
+                                               }
+
+                                               // read the third component (contains ")" character)
+                                               indata >> word;
+
+                                               std::string last(word);
+                                               if (last.find (")") != std::string::npos)
+                                               {
+                                                   // remove ") character from the last component and store
+                                                   dimXYZ_i.z = std::strtod(word, &eptr);
+
+                                                   // check if the first component is a PetscReal, throw error otherwise
+                                                   std::string cmp3(word);
+
+                                                   if(isNumber(cmp3))
+                                                   {
+                                                       if (cmp3.find ('.') == std::string::npos)
+                                                       {
+                                                           char error[512];
+                                                           sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                                           fatalErrorInFunction("readBoxArray",  error);
+                                                       }
+                                                   }
+                                                   else
+                                                   {
+                                                       char error[512];
+                                                       sprintf(error, "expected <PetscReal> in vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                                       fatalErrorInFunction("readBoxArray",  error);
+                                                   }
+
+                                                   // save the base location
+                                                   dimXYZ.push_back(dimXYZ_i);
+
+                                                   // increate turbine counter
+                                                   nBox++;
+
+                                                   // read the closing ')'
+                                                   indata >> word;
+                                                   token = word;
+                                                   if(trim(token)!=")")
+                                                   {
+                                                       char error[512];
+                                                       sprintf(error, "expected <)>  at end of subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                                       fatalErrorInFunction("readBoxArray",  error);
+                                                   }
+                                               }
+                                               else
+                                               {
+                                                   char error[512];
+                                                   sprintf(error, "expected <)>  after vector defined by keyword sizeXYZ in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                                   fatalErrorInFunction("readBoxArray",  error);
+                                               }
+                                           }
+                                           else
+                                           {
+                                               char error[512];
+                                               sprintf(error, "expected <(>  after keyword sizeXYZ in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                               fatalErrorInFunction("readBoxArray",  error);
+                                           }
+                                       }
+                                       else
+                                       {
+                                           char error[512];
+                                           sprintf(error, "expected sizeXYZ keyword in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                           fatalErrorInFunction("readBoxArray",  error);
+                                       }
+                                   }
+                                   else
+                                   {
+                                       char error[512];
+                                       sprintf(error, "expected <)>  after vector defined by keyword boxCenter in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                       fatalErrorInFunction("readBoxArray",  error);
+                                   }
+                               }
+                               else
+                               {
+                                   char error[512];
+                                   sprintf(error, "expected <(>  after keyword boxCenter in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                   fatalErrorInFunction("readBoxArray",  error);
+                               }
+                               // End of reading vector ------------------------------------------------------------------------------------------------------------------------------------------------
+                            }
+                            else
+                            {
+                                char error[512];
+                                sprintf(error, "expected boxCenter keyword in subdictionary %s of %s dictionary, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                                fatalErrorInFunction("readBoxArray",  error);
+                            }
+                        }
+                        else
+                        {
+                            char error[512];
+                            sprintf(error, "expected <(> token after keyword %s in dictionary %s, found '%s'\n", boxName_i.c_str(), dictName.c_str(), word);
+                            fatalErrorInFunction("readBoxArray",  error);
+                        }
+                    }
+                    // have reached this point without finding }: throws error
+                    char error[512];
+                    sprintf(error, "missing '}' token at end of boxArray subdictionary in %s dictionary\n", dictName.c_str());
+                    fatalErrorInFunction("readBoxArray",  error);
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "expected '{' token after keyword boxArray in dictionary %s, found '%s'\n", dictName.c_str(), word);
+                    fatalErrorInFunction("readBoxArray",  error);
+                }
+            }
+        }
+        char error[512];
+        sprintf(error, "could not find subdictionary boxArray in dictionary %s\n", dictName.c_str());
+        fatalErrorInFunction("readBoxArray",  error);
     }
 
     return(0);
@@ -887,8 +1567,29 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
 
 PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
 {
-    // Note: ke budget is not accurate at the boundaries, so when computing the error we discard the first internal cells
+    io_    *io     = acquisition->access->io;
 
+    if(io->keBudgets)
+    {
+        keFields *ke   = acquisition->keBudFields;
+
+        if(ke->cartesian)
+        {
+            averageKEBudgetsCat(acquisition);
+        }
+        else
+        {
+            averageKEBudgetsCont(acquisition);
+        }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
+{
     io_    *io     = acquisition->access->io;
     clock_ *clock  = acquisition->access->clock;
 
@@ -924,8 +1625,6 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
             abl_   *abl    = NULL;
             farm_  *farm   = NULL;
 
-            avgFields *avg = acquisition->fields;
-
             DMDALocalInfo info = mesh->info;
             DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
 
@@ -937,13 +1636,19 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
             PetscInt       i, j, k;
             PetscInt       lxs, lxe, lys, lye, lzs, lze;
 
+            PetscReal      ***p,    ***nut,   ***cs, ***nvert, ***t,
+                           ***aj;
+
             Cmpnts         ***ucat, ***ucont, ***bf,
-                           ***csi, ***eta, ***zet, ***cent,
-                           ***icsi, ***jeta, ***kzet;
-            Cmpnts         ***kef, ***lkef, ***um_mean, ***upupup_mean, ***umtau_mean, ***uppp_mean, ***sources;
-            PetscReal      ***p, ***nut, ***cs, ***nvert, ***aj, ***t;
-            PetscReal      ***ked, ***pinf, ***pf, ***ptheta, ***keeps, ***pm_mean, ***em, ***error;
-            symmTensor     ***upup_mean;
+                           ***csi,  ***eta,   ***zet,
+                           ***icsi, ***jeta,  ***kzet,
+                           ***cent;
+
+            Cmpnts         ***kef, ***kedum, ***kedup,  ***kedpm, ***kedpp,
+                           ***um,  ***vm,    ***upupup, ***umtau, ***sources;
+
+            PetscReal      ***pinf, ***pf, ***ptheta, ***keeps, ***pm, ***em, ***error, ***kedc, ***kefc;
+            symmTensor     ***upup;
 
             PetscReal      ts, te;
 
@@ -955,7 +1660,7 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
             PetscReal       m1, m2, p1, p2;
 
             // local vectors
-            Vec             lSourcesCont, lSourcesCat, lF;
+            Vec             lSourcesCont, lSourcesCat;
 
             PetscTime(&ts);
 
@@ -963,8 +1668,6 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
             lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
             lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
             lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
-
-            VecDuplicate(mesh->lCent,  &lF); VecSet(lF,0.);
 
             // get solution arrays
             DMDAVecGetArray(fda, mesh->lCent,  &cent);
@@ -1021,7 +1724,6 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
                     dampingSourceU(ueqn, lSourcesCont, 1.0);
                 }
 
-                Coriolis(ueqn, lSourcesCont, 1.0);
                 sourceU (ueqn, lSourcesCont, 1.0 / clock->dt);
 
                 DMLocalToLocalBegin (fda,  lSourcesCont, INSERT_VALUES, lSourcesCont);
@@ -1032,42 +1734,38 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
                 DMDAVecGetArray(fda, lSourcesCat, &sources);
             }
 
-            DMDAVecGetArray(da, ke->Error,  &error);
-            DMDAVecGetArray(da, ke->lEm,    &em);
-            DMDAVecGetArray(da, ke->D,      &ked);
-            DMDAVecGetArray(da, ke->Eps,    &keeps);
-            DMDAVecGetArray(da, ke->lavgPm, &pm_mean);
+            DMDAVecGetArray(da,  ke->Error,   &error);
+            DMDAVecGetArray(da,  ke->Eps,     &keeps);
+            DMDAVecGetArray(da,  ke->lEm,     &em);
+            DMDAVecGetArray(fda, ke->lDum,    &kedum);
+            DMDAVecGetArray(fda, ke->lDup,    &kedup);
+            DMDAVecGetArray(fda, ke->lDpm,    &kedpm);
+            DMDAVecGetArray(fda, ke->lDpp,    &kedpp);
 
-            DMDAVecGetArray(fda, ke->F,           &kef);
-            DMDAVecGetArray(fda, ke->lavgUm,      &um_mean);
-            DMDAVecGetArray(fda, ke->lavgUpUpUp,  &upupup_mean);
-            DMDAVecGetArray(fda, ke->lavgUmTauSGS,&umtau_mean);
-            DMDAVecGetArray(sda, ke->lavgUpUp,    &upup_mean);
-            DMDAVecGetArray(fda, ke->lavgUpPp,    &uppp_mean);
+            DMDAVecGetArray(da,  ke->lPm,       &pm);
+            DMDAVecGetArray(fda, ke->lF,        &kef);
+            DMDAVecGetArray(fda, ke->lVm,       &vm);
+            DMDAVecGetArray(fda, ke->lUm,       &um);
+            DMDAVecGetArray(sda, ke->lVpVp,     &upup);
+            DMDAVecGetArray(fda, ke->lVpVpVp,   &upupup);
+            DMDAVecGetArray(fda, ke->lVmTauSGS, &umtau);
 
             // compute averaging weights
             aN = (PetscReal)io->keAvgWeight;
             m1 = aN  / (aN + 1.0);
             m2 = 1.0 / (aN + 1.0);
 
-            for (k = zs; k < ze; k++)
+            for (k = lzs; k < lze; k++)
             {
-                for (j = ys; j < ye; j++)
+                for (j = lys; j < lye; j++)
                 {
-                    for (i = xs; i < xe; i++)
+                    for (i = lxs; i < lxe; i++)
                     {
                         // pre-set base variables for speed
                         PetscReal U = ucat[k][j][i].x,
                                   V = ucat[k][j][i].y,
                                   W = ucat[k][j][i].z,
                                   P = p[k][j][i];
-
-                        // our pressure is p - gh, so add this term
-                        if(flags->isAblActive && flags->isTeqnActive)
-                        {
-                            //PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
-                            //P += gMag*h;
-                        }
 
                         PetscReal dudc, dvdc, dwdc,
                                   dude, dvde, dwde,
@@ -1104,30 +1802,30 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
                         );
 
                         // velocity and pressure averages
-                        um_mean[k][j][i].x = m1 * um_mean[k][j][i].x + m2 * U;
-                        um_mean[k][j][i].y = m1 * um_mean[k][j][i].y + m2 * V;
-                        um_mean[k][j][i].z = m1 * um_mean[k][j][i].z + m2 * W;
-                        pm_mean[k][j][i]   = m1 * pm_mean[k][j][i]   + m2 * P;
+                        um[k][j][i].x = m1 * um[k][j][i].x + m2 * U;
+                        um[k][j][i].y = m1 * um[k][j][i].y + m2 * V;
+                        um[k][j][i].z = m1 * um[k][j][i].z + m2 * W;
+                        pm[k][j][i]   = m1 * pm[k][j][i]   + m2 * P;
 
                         // fluctuations
-                        PetscReal Uprime = U - um_mean[k][j][i].x,
-                                  Vprime = V - um_mean[k][j][i].y,
-                                  Wprime = W - um_mean[k][j][i].z,
-                                  Pprime = P - pm_mean[k][j][i];
+                        PetscReal Uprime = U - um[k][j][i].x,
+                                  Vprime = V - um[k][j][i].y,
+                                  Wprime = W - um[k][j][i].z,
+                                  Pprime = P - pm[k][j][i];
 
                         // Reynolds stresses averages
-                        upup_mean[k][j][i].xx = m1 * upup_mean[k][j][i].xx + m2 * Uprime * Uprime;
-                        upup_mean[k][j][i].yy = m1 * upup_mean[k][j][i].yy + m2 * Vprime * Vprime;
-                        upup_mean[k][j][i].zz = m1 * upup_mean[k][j][i].zz + m2 * Wprime * Wprime;
+                        upup[k][j][i].xx = m1 * upup[k][j][i].xx + m2 * Uprime * Uprime;
+                        upup[k][j][i].yy = m1 * upup[k][j][i].yy + m2 * Vprime * Vprime;
+                        upup[k][j][i].zz = m1 * upup[k][j][i].zz + m2 * Wprime * Wprime;
 
-                        upup_mean[k][j][i].xy = m1 * upup_mean[k][j][i].xy + m2 * Uprime * Vprime;
-                        upup_mean[k][j][i].xz = m1 * upup_mean[k][j][i].xz + m2 * Uprime * Wprime;
-                        upup_mean[k][j][i].yz = m1 * upup_mean[k][j][i].yz + m2 * Vprime * Wprime;
+                        upup[k][j][i].xy = m1 * upup[k][j][i].xy + m2 * Uprime * Vprime;
+                        upup[k][j][i].xz = m1 * upup[k][j][i].xz + m2 * Uprime * Wprime;
+                        upup[k][j][i].yz = m1 * upup[k][j][i].yz + m2 * Vprime * Wprime;
 
                         // triple correlation average
-                        upupup_mean[k][j][i].x = m1 * upupup_mean[k][j][i].x + m2 * (Uprime*Uprime*Uprime + Vprime*Vprime*Uprime + Wprime*Wprime*Uprime);
-                        upupup_mean[k][j][i].y = m1 * upupup_mean[k][j][i].y + m2 * (Uprime*Uprime*Vprime + Vprime*Vprime*Vprime + Wprime*Wprime*Vprime);
-                        upupup_mean[k][j][i].z = m1 * upupup_mean[k][j][i].z + m2 * (Uprime*Uprime*Wprime + Vprime*Vprime*Wprime + Wprime*Wprime*Wprime);
+                        upupup[k][j][i].x = m1 * upupup[k][j][i].x + m2 * 0.5 * (Uprime*Uprime*Uprime + Vprime*Vprime*Uprime + Wprime*Wprime*Uprime);
+                        upupup[k][j][i].y = m1 * upupup[k][j][i].y + m2 * 0.5 * (Uprime*Uprime*Vprime + Vprime*Vprime*Vprime + Wprime*Wprime*Vprime);
+                        upupup[k][j][i].z = m1 * upupup[k][j][i].z + m2 * 0.5 * (Uprime*Uprime*Wprime + Vprime*Vprime*Wprime + Wprime*Wprime*Wprime);
 
                         // Tau_ij
                         PetscReal tau11_SGS, tau12_SGS, tau13_SGS,
@@ -1148,14 +1846,9 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
                         tau33_SGS = - nuEff*(2.0*dw_dz);
 
                         // velocity-SGS stresses average
-                        umtau_mean[k][j][i].x = m1 * umtau_mean[k][j][i].x + m2 * (U*tau11_SGS + V*tau21_SGS + W*tau31_SGS);
-                        umtau_mean[k][j][i].y = m1 * umtau_mean[k][j][i].y + m2 * (U*tau12_SGS + V*tau22_SGS + W*tau32_SGS);
-                        umtau_mean[k][j][i].z = m1 * umtau_mean[k][j][i].z + m2 * (U*tau13_SGS + V*tau23_SGS + W*tau33_SGS);
-
-                        // velocity-pressure fluctuations average
-                        uppp_mean[k][j][i].x  = m1 * uppp_mean[k][j][i].x + m2 * (Uprime * Pprime);
-                        uppp_mean[k][j][i].y  = m1 * uppp_mean[k][j][i].y + m2 * (Vprime * Pprime);
-                        uppp_mean[k][j][i].z  = m1 * uppp_mean[k][j][i].z + m2 * (Wprime * Pprime);
+                        umtau[k][j][i].x = m1 * umtau[k][j][i].x + m2 * (U*tau11_SGS + V*tau21_SGS + W*tau31_SGS);
+                        umtau[k][j][i].y = m1 * umtau[k][j][i].y + m2 * (U*tau12_SGS + V*tau22_SGS + W*tau32_SGS);
+                        umtau[k][j][i].z = m1 * umtau[k][j][i].z + m2 * (U*tau13_SGS + V*tau23_SGS + W*tau33_SGS);
 
                         // dissipation average
                         PetscReal TauijSij  = 0.5 *
@@ -1165,215 +1858,56 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
                             tau31_SGS*(du_dz + dw_dx) + tau32_SGS*(dv_dz + dw_dy) + tau33_SGS*(2.0*dw_dz)
                         );
 
-                        keeps[k][j][i] = m1 * keeps[k][j][i] + m2 * TauijSij;
+                        // dissipation (on LHS)
+                        keeps[k][j][i] = m1 * keeps[k][j][i] - m2 * TauijSij;
 
-                        // kinetic to potential energy conversion average
+                        // mechanical energy
+                        em[k][j][i] = computeEm(um[k][j][i], upup[k][j][i], pm[k][j][i]);
+
+                        // kinetic to potential energy conversion average (on LHS)
                         if(flags->isAblActive && flags->isTeqnActive)
                         {
-                            ptheta[k][j][i] = m1 * ptheta[k][j][i] + m2 * (gMag / thetaRef * W * (t[k][j][i] - thetaRef));
+                            ptheta[k][j][i] = m1 * ptheta[k][j][i] - m2 * (gMag / thetaRef * W * (2.0*thetaRef - t[k][j][i]));
                         }
 
-                        // wind farm power average
+                        // wind farm power average (on LHS)
                         if(flags->isWindFarmActive)
                         {
-                            pf[k][j][i] = m1 * pf[k][j][i] + m2 * (bf[k][j][i].x*U + bf[k][j][i].y*V + bf[k][j][i].z*W);
+                            pf[k][j][i] = m1 * pf[k][j][i] - m2 * (bf[k][j][i].x*U + bf[k][j][i].y*V + bf[k][j][i].z*W);
                         }
 
-                        // mean background contribution
+                        // mean background contribution (on LHS)
                         if(flags->isAblActive)
                         {
-                            pinf[k][j][i] = m1 * pinf[k][j][i] + m2 * nDot(um_mean[k][j][i], sources[k][j][i]);
+                            pinf[k][j][i] = m1 * pinf[k][j][i] - m2 * nDot(um[k][j][i], sources[k][j][i]);
                         }
-
-                        // mechanical energy average
-                        em[k][j][i] = computeEm(um_mean[k][j][i],  upup_mean[k][j][i],  pm_mean[k][j][i]);
                     }
                 }
             }
 
-            DMDAVecRestoreArray(da,  ke->lEm,          &em);
-            DMDAVecRestoreArray(da,  ke->lavgPm,       &pm_mean);
-            DMDAVecRestoreArray(fda, ke->lavgUm,       &um_mean);
-            DMDAVecRestoreArray(sda, ke->lavgUpUp,     &upup_mean);
-            DMDAVecRestoreArray(fda, ke->lavgUpUpUp,   &upupup_mean);
-            DMDAVecRestoreArray(fda, ke->lavgUmTauSGS, &umtau_mean);
-            DMDAVecRestoreArray(fda, ke->lavgUpPp,     &uppp_mean);
+            DMDAVecRestoreArray(da,  ke->lPm,       &pm);
+            DMDAVecRestoreArray(fda, ke->lUm,       &um);
+            DMDAVecRestoreArray(sda, ke->lVpVp,     &upup);
+            DMDAVecRestoreArray(fda, ke->lVpVpVp,   &upupup);
+            DMDAVecRestoreArray(fda, ke->lVmTauSGS, &umtau);
 
             // scatter local to local for subsequent interpolations
-            DMLocalToLocalBegin (da,  ke->lEm, INSERT_VALUES, ke->lEm);
-            DMLocalToLocalEnd   (da,  ke->lEm, INSERT_VALUES, ke->lEm);
-            DMLocalToLocalBegin (da,  ke->lavgPm, INSERT_VALUES, ke->lavgPm);
-            DMLocalToLocalEnd   (da,  ke->lavgPm, INSERT_VALUES, ke->lavgPm);
-            DMLocalToLocalBegin (fda, ke->lavgUm, INSERT_VALUES, ke->lavgUm);
-            DMLocalToLocalEnd   (fda, ke->lavgUm, INSERT_VALUES, ke->lavgUm);
-            DMLocalToLocalBegin (sda, ke->lavgUpUp, INSERT_VALUES, ke->lavgUpUp);
-            DMLocalToLocalEnd   (sda, ke->lavgUpUp, INSERT_VALUES, ke->lavgUpUp);
-            DMLocalToLocalBegin (fda, ke->lavgUpUpUp, INSERT_VALUES, ke->lavgUpUpUp);
-            DMLocalToLocalEnd   (fda, ke->lavgUpUpUp, INSERT_VALUES, ke->lavgUpUpUp);
-            DMLocalToLocalBegin (fda, ke->lavgUmTauSGS, INSERT_VALUES, ke->lavgUmTauSGS);
-            DMLocalToLocalEnd   (fda, ke->lavgUmTauSGS, INSERT_VALUES, ke->lavgUmTauSGS);
-            DMLocalToLocalBegin (fda, ke->lavgUpPp, INSERT_VALUES, ke->lavgUpPp);
-            DMLocalToLocalEnd   (fda, ke->lavgUpPp, INSERT_VALUES, ke->lavgUpPp);
+            DMLocalToLocalBegin (da,  ke->lPm, INSERT_VALUES, ke->lPm);
+            DMLocalToLocalEnd   (da,  ke->lPm, INSERT_VALUES, ke->lPm);
+            DMLocalToLocalBegin (fda, ke->lUm, INSERT_VALUES, ke->lUm);
+            DMLocalToLocalEnd   (fda, ke->lUm, INSERT_VALUES, ke->lUm);
+            DMLocalToLocalBegin (sda, ke->lVpVp, INSERT_VALUES, ke->lVpVp);
+            DMLocalToLocalEnd   (sda, ke->lVpVp, INSERT_VALUES, ke->lVpVp);
+            DMLocalToLocalBegin (fda, ke->lVpVpVp, INSERT_VALUES, ke->lVpVpVp);
+            DMLocalToLocalEnd   (fda, ke->lVpVpVp, INSERT_VALUES, ke->lVpVpVp);
+            DMLocalToLocalBegin (fda, ke->lVmTauSGS, INSERT_VALUES, ke->lVmTauSGS);
+            DMLocalToLocalEnd   (fda, ke->lVmTauSGS, INSERT_VALUES, ke->lVmTauSGS);
 
-            DMDAVecGetArray(da,  ke->lEm,          &em);
-            DMDAVecGetArray(da,  ke->lavgPm,       &pm_mean);
-            DMDAVecGetArray(fda, ke->lavgUm,       &um_mean);
-            DMDAVecGetArray(sda, ke->lavgUpUp,     &upup_mean);
-            DMDAVecGetArray(fda, ke->lavgUpUpUp,   &upupup_mean);
-            DMDAVecGetArray(fda, ke->lavgUmTauSGS, &umtau_mean);
-            DMDAVecGetArray(fda, ke->lavgUpPp,     &uppp_mean);
-
-            for (k = zs; k < lze; k++)
-            {
-                for (j = ys; j < lye; j++)
-                {
-                    for (i = xs; i < lxe; i++)
-                    {
-                        // mechanical energy divergence average (only computed at internal cells)
-                        if(i>0 && j>0 && k>0)
-                        {
-                            /*
-                            PetscInt iL, iR, jL, jR, kL, kR;
-                            getCell2Cell3StencilCsiNoGhost(mesh, i, mx, &iL, &iR);
-                            getCell2Cell3StencilEtaNoGhost(mesh, j, my, &jL, &jR);
-                            getCell2Cell3StencilZetNoGhost(mesh, k, mz, &kL, &kR);
-
-                            PetscReal Em   = computeEm(um_mean[k][j][i],  upup_mean[k][j][i],  pm_mean[k][j][i]),
-                                      Em_r = computeEm(um_mean[kR][j][i], upup_mean[kR][j][i], pm_mean[kR][j][i]),
-                                      Em_l = computeEm(um_mean[kL][j][i], upup_mean[kL][j][i], pm_mean[kL][j][i]),
-                                      Em_t = computeEm(um_mean[k][jR][i], upup_mean[k][jR][i], pm_mean[k][jR][i]),
-                                      Em_b = computeEm(um_mean[k][jL][i], upup_mean[k][jL][i], pm_mean[k][jL][i]),
-                                      Em_n = computeEm(um_mean[k][j][iR], upup_mean[k][j][iR], pm_mean[k][j][iR]),
-                                      Em_s = computeEm(um_mean[k][j][iL], upup_mean[k][j][iL], pm_mean[k][j][iL]);
-                            Cmpnts    U_r  = centralVec(um_mean[k][j][i], um_mean[kR][j][i]),
-                                      U_l  = centralVec(um_mean[k][j][i], um_mean[kL][j][i]),
-                                      U_t  = centralVec(um_mean[k][j][i], um_mean[k][jR][i]),
-                                      U_b  = centralVec(um_mean[k][j][i], um_mean[k][jL][i]),
-                                      U_n  = centralVec(um_mean[k][j][i], um_mean[k][j][iR]),
-                                      U_s  = centralVec(um_mean[k][j][i], um_mean[k][j][iL]);
-
-                            ked[k][j][i] =
-                            (
-                                nDot(icsi[k][j][i  ], U_n) * central(Em_n, Em) -
-                                nDot(icsi[k][j][i-1], U_s) * central(Em_s, Em) +
-                                nDot(jeta[k][j  ][i], U_t) * central(Em_t, Em) -
-                                nDot(jeta[k][j-1][i], U_b) * central(Em_b, Em) +
-                                nDot(kzet[k  ][j][i], U_r) * central(Em_r, Em) -
-                                nDot(kzet[k-1][j][i], U_l) * central(Em_l, Em)
-                            );
-
-                            */
-                            PetscReal dedc, dede, dedz;
-                            PetscReal de_dx, de_dy, de_dz;
-
-                            PetscReal csi0 = csi[k][j][i].x,
-                                      csi1 = csi[k][j][i].y,
-                                      csi2 = csi[k][j][i].z;
-                            PetscReal eta0 = eta[k][j][i].x,
-                                      eta1 = eta[k][j][i].y,
-                                      eta2 = eta[k][j][i].z;
-                            PetscReal zet0 = zet[k][j][i].x,
-                                      zet1 = zet[k][j][i].y,
-                                      zet2 = zet[k][j][i].z;
-                            PetscReal ajc  = aj[k][j][i];
-
-                            Compute_dscalar_center
-                            (
-                                mesh,
-                                i, j, k, mx, my, mz, em, nvert, &dedc, &dede, &dedz
-                            );
-
-                            Compute_dscalar_dxyz
-                            (
-                                mesh,
-                                csi0, csi1, csi2, eta0, eta1, eta2,
-                                zet0, zet1, zet2, ajc, dedc, dede, dedz, &de_dx,
-                                &de_dy, &de_dz
-                            );
-
-                            Cmpnts gradEm = nSetFromComponents(de_dx, de_dy, de_dz);
-
-                            ked[k][j][i] = nDot(um_mean[k][j][i], gradEm);
-
-                        }
-
-                        // net energy fluxes on cell faces (they are staggered and in curvilinear coords.)
-                        Cmpnts flux_i = nSetZero(),
-                               flux_j = nSetZero(),
-                               flux_k = nSetZero();
-
-                        Cmpnts N1;
-                        N1.x = um_mean[k][j][i].x * upup_mean[k][j][i].xx + um_mean[k][j][i].y * upup_mean[k][j][i].xy + um_mean[k][j][i].z * upup_mean[k][j][i].xz;
-                        N1.y = um_mean[k][j][i].x * upup_mean[k][j][i].xy + um_mean[k][j][i].y * upup_mean[k][j][i].yy + um_mean[k][j][i].z * upup_mean[k][j][i].yz;
-                        N1.z = um_mean[k][j][i].x * upup_mean[k][j][i].xz + um_mean[k][j][i].y * upup_mean[k][j][i].yz + um_mean[k][j][i].z * upup_mean[k][j][i].zz;
-
-                        // fluxes at i-faces (exclude boundary faces)
-                        {
-                            mSum(flux_i, nScale(0.5, centralVec(upupup_mean[k][j][i], upupup_mean[k][j][i+1])));
-                            mSum(flux_i, centralVec(umtau_mean[k][j][i], umtau_mean[k][j][i+1]));
-                            mSum(flux_i, centralVec(uppp_mean[k][j][i], uppp_mean[k][j][i+1]));
-
-                            Cmpnts N2;
-                            N2.x = um_mean[k][j][i+1].x * upup_mean[k][j][i+1].xx + um_mean[k][j][i+1].y * upup_mean[k][j][i+1].xy + um_mean[k][j][i+1].z * upup_mean[k][j][i+1].xz;
-                            N2.y = um_mean[k][j][i+1].x * upup_mean[k][j][i+1].xy + um_mean[k][j][i+1].y * upup_mean[k][j][i+1].yy + um_mean[k][j][i+1].z * upup_mean[k][j][i+1].yz;
-                            N2.z = um_mean[k][j][i+1].x * upup_mean[k][j][i+1].xz + um_mean[k][j][i+1].y * upup_mean[k][j][i+1].yz + um_mean[k][j][i+1].z * upup_mean[k][j][i+1].zz;
-
-                            mSum(flux_i, centralVec(N1, N2));
-
-                            // set flux
-                            kef[k][j][i].x = nDot(icsi[k][j][i],flux_i);
-                        }
-
-                        // fluxes at j-faces (exclude boundary faces)
-                        {
-                            mSum(flux_j, nScale(0.5, centralVec(upupup_mean[k][j][i], upupup_mean[k][j+1][i])));
-                            mSum(flux_j, centralVec(umtau_mean[k][j][i], umtau_mean[k][j+1][i]));
-                            mSum(flux_j, centralVec(uppp_mean[k][j][i], uppp_mean[k][j+1][i]));
-
-                            Cmpnts N2;
-                            N2.x = um_mean[k][j+1][i].x * upup_mean[k][j+1][i].xx + um_mean[k][j+1][i].y * upup_mean[k][j+1][i].xy + um_mean[k][j+1][i].z * upup_mean[k][j+1][i].xz;
-                            N2.y = um_mean[k][j+1][i].x * upup_mean[k][j+1][i].xy + um_mean[k][j+1][i].y * upup_mean[k][j+1][i].yy + um_mean[k][j+1][i].z * upup_mean[k][j+1][i].yz;
-                            N2.z = um_mean[k][j+1][i].x * upup_mean[k][j+1][i].xz + um_mean[k][j+1][i].y * upup_mean[k][j+1][i].yz + um_mean[k][j+1][i].z * upup_mean[k][j+1][i].zz;
-
-                            mSum(flux_j, centralVec(N1, N2));
-
-                            // set flux
-                            kef[k][j][i].y = nDot(jeta[k][j][i],flux_j);
-                        }
-
-                        // fluxes at k-faces (exclude boundary faces)
-                        {
-                            mSum(flux_k, nScale(0.5, centralVec(upupup_mean[k][j][i], upupup_mean[k+1][j][i])));
-                            mSum(flux_k, centralVec(umtau_mean[k][j][i], umtau_mean[k+1][j][i]));
-                            mSum(flux_k, centralVec(uppp_mean[k][j][i], uppp_mean[k+1][j][i]));
-
-                            Cmpnts N2;
-                            N2.x = um_mean[k+1][j][i].x * upup_mean[k+1][j][i].xx + um_mean[k+1][j][i].y * upup_mean[k+1][j][i].xy + um_mean[k+1][j][i].z * upup_mean[k+1][j][i].xz;
-                            N2.y = um_mean[k+1][j][i].x * upup_mean[k+1][j][i].xy + um_mean[k+1][j][i].y * upup_mean[k+1][j][i].yy + um_mean[k+1][j][i].z * upup_mean[k+1][j][i].yz;
-                            N2.z = um_mean[k+1][j][i].x * upup_mean[k+1][j][i].xz + um_mean[k+1][j][i].y * upup_mean[k+1][j][i].yz + um_mean[k+1][j][i].z * upup_mean[k+1][j][i].zz;
-
-                            mSum(flux_k, centralVec(N1, N2));
-
-                            // set flux
-                            kef[k][j][i].z = nDot(kzet[k][j][i],flux_k);
-                        }
-                    }
-                }
-            }
-
-            DMDAVecRestoreArray (fda, ke->F, &kef);
-            DMGlobalToLocalBegin(fda, ke->F, INSERT_VALUES, lF);
-            DMGlobalToLocalEnd  (fda, ke->F, INSERT_VALUES, lF);
-            DMDAVecGetArray     (fda, lF,    &lkef);
-
-            // compute maximum and average error inside the domain
-            PetscReal     lmaxerror = 0.0, gmaxerror = 0.0;
-            PetscReal     lavgerror = 0.0, gavgerror = 0.0;
-            PetscReal     lsum      = 0.0, gsum      = 0.0;
-            PetscInt      lcount    = 0,   gcount    = 0;
-
-            // debug
-            PetscReal     maxmd,  maxf, maxeps, maxs, maxp, maxfp;
+            DMDAVecGetArray(da,  ke->lPm,       &pm);
+            DMDAVecGetArray(fda, ke->lUm,       &um);
+            DMDAVecGetArray(sda, ke->lVpVp,     &upup);
+            DMDAVecGetArray(fda, ke->lVpVpVp,   &upupup);
+            DMDAVecGetArray(fda, ke->lVmTauSGS, &umtau);
 
             for (k = lzs; k < lze; k++)
             {
@@ -1381,77 +1915,224 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
                 {
                     for (i = lxs; i < lxe; i++)
                     {
-                        // stay on accurate cells
-                        if(i>2 && j>2 && k>2 && i<mx-3 && j<my-3 && k<mz-3)
+                        Cmpnts umupupL;
+                        umupupL.x = um[k][j][i].x * upup[k][j][i].xx + um[k][j][i].y * upup[k][j][i].xy + um[k][j][i].z * upup[k][j][i].xz;
+                        umupupL.y = um[k][j][i].x * upup[k][j][i].xy + um[k][j][i].y * upup[k][j][i].yy + um[k][j][i].z * upup[k][j][i].yz;
+                        umupupL.z = um[k][j][i].x * upup[k][j][i].xz + um[k][j][i].y * upup[k][j][i].yz + um[k][j][i].z * upup[k][j][i].zz;
+
+                        // i-faces
+                        if(j>0 && k>0 && i < mx-2)
                         {
-                            PetscReal error_p;
+                            vm[k][j][i].x = m1 * vm[k][j][i].x + m2 * ucont[k][j][i].x;
+
+                            PetscReal Vprime = vm[k][j][i].x - ucont[k][j][i].x,
+                                      Pprime = 0.5 * (pm[k][j][i]-p[k][j][i] + pm[k][j][i+1]-p[k][j][i+1]);
+
+                            Cmpnts umupupR;
+                            umupupR.x = um[k][j][i+1].x * upup[k][j][i+1].xx + um[k][j][i+1].y * upup[k][j][i+1].xy + um[k][j][i+1].z * upup[k][j][i+1].xz;
+                            umupupR.y = um[k][j][i+1].x * upup[k][j][i+1].xy + um[k][j][i+1].y * upup[k][j][i+1].yy + um[k][j][i+1].z * upup[k][j][i+1].yz;
+                            umupupR.z = um[k][j][i+1].x * upup[k][j][i+1].xz + um[k][j][i+1].y * upup[k][j][i+1].yz + um[k][j][i+1].z * upup[k][j][i+1].zz;
+
+                            // mean kinetic energy flux
+                            kedum[k][j][i].x = vm[k][j][i].x * 0.5 * (computeMKE(um[k][j][i]) + computeMKE(um[k][j][i+1]));
+
+                            // turbulent kinetic enegy flux
+                            kedup[k][j][i].x = vm[k][j][i].x * 0.5 * (computeTKE(upup[k][j][i]) + computeTKE(upup[k][j][i+1]));
+
+                            // mean pressure flux
+                            kedpm[k][j][i].x = vm[k][j][i].x * 0.5 * (pm[k][j][i] + pm[k][j][i+1]);
+
+                            // fluctuating pressure flux
+                            kedpp[k][j][i].x = m1 * kedpp[k][j][i].x + m2 * Vprime * Pprime;
+
+                            Cmpnts flux_i = nSetZero();
+                            mSum(flux_i, nScale(0.5, nSum(upupup[k][j][i], upupup[k][j][i+1])));
+                            mSum(flux_i, nScale(0.5, nSum(umtau[k][j][i], umtau[k][j][i+1])));
+                            mSum(flux_i, nScale(0.5, nSum(umupupL, umupupR)));
+
+                            // turbulent fluxes
+                            kef[k][j][i].x   = nDot(icsi[k][j][i], flux_i);
+                        }
+
+                        // j-faces
+                        if(i>0 && k>0 && j < my-2)
+                        {
+                            vm[k][j][i].y = m1 * vm[k][j][i].y + m2 * ucont[k][j][i].y;
+
+                            PetscReal Vprime = vm[k][j][i].y - ucont[k][j][i].y,
+                                      Pprime = 0.5 * (pm[k][j][i]-p[k][j][i] + pm[k][j+1][i]-p[k][j+1][i]);
+
+                            Cmpnts umupupR;
+                            umupupR.x = um[k][j+1][i].x * upup[k][j+1][i].xx + um[k][j+1][i].y * upup[k][j+1][i].xy + um[k][j+1][i].z * upup[k][j+1][i].xz;
+                            umupupR.y = um[k][j+1][i].x * upup[k][j+1][i].xy + um[k][j+1][i].y * upup[k][j+1][i].yy + um[k][j+1][i].z * upup[k][j+1][i].yz;
+                            umupupR.z = um[k][j+1][i].x * upup[k][j+1][i].xz + um[k][j+1][i].y * upup[k][j+1][i].yz + um[k][j+1][i].z * upup[k][j+1][i].zz;
+
+                            // mean kinetic energy flux
+                            kedum[k][j][i].y = vm[k][j][i].y * 0.5 * (computeMKE(um[k][j][i]) + computeMKE(um[k][j+1][i]));
+
+                            // turbulent kinetic energy flux
+                            kedup[k][j][i].y = vm[k][j][i].y * 0.5 * (computeTKE(upup[k][j][i]) + computeTKE(upup[k][j+1][i]));
+
+                            // mean pressure flux
+                            kedpm[k][j][i].y = vm[k][j][i].y * 0.5 * (pm[k][j][i] + pm[k][j+1][i]);
+
+                            // fluctuating pressure flux
+                            kedpp[k][j][i].y = m1 * kedpp[k][j][i].y + m2 * Vprime * Pprime;
+
+                            Cmpnts flux_j = nSetZero();
+                            mSum(flux_j, nScale(0.5, nSum(upupup[k][j][i], upupup[k][j+1][i])));
+                            mSum(flux_j, nScale(0.5, nSum(umtau[k][j][i], umtau[k][j+1][i])));
+                            mSum(flux_j, nScale(0.5, nSum(umupupL, umupupR)));
+
+                            // turbulent fluxes
+                            kef[k][j][i].y   = nDot(jeta[k][j][i], flux_j);
+                        }
+
+                        // k-faces
+                        if(i>0 && j>0 && k < mz-2)
+                        {
+                            vm[k][j][i].z = m1 * vm[k][j][i].z + m2 * ucont[k][j][i].z;
+
+                            PetscReal Vprime = vm[k][j][i].z - ucont[k][j][i].z,
+                                      Pprime = 0.5 * (pm[k][j][i]-p[k][j][i] + pm[k+1][j][i]-p[k+1][j][i]);
+
+                            Cmpnts umupupR;
+                            umupupR.x = um[k+1][j][i].x * upup[k+1][j][i].xx + um[k+1][j][i].y * upup[k+1][j][i].xy + um[k+1][j][i].z * upup[k+1][j][i].xz;
+                            umupupR.y = um[k+1][j][i].x * upup[k+1][j][i].xy + um[k+1][j][i].y * upup[k+1][j][i].yy + um[k+1][j][i].z * upup[k+1][j][i].yz;
+                            umupupR.z = um[k+1][j][i].x * upup[k+1][j][i].xz + um[k+1][j][i].y * upup[k+1][j][i].yz + um[k+1][j][i].z * upup[k+1][j][i].zz;
+
+                            // mean kinetic energy flux
+                            kedum[k][j][i].z = vm[k][j][i].z * 0.5 * (computeMKE(um[k][j][i]) + computeMKE(um[k+1][j][i]));
+
+                            // turbulent kinetic energy flux
+                            kedup[k][j][i].z = vm[k][j][i].z * 0.5 * (computeTKE(upup[k][j][i]) + computeTKE(upup[k+1][j][i]));
+
+                            // mean pressure flux
+                            kedpm[k][j][i].z = vm[k][j][i].z * 0.5 * (pm[k][j][i] + pm[k+1][j][i]);
+
+                            // fluctuating pressure flux
+                            kedpp[k][j][i].z = m1 * kedpp[k][j][i].z + m2 * Vprime * Pprime;
+
+                            Cmpnts flux_k = nSetZero();
+                            mSum(flux_k, nScale(0.5, nSum(upupup[k][j][i], upupup[k+1][j][i])));
+                            mSum(flux_k, nScale(0.5, nSum(umtau[k][j][i], umtau[k+1][j][i])));
+                            mSum(flux_k, nScale(0.5, nSum(umupupL, umupupR)));
+
+                            // turbulent fluxes
+                            kef[k][j][i].z   = nDot(kzet[k][j][i], flux_k);
+                        }
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(fda, ke->lDum,    &kedum);
+            DMDAVecRestoreArray(fda, ke->lDup,    &kedup);
+            DMDAVecRestoreArray(fda, ke->lDpm,    &kedpm);
+            DMDAVecRestoreArray(fda, ke->lDpp,    &kedpp);
+            DMDAVecRestoreArray(fda, ke->lF,      &kef);
+
+            DMLocalToLocalBegin (fda, ke->lDum, INSERT_VALUES, ke->lDum);
+            DMLocalToLocalEnd   (fda, ke->lDum, INSERT_VALUES, ke->lDum);
+            DMLocalToLocalBegin (fda, ke->lDup, INSERT_VALUES, ke->lDup);
+            DMLocalToLocalEnd   (fda, ke->lDup, INSERT_VALUES, ke->lDup);
+            DMLocalToLocalBegin (fda, ke->lDpm, INSERT_VALUES, ke->lDpm);
+            DMLocalToLocalEnd   (fda, ke->lDpm, INSERT_VALUES, ke->lDpm);
+            DMLocalToLocalBegin (fda, ke->lDpp, INSERT_VALUES, ke->lDpp);
+            DMLocalToLocalEnd   (fda, ke->lDpp, INSERT_VALUES, ke->lDpp);
+            DMLocalToLocalBegin (fda, ke->lF,   INSERT_VALUES, ke->lF);
+            DMLocalToLocalEnd   (fda, ke->lF,   INSERT_VALUES, ke->lF);
+
+            DMDAVecGetArray(fda, ke->lDum,    &kedum);
+            DMDAVecGetArray(fda, ke->lDup,    &kedup);
+            DMDAVecGetArray(fda, ke->lDpm,    &kedpm);
+            DMDAVecGetArray(fda, ke->lDpp,    &kedpp);
+            DMDAVecGetArray(fda, ke->lF,      &kef);
+
+            // compute cell-cumulated fluxes D and F and error
+            DMDAVecGetArray(da,  ke->D,       &kedc);
+            DMDAVecGetArray(da,  ke->F,       &kefc);
+
+            PetscReal lmaxErr = 0.0, gmaxErr = 0.0;
+            PetscInt  imax, jmax, kmax;
+
+            for (k = lzs; k < lze; k++)
+            {
+                for (j = lys; j < lye; j++)
+                {
+                    for (i = lxs; i < lxe; i++)
+                    {
+                        if(i>1 && j>1 && k>1 && i<mx-2 && j<my-2 && k<mz-2)
+                        {
                             PetscReal cellVolume = 1.0 / aj[k][j][i];
 
-                            PetscReal flux        = - (lkef[k][j][i].x - lkef[k][j][i-1].x + lkef[k][j][i].y - lkef[k][j-1][i].y + lkef[k][j][i].z - lkef[k-1][j][i].z) / cellVolume;
-                            PetscReal convection  = - ked[k][j][i];
-                            PetscReal dissipation =   keeps[k][j][i];
+                            kedc[k][j][i] =
+                            (
+                                kedum[k][j][i].x - kedum[k][j][i-1].x +
+                                kedum[k][j][i].y - kedum[k][j-1][i].y +
+                                kedum[k][j][i].z - kedum[k-1][j][i].z +
+                                kedup[k][j][i].x - kedup[k][j][i-1].x +
+                                kedup[k][j][i].y - kedup[k][j-1][i].y +
+                                kedup[k][j][i].z - kedup[k-1][j][i].z +
+                                kedpm[k][j][i].x - kedpm[k][j][i-1].x +
+                                kedpm[k][j][i].y - kedpm[k][j-1][i].y +
+                                kedpm[k][j][i].z - kedpm[k-1][j][i].z
+                            );
 
-                            error_p = flux + convection + dissipation;
+                            kefc[k][j][i] =
+                            (
+                                kef[k][j][i].x   - kef[k][j][i-1].x   +
+                                kef[k][j][i].y   - kef[k][j-1][i].y   +
+                                kef[k][j][i].z   - kef[k-1][j][i].z   +
+                                kedpp[k][j][i].x - kedpp[k][j][i-1].x +
+                                kedpp[k][j][i].y - kedpp[k][j-1][i].y +
+                                kedpp[k][j][i].z - kedpp[k-1][j][i].z
+                            );
 
-                            if(fabs(flux)        > maxf)   maxf   = fabs(flux);
-                            if(fabs(convection)  > maxmd)  maxmd  = fabs(convection);
-                            if(fabs(dissipation) > maxeps) maxeps = fabs(dissipation);
+                            error[k][j][i] = kedc[k][j][i] + kefc[k][j][i];
+
+                            error[k][j][i] += keeps[k][j][i] * cellVolume;
+
+                            if(flags->isAblActive && flags->isTeqnActive)
+                            {
+                                error[k][j][i] += ptheta[k][j][i] * cellVolume;
+                            }
 
                             if(flags->isWindFarmActive)
                             {
-                                error_p += pf[k][j][i];
-
-                                if(fabs(pf[k][j][i]) > maxfp)
-                                {
-                                    maxfp = fabs(pf[k][j][i]);
-                                }
+                                error[k][j][i] += pf[k][j][i] * cellVolume;
                             }
 
                             if(flags->isAblActive)
                             {
-                                error_p -= pinf[k][j][i];
-
-                                if(fabs(pinf[k][j][i]) > maxs)
-                                {
-                                    maxs = fabs(pinf[k][j][i]);
-                                }
+                                error[k][j][i] += pinf[k][j][i] * cellVolume;
                             }
 
-                            if(flags->isAblActive && flags->isTeqnActive)
+                            if(fabs(error[k][j][i]) > lmaxErr)
                             {
-                                error_p += ptheta[k][j][i];
-
-                                if(fabs(ptheta[k][j][i]) > maxp)
-                                {
-                                    maxp = fabs(ptheta[k][j][i]);
-                                }
-                            }
-
-                            // cumulate with sign
-                            lsum           += error_p * cellVolume;
-                            lcount         ++;
-
-                            error[k][j][i]  = fabs(error_p);
-                            lavgerror      += error[k][j][i];
-
-                            if(error[k][j][i] > lmaxerror)
-                            {
-                                lmaxerror = error[k][j][i];
+                                lmaxErr = fabs(error[k][j][i]);
+                                imax = i; jmax = j; kmax = k;
                             }
                         }
                     }
                 }
             }
 
-            printf(" Max D = %f, Max F = %f, Max Eps = %f, Max Pinf = %f, Max Ptheta = %f, Max Pfarm = %f\n", maxmd,  maxf, maxeps, maxs, maxp, maxfp);
+            if(ke->debug)
+            {
+                if(flags->isWindFarmActive)
+                {
+                    PetscPrintf(PETSC_COMM_SELF, " > keDebug: maxErr = %f, D = %f, F = %f, Pf = %f, Eps = %f\n", lmaxErr, kedc[kmax][jmax][imax], kefc[kmax][jmax][imax], pf[kmax][jmax][imax] / aj[kmax][jmax][imax], keeps[kmax][jmax][imax] / aj[kmax][jmax][imax]);
+                }
+                else
+                {
+                    PetscPrintf(PETSC_COMM_SELF, " > keDebug: maxErr = %f, D = %f, F = %f, Eps = %f\n", lmaxErr, kedc[kmax][jmax][imax], kefc[kmax][jmax][imax], keeps[kmax][jmax][imax] / aj[kmax][jmax][imax]);
+                }
+            }
 
-            MPI_Allreduce(&lmaxerror, &gmaxerror, 1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
-            MPI_Allreduce(&lavgerror, &gavgerror, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-            MPI_Allreduce(&lsum, &gsum, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-            MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+            DMDAVecRestoreArray(da,  ke->D,       &kedc);
+            DMDAVecRestoreArray(da,  ke->F,       &kefc);
 
-            gavgerror = gavgerror / ((mx-6)*(my-6)*(mz-6));
-            gsum      = gsum      / gcount;
+            MPI_Reduce(&lmaxErr, &gmaxErr, 1, MPIU_REAL, MPIU_MAX, 0, mesh->MESH_COMM);
 
             // restore solution arrays
             DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
@@ -1491,31 +2172,948 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
             if(flags->isAblActive)
             {
                 DMDAVecRestoreArray(da, ke->Pinf,   &pinf);
-                DMDAVecRestoreArray(fda, lSourcesCat, &sources);
-                VecDestroy(&lSourcesCat);
+                DMDAVecRestoreArray(fda, lSourcesCont, &sources);
                 VecDestroy(&lSourcesCont);
             }
 
-            DMDAVecRestoreArray(da, ke->Error,  &error);
-            DMDAVecRestoreArray(da, ke->lEm,    &em);
-            DMDAVecRestoreArray(da, ke->D,      &ked);
-            DMDAVecRestoreArray(da, ke->Eps,    &keeps);
-            DMDAVecRestoreArray(da, ke->lavgPm,  &pm_mean);
+            DMDAVecRestoreArray(da,  ke->Error,   &error);
+            DMDAVecRestoreArray(da,  ke->Eps,     &keeps);
+            DMDAVecRestoreArray(da,  ke->lEm,     &em);
+            DMDAVecRestoreArray(fda, ke->lDum,    &kedum);
+            DMDAVecRestoreArray(fda, ke->lDup,    &kedup);
+            DMDAVecRestoreArray(fda, ke->lDpm,    &kedpm);
+            DMDAVecRestoreArray(fda, ke->lDpp,    &kedpp);
 
-            DMDAVecRestoreArray(fda, lF,               &lkef);
-            DMDAVecRestoreArray(fda, ke->lavgUm,       &um_mean);
-            DMDAVecRestoreArray(fda, ke->lavgUpUpUp,   &upupup_mean);
-            DMDAVecRestoreArray(fda, ke->lavgUmTauSGS, &umtau_mean);
-            DMDAVecRestoreArray(sda, ke->lavgUpUp,     &upup_mean);
-            DMDAVecRestoreArray(fda, ke->lavgUpPp,     &uppp_mean);
-
-            VecDestroy(&lF);
+            DMDAVecRestoreArray(da,  ke->lPm,       &pm);
+            DMDAVecRestoreArray(fda, ke->lF,        &kef);
+            DMDAVecRestoreArray(fda, ke->lVm,       &vm);
+            DMDAVecRestoreArray(fda, ke->lUm,       &um);
+            DMDAVecRestoreArray(sda, ke->lVpVp,     &upup);
+            DMDAVecRestoreArray(fda, ke->lVpVpVp,   &upupup);
+            DMDAVecRestoreArray(fda, ke->lVmTauSGS, &umtau);
 
             io->keAvgWeight++;
 
             PetscTime(&te);
-            PetscPrintf(mesh->MESH_COMM, "Averaged KE budgets in %lf s, Final specific error: cell max/avg = %.4f/%.4f, domain integrated = %e\n", te-ts, gmaxerror, gavgerror, gsum/(mesh->bounds.Lx*mesh->bounds.Ly*mesh->bounds.Lz));
+            PetscPrintf(mesh->MESH_COMM, "Averaged KE budgets in %lf s, maxCellError: %.4f\n", te-ts,gmaxErr);
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+    }
 
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
+{
+    // Note: these function evaluates the budjets in curvilinear coordinates
+
+    io_    *io     = acquisition->access->io;
+    clock_ *clock  = acquisition->access->clock;
+
+    if(io->keBudgets)
+    {
+        // accumulation flags for current time step
+        PetscInt    accumulate         = 0;
+
+        PetscReal startTimeAvg         = io->keBudStartTime;
+        PetscReal timeIntervalAvg      = io->keBudPrd;
+
+        // check if must accumulate
+        if
+        (
+            clock->time >= startTimeAvg &&
+            (clock->time - startTimeAvg ) / timeIntervalAvg -
+            std::floor((clock->time - startTimeAvg) / timeIntervalAvg) < 1e-10
+        )
+        {
+            accumulate = 1;
+        }
+
+        if(accumulate)
+        {
+            mesh_  *mesh   = acquisition->access->mesh;
+            flags_ *flags  = acquisition->access->flags;
+
+            ueqn_  *ueqn   = acquisition->access->ueqn;
+            peqn_  *peqn   = acquisition->access->peqn;
+            keFields *ke   = acquisition->keBudFields;
+            les_   *les    = NULL;
+            teqn_  *teqn   = NULL;
+            abl_   *abl    = NULL;
+            farm_  *farm   = NULL;
+
+            avgFields *avg = acquisition->fields;
+
+            DMDALocalInfo info = mesh->info;
+            DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+
+            PetscInt       xs = info.xs, xe = info.xs + info.xm;
+            PetscInt       ys = info.ys, ye = info.ys + info.ym;
+            PetscInt       zs = info.zs, ze = info.zs + info.zm;
+            PetscInt       mx = info.mx, my = info.my, mz = info.mz;
+
+            PetscInt       i, j, k;
+            PetscInt       lxs, lxe, lys, lye, lzs, lze;
+
+            Cmpnts         ***ucat, ***ucont, ***bf, ***cent;
+
+            Cmpnts         ***csi,  ***eta,  ***zet;
+            Cmpnts         ***icsi, ***ieta, ***izet;
+            Cmpnts         ***jcsi, ***jeta, ***jzet;
+            Cmpnts         ***kcsi, ***keta, ***kzet;
+            PetscReal      ***aj,   ***iaj,  ***jaj, ***kaj;
+
+            PetscReal      ***p,    ***nut,   ***cs,     ***nvert, ***t;
+            PetscReal      ***pinf, ***pf,    ***ptheta, ***keeps, ***em, ***error, ***kedc, ***kefc;
+            Cmpnts         ***kef,  ***kedum, ***kedup,  ***kedpm, ***kedpp;
+
+            Cmpnts         ***vmvpvp, ***vpvpvp, ***vdm,   ***vmpmg, ***vpppg, ***ddvm,
+                           ***vmc,    ***vme,    ***vmz,   ***vm,    ***pm, ***sources;
+            symmTensor     ***vpvpc,  ***vpvpe,  ***vpvpz, ***vpvp;
+
+            PetscReal      ts, te;
+
+            PetscReal      nu = acquisition->access->constants->nu;
+            PetscReal      gMag, thetaRef; // abl variables
+
+            // averaging weights
+            PetscReal       aN, pN;
+            PetscReal       m1, m2, p1, p2;
+
+            PetscReal       dudc, dude, dudz, dvdc, dvde, dvdz, dwdc, dwde, dwdz;      // velocity der. w.r.t. curvil. coords
+            PetscReal       csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;      // surface area vectors components
+            PetscReal       g11, g21, g31;                                             // metric tensor components
+            PetscReal       r11, r21, r31,
+                            r12, r22, r32,
+                            r13, r23, r33;
+
+            // local vectors (contrav. sources and body force)
+            Vec             lSourcesCont, lB;
+
+            PetscTime(&ts);
+
+            // indices for internal cells
+            lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+            lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+            lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+            // get fundamental distributed arrays
+            DMDAVecGetArray(fda, mesh->lCsi, &csi);
+            DMDAVecGetArray(fda, mesh->lEta, &eta);
+            DMDAVecGetArray(fda, mesh->lZet, &zet);
+
+            DMDAVecGetArray(fda, mesh->lICsi, &icsi);
+            DMDAVecGetArray(fda, mesh->lIEta, &ieta);
+            DMDAVecGetArray(fda, mesh->lIZet, &izet);
+
+            DMDAVecGetArray(fda, mesh->lJCsi, &jcsi);
+            DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+            DMDAVecGetArray(fda, mesh->lJZet, &jzet);
+
+            DMDAVecGetArray(fda, mesh->lKCsi, &kcsi);
+            DMDAVecGetArray(fda, mesh->lKEta, &keta);
+            DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+
+            DMDAVecGetArray(da,  mesh->lAj,  &aj);
+            DMDAVecGetArray(da,  mesh->lIAj, &iaj);
+            DMDAVecGetArray(da,  mesh->lJAj, &jaj);
+            DMDAVecGetArray(da,  mesh->lKAj, &kaj);
+
+            // get solution arrays
+            DMDAVecGetArray(fda, mesh->lCent,  &cent);
+            DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+            DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+            DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+            DMDAVecGetArray(da,  peqn->lP,     &p);
+
+            if(flags->isLesActive)
+            {
+                les = acquisition->access->les;
+
+                DMDAVecGetArray(da, les->lNu_t, &nut);
+                DMDAVecGetArray(da, les->lCs, &cs);
+            }
+
+            if(flags->isWindFarmActive)
+            {
+                farm = acquisition->access->farm;
+
+                VecDuplicate(mesh->lCent,  &lB); VecSet(lB,0.);
+                DMGlobalToLocalBegin (fda,  farm->sourceFarmCont, INSERT_VALUES, lB);
+                DMGlobalToLocalEnd   (fda,  farm->sourceFarmCont, INSERT_VALUES, lB);
+
+                DMDAVecGetArray(da, ke->Pf,  &pf);
+                DMDAVecGetArray(fda, lB,  &bf);
+            }
+
+            if(flags->isAblActive && flags->isTeqnActive)
+            {
+                teqn = acquisition->access->teqn;
+                abl  = acquisition->access->abl;
+
+                DMDAVecGetArray(da, ke->Ptheta, &ptheta);
+                DMDAVecGetArray(da, teqn->Tmprt, &t);
+
+                gMag     = 9.81;
+                thetaRef = abl->tRef;
+            }
+
+            if(flags->isAblActive)
+            {
+                DMDAVecGetArray(da, ke->Pinf,   &pinf);
+
+                // compute sources
+                VecDuplicate(mesh->lCent,  &lSourcesCont); VecSet(lSourcesCont,0.);
+                if(flags->isXDampingActive || flags->isZDampingActive)
+                {
+                    dampingSourceU(ueqn, lSourcesCont, 1.0);
+                }
+                sourceU (ueqn, lSourcesCont, 1.0 / clock->dt);
+                DMLocalToLocalBegin (fda,  lSourcesCont, INSERT_VALUES, lSourcesCont);
+                DMLocalToLocalEnd   (fda,  lSourcesCont, INSERT_VALUES, lSourcesCont);
+
+                DMDAVecGetArray(fda, lSourcesCont, &sources);
+            }
+
+            DMDAVecGetArray(da,  ke->Error,  &error);
+            DMDAVecGetArray(da,  ke->Eps,    &keeps);
+            DMDAVecGetArray(fda, ke->lF,     &kef);
+            DMDAVecGetArray(fda, ke->lDum,   &kedum);
+            DMDAVecGetArray(fda, ke->lDup,   &kedup);
+
+            // working vectors in GCC
+            DMDAVecGetArray(da,  ke->lEm,     &em);
+            DMDAVecGetArray(fda, ke->lVmVpVp, &vmvpvp);
+            DMDAVecGetArray(fda, ke->lVpVpVp, &vpvpvp);
+            DMDAVecGetArray(fda, ke->lVDm,    &vdm);
+            DMDAVecGetArray(fda, ke->lVmPmG,  &vmpmg);
+            DMDAVecGetArray(fda, ke->lVpPpG,  &vpppg);
+            DMDAVecGetArray(fda, ke->lVmCsi,  &vmc);
+            DMDAVecGetArray(fda, ke->lVmEta,  &vme);
+            DMDAVecGetArray(fda, ke->lVmZet,  &vmz);
+            DMDAVecGetArray(fda, ke->lVm,     &vm);
+            DMDAVecGetArray(fda, ke->lPm,     &pm);
+            DMDAVecGetArray(sda, ke->lVpVpCsi,&vpvpc);
+            DMDAVecGetArray(sda, ke->lVpVpEta,&vpvpe);
+            DMDAVecGetArray(sda, ke->lVpVpZet,&vpvpz);
+            DMDAVecGetArray(sda, ke->lVpVp,   &vpvp);
+
+            // compute averaging weights
+            aN = (PetscReal)io->keAvgWeight;
+            m1 = aN  / (aN + 1.0);
+            m2 = 1.0 / (aN + 1.0);
+
+            for (k = lzs; k < lze; k++)
+            {
+                for (j = lys; j < lye; j++)
+                {
+                    for (i = lxs; i < lxe; i++)
+                    {
+                        // compute cell centered contravariant flux average
+                        vm[k][j][i].x = m1 * vm[k][j][i].x + m2 * 0.5 * (ucont[k][j][i].x + ucont[k][j][i-1].x);
+                        vm[k][j][i].y = m1 * vm[k][j][i].y + m2 * 0.5 * (ucont[k][j][i].y + ucont[k][j-1][i].y);
+                        vm[k][j][i].z = m1 * vm[k][j][i].z + m2 * 0.5 * (ucont[k][j][i].z + ucont[k-1][j][i].z);
+
+                        // fluctuation fluxes
+                        PetscReal UprimeC = 0.5 * (ucont[k][j][i].x + ucont[k][j][i-1].x) - vm[k][j][i].x,
+                                  VprimeC = 0.5 * (ucont[k][j][i].y + ucont[k][j-1][i].y) - vm[k][j][i].y,
+                                  WprimeC = 0.5 * (ucont[k][j][i].z + ucont[k-1][j][i].z) - vm[k][j][i].z;
+
+                        // cell centered average of Reynolds stress tensor
+                        vpvp[k][j][i].xx = m1 * vpvp[k][j][i].xx + m2 * (UprimeC*UprimeC);
+                        vpvp[k][j][i].yy = m1 * vpvp[k][j][i].yy + m2 * (VprimeC*VprimeC);
+                        vpvp[k][j][i].zz = m1 * vpvp[k][j][i].zz + m2 * (WprimeC*WprimeC);
+                        vpvp[k][j][i].xy = m1 * vpvp[k][j][i].xy + m2 * (UprimeC*VprimeC);
+                        vpvp[k][j][i].xz = m1 * vpvp[k][j][i].xz + m2 * (UprimeC*WprimeC);
+                        vpvp[k][j][i].yz = m1 * vpvp[k][j][i].yz + m2 * (VprimeC*WprimeC);
+
+                        // compute cell centered tilde kinetic energy
+                        em[k][j][i] = computeEmTilde(vm[k][j][i], vpvp[k][j][i]);
+
+                        // i-faces
+                        if(j>0 && k>0 && i < mx-2)
+                        {
+                            // pre-set base variables for speed
+                            PetscReal U = ucont[k][j][i].x,
+                                      V = 0.25 * (ucont[k][j][i+1].y + ucont[k][j][i].y + ucont[k][j-1][i].y + ucont[k][j-1][i+1].y),
+                                      W = 0.25 * (ucont[k][j][i+1].z + ucont[k][j][i].z + ucont[k-1][j][i].z + ucont[k-1][j][i+1].z),
+                                      P = 0.5  * (p[k][j][i] + p[k][j][i+1]);
+
+                            // average of contravariant fluxes at the i-faces
+                            vmc[k][j][i].x = m1 * vmc[k][j][i].x + m2 * U;
+                            vmc[k][j][i].y = m1 * vmc[k][j][i].y + m2 * V;
+                            vmc[k][j][i].z = m1 * vmc[k][j][i].z + m2 * W;
+
+                            // average of pressure at i-faces
+                            pm[k][j][i].x  = m1 * pm[k][j][i].x  + m2 * P;
+
+                            // fluctuation fluxes
+                            PetscReal Uprime = U - vmc[k][j][i].x,
+                                      Vprime = V - vmc[k][j][i].y,
+                                      Wprime = W - vmc[k][j][i].z,
+                                      Pprime = P - pm[k][j][i].x;
+
+                            // average of Reynolds stress tensor
+                            vpvpc[k][j][i].xx = m1 * vpvpc[k][j][i].xx + m2 * (Uprime*Uprime);
+                            vpvpc[k][j][i].yy = m1 * vpvpc[k][j][i].yy + m2 * (Vprime*Vprime);
+                            vpvpc[k][j][i].zz = m1 * vpvpc[k][j][i].zz + m2 * (Wprime*Wprime);
+                            vpvpc[k][j][i].xy = m1 * vpvpc[k][j][i].xy + m2 * (Uprime*Vprime);
+                            vpvpc[k][j][i].xz = m1 * vpvpc[k][j][i].xz + m2 * (Uprime*Wprime);
+                            vpvpc[k][j][i].yz = m1 * vpvpc[k][j][i].yz + m2 * (Vprime*Wprime);
+
+                            // advection of reynold stresses
+                            vmvpvp[k][j][i].x =
+                            (
+                                vmc[k][j][i].x * vpvpc[k][j][i].xx +
+                                vmc[k][j][i].y * vpvpc[k][j][i].xy +
+                                vmc[k][j][i].z * vpvpc[k][j][i].xz
+                            );
+
+                            // turbulent fluxes
+                            vpvpvp[k][j][i].x = m1 * vpvpvp[k][j][i].x + m2 * 0.5 *
+                            (
+                                Uprime*Uprime*Uprime +
+                                Vprime*Vprime*Uprime +
+                                Wprime*Wprime*Uprime
+                            );
+
+                            // viscous fluxes
+                            PetscReal Dcsicsi, Detacsi, Dzetcsi,
+                                      Pxcsi, Pycsi, Pzcsi;
+                            PetscReal ajc = iaj[k][j][i];
+
+                            // get face normals
+                            csi0 = icsi[k][j][i].x, csi1 = icsi[k][j][i].y, csi2 = icsi[k][j][i].z;
+                            eta0 = ieta[k][j][i].x, eta1 = ieta[k][j][i].y, eta2 = ieta[k][j][i].z;
+                            zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
+
+                            // compute cartesian velocity derivatives w.r.t. curvilinear coords
+                            Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+
+                            g11 = csi0 * csi0 + csi1 * csi1 + csi2 * csi2;
+                            g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
+                            g31 = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
+
+                            r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
+                            r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
+                            r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
+
+                            r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                            r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                            r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
+
+                            r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                            r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                            r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+
+                            PetscReal nuEff = nu; if(flags->isLesActive) nuEff += 0.5 * (nut[k][j][i] + nut[k][j][i+1]);
+
+                            Pxcsi = (g11 * dudc + g21 * dude + g31 * dudz + r11 * csi0 + r21 * csi1 + r31 * csi2) * ajc * (nuEff);
+                            Pycsi = (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * csi0 + r22 * csi1 + r32 * csi2) * ajc * (nuEff);
+                            Pzcsi = (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nuEff);
+
+                            Dcsicsi   = csi0 * Pxcsi + csi1 * Pycsi + csi2 * Pzcsi;
+                            Detacsi   = eta0 * Pxcsi + eta1 * Pycsi + eta2 * Pzcsi;
+                            Dzetcsi   = zet0 * Pxcsi + zet1 * Pycsi + zet2 * Pzcsi;
+
+                            // beware the minus sign
+                            vdm[k][j][i].x = m1 * vdm[k][j][i].x - m2 *
+                            (
+                                U*Dcsicsi +
+                                V*Detacsi +
+                                W*Dzetcsi
+                            );
+
+                            // actual terms of the equations
+
+                            // mean pressure flux
+                            vmpmg[k][j][i].x =
+                            (
+                                vmc[k][j][i].x * pm[k][j][i].x * g11 +
+                                vmc[k][j][i].y * pm[k][j][i].x * g21 +
+                                vmc[k][j][i].z * pm[k][j][i].x * g31
+                            );
+
+                            // fluctuating pressure flux
+                            vpppg[k][j][i].x = m1 * vpppg[k][j][i].x + m2 *
+                            (
+                                Uprime * Pprime * g11 +
+                                Vprime * Pprime * g21 +
+                                Wprime * Pprime * g31
+                            );
+
+                            // mean kinetic energy flux
+                            kedum[k][j][i].x = vmc[k][j][i].x * computeMKE(vmc[k][j][i]);
+
+                            // turbulent kinetic energy flux
+                            kedup[k][j][i].x = vmc[k][j][i].x * computeTKE(vpvpc[k][j][i]);
+
+                            // turbulent fluxes
+                            kef[k][j][i].x   = (vmvpvp[k][j][i].x + vpvpvp[k][j][i].x + vdm[k][j][i].x);
+                        }
+
+                        // j-faces
+                        if(i>0 && k>0 && j < my-2)
+                        {
+                            // pre-set base variables for speed
+                            PetscReal U = 0.25 * (ucont[k][j+1][i].x + ucont[k][j][i].x + ucont[k][j][i-1].x + ucont[k][j+1][i-1].x),
+                                      V = ucont[k][j][i].y,
+                                      W = 0.25 * (ucont[k][j+1][i].z + ucont[k][j][i].z + ucont[k-1][j][i].z + ucont[k-1][j+1][i].z),
+                                      P = 0.5  * (p[k][j][i] + p[k][j+1][i]);
+
+                            // average of contravariant fluxes at the j-faces
+                            vme[k][j][i].x = m1 * vme[k][j][i].x + m2 * U;
+                            vme[k][j][i].y = m1 * vme[k][j][i].y + m2 * V;
+                            vme[k][j][i].z = m1 * vme[k][j][i].z + m2 * W;
+
+                            // average of pressure at j-faces
+                            pm[k][j][i].y  = m1 * pm[k][j][i].y  + m2 * P;
+
+                            // fluctuation fluxes
+                            PetscReal Uprime = U - vme[k][j][i].x,
+                                      Vprime = V - vme[k][j][i].y,
+                                      Wprime = W - vme[k][j][i].z,
+                                      Pprime = P - pm[k][j][i].y;
+
+                            // average of Reynolds stress tensor
+                            vpvpe[k][j][i].xx = m1 * vpvpe[k][j][i].xx + m2 * (Uprime*Uprime);
+                            vpvpe[k][j][i].yy = m1 * vpvpe[k][j][i].yy + m2 * (Vprime*Vprime);
+                            vpvpe[k][j][i].zz = m1 * vpvpe[k][j][i].zz + m2 * (Wprime*Wprime);
+                            vpvpe[k][j][i].xy = m1 * vpvpe[k][j][i].xy + m2 * (Uprime*Vprime);
+                            vpvpe[k][j][i].xz = m1 * vpvpe[k][j][i].xz + m2 * (Uprime*Wprime);
+                            vpvpe[k][j][i].yz = m1 * vpvpe[k][j][i].yz + m2 * (Vprime*Wprime);
+
+                            // advection of reynold stresses
+                            vmvpvp[k][j][i].y =
+                            (
+                                vme[k][j][i].x * vpvpe[k][j][i].xy +
+                                vme[k][j][i].y * vpvpe[k][j][i].yy +
+                                vme[k][j][i].z * vpvpe[k][j][i].yz
+                            );
+
+                            // turbulent fluxes
+                            vpvpvp[k][j][i].y = m1 * vpvpvp[k][j][i].y + m2 * 0.5 *
+                            (
+                                Uprime*Uprime*Vprime +
+                                Vprime*Vprime*Vprime +
+                                Wprime*Wprime*Vprime
+                            );
+
+                            // viscous fluxes
+                            PetscReal Dcsieta, Detaeta, Dzeteta,
+                                      Pxeta, Pyeta, Pzeta;
+                            PetscReal ajc = jaj[k][j][i];
+
+                            // get face normals
+                            csi0 = jcsi[k][j][i].x, csi1 = jcsi[k][j][i].y, csi2 = jcsi[k][j][i].z;
+                            eta0 = jeta[k][j][i].x, eta1 = jeta[k][j][i].y, eta2 = jeta[k][j][i].z;
+                            zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
+
+                            // compute cartesian velocity derivatives w.r.t. curvilinear coords
+                            Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+
+                            // compute metric tensor
+                            g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
+                            g21 = eta0 * eta0 + eta1 * eta1 + eta2 * eta2;
+                            g31 = zet0 * eta0 + zet1 * eta1 + zet2 * eta2;
+
+                            // compute cartesian velocity derivatives w.r.t. cartesian coords
+                            r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
+                            r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
+                            r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
+
+                            r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                            r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                            r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
+
+                            r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                            r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                            r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+
+                            PetscReal nuEff = nu; if(flags->isLesActive) nuEff += 0.5 * (nut[k][j][i] + nut[k][j+1][i]);
+
+                            Pxeta = (g11 * dudc + g21 * dude + g31 * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nuEff);
+                            Pyeta = (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nuEff);
+                            Pzeta = (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nuEff);
+
+                            Dcsieta   = csi0 * Pxeta + csi1 * Pyeta + csi2 * Pzeta;
+                            Detaeta   = eta0 * Pxeta + eta1 * Pyeta + eta2 * Pzeta;
+                            Dzeteta   = zet0 * Pxeta + zet1 * Pyeta + zet2 * Pzeta;
+
+                            // beware the minus sign
+                            vdm[k][j][i].y = m1 * vdm[k][j][i].y - m2 *
+                            (
+                                U*Dcsieta +
+                                V*Detaeta +
+                                W*Dzeteta
+                            );
+
+                            // actual terms of the equation
+
+                            // mean pressure flux
+                            vmpmg[k][j][i].y =
+                            (
+                                vme[k][j][i].x * pm[k][j][i].y * g11 +
+                                vme[k][j][i].y * pm[k][j][i].y * g21 +
+                                vme[k][j][i].z * pm[k][j][i].y * g31
+                            );
+
+                            // fluctuating pressure flux
+                            vpppg[k][j][i].y = m1 * vpppg[k][j][i].y + m2 *
+                            (
+                                Uprime * Pprime * g11 +
+                                Vprime * Pprime * g21 +
+                                Wprime * Pprime * g31
+                            );
+
+                            // mean kinetic energy flux
+                            kedum[k][j][i].y = vme[k][j][i].y * computeMKE(vme[k][j][i]);
+
+                            // turbulent kinetic energy flux
+                            kedup[k][j][i].y = vme[k][j][i].y * computeTKE(vpvpe[k][j][i]);
+
+                            // turbulent fluxes
+                            kef[k][j][i].y   = (vmvpvp[k][j][i].y + vpvpvp[k][j][i].y + vdm[k][j][i].y);
+                        }
+
+                        // k-faces
+                        if(i>0 && j>0 && k < mz-2)
+                        {
+                            // pre-set base variables for speed
+                            PetscReal U = 0.25 * (ucont[k+1][j][i].x + ucont[k][j][i].x + ucont[k][j][i-1].x + ucont[k+1][j][i-1].x),
+                                      V = 0.25 * (ucont[k+1][j][i].y + ucont[k][j][i].y + ucont[k][j-1][i].y + ucont[k+1][j-1][i].y),
+                                      W = ucont[k][j][i].z,
+                                      P = 0.5  * (p[k][j][i] + p[k+1][j][i]);
+
+                            // average of contravariant fluxes at the i-faces
+                            vmz[k][j][i].x = m1 * vmz[k][j][i].x + m2 * U;
+                            vmz[k][j][i].y = m1 * vmz[k][j][i].y + m2 * V;
+                            vmz[k][j][i].z = m1 * vmz[k][j][i].z + m2 * W;
+
+                            // average of pressure at i-faces
+                            pm[k][j][i].z  = m1 * pm[k][j][i].z  + m2 * P;
+
+                            // fluctuation fluxes
+                            PetscReal Uprime = U - vmz[k][j][i].x,
+                                      Vprime = V - vmz[k][j][i].y,
+                                      Wprime = W - vmz[k][j][i].z,
+                                      Pprime = P - pm[k][j][i].z;
+
+                            // average of Reynolds stress tensor
+                            vpvpz[k][j][i].xx = m1 * vpvpz[k][j][i].xx + m2 * (Uprime*Uprime);
+                            vpvpz[k][j][i].yy = m1 * vpvpz[k][j][i].yy + m2 * (Vprime*Vprime);
+                            vpvpz[k][j][i].zz = m1 * vpvpz[k][j][i].zz + m2 * (Wprime*Wprime);
+                            vpvpz[k][j][i].xy = m1 * vpvpz[k][j][i].xy + m2 * (Uprime*Vprime);
+                            vpvpz[k][j][i].xz = m1 * vpvpz[k][j][i].xz + m2 * (Uprime*Wprime);
+                            vpvpz[k][j][i].yz = m1 * vpvpz[k][j][i].yz + m2 * (Vprime*Wprime);
+
+                            // advection of reynold stresses
+                            vmvpvp[k][j][i].z =
+                            (
+                                vmz[k][j][i].x * vpvpz[k][j][i].xz +
+                                vmz[k][j][i].y * vpvpz[k][j][i].yz +
+                                vmz[k][j][i].z * vpvpz[k][j][i].zz
+                            );
+
+                            // turbulent fluxes
+                            vpvpvp[k][j][i].z = m1 * vpvpvp[k][j][i].z + m2 * 0.5 *
+                            (
+                                Uprime*Uprime*Wprime +
+                                Vprime*Vprime*Wprime +
+                                Wprime*Wprime*Wprime
+                            );
+
+                            // viscous fluxes
+                            PetscReal Dcsizet, Detazet, Dzetzet,
+                                      Pxzet, Pyzet, Pzzet;
+                            PetscReal ajc = kaj[k][j][i];
+
+                            // get face normals
+                            csi0 = kcsi[k][j][i].x, csi1 = kcsi[k][j][i].y, csi2 = kcsi[k][j][i].z;
+                            eta0 = keta[k][j][i].x, eta1 = keta[k][j][i].y, eta2 = keta[k][j][i].z;
+                            zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
+
+                            // compute cartesian velocity derivatives w.r.t. curvilinear coords
+                            Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+
+                            // compute metric tensor
+                            g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
+                            g21 = eta0 * zet0 + eta1 * zet1 + eta2 * zet2;
+                            g31 = zet0 * zet0 + zet1 * zet1 + zet2 * zet2;
+
+                            // compute cartesian velocity derivatives w.r.t. cartesian coords
+                            r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
+                            r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
+                            r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
+
+                            r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                            r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                            r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
+
+                            r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                            r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                            r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+
+                            PetscReal nuEff = nu; if(flags->isLesActive) nuEff += 0.5 * (nut[k][j][i] + nut[k+1][j][i]);
+
+                            Pxzet = (g11 * dudc + g21 * dude + g31 * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nuEff);
+                            Pyzet = (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nuEff);
+                            Pzzet = (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nuEff);
+
+                            Dcsizet   = csi0 * Pxzet + csi1 * Pyzet + csi2 * Pzzet;
+                            Detazet   = eta0 * Pxzet + eta1 * Pyzet + eta2 * Pzzet;
+                            Dzetzet   = zet0 * Pxzet + zet1 * Pyzet + zet2 * Pzzet;
+
+                            // beware the minus sign
+                            vdm[k][j][i].z = m1 * vdm[k][j][i].z - m2 *
+                            (
+                                U*Dcsizet +
+                                V*Detazet +
+                                W*Dzetzet
+                            );
+
+                            // actual terms of the equation
+
+                            // mean pressure flux
+                            vmpmg[k][j][i].z =
+                            (
+                                vmz[k][j][i].x * pm[k][j][i].z * g11 +
+                                vmz[k][j][i].y * pm[k][j][i].z * g21 +
+                                vmz[k][j][i].z * pm[k][j][i].z * g31
+                            );
+
+                            // fluctuating pressure flux
+                            vpppg[k][j][i].z = m1 * vpppg[k][j][i].z + m2 *
+                            (
+                                Uprime * Pprime * g11 +
+                                Vprime * Pprime * g21 +
+                                Wprime * Pprime * g31
+                            );
+
+                            // mean kinetic energy flux
+                            kedum[k][j][i].z = vmz[k][j][i].z * computeMKE(vmz[k][j][i]);
+
+                            // turbulent kinetic energy flux
+                            kedup[k][j][i].z = vmz[k][j][i].z * computeTKE(vpvpz[k][j][i]);
+
+                            // turbulent fluxes
+                            kef[k][j][i].z   = (vmvpvp[k][j][i].z + vpvpvp[k][j][i].z + vdm[k][j][i].z);
+                        }
+
+                        // dissipation at cell centers (on left hand side)
+
+                        // get face normals eat cell centers
+                        csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+                        eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+                        zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+
+                        PetscReal Dcsicsi, Detacsi, Dzetcsi,
+                                  Dcsieta, Detaeta, Dzeteta,
+                                  Dcsizet, Detazet, Dzetzet,
+                                  Pxcsi, Pycsi, Pzcsi,
+                                  Pxeta, Pyeta, Pzeta,
+                                  Pxzet, Pyzet, Pzzet;
+
+                        Compute_du_center
+                        (
+                            mesh,
+                            i, j, k, mx, my, mz, ucat, nvert, &dudc,
+                            &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz
+                        );
+
+                        symmTensor G;
+                        G.xx = csi0 * csi0 + csi1 * csi1 + csi2 * csi2;
+                        G.xy = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
+                        G.xz = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
+                        G.yy = eta0 * eta0 + eta1 * eta1 + eta2 * eta2;
+                        G.yz = zet0 * eta0 + zet1 * eta1 + zet2 * eta2;
+                        G.zz = zet0 * zet0 + zet1 * zet1 + zet2 * zet2;
+
+                        r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
+                        r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
+                        r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
+
+                        r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                        r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                        r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
+
+                        r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                        r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                        r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+
+                        PetscReal nuEff = nu; if(flags->isLesActive) nuEff += nut[k][j][i];
+                        PetscReal ajc   = aj[k][j][i];
+
+                        Pxcsi = (G.xx * dudc + G.xy * dude + G.xz * dudz + r11 * csi0 + r21 * csi1 + r31 * csi2) * ajc * (nuEff);
+                        Pycsi = (G.xx * dvdc + G.xy * dvde + G.xz * dvdz + r12 * csi0 + r22 * csi1 + r32 * csi2) * ajc * (nuEff);
+                        Pzcsi = (G.xx * dwdc + G.xy * dwde + G.xz * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nuEff);
+
+                        Pxeta = (G.xy * dudc + G.yy * dude + G.yz * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nuEff);
+                        Pyeta = (G.xy * dvdc + G.yy * dvde + G.yz * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nuEff);
+                        Pzeta = (G.xy * dwdc + G.yy * dwde + G.yz * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nuEff);
+
+                        Pxzet = (G.xz * dudc + G.yz * dude + G.zz * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nuEff);
+                        Pyzet = (G.xz * dvdc + G.yz * dvde + G.zz * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nuEff);
+                        Pzzet = (G.xz * dwdc + G.yz * dwde + G.zz * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nuEff);
+
+                        Dcsicsi   = csi0 * Pxcsi + csi1 * Pycsi + csi2 * Pzcsi;
+                        Detacsi   = eta0 * Pxcsi + eta1 * Pycsi + eta2 * Pzcsi;
+                        Dzetcsi   = zet0 * Pxcsi + zet1 * Pycsi + zet2 * Pzcsi;
+
+                        Dcsieta   = csi0 * Pxeta + csi1 * Pyeta + csi2 * Pzeta;
+                        Detaeta   = eta0 * Pxeta + eta1 * Pyeta + eta2 * Pzeta;
+                        Dzeteta   = zet0 * Pxeta + zet1 * Pyeta + zet2 * Pzeta;
+
+                        Dcsizet   = csi0 * Pxzet + csi1 * Pyzet + csi2 * Pzzet;
+                        Detazet   = eta0 * Pxzet + eta1 * Pyzet + eta2 * Pzzet;
+                        Dzetzet   = zet0 * Pxzet + zet1 * Pyzet + zet2 * Pzzet;
+
+                        keeps[k][j][i] = m1 * keeps[k][j][i] + m2 * ajc *
+                        (
+                            Dcsicsi * (ucont[k][j][i].x - ucont[k][j][i-1].x) +
+                            Dcsieta * 0.5 * (ucont[k][j+1][i].x - ucont[k][j+1][i-1].x + ucont[k][j-1][i].x - ucont[k][j-1][i-1].x) +
+                            Dcsizet * 0.5 * (ucont[k+1][j][i].x - ucont[k+1][j][i-1].x + ucont[k-1][j][i].x - ucont[k-1][j][i-1].x) +
+                            Detacsi * 0.5 * (ucont[k][j][i+1].y - ucont[k][j-1][i+1].y + ucont[k][j][i-1].y - ucont[k][j-1][i-1].x) +
+                            Detaeta * (ucont[k][j][i].y - ucont[k][j-1][i].y) +
+                            Detazet * 0.5 * (ucont[k+1][j][i].y - ucont[k+1][j-1][i].y + ucont[k-1][j][i].y - ucont[k-1][j-1][i].x) +
+                            Dzetcsi * 0.5 * (ucont[k][j][i+1].z - ucont[k-1][j][i+1].z + ucont[k][j][i-1].z - ucont[k-1][j][i-1].z) +
+                            Dzeteta * 0.5 * (ucont[k][j+1][i].z - ucont[k-1][j+1][i].z + ucont[k][j-1][i].z - ucont[k-1][j-1][i].z) +
+                            Dzetzet * (ucont[k][j][i].z - ucont[k-1][j][i].z)
+                        );
+
+                        // kinetic to potential energy conversion average
+                        if(flags->isAblActive && flags->isTeqnActive)
+                        {
+                            ptheta[k][j][i] = m1 * ptheta[k][j][i] - m2 *
+                            (
+                                vm[k][j][i].x * csi[k][j][i].z * (gMag / thetaRef * (2.0*thetaRef - t[k][j][i])) +
+                                vm[k][j][i].y * eta[k][j][i].z * (gMag / thetaRef * (2.0*thetaRef - t[k][j][i])) +
+                                vm[k][j][i].z * zet[k][j][i].z * (gMag / thetaRef * (2.0*thetaRef - t[k][j][i]))
+                            );
+                        }
+
+                        // wind farm power average (at the left hand side)
+                        if(flags->isWindFarmActive)
+                        {
+                            pf[k][j][i] = m1 * pf[k][j][i] - m2 *
+                            (
+                                0.5 * vm[k][j][i].x * (bf[k][j][i].x + bf[k][j][i-1].x) +
+                                0.5 * vm[k][j][i].y * (bf[k][j][i].y + bf[k][j-1][i].y) +
+                                0.5 * vm[k][j][i].z * (bf[k][j][i].z + bf[k-1][j][i].z)
+                            );
+                        }
+
+                        // mean background contribution
+                        if(flags->isAblActive)
+                        {
+                            pinf[k][j][i] = m1 * pinf[k][j][i] - m2 *
+                            (
+                                0.5 * vm[k][j][i].x * (sources[k][j][i].x + sources[k][j][i-1].x) +
+                                0.5 * vm[k][j][i].y * (sources[k][j][i].y + sources[k][j-1][i].y) +
+                                0.5 * vm[k][j][i].z * (sources[k][j][i].z + sources[k-1][j][i].z)
+                            );
+                        }
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(fda, ke->lDum,    &kedum);
+            DMDAVecRestoreArray(fda, ke->lDup,    &kedup);
+            DMDAVecRestoreArray(fda, ke->lF,      &kef);
+            DMDAVecRestoreArray(fda, ke->lVmPmG,  &vmpmg);
+            DMDAVecRestoreArray(fda, ke->lVpPpG,  &vpppg);
+
+            // scatter local to local for subsequent interpolations
+
+            DMLocalToLocalBegin (fda, ke->lDum,   INSERT_VALUES,  ke->lDum);
+            DMLocalToLocalEnd   (fda, ke->lDum,   INSERT_VALUES,  ke->lDum);
+            DMLocalToLocalBegin (fda, ke->lDup,   INSERT_VALUES,  ke->lDup);
+            DMLocalToLocalEnd   (fda, ke->lDup,   INSERT_VALUES,  ke->lDup);
+            DMLocalToLocalBegin (fda, ke->lF,     INSERT_VALUES,  ke->lF);
+            DMLocalToLocalEnd   (fda, ke->lF,     INSERT_VALUES,  ke->lF);
+            DMLocalToLocalBegin (fda, ke->lVmPmG, INSERT_VALUES,  ke->lVmPmG);
+            DMLocalToLocalEnd   (fda, ke->lVmPmG, INSERT_VALUES,  ke->lVmPmG);
+            DMLocalToLocalBegin (fda, ke->lVpPpG, INSERT_VALUES,  ke->lVpPpG);
+            DMLocalToLocalEnd   (fda, ke->lVpPpG, INSERT_VALUES,  ke->lVpPpG);
+
+
+            DMDAVecGetArray(fda, ke->lDum,    &kedum);
+            DMDAVecGetArray(fda, ke->lDup,    &kedup);
+            DMDAVecGetArray(fda, ke->lF,      &kef);
+            DMDAVecGetArray(fda, ke->lVmPmG,  &vmpmg);
+            DMDAVecGetArray(fda, ke->lVpPpG,  &vpppg);
+
+            // compute cell-cumulated fluxes D and F and error
+            DMDAVecGetArray(da,  ke->D,       &kedc);
+            DMDAVecGetArray(da,  ke->F,       &kefc);
+
+            PetscReal lmaxErr = 0.0, gmaxErr = 0.0;
+            PetscInt  imax, jmax, kmax;
+
+            for (k = lzs; k < lze; k++)
+            {
+                for (j = lys; j < lye; j++)
+                {
+                    for (i = lxs; i < lxe; i++)
+                    {
+                        // exclude cells belonging to boundary faces
+                        if(i>1 && j>1 && k>1 && i<mx-2 && j<my-2 && k<mz-2)
+                        {
+                            kedc[k][j][i] = aj[k][j][i] *
+                            (
+                                kedum[k][j][i].x - kedum[k][j][i-1].x +
+                                kedum[k][j][i].y - kedum[k][j-1][i].y +
+                                kedum[k][j][i].z - kedum[k-1][j][i].z +
+                                kedup[k][j][i].x - kedup[k][j][i-1].x +
+                                kedup[k][j][i].y - kedup[k][j-1][i].y +
+                                kedup[k][j][i].z - kedup[k-1][j][i].z +
+                                vmpmg[k][j][i].x - vmpmg[k][j][i-1].x +
+                                vmpmg[k][j][i].y - vmpmg[k][j-1][i].y +
+                                vmpmg[k][j][i].z - vmpmg[k-1][j][i].z
+                            );
+
+                            kefc[k][j][i] = aj[k][j][i] *
+                            (
+                                kef[k][j][i].x   - kef[k][j][i-1].x   +
+                                kef[k][j][i].y   - kef[k][j-1][i].y   +
+                                kef[k][j][i].z   - kef[k-1][j][i].z   +
+                                vpppg[k][j][i].x - vpppg[k][j][i-1].x +
+                                vpppg[k][j][i].y - vpppg[k][j-1][i].y +
+                                vpppg[k][j][i].z - vpppg[k-1][j][i].z
+                            );
+
+                            error[k][j][i] = kedc[k][j][i] + kefc[k][j][i];
+
+                            error[k][j][i] += keeps[k][j][i];
+
+                            if(flags->isAblActive && flags->isTeqnActive)
+                            {
+                                error[k][j][i] += ptheta[k][j][i];
+                            }
+
+                            if(flags->isWindFarmActive)
+                            {
+                                error[k][j][i] += pf[k][j][i];
+                            }
+
+                            if(flags->isAblActive)
+                            {
+                                error[k][j][i] += pinf[k][j][i];
+                            }
+
+                            if(fabs(error[k][j][i]) > lmaxErr)
+                            {
+                                lmaxErr = fabs(error[k][j][i]);
+                                imax = i; jmax = j; kmax = k;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(ke->debug)
+            {
+                if(flags->isWindFarmActive)
+                {
+                    PetscPrintf(PETSC_COMM_SELF, " > keDebug: maxErr = %f, D = %f, F = %f, Pf = %f, Eps = %f\n", lmaxErr, kedc[kmax][jmax][imax], kefc[kmax][jmax][imax], pf[kmax][jmax][imax], keeps[kmax][jmax][imax]);
+                }
+                else
+                {
+                    PetscPrintf(PETSC_COMM_SELF, " > keDebug: maxErr = %f, D = %f, F = %f, Eps = %f\n", lmaxErr, kedc[kmax][jmax][imax], kefc[kmax][jmax][imax], keeps[kmax][jmax][imax]);
+                }
+            }
+
+            DMDAVecRestoreArray(da,  ke->D,       &kedc);
+            DMDAVecRestoreArray(da,  ke->F,       &kefc);
+
+            MPI_Reduce(&lmaxErr, &gmaxErr, 1, MPIU_REAL, MPIU_MAX, 0, mesh->MESH_COMM);
+
+
+            // restore fundamental distributed arrays
+            DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+            DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+            DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+
+            DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
+            DMDAVecRestoreArray(fda, mesh->lIEta, &ieta);
+            DMDAVecRestoreArray(fda, mesh->lIZet, &izet);
+
+            DMDAVecRestoreArray(fda, mesh->lJCsi, &jcsi);
+            DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+            DMDAVecRestoreArray(fda, mesh->lJZet, &jzet);
+
+            DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
+            DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
+            DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+
+            DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
+            DMDAVecRestoreArray(da,  mesh->lIAj, &iaj);
+            DMDAVecRestoreArray(da,  mesh->lJAj, &jaj);
+            DMDAVecRestoreArray(da,  mesh->lKAj, &kaj);
+
+            // restore solution arrays
+            DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+            DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+            DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+            DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+            DMDAVecRestoreArray(da,  peqn->lP,     &p);
+
+            if(flags->isLesActive)
+            {
+                les = acquisition->access->les;
+
+                DMDAVecRestoreArray(da, les->lNu_t, &nut);
+                DMDAVecRestoreArray(da, les->lCs,   &cs);
+            }
+
+            // get working arrays
+            if(flags->isWindFarmActive)
+            {
+                DMDAVecRestoreArray(da, ke->Pf,  &pf);
+                DMDAVecRestoreArray(fda, lB,  &bf);
+                VecDestroy(&lB);
+            }
+
+            if(flags->isAblActive && flags->isTeqnActive)
+            {
+                DMDAVecRestoreArray(da, ke->Ptheta, &ptheta);
+                DMDAVecRestoreArray(da, teqn->Tmprt, &t);
+            }
+
+            if(flags->isAblActive)
+            {
+                DMDAVecRestoreArray(da, ke->Pinf,   &pinf);
+                VecDestroy(&lSourcesCont);
+            }
+
+            DMDAVecRestoreArray(da,  ke->Error,   &error);
+            DMDAVecRestoreArray(da,  ke->Eps,     &keeps);
+            DMDAVecRestoreArray(fda, ke->lF,      &kef);
+            DMDAVecRestoreArray(fda, ke->lDum,    &kedum);
+            DMDAVecRestoreArray(fda, ke->lDup,    &kedup);
+
+            DMDAVecRestoreArray(da,  ke->lEm,     &em);
+            DMDAVecRestoreArray(fda, ke->lVmVpVp, &vmvpvp);
+            DMDAVecRestoreArray(fda, ke->lVpVpVp, &vpvpvp);
+            DMDAVecRestoreArray(fda, ke->lVDm,    &vdm);
+            DMDAVecRestoreArray(fda, ke->lVmPmG,  &vmpmg);
+            DMDAVecRestoreArray(fda, ke->lVpPpG,  &vpppg);
+            DMDAVecRestoreArray(fda, ke->lVmCsi,  &vmc);
+            DMDAVecRestoreArray(fda, ke->lVmEta,  &vme);
+            DMDAVecRestoreArray(fda, ke->lVmZet,  &vmz);
+            DMDAVecRestoreArray(fda, ke->lVm,     &vm);
+            DMDAVecRestoreArray(fda, ke->lPm,     &pm);
+            DMDAVecRestoreArray(sda, ke->lVpVpCsi,&vpvpc);
+            DMDAVecRestoreArray(sda, ke->lVpVpEta,&vpvpe);
+            DMDAVecRestoreArray(sda, ke->lVpVpZet,&vpvpz);
+            DMDAVecRestoreArray(sda, ke->lVpVp,   &vpvp);
+
+            io->keAvgWeight++;
+
+            PetscTime(&te);
+            PetscPrintf(mesh->MESH_COMM, "Averaged KE budgets in %lf s, maxCellError: %.4f\n", te-ts,gmaxErr);
             MPI_Barrier(mesh->MESH_COMM);
         }
     }

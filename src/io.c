@@ -4,6 +4,7 @@
 #include "include/base.h"
 #include "include/domain.h"
 #include "include/io.h"
+#include "include/inline.h"
 
 //***************************************************************************************************************//
 
@@ -209,8 +210,9 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
 
     if(domain->flags.isLesActive)
     {
-        Vec Cs, Nut;
         FILE *fp;
+
+        Vec Cs, Nut;
         VecDuplicate(peqn->P, &Cs);
         VecDuplicate(peqn->P, &Nut);
 
@@ -325,7 +327,6 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         // open file to check the existence, then read it with PETSc
         FILE *fp;
 
-        // read pAvgU
         field = "/bf";
         fileName = location + field;
         fp=fopen(fileName.c_str(), "r");
@@ -379,7 +380,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         }
         MPI_Barrier(mesh->MESH_COMM);
 
-        // x damping region
+        // x/z damping region
         if(flags->isXDampingActive || flags->isZDampingActive)
         {
             field = "/Damping";
@@ -830,6 +831,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
 
     if(io->keBudgets)
     {
+        PetscPrintf(mesh->MESH_COMM, "Reading mechanical energy budgets checkpoint...\n");
         // open file to check the existence, then read it with PETSc
         FILE *fp;
 
@@ -842,7 +844,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         {
             fclose(fp);
 
-            PetscPrintf(mesh->MESH_COMM, "Reading keErr (mech. KE eqn. error)...\n");
+            PetscPrintf(mesh->MESH_COMM, " > keErr...\n");
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(acquisition->keBudFields->Error,viewer);
             PetscViewerDestroy(&viewer);
@@ -851,7 +853,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         MPI_Barrier(mesh->MESH_COMM);
 
         // read D
-        field = "/D";
+        field = "/keD";
         fileName = location + field;
         fp=fopen(fileName.c_str(), "r");
 
@@ -859,7 +861,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         {
             fclose(fp);
 
-            PetscPrintf(mesh->MESH_COMM, "Reading D (mech. KE divergence)...\n");
+            PetscPrintf(mesh->MESH_COMM, " > keD...\n");
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(acquisition->keBudFields->D,viewer);
             PetscViewerDestroy(&viewer);
@@ -868,7 +870,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         MPI_Barrier(mesh->MESH_COMM);
 
         // read F
-        field = "/F";
+        field = "/keF";
         fileName = location + field;
         fp=fopen(fileName.c_str(), "r");
 
@@ -876,9 +878,26 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         {
             fclose(fp);
 
-            PetscPrintf(mesh->MESH_COMM, "Reading F (net KE flux due to turbulent transport)...\n");
+            PetscPrintf(mesh->MESH_COMM, " > keF...\n");
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(acquisition->keBudFields->F,viewer);
+            PetscViewerDestroy(&viewer);
+            keBudAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read Eps
+        field = "/keEps";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, " > keEps...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->keBudFields->Eps,viewer);
             PetscViewerDestroy(&viewer);
             keBudAvailable++;
         }
@@ -887,7 +906,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         // read Pinf
         if(flags->isAblActive)
         {
-            field = "/Pinf";
+            field = "/kePinf";
             fileName = location + field;
             fp=fopen(fileName.c_str(), "r");
 
@@ -895,7 +914,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             {
                 fclose(fp);
 
-                PetscPrintf(mesh->MESH_COMM, "Reading Pinf (mean background pressure)...\n");
+                PetscPrintf(mesh->MESH_COMM, " > kePinf\n");
                 PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                 VecLoad(acquisition->keBudFields->Pinf,viewer);
                 PetscViewerDestroy(&viewer);
@@ -907,7 +926,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         // read Pf
         if(flags->isWindFarmActive)
         {
-            field = "/Pf";
+            field = "/kePf";
             fileName = location + field;
             fp=fopen(fileName.c_str(), "r");
 
@@ -915,7 +934,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             {
                 fclose(fp);
 
-                PetscPrintf(mesh->MESH_COMM, "Reading Pf (wind turbine power extraction)...\n");
+                PetscPrintf(mesh->MESH_COMM, " > kePf...\n");
                 PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                 VecLoad(acquisition->keBudFields->Pf,viewer);
                 PetscViewerDestroy(&viewer);
@@ -927,7 +946,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         // read Ptheta
         if(flags->isAblActive && flags->isTeqnActive)
         {
-            field = "/Ptheta";
+            field = "/kePtheta";
             fileName = location + field;
             fp=fopen(fileName.c_str(), "r");
 
@@ -935,7 +954,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             {
                 fclose(fp);
 
-                PetscPrintf(mesh->MESH_COMM, "Reading Ptheta (kin. to pot. energy conversion)...\n");
+                PetscPrintf(mesh->MESH_COMM, " > kePtheta...\n");
                 PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
                 VecLoad(acquisition->keBudFields->Ptheta,viewer);
                 PetscViewerDestroy(&viewer);
@@ -944,176 +963,164 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             MPI_Barrier(mesh->MESH_COMM);
         }
 
-        // read Eps
-        field = "/Eps";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
+        if(acquisition->keBudFields->cartesian)
         {
-            fclose(fp);
+            Vec Pm;       DMCreateGlobalVector(mesh->da,  &Pm);
+            Vec Em;       DMCreateGlobalVector(mesh->da,  &Em);
+            Vec VpVp;     DMCreateGlobalVector(mesh->sda, &VpVp);
+            Vec Um;       DMCreateGlobalVector(mesh->fda, &Um);
+            Vec Vm;       DMCreateGlobalVector(mesh->fda, &Vm);
+            Vec VpVpVp;   DMCreateGlobalVector(mesh->fda, &VpVpVp);
+            Vec VmTauSGS; DMCreateGlobalVector(mesh->fda, &VmTauSGS);
+            Vec Dpp;      DMCreateGlobalVector(mesh->fda, &Dpp);
 
-            PetscPrintf(mesh->MESH_COMM, "Reading Eps (turbulent dissipation)...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(acquisition->keBudFields->Eps,viewer);
-            PetscViewerDestroy(&viewer);
-            keBudAvailable++;
+            // read Em
+            field = "/keEm";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, " > keEm...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(Em,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            DMGlobalToLocalBegin(mesh->da, Em, INSERT_VALUES, acquisition->keBudFields->lEm);
+            DMGlobalToLocalEnd(mesh->da, Em, INSERT_VALUES, acquisition->keBudFields->lEm);
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // read kePm
+            field = "/kePm";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, " > kePm...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(Pm,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            DMGlobalToLocalBegin(mesh->da, Pm, INSERT_VALUES, acquisition->keBudFields->lPm);
+            DMGlobalToLocalEnd(mesh->da, Pm, INSERT_VALUES, acquisition->keBudFields->lPm);
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // read keUm
+            field = "/keUm";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, " > keUm...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(Um,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            DMGlobalToLocalBegin(mesh->fda, Um, INSERT_VALUES, acquisition->keBudFields->lUm);
+            DMGlobalToLocalEnd(mesh->fda, Um, INSERT_VALUES, acquisition->keBudFields->lUm);
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // read avgUpUp
+            field = "/keUpUp";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, " > keVpVp...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(VpVp,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            DMGlobalToLocalBegin(mesh->sda, VpVp, INSERT_VALUES, acquisition->keBudFields->lVpVp);
+            DMGlobalToLocalEnd(mesh->sda, VpVp, INSERT_VALUES, acquisition->keBudFields->lVpVp);
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // read avgUpUpUp
+            field = "/keUpUpUp";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, " > keVpVpVp...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(VpVpVp,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            DMGlobalToLocalBegin(mesh->fda, VpVpVp, INSERT_VALUES, acquisition->keBudFields->lVpVpVp);
+            DMGlobalToLocalEnd(mesh->fda, VpVpVp, INSERT_VALUES, acquisition->keBudFields->lVpVpVp);
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // read keUmTauSGS
+            field = "/keUmTauSGS";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, " > keUmTauSGS...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(VmTauSGS,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            DMGlobalToLocalBegin(mesh->fda, VmTauSGS, INSERT_VALUES, acquisition->keBudFields->lVmTauSGS);
+            DMGlobalToLocalEnd(mesh->fda, VmTauSGS, INSERT_VALUES, acquisition->keBudFields->lVmTauSGS);
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // read avgUpPp
+            field = "/keDpp";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, " > keDpp...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(Dpp,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            DMGlobalToLocalBegin(mesh->fda, Dpp, INSERT_VALUES, acquisition->keBudFields->lDpp);
+            DMGlobalToLocalEnd(mesh->fda, Dpp, INSERT_VALUES, acquisition->keBudFields->lDpp);
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // destroy global vectors
+            VecDestroy(&Em);
+            VecDestroy(&Pm);
+            VecDestroy(&VpVp);
+            VecDestroy(&Um);
+            VecDestroy(&Vm);
+            VecDestroy(&VpVpVp);
+            VecDestroy(&VmTauSGS);
+            VecDestroy(&Dpp);
         }
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // read Em
-        Vec Em;
-        VecDuplicate(mesh->Nvert, &Em);
-        field = "/keEm";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
+        else
         {
-            fclose(fp);
 
-            PetscPrintf(mesh->MESH_COMM, "Reading Em (mech. energy)...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(Em,viewer);
-            PetscViewerDestroy(&viewer);
-            keBudAvailable++;
         }
-        DMGlobalToLocalBegin(mesh->da, Em, INSERT_VALUES, acquisition->keBudFields->lEm);
-        DMGlobalToLocalEnd(mesh->da, Em, INSERT_VALUES, acquisition->keBudFields->lEm);
-        VecDestroy(&Em);
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // read avgPm
-        Vec avgPm;
-        VecDuplicate(mesh->Nvert, &avgPm);
-        field = "/avgPm";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "Reading avgPm (average pressure)...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(avgPm,viewer);
-            PetscViewerDestroy(&viewer);
-            keBudAvailable++;
-        }
-        DMGlobalToLocalBegin(mesh->da, avgPm, INSERT_VALUES, acquisition->keBudFields->lavgPm);
-        DMGlobalToLocalEnd(mesh->da, avgPm, INSERT_VALUES, acquisition->keBudFields->lavgPm);
-        VecDestroy(&avgPm);
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // read avgUm
-        Vec avgUm;
-        VecDuplicate(mesh->Cent, &avgUm);
-        field = "/avgUm";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "Reading avgUm\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(avgUm,viewer);
-            PetscViewerDestroy(&viewer);
-            keBudAvailable++;
-        }
-        DMGlobalToLocalBegin(mesh->fda, avgUm, INSERT_VALUES, acquisition->keBudFields->lavgUm);
-        DMGlobalToLocalEnd(mesh->fda, avgUm, INSERT_VALUES, acquisition->keBudFields->lavgUm);
-        VecDestroy(&avgUm);
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // read avgUpUp
-        Vec avgUpUp;
-        DMCreateGlobalVector(mesh->sda, &avgUpUp);
-        field = "/avgUpUp";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "Reading avgUpUp\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(avgUpUp,viewer);
-            PetscViewerDestroy(&viewer);
-            keBudAvailable++;
-        }
-        DMGlobalToLocalBegin(mesh->sda, avgUpUp, INSERT_VALUES, acquisition->keBudFields->lavgUpUp);
-        DMGlobalToLocalEnd(mesh->sda, avgUpUp, INSERT_VALUES, acquisition->keBudFields->lavgUpUp);
-        VecDestroy(&avgUpUp);
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // read avgUpUpUp
-        Vec avgUpUpUp;
-        DMCreateGlobalVector(mesh->fda, &avgUpUpUp);
-        field = "/avgUpUpUp";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "Reading avgUpUpUp\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(avgUpUpUp,viewer);
-            PetscViewerDestroy(&viewer);
-            keBudAvailable++;
-        }
-        DMGlobalToLocalBegin(mesh->fda, avgUpUpUp, INSERT_VALUES, acquisition->keBudFields->lavgUpUpUp);
-        DMGlobalToLocalEnd(mesh->fda, avgUpUpUp, INSERT_VALUES, acquisition->keBudFields->lavgUpUpUp);
-        VecDestroy(&avgUpUpUp);
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // read avgUmTauSGS
-        Vec avgUmTauSGS;
-        DMCreateGlobalVector(mesh->fda, &avgUmTauSGS);
-        field = "/avgUmTauSGS";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "Reading avgUmTauSGS\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(avgUmTauSGS,viewer);
-            PetscViewerDestroy(&viewer);
-            keBudAvailable++;
-        }
-        DMGlobalToLocalBegin(mesh->fda, avgUmTauSGS, INSERT_VALUES, acquisition->keBudFields->lavgUmTauSGS);
-        DMGlobalToLocalEnd(mesh->fda, avgUmTauSGS, INSERT_VALUES, acquisition->keBudFields->lavgUmTauSGS);
-        VecDestroy(&avgUmTauSGS);
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // read avgUpPp
-        Vec avgUpPp;
-        DMCreateGlobalVector(mesh->fda, &avgUpPp);
-        field = "/avgUpPp";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
-
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "Reading avgUpPp\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(avgUpPp,viewer);
-            PetscViewerDestroy(&viewer);
-            keBudAvailable++;
-        }
-        DMGlobalToLocalBegin(mesh->fda, avgUpPp, INSERT_VALUES, acquisition->keBudFields->lavgUpPp);
-        DMGlobalToLocalEnd(mesh->fda, avgUpPp, INSERT_VALUES, acquisition->keBudFields->lavgUpPp);
-        VecDestroy(&avgUpPp);
-        MPI_Barrier(mesh->MESH_COMM);
     }
 
     // read average, phase and ke budget average weights
@@ -1171,6 +1178,132 @@ void writeBinaryField(MPI_Comm comm, Vec V, const char *file)
 
 //***************************************************************************************************************//
 
+PetscErrorCode VecScalarLocalToGlobalCopy(mesh_ *mesh, Vec &lV, Vec &V)
+{
+    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    PetscReal     ***lv, ***v;
+
+    DMDAVecGetArray(da, V, &v);
+    DMDAVecGetArray(da, lV, &lv);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                v[k][j][i] = lv[k][j][i];
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, V, &v);
+    DMDAVecRestoreArray(da, lV, &lv);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode VecVectorLocalToGlobalCopy(mesh_ *mesh, Vec &lV, Vec &V)
+{
+    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    Cmpnts     ***lv, ***v;
+
+    DMDAVecGetArray(fda, V, &v);
+    DMDAVecGetArray(fda, lV, &lv);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                v[k][j][i] = nSet(lv[k][j][i]);
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, V, &v);
+    DMDAVecRestoreArray(fda, lV, &lv);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode VecSymmTensorLocalToGlobalCopy(mesh_ *mesh, Vec &lV, Vec &V)
+{
+    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    symmTensor     ***lv, ***v;
+
+    DMDAVecGetArray(sda, V, &v);
+    DMDAVecGetArray(sda, lV, &lv);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                v[k][j][i].xx = lv[k][j][i].xx;
+                v[k][j][i].yy = lv[k][j][i].yy;
+                v[k][j][i].zz = lv[k][j][i].zz;
+
+                v[k][j][i].xy = lv[k][j][i].xy;
+                v[k][j][i].xz = lv[k][j][i].xz;
+                v[k][j][i].yz = lv[k][j][i].yz;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(sda, V, &v);
+    DMDAVecRestoreArray(sda, lV, &lv);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode writeFields(io_ *io)
 {
     mesh_       *mesh  = io->access->mesh;
@@ -1188,20 +1321,6 @@ PetscErrorCode writeFields(io_ *io)
 
     PetscMPIInt         rank;
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
-    DMDALocalInfo info = mesh->info;
-    PetscInt      xs = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
     // check and write
     if(io->runTimeWrite)
@@ -1241,39 +1360,11 @@ PetscErrorCode writeFields(io_ *io)
 
         if(flags->isLesActive)
         {
-            // we cannot use INSERT_VALUE mode from local to global because it is not capable
-            // of handling more than one periodic boundary, PETSc will throw an error.
-            // So we set it explicitly
+            Vec Cs;  VecDuplicate(peqn->P, &Cs);  VecSet(Cs, 0.);
+            Vec Nut; VecDuplicate(peqn->P, &Nut); VecSet(Nut, 0.);
 
-            Vec Cs, Nut;
-            PetscReal     ***cs, ***lcs, ***nut, ***lnut;
-
-            VecDuplicate(peqn->P, &Cs);
-            VecDuplicate(peqn->P, &Nut);
-            VecSet(Cs, 0.);
-            VecSet(Nut, 0.);
-
-            DMDAVecGetArray(da, Cs, &cs);
-            DMDAVecGetArray(da, les->lCs, &lcs);
-            DMDAVecGetArray(da, Nut, &nut);
-            DMDAVecGetArray(da, les->lNu_t, &lnut);
-
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        cs[k][j][i] = lcs[k][j][i];
-                        nut[k][j][i] = lnut[k][j][i];
-                    }
-                }
-            }
-
-            DMDAVecRestoreArray(da, Cs, &cs);
-            DMDAVecRestoreArray(da, les->lCs, &lcs);
-            DMDAVecRestoreArray(da, Nut, &nut);
-            DMDAVecRestoreArray(da, les->lNu_t, &lnut);
+            VecScalarLocalToGlobalCopy(mesh, les->lCs, Cs);
+            VecScalarLocalToGlobalCopy(mesh, les->lNu_t, Nut);
 
             fieldName = timeName + "/cs";
             writeBinaryField(mesh->MESH_COMM, Cs, fieldName.c_str());
@@ -1281,44 +1372,27 @@ PetscErrorCode writeFields(io_ *io)
             fieldName = timeName + "/nut";
             writeBinaryField(mesh->MESH_COMM, Nut, fieldName.c_str());
 
-            MPI_Barrier(mesh->MESH_COMM);
             VecDestroy(&Cs);
             VecDestroy(&Nut);
+
+            MPI_Barrier(mesh->MESH_COMM);
         }
 
         if(io->windFarmForce && flags->isWindFarmActive)
         {
             farm_ *farm = io->access->farm;
-            Vec Bf;
-            Cmpnts        ***bf, ***lbf;
 
-            VecDuplicate(ueqn->Ucat, &Bf);
-            VecSet(Bf, 0.);
+            Vec Bf;  VecDuplicate(ueqn->Ucat, &Bf);  VecSet(Bf, 0.);
 
-            DMDAVecGetArray(fda, farm->lsourceFarmCat, &lbf);
-            DMDAVecGetArray(fda, Bf, &bf);
-
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        bf[k][j][i].x = lbf[k][j][i].x;
-                        bf[k][j][i].y = lbf[k][j][i].y;
-                        bf[k][j][i].z = lbf[k][j][i].z;
-                    }
-                }
-            }
-
-            DMDAVecRestoreArray(fda, farm->lsourceFarmCat, &lbf);
-            DMDAVecRestoreArray(fda, Bf, &bf);
+            VecVectorLocalToGlobalCopy(mesh, farm->lsourceFarmCat, Bf);
 
             fieldName = timeName + "/bf";
             writeBinaryField(mesh->MESH_COMM, Bf, fieldName.c_str());
 
-            MPI_Barrier(mesh->MESH_COMM);
             VecDestroy(&Bf);
+
+            MPI_Barrier(mesh->MESH_COMM);
+
         }
 
         // write Q-Criterion
@@ -1538,25 +1612,32 @@ PetscErrorCode writeFields(io_ *io)
 
         if(io->keBudgets)
         {
+            // write outputs for visualization
+
             // write Err
             fieldName = timeName + "/keErr";
             writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Error, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
             // write D
-            fieldName = timeName + "/D";
+            fieldName = timeName + "/keD";
             writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->D, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
             // write F
-            fieldName = timeName + "/F";
+            fieldName = timeName + "/keF";
             writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->F, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write Eps
+            fieldName = timeName + "/keEps";
+            writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Eps, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
             // write Pinf
             if(flags->isAblActive)
             {
-                fieldName = timeName + "/Pinf";
+                fieldName = timeName + "/kePinf";
                 writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Pinf, fieldName.c_str());
                 MPI_Barrier(mesh->MESH_COMM);
             }
@@ -1564,7 +1645,7 @@ PetscErrorCode writeFields(io_ *io)
             // write Pf
             if(flags->isWindFarmActive)
             {
-                fieldName = timeName + "/Pf";
+                fieldName = timeName + "/kePf";
                 writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Pf, fieldName.c_str());
                 MPI_Barrier(mesh->MESH_COMM);
             }
@@ -1572,127 +1653,193 @@ PetscErrorCode writeFields(io_ *io)
             // write Ptheta
             if(flags->isAblActive && flags->isTeqnActive)
             {
-                fieldName = timeName + "/Ptheta";
+                fieldName = timeName + "/kePtheta";
                 writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Ptheta, fieldName.c_str());
                 MPI_Barrier(mesh->MESH_COMM);
             }
 
-            // write Eps
-            fieldName = timeName + "/Eps";
-            writeBinaryField(mesh->MESH_COMM, acquisition->keBudFields->Eps, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
-
-            // write avgUpUp
-            Vec avgUpUp, avgUm, avgPm, avgUpUpUp, avgUmTauSGS, avgUpPp, avgEm;
-            symmTensor     ***upup_mean,   ***lupup_mean;
-            Cmpnts         ***um_mean,     ***lum_mean;
-            Cmpnts         ***upupup_mean, ***lupupup_mean;
-            Cmpnts         ***umtau_mean,  ***lumtau_mean;
-            Cmpnts         ***uppp_mean,   ***luppp_mean;
-            PetscReal      ***pm_mean,     ***lpm_mean;
-            PetscReal      ***em_mean,          ***lem_mean;
-
-            DMCreateGlobalVector(sda, &(avgUpUp)); VecSet(avgUpUp,0.);
-            DMCreateGlobalVector(fda, &(avgUm)); VecSet(avgUm,0.);
-            DMCreateGlobalVector(fda, &(avgUpUpUp)); VecSet(avgUpUpUp,0.);
-            DMCreateGlobalVector(fda, &(avgUmTauSGS)); VecSet(avgUmTauSGS,0.);
-            DMCreateGlobalVector(fda, &(avgUpPp)); VecSet(avgUpPp,0.);
-            DMCreateGlobalVector(da,  &(avgPm)); VecSet(avgPm,0.);
-            DMCreateGlobalVector(da,  &(avgEm)); VecSet(avgEm,0.);
-
-            DMDAVecGetArray(sda, avgUpUp,     &upup_mean);
-            DMDAVecGetArray(fda, avgUm,       &um_mean);
-            DMDAVecGetArray(fda, avgUpUpUp,   &upupup_mean);
-            DMDAVecGetArray(fda, avgUmTauSGS, &umtau_mean);
-            DMDAVecGetArray(fda, avgUpPp,     &uppp_mean);
-            DMDAVecGetArray(da,  avgPm,       &pm_mean);
-            DMDAVecGetArray(da,  avgEm,       &em_mean);
-            DMDAVecGetArray(sda, acquisition->keBudFields->lavgUpUp,     &lupup_mean);
-            DMDAVecGetArray(fda, acquisition->keBudFields->lavgUm,       &lum_mean);
-            DMDAVecGetArray(fda, acquisition->keBudFields->lavgUpUpUp,   &lupupup_mean);
-            DMDAVecGetArray(fda, acquisition->keBudFields->lavgUmTauSGS, &lumtau_mean);
-            DMDAVecGetArray(fda, acquisition->keBudFields->lavgUpPp,     &luppp_mean);
-            DMDAVecGetArray(da,  acquisition->keBudFields->lavgPm,       &lpm_mean);
-            DMDAVecGetArray(da,  acquisition->keBudFields->lEm,          &lem_mean);
-
-            for (k=lzs; k<lze; k++)
+            // write output for average checkpoint
+            if(acquisition->keBudFields->cartesian)
             {
-                for (j=lys; j<lye; j++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        upup_mean[k][j][i].xx  = lupup_mean[k][j][i].xx;
-                        upup_mean[k][j][i].yy  = lupup_mean[k][j][i].yy;
-                        upup_mean[k][j][i].zz  = lupup_mean[k][j][i].zz;
-                        upup_mean[k][j][i].xy  = lupup_mean[k][j][i].xy;
-                        upup_mean[k][j][i].xz  = lupup_mean[k][j][i].xz;
-                        upup_mean[k][j][i].yz  = lupup_mean[k][j][i].yz;
-                        um_mean[k][j][i].x     = lum_mean[k][j][i].x;
-                        um_mean[k][j][i].y     = lum_mean[k][j][i].y;
-                        um_mean[k][j][i].z     = lum_mean[k][j][i].z;
-                        upupup_mean[k][j][i].x =  lupupup_mean[k][j][i].x;
-                        upupup_mean[k][j][i].y =  lupupup_mean[k][j][i].y;
-                        upupup_mean[k][j][i].z =  lupupup_mean[k][j][i].z;
-                        umtau_mean[k][j][i].x  =  lumtau_mean[k][j][i].x;
-                        umtau_mean[k][j][i].y  =  lumtau_mean[k][j][i].y;
-                        umtau_mean[k][j][i].z  =  lumtau_mean[k][j][i].z;
-                        uppp_mean[k][j][i].x   =  luppp_mean[k][j][i].x;
-                        uppp_mean[k][j][i].y   =  luppp_mean[k][j][i].y;
-                        uppp_mean[k][j][i].z   =  luppp_mean[k][j][i].z;
-                        pm_mean[k][j][i]       =  lpm_mean[k][j][i];
-                        em_mean[k][j][i]       =  lem_mean[k][j][i];
-                    }
-                }
+                Vec Pm;       DMCreateGlobalVector(mesh->da,  &Pm);       VecSet(Pm, 0.);
+                Vec Em;       DMCreateGlobalVector(mesh->da,  &Em);       VecSet(Em, 0.);
+                Vec VpVp;     DMCreateGlobalVector(mesh->sda, &VpVp);     VecSet(VpVp, 0.);
+                Vec Um;       DMCreateGlobalVector(mesh->fda, &Um);       VecSet(Um, 0.);
+                Vec Vm;       DMCreateGlobalVector(mesh->fda, &Vm);       VecSet(Vm, 0.);
+                Vec VpVpVp;   DMCreateGlobalVector(mesh->fda, &VpVpVp);   VecSet(VpVpVp, 0.);
+                Vec VmTauSGS; DMCreateGlobalVector(mesh->fda, &VmTauSGS); VecSet(VmTauSGS, 0.);
+                Vec Dpp;      DMCreateGlobalVector(mesh->fda, &Dpp);      VecSet(Dpp, 0.);
+
+                VecScalarLocalToGlobalCopy    (mesh, acquisition->keBudFields->lEm,       Em);
+                VecScalarLocalToGlobalCopy    (mesh, acquisition->keBudFields->lPm,       Pm);
+                VecSymmTensorLocalToGlobalCopy(mesh, acquisition->keBudFields->lVpVp,     VpVp);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lUm,       Um);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVm,       Vm);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVpVpVp,   VpVpVp);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVmTauSGS, VmTauSGS);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lDpp,      Dpp);
+
+                // write avgPm
+                fieldName = timeName + "/keEm";
+                writeBinaryField(mesh->MESH_COMM, Em, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgPm
+                fieldName = timeName + "/kePm";
+                writeBinaryField(mesh->MESH_COMM, Pm, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUm
+                fieldName = timeName + "/keUm";
+                writeBinaryField(mesh->MESH_COMM, Um, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                fieldName = timeName + "/keUpUp";
+                writeBinaryField(mesh->MESH_COMM, VpVp, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUpUpUp
+                fieldName = timeName + "/keUpUpUp";
+                writeBinaryField(mesh->MESH_COMM, VpVpVp, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUmTauSGS
+                fieldName = timeName + "/keUmTauSGS";
+                writeBinaryField(mesh->MESH_COMM, VmTauSGS, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUpPp
+                fieldName = timeName + "/keDpp";
+                writeBinaryField(mesh->MESH_COMM, Dpp, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // destroy global vectors
+                VecDestroy(&Em);
+                VecDestroy(&Pm);
+                VecDestroy(&VpVp);
+                VecDestroy(&Um);
+                VecDestroy(&Vm);
+                VecDestroy(&VpVpVp);
+                VecDestroy(&VmTauSGS);
+                VecDestroy(&Dpp);
             }
+            else
+            {
+                Vec Vm;       DMCreateGlobalVector(mesh->fda, &Vm);       VecSet(Vm, 0.);
+                Vec VpVp;     DMCreateGlobalVector(mesh->sda, &VpVp);     VecSet(VpVp, 0.);
+                Vec Em;       DMCreateGlobalVector(mesh->da,  &Em);       VecSet(Em, 0.);
 
-            DMDAVecRestoreArray(sda, avgUpUp,     &upup_mean);
-            DMDAVecRestoreArray(fda, avgUm,       &um_mean);
-            DMDAVecRestoreArray(fda, avgUpUpUp,   &upupup_mean);
-            DMDAVecRestoreArray(fda, avgUmTauSGS, &umtau_mean);
-            DMDAVecRestoreArray(fda, avgUpPp,     &uppp_mean);
-            DMDAVecRestoreArray(da,  avgPm,       &pm_mean);
-            DMDAVecRestoreArray(da,  avgEm,       &em_mean);
-            DMDAVecRestoreArray(sda, acquisition->keBudFields->lavgUpUp,     &lupup_mean);
-            DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUm,       &lum_mean);
-            DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUpUpUp,   &lupupup_mean);
-            DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUmTauSGS, &lumtau_mean);
-            DMDAVecRestoreArray(fda, acquisition->keBudFields->lavgUpPp,     &luppp_mean);
-            DMDAVecRestoreArray(da,  acquisition->keBudFields->lavgPm,       &lpm_mean);
-            DMDAVecRestoreArray(da,  acquisition->keBudFields->lEm,          &lem_mean);
+                Vec VmCsi;    DMCreateGlobalVector(mesh->fda, &VmCsi);       VecSet(VmCsi, 0.);
+                Vec VpVpCsi;  DMCreateGlobalVector(mesh->sda, &VpVpCsi);     VecSet(VpVpCsi, 0.);
+                Vec VmEta;    DMCreateGlobalVector(mesh->fda, &VmEta);       VecSet(VmEta, 0.);
+                Vec VpVpEta;  DMCreateGlobalVector(mesh->sda, &VpVpEta);     VecSet(VpVpEta, 0.);
+                Vec VmZet;    DMCreateGlobalVector(mesh->fda, &VmZet);       VecSet(VmZet, 0.);
+                Vec VpVpZet;  DMCreateGlobalVector(mesh->sda, &VpVpZet);     VecSet(VpVpZet, 0.);
 
-            // write avgPm
-            fieldName = timeName + "/keEm";
-            writeBinaryField(mesh->MESH_COMM, avgEm, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
+                Vec Pm;       DMCreateGlobalVector(mesh->fda, &Pm);       VecSet(Pm, 0.);
+                Vec VmVpVp;   DMCreateGlobalVector(mesh->fda, &VmVpVp);   VecSet(VmVpVp, 0.);
+                Vec VpVpVp;   DMCreateGlobalVector(mesh->fda, &VpVpVp);   VecSet(VpVpVp, 0.);
+                Vec VDm;      DMCreateGlobalVector(mesh->fda, &VDm);      VecSet(VDm, 0.);
+                Vec VpPpG;    DMCreateGlobalVector(mesh->fda, &VpPpG);    VecSet(VpPpG, 0.);
 
-            // write avgPm
-            fieldName = timeName + "/avgPm";
-            writeBinaryField(mesh->MESH_COMM, avgPm, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
+                VecScalarLocalToGlobalCopy    (mesh, acquisition->keBudFields->lEm,       Em);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVm,       Vm);
+                VecSymmTensorLocalToGlobalCopy(mesh, acquisition->keBudFields->lVpVp,     VpVp);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVmCsi,    VmCsi);
+                VecSymmTensorLocalToGlobalCopy(mesh, acquisition->keBudFields->lVpVpCsi,  VpVpCsi);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVmEta,    VmEta);
+                VecSymmTensorLocalToGlobalCopy(mesh, acquisition->keBudFields->lVpVpEta,  VpVpEta);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVmZet,    VmZet);
+                VecSymmTensorLocalToGlobalCopy(mesh, acquisition->keBudFields->lVpVpZet,  VpVpZet);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lPm,       Pm);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVmVpVp,   VmVpVp);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVpVpVp,   VpVpVp);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVDm,      VDm);
+                VecVectorLocalToGlobalCopy    (mesh, acquisition->keBudFields->lVpPpG,    VpPpG);
 
-            // write avgUm
-            fieldName = timeName + "/avgUm";
-            writeBinaryField(mesh->MESH_COMM, avgUm, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
+                // write avgPm
+                fieldName = timeName + "/keEm";
+                writeBinaryField(mesh->MESH_COMM, Em, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
 
-            fieldName = timeName + "/avgUpUp";
-            writeBinaryField(mesh->MESH_COMM, avgUpUp, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
+                // write avgPm
+                fieldName = timeName + "/keVm";
+                writeBinaryField(mesh->MESH_COMM, Vm, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
 
-            // write avgUpUpUp
-            fieldName = timeName + "/avgUpUpUp";
-            writeBinaryField(mesh->MESH_COMM, avgUpUpUp, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
+                // write avgUm
+                fieldName = timeName + "/keVpVp";
+                writeBinaryField(mesh->MESH_COMM, VpVp, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
 
-            // write avgUmTauSGS
-            fieldName = timeName + "/avgUmTauSGS";
-            writeBinaryField(mesh->MESH_COMM, avgUmTauSGS, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
+                fieldName = timeName + "/keVmCsi";
+                writeBinaryField(mesh->MESH_COMM, VmCsi, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
 
-            // write avgUpPp
-            fieldName = timeName + "/avgUpPp";
-            writeBinaryField(mesh->MESH_COMM, avgUpPp, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
+                // write avgUm
+                fieldName = timeName + "/keVpVpCsi";
+                writeBinaryField(mesh->MESH_COMM, VpVpCsi, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                fieldName = timeName + "/keVmEta";
+                writeBinaryField(mesh->MESH_COMM, VmEta, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUm
+                fieldName = timeName + "/keVpVpEta";
+                writeBinaryField(mesh->MESH_COMM, VpVpEta, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                fieldName = timeName + "/keVmZet";
+                writeBinaryField(mesh->MESH_COMM, VmZet, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUm
+                fieldName = timeName + "/keVpVpZet";
+                writeBinaryField(mesh->MESH_COMM, VpVpZet, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUpUpUp
+                fieldName = timeName + "/kePm";
+                writeBinaryField(mesh->MESH_COMM, Pm, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUpUpUp
+                fieldName = timeName + "/keVmVpVp";
+                writeBinaryField(mesh->MESH_COMM, VmVpVp, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUpUpUp
+                fieldName = timeName + "/keVpVpVp";
+                writeBinaryField(mesh->MESH_COMM, VpVpVp, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUmTauSGS
+                fieldName = timeName + "/keVDm";
+                writeBinaryField(mesh->MESH_COMM, VDm, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgUpPp
+                fieldName = timeName + "/keVpPpG";
+                writeBinaryField(mesh->MESH_COMM, VpPpG, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // destroy global vectors
+                VecDestroy(&Vm);
+                VecDestroy(&VpVp);
+                VecDestroy(&Em);
+                VecDestroy(&VmCsi);
+                VecDestroy(&VpVpCsi);
+                VecDestroy(&VmEta);
+                VecDestroy(&VpVpEta);
+                VecDestroy(&VmZet);
+                VecDestroy(&VpVpZet);
+                VecDestroy(&Pm);
+                VecDestroy(&VmVpVp);
+                VecDestroy(&VpVpVp);
+                VecDestroy(&VDm);
+                VecDestroy(&VpPpG);
+            }
 
             // write weights
             if(!rank)
@@ -1713,14 +1860,6 @@ PetscErrorCode writeFields(io_ *io)
                 fclose(f);
             }
 
-            // destroy global vectors
-            VecDestroy(&avgUpUp);
-            VecDestroy(&avgPm);
-            VecDestroy(&avgUm);
-            VecDestroy(&avgUpUpUp);
-            VecDestroy(&avgUmTauSGS);
-            VecDestroy(&avgUpPp);
-            VecDestroy(&avgEm);
         }
 
         // delete all other folders if purge is active (recommended for big cases)
