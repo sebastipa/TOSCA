@@ -47,7 +47,6 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
     VecDuplicate(mesh->lCent,  &(peqn->pIBMPt));    VecSet(peqn->pIBMPt,  0.0);
     VecDuplicate(mesh->lCent,  &(peqn->pIBMCell));  VecSet(peqn->pIBMCell,   0.0);
 
-
     // default parameters
     peqn->hypreSolverType = 1;
     peqn->amgAgg          = 0;
@@ -2944,7 +2943,7 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
     Cmpnts             eN;                                     // unit normal from the closest IBM mesh element of the IBM fluid cell
     Cmpnts             eC;                                     // unit vector along the line joining IBM fluid cell (k,j,i) to the cell (kc, jc, ic)
     Cmpnts             checkPt;                           // point where the pressure needs to be interpolated
-    Cmpnts             del, delCheckPt;
+    Cmpnts             del;
     PetscReal          refLength;                              // reference length set as the average cell size
     PetscReal          baseLength, checkLength;
 
@@ -2978,8 +2977,8 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
         cElem = ibF[c].closestElem;
         b     = ibF[c].bodyID;
 
-        ibmObject     *ibmBody = ibm->ibmBody[b];
-        ibmMesh   *ibMsh = ibmBody->ibMsh;
+        ibmObject   *ibmBody = ibm->ibmBody[b];
+        ibmMesh     *ibMsh   = ibmBody->ibMsh;
 
         eN = ibMsh->eN[cElem];
         refLength = pow( 1./aj[k][j][i], 1./3.);
@@ -3053,7 +3052,7 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
 
             if (ibmCellCtr > 0)
             {
-                del =  nScale(0.5 * refLength, eN);
+                del =  nScale(0.2 * refLength, eN);
                 mSum(checkPt, del);
                 dmin = 10e6;
 
@@ -3630,7 +3629,7 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
     // update pressure
     UpdatePressure(peqn);
-	
+
     // set pressure reference
     SetPressureReference(peqn);
 

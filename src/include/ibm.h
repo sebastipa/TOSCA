@@ -88,9 +88,19 @@ typedef struct
 
     list          *searchCellList;
 
-    PetscReal     *ibmPressure;
-
+    PetscReal     *ibmPressure;                               //!< pressure acting on each ibm element
+    Cmpnts        *ibmPForce;                                 //!< pressure force acting on each ibm element
     PetscReal     *ibmWallShear1, *ibmWallShear2;
+
+    PetscInt      *thisPtControlled;                          //!< flag telling if a ibm mesh point is controlled by this processor
+    PetscInt      *thisPtControlTransfer;                     //!< flag telling that the control of this point is being transferred to another processor
+    cellIds       *closestCells;                              //!< closest cell id to the outward normal projection from the ibm mesh element
+
+    //flags
+    PetscInt       ibmControlled;                             //!< flag which tells if this proc controls this IBM body
+
+    // communication color
+    MPI_Comm            IBM_COMM;                             //!< communicator for this IBM
 
 }ibmObject;
 
@@ -122,14 +132,6 @@ struct ibm_
     PetscInt           numBodies;                     //!<  number of bodies
     word               IBInterpolationModel;          //!<  interpolation methodology
 
-    PetscInt           dbg;
-
-    PetscInt           dynamic;
-
-    PetscInt           computeForce;
-
-    PetscInt           checkNormal;
-
     ibmObject          **ibmBody;                     //!<  array of pointers to ibm objects
 
     searchBox          *sBox;                         //!< array of searchBox with number of search cells and their size for each ibm object
@@ -140,6 +142,13 @@ struct ibm_
 
     // access database
     access_            *access;
+
+    // flags
+    PetscInt                 dbg;
+    PetscInt             dynamic;
+    PetscInt        computeForce;
+    PetscInt         checkNormal;
+
 
 };
 
@@ -155,7 +164,7 @@ PetscErrorCode InitializeIBM(ibm_ *ibm);
 PetscErrorCode InitializeIBMInterpolation(domain_ *domain);
 
 //! \brief update imb: top level function
-PetscErrorCode ibmUpdate(ibm_ *ibm);
+PetscErrorCode UpdateIBM(ibm_ *ibm);
 
 //! \brief writes the angular position when the body is rotating
 PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b);
@@ -174,6 +183,15 @@ PetscErrorCode readIBMFileUCD(ibmObject *ibmBody);
 
 //! \brief write the STL mesh
 PetscErrorCode writeSTLFile(ibmObject *ibmBody);
+
+//! \brief find in which processors the ibm body belongs
+PetscErrorCode findIBMControlledProcs(ibm_ *ibm);
+
+//! \brief create list of ibm element processors and their closest ibm fluid cell to the ibm element normal
+PetscErrorCode initFindIBMElementProcs(ibm_ *ibm);
+
+//! \brief transfer ibm mesh element across processors based on their movement - for dynamic case
+PetscErrorCode checkIBMElementControlledProcessor(ibm_ *ibm);
 
 //! \brief update the ibm mesh when the ibm body is moving
 PetscErrorCode UpdateIBMesh(ibm_ *ibm);

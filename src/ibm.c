@@ -36,6 +36,13 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
 
         findClosestIBMElement(ibm);
 
+        if(ibm->computeForce)
+        {
+            findIBMControlledProcs(ibm);
+
+            initFindIBMElementProcs(ibm);
+        }
+
         if (ibm->IBInterpolationModel == "MLS")
         {
             findFluidSupportNodes(ibm);
@@ -91,9 +98,12 @@ PetscErrorCode InitializeIBMInterpolation(domain_ *domain)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode ibmUpdate(ibm_ *ibm)
+PetscErrorCode UpdateIBM(ibm_ *ibm)
 {
     mesh_ *mesh = ibm->access->mesh;
+
+    PetscReal ibmTimeStart, ibmTimeEnd;
+    PetscTime(&ibmTimeStart);
 
     //copy current nvert before next time step
     VecCopy(mesh->Nvert, mesh->Nvert_o);
@@ -172,6 +182,11 @@ PetscErrorCode ibmUpdate(ibm_ *ibm)
 
     if(ibm->computeForce)
     {
+        if(ibm->dynamic)
+        {
+            checkIBMElementControlledProcessor(ibm);
+        }
+
         ComputeForceMoment(ibm);
     }
 
@@ -184,116 +199,12 @@ PetscErrorCode ibmUpdate(ibm_ *ibm)
 
     MPI_Barrier(mesh->MESH_COMM);
 
+    PetscTime(&ibmTimeEnd);
+    PetscPrintf(mesh->MESH_COMM, "ibm update time = %lf s\n", ibmTimeEnd - ibmTimeStart);
+
     return 0;
 }
 
-//***************************************************************************************************************//
-// PetscErrorCode ComputeForceMoment(ibm_ *ibm)
-// {
-//
-//     mesh_         *mesh = ibm->access->mesh;
-//     ueqn_         *ueqn = ibm->access->ueqn;
-//     peqn_         *peqn = ibm->access->peqn;
-//
-//     DM            da   = mesh->da, fda = mesh->fda;
-//     DMDALocalInfo info = mesh->info;
-//     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
-//     PetscInt      ys   = info.ys, ye = info.ys + info.ym;
-//     PetscInt      zs   = info.zs, ze = info.zs + info.zm;
-//     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
-//
-//     PetscInt      lxs, lxe, lys, lye, lzs, lze;
-//     PetscInt      i, j, k;
-//     PetscInt      b, c, s;
-//     PetscReal     sc, sb, uDot;
-//     Cmpnts        ***ucat, uDiff, ibmPtVel;
-//     PetscReal     ***lP, ***nvert;
-//
-//     DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
-//     DMDAVecGetArray(da, peqn->lP, &lP);
-//     DMDAVecGetArray(da, mesh->lNvert, &nvert);
-//
-//     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-//     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-//     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-//
-//     //local pointer for ibmFluidCells
-//     ibmFluidCell *ibF = ibm->ibmFCells;
-//
-//     for(c = 0; c < ibm->numIBMFluid; c++)
-//     {
-//
-//         //cell indices
-//         i = ibF[c].cellId.i;
-//         j = ibF[c].cellId.j;
-//         k = ibF[c].cellId.k;
-//
-//         // loop through the ibm bodies
-//         for (b = 0; b < ibm->numBodies; b++)
-//         {
-//             ibmObject     *ibmBody = ibm->ibmBody[b];
-//
-            // // check if the closest ibm element to this ibm fluid cell is of body b
-            // if(ibF[c].bodyID == b)
-            // {
-            //     ibmMesh   *ibMsh = ibmBody->ibMsh;
-            //     PetscInt   cElem = ibF[c].closestElem;
-            //     Cmpnts	   eN = ibMsh->eN[cElem], eT1 = ibMsh->eT1[cElem], eT2 = ibMsh->eT2[cElem];
-            //     PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
-            //
-            //     sb = ibF[c].minDist;
-            //
-            //     // Velocity of the projected point of the closest ibm element
-            //     ibmPtVel.x =   ibMsh->nU[n1].x * ibF[c].cs1
-            //                  + ibMsh->nU[n2].x * ibF[c].cs2
-            //                  + ibMsh->nU[n3].x * ibF[c].cs3;
-            //
-            //     ibmPtVel.y =   ibMsh->nU[n1].y * ibF[c].cs1
-            //                  + ibMsh->nU[n2].y * ibF[c].cs2
-            //                  + ibMsh->nU[n3].y * ibF[c].cs3;
-            //
-            //     ibmPtVel.z =   ibMsh->nU[n1].z * ibF[c].cs1
-            //                  + ibMsh->nU[n2].z * ibF[c].cs2
-            //                  + ibMsh->nU[n3].z * ibF[c].cs3;
-            //
-            //     uDiff = nSub(ucat[k][j][i], ibmPtVel);
-            //
-            //     uDot = nDot(uDiff, eT1);
-            //     uDot /= sb;
-            //
-            //     ibmBody->libmWallShear1[cElem] += uDot;
-            //
-            //     uDot = nDot(uDiff, eT2);
-            //     uDot /= sb;
-            //
-            //     ibmBody->libmWallShear2[cElem] += uDot;
-            // }
-
-//
-//         }
-//     }
-//
-//     // loop through the ibm bodies
-//     for (b = 0; b < ibm->numBodies; b++)
-//     {
-//         ibmObject     *ibmBody = ibm->ibmBody[b];
-//         PetscInt      nElem = ibmBody->ibMsh->elems;
-//         MPI_Allreduce(&(ibmBody->libmWallShear1[0]), &(ibmBody->ibmWallShear1[0]), nElem, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-//         MPI_Allreduce(&(ibmBody->libmWallShear2[0]), &(ibmBody->ibmWallShear2[0]), nElem, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-//
-//         for(PetscInt i = 0; i < nElem; i++)
-//         {
-//             PetscPrintf(PETSC_COMM_WORLD, "wallshear at elem %ld = %lf %lf\n", i, ibmBody->libmWallShear1[i], ibmBody->libmWallShear2[i]);
-//         }
-//     }
-//
-//     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
-//     DMDAVecRestoreArray(da, peqn->lP, &lP);
-//     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-//
-//     return 0;
-//
-// }
 //***************************************************************************************************************//
 
 PetscErrorCode ComputeForceMoment(ibm_ *ibm)
@@ -311,11 +222,14 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k, i1, j1, k1;
+    PetscInt      i1, j1, k1;
     PetscInt      b, c, s, e;
-    PetscReal     sc, sb, uDot;
+    PetscReal     sc, sb, uDot, ustar;
     Cmpnts        ***ucat, ***cent, uDiff, ibmPtVel, bPtVel;
-    Cmpnts        eN, eT1, eT2, dI, dF;
+    Cmpnts        eN, eT1, eT2, dI, dF, eC;
+    Cmpnts        checkPt, del;                                // point where the pressure or shear stress needs to be interpolated
+    PetscReal     refLength, eA;
+
     PetscInt      n1, n2, n3;
     PetscReal     ***lP, ***nvert, ***aj, bPtP;
 
@@ -329,158 +243,251 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    // inpute parameters - hard coded to test for now
-    PetscReal delInit = 0.1;
-    PetscReal delCell;
     //local pointer for ibmFluidCells
     ibmFluidCell *ibF = ibm->ibmFCells;
+
+    //vectors to store the net force on each ibm
+    std::vector<Cmpnts>    lPForce(ibm->numBodies);
+    std::vector<Cmpnts>    gPForce(ibm->numBodies);
+
+    for (b = 0; b < ibm->numBodies; b++)
+    {
+        lPForce[b] = nSetZero();
+        gPForce[b] = nSetZero();
+    }
 
     // loop through the ibm bodies
     for (b = 0; b < ibm->numBodies; b++)
     {
-        ibmObject     *ibmBody = ibm->ibmBody[b];
+        ibmObject   *ibmBody = ibm->ibmBody[b];
+        ibmMesh     *ibMsh   = ibmBody->ibMsh;
 
-        ibmMesh   *ibMsh = ibmBody->ibMsh;
-
-        //loop through the ibm mesh elements
-        for (e = 0; e < ibMsh->elems; e++)
+        //check if process controls this ibm body
+        if(ibmBody->ibmControlled)
         {
-            eN = ibMsh->eN[e], eT1 = ibMsh->eT1[e], eT2 = ibMsh->eT2[e];
-            n1 = ibMsh->nID1[e], n2 = ibMsh->nID2[e], n3 = ibMsh->nID3[e];
+            PetscMPIInt   ibmnprocs; MPI_Comm_size(ibmBody->IBM_COMM, &ibmnprocs);
+            PetscMPIInt   ibmrank;   MPI_Comm_rank(ibmBody->IBM_COMM, &ibmrank);
 
-            // move delInit distance along the ibm mesh element normal to point dI
-            dI = nScale(delInit, eN);
-            mSum(dI, ibMsh->eCent[e]);
-
-            // check if dI is inside the simulation domain
-            if (isInsideSimDomain(dI, mesh->bounds))
+            //loop through the ibm mesh elements
+            for(e = 0; e < ibMsh->elems; e++)
             {
-                PetscReal   dmin = 10e6, d;
-                PetscInt    ic, jc, kc;
-
-                for(c = 0; c < ibm->numIBMFluid; c++)
+                //this processor controls this ibm element
+                if(ibmBody->thisPtControlled[e])
                 {
-                    //cell indices
-                    i = ibF[c].cellId.i;
-                    j = ibF[c].cellId.j;
-                    k = ibF[c].cellId.k;
+                    eN = ibMsh->eN[e], eT1 = ibMsh->eT1[e], eT2 = ibMsh->eT2[e];
+                    n1 = ibMsh->nID1[e], n2 = ibMsh->nID2[e], n3 = ibMsh->nID3[e];
+                    eC = ibMsh->eCent[e];
+                    eA = ibMsh->eA[e];
 
-                    d = pow((dI.x - cent[k][j][i].x), 2) +
-                        pow((dI.y - cent[k][j][i].y), 2) +
-                        pow((dI.z - cent[k][j][i].z), 2);
+                    //current closest ibm fluid cell to point
+                    PetscInt    ci, cj, ck;
 
-                    if
-                    (
-                        d < dmin
-                    )
+                    ci = ibmBody->closestCells[e].i;
+                    cj = ibmBody->closestCells[e].j;
+                    ck = ibmBody->closestCells[e].k;
+
+                    //reference length - square root of the element area vector magnitude
+                    refLength = pow( 1./aj[ck][cj][ci], 1./3.);
+
+                    //initial point for interpolation
+                    checkPt = nSum(nScale(refLength, eN), eC);
+
+                    //find the closest neighbour of ck, cj, ci to checkPt
+                    PetscInt    i1, j1, k1;
+                    PetscReal   dmin = 10e6, d;
+                    PetscInt    ic, jc, kc;
+
+                    for (k1=ck-1; k1<ck+2; k1++)
+                    for (j1=cj-1; j1<cj+2; j1++)
+                    for (i1=ci-1; i1<ci+2; i1++)
                     {
-                        dmin  = d;
-                        ic = i;
-                        jc = j;
-                        kc = k;
-                    }
-                }
-
-                //find the main diagonal length
-                delCell = pow( 1./aj[kc][jc][ic], 1./3.);
-
-                if(delInit > delCell)
-                {
-                    char error[512];
-                    sprintf(error, "reduce the initial guess distance delInit for force interpolation\n");
-                    fatalErrorInFunction("ComputeForceMoment", error);
-                }
-
-                // move delInit distance along the ibm mesh element normal to point dI
-                dF = nScale(delInit + delCell, eN);
-                mSum(dF, ibMsh->eCent[e]);
-
-                // interpolate the pressure and velocity at point def
-                dmin = 10e6;
-                PetscInt    ic1, jc1, kc1;
-
-                // must be close so don't loop over all cells
-                for (k1=kc-2; k1<kc+3; k1++)
-                for (j1=jc-2; j1<jc+3; j1++)
-                for (i1=ic-2; i1<ic+3; i1++)
-                {
-
-                    if
-                    (
-                        (
-                            k1>=1 && k1<mz-1 &&
-                            j1>=1 && j1<my-1 &&
-                            i1>=1 && i1<mx-1
-                        )
-                    )
-                    {
-                        d = pow((dF.x - cent[k1][j1][i1].x), 2) +
-                            pow((dF.y - cent[k1][j1][i1].y), 2) +
-                            pow((dF.z - cent[k1][j1][i1].z), 2);
-
                         if
                         (
-                            d < dmin
+                            (
+                                k1>=1 && k1<mz-1 &&
+                                j1>=1 && j1<my-1 &&
+                                i1>=1 && i1<mx-1
+                            ) && (!isIBMSolidCell(k1, j1, i1, nvert))
                         )
                         {
-                            dmin  = d;
-                            ic1 = i1;
-                            jc1 = j1;
-                            kc1 = k1;
+                            d = pow((checkPt.x - cent[k1][j1][i1].x), 2) +
+                                pow((checkPt.y - cent[k1][j1][i1].y), 2) +
+                                pow((checkPt.z - cent[k1][j1][i1].z), 2);
+
+                            if
+                            (
+                                d < dmin
+                            )
+                            {
+                                dmin  = d;
+                                ic = i1;
+                                jc = j1;
+                                kc = k1;
+                            }
                         }
                     }
+
+                    PetscInt intId[6];
+                    PetscInt intFlag = 1;
+
+                    // get the trilinear interpolation cells
+                    scalarPointInterpolationCells
+                    (
+                            mesh,
+                            checkPt.x, checkPt.y, checkPt.z,
+                            ic, jc, kc,
+                            cent,
+                            intId
+                    );
+
+                    // if there is an ibm solid cell in the interpolation, increase reference length further
+                    while (intFlag && isInsideSimDomain(checkPt, mesh->bounds))
+                    {
+                        PetscInt ibmCellCtr = 0;
+                        PetscInt icc, jcc, kcc;
+
+                        for (PetscInt kk = 0; kk<2; kk++)
+                        for (PetscInt jj = 0; jj<2; jj++)
+                        for (PetscInt ii = 0; ii<2; ii++)
+                        {
+                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                            {
+                                ibmCellCtr ++;
+                            }
+
+                        }
+
+                        if (ibmCellCtr > 0)
+                        {
+                            del =  nScale(0.5 * refLength, eN);
+                            mSum(checkPt, del);
+                            dmin = 10e6;
+
+                            for (k1=kc-1; k1<kc+2; k1++)
+                            for (j1=jc-1; j1<jc+2; j1++)
+                            for (i1=ic-1; i1<ic+2; i1++)
+                            {
+
+                                if
+                                (
+                                    (
+                                        k1>=1 && k1<mz-1 &&
+                                        j1>=1 && j1<my-1 &&
+                                        i1>=1 && i1<mx-1
+                                    ) && !(isIBMSolidCell(k1, j1, i1, nvert))
+                                )
+                                {
+                                    d = pow((checkPt.x - cent[k1][j1][i1].x), 2) +
+                                        pow((checkPt.y - cent[k1][j1][i1].y), 2) +
+                                        pow((checkPt.z - cent[k1][j1][i1].z), 2);
+
+                                    if
+                                    (
+                                        d < dmin
+                                    )
+                                    {
+                                        dmin  = d;
+                                        icc = i1;
+                                        jcc = j1;
+                                        kcc = k1;
+                                    }
+                                }
+
+                            }
+
+                            kc = kcc; jc = jcc; ic = icc;
+
+                            scalarPointInterpolationCells
+                            (
+                                    mesh,
+                                    checkPt.x, checkPt.y, checkPt.z,
+                                    ic, jc, kc,
+                                    cent,
+                                    intId
+                            );
+                        }
+                        else
+                        {
+                            intFlag = 0;
+
+                            scalarPointLocalVolumeInterpolation
+                            (
+                                    mesh,
+                                    checkPt.x, checkPt.y, checkPt.z,
+                                    ic, jc, kc,
+                                    cent,
+                                    lP,
+                                    ibmBody->ibmPressure[e]
+                            );
+
+                            vectorPointLocalVolumeInterpolation
+                            (
+                                    mesh,
+                                    checkPt.x, checkPt.y, checkPt.z,
+                                    ic, jc, kc,
+                                    cent,
+                                    ucat,
+                                    bPtVel
+                            );
+                        }
+                    }
+
+                    //set the ibm element pressure force
+                    PetscReal pForce = ibmBody->ibmPressure[e] * eA;
+                    ibmBody->ibmPForce[e] = nSet(nScale(-pForce, eN));
+
+                    //Velocity of the ibm mesh element
+                    ibmPtVel.x =  (ibMsh->nU[n1].x
+                                 + ibMsh->nU[n2].x
+                                 + ibMsh->nU[n3].x) / 3.0 ;
+
+                    ibmPtVel.y =  (ibMsh->nU[n1].y
+                                 + ibMsh->nU[n2].y
+                                 + ibMsh->nU[n3].y) / 3.0 ;
+
+                    ibmPtVel.z =  (ibMsh->nU[n1].z
+                                 + ibMsh->nU[n2].z
+                                 + ibMsh->nU[n3].z) / 3.0;
+
+                    //find the friction velocity ustar
+                    uDiff = nSub(bPtVel, ibmPtVel);
+
+                    // distance between interpolation point and ibm mesh element
+                    sc    = nMag(nSub(checkPt, eC));
+
+                    PetscReal  un, ut;              //normal and tangential component of udiff
+                    Cmpnts     unV, utV;            // normal and tanential vector of udiff
+
+                    // normal component to the wall
+                    un = nDot(uDiff, eN);
+                    unV = nScale(un,eN);
+
+                    // tangential component to the wall
+                    utV = nSub(uDiff, unV);
+                    ut = nMag(utV);
+
+                    //friction velocity
+                    ustar = uTauCabot(ibm->access->constants->nu, ut, sc, 0.01, 0);
+
+                    //shear stress on ibm mesh element
+                    Cmpnts tauWall = nScale(ustar*ustar, nUnit(utV));
+
+                    //sum total pressure and viscous force
+                    mSum(lPForce[b], ibmBody->ibmPForce[e]);
+                    mSum(lPForce[b], nScale(eA, tauWall));
+
                 }
 
-                //trilinear interpolate the pressure and velocity at this point
-                vectorPointLocalVolumeInterpolation
-                (
-                        mesh,
-                        dF.x, dF.y, dF.z,
-                        ic1, jc1, kc1,
-                        cent,
-                        ucat,
-                        bPtVel
-                );
+            }
 
-                scalarPointLocalVolumeInterpolation
-                (
-                        mesh,
-                        dF.x, dF.y, dF.z,
-                        ic1, jc1, kc1,
-                        cent,
-                        lP,
-                        bPtP
-                );
+            MPI_Allreduce(&(lPForce[b]), &(gPForce[b]), 3, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
 
-                // Velocity of the projected point of the closest ibm element
-                ibmPtVel.x =  (ibMsh->nU[n1].x
-                             + ibMsh->nU[n2].x
-                             + ibMsh->nU[n3].x) / 3.0 ;
-
-                ibmPtVel.y =  (ibMsh->nU[n1].y
-                             + ibMsh->nU[n2].y
-                             + ibMsh->nU[n3].y) / 3.0 ;
-
-                ibmPtVel.z =  (ibMsh->nU[n1].z
-                             + ibMsh->nU[n2].z
-                             + ibMsh->nU[n3].z) / 3.0;
-
-                 uDiff = nSub(bPtVel, ibmPtVel);
-
-                 uDot = nDot(uDiff, eT1);
-                 uDot /= (delInit + delCell);
-
-
-                 ibmBody->ibmWallShear1[e] = uDot;
-
-                 uDot = nDot(uDiff, eT2);
-                 uDot /= (delInit + delCell);
-
-                 ibmBody->ibmWallShear2[e] = uDot;
-
-                 ibmBody->ibmPressure[e] = bPtP;
+            if(ibmrank == 0)
+            {
+                printf("Net force = %lf %lf %lf\n", gPForce[b].x, gPForce[b].y, gPForce[b].z);
             }
         }
+
     }
 
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
@@ -1069,7 +1076,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          // ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
 
          wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
-         // wallFunctionPowerlaw(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, nf);
+         //wallFunctionPowerlaw(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, nf);
 
 
          if (flags->isTeqnActive)
@@ -1670,6 +1677,11 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     // read ibm file type
     readSubDictWord("./IBM/IBMProperties.dat", objectName, "fileType", &(ibm->ibmBody[i]->fileType));
 
+    if(ibm->ibmBody[i]->fileType == "inp")
+    {
+        
+    }
+
     // read the ibm motion
     readSubDictWord("./IBM/IBMProperties.dat", objectName, "bodyMotion", &(ibm->ibmBody[i]->bodyMotion));
 
@@ -1768,6 +1780,9 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
             ibMesh->eCent[e] = nSum( temp, ibMesh->nCoor[n3]);
             mScale(1/3.0, ibMesh->eCent[e]);
 
+            //element area
+            ibMesh->eA[e] = normMag/2.0;
+
         }
 
         if(ibm->checkNormal)
@@ -1833,8 +1848,6 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
                 ibMesh->eT2[e].z = sqrt(ibMesh->eN[e].x*ibMesh->eN[e].x + ibMesh->eN[e].y*ibMesh->eN[e].y);
             }
 
-            //element area
-            ibMesh->eA[e] = normMag/2.0;
         }
 
         // if(ibm->ibmBody[b]->fileType == "ascii")
@@ -1848,6 +1861,408 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 }
 //***************************************************************************************************************//
 
+PetscErrorCode findIBMControlledProcs(ibm_ *ibm)
+{
+    PetscInt      b, c;
+    mesh_         *mesh = ibm->access->mesh;
+
+    PetscMPIInt      rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    //local pointer for ibmFluidCells
+    ibmFluidCell *ibF = ibm->ibmFCells;
+
+
+    // loop through the ibm bodies
+    for (b = 0; b < ibm->numBodies; b++)
+    {
+        // define communicator color
+        PetscInt    commColor = 0;
+        ibmObject   *ibmBody  = ibm->ibmBody[b];
+
+        if(ibm->numIBMFluid!=0)
+        {
+            // loop through the ibm fluid cells
+            for(c = 0; c < ibm->numIBMFluid; c++)
+            {
+                if( b == ibF[c].bodyID)
+                {
+                    // set this ibm body to be controlled by this processor
+                    ibmBody->ibmControlled = 1;
+
+                    // set the communicator color
+                    commColor = 1;
+
+                    //atleast one ibm fluid cell close to this body found for this processor, break out of loop
+                    break;
+                }
+            }
+        }
+        else
+        {
+            ibmBody->ibmControlled = 0;
+
+            //if commColor not set, set to undefined
+            commColor = MPI_UNDEFINED;
+        }
+
+        // create communicator
+        MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(ibmBody->IBM_COMM));
+
+        // the master rank of this IBM_COMM communicator will write this IBM I/O file
+        PetscMPIInt thisIBMRank = 10;
+        MPI_Comm_rank(ibmBody->IBM_COMM, &thisIBMRank);
+
+        if(ibmBody->ibmControlled == 1 && ibm->dbg)
+        {
+            PetscPrintf(PETSC_COMM_SELF,"num ibm fluid for global rank %d = %d\n", rank, ibm->numIBMFluid);
+            PetscPrintf(PETSC_COMM_SELF,"ibm controlling processor rank in the new communicator = %d\n", thisIBMRank);
+        }
+
+    }
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode initFindIBMElementProcs(ibm_ *ibm)
+{
+    mesh_              *mesh = ibm->access->mesh;
+    DM                 da = mesh->da, fda = mesh->fda;
+
+    PetscInt           i, j, k, c, b, e;
+    ibmFluidCell       *ibF = ibm->ibmFCells;
+    Cmpnts             eN;                                     // unit normal from the closest IBM mesh element of the IBM fluid cell
+    Cmpnts             eC;
+    Cmpnts             checkPt;                                // point where the pressure or shear stress needs to be interpolated
+    PetscReal          refLength;                              // reference length set as the average cell size
+    PetscReal          lminDist, gminDist;
+    Cmpnts             perturb;
+
+    Cmpnts             ***cent;
+
+    PetscMPIInt        nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt        rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // max perturbation amplitude
+    PetscReal          maxPerturb  = 1e-10;
+
+    // processor perturbation (changes between processors)
+    PetscReal          procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)nprocs;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    // loop through the ibm bodies
+    for (b = 0; b < ibm->numBodies; b++)
+    {
+        ibmObject   *ibmBody  = ibm->ibmBody[b];
+        ibmMesh     *ibMsh    = ibmBody->ibMsh;                         // pointer to the ibm body mesh
+
+        //check if process controls this ibm body
+        if(ibmBody->ibmControlled)
+        {
+            // number of points in the AD mesh
+            PetscInt nptsIBM = ibMsh->elems;
+
+            // create temporary vectors
+            std::vector<PetscReal> lminDist(nptsIBM);
+            std::vector<PetscReal> gminDist(nptsIBM);
+            std::vector<Cmpnts>    perturb(nptsIBM);
+
+            //loop through the ibm mesh elements
+            for(e = 0; e < ibMsh->elems; e++)
+            {
+                //element normal
+                eN = ibMsh->eN[e];
+
+                //element center
+                eC = ibMsh->eCent[e];
+
+                //reference length - square root of the element area vector magnitude
+                refLength = pow( 2.0 * ibMsh->eA[e], 1./2.);
+
+                //initial point for interpolation
+                checkPt = nSum(nScale(refLength, eN), eC);
+
+                // initialize min dists to a big value
+                lminDist[e] = 1e20;
+                gminDist[e] = 1e20;
+
+                // set point perturbation
+                perturb[e].x  = procContrib;
+                perturb[e].y  = procContrib;
+                perturb[e].z  = procContrib;
+
+                // perturb the point position
+                mSum(checkPt, perturb[e]);
+
+                // find the closest cell center
+                PetscReal  distMinMag = 1e20;
+                cellIds    closestCell;
+
+                //loop through the ibm fluid cells
+                for(c = 0; c < ibm->numIBMFluid; c++)
+                {
+                    //cell indices
+                    i = ibF[c].cellId.i;
+                    j = ibF[c].cellId.j;
+                    k = ibF[c].cellId.k;
+
+                    // compute distance vector from check point to ibm fluid cell
+                    Cmpnts  distVec = nSub(checkPt, cent[k][j][i]);
+
+                    // compute magnitude
+                    PetscReal dist  = nMag(distVec);
+
+                    if(dist < distMinMag)
+                    {
+                        distMinMag = dist;
+                        closestCell.i = i;
+                        closestCell.j = j;
+                        closestCell.k = k;
+                    }
+                }
+
+                // save closest cell indices - local array
+                ibmBody->closestCells[e].i = closestCell.i;
+                ibmBody->closestCells[e].j = closestCell.j;
+                ibmBody->closestCells[e].k = closestCell.k;
+
+                // save min dist
+                lminDist[e] = distMinMag;
+
+            }
+
+            // find the min distance among the ibm communicator processors
+            MPI_Allreduce(&(lminDist[0]), &(gminDist[0]), nptsIBM, MPIU_REAL, MPIU_MIN, ibmBody->IBM_COMM);
+
+            for(e = 0; e < ibMsh->elems; e++)
+            {
+                // point is controlled
+                if(lminDist[e] == gminDist[e])
+                {
+                    ibmBody->thisPtControlled[e] = 1;
+                }
+                // point is not controlled
+                else
+                {
+                    ibmBody->thisPtControlled[e] = 0;
+                }
+
+                //initialize flag for ibm element processor flag to 0
+                ibmBody->thisPtControlTransfer[e] = 0;
+            }
+
+            // clean memory
+            std::vector<PetscReal> ().swap(lminDist);
+            std::vector<PetscReal> ().swap(gminDist);
+            std::vector<Cmpnts> ().swap(perturb);
+        }
+
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode checkIBMElementControlledProcessor(ibm_ *ibm)
+{
+    mesh_            *mesh = ibm->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k, c, b, e;
+
+    Cmpnts           eN;                                     // unit normal from the closest IBM mesh element of the IBM fluid cell
+    Cmpnts           eC;
+    Cmpnts           checkPt;                                // point where the pressure or shear stress needs to be interpolated
+    PetscReal        refLength;
+
+    Cmpnts           ***cent;
+    PetscReal        ***nvert;
+
+    PetscMPIInt        nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt        rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+    // loop through the ibm bodies
+    for (b = 0; b < ibm->numBodies; b++)
+    {
+        //pointer to access the ibm body
+        ibmObject   *ibmBody  = ibm->ibmBody[b];
+        ibmMesh     *ibMsh    = ibmBody->ibMsh;                         // pointer to the ibm body mesh
+
+        //check if process controls this ibm body
+        if(ibmBody->ibmControlled)
+        {
+            // number of points in the AD mesh
+            PetscInt nptsIBM = ibMsh->elems;
+
+            // create temporary vectors
+            std::vector<PetscInt> lptcontrolTransfer(nptsIBM);
+            std::vector<cellIds>  lClosestCell(nptsIBM);
+
+            //loop through the ibm mesh elements
+            for(e = 0; e < ibMsh->elems; e++)
+            {
+                //this processor previosly controlled this ibm element
+                if(ibmBody->thisPtControlled[e])
+                {
+                    /*find the new projection point of this element normal
+                    The search for the ibm fluid cell that is closest to this
+                    projection point is done in the neighbourhood of the old
+                    closest point */
+
+                    //element normal
+                    eN = ibMsh->eN[e];
+
+                    //element center
+                    eC = ibMsh->eCent[e];
+
+                    //reference length - square root of the element area vector magnitude
+                    refLength = pow( 2.0 * ibMsh->eA[e], 1./2.);
+
+                    //initial point for interpolation
+                    checkPt = nSum(nScale(refLength, eN), eC);
+
+                    //current closest ibm fluid cell to point
+                    PetscInt    ci, cj, ck;
+                    cellIds     currentClosest = ibmBody->closestCells[e];
+
+                    ci = currentClosest.i;
+                    cj = currentClosest.j;
+                    ck = currentClosest.k;
+
+                    //find the closest neighbour of ck,cj,ci to checkPt
+                    PetscInt    i1, j1, k1;
+                    PetscReal   dmin = 10e6, d;
+                    PetscInt    ic, jc, kc;
+
+                    for (k1=ck-2; k1<ck+3; k1++)
+                    for (j1=cj-2; j1<cj+3; j1++)
+                    for (i1=ci-2; i1<ci+3; i1++)
+                    {
+                        if
+                        (
+                            (
+                                k1>=1 && k1<mz-1 &&
+                                j1>=1 && j1<my-1 &&
+                                i1>=1 && i1<mx-1
+                            ) && (!isIBMSolidCell(k1, j1, i1, nvert))
+                        )
+                        {
+                            d = pow((checkPt.x - cent[k1][j1][i1].x), 2) +
+                                pow((checkPt.y - cent[k1][j1][i1].y), 2) +
+                                pow((checkPt.z - cent[k1][j1][i1].z), 2);
+
+                            if
+                            (
+                                d < dmin
+                            )
+                            {
+                                dmin  = d;
+                                ic = i1;
+                                jc = j1;
+                                kc = k1;
+                            }
+                        }
+                    }
+
+                    //update the closest cell id
+                    lClosestCell[e].i = ic;
+                    lClosestCell[e].j = jc;
+                    lClosestCell[e].k = kc;
+
+                    //set pt controlled if within the current processor limits
+                    // else transfer
+
+                    if (kc >= lzs && kc < lze && jc >= lys && jc < lye && ic >= lxs && ic < lxe)
+                    {
+                        //new closest cell is within the current processor
+                        ibmBody->thisPtControlled[e] = 1;
+
+                        //set flag for processor transfer to 0
+                        lptcontrolTransfer[e] = 0;
+
+                    }
+                    else
+                    {
+                        //new closest cell belongs to the adjacent processor
+                        ibmBody->thisPtControlled[e] = 0;
+
+                        lptcontrolTransfer[e] = 1;
+
+                    }
+
+                }
+                else
+                {
+                    lptcontrolTransfer[e] = 0;
+
+                    lClosestCell[e].i = 0;
+                    lClosestCell[e].j = 0;
+                    lClosestCell[e].k = 0;
+                }
+
+            }
+
+            //scatter the pt control transfer flag and new closest element
+            MPI_Allreduce(&(lptcontrolTransfer[0]), &(ibmBody->thisPtControlTransfer[0]), nptsIBM, MPIU_INT, MPI_SUM, ibmBody->IBM_COMM);
+            MPI_Allreduce(&(lClosestCell[0]), &(ibmBody->closestCells[0]), 3*nptsIBM, MPIU_INT, MPI_SUM, ibmBody->IBM_COMM);
+
+
+            //clean the temporary vectors
+            std::vector<PetscInt> ().swap(lptcontrolTransfer);
+            std::vector<cellIds> ().swap(lClosestCell);
+
+            //loop through the ibm mesh elements and transfer the ibm element control
+            for(e = 0; e < ibMsh->elems; e++)
+            {
+                // now only check the elements which will be transferred
+                if(ibmBody->thisPtControlTransfer[e])
+                {
+                    cellIds Id = ibmBody->closestCells[e];
+
+                    if (Id.k >= lzs && Id.k < lze && Id.j >= lys && Id.j < lye && Id.i >= lxs && Id.i < lxe)
+                    {
+                        ibmBody->thisPtControlled[e] = 1;
+
+                    }
+                }
+
+            }
+
+        }
+
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
 PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
 {
   ibmObject     *ibmBody = ibm->ibmBody[b];
@@ -1935,15 +2350,15 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
   {
       // allocate memory for pressure and surface stress
       PetscMalloc( ibMesh->elems * sizeof(PetscReal), &(ibmBody->ibmPressure));
+      PetscMalloc( ibMesh->elems * sizeof(Cmpnts), &(ibmBody->ibmPForce));
+
       PetscMalloc( ibMesh->elems * sizeof(PetscReal), &(ibmBody->ibmWallShear1));
       PetscMalloc( ibMesh->elems * sizeof(PetscReal), &(ibmBody->ibmWallShear2));
 
-      for (PetscInt i=0; i<ibMesh->elems; i++)
-      {
-          ibmBody->ibmPressure[i] = 0.0;
-          ibmBody->ibmWallShear1[i] = 0.0;
-          ibmBody->ibmWallShear2[i] = 0.0;
-      }
+      // allocate memory for the closest cell id to the ibm mesh element
+      PetscMalloc( ibMesh->elems * sizeof(cellIds), &(ibmBody->closestCells));
+      PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->thisPtControlled));
+      PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->thisPtControlTransfer));
   }
 
   //allocate memory for the smallest bounding sphere for each element - used for finding the nearest IBM Mesh element to IBM fluid cell

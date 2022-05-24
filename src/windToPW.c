@@ -136,6 +136,9 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       // initialize i/o controls and initialization type
       InitializeIO(domain[d].io);
 
+      // initialize ibm
+      InitializeIBM(domain[d].ibm);
+
       // momentum equation initialize
       InitializeUEqn(domain[d].ueqn);
 

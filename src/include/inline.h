@@ -17,6 +17,7 @@ inline void timeStepSet(clock_ *clock, PetscReal timeStart, PetscReal timeInterv
     // compute current fraction of the acquisition period
     PetscReal currentAcquistionPeriodFraction = (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval);
 
+
     // compute current distance to write time
     PetscReal currentDistanceToWriteTime = (1.0-currentAcquistionPeriodFraction)*timeInterval;
 
@@ -27,9 +28,13 @@ inline void timeStepSet(clock_ *clock, PetscReal timeStart, PetscReal timeInterv
     {
         if(clock->time + initialTimeStep >= timeStart)
         {
-            clock->dt = PetscMin(currentDistanceToWriteTime, clock->dt);
-            flag = 1;
-            cfl  = currentCFL;
+            if(currentDistanceToWriteTime < clock->dt)
+            {
+                clock->dt = currentDistanceToWriteTime;
+                flag = 1;
+                cfl  = currentCFL;
+            }
+
         }
     }
 
