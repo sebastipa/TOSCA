@@ -138,8 +138,8 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             // ke budgets
             if(domain[d].io->keBudgets)
             {
-                timeStart    = domain[d].io->keBudStartTime;
-                timeInterval = domain[d].io->keBudPrd;
+                timeStart    = acquisition->keBudFields->avgStartTime;
+                timeInterval = acquisition->keBudFields->avgPrd;
 
                 timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
             }

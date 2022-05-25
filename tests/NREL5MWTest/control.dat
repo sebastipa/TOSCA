@@ -70,8 +70,6 @@
 #-phaseAvgStartTime       0
 
 -keBudgets                1
--keAvgPeriod              2
--keAvgStartTime           200
 
 # PostProcessing 
 # ---------------------------------

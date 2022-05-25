@@ -7,7 +7,7 @@
 //! \brief Struct defining the ke fields
 struct keBox
 {
-    word          name;
+    word          *name;
     Cmpnts        center;
     PetscReal     sizeX;
     PetscReal     sizeY;
@@ -19,24 +19,29 @@ struct keBox
 
     PetscReal     avgDum, avgDup, avgDpm, avgDpp,
                   avgFI, avgFJ, avgFK, avgEps, avgPf,
-                  avgPtheta, avgPinf;
+                  avgPtheta, avgPinf, avgErr;
 
     // communication color
-    MPI_Comm          KEBOX_COMM;   //!< communicator for this box
-    PetscMPIInt       writerRank;   //!< label of master rank of the KEBOX_COMM communicator in the MPI_COMM_WORLD rank list
-    PetscMPIInt        nProcsBox;   //!< size of the KEBOX_COMM communicator
+    PetscInt      thisBoxControlled;   //!< this processor controls this box
+    MPI_Comm      KEBOX_COMM;          //!< communicator for this box
+    PetscMPIInt   writerRank;          //!< label of master rank of the KEBOX_COMM communicator in the MPI_COMM_WORLD rank list
+    PetscMPIInt   nProcsBox;           //!< size of the KEBOX_COMM communicator
 
 };
 
 //! \brief Struct defining the ke fields
 struct keFields
 {
+    // time controls
+    PetscReal     avgStartTime;
+    PetscReal     avgPrd;
+
     // flags
     PetscInt      cartesian;       //!< perform the budget in cartesian components (GCC otherwise)
     PetscInt      debug;
 
     PetscInt      nBox;            //!< number of boxes in the array
-    keBox         *box;          //!< array of boxes
+    keBox         **box;          //!< array of boxes
 
     // fields
     Vec           Error;           //!< error on the equation

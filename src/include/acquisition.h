@@ -120,6 +120,9 @@ PetscErrorCode readKeBoxArray(keFields *ke);
 //! \brief Search box bounds and define communicators
 PetscErrorCode setKeBoundsAndComms(mesh_ *mesh, keFields *ke);
 
+//! \brief Do box cumulation for mesh. energy budgets
+PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition);
+
 //! \brief Compute MKE budgets
 PetscErrorCode averageKEBudgets(acquisition_ *acquisition);
 

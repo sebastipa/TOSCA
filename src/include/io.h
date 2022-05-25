@@ -21,9 +21,7 @@ struct io_
     PetscReal phAvgPrd;                       //!< sampling period in seconds
     PetscReal phAvgStartTime;                 //!< start time of phase averaging procedure
     PetscInt  keBudgets;                      //!< compute kinetic energy budget terms
-    PetscReal keBudPrd;                       //!< sampling periods in seconds
-    PetscReal keBudStartTime;                 //!< start time of the keBudget terms
-
+ 
     PetscInt  avgWeight;                      //!< number of average snapshots (cumulated at runtime)
     PetscInt  pAvgWeight;                     //!< number of phase average snapshots (cumulated at runtime)
     PetscInt  keAvgWeight;                    //!< number of keBudget average snapshots (cumulated at runtime)

@@ -381,6 +381,10 @@ PetscErrorCode averageKEBudgetsInitialize(acquisition_ *acquisition)
         readDictInt("sampling/keBudgets", "cartesian", &(ke->cartesian));
         readDictInt("sampling/keBudgets", "debug", &(ke->debug));
 
+        // read time properties
+        readDictDouble("sampling/keBudgets", "avgStartTime",  &(ke->avgStartTime));
+        readDictDouble("sampling/keBudgets", "avgPeriod",     &(ke->avgPrd));
+
         // read box array properties
         readKeBoxArray(ke);
 
@@ -494,7 +498,7 @@ PetscErrorCode setKeBoundsAndComms(mesh_ *mesh, keFields *ke)
         // do 1D search of each box
         for(b=0; b<ke->nBox; b++)
         {
-            keBox *box = &(ke->box[b]);
+            keBox *box = ke->box[b];
 
             PetscInt commColor;
 
@@ -508,44 +512,48 @@ PetscErrorCode setKeBoundsAndComms(mesh_ *mesh, keFields *ke)
             if
             (
                 (
-                    coor[zs ][ys ][xs ].x >= xmin_b  && coor[zs ][ys ][xs ].x <= xmax_b ||
-                    coor[lze][lye][lze].x >= xmin_b  && coor[lze][lye][lze].x <= xmax_b
+                    coor[zs ][ys ][xs ].x <= xmax_b || coor[lze-1][lye-1][lxe-1].x >= xmin_b
                 ) &&
                 (
-                    coor[zs ][ys ][xs ].y >= ymin_b  && coor[zs ][ys ][xs ].y <= ymax_b ||
-                    coor[lze][lye][lze].y >= ymin_b  && coor[lze][lye][lze].y <= ymax_b
+                    coor[zs ][ys ][xs ].y <= ymax_b || coor[lze-1][lye-1][lxe-1].y >= ymin_b
                 ) &&
                 (
-                    coor[zs ][ys ][xs ].z >= zmin_b  && coor[zs ][ys ][xs ].z <= zmax_b ||
-                    coor[lze][lye][lze].z >= zmin_b  && coor[lze][lye][lze].z <= zmax_b
+                    coor[zs ][ys ][xs ].z <= zmax_b || coor[lze-1][lye-1][lxe-1].z >= zmin_b
                 )
             )
             {
                 commColor = 1;
+                box->thisBoxControlled = 1;
             }
             else
             {
                 commColor = 0;
+                box->thisBoxControlled = 0;
             }
 
             // create communicator
             MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(box->KEBOX_COMM));
 
             // find writer rank number as seen in the MESH_COMM
-            PetscMPIInt thisTrbRank = 10, lwriterRank;
-            MPI_Comm_rank(box->KEBOX_COMM, &thisTrbRank);
+            PetscMPIInt thisBoxRank = 10, lwriterRank;
+            MPI_Comm_rank(box->KEBOX_COMM, &thisBoxRank);
 
-            if(!thisTrbRank && commColor == 1) lwriterRank = rank;
+            if(!thisBoxRank && commColor == 1) lwriterRank = rank;
             else                               lwriterRank = 0;
 
             // scatter this info among all processors in the box->KEBOX_COMM
-            MPI_Allreduce(&lwriterRank, &(box->writerRank), 1, MPI_INT, MPI_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&lwriterRank, &(box->writerRank), 1, MPI_INT, MPI_MAX, mesh->MESH_COMM);
+
+            if(rank == box->writerRank && ke->debug)
+            {
+                printf(" > box %s writer rank global/local ordering: %d/%d\n", (*box->name).c_str(), box->writerRank, thisBoxRank);
+            }
+
+            PetscInt  iS = 0, jS = 0, kS = 0, iE = 0, jE = 0, kE = 0;
 
             // now find start and ending face indices
             if(commColor)
             {
-                PetscInt  iS, jS, kS, iE, jE, kE;
-
                 PetscReal lstartDist, gstartDist;
                 PetscReal lendDist, gendDist;
 
@@ -637,20 +645,21 @@ PetscErrorCode setKeBoundsAndComms(mesh_ *mesh, keFields *ke)
                 if(lendDist != gendDist) iE = 0;
 
                 // scatter indices to all processors belonging to the KEBOX_COMM
-                MPI_Allreduce(&kS, &(box->minKFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
-                MPI_Allreduce(&kE, &(box->maxKFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
-                MPI_Allreduce(&jS, &(box->minJFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
-                MPI_Allreduce(&jE, &(box->maxJFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
-                MPI_Allreduce(&iS, &(box->minIFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
-                MPI_Allreduce(&iE, &(box->maxIFace), 1, MPIU_INT, MPI_SUM, box->KEBOX_COMM);
+                MPI_Allreduce(&kS, &(box->minKFace), 1, MPIU_INT, MPI_MAX, box->KEBOX_COMM);
+                MPI_Allreduce(&kE, &(box->maxKFace), 1, MPIU_INT, MPI_MAX, box->KEBOX_COMM);
+                MPI_Allreduce(&jS, &(box->minJFace), 1, MPIU_INT, MPI_MAX, box->KEBOX_COMM);
+                MPI_Allreduce(&jE, &(box->maxJFace), 1, MPIU_INT, MPI_MAX, box->KEBOX_COMM);
+                MPI_Allreduce(&iS, &(box->minIFace), 1, MPIU_INT, MPI_MAX, box->KEBOX_COMM);
+                MPI_Allreduce(&iE, &(box->maxIFace), 1, MPIU_INT, MPI_MAX, box->KEBOX_COMM);
+
             }
 
-            if(ke->debug)
+            if(ke->debug && rank==box->writerRank)
             {
-                PetscPrintf(box->KEBOX_COMM, " > start k face idx = %ld, end k face idx = %ld\n", box->minKFace, box->maxKFace);
-                PetscPrintf(box->KEBOX_COMM, " > start j face idx = %ld, end j face idx = %ld\n", box->minJFace, box->maxJFace);
-                PetscPrintf(box->KEBOX_COMM, " > start i face idx = %ld, end i face idx = %ld\n", box->minIFace, box->maxIFace);
-                PetscPrintf(box->KEBOX_COMM, "\n");
+                printf(" > start k face idx = %ld, end k face idx = %ld\n", box->minKFace, box->maxKFace);
+                printf(" > start j face idx = %ld, end j face idx = %ld\n", box->minJFace, box->maxJFace);
+                printf(" > start i face idx = %ld, end i face idx = %ld\n", box->minIFace, box->maxIFace);
+                printf("\n");
             }
         }
 
@@ -747,23 +756,26 @@ PetscErrorCode readKeBoxArray(keFields *ke)
                                 indata.close();
 
                                 // allocate memory and store the variables
-                                ke->box = new keBox[nBox];
+                                PetscMalloc(nBox * sizeof(keBox*), &(ke->box));
 
                                 // center locations
                                 for(PetscInt p=0; p<nBox; p++)
                                 {
+                                    ke->box[p] = new keBox;
+                                    ke->box[p]->name = new std::string;
+
                                     // assign the pointers to the singly created variables in memory
-                                    ke->box[p].name   = boxName[p];
-                                    ke->box[p].center = nSet(center[p]);
-                                    ke->box[p].sizeX  = dimXYZ[p].x;
-                                    ke->box[p].sizeY  = dimXYZ[p].y;
-                                    ke->box[p].sizeZ  = dimXYZ[p].z;
+                                    *(ke->box[p]->name)   = boxName[p];
+                                    ke->box[p]->center = nSet(center[p]);
+                                    ke->box[p]->sizeX  = dimXYZ[p].x;
+                                    ke->box[p]->sizeY  = dimXYZ[p].y;
+                                    ke->box[p]->sizeZ  = dimXYZ[p].z;
 
                                     if(ke->debug)
                                     {
-                                        PetscPrintf(PETSC_COMM_WORLD,"keDebug: Box %s\n",ke->box[p].name.c_str());
-                                        PetscPrintf(PETSC_COMM_WORLD," > center  (%f %f %f)\n",ke->box[p].center.x, ke->box[p].center.y, ke->box[p].center.z);
-                                        PetscPrintf(PETSC_COMM_WORLD," > sizeXYZ (%f %f %f)\n",ke->box[p].sizeX, ke->box[p].sizeY, ke->box[p].sizeZ);
+                                        PetscPrintf(PETSC_COMM_WORLD,"keDebug: Box %s\n",(*ke->box[p]->name).c_str());
+                                        PetscPrintf(PETSC_COMM_WORLD," > center  (%f %f %f)\n",ke->box[p]->center.x, ke->box[p]->center.y, ke->box[p]->center.z);
+                                        PetscPrintf(PETSC_COMM_WORLD," > sizeXYZ (%f %f %f)\n",ke->box[p]->sizeX, ke->box[p]->sizeY, ke->box[p]->sizeZ);
                                     }
                                 }
 
@@ -1589,6 +1601,383 @@ PetscErrorCode averageKEBudgets(acquisition_ *acquisition)
         {
             averageKEBudgetsCont(acquisition);
         }
+
+        boxCumulateKEBudgets(acquisition);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
+{
+    mesh_    *mesh   = acquisition->access->mesh;
+    flags_   *flags  = acquisition->access->flags;
+    keFields *ke     = acquisition->keBudFields;
+    io_      *io     = acquisition->access->io;
+    clock_   *clock  = acquisition->access->clock;
+
+    word     boxFolderName         = "./postProcessing/" + mesh->meshName + "/keBoxes";
+    word     boxFolderTimeName     = "./postProcessing/" + mesh->meshName + "/keBoxes/" + getStartTimeName(clock);
+
+    PetscMPIInt rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // create/initialize turbines directory (at simulation start only)
+    if
+    (
+        clock->it == clock->itStart && !rank
+    )
+    {
+        errno = 0;
+        PetscInt dirRes;
+
+        dirRes = mkdir(boxFolderName.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+            char error[512];
+            sprintf(error, "could not create %s directory\n", boxFolderName.c_str());
+            fatalErrorInFunction("boxCumulateKEBudgets",  error);
+        }
+
+        dirRes = mkdir(boxFolderTimeName.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+            char error[512];
+            sprintf(error, "could not create %s directory\n", boxFolderTimeName.c_str());
+            fatalErrorInFunction("boxCumulateKEBudgets",  error);
+        }
+
+        // if directory already exist remove everything inside
+        if(errno == EEXIST)
+        {
+            remove_subdirs(mesh->MESH_COMM, boxFolderTimeName.c_str());
+        }
+    }
+
+    // ensure folder is there for every processor
+    MPI_Barrier(mesh->MESH_COMM);
+
+    if(io->runTimeWrite && clock->time >= ke->avgStartTime)
+    {
+        DMDALocalInfo info = mesh->info;
+        DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+
+        PetscInt       xs = info.xs, xe = info.xs + info.xm;
+        PetscInt       ys = info.ys, ye = info.ys + info.ym;
+        PetscInt       zs = info.zs, ze = info.zs + info.zm;
+        PetscInt       mx = info.mx, my = info.my, mz = info.mz;
+
+        PetscInt       i, j, k, b;
+        PetscInt       lxs, lxe, lys, lye, lzs, lze;
+
+        Cmpnts         ***kef, ***kedum, ***kedup,  ***kedpm, ***kedpp, ***vmpmg, ***vpppg;
+
+        PetscReal      ***pinf, ***pf, ***ptheta, ***keeps, ***em, ***error, ***aj;
+
+        // indices for internal cells
+        lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+        lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+        lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+        DMDAVecGetArray(fda, ke->lDum,    &kedum);
+        DMDAVecGetArray(fda, ke->lDup,    &kedup);
+        DMDAVecGetArray(fda, ke->lF,      &kef);
+        DMDAVecGetArray(da,  ke->Error,   &error);
+        DMDAVecGetArray(da,  ke->Eps,     &keeps);
+        DMDAVecGetArray(da,  ke->lEm,     &em);
+        DMDAVecGetArray(da,  mesh->lAj,   &aj);
+
+        if(ke->cartesian)
+        {
+            DMDAVecGetArray(fda, ke->lDpm,    &kedpm);
+            DMDAVecGetArray(fda, ke->lDpp,    &kedpp);
+        }
+        else
+        {
+            DMDAVecGetArray(fda, ke->lVmPmG,  &vmpmg);
+            DMDAVecGetArray(fda, ke->lVpPpG,  &vpppg);
+        }
+
+        if(flags->isWindFarmActive)
+        {
+            DMDAVecGetArray(da, ke->Pf,  &pf);
+        }
+
+        if(flags->isAblActive && flags->isTeqnActive)
+        {
+            DMDAVecGetArray(da, ke->Ptheta, &ptheta);
+        }
+
+        if(flags->isAblActive)
+        {
+            DMDAVecGetArray(da, ke->Pinf,   &pinf);
+        }
+
+        for(b=0; b<ke->nBox; b++)
+        {
+            keBox *box = ke->box[b];
+
+            PetscReal lavgDum    = 0.0,
+                      lavgDup    = 0.0,
+                      lavgDpm    = 0.0,
+                      lavgDpp    = 0.0,
+                      lavgFI     = 0.0,
+                      lavgFJ     = 0.0,
+                      lavgFK     = 0.0,
+                      lavgEps    = 0.0,
+                      lavgPf     = 0.0,
+                      lavgPtheta = 0.0,
+                      lavgPinf   = 0.0;
+
+            // this processor has cells inside the box
+            if(box->thisBoxControlled)
+            {
+                for (k = lzs; k < lze; k++)
+                {
+                    for (j = lys; j < lye; j++)
+                    {
+                        for (i = lxs; i < lxe; i++)
+                        {
+                            // test if this cell is inside the box
+                            if
+                            (
+                                k > box->minKFace && k <= box->maxKFace &&
+                                j > box->minJFace && j <= box->maxJFace &&
+                                i > box->minIFace && i <= box->maxIFace
+                            )
+                            {
+                                // kmax box face
+                                if(k==box->maxKFace)
+                                {
+                                    lavgDum += kedum[k][j][i].z;
+                                    lavgDup += kedup[k][j][i].z;
+                                    if(ke->cartesian)
+                                    {
+                                        lavgDpm += kedpm[k][j][i].z;
+                                        lavgDpp += kedpp[k][j][i].z;
+                                    }
+                                    else
+                                    {
+                                        lavgDpm += vmpmg[k][j][i].z;
+                                        lavgDpp += vpppg[k][j][i].z;
+                                    }
+                                    lavgFK += kef[k][j][i].z;
+                                }
+
+                                // kmin box face
+                                if(k-1==box->minKFace)
+                                {
+                                    lavgDum -= kedum[k][j][i].z;
+                                    lavgDup -= kedup[k][j][i].z;
+                                    if(ke->cartesian)
+                                    {
+                                        lavgDpm -= kedpm[k][j][i].z;
+                                        lavgDpp -= kedpp[k][j][i].z;
+                                    }
+                                    else
+                                    {
+                                        lavgDpm -= vmpmg[k][j][i].z;
+                                        lavgDpp -= vpppg[k][j][i].z;
+                                    }
+                                    lavgFK -= kef[k][j][i].z;
+                                }
+
+                                // jmax box face
+                                if(j==box->maxJFace)
+                                {
+                                    lavgDum += kedum[k][j][i].y;
+                                    lavgDup += kedup[k][j][i].y;
+                                    if(ke->cartesian)
+                                    {
+                                        lavgDpm += kedpm[k][j][i].y;
+                                        lavgDpp += kedpp[k][j][i].y;
+                                    }
+                                    else
+                                    {
+                                        lavgDpm += vmpmg[k][j][i].y;
+                                        lavgDpp += vpppg[k][j][i].y;
+                                    }
+                                    lavgFJ += kef[k][j][i].y;
+                                }
+
+                                // jmin box face
+                                if(j-1==box->minJFace)
+                                {
+                                    lavgDum -= kedum[k][j][i].y;
+                                    lavgDup -= kedup[k][j][i].y;
+                                    if(ke->cartesian)
+                                    {
+                                        lavgDpm -= kedpm[k][j][i].y;
+                                        lavgDpp -= kedpp[k][j][i].y;
+                                    }
+                                    else
+                                    {
+                                        lavgDpm -= vmpmg[k][j][i].y;
+                                        lavgDpp -= vpppg[k][j][i].y;
+                                    }
+                                    lavgFJ -= kef[k][j][i].y;
+                                }
+
+                                // imax box face
+                                if(i==box->maxIFace)
+                                {
+                                    lavgDum += kedum[k][j][i].x;
+                                    lavgDup += kedup[k][j][i].x;
+                                    if(ke->cartesian)
+                                    {
+                                        lavgDpm += kedpm[k][j][i].x;
+                                        lavgDpp += kedpp[k][j][i].x;
+                                    }
+                                    else
+                                    {
+                                        lavgDpm += vmpmg[k][j][i].x;
+                                        lavgDpp += vpppg[k][j][i].x;
+                                    }
+                                    lavgFI += kef[k][j][i].x;
+                                }
+
+                                // imin box face
+                                if(i-1==box->minIFace)
+                                {
+                                    lavgDum -= kedum[k][j][i].x;
+                                    lavgDup -= kedup[k][j][i].x;
+                                    if(ke->cartesian)
+                                    {
+                                        lavgDpm -= kedpm[k][j][i].x;
+                                        lavgDpp -= kedpp[k][j][i].x;
+                                    }
+                                    else
+                                    {
+                                        lavgDpm -= vmpmg[k][j][i].x;
+                                        lavgDpp -= vpppg[k][j][i].x;
+                                    }
+                                    lavgFI -= kef[k][j][i].x;
+                                }
+
+                                // volume terms
+                                PetscReal cellVolume = 1.0 / aj[k][j][i];
+
+                                lavgEps    += keeps[k][j][i] * cellVolume;
+
+                                if(flags->isWindFarmActive)
+                                {
+                                    lavgPf     += pf[k][j][i] * cellVolume;
+                                }
+
+                                if(flags->isAblActive && flags->isTeqnActive)
+                                {
+                                    lavgPtheta += ptheta[k][j][i] * cellVolume;
+                                }
+                                if(flags->isAblActive)
+                                {
+                                    lavgPinf   += pinf[k][j][i] * cellVolume;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                MPI_Reduce(&lavgDum, &(box->avgDum), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDup, &(box->avgDup), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDpm, &(box->avgDpm), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDpp, &(box->avgDpp), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgFI,  &(box->avgFI),  1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgFJ,  &(box->avgFJ),  1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgFK,  &(box->avgFK),  1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgEps, &(box->avgEps), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+
+                box->avgErr = box->avgDum + box->avgDup + box->avgDpm + box->avgDpp + box->avgFI + box->avgFJ + box->avgFK + box->avgEps;
+
+                if(flags->isWindFarmActive)
+                {
+                    MPI_Reduce(&lavgPf, &(box->avgPf), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                    box->avgErr += box->avgPf;
+                }
+
+                if(flags->isAblActive && flags->isTeqnActive)
+                {
+                    MPI_Reduce(&lavgPtheta, &(box->avgPtheta), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                    box->avgErr += box->avgPtheta;
+                }
+                if(flags->isAblActive)
+                {
+                    MPI_Reduce(&lavgPinf, &(box->avgPinf), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                    box->avgErr += box->avgPinf;
+                }
+
+                // write down the budgets
+                if(rank == box->writerRank)
+                {
+                    word           fileName = boxFolderTimeName + "/" + *(box->name);
+                    FILE           *f = fopen(fileName.c_str(), "w");
+
+                    fprintf(f, "name        %s\n",                 (*box->name).c_str());
+                    fprintf(f, "center      (%.4f %.4f %.4f)\n",   box->center.x,box->center.y,box->center.z);
+                    fprintf(f, "size        (%.4f %.4f %.4f)\n",   box->sizeX,box->sizeY,box->sizeZ);
+                    fprintf(f, "Dum         %.10f\n",              box->avgDum);
+                    fprintf(f, "Dup         %.10f\n",              box->avgDup);
+                    fprintf(f, "Dpm         %.10f\n",              box->avgDpm);
+                    fprintf(f, "Dpp         %.10f\n",              box->avgDpp);
+                    fprintf(f, "Fx          %.10f\n",              box->avgFK);
+                    fprintf(f, "Fy          %.10f\n",              box->avgFI);
+                    fprintf(f, "Fz          %.10f\n",              box->avgFJ);
+                    fprintf(f, "eps         %.10f\n",              box->avgEps);
+
+                    if(flags->isAblActive && flags->isTeqnActive)
+                    {
+                        fprintf(f, "Ptheta      %.10f\n",              box->avgPtheta);
+                    }
+
+                    if(flags->isAblActive)
+                    {
+                        fprintf(f, "Pinf        %.10f\n",              box->avgPinf);
+                    }
+
+                    if(flags->isWindFarmActive)
+                    {
+                        fprintf(f, "Pfarm       %.10f\n",              box->avgPf);
+                    }
+
+                    fprintf(f, "err         %.10f\n",              box->avgErr);
+                    fclose(f);
+                }
+            }
+        }
+
+        DMDAVecRestoreArray(fda, ke->lDum,    &kedum);
+        DMDAVecRestoreArray(fda, ke->lDup,    &kedup);
+        DMDAVecRestoreArray(fda, ke->lF,      &kef);
+        DMDAVecRestoreArray(da,  ke->Error,   &error);
+        DMDAVecRestoreArray(da,  ke->Eps,     &keeps);
+        DMDAVecRestoreArray(da,  ke->lEm,     &em);
+        DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
+
+        if(ke->cartesian)
+        {
+            DMDAVecRestoreArray(fda, ke->lDpm,    &kedpm);
+            DMDAVecRestoreArray(fda, ke->lDpp,    &kedpp);
+        }
+        else
+        {
+            DMDAVecRestoreArray(fda, ke->lVmPmG,  &vmpmg);
+            DMDAVecRestoreArray(fda, ke->lVpPpG,  &vpppg);
+        }
+
+        if(flags->isWindFarmActive)
+        {
+            DMDAVecRestoreArray(da, ke->Pf,  &pf);
+        }
+
+        if(flags->isAblActive && flags->isTeqnActive)
+        {
+            DMDAVecRestoreArray(da, ke->Ptheta, &ptheta);
+        }
+
+        if(flags->isAblActive)
+        {
+            DMDAVecRestoreArray(da, ke->Pinf,   &pinf);
+        }
     }
 
     return(0);
@@ -1603,11 +1992,13 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
 
     if(io->keBudgets)
     {
+        keFields *ke   = acquisition->keBudFields;
+
         // accumulation flags for current time step
         PetscInt    accumulate         = 0;
 
-        PetscReal startTimeAvg         = io->keBudStartTime;
-        PetscReal timeIntervalAvg      = io->keBudPrd;
+        PetscReal startTimeAvg         = ke->avgStartTime;
+        PetscReal timeIntervalAvg      = ke->avgPrd;
 
         // check if must accumulate
         if
@@ -1627,7 +2018,6 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
 
             ueqn_  *ueqn   = acquisition->access->ueqn;
             peqn_  *peqn   = acquisition->access->peqn;
-            keFields *ke   = acquisition->keBudFields;
             les_   *les    = NULL;
             teqn_  *teqn   = NULL;
             abl_   *abl    = NULL;
@@ -2222,11 +2612,13 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
 
     if(io->keBudgets)
     {
+        keFields *ke   = acquisition->keBudFields;
+
         // accumulation flags for current time step
         PetscInt    accumulate         = 0;
 
-        PetscReal startTimeAvg         = io->keBudStartTime;
-        PetscReal timeIntervalAvg      = io->keBudPrd;
+        PetscReal startTimeAvg         = ke->avgStartTime;
+        PetscReal timeIntervalAvg      = ke->avgPrd;
 
         // check if must accumulate
         if
@@ -2246,7 +2638,6 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
 
             ueqn_  *ueqn   = acquisition->access->ueqn;
             peqn_  *peqn   = acquisition->access->peqn;
-            keFields *ke   = acquisition->keBudFields;
             les_   *les    = NULL;
             teqn_  *teqn   = NULL;
             abl_   *abl    = NULL;
@@ -3037,7 +3428,6 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
             DMDAVecRestoreArray(da,  ke->F,       &kefc);
 
             MPI_Reduce(&lmaxErr, &gmaxErr, 1, MPIU_REAL, MPIU_MAX, 0, mesh->MESH_COMM);
-
 
             // restore fundamental distributed arrays
             DMDAVecRestoreArray(fda, mesh->lCsi, &csi);

@@ -87,9 +87,6 @@ PetscErrorCode InitializeIO(io_ *io)
     {
         PetscPrintf(mesh->MESH_COMM, "MKE Budgets: yes\n\n");
 
-        readDictDouble("control.dat", "-keAvgPeriod", &(io->keBudPrd));
-        readDictDouble("control.dat", "-keAvgStartTime", &(io->keBudStartTime));
-
         // initialize snapshot weighting (overwritten if read keBudgets)
         io->keAvgWeight = 0;
     }
@@ -1031,6 +1028,25 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             DMGlobalToLocalEnd(mesh->fda, Um, INSERT_VALUES, acquisition->keBudFields->lUm);
             MPI_Barrier(mesh->MESH_COMM);
 
+            // read keVm
+            field = "/keVm";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, " > keVm...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(Vm,viewer);
+                PetscViewerDestroy(&viewer);
+                keBudAvailable++;
+            }
+            DMGlobalToLocalBegin(mesh->fda, Vm, INSERT_VALUES, acquisition->keBudFields->lVm);
+            DMGlobalToLocalEnd(mesh->fda, Vm, INSERT_VALUES, acquisition->keBudFields->lVm);
+            MPI_Barrier(mesh->MESH_COMM);
+
             // read avgUpUp
             field = "/keUpUp";
             fileName = location + field;
@@ -1088,7 +1104,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             DMGlobalToLocalEnd(mesh->fda, VmTauSGS, INSERT_VALUES, acquisition->keBudFields->lVmTauSGS);
             MPI_Barrier(mesh->MESH_COMM);
 
-            // read avgUpPp
+            // read keDpp
             field = "/keDpp";
             fileName = location + field;
             fp=fopen(fileName.c_str(), "r");
@@ -1129,7 +1145,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         field = "/fieldInfo";
         fileName = location + field;
         readDictInt(fileName.c_str(), "avgWeight", &(io->avgWeight));
-        PetscPrintf(mesh->MESH_COMM, "Reading average weight: %d and counting...\n",io->avgWeight);
+        PetscPrintf(mesh->MESH_COMM, "Reading average weight: %ld and counting...\n",io->avgWeight);
     }
 
     if(phaseAvgAvailable)
@@ -1137,7 +1153,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         field = "/fieldInfo";
         fileName = location + field;
         readDictInt(fileName.c_str(), "phaseAvgWeight", &(io->pAvgWeight));
-        PetscPrintf(mesh->MESH_COMM, "Reading phase average weight: %d and counting...\n",io->pAvgWeight);
+        PetscPrintf(mesh->MESH_COMM, "Reading phase average weight: %ld and counting...\n",io->pAvgWeight);
     }
 
     if(keBudAvailable)
@@ -1145,7 +1161,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         field = "/fieldInfo";
         fileName = location + field;
         readDictInt(fileName.c_str(), "keAvgWeight", &(io->keAvgWeight));
-        PetscPrintf(mesh->MESH_COMM, "Reading MKE budget average weight: %d and counting...\n",io->avgWeight);
+        PetscPrintf(mesh->MESH_COMM, "Reading MKE budget average weight: %ld and counting...\n",io->keAvgWeight);
     }
 
     PetscPrintf(mesh->MESH_COMM, "\n");
@@ -1450,6 +1466,51 @@ PetscErrorCode writeFields(io_ *io)
             writeBinaryField(mesh->MESH_COMM, acquisition->fields->avgP, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
+            // write pAvgUU
+            fieldName = timeName + "/avgUU";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->avgUU, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            if(flags->isLesActive)
+            {
+                Vec Cs;  VecDuplicate(peqn->P, &Cs);  VecSet(Cs, 0.);
+                Vec Nut; VecDuplicate(peqn->P, &Nut); VecSet(Nut, 0.);
+
+                VecScalarLocalToGlobalCopy(mesh, les->lCs, Cs);
+                VecScalarLocalToGlobalCopy(mesh, les->lNu_t, Nut);
+
+                fieldName = timeName + "/cs";
+                writeBinaryField(mesh->MESH_COMM, Cs, fieldName.c_str());
+
+                fieldName = timeName + "/nut";
+                writeBinaryField(mesh->MESH_COMM, Nut, fieldName.c_str());
+
+                VecDestroy(&Cs);
+                VecDestroy(&Nut);
+
+                MPI_Barrier(mesh->MESH_COMM);
+            }
+
+            if(io->windFarmForce && flags->isWindFarmActive)
+            {
+                farm_ *farm = io->access->farm;
+
+                Vec Bf;  VecDuplicate(ueqn->Ucat, &Bf);  VecSet(Bf, 0.);
+
+                VecVectorLocalToGlobalCopy(mesh, farm->lsourceFarmCat, Bf);
+
+                fieldName = timeName + "/bf";
+                writeBinaryField(mesh->MESH_COMM, Bf, fieldName.c_str());
+
+                VecDestroy(&Bf);
+
+                MPI_Barrier(mesh->MESH_COMM);
+
+            }
+
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->avgP, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
             // write avgUU
             fieldName = timeName + "/avgUU";
             writeBinaryField(mesh->MESH_COMM, acquisition->fields->avgUU, fieldName.c_str());
@@ -1692,6 +1753,11 @@ PetscErrorCode writeFields(io_ *io)
                 // write avgUm
                 fieldName = timeName + "/keUm";
                 writeBinaryField(mesh->MESH_COMM, Um, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgVm
+                fieldName = timeName + "/keVm";
+                writeBinaryField(mesh->MESH_COMM, Vm, fieldName.c_str());
                 MPI_Barrier(mesh->MESH_COMM);
 
                 fieldName = timeName + "/keUpUp";
