@@ -1444,7 +1444,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
 
                             // get weights and ids of interpolation cells
 
-                            scalarPointInterpolationWeights
+                            PointInterpolationWeights
                             (
                                     mesh,
                                     pibmpt[Id.k][Id.j][Id.i].x, pibmpt[Id.k][Id.j][Id.i].y, pibmpt[Id.k][Id.j][Id.i].z,
@@ -2988,7 +2988,7 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
 
         //find the closest neighbour of k,j,i to checkPt
         PetscInt    i1, j1, k1;
-        PetscReal   dmin = 10e6, d;
+        PetscReal   dmin = 10e10, d;
         PetscInt    ic, jc, kc;
 
         for (k1=k-1; k1<k+2; k1++)
@@ -3025,7 +3025,7 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
         PetscInt intFlag = 1;
 
         // get the trilinear interpolation cells
-        scalarPointInterpolationCells
+        PointInterpolationCells
         (
                 mesh,
                 checkPt.x, checkPt.y, checkPt.z,
@@ -3054,7 +3054,7 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
             {
                 del =  nScale(0.2 * refLength, eN);
                 mSum(checkPt, del);
-                dmin = 10e6;
+                dmin = 10e10;
 
                 for (k1=kc-1; k1<kc+2; k1++)
                 for (j1=jc-1; j1<jc+2; j1++)
@@ -3090,7 +3090,7 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
 
                 kc = kcc; jc = jcc; ic = icc;
 
-                scalarPointInterpolationCells
+                PointInterpolationCells
                 (
                         mesh,
                         checkPt.x, checkPt.y, checkPt.z,

@@ -95,7 +95,7 @@ PetscErrorCode InitializeIBMInterpolation(domain_ *domain)
 
         }
     }
-    
+
     return (0);
 }
 
@@ -333,7 +333,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     PetscInt intFlag = 1;
 
                     // get the trilinear interpolation cells
-                    scalarPointInterpolationCells
+                    PointInterpolationCells
                     (
                             mesh,
                             checkPt.x, checkPt.y, checkPt.z,
@@ -399,7 +399,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
                             kc = kcc; jc = jcc; ic = icc;
 
-                            scalarPointInterpolationCells
+                            PointInterpolationCells
                             (
                                     mesh,
                                     checkPt.x, checkPt.y, checkPt.z,
@@ -946,7 +946,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     PetscInt      b, c, s;
     Cmpnts        ***ucat, ***lucat, ***cent;
     PetscReal     ***lt, ***temp, ***aj, ***nvert;
-    Cmpnts        nf, bPt, bPtVel, ibmPtVel;
+    Cmpnts        bPt, bPtVel, ibmPtVel;
     PetscReal     nfMag, cellSize, bPtTemp, ibmPtTemp;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
@@ -973,20 +973,19 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         j = ibF[c].cellId.j;
         k = ibF[c].cellId.k;
 
-        // find the direction to extrapolate from the ibm mesh element to the background mesh along cent[k][j][i]
-        nf    = nSub(cent[k][j][i], ibF[c].pMin);
-        nfMag = nMag(nf);
+        ibmMesh   *ibMsh = ibm->ibmBody[ibF[c].bodyID]->ibMsh;
+        PetscInt   cElem = ibF[c].closestElem;
+        Cmpnts	   eNorm = ibMsh->eN[cElem];
+        PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
 
-        mScale(1.0/nfMag, nf);
-
-        // background mesh projection point is taken 1 cell distance along this normal directional from the ibm fluid cell
+        // background mesh projection point is taken 1 cell distance along the normal directional of the closest ibm mesh element
         cellSize = pow( 1./aj[k][j][i], 1./3.);
-        bPt = nScale(cellSize, nf);
+        bPt = nScale(cellSize, eNorm);
         mSum(bPt, cent[k][j][i]);
 
         // search for the closest background mesh cell center (it will be close to current ibm fluid cell k,j,i)
         PetscInt    i1, j1, k1;
-        PetscReal   dmin = 10e6, d;
+        PetscReal   dmin = 10e10, d;
         PetscInt    ic, jc, kc;
 
         // must be close so don't loop over all cells
@@ -994,8 +993,6 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         for (j1=j-2; j1<j+3; j1++)
         for (i1=i-2; i1<i+3; i1++)
         {
-            // skip the current cell for closest cell interpolation
-            if(k1 == k && j1 == j && i1 == i) continue;
 
             if
             (
@@ -1003,7 +1000,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                     k1>=1 && k1<mz-1 &&
                     j1>=1 && j1<my-1 &&
                     i1>=1 && i1<mx-1
-                )
+                ) && isFluidCell(k1, j1, i1, nvert)
             )
             {
                 d = pow((bPt.x - cent[k1][j1][i1].x), 2) +
@@ -1022,36 +1019,117 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                 }
             }
         }
-        // trilinear interpolate the velocity at this point
-        vectorPointLocalVolumeInterpolation
+
+        PetscInt intId[6];
+        PetscInt intFlag = 1;
+
+        // get the trilinear interpolation cells
+        PointInterpolationCells
         (
                 mesh,
                 bPt.x, bPt.y, bPt.z,
                 ic, jc, kc,
                 cent,
-                lucat,
-                bPtVel
+                intId
         );
 
-        if (flags->isTeqnActive)
+        while (intFlag && isInsideSimDomain(bPt, mesh->bounds))
         {
-            scalarPointLocalVolumeInterpolation
-            (
-                    mesh,
-                    bPt.x, bPt.y, bPt.z,
-                    ic, jc, kc,
-                    cent,
-                    lt,
-                    bPtTemp
-            );
+            PetscInt ibmCellCtr = 0;
+            PetscInt icc, jcc, kcc;
+
+            for (PetscInt kk = 0; kk<2; kk++)
+            for (PetscInt jj = 0; jj<2; jj++)
+            for (PetscInt ii = 0; ii<2; ii++)
+            {
+                if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                {
+                    ibmCellCtr ++;
+                }
+
+            }
+
+            if (ibmCellCtr > 0)
+            {
+                Cmpnts del =  nScale(0.2 * cellSize, eNorm);
+                mSum(bPt, del);
+                dmin = 10e10;
+
+                for (k1=kc-1; k1<kc+2; k1++)
+                for (j1=jc-1; j1<jc+2; j1++)
+                for (i1=ic-1; i1<ic+2; i1++)
+                {
+
+                    if
+                    (
+                        (
+                            k1>=1 && k1<mz-1 &&
+                            j1>=1 && j1<my-1 &&
+                            i1>=1 && i1<mx-1
+                        ) && isFluidCell(k1, j1, i1, nvert)
+                    )
+                    {
+                        d = pow((bPt.x - cent[k1][j1][i1].x), 2) +
+                            pow((bPt.y - cent[k1][j1][i1].y), 2) +
+                            pow((bPt.z - cent[k1][j1][i1].z), 2);
+
+                        if
+                        (
+                            d < dmin
+                        )
+                        {
+                            dmin  = d;
+                            icc = i1;
+                            jcc = j1;
+                            kcc = k1;
+                        }
+                    }
+
+                }
+
+                kc = kcc; jc = jcc; ic = icc;
+
+                PointInterpolationCells
+                (
+                        mesh,
+                        bPt.x, bPt.y, bPt.z,
+                        ic, jc, kc,
+                        cent,
+                        intId
+                );
+            }
+            else
+            {
+                intFlag = 0;
+
+                // trilinear interpolate the velocity at this point
+                vectorPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        bPt.x, bPt.y, bPt.z,
+                        ic, jc, kc,
+                        cent,
+                        lucat,
+                        bPtVel
+                );
+
+                if (flags->isTeqnActive)
+                {
+                    scalarPointLocalVolumeInterpolation
+                    (
+                            mesh,
+                            bPt.x, bPt.y, bPt.z,
+                            ic, jc, kc,
+                            cent,
+                            lt,
+                            bPtTemp
+                    );
+                }
+
+            }
         }
 
         // interpolate the velocity of the projected point on the IBM solid element from its nodes
-        ibmMesh   *ibMsh = ibm->ibmBody[ibF[c].bodyID]->ibMsh;
-        PetscInt   cElem = ibF[c].closestElem;
-        Cmpnts	   eNorm = ibMsh->eN[cElem];
-        PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
-
         ibmPtVel.x =   ibMsh->nU[n1].x * ibF[c].cs1
                      + ibMsh->nU[n2].x * ibF[c].cs2
                      + ibMsh->nU[n3].x * ibF[c].cs3;
@@ -1070,8 +1148,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          }
 
          // cabot wall model to interpolate the velocity at the ibm fluid node
-         sb = ibF[c].minDist;
-         sc = sb + cellSize;
+         sb = nDot(nSub(cent[k][j][i], ibF[c].pMin), eNorm);
+         sc = nDot(nSub(bPt, ibF[c].pMin), eNorm);
 
          // ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
          // ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;

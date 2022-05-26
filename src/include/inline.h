@@ -3224,7 +3224,7 @@ inline void scalarPointLocalVolumeInterpolation
 //***************************************************************************************************************//
 
 //! \brief Trilinear volume interpolation function for scalars to return interpolation Weights
-inline void scalarPointInterpolationWeights
+inline void PointInterpolationWeights
 (
     mesh_ *mesh,
     PetscReal px, PetscReal py, PetscReal pz,
@@ -3293,7 +3293,7 @@ inline void scalarPointInterpolationWeights
     {
        char error[512];
         sprintf(error, "i-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("scalarPointInterpolationWeights",  error);
+        fatalErrorInFunction("PointInterpolationWeights",  error);
     }
 
     PetscInt jL, jR;
@@ -3336,7 +3336,7 @@ inline void scalarPointInterpolationWeights
     {
        char error[512];
         sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("scalarPointInterpolationWeights",  error);
+        fatalErrorInFunction("PointInterpolationWeights",  error);
     }
 
     PetscInt kL, kR;
@@ -3379,7 +3379,7 @@ inline void scalarPointInterpolationWeights
     {
        char error[512];
         sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("scalarPointInterpolationWeights",  error);
+        fatalErrorInFunction("PointInterpolationWeights",  error);
     }
 
     intId[0] = kL;
@@ -3388,6 +3388,19 @@ inline void scalarPointInterpolationWeights
     intId[3] = jR;
     intId[4] = iL;
     intId[5] = iR;
+
+    //check that the point is inside the interpolation box, send warning if not
+    if
+    (
+        (px < cent[kL][jL][iL].x || px > cent[kR][jR][iR].x) ||
+        (py < cent[kL][jL][iL].y || py > cent[kR][jR][iR].y) ||
+        (pz < cent[kL][jL][iL].z || pz > cent[kR][jR][iR].z)
+    )
+    {
+      char error[512];
+      sprintf(error, "\n\n\\npoint is outside the trilinear interpolation box, results may be incorrect!!\n\n\n");
+      fatalErrorInFunction("PointInterpolationWeights",  error);
+    }
 
     // find directional gradients
     Cmpnts csiHat, etaHat, zetHat;
@@ -3482,7 +3495,7 @@ inline void scalarPointInterpolationWeights
 }
 //***************************************************************************************************************//
 //! \brief Trilinear volume interpolation function for scalars to return interpolation cells
-inline void scalarPointInterpolationCells
+inline void PointInterpolationCells
 (
     mesh_ *mesh,
     PetscReal px, PetscReal py, PetscReal pz,
@@ -3549,7 +3562,7 @@ inline void scalarPointInterpolationCells
     {
        char error[512];
         sprintf(error, "i-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("scalarPointInterpolationCells",  error);
+        fatalErrorInFunction("PointInterpolationCells",  error);
     }
 
     PetscInt jL, jR;
@@ -3592,7 +3605,7 @@ inline void scalarPointInterpolationCells
     {
        char error[512];
         sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("scalarPointInterpolationCells",  error);
+        fatalErrorInFunction("PointInterpolationCells",  error);
     }
 
     PetscInt kL, kR;
@@ -3635,7 +3648,7 @@ inline void scalarPointInterpolationCells
     {
        char error[512];
         sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("scalarPointInterpolationCells",  error);
+        fatalErrorInFunction("PointInterpolationCells",  error);
     }
 
     intId[0] = kL;
