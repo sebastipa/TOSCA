@@ -3392,14 +3392,15 @@ inline void PointInterpolationWeights
     //check that the point is inside the interpolation box, send warning if not
     if
     (
-        (px < cent[kL][jL][iL].x || px > cent[kR][jR][iR].x) ||
-        (py < cent[kL][jL][iL].y || py > cent[kR][jR][iR].y) ||
-        (pz < cent[kL][jL][iL].z || pz > cent[kR][jR][iR].z)
+        ( (px < cent[kL][jL][iL].x && px < cent[kR][jR][iR].x) || (px > cent[kR][jR][iR].x && px > cent[kL][jL][iL].x) ) ||
+        ( (py < cent[kL][jL][iL].y && py < cent[kR][jR][iR].y) || (py > cent[kR][jR][iR].y && py > cent[kL][jL][iL].y) ) ||
+        ( (pz < cent[kL][jL][iL].z && pz < cent[kR][jR][iR].z) || (pz > cent[kR][jR][iR].z && pz > cent[kL][jL][iL].z) )
+
     )
     {
-      char error[512];
-      sprintf(error, "\n\n\\npoint is outside the trilinear interpolation box, results may be incorrect!!\n\n\n");
-      fatalErrorInFunction("PointInterpolationWeights",  error);
+      char warning[512];
+      sprintf(warning, "\n\n\npoint %lf %lf %lf is outside the trilinear interpolation box of %ld %ld %ld, %ld %ld %ld - min bound = %lf %lf %lf, max bound %lf %lf %lf, results may be incorrect!!\n\n\n", px, py, pz, kL, jL, iL, kR, jR, iR, cent[kL][jL][iL].x, cent[kL][jL][iL].y, cent[kL][jL][iL].z, cent[kR][jR][iR].x, cent[kR][jR][iR].y, cent[kR][jR][iR].z);
+      warningInFunction("PointInterpolationWeights",  warning);
     }
 
     // find directional gradients

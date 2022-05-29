@@ -112,22 +112,22 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
             if((*farm->turbineModels[t]) == "ADM")
             {
                 // initialize actuator disk model parameters
-                initADM(farm->wt[t], farm->base[t]);
+                initADM(farm->wt[t], farm->base[t], mesh->meshName);
             }
             else if((*farm->turbineModels[t]) == "uniformADM")
             {
                 // initialize uniform actuator disk model parameters
-                initUADM(farm->wt[t], farm->base[t]);
+                initUADM(farm->wt[t], farm->base[t], mesh->meshName);
             }
             else if((*farm->turbineModels[t]) == "ALM")
             {
                 // initialize actuator line model parameters
-                initALM(farm->wt[t], farm->base[t]);
+                initALM(farm->wt[t], farm->base[t], mesh->meshName);
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
                 // initialize actuator farm model parameters
-                initAFM(farm->wt[t], farm->base[t]);
+                initAFM(farm->wt[t], farm->base[t], mesh->meshName);
             }
             else
             {
@@ -143,7 +143,7 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
             }
 
             // initialize upstream velocity sampling
-            initSamplePoints(farm->wt[t], farm->base[t]);
+            initSamplePoints(farm->wt[t], farm->base[t], mesh->meshName);
 
             // initialize the nacelle model
             // initNacModel(farm->wt[t]);
@@ -4523,13 +4523,13 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
 
 //***************************************************************************************************************//
 
-PetscErrorCode initADM(windTurbine *wt, Cmpnts &base)
+PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
 {
     // allocate memory for the ADM
     PetscMalloc(sizeof(ADM), &(wt->adm));
 
     // read necessary properties from file
-    word descrFile = "./turbines/" + wt->type;
+    word descrFile = "./turbines/" + meshName + "/" + wt->type;
 
     // read from file AD parameters
     readDictInt(descrFile.c_str(), "nRadPts", &(wt->adm.nRadial));
@@ -4701,13 +4701,13 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base)
 
 //***************************************************************************************************************//
 
-PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base)
+PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
 {
     // allocate memory for the ADM
     PetscMalloc(sizeof(UADM), &(wt->uadm));
 
     // read necessary properties from file
-    word descrFile = "./turbines/" + wt->type;
+    word descrFile = "./turbines/" + meshName + "/" + wt->type;
 
     // read from file AD parameters
     readDictInt(descrFile.c_str(),    "nRadPts",    &(wt->uadm.nRadial));
@@ -4855,14 +4855,14 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base)
 
 //***************************************************************************************************************//
 
-PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base)
+PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base, const word meshName)
 {
     // allocate memory for this turbine sample points struct
     wt->upPoints = (upSampling*)malloc(sizeof(upSampling));
     upSampling* upPoints = wt->upPoints;
 
     // read necessary properties from file
-    word descrFile = "./turbines/" + wt->type;
+    word descrFile = "./turbines/" + meshName + "/" + wt->type;
 
     // discretization is not very fine since only area-weighted
     // average must be performed
@@ -4968,13 +4968,13 @@ PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base)
 
 //***************************************************************************************************************//
 
-PetscErrorCode initALM(windTurbine *wt, Cmpnts &base)
+PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
 {
     // allocate memory for the ADM
     PetscMalloc(sizeof(ALM), &(wt->alm));
 
     // read necessary properties from file
-    word descrFile = "./turbines/" + wt->type;
+    word descrFile = "./turbines/" + meshName + "/" + wt->type;
 
     // read from file AD parameters
     readDictInt(descrFile.c_str(), "nRadPts", &(wt->alm.nRadial));
@@ -5150,13 +5150,13 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base)
 
 //***************************************************************************************************************//
 
-PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base)
+PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base, const word meshName)
 {
     // allocate memory for the AFM
     PetscMalloc(sizeof(AFM), &(wt->afm));
 
     // read necessary properties from file
-    word descrFile = "./turbines/" + wt->type;
+    word descrFile = "./turbines/" + meshName + "/" + wt->type;
 
     readDictDouble(descrFile.c_str(), "Ct",         &(wt->afm.Ct));
     readDictDouble(descrFile.c_str(), "Uref",       &(wt->afm.Uref));
@@ -6120,27 +6120,29 @@ PetscErrorCode readFarmProperties(farm_ *farm)
     // get mesh pointer
     mesh_ *mesh = farm->access->mesh;
 
+    word   windFarmPropertiesFile = "./turbines/" + mesh->meshName + "/windFarmProperties";
+
     // allocate memory for wind farm body force
     VecDuplicate(mesh->lCent, &(farm->lsourceFarmCat));
     VecDuplicate(mesh->Cent,  &(farm->sourceFarmCont));
 
     // read the write settings
-    readSubDictDouble("./turbines/windFarmProperties","writeSettings","timeStart", &(farm->timeStart));
-    readSubDictWord  ("./turbines/windFarmProperties","writeSettings","intervalType", &(farm->intervalType));
-    readSubDictDouble("./turbines/windFarmProperties","writeSettings","timeInterval", &(farm->timeInterval));
+    readSubDictDouble(windFarmPropertiesFile.c_str(),"writeSettings","timeStart", &(farm->timeStart));
+    readSubDictWord  (windFarmPropertiesFile.c_str(),"writeSettings","intervalType", &(farm->intervalType));
+    readSubDictDouble(windFarmPropertiesFile.c_str(),"writeSettings","timeInterval", &(farm->timeInterval));
 
     // initialize write number
     farm->writeNumber = 0;
 
     // read debug flag
-    readDictInt("./turbines/windFarmProperties", "debug", &(farm->dbg));
+    readDictInt(windFarmPropertiesFile.c_str(), "debug", &(farm->dbg));
 
     // read wind farm name
-    readDictWord("./turbines/windFarmProperties", "windFarmName", &(farm->name));
+    readDictWord(windFarmPropertiesFile.c_str(), "windFarmName", &(farm->name));
 
     // read array specification
     word arraySpec;
-    readDictWord("./turbines/windFarmProperties", "arraySpecification", &arraySpec);
+    readDictWord(windFarmPropertiesFile.c_str(), "arraySpecification", &arraySpec);
 
     // read the wind turbines one by one until end of file
     if(arraySpec=="onebyone")
@@ -6190,10 +6192,10 @@ PetscErrorCode readFarmProperties(farm_ *farm)
         PetscMalloc(sizeof(Cmpnts), &(farm->wt[t]->rtrDir));
 
         // this turbine description file (can be shared if type is the same)
-        word descrFile = "./turbines/" + (*farm->turbineTypes[t]);
+        word descrFile = "./turbines/" + mesh->meshName + "/" + (*farm->turbineTypes[t]);
 
         // read turbine properties
-        readTurbineProperties(farm->wt[t], descrFile.c_str(), (*farm->turbineModels[t]));
+        readTurbineProperties(farm->wt[t], descrFile.c_str(), mesh->meshName, (*farm->turbineModels[t]));
     }
 
     // set CFL checking flag to zero
@@ -6208,6 +6210,9 @@ PetscErrorCode readFarmProperties(farm_ *farm)
 
 PetscErrorCode readTurbineArray(farm_ *farm)
 {
+    // get mesh pointer
+    mesh_ *mesh = farm->access->mesh;
+
     // define the local variables
     std::vector<std::string>   turbineTypes;
     std::vector<std::string>   turbineIds;
@@ -6232,7 +6237,7 @@ PetscErrorCode readTurbineArray(farm_ *farm)
     std::string token;
 
     // dictionary name
-    std::string dictName("./turbines/windFarmProperties");
+    std::string dictName = "./turbines/" + mesh->meshName + "/windFarmProperties" ;
 
     // open dictionary
     indata.open(dictName);
@@ -6552,7 +6557,7 @@ PetscErrorCode readTurbineArray(farm_ *farm)
 
 //***************************************************************************************************************//
 
-PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word modelName)
+PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word meshName, const word modelName)
 {
     // local vectors (to be normalised)
     Cmpnts twrDirVec, rtrDirVec;
@@ -6608,8 +6613,8 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
         readDictWord(dictName,   "pitchControllerType", &(wt->pitchControllerType));
 
         // read controllers input parameters
-        if(wt->genControllerType   != "none") readGenControllerParameters(wt,   wt->genControllerType.c_str());
-        if(wt->pitchControllerType != "none") readPitchControllerParameters(wt, wt->pitchControllerType.c_str());
+        if(wt->genControllerType   != "none") readGenControllerParameters(wt,   wt->genControllerType.c_str(), meshName.c_str());
+        if(wt->pitchControllerType != "none") readPitchControllerParameters(wt, wt->pitchControllerType.c_str(), meshName.c_str());
 
         // read airfoil types used in this turbine
         readAirfoilProperties(wt, dictName);
@@ -6631,7 +6636,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
             wt->foils[f]->name = *(wt->foilNames[f]);
 
             // set the path to the airfoil data file
-            word name2af = "./turbines/airfoils/" + *(wt->foilNames[f]);
+            word name2af = "./turbines/" + meshName + "/airfoils/" + *(wt->foilNames[f]);
 
             // set the reset of the variables by reading the table
             readAirfoilTable(wt->foils[f], name2af.c_str());
@@ -6664,7 +6669,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     // read yaw controller parameters (all models: ADM/ALM/UADM/AFM)
     readDictWord(dictName,   "yawControllerType", &(wt->yawControllerType));
 
-    if(wt->yawControllerType   != "none") readYawControllerParameters(wt,   wt->yawControllerType.c_str());
+    if(wt->yawControllerType   != "none") readYawControllerParameters(wt,   wt->yawControllerType.c_str(), meshName.c_str());
 
     if(wt->includeTwr)
     {
@@ -7245,10 +7250,10 @@ PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName)
 
 //***************************************************************************************************************//
 
-PetscErrorCode readGenControllerParameters(windTurbine *wt, const char *dictName)
+PetscErrorCode readGenControllerParameters(windTurbine *wt, const char *dictName, const char *meshName)
 {
     char path2dict[256];
-    sprintf(path2dict, "./turbines/control/%s", dictName);
+    sprintf(path2dict, "./turbines/%s/control/%s", meshName, dictName);
 
     // rotor dynamics parameters
     readDictDouble(path2dict, "genInertia",         &(wt->genInertia));
@@ -7308,10 +7313,10 @@ PetscErrorCode readGenControllerParameters(windTurbine *wt, const char *dictName
 
 //***************************************************************************************************************//
 
-PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictName)
+PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictName, const char *meshName)
 {
     char path2dict[256];
-    sprintf(path2dict, "./turbines/control/%s", dictName);
+    sprintf(path2dict, "./turbines/%s/control/%s", meshName, dictName);
 
     // allocate memory for collective pitch
     PetscMalloc(wt->nBlades*sizeof(PetscReal), &(wt->pitch));
@@ -7372,10 +7377,10 @@ PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictNa
 
 //***************************************************************************************************************//
 
-PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName)
+PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName, const char *meshName)
 {
     char path2dict[256];
-    sprintf(path2dict, "./turbines/control/%s", dictName);
+    sprintf(path2dict, "./turbines/%s/control/%s", meshName, dictName);
 
     // controller paramters
     readSubDictWord(path2dict,   "yawControllerParameters","sampleType",  &(wt->yawSamplingType));

@@ -487,19 +487,19 @@ PetscErrorCode initControlledCells(farm_ *farm);
 PetscErrorCode initSampleControlledCells(farm_ *farm);
 
 // \brief Initializes the ADM reading from files and allocating memory
-PetscErrorCode initADM(windTurbine *wt, Cmpnts &base);
+PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName);
 
 //! \brief Initialize the Uniform Actuator Disk Model
-PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base);
+PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName);
 
 //! \brief Initialize the upstream sample points data structure
-PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base);
+PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base, const word meshName);
 
 //! \brief Initializes the ALM reading from files and allocating memory
-PetscErrorCode initALM(windTurbine *wt, Cmpnts &base);
+PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName);
 
 //! \brief Initializes the AFM reading from files and allocating memory
-PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base);
+PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base, const word meshName);
 
 //! \brief Initializes the tower model
 PetscErrorCode initTwrModel(windTurbine *wt, Cmpnts &base);
@@ -517,7 +517,7 @@ PetscErrorCode readFarmProperties(farm_ *farm);
 PetscErrorCode readTurbineArray(farm_ *wf);
 
 //! \brief Fill the windTurbine struct reading in the file named as the wind turbine type
-PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word modelName);
+PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word meshName, const word modelName);
 
 //! \brief Reads the names of the airfoil used in the turbine (given in the airfoils subdict inside the file named as the wind turbine type)
 PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName);
@@ -532,13 +532,13 @@ PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName);
 PetscErrorCode readAirfoilTable(foilInfo *af, const char *tableName);
 
 //! \brief Reads generator torque controller parameters
-PetscErrorCode readGenControllerParameters(windTurbine *wt, const char *dictName);
+PetscErrorCode readGenControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
 
 //! \brief Reads blade pitch controller parameters
-PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictName);
+PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
 
 //! \brief Reads nacelle yaw controller parameters
-PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName);
+PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
 
 // Mathematical operations
 // -----------------------------------------------------------------------------

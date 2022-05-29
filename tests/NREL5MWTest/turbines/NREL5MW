@@ -23,7 +23,7 @@ rotationDir         cw
 nRadPts             10
 nAziPts             50
 epsilon             8.0
-debug               1
+debug               0
 initialOmega        10.41
 
 # Uniform actuator disk parameters
