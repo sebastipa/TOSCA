@@ -315,7 +315,7 @@ PetscErrorCode ReadPhysicalConstants(domain_ *domain)
     readDictDouble("control.dat", "-nu", &(domain->constants.nu));
 
     // read flow density
-    if(domain->flags.isWindFarmActive)
+    if(domain->flags.isWindFarmActive || domain->flags.isIBMActive)
     {
       readDictDouble("control.dat", "-rho", &(domain->constants.rho));
     }

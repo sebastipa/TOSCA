@@ -212,9 +212,11 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
 PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 {
 
-    mesh_         *mesh = ibm->access->mesh;
-    ueqn_         *ueqn = ibm->access->ueqn;
-    peqn_         *peqn = ibm->access->peqn;
+    mesh_         *mesh  = ibm->access->mesh;
+    ueqn_         *ueqn  = ibm->access->ueqn;
+    peqn_         *peqn  = ibm->access->peqn;
+    constants_    *cst   = ibm->access->constants;
+    clock_        *clock = ibm->access->clock;
 
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
@@ -249,13 +251,19 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     ibmFluidCell *ibF = ibm->ibmFCells;
 
     //vectors to store the net force on each ibm
-    std::vector<Cmpnts>    lPForce(ibm->numBodies);
-    std::vector<Cmpnts>    gPForce(ibm->numBodies);
+    std::vector<Cmpnts>    lForce(ibm->numBodies);
+    std::vector<Cmpnts>    gForce(ibm->numBodies);
+
+    std::vector<Cmpnts>    lMoment(ibm->numBodies);
+    std::vector<Cmpnts>    gMoment(ibm->numBodies);
 
     for (b = 0; b < ibm->numBodies; b++)
     {
-        lPForce[b] = nSetZero();
-        gPForce[b] = nSetZero();
+        lForce[b] = nSetZero();
+        gForce[b] = nSetZero();
+
+        lMoment[b] = nSetZero();
+        gMoment[b] = nSetZero();
     }
 
     // loop through the ibm bodies
@@ -263,6 +271,8 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     {
         ibmObject   *ibmBody = ibm->ibmBody[b];
         ibmMesh     *ibMsh   = ibmBody->ibMsh;
+        ibmRotation *ibmRot  = ibmBody->ibmRot;
+
 
         //check if process controls this ibm body
         if(ibmBody->ibmControlled)
@@ -435,7 +445,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     }
 
                     //set the ibm element pressure force
-                    PetscReal pForce = ibmBody->ibmPressure[e] * eA;
+                    PetscReal pForce = ibmBody->ibmPressure[e] * eA * cst->rho;
                     ibmBody->ibmPForce[e] = nSet(nScale(-pForce, eN));
 
                     //Velocity of the ibm mesh element
@@ -469,24 +479,120 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     ut = nMag(utV);
 
                     //friction velocity
-                    ustar = uTauCabot(ibm->access->constants->nu, ut, sc, 0.01, 0);
+                    ustar = uTauCabot(cst->nu, ut, sc, 0.01, 0);
 
-                    //shear stress on ibm mesh element
-                    Cmpnts tauWall = nScale(ustar*ustar, nUnit(utV));
+                    //shear force on ibm mesh element
+                    Cmpnts tauWall = nScale(eA * cst->rho * ustar * ustar, nUnit(utV));
 
                     //sum total pressure and viscous force
-                    mSum(lPForce[b], ibmBody->ibmPForce[e]);
-                    mSum(lPForce[b], nScale(eA, tauWall));
+                    mSum(lForce[b], ibmBody->ibmPForce[e]);
+                    mSum(lForce[b], tauWall);
+
+                    if(ibmBody->bodyMotion == "rotation")
+                    {
+                        // find moment for rotating mesh
+
+                        //radius vector from the rotation center to the ibm mesh coordinate
+                        Cmpnts rvec   = nSub(eC, ibmRot->rotCenter);
+
+                        Cmpnts pressureMoment = nCross(rvec, ibmBody->ibmPForce[e]);
+                        Cmpnts viscousMoment  = nCross(rvec, tauWall);
+
+                        //net moment per processor
+                        mSum(lMoment[b], nSum(pressureMoment, viscousMoment));
+
+                    }
+
 
                 }
 
             }
 
-            MPI_Allreduce(&(lPForce[b]), &(gPForce[b]), 3, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
+            MPI_Allreduce(&(lForce[b]), &(gForce[b]), 3, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
+            MPI_Allreduce(&(lMoment[b]), &(gMoment[b]), 3, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
+
+            //compute power
+            PetscReal ibmPower = 0.0;
+            PetscReal netMoment = 0.0;
+            if(ibmBody->bodyMotion == "rotation")
+            {
+                ibmPower  = nDot(gMoment[b], nScale(ibmRot->angSpeed, ibmRot->rotAxis));
+                netMoment = nDot(gMoment[b], ibmRot->rotAxis);
+            }
 
             if(ibmrank == 0)
             {
-                printf("Net force = %lf %lf %lf\n", gPForce[b].x, gPForce[b].y, gPForce[b].z);
+                printf("Net force = %lf %lf %lf\n", gForce[b].x, gForce[b].y, gForce[b].z);
+                printf("Net Moment = %lf %lf %lf, net moment along rotation axis = %lf\n", gMoment[b].x, gMoment[b].y, gMoment[b].z, netMoment);
+
+                if(ibmBody->bodyMotion == "rotation")
+                {
+                    PetscPrintf(PETSC_COMM_SELF, "rotation speed = %lf\n", ibmRot->angSpeed);
+                    //write the force torque to a file
+                    FILE *fp;
+                    char fileName[80];
+                    char folder[80];
+
+                    sprintf(folder, "./postProcessing/%s/turbineOut", (mesh->meshName).c_str());
+                    sprintf(fileName, "./postProcessing/%s/turbineOut/ibmPower", (mesh->meshName).c_str());
+
+                    // create/initialize output directory (at simulation start only)
+                    if
+                    (
+                        clock->it == clock->itStart
+                    )
+                    {
+                        errno = 0;
+                        PetscInt dirRes;
+
+                        dirRes = mkdir(folder, 0777);
+                        if(dirRes != 0 && errno != EEXIST)
+                        {
+                            char error[512];
+                            sprintf(error, "could not create %s directory\n", fileName);
+                            fatalErrorInFunction("ComputeForceMoment",  error);
+                        }
+
+                        fp = fopen(fileName, "w");
+
+                        if(!fp)
+                        {
+                           char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName);
+                            fatalErrorInFunction("ComputeForceMoment",  error);
+                        }
+                        else
+                        {
+                            //write file heading
+                            fp = fopen(fileName, "w");
+
+                            word w1   = "time [s]";
+                            word w2   = "aeroTq [Nm]";
+                            word w3   = "aeroPwr [W]";
+                            word w4   = "omega [rpm]";
+                            int width = -20;
+
+                            if(fp)
+                            {
+                                fprintf(fp, "%*s %*s %*s %*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str());
+                            }
+
+                            fclose(fp);
+                        }
+                    }
+
+                    fp = fopen(fileName, "a");
+
+                    if(fp)
+                    {
+                        int width = -20;
+                        fprintf(fp, "%*.5f %*.5f %*.5f %*.5f \n", width, clock->time, width, netMoment, width, ibmPower, width, ibmRot->angSpeed * 60/(2*M_PI));
+                    }
+
+                    fclose(fp);
+
+                }
+
             }
         }
 
@@ -533,7 +639,7 @@ PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b)
     ibmMesh       *ibMsh   = ibmBody->ibMsh;                         // pointer to the ibm body mesh
     ibmRotation   *ibmRot  = ibmBody->ibmRot;
 
-    Cmpnts        rvec, angVel;
+    Cmpnts        rvec, rvecPar, angVel;
 
     // change in rotation angle
     PetscReal     dTheta   = ibmRot->angSpeed * clock->dt;
@@ -558,6 +664,9 @@ PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b)
 
         ibMsh->nU[n] = nCross(angVel, rvec);
     }
+
+    //update the angular speed if body is accelerating
+    ibmRot->angSpeed += (ibmRot->angAcc * clock->dt);
 
     // recompute the ibm mesh properties - as rigid body motion the elements do not change
     PetscInt  n1, n2, n3;
@@ -1786,9 +1895,13 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             ibmRot->rotAngle = 0;
 
             readSubDictDouble("./IBM/IBMProperties.dat", objectName, "angularSpeed", &(ibmRot->angSpeed));
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "angularAcceleration", &(ibmRot->angAcc));
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "rotationAxis", &(ibmRot->rotAxis));
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "rotationCenter", &(ibmRot->rotCenter));
 
+            //transform angular speed and acceleration from rpm to rad/s
+            ibmRot->angSpeed = ibmRot->angSpeed*2*M_PI/60.0;
+            ibmRot->angAcc   = ibmRot->angAcc*2*M_PI/60.0;
         }
     }
 
@@ -1862,7 +1975,7 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 
             //element area
             ibMesh->eA[e] = normMag/2.0;
-
+	  
         }
 
         if(ibm->checkNormal)
@@ -1893,6 +2006,8 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
                     mScale(-1.0, ibMesh->eN[e]);
                     ibMesh->flipNormal[e] = 1;
                 }
+		PetscPrintf(PETSC_COMM_WORLD, "element id = %ld\n", e);
+
             }
 
         }
@@ -2388,10 +2503,6 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
       }
       else
       {
-          char warning[256];
-          sprintf(warning, "Directory %s not found. Setting angular position to 0.0", timeName.c_str());
-          warningInFunction("readIBMObjectMesh",  warning);
-
           ibmRot->rotAngle = 0.0;
       }
 

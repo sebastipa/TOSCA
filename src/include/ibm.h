@@ -59,6 +59,7 @@ typedef struct
 typedef struct
 {
     PetscReal     angSpeed;
+    PetscReal     angAcc;
     PetscReal     rotAngle;
 
     Cmpnts        rotAxis;
