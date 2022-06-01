@@ -1442,37 +1442,51 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             // cell ids of the cells - kL, kR, jL, jR, iL, iR
                             PetscInt  intId[6];
 
-                            // get weights and ids of interpolation cells
-
-                            PointInterpolationWeights
-                            (
-                                    mesh,
-                                    pibmpt[Id.k][Id.j][Id.i].x, pibmpt[Id.k][Id.j][Id.i].y, pibmpt[Id.k][Id.j][Id.i].z,
-                                    pCell.i, pCell.j, pCell.k,
-                                    cent,
-                                    intWts,
-                                    intId
-                            );
-
-                            PetscScalar coeff;
-                            PetscInt  ctr = 0;
-
-                            // loop over interpolation cells
-                            for (PetscInt kk = 0; kk<2; kk++)
-                            for (PetscInt jj = 0; jj<2; jj++)
-                            for (PetscInt ii = 0; ii<2; ii++)
+                            if(pibmpt[Id.k][Id.j][Id.i].x > 1e9)
                             {
-                                HYPRE_Int col = matID(intId[ii+4], intId[jj+2], intId[kk]);
-                                if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
-                                {
-                                    printf("ibm cell - %ld %ld %ld, ibm cell in matrix %ld %ld %ld, indices = %ld %ld %ld %ld %ld %ld\n", Id.k, Id.j, Id.i, intId[kk], intId[jj+2], intId[ii+4], intId[0], intId[1], intId[2], intId[3], intId[4], intId[5]);
-                                }
-                                coeff = intWts[ctr] * vol[m];
-                                ctr++;
-
-                                HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &coeff);
+                                // interpolation point too far to the ibm fluid cell, use closest fluid cell pressure
+                                HYPRE_Int col = matID(pCell.i, pCell.j, pCell.k);
+                                HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
 
                             }
+                            else
+                            {
+                                // get weights and ids of interpolation cells
+                                PointInterpolationWeights
+                                (
+                                        mesh,
+                                        pibmpt[Id.k][Id.j][Id.i].x, pibmpt[Id.k][Id.j][Id.i].y, pibmpt[Id.k][Id.j][Id.i].z,
+                                        pCell.i, pCell.j, pCell.k,
+                                        cent,
+                                        intWts,
+                                        intId
+                                );
+
+                                PetscScalar coeff;
+                                PetscInt  ctr = 0;
+
+                                // loop over interpolation cells
+                                for (PetscInt kk = 0; kk<2; kk++)
+                                for (PetscInt jj = 0; jj<2; jj++)
+                                for (PetscInt ii = 0; ii<2; ii++)
+                                {
+                                    HYPRE_Int col = matID(intId[ii+4], intId[jj+2], intId[kk]);
+
+                                    if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                                    {
+                                        char error[512];
+                                        sprintf(error, "ibm cell - %ld %ld %ld, ibm cell in pressure matrix %ld %ld %ld, indices = %ld %ld %ld %ld %ld %ld\n", Id.k, Id.j, Id.i, intId[kk], intId[jj+2], intId[ii+4], intId[0], intId[1], intId[2], intId[3], intId[4], intId[5]);
+                                        fatalErrorInFunction("SetCoeffMatrix",  error);
+                                    }
+
+                                    coeff = intWts[ctr] * vol[m];
+                                    ctr++;
+
+                                    HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &coeff);
+
+                                }
+                            }
+
                         }
                     }
                 }
@@ -2022,25 +2036,24 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     //Contravariant fluxes balance on the cell is computed.
                     val = 0;
 
-                    // i-1/2
-                    val -= ucont[k][j][i].x;
-
                     // i+1/2
-                    val += ucont[k][j][i-1].x;
+                    val += ucont[k][j][i].x;
 
-                    // j-1/2
-                    val -= ucont[k][j][i].y;
+                    // i-1/2
+                    val -= ucont[k][j][i-1].x;
 
                     // j+1/2
-                    val += ucont[k][j-1][i].y;
+                    val += ucont[k][j][i].y;
 
-                    // k-1/2
-                    val -= ucont[k][j][i].z;
+                    // j-1/2
+                    val -= ucont[k][j-1][i].y;
 
                     // k+1/2
-                    val += ucont[k-1][j][i].z;
+                    val += ucont[k][j][i].z;
 
-                    val *=  -1.0 / dt;
+                    // k-1/2
+                    val -= ucont[k-1][j][i].z;
+
                 }
 
                 // get connectivity
@@ -2605,7 +2618,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 izet[k][j][i].y * icsi[k][j][i].y +
                                 izet[k][j][i].z * icsi[k][j][i].z
                             ) * iaj[k][j][i]
-                        ) * clock->dt;
+                        );
                     }
                 }
 
@@ -2711,7 +2724,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 jzet[k][j][i].y * jeta[k][j][i].y +
                                 jzet[k][j][i].z * jeta[k][j][i].z
                             ) * jaj[k][j][i]
-                        ) * clock->dt;
+                        );
                     }
                 }
 
@@ -2816,7 +2829,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 kzet[k][j][i].y * kzet[k][j][i].y +
                                 kzet[k][j][i].z * kzet[k][j][i].z
                             ) * kaj[k][j][i]
-                        ) * clock->dt;
+                        );
 
                     }
                 }
@@ -2853,6 +2866,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 PetscErrorCode UpdatePressure(peqn_ *peqn)
 {
     mesh_         *mesh  = peqn->access->mesh;
+    clock_        *clock = peqn->access->clock;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt           xs   = info.xs, xe = info.xs + info.xm;
@@ -2891,7 +2905,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
 
               if (isFluidCell(k, j, i, nvert) || isIBMFluidCell(k, j, i, nvert))
               {
-                  p[k][j][i] += lphi[k][j][i];
+                  p[k][j][i] += (lphi[k][j][i]/clock->dt);
                   lPsum += p[k][j][i];
                   lnPoints++;
               }
@@ -2947,15 +2961,25 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
     PetscReal          refLength;                              // reference length set as the average cell size
     PetscReal          baseLength, checkLength;
 
+    cellIds            initCp;
     mesh_              *mesh = ibm->access->mesh;
     peqn_              *peqn = ibm->access->peqn;
 
     DM                 da    = mesh->da, fda = mesh->fda;
-    DMDALocalInfo      info = mesh->info;
-    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+    DMDALocalInfo      info  = mesh->info;
+    PetscInt           xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
     Cmpnts             ***cent, ***pibmpt, ***pibmcell;
     PetscReal          ***aj, ***nvert, ***lPhi, ***gPhi;
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
 
     DMDAVecGetArray(da, mesh->lAj, &aj);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
@@ -2991,9 +3015,9 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
         PetscReal   dmin = 10e10, d;
         PetscInt    ic, jc, kc;
 
-        for (k1=k-1; k1<k+2; k1++)
-        for (j1=j-1; j1<j+2; j1++)
-        for (i1=i-1; i1<i+2; i1++)
+        for (k1=k-2; k1<k+3; k1++)
+        for (j1=j-2; j1<j+3; j1++)
+        for (i1=i-2; i1<i+3; i1++)
         {
             if
             (
@@ -3034,7 +3058,14 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
                 intId
         );
 
-        while (intFlag && isInsideSimDomain(checkPt, mesh->bounds))
+        // save the initial closest cell
+        initCp.i = ic; initCp.j = jc; initCp.k = kc;
+
+        // max distance checkpoint has to move to be to the closest fluid trilinear interpolation box
+        // restrict this to 3*ref length
+        PetscReal sumDel = 0.0;
+
+        while ( (intFlag == 1) && isInsideSimDomain(checkPt, mesh->bounds) && (sumDel <= 3*refLength))
         {
             PetscInt ibmCellCtr = 0;
             PetscInt icc, jcc, kcc;
@@ -3055,6 +3086,8 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
                 del =  nScale(0.2 * refLength, eN);
                 mSum(checkPt, del);
                 dmin = 10e10;
+
+                sumDel += nMag(del);
 
                 for (k1=kc-1; k1<kc+2; k1++)
                 for (j1=jc-1; j1<jc+2; j1++)
@@ -3103,33 +3136,57 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
             {
                 intFlag = 0;
 
-                scalarPointLocalVolumeInterpolation
-                (
-                        mesh,
-                        checkPt.x, checkPt.y, checkPt.z,
-                        ic, jc, kc,
-                        cent,
-                        lPhi,
-                        gPhi[k][j][i]
-                );
+                //ensure that the trilinear interpolation cells are within the processor ghost bounds
+                //if not set interpolation flag to 2 and dont interpolate
+
+                if      ( (intId[0] < lzs-3) || (intId[0] > lze+2) ) intFlag = 2;
+                else if ( (intId[1] < lzs-3) || (intId[1] > lze+2) ) intFlag = 2;
+                else if ( (intId[2] < lys-3) || (intId[2] > lye+2) ) intFlag = 2;
+                else if ( (intId[3] < lys-3) || (intId[3] > lye+2) ) intFlag = 2;
+                else if ( (intId[4] < lxs-3) || (intId[4] > lxe+2) ) intFlag = 2;
+                else if ( (intId[5] < lxs-3) || (intId[5] > lxe+2) ) intFlag = 2;
+
+                if(intFlag == 0)
+                {
+                    scalarPointLocalVolumeInterpolation
+                    (
+                            mesh,
+                            checkPt.x, checkPt.y, checkPt.z,
+                            ic, jc, kc,
+                            cent,
+                            lPhi,
+                            gPhi[k][j][i]
+                    );
+                }
+
             }
         }
 
-        if(intFlag == 1)
+        if(intFlag > 0)
         {
-            char warning[512];
-            sprintf(warning, "reference length along the ibm element normal lies outside the domain. Setting the ibm fluid cell %ld, %ld, %ld pressure to 0\n", k, j, i);
-            warningInFunction("updateIBMPressure",  warning);
-            gPhi[k][j][i] = 0.;
+                // set the point to large value for check later in SetCoeffMatrix
+                pibmpt[k][j][i].x = 1e10;
+                pibmpt[k][j][i].y = 0;
+                pibmpt[k][j][i].z = 0;
+
+                //save the pCell id for use in poisson coefficient matrix
+                pibmcell[k][j][i].x = (PetscReal)initCp.i;
+                pibmcell[k][j][i].y = (PetscReal)initCp.j;
+                pibmcell[k][j][i].z = (PetscReal)initCp.k;
+
+                gPhi[k][j][i] = lPhi[initCp.k][initCp.j][initCp.i];
         }
+        else
+        {
+            // save the interpolation point
+            pibmpt[k][j][i] = nSet(checkPt);
 
-        // save the interpolation point
-        pibmpt[k][j][i] = nSet(checkPt);
+            //save the pCell id for use in poisson coefficient matrix
+            pibmcell[k][j][i].x = (PetscReal)ic;
+            pibmcell[k][j][i].y = (PetscReal)jc;
+            pibmcell[k][j][i].z = (PetscReal)kc;
 
-        //save the pCell id for use in poisson coefficient matrix
-        pibmcell[k][j][i].x = (PetscReal)ic;
-        pibmcell[k][j][i].y = (PetscReal)jc;
-        pibmcell[k][j][i].z = (PetscReal)kc;
+        }
 
     }
 
@@ -3497,9 +3554,6 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     flags_        *flags = peqn->access->flags;
     PetscReal     ts, te;
 
-    // to prevent small time. Needs to be removed!!!!!!
-    if(clock->dt < 10e-5) return 0;
-
     PetscTime(&ts);
 
     // add flux correction
@@ -3512,6 +3566,7 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
     }
 
+    PetscPrintf(PETSC_COMM_WORLD, "Flux adjusted \n");
     if(flags->isIBMActive)
     {
 
@@ -3550,8 +3605,12 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
     }
 
+    PetscPrintf(PETSC_COMM_WORLD, "Coefficient matrix set \n");
+
     // compute the RHS (divergence of predicted velocity)
     SetRHS(peqn);
+
+    PetscPrintf(PETSC_COMM_WORLD, "RHS set \n");
 
     // transform Phi2 to the unknown in HYPRE (used as initial guess)
     Petsc2HypreVector(peqn->phi, peqn->hypreP, peqn->thisRankStart);

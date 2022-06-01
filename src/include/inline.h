@@ -15,7 +15,7 @@ inline void timeStepSet(clock_ *clock, PetscReal timeStart, PetscReal timeInterv
     PetscReal initialTimeStep  = clock->dt;
 
     // compute current fraction of the acquisition period
-    PetscReal currentAcquistionPeriodFraction = (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval);
+    PetscReal currentAcquistionPeriodFraction = (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval + 1e-10);
 
 
     // compute current distance to write time
@@ -3390,18 +3390,18 @@ inline void PointInterpolationWeights
     intId[5] = iR;
 
     //check that the point is inside the interpolation box, send warning if not
-    if
-    (
-        ( (px < cent[kL][jL][iL].x && px < cent[kR][jR][iR].x) || (px > cent[kR][jR][iR].x && px > cent[kL][jL][iL].x) ) ||
-        ( (py < cent[kL][jL][iL].y && py < cent[kR][jR][iR].y) || (py > cent[kR][jR][iR].y && py > cent[kL][jL][iL].y) ) ||
-        ( (pz < cent[kL][jL][iL].z && pz < cent[kR][jR][iR].z) || (pz > cent[kR][jR][iR].z && pz > cent[kL][jL][iL].z) )
-
-    )
-    {
-      char warning[512];
-      sprintf(warning, "\n\n\npoint %lf %lf %lf is outside the trilinear interpolation box of %ld %ld %ld, %ld %ld %ld - min bound = %lf %lf %lf, max bound %lf %lf %lf, results may be incorrect!!\n\n\n", px, py, pz, kL, jL, iL, kR, jR, iR, cent[kL][jL][iL].x, cent[kL][jL][iL].y, cent[kL][jL][iL].z, cent[kR][jR][iR].x, cent[kR][jR][iR].y, cent[kR][jR][iR].z);
-      warningInFunction("PointInterpolationWeights",  warning);
-    }
+    // if
+    // (
+    //     ( ( (px < cent[kL][jL][iL].x) && (px < cent[kR][jR][iR].x) ) || ( (px > cent[kR][jR][iR].x) && (px > cent[kL][jL][iL].x) ) ) ||
+    //     ( ( (py < cent[kL][jL][iL].y) && (py < cent[kR][jR][iR].y) ) || ( (py > cent[kR][jR][iR].y) && (py > cent[kL][jL][iL].y) ) )||
+    //     ( ( (pz < cent[kL][jL][iL].z) && (pz < cent[kR][jR][iR].z) ) || ( (pz > cent[kR][jR][iR].z) && (pz > cent[kL][jL][iL].z) ) )
+    //
+    // )
+    // {
+    //   char warning[512];
+    //   sprintf(warning, "\n\n\npoint %lf %lf %lf is outside the trilinear interpolation box of %ld %ld %ld, %ld %ld %ld - min bound = %lf %lf %lf, max bound %lf %lf %lf, results may be incorrect!!\n\n\n", px, py, pz, kL, jL, iL, kR, jR, iR, cent[kL][jL][iL].x, cent[kL][jL][iL].y, cent[kL][jL][iL].z, cent[kR][jR][iR].x, cent[kR][jR][iR].y, cent[kR][jR][iR].z);
+    //   warningInFunction("PointInterpolationWeights",  warning);
+    // }
 
     // find directional gradients
     Cmpnts csiHat, etaHat, zetHat;

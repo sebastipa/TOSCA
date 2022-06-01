@@ -197,14 +197,6 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         PetscViewerDestroy(&viewer);
     }
 
-    //read ibm field
-    PetscPrintf(mesh->MESH_COMM, "Reading nv...\n");
-    field = "/nv";
-    fileName = location + field;
-    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-    VecLoad(mesh->Nvert,viewer);
-    PetscViewerDestroy(&viewer);
-
     if(domain->flags.isLesActive)
     {
         FILE *fp;
@@ -289,12 +281,6 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         DMGlobalToLocalEnd(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
         VecCopy(teqn->Tmprt, teqn->Tmprt_o);
     }
-
-    DMGlobalToLocalBegin(mesh->da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
-    DMGlobalToLocalEnd(mesh->da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
-
-    DMGlobalToLocalBegin(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
-    DMGlobalToLocalEnd(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
 
     // read Q-Criterion
     if(io->qCrit)
@@ -1943,7 +1929,7 @@ PetscErrorCode writeFields(io_ *io)
                 keep = getTimeName(clock);
             }
 
-            remove_subdirs_except3(mesh->MESH_COMM, writeDir.c_str(), keep, "turbines", "precursor");
+            remove_subdirs_except4(mesh->MESH_COMM, writeDir.c_str(), keep, "turbines", "precursor", "ibm");
         }
     }
 
@@ -2387,6 +2373,54 @@ void remove_subdirs_except3(MPI_Comm comm, const char *path2dir, const word name
 
 //***************************************************************************************************************//
 
+void remove_subdirs_except4(MPI_Comm comm, const char *path2dir, const word name1, const word name2, const word name3, const word name4)
+{
+    PetscMPIInt rank;
+    MPI_Comm_rank(comm, &rank);
+
+    if(!rank)
+    {
+        struct dirent *entry = NULL;
+        DIR *dir = NULL;
+        dir = opendir(path2dir);
+        while(entry = readdir(dir))
+        {
+            DIR *sub_dir = NULL;
+            FILE *file = NULL;
+            char abs_path[456] = {0};
+            if
+            (
+                *(entry->d_name) != '.' &&
+                (entry->d_name) != name1 &&
+                (entry->d_name) != name2 &&
+                (entry->d_name) != name3 &&
+                (entry->d_name) != name4
+            )
+            {
+                sprintf(abs_path, "%s/%s", path2dir, entry->d_name);
+                if(sub_dir = opendir(abs_path))
+                {
+                    closedir(sub_dir);
+                    remove_dir(comm, abs_path);
+                }
+                else
+                {
+                    if(file = fopen(abs_path, "r"))
+                    {
+                        fclose(file);
+                        remove(abs_path);
+                    }
+                }
+            }
+        }
+        closedir(dir);
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
 word getTimeName(clock_ *clock)
 {
     std::stringstream stream;
@@ -2474,7 +2508,7 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
             if(errno == EEXIST)
             {
                 word startTimeName = getStartTimeName(clock);
-                remove_subdirs_except3(mesh->MESH_COMM, writeDir.c_str(), startTimeName.c_str(), "turbines", "precursor");
+                remove_subdirs_except4(mesh->MESH_COMM, writeDir.c_str(), startTimeName.c_str(), "turbines", "precursor", "ibm");
             }
         }
 

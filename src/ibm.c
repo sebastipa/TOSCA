@@ -224,6 +224,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     PetscInt      ys   = info.ys, ye = info.ys + info.ym;
     PetscInt      zs   = info.zs, ze = info.zs + info.zm;
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+    cellIds       initCp;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i1, j1, k1;
@@ -309,9 +310,9 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     PetscReal   dmin = 10e6, d;
                     PetscInt    ic, jc, kc;
 
-                    for (k1=ck-1; k1<ck+2; k1++)
-                    for (j1=cj-1; j1<cj+2; j1++)
-                    for (i1=ci-1; i1<ci+2; i1++)
+                    for (k1=ck-2; k1<ck+3; k1++)
+                    for (j1=cj-2; j1<cj+3; j1++)
+                    for (i1=ci-2; i1<ci+3; i1++)
                     {
                         if
                         (
@@ -352,8 +353,15 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                             intId
                     );
 
+                    // save the initial closest cell
+                    initCp.i = ic; initCp.j = jc; initCp.k = kc;
+
+                    // max distance checkpoint has to move to be to the closest fluid trilinear interpolation box
+                    // restrict this to 3*ref length
+                    PetscReal sumDel = 0.0;
+
                     // if there is an ibm solid cell in the interpolation, increase reference length further
-                    while (intFlag && isInsideSimDomain(checkPt, mesh->bounds))
+                    while ( (intFlag == 1) && isInsideSimDomain(checkPt, mesh->bounds) && (sumDel <= 3*refLength))
                     {
                         PetscInt ibmCellCtr = 0;
                         PetscInt icc, jcc, kcc;
@@ -374,6 +382,8 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                             del =  nScale(0.5 * refLength, eN);
                             mSum(checkPt, del);
                             dmin = 10e6;
+
+                            sumDel += nMag(del);
 
                             for (k1=kc-1; k1<kc+2; k1++)
                             for (j1=jc-1; j1<jc+2; j1++)
@@ -422,26 +432,48 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                         {
                             intFlag = 0;
 
-                            scalarPointLocalVolumeInterpolation
-                            (
-                                    mesh,
-                                    checkPt.x, checkPt.y, checkPt.z,
-                                    ic, jc, kc,
-                                    cent,
-                                    lP,
-                                    ibmBody->ibmPressure[e]
-                            );
+                            //ensure that the trilinear interpolation cells are within the processor ghost bounds
+                            //if not set interpolation flag to 2 and dont interpolate
 
-                            vectorPointLocalVolumeInterpolation
-                            (
-                                    mesh,
-                                    checkPt.x, checkPt.y, checkPt.z,
-                                    ic, jc, kc,
-                                    cent,
-                                    ucat,
-                                    bPtVel
-                            );
+                            if      ( (intId[0] < lzs-3) || (intId[0] > lze+2) ) intFlag = 2;
+                            else if ( (intId[1] < lzs-3) || (intId[1] > lze+2) ) intFlag = 2;
+                            else if ( (intId[2] < lys-3) || (intId[2] > lye+2) ) intFlag = 2;
+                            else if ( (intId[3] < lys-3) || (intId[3] > lye+2) ) intFlag = 2;
+                            else if ( (intId[4] < lxs-3) || (intId[4] > lxe+2) ) intFlag = 2;
+                            else if ( (intId[5] < lxs-3) || (intId[5] > lxe+2) ) intFlag = 2;
+
+                            if(intFlag == 0)
+                            {
+                                scalarPointLocalVolumeInterpolation
+                                (
+                                        mesh,
+                                        checkPt.x, checkPt.y, checkPt.z,
+                                        ic, jc, kc,
+                                        cent,
+                                        lP,
+                                        ibmBody->ibmPressure[e]
+                                );
+
+                                vectorPointLocalVolumeInterpolation
+                                (
+                                        mesh,
+                                        checkPt.x, checkPt.y, checkPt.z,
+                                        ic, jc, kc,
+                                        cent,
+                                        ucat,
+                                        bPtVel
+                                );
+                            }
+
                         }
+                    }
+
+                    // while loop fails
+                    if(intFlag > 0)
+                    {
+                        ibmBody->ibmPressure[e] = lP[initCp.k][initCp.j][initCp.i];
+
+                        bPtVel = nSet(ucat[initCp.k][initCp.j][initCp.i]);
                     }
 
                     //set the ibm element pressure force
@@ -527,7 +559,6 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
                 if(ibmBody->bodyMotion == "rotation")
                 {
-                    PetscPrintf(PETSC_COMM_SELF, "rotation speed = %lf\n", ibmRot->angSpeed);
                     //write the force torque to a file
                     FILE *fp;
                     char fileName[80];
@@ -764,9 +795,6 @@ PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b)
     {
         if(!rank)
         {
-            word        startTimeName = getStartTimeName(clock);
-
-            path     = "./fields/" + mesh->meshName + "/ibm/" + startTimeName;
 
             errno = 0;
             word ibmfolder = "./fields/" + mesh->meshName + "/ibm/";
@@ -781,7 +809,7 @@ PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b)
             // if directory already exist remove everything inside except the start time (safe)
             if(errno == EEXIST)
             {
-                remove_subdirs_except(mesh->MESH_COMM, ibmfolder.c_str(), path.c_str());
+                remove_subdirs_except(mesh->MESH_COMM, ibmfolder.c_str(), getStartTimeName(clock));
             }
         }
     }
@@ -821,9 +849,6 @@ PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b)
 
             fclose(f);
 
-            // remove old checkpoint files except last one after all files are written (safe)
-            // word ibmfolder = "./fields/" + mesh->meshName + "/ibm/";
-            // if(!rank) remove_subdirs_except(mesh->MESH_COMM, ibmfolder.c_str(), timeName);
         }
 
     }
@@ -1047,15 +1072,22 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     flags_        *flags = ibm->access->flags;
     constants_    *cst   = ibm->access->constants;
 
-    DM            da = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info = mesh->info;
-    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
     PetscInt      i, j, k, ii, kk, jj;
     PetscInt      b, c, s;
+    cellIds       initCp;
     Cmpnts        ***ucat, ***lucat, ***cent;
     PetscReal     ***lt, ***temp, ***aj, ***nvert;
-    Cmpnts        bPt, bPtVel, ibmPtVel;
+    Cmpnts        bPt, bPtInit;
+    Cmpnts        bPtVel, ibmPtVel;
     PetscReal     nfMag, cellSize, bPtTemp, ibmPtTemp;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
@@ -1073,7 +1105,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     //local pointer for ibmFluidCells
     ibmFluidCell *ibF = ibm->ibmFCells;
 
-    PetscReal    sc, sb, ustar;
+    PetscReal    sc, sb, ustar, ustarMax = -1e10, ustarMin = 1e10;
 
     for(c = 0; c < ibm->numIBMFluid; c++)
     {
@@ -1086,7 +1118,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         PetscInt   cElem = ibF[c].closestElem;
         Cmpnts	   eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
-
+        PetscReal  roughness = ibm->ibmBody[ibF[c].bodyID]->roughness;
         // background mesh projection point is taken 1 cell distance along the normal directional of the closest ibm mesh element
         cellSize = pow( 1./aj[k][j][i], 1./3.);
         bPt = nScale(cellSize, eNorm);
@@ -1109,7 +1141,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                     k1>=1 && k1<mz-1 &&
                     j1>=1 && j1<my-1 &&
                     i1>=1 && i1<mx-1
-                ) && isFluidCell(k1, j1, i1, nvert)
+                ) && (!isIBMSolidCell(k1, j1, i1, nvert))
             )
             {
                 d = pow((bPt.x - cent[k1][j1][i1].x), 2) +
@@ -1142,7 +1174,15 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                 intId
         );
 
-        while (intFlag && isInsideSimDomain(bPt, mesh->bounds))
+        // save the initial closest cell and background point
+        initCp.i = ic; initCp.j = jc; initCp.k = kc;
+        bPtInit  = nSet(bPt);
+
+        // max distance checkpoint has to move to be to the closest fluid trilinear interpolation box
+        // restrict this to 3*ref length
+        PetscReal sumDel = 0.0;
+
+        while ( (intFlag == 1) && isInsideSimDomain(bPt, mesh->bounds) && (sumDel <= 3*cellSize))
         {
             PetscInt ibmCellCtr = 0;
             PetscInt icc, jcc, kcc;
@@ -1151,7 +1191,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
             for (PetscInt jj = 0; jj<2; jj++)
             for (PetscInt ii = 0; ii<2; ii++)
             {
-                if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
                 {
                     ibmCellCtr ++;
                 }
@@ -1164,6 +1204,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                 mSum(bPt, del);
                 dmin = 10e10;
 
+                sumDel += nMag(del);
+
                 for (k1=kc-1; k1<kc+2; k1++)
                 for (j1=jc-1; j1<jc+2; j1++)
                 for (i1=ic-1; i1<ic+2; i1++)
@@ -1175,7 +1217,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                             k1>=1 && k1<mz-1 &&
                             j1>=1 && j1<my-1 &&
                             i1>=1 && i1<mx-1
-                        ) && isFluidCell(k1, j1, i1, nvert)
+                        ) && (!isIBMSolidCell(k1, j1, i1, nvert))
                     )
                     {
                         d = pow((bPt.x - cent[k1][j1][i1].x), 2) +
@@ -1211,31 +1253,57 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
             {
                 intFlag = 0;
 
-                // trilinear interpolate the velocity at this point
-                vectorPointLocalVolumeInterpolation
-                (
-                        mesh,
-                        bPt.x, bPt.y, bPt.z,
-                        ic, jc, kc,
-                        cent,
-                        lucat,
-                        bPtVel
-                );
+                //ensure that the trilinear interpolation cells are within the processor ghost bounds
+                //if not set interpolation flag to 2 and dont interpolate
 
-                if (flags->isTeqnActive)
+                if      ( (intId[0] < lzs-3) || (intId[0] > lze+2) ) intFlag = 2;
+                else if ( (intId[1] < lzs-3) || (intId[1] > lze+2) ) intFlag = 2;
+                else if ( (intId[2] < lys-3) || (intId[2] > lye+2) ) intFlag = 2;
+                else if ( (intId[3] < lys-3) || (intId[3] > lye+2) ) intFlag = 2;
+                else if ( (intId[4] < lxs-3) || (intId[4] > lxe+2) ) intFlag = 2;
+                else if ( (intId[5] < lxs-3) || (intId[5] > lxe+2) ) intFlag = 2;
+
+                if(intFlag == 0)
                 {
-                    scalarPointLocalVolumeInterpolation
+                    // trilinear interpolate the velocity at this point
+                    vectorPointLocalVolumeInterpolation
                     (
                             mesh,
                             bPt.x, bPt.y, bPt.z,
                             ic, jc, kc,
                             cent,
-                            lt,
-                            bPtTemp
+                            lucat,
+                            bPtVel
                     );
+
+                    if (flags->isTeqnActive)
+                    {
+                        scalarPointLocalVolumeInterpolation
+                        (
+                                mesh,
+                                bPt.x, bPt.y, bPt.z,
+                                ic, jc, kc,
+                                cent,
+                                lt,
+                                bPtTemp
+                        );
+                    }
                 }
 
             }
+        }
+
+        // while loop fails
+        if(intFlag > 0)
+        {
+            bPtVel = nSet(lucat[initCp.k][initCp.j][initCp.i]);
+
+            if (flags->isTeqnActive)
+            {
+                bPtTemp = lt[initCp.k][initCp.j][initCp.i];
+            }
+
+            bPt = nSet(bPtInit);
         }
 
         // interpolate the velocity of the projected point on the IBM solid element from its nodes
@@ -1264,9 +1332,14 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          // ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
          // ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
 
-         wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
-         //wallFunctionPowerlaw(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, nf);
-
+         if (roughness > 1.e-12)
+         {
+             wallFunctionCabotRoughness(cst->nu, roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+         }
+         else
+         {
+             wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+         }
 
          if (flags->isTeqnActive)
          {
@@ -1879,6 +1952,9 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
         movingObject ++;
     }
 
+    //read body surface roughness
+    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(ibm->ibmBody[i]->roughness));
+
     // read the body base location
     readSubDictVector("./IBM/IBMProperties.dat", objectName, "baseLocation", &(ibm->ibmBody[i]->baseLocation));
 
@@ -1975,7 +2051,7 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 
             //element area
             ibMesh->eA[e] = normMag/2.0;
-	  
+
         }
 
         if(ibm->checkNormal)
@@ -2006,7 +2082,6 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
                     mScale(-1.0, ibMesh->eN[e]);
                     ibMesh->flipNormal[e] = 1;
                 }
-		PetscPrintf(PETSC_COMM_WORLD, "element id = %ld\n", e);
 
             }
 

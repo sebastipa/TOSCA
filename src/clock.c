@@ -273,10 +273,6 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         clock->dt = clock->endTime - clock->time;
     }
 
-    if (clock->dt < 1e-10)
-    {
-        clock->dt = clock->startDt;
-    }
     clock->time = clock->time + clock->dt;
 
     cfl = clock->dt * maxU / dx_min;

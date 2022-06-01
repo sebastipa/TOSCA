@@ -3353,7 +3353,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
     PetscInt         i, j, k;
 
-    Cmpnts           ***ucont, ***ucat, ***ucontold;
+    Cmpnts           ***ucont, ***ucat;
 
     Cmpnts           ***csi,  ***eta,  ***zet;
     Cmpnts           ***icsi, ***ieta, ***izet;
@@ -3382,7 +3382,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
 
     DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
-    DMDAVecGetArray(fda, ueqn->Ucont_o, &ucontold);
     DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecGetArray(fda, Rhs,  &rhs);
 
@@ -3578,19 +3577,19 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         if(ueqn->centralDiv)
                         {
                             // ucat is interpolated at the face
-                            div1[k][j][i].x = - 0.5 * (ucont[k][j][i].x + ucontold[k][j][i].x) *
+                            div1[k][j][i].x = - ucont[k][j][i].x *
                             central
                             (
                                 ucat[k][j][i].x, ucat[k][j][i+1].x
                             );
 
-                            div1[k][j][i].y = - 0.5 * (ucont[k][j][i].x + ucontold[k][j][i].x) *
+                            div1[k][j][i].y = - ucont[k][j][i].x *
                             central
                             (
                                 ucat[k][j][i].y, ucat[k][j][i+1].y
                             );
 
-                            div1[k][j][i].z = - 0.5 * (ucont[k][j][i].x + ucontold[k][j][i].x) *
+                            div1[k][j][i].z = - ucont[k][j][i].x *
                             central
                             (
                                 ucat[k][j][i].z, ucat[k][j][i+1].z
@@ -3881,20 +3880,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // second order divergence scheme
                         if(ueqn->centralDiv)
                         {
-                            div2[k][j][i].x = - 0.5 * (ucont[k][j][i].y + ucontold[k][j][i].y) *
+                            div2[k][j][i].x = - ucont[k][j][i].y *
                             central
                             (
                                 ucat[k][j][i].x, ucat[k][j+1][i].x
                             );
 
-                            div2[k][j][i].y = - 0.5 * (ucont[k][j][i].y + ucontold[k][j][i].y) *
+                            div2[k][j][i].y = - ucont[k][j][i].y  *
 
                             central
                             (
                                 ucat[k][j][i].y, ucat[k][j+1][i].y
                             );
 
-                            div2[k][j][i].z = - 0.5 * (ucont[k][j][i].y + ucontold[k][j][i].y) *
+                            div2[k][j][i].z = - ucont[k][j][i].y  *
                             central
                             (
                                 ucat[k][j][i].z, ucat[k][j+1][i].z
@@ -4186,19 +4185,19 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         if(ueqn->centralDiv)
                         {
                             // ucat is interpolated at the face
-                            div3[k][j][i].x = - 0.5 * (ucont[k][j][i].z + ucontold[k][j][i].z) *
+                            div3[k][j][i].x = - ucont[k][j][i].z  *
                             central
                             (
                                 ucat[k][j][i].x, ucat[k+1][j][i].x
                             );
 
-                            div3[k][j][i].y = - 0.5 * (ucont[k][j][i].z + ucontold[k][j][i].z) *
+                            div3[k][j][i].y = - ucont[k][j][i].z *
                             central
                             (
                                 ucat[k][j][i].y, ucat[k+1][j][i].y
                             );
 
-                            div3[k][j][i].z = - 0.5 * (ucont[k][j][i].z + ucontold[k][j][i].z) *
+                            div3[k][j][i].z = - ucont[k][j][i].z *
                             central
                             (
                                 ucat[k][j][i].z, ucat[k+1][j][i].z
@@ -4670,7 +4669,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, ueqn->lVisc3, &visc3);
 
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
-    DMDAVecRestoreArray(fda, ueqn->Ucont_o, &ucontold);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
 
@@ -4771,6 +4769,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     resetNonResolvedCellFaces(mesh, Rhs);
 
     // add time derivative term
+
     VecAXPY(Rhs, -1.0, Ucont);
     VecAXPY(Rhs,  1.0, ueqn->Ucont_o);
 

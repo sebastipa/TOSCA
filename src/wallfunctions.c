@@ -223,6 +223,12 @@ inline PetscReal near_wall_eddy_viscosity(PetscReal yplus)
     return kappa * yplus * pow(1. - exp(-yplus / 19.), 2.0);
 }
 
+inline PetscReal near_wall_eddy_viscosity(PetscReal yplus, PetscReal yp_shift)
+{
+    PetscReal   kappa = 0.41;
+	return kappa * (yplus+yp_shift) * pow ( 1. - exp( - (yplus+yp_shift) / 19.0 ) , 2.0 );
+};
+
 inline void pre_integrate
 (
     PetscInt     &n_yp,
@@ -328,8 +334,8 @@ inline PetscReal integrate_F(PetscReal nu, PetscReal utau, PetscReal yb)
     }
 
     PetscReal ydiff = yb_plus - ya_plus, dy = ydiff / (PetscReal) N;
-    std
-    ::vector<PetscReal> E(N+1);
+
+    std::vector<PetscReal> E(N+1);
     PetscReal ybegin = ya_plus;
 
     for (PetscInt i = 0; i <= N; i++)
@@ -352,9 +358,58 @@ inline PetscReal integrate_F(PetscReal nu, PetscReal utau, PetscReal yb)
     return val;
 }
 
+inline PetscReal integrate_F(PetscReal nu, PetscReal utau, PetscReal yb, PetscReal ks)
+{
+	PetscReal ks_plus = utau * ks / nu;
+  	PetscReal yp_shift = 0.9*(sqrt(ks_plus)-(ks_plus)*exp(-ks_plus/6.0));
+
+	if(yp_shift<0) yp_shift = 0;
+
+    PetscReal val = 0;
+
+    PetscInt     n_yp = 0;
+    PetscInt     interval_yp = 2;
+    PetscInt     max_yp = 1e7;
+
+	PetscReal ya_plus = 0 * utau / nu;
+	PetscReal yb_plus = yb * utau / nu;
+
+	int ib = (PetscInt) ( yb_plus / (PetscReal) interval_yp );
+	int N=10;
+	val=0;
+
+	PetscReal ydiff = yb_plus - ya_plus, dy = ydiff / (PetscReal)N;
+	std::vector<PetscReal> E(N+1);
+	PetscReal ybegin=ya_plus;
+
+	for(PetscInt i=0; i<=N; i++)
+    {
+		E[i] =  1./ ( 1. + near_wall_eddy_viscosity(ybegin + dy*i, yp_shift ) );
+	}
+
+	for(PetscInt i=0; i<N; i++)
+    {
+	    PetscReal F[4];
+	    F[0] = E[i];
+		F[1] = 1./ ( 1. + near_wall_eddy_viscosity(ybegin+dy*1./3., yp_shift) );
+		F[2] = 1./ ( 1. + near_wall_eddy_viscosity(ybegin+dy*2./3., yp_shift) );
+		F[3] = E[i+1];
+		val += dy / 3.* ( 3 * F[0] + 9 * F[1] + 9 * F[2] + 3 *F[3] ) / 8.;
+		ybegin += dy;
+	}
+
+	val /= utau;
+	return val;
+};
+
 inline PetscReal f_Cabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau, PetscReal dpdn)
 {
     return (utau * utau * integrate_F(nu, utau, y) - u);
+}
+
+inline PetscReal f_Cabot_roughness(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau, PetscReal dpdn, PetscReal ks)
+{
+	return utau * utau * integrate_F( nu, utau, y, ks ) - u;
 }
 
 inline PetscReal df_Cabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau, PetscReal dpdn)
@@ -368,9 +423,21 @@ inline PetscReal df_Cabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau
     ) / (2.0 * eps);
 }
 
-PetscReal u_Cabot(PetscReal nu, PetscReal y, PetscReal utau, PetscReal dpdn)
+inline PetscReal df_Cabot_roughness(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau, PetscReal dpdn, PetscReal ks)
+{
+	PetscReal eps=1.e-7;
+	return ( f_Cabot_roughness(nu, u, y, utau+eps, dpdn, ks) - f_Cabot_roughness (nu, u, y, utau-eps, dpdn, ks) ) / ( 2*eps ) ;
+}
+
+
+inline PetscReal u_Cabot(PetscReal nu, PetscReal y, PetscReal utau, PetscReal dpdn)
 {
     return utau * utau * integrate_F(nu, utau, y); // + dpdn * integrate_Fy( nu, utau, 0, y );
+}
+
+inline PetscReal u_Cabot_roughness(PetscReal nu, PetscReal y, PetscReal utau, PetscReal dpdn, PetscReal ks)
+{
+  return utau * utau * integrate_F( nu, utau, y, ks );// + dpdn * integrate_Fy( nu, utau, 0, y );
 }
 
 PetscReal uTauCabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal guess, PetscReal dpdn)
@@ -397,6 +464,28 @@ PetscReal uTauCabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal guess, Pet
     return x;
 }
 
+PetscReal uTauCabotRoughness(PetscReal nu, PetscReal u, PetscReal y, PetscReal guess, PetscReal dpdn, PetscReal ks)
+{
+	PetscReal x, x0=guess;
+
+	int i;
+
+	for(i=0; i<30; i++) {
+		x = x0 - f_Cabot_roughness(nu, u, y, x0, dpdn, ks)/df_Cabot_roughness(nu, u, y, x0, dpdn, ks);
+		if( fabs(x0 - x) < 1.e-10) break;
+		x0 = x;
+	}
+
+	if( fabs(x0 - x) > 1.e-5 && i>=29 )
+    {
+        char wrngMsg[256];
+        sprintf(wrngMsg, "Cabot newton iteration failed\n");
+        warningInFunction("uTauCabotRoughness", wrngMsg);
+    }
+	return x;
+};
+
+
 PetscReal utau_wf(PetscReal nu, PetscReal ks, PetscReal sb, PetscReal Ut_mag)
 {
     PetscReal _ks = ks * 0.033;
@@ -419,16 +508,16 @@ void wallFunctionCabot(PetscReal nu, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpn
         Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
 {
 
-    double u_c = Uc.x - Ua.x, v_c = Uc.y - Ua.y, w_c = Uc.z - Ua.z;
-    double un = u_c * nf.x + v_c * nf.y + w_c * nf.z;
-    double ut = u_c - un * nf.x, vt = v_c - un * nf.y, wt = w_c - un * nf.z;
-    double ut_mag = sqrt(ut * ut + vt * vt + wt * wt);
-    double ut_mag_modeled;
+    PetscReal u_c = Uc.x - Ua.x, v_c = Uc.y - Ua.y, w_c = Uc.z - Ua.z;
+    PetscReal un = u_c * nf.x + v_c * nf.y + w_c * nf.z;
+    PetscReal ut = u_c - un * nf.x, vt = v_c - un * nf.y, wt = w_c - un * nf.z;
+    PetscReal ut_mag = sqrt(ut * ut + vt * vt + wt * wt);
+    PetscReal ut_mag_modeled;
 
     *ustar = uTauCabot(nu, ut_mag, sc, 0.01, 0);
     ut_mag_modeled = u_Cabot(nu, sb, *ustar, 0);
 
-    double Ua_abs = sqrt(Ua.x * Ua.x + Ua.y * Ua.y + Ua.z * Ua.z);
+    PetscReal Ua_abs = sqrt(Ua.x * Ua.x + Ua.y * Ua.y + Ua.z * Ua.z);
 
     if (ut_mag > 1.e-10) {
         ut *= ut_mag_modeled / ut_mag;
@@ -448,6 +537,36 @@ void wallFunctionCabot(PetscReal nu, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpn
     (*Ub).x += Ua.x;
     (*Ub).y += Ua.y;
     (*Ub).z += Ua.z;
+
+    return;
+}
+
+void wallFunctionCabotRoughness(PetscReal nu, PetscReal ks, PetscReal sc, PetscReal sb,
+    Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
+{
+    PetscReal u_c = Uc.x - Ua.x, v_c = Uc.y - Ua.y, w_c = Uc.z - Ua.z;
+    PetscReal un = u_c * nf.x + v_c * nf.y + w_c * nf.z;
+    PetscReal ut = u_c - un * nf.x, vt = v_c - un * nf.y, wt = w_c - un * nf.z;
+    PetscReal ut_mag = sqrt(ut * ut + vt * vt + wt * wt);
+
+	*ustar = uTauCabotRoughness(nu, ut_mag, sc, 0.01, 0, ks);
+	PetscReal ut_mag_modeled = u_Cabot_roughness(nu, sb, *ustar, 0, ks);
+
+	if(ut_mag>1.e-10) {
+		ut *= ut_mag_modeled/ut_mag;
+		vt *= ut_mag_modeled/ut_mag;
+		wt *= ut_mag_modeled/ut_mag;
+	}
+	else ut=vt=wt=0;
+
+	// u = ut + (u.n)n
+    (*Ub).x = ut + sb / sc * un * nf.x;
+    (*Ub).y = vt + sb / sc * un * nf.y;
+    (*Ub).z = wt + sb / sc * un * nf.z;
+
+	(*Ub).x += Ua.x;
+	(*Ub).y += Ua.y;
+	(*Ub).z += Ua.z;
 
     return;
 }

@@ -85,6 +85,8 @@ typedef struct
 
     PetscReal     searchCellRatio;
 
+    PetscReal     roughness;
+
     boundingBox   *bound;
 
     list          *searchCellList;

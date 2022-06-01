@@ -21,7 +21,7 @@ struct io_
     PetscReal phAvgPrd;                       //!< sampling period in seconds
     PetscReal phAvgStartTime;                 //!< start time of phase averaging procedure
     PetscInt  keBudgets;                      //!< compute kinetic energy budget terms
- 
+
     PetscInt  avgWeight;                      //!< number of average snapshots (cumulated at runtime)
     PetscInt  pAvgWeight;                     //!< number of phase average snapshots (cumulated at runtime)
     PetscInt  keAvgWeight;                    //!< number of keBudget average snapshots (cumulated at runtime)
@@ -80,6 +80,8 @@ void remove_subdirs_except2(MPI_Comm comm, const char *path2dir, const word name
 //! \brief Removes all subdirectory of a given directory except the 3 names provided
 void remove_subdirs_except3(MPI_Comm comm, const char *path2dir, const word name1, const word name2, const word name3);
 
+//! \brief Removes all subdirectory of a given directory except the 3 names provided
+void remove_subdirs_except4(MPI_Comm comm, const char *path2dir, const word name1, const word name2, const word name3, const word name4);
 //! \brief Set write directory for a given mesh
 void SetWriteDir(mesh_ *mesh, const word str);
 
