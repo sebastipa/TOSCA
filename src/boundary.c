@@ -2474,8 +2474,6 @@ PetscErrorCode UpdatePhiBCs(peqn_ *peqn)
     return(0);
 }
 
-//***************************************************************************************************************//
-
 PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
 {
     mesh_         *mesh  = ueqn->access->mesh;

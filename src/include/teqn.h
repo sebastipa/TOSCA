@@ -20,6 +20,9 @@ struct teqn_
                   Tmprt_o, lTmprt_o;
     Vec           lDivT, lViscT;              //!< viscous and divergence temperature equation fluxes
 
+    Vec           lRhoK;                      //!< rhok / rho0 field
+    Vec           ghGradRhok;                 //!< buoyancy term for momentum equation
+
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscReal     relExitTol;                 //!< relative exit tolerance
 
@@ -30,6 +33,9 @@ struct teqn_
     wallModel     *iRWM;                      //!< wall model on the i-right patch
     wallModel     *jLWM;                      //!< wall model on the j-left patch
     wallModel     *jRWM;                      //!< wall model on the j-right patch
+
+    // t equation flags
+    PetscInt      pTildeFormulation;          //!< buoyancy term is expressed as gradient in momentum
 
     // initial field
     word          initFieldType;
@@ -49,6 +55,9 @@ PetscErrorCode SolveTEqn(teqn_ *teqn);
 
 //! \brief SNES evaulation function
 PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr);
+
+//! \brief Computes g*h times gradient of rho_k / rho_0
+PetscErrorCode ghGradRhoK(teqn_ *teqn);
 
 //! \brief Apply fringe region damping
 PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);

@@ -2265,7 +2265,7 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
                         // kinetic to potential energy conversion average (on LHS)
                         if(flags->isAblActive && flags->isTeqnActive)
                         {
-                            ptheta[k][j][i] = m1 * ptheta[k][j][i] - m2 * (gMag / thetaRef * W * (2.0*thetaRef - t[k][j][i]));
+                            ptheta[k][j][i] = m1 * ptheta[k][j][i] - m2 * (gMag / thetaRef * W * (thetaRef - t[k][j][i]));
                         }
 
                         // wind farm power average (on LHS)
@@ -3287,9 +3287,9 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
                         {
                             ptheta[k][j][i] = m1 * ptheta[k][j][i] - m2 *
                             (
-                                vm[k][j][i].x * csi[k][j][i].z * (gMag / thetaRef * (2.0*thetaRef - t[k][j][i])) +
-                                vm[k][j][i].y * eta[k][j][i].z * (gMag / thetaRef * (2.0*thetaRef - t[k][j][i])) +
-                                vm[k][j][i].z * zet[k][j][i].z * (gMag / thetaRef * (2.0*thetaRef - t[k][j][i]))
+                                vm[k][j][i].x * csi[k][j][i].z * (gMag / thetaRef * (thetaRef - t[k][j][i])) +
+                                vm[k][j][i].y * eta[k][j][i].z * (gMag / thetaRef * (thetaRef - t[k][j][i])) +
+                                vm[k][j][i].z * zet[k][j][i].z * (gMag / thetaRef * (thetaRef - t[k][j][i]))
                             );
                         }
 

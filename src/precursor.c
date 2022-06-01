@@ -608,6 +608,11 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         {
             VecCopy(domain->teqn->Tmprt, domain->teqn->Tmprt_o);
             UpdateWallModelsT(domain->teqn);
+
+            if(domain->teqn->pTildeFormulation)
+            {
+                ghGradRhoK(domain->teqn);
+            }
         }
 
         if(domain->ueqn->centralUpwindDiv || domain->flags.isTeqnActive)

@@ -27,6 +27,13 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         // set pointer to mesh
         mesh_ *mesh = teqn->access->mesh;
 
+        // input file
+        PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
+
+        // initialize p-tilde formulation of momentum equation
+        teqn->pTildeFormulation = 0;
+        PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-pTildeBuoyancy", &(teqn->pTildeFormulation),   PETSC_NULL);
+
         VecDuplicate(mesh->Nvert, &(teqn->TmprtTmp));    VecSet(teqn->TmprtTmp, 0.0);
         VecDuplicate(mesh->Nvert, &(teqn->Tmprt));       VecSet(teqn->Tmprt,    0.0);
         VecDuplicate(mesh->Nvert, &(teqn->Tmprt_o));     VecSet(teqn->Tmprt_o,  0.0);
@@ -37,6 +44,12 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
 
         VecDuplicate(mesh->lCent, &(teqn->lDivT));       VecSet(teqn->lDivT,    0.0);
         VecDuplicate(mesh->lCent, &(teqn->lViscT));      VecSet(teqn->lViscT,   0.0);
+
+        if(teqn->pTildeFormulation)
+        {
+            VecDuplicate(mesh->lAj,   &(teqn->lRhoK));       VecSet(teqn->lRhoK,   0.0);
+            VecDuplicate(mesh->Cent,  &(teqn->ghGradRhok));  VecSet(teqn->ghGradRhok,   0.0);
+        }
 
         // read time discretization scheme
         readDictWord("control.dat", "-dTdtScheme", &(teqn->ddtScheme));
@@ -50,9 +63,6 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
             // default parameters
             teqn->absExitTol        = 1e-5;
             teqn->relExitTol        = 1e-30;
-
-            // input file
-            PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
             PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolT",  &(teqn->absExitTol), PETSC_NULL);
             PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolT",  &(teqn->relExitTol), PETSC_NULL);
@@ -119,6 +129,375 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
     }
 
     return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode ghGradRhoK(teqn_ *teqn)
+{
+    mesh_         *mesh = teqn->access->mesh;
+    ueqn_         *ueqn = teqn->access->ueqn;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***icsi, ***ieta, ***izet,
+                  ***jcsi, ***jeta, ***jzet,
+                  ***kcsi, ***keta, ***kzet,
+                  ***coor, ***db;
+    Vec           Coor;
+
+    PetscReal     ***tmprt, ***rhok, ***nvert, ***ocode;
+
+    PetscReal     ***iaj, ***jaj, ***kaj;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    const PetscReal  g = -9.81, tRef = ueqn->access->abl->tRef;;
+
+    PetscReal     dbdc, dbde, dbdz;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMGetCoordinatesLocal(da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
+
+    DMDAVecGetArray(fda, mesh->lICsi, &icsi);
+    DMDAVecGetArray(fda, mesh->lIEta, &ieta);
+    DMDAVecGetArray(fda, mesh->lIZet, &izet);
+    DMDAVecGetArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+    DMDAVecGetArray(fda, mesh->lJZet, &jzet);
+    DMDAVecGetArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecGetArray(fda, mesh->lKEta, &keta);
+    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+    DMDAVecGetArray(da,  mesh->lNvert,&nvert);
+    DMDAVecGetArray(da,  mesh->lIAj,  &iaj);
+    DMDAVecGetArray(da,  mesh->lJAj,  &jaj);
+    DMDAVecGetArray(da,  mesh->lKAj,  &kaj);
+
+    DMDAVecGetArray(da,  teqn->lTmprt, &tmprt);
+    DMDAVecGetArray(fda, teqn->ghGradRhok,  &db);
+
+    VecSet(teqn->lRhoK, 0.0);
+    DMDAVecGetArray(da, teqn->lRhoK,  &rhok);
+
+    // create the field ghrhok = (rhok/rho)
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                rhok[k][j][i]
+                =
+                (2* tRef - tmprt[k][j][i]) / tRef;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, teqn->lRhoK,  &rhok);
+
+    // scatter Phi from global to local
+    DMLocalToLocalBegin(da, teqn->lRhoK, INSERT_VALUES, teqn->lRhoK);
+    DMLocalToLocalEnd(da, teqn->lRhoK, INSERT_VALUES, teqn->lRhoK);
+
+    DMDAVecGetArray(da, teqn->lRhoK,  &rhok);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                PetscReal g11_i = (icsi[k][j][i].x * icsi[k][j][i].x + icsi[k][j][i].y * icsi[k][j][i].y + icsi[k][j][i].z * icsi[k][j][i].z);
+                PetscReal g12_i = (ieta[k][j][i].x * icsi[k][j][i].x + ieta[k][j][i].y * icsi[k][j][i].y + ieta[k][j][i].z * icsi[k][j][i].z);
+                PetscReal g13_i = (izet[k][j][i].x * icsi[k][j][i].x + izet[k][j][i].y * icsi[k][j][i].y + izet[k][j][i].z * icsi[k][j][i].z);
+                PetscReal g21_j = (jcsi[k][j][i].x * jeta[k][j][i].x + jcsi[k][j][i].y * jeta[k][j][i].y + jcsi[k][j][i].z * jeta[k][j][i].z);
+                PetscReal g22_j = (jeta[k][j][i].x * jeta[k][j][i].x + jeta[k][j][i].y * jeta[k][j][i].y + jeta[k][j][i].z * jeta[k][j][i].z);
+                PetscReal g23_j = (jzet[k][j][i].x * jeta[k][j][i].x + jzet[k][j][i].y * jeta[k][j][i].y + jzet[k][j][i].z * jeta[k][j][i].z);
+                PetscReal g31_k = (kcsi[k][j][i].x * kzet[k][j][i].x + kcsi[k][j][i].y * kzet[k][j][i].y + kcsi[k][j][i].z * kzet[k][j][i].z);
+                PetscReal g32_k = (keta[k][j][i].x * kzet[k][j][i].x + keta[k][j][i].y * kzet[k][j][i].y + keta[k][j][i].z * kzet[k][j][i].z);
+                PetscReal g33_k = (kzet[k][j][i].x * kzet[k][j][i].x + kzet[k][j][i].y * kzet[k][j][i].y + kzet[k][j][i].z * kzet[k][j][i].z);
+
+                // pressure gradient in the i-direction
+                if( i==mx-2 && mesh->ii_periodic)
+                {
+                    dbdc = rhok[k][j][mx+1] - rhok[k][j][i];
+                }
+                else
+                {
+                    dbdc = rhok[k][j][i+1] - rhok[k][j][i];
+                }
+
+                if
+                (
+                    // j-right boundary -> use upwind only at the corner faces
+                    (
+                        j==my-2 &&
+                        (
+                            i==mx-2
+                        )
+                    )
+                )
+                {
+                    dbde = (rhok[k][j  ][i  ] - rhok[k][j-1][i  ] + rhok[k][j  ][i+1] - rhok[k][j-1][i+1]) * 0.5;
+                }
+                else if
+                (
+                    // j-left boundary -> use upwind  only at the corner faces
+                    (
+                        j == 1 &&
+                        (
+                            i == mx - 2
+                        )
+                     )
+                )
+                {
+                    dbde = (rhok[k][j+1][i  ] - rhok[k][j  ][i  ] + rhok[k][j+1][i+1] - rhok[k][j  ][i+1]) * 0.5;
+                }
+                else
+                {
+                    dbde = (rhok[k][j+1][i] - rhok[k][j-1][i] + rhok[k][j+1][i+1] - rhok[k][j-1][i+1]) * 0.25;
+                }
+
+                if
+                (
+                    // k-right boundary -> use upwind  only at the corner faces
+                    (
+                        k == mz - 2 &&
+                        (
+                            i==mx-2
+                        )
+                    )
+                )
+                {
+                    dbdz = (rhok[k][j][i  ] - rhok[k-1][j][i  ] + rhok[k][j][i+1] - rhok[k-1][j][i+1]) * 0.5;
+                }
+                else if
+                (
+                    // k-left boundary  -> use upwind  only at the corner faces
+                    (
+                        k == 1 &&
+                        (
+                            i==mx-2
+                        )
+                    )
+                )
+                {
+                    dbdz = (rhok[k+1][j][i  ] - rhok[k][j][i  ] + rhok[k+1][j][i+1] - rhok[k][j][i+1]) * 0.5;
+                }
+                else
+                {
+                    dbdz = (rhok[k+1][j][i] - rhok[k-1][j][i] + rhok[k+1][j][i+1] - rhok[k-1][j][i+1]) * 0.25;
+                }
+
+                db[k][j][i].x = g * coor[k][j][i].z * (dbdc * g11_i + dbde *  g12_i + dbdz * g13_i ) * iaj[k][j][i];
+
+                // pressure gradient in the j-direction
+                if
+                (
+                    // i-right boundary -> use upwind  only at the corner faces
+                    (
+                        i == mx-2 &&
+                        (
+                            j==my-2
+                        )
+                    )
+                )
+                {
+                    dbdc = (rhok[k][j  ][i] - rhok[k][j  ][i-1] + rhok[k][j+1][i] - rhok[k][j+1][i-1]) * 0.5;
+                }
+                else if
+                (
+                    // i-left boundary -> use upwind  only at the corner faces
+                    (
+                        i == 1 &&
+                        (
+                            j==my-2
+                        )
+                    )
+                )
+                {
+                    dbdc = (rhok[k][j  ][i+1] - rhok[k][j  ][i] + rhok[k][j+1][i+1] - rhok[k][j+1][i]) * 0.5;
+                }
+                else
+                {
+                    dbdc = (rhok[k][j  ][i+1] - rhok[k][j  ][i-1] + rhok[k][j+1][i+1] - rhok[k][j+1][i-1]) * 0.25;
+                }
+
+                if( j==my-2 && mesh->jj_periodic)
+                {
+                    dbde = rhok[k][my+1][i] - rhok[k][j][i];
+                }
+                else
+                {
+                    dbde = rhok[k][j+1][i] - rhok[k][j][i];
+                }
+
+                if
+                (
+                    // k-right boundary -> use upwind  only at the corner faces
+                    (
+                        k == mz-2 &&
+                        (
+                            j== my-2
+                        )
+                    )
+                )
+                {
+                    dbdz = (rhok[k][j  ][i] - rhok[k-1][j  ][i] + rhok[k][j+1][i] - rhok[k-1][j+1][i]) * 0.5;
+                }
+                else if
+                (
+                    // k-left boundary -> use upwind  only at the corner faces
+                    (
+                        k == 1 &&
+                        (
+                            j== my-2
+                        )
+                    )
+                )
+                {
+                    dbdz = (rhok[k+1][j  ][i] - rhok[k][j  ][i] + rhok[k+1][j+1][i] - rhok[k][j+1][i]) * 0.5;
+                }
+                else
+                {
+                    dbdz = (rhok[k+1][j  ][i] - rhok[k-1][j  ][i] + rhok[k+1][j+1][i] - rhok[k-1][j+1][i]) * 0.25;
+                }
+
+                db[k][j][i].y = g * coor[k][j][i].z * (dbdc * g21_j + dbde * g22_j + dbdz * g23_j ) * jaj[k][j][i];
+
+                // pressure gradient in the k-direction
+                if
+                (
+                    // i-right boundary -> use upwind  only at the corner faces
+                    (
+                        i == mx - 2 &&
+                        (
+                            k==mz-2
+                        )
+                    )
+                )
+                {
+                    dbdc = (rhok[k  ][j][i] - rhok[k  ][j][i-1] + rhok[k+1][j][i] - rhok[k+1][j][i-1]) * 0.5;
+                }
+                else if
+                (
+                    // i-left boundary -> use upwind  only at the corner faces
+                    (
+                        i == 1 &&
+                        (
+                            k == mz - 2
+                        )
+                    )
+                )
+                {
+                    dbdc = (rhok[k  ][j][i+1] - rhok[k  ][j][i] + rhok[k+1][j][i+1] - rhok[k+1][j][i]) * 0.5;
+                }
+                else
+                {
+                    dbdc = (rhok[k  ][j][i+1] - rhok[k  ][j][i-1] + rhok[k+1][j][i+1] - rhok[k+1][j][i-1]) * 0.25;
+                }
+
+                if
+                (
+                    // j-right boundary -> use upwind  only at the corner faces
+                    (
+                        j == my - 2 &&
+                        (
+                            k==mz-2
+                        )
+                    )
+                )
+                {
+                    dbde = (rhok[k  ][j][i] - rhok[k  ][j-1][i] + rhok[k+1][j][i] - rhok[k+1][j-1][i]) * 0.5;
+                }
+                else if
+                (
+                    // j-left boundary -> use upwind  only at the corner faces
+                    (
+                        j == 1 &&
+                        (
+                            k==mz-2
+                        )
+                    )
+                )
+                {
+                    dbde = (rhok[k  ][j+1][i] - rhok[k  ][j][i] + rhok[k+1][j+1][i] - rhok[k+1][j][i]) * 0.5;
+                }
+                else
+                {
+                    dbde = (rhok[k  ][j+1][i] - rhok[k  ][j-1][i] + rhok[k+1][j+1][i] - rhok[k+1][j-1][i]) * 0.25;
+                }
+
+                if( k==mz-2 && mesh->kk_periodic)
+                {
+                    dbdz = rhok[mz+1][j][i] - rhok[k][j][i];
+                }
+                else
+                {
+                    dbdz = (rhok[k+1][j][i] - rhok[k][j][i]);
+                }
+
+                db[k][j][i].z = g * coor[k][j][i].z * (dbdc * g31_k + dbde * g32_k + dbdz * g33_k ) * kaj[k][j][i];
+
+                // periodic: set to zero only on left boundaries since the contrav. velocity is not solved there
+                // non-periodic: set to zero also on right boundaries since the contrav. velocity is not solved there
+                if
+                (
+                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2)
+                )
+                {
+                    db[k][j][i].x = 0;
+                }
+                if
+                (
+                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2)
+                )
+                {
+                    db[k][j][i].y = 0;
+                }
+                if
+                (
+                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2)
+                )
+                {
+                    db[k][j][i].z = 0;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, teqn->lRhoK,  &rhok);
+
+    DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
+    DMDAVecRestoreArray(fda, mesh->lIEta, &ieta);
+    DMDAVecRestoreArray(fda, mesh->lIZet, &izet);
+    DMDAVecRestoreArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+    DMDAVecRestoreArray(fda, mesh->lJZet, &jzet);
+    DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
+    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+    DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
+    DMDAVecRestoreArray(da,  mesh->lIAj,  &iaj);
+    DMDAVecRestoreArray(da,  mesh->lJAj,  &jaj);
+    DMDAVecRestoreArray(da,  mesh->lKAj,  &kaj);
+
+    DMDAVecRestoreArray(da,  teqn->lTmprt,      &tmprt);
+    DMDAVecRestoreArray(fda, teqn->ghGradRhok,  &db);
+
+    DMDAVecRestoreArray(fda, Coor, &coor);
+
+    return(0);
+
 }
 
 //***************************************************************************************************************//

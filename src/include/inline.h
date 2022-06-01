@@ -2768,7 +2768,7 @@ inline PetscReal viscRayleigh(PetscReal &alpha, PetscReal &hS, PetscReal &hE, Pe
     {
         viscosity
         =
-        - 0.5 * alpha *
+        0.5 * alpha *
         (
             1 - std::cos
             (
@@ -2780,7 +2780,7 @@ inline PetscReal viscRayleigh(PetscReal &alpha, PetscReal &hS, PetscReal &hE, Pe
     {
         viscosity
         =
-        - 0.5 * alpha *
+        0.5 * alpha *
         (
             1 + (h_hat - 0.5)
         );

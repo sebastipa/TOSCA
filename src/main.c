@@ -65,6 +65,11 @@ int main(int argc, char **argv)
             {
                 VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
                 UpdateWallModelsT(domain[d].teqn);
+
+                if(domain[d].teqn->pTildeFormulation)
+                {
+                    ghGradRhoK(domain[d].teqn);
+                }
             }
 
             if(domain[d].ueqn->centralUpwindDiv || flags.isTeqnActive)

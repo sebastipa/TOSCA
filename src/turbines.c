@@ -1704,7 +1704,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         for (i1=i-2; i1<i+3; i1++)
                         {
                             // compute distance from mesh cell to AD point
-                            Cmpnts r_c = nSub(sample, cent[k][j][i]);
+                            Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
 
                             // compute magnitude
                             PetscReal r_c_mag = nMag(r_c);
@@ -1712,9 +1712,9 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                             if(r_c_mag < r_c_minMag)
                             {
                                 r_c_minMag = r_c_mag;
-                                closestCell.i = i;
-                                closestCell.j = j;
-                                closestCell.k = k;
+                                closestCell.i = i1;
+                                closestCell.j = j1;
+                                closestCell.k = k1;
                             }
                         }
 
@@ -1855,7 +1855,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         for (i1=i-2; i1<i+3; i1++)
                         {
                             // compute distance from mesh cell to AD point
-                            Cmpnts r_c = nSub(sample, cent[k][j][i]);
+                            Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
 
                             // compute magnitude
                             PetscReal r_c_mag = nMag(r_c);
@@ -1863,9 +1863,9 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                             if(r_c_mag < r_c_minMag)
                             {
                                 r_c_minMag = r_c_mag;
-                                closestCell.i = i;
-                                closestCell.j = j;
-                                closestCell.k = k;
+                                closestCell.i = i1;
+                                closestCell.j = j1;
+                                closestCell.k = k1;
                             }
                         }
 
@@ -2002,7 +2002,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         for (i1=i-2; i1<i+3; i1++)
                         {
                             // compute distance from mesh cell to AL point
-                            Cmpnts r_c = nSub(sample, cent[k][j][i]);
+                            Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
 
                             // compute magnitude
                             PetscReal r_c_mag = nMag(r_c);
@@ -2010,9 +2010,9 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                             if(r_c_mag < r_c_minMag)
                             {
                                 r_c_minMag = r_c_mag;
-                                closestCell.i = i;
-                                closestCell.j = j;
-                                closestCell.k = k;
+                                closestCell.i = i1;
+                                closestCell.j = j1;
+                                closestCell.k = k1;
                             }
                         }
 
@@ -2139,7 +2139,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                     for (i1=i-2; i1<i+3; i1++)
                     {
                         // compute distance from mesh cell to AF point
-                        Cmpnts r_c = nSub(sample, cent[k][j][i]);
+                        Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
 
                         // compute magnitude
                         PetscReal r_c_mag = nMag(r_c);
@@ -2147,9 +2147,9 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         if(r_c_mag < r_c_minMag)
                         {
                             r_c_minMag = r_c_mag;
-                            closestCell.i = i;
-                            closestCell.j = j;
-                            closestCell.k = k;
+                            closestCell.i = i1;
+                            closestCell.j = j1;
+                            closestCell.k = k1;
                         }
                     }
 
@@ -2265,7 +2265,7 @@ PetscErrorCode computeWindVectorsTower(farm_ *farm)
                         for (i1=i-2; i1<i+3; i1++)
                         {
                             // compute distance from mesh cell to AD point
-                            Cmpnts r_c = nSub(sample, cent[k][j][i]);
+                            Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
 
                             // compute magnitude
                             PetscReal r_c_mag = nMag(r_c);
@@ -2273,9 +2273,9 @@ PetscErrorCode computeWindVectorsTower(farm_ *farm)
                             if(r_c_mag < r_c_minMag)
                             {
                                 r_c_minMag = r_c_mag;
-                                closestCell.i = i;
-                                closestCell.j = j;
-                                closestCell.k = k;
+                                closestCell.i = i1;
+                                closestCell.j = j1;
+                                closestCell.k = k1;
                             }
                         }
 
@@ -2411,7 +2411,7 @@ PetscErrorCode computeWindVectorsSample(farm_ *farm)
                     for (i1=i-2; i1<i+3; i1++)
                     {
                         // compute distance from mesh cell to AD point
-                        Cmpnts r_c = nSub(sample, cent[k][j][i]);
+                        Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
 
                         // compute magnitude
                         PetscReal r_c_mag = nMag(r_c);
@@ -2419,9 +2419,9 @@ PetscErrorCode computeWindVectorsSample(farm_ *farm)
                         if(r_c_mag < r_c_minMag)
                         {
                             r_c_minMag = r_c_mag;
-                            closestCell.i = i;
-                            closestCell.j = j;
-                            closestCell.k = k;
+                            closestCell.i = i1;
+                            closestCell.j = j1;
+                            closestCell.k = k1;
                         }
                     }
 

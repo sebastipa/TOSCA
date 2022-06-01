@@ -1963,7 +1963,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale *
                     (
                         gcont[k][j][i].x *
-                        (2* tRef - tempI) / tRef
+                        (tRef - tempI) / tRef
                     );
                 }
 
@@ -1978,7 +1978,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale *
                     (
                         gcont[k][j][i].y *
-                        (2* tRef - tempJ) / tRef
+                        (tRef - tempJ) / tRef
                     );
                 }
 
@@ -1993,7 +1993,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale *
                     (
                         gcont[k][j][i].z *
-                        (2* tRef - tempK) / tRef
+                        (tRef - tempK) / tRef
                     );
                 }
 
@@ -3886,14 +3886,14 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                                 ucat[k][j][i].x, ucat[k][j+1][i].x
                             );
 
-                            div2[k][j][i].y = - ucont[k][j][i].y  *
+                            div2[k][j][i].y = - ucont[k][j][i].y *
 
                             central
                             (
                                 ucat[k][j][i].y, ucat[k][j+1][i].y
                             );
 
-                            div2[k][j][i].z = - ucont[k][j][i].y  *
+                            div2[k][j][i].z = - ucont[k][j][i].y *
                             central
                             (
                                 ucat[k][j][i].z, ucat[k][j+1][i].z
@@ -4185,7 +4185,11 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         if(ueqn->centralDiv)
                         {
                             // ucat is interpolated at the face
+<<<<<<< HEAD
                             div3[k][j][i].x = - ucont[k][j][i].z  *
+=======
+                            div3[k][j][i].x = - ucont[k][j][i].z *
+>>>>>>> fixed bug in rayleigh damping, added pTilde buoyancy formulation, added hydrostatic assumption
                             central
                             (
                                 ucat[k][j][i].x, ucat[k+1][j][i].x
@@ -4727,7 +4731,17 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
 
     if(ueqn->access->flags->isTeqnActive)
     {
-        Buoyancy(ueqn, Rhs, 1.0);
+        teqn_ *teqn = ueqn->access->teqn;
+
+        // add buoyancy gradient term
+        if(teqn->pTildeFormulation)
+        {
+            VecAXPY(Rhs, -1.0, teqn->ghGradRhok);
+        }
+        else
+        {
+            Buoyancy(ueqn, Rhs, 1.0);
+        }
     }
 
     // add viscous and transport terms
@@ -4818,7 +4832,17 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
 
     if(ueqn->access->flags->isTeqnActive)
     {
-        Buoyancy(ueqn, ueqn->Rhs, 1.0);
+        teqn_ *teqn = ueqn->access->teqn;
+
+        // add buoyancy gradient term
+        if(teqn->pTildeFormulation)
+        {
+            VecAXPY(ueqn->Rhs, -1.0, teqn->ghGradRhok);
+        }
+        else
+        {
+            Buoyancy(ueqn, ueqn->Rhs, 1.0);
+        }
     }
 
     // add viscous and transport terms
