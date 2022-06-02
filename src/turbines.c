@@ -2279,7 +2279,7 @@ PetscErrorCode computeWindVectorsTower(farm_ *farm)
                             }
                         }
 
-                        // make sure not to interpolate from ghost (tower usually next to boundaries)
+                        // make sure not to interpolate from ghost: tower is usually next to boundaries
                         PetscInt flag = 0;
                         if(closestCell.i < 2)    {closestCell.i = 2;    flag += 1;}
                         if(closestCell.j < 2)    {closestCell.j = 2;    flag += 1;}

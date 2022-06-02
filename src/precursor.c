@@ -658,7 +658,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
     flags_     *flags     = domain->access.flags;
 
     if(precursor->thisProcessorInFringe)
-    {
+    {   
         setRunTimeWrite(domain);
 
         // set initial field

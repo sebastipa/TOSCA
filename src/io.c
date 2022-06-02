@@ -106,6 +106,7 @@ PetscErrorCode RereadIO(domain_ *domain)
 
     for(PetscInt d=0; d < nDomains; d++)
     {
+        flags_         *flags = &(domain[d].flags);
         mesh_          *mesh  = domain[d].mesh;
         io_            *io = domain[d].io;
         PetscMPIInt     rank, nProcs;
@@ -116,26 +117,40 @@ PetscErrorCode RereadIO(domain_ *domain)
 
         if(controlFileDataNow !=  io->lastModification)
         {
-            PetscPrintf(PETSC_COMM_WORLD, "\n   RereadIO::re-reading control.dat file...");
+            PetscPrintf(PETSC_COMM_WORLD, "\n   RereadIO::re-reading control.dat file for domain %ld...",d);
 
-            MPI_Comm_rank(mesh->MESH_COMM, &rank);
-            MPI_Comm_size(mesh->MESH_COMM, &nProcs);
+            UpdateInput(io, controlFileDataNow);
 
-            PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
-
-            // read writing settings (mandatory entries)
-            readDictWord  ("control.dat", "-intervalType", &(io->intervalType));
-            readDictDouble("control.dat", "-timeInterval", &(io->timeInterval));
-
-            // read purge write (optional)
-            io->purgeWrite     = 0;
-            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-purgeWrite", &(io->purgeWrite), PETSC_NULL);
+            // re-read precursor if applicable
+            if(io->access->flags->isXDampingActive)
+            if(io->access->abl->xFringeUBarSelectionType == 3)
+            if(io->access->abl->precursor->thisProcessorInFringe)
+            UpdateInput(io->access->abl->precursor->domain->io, controlFileDataNow);
 
             PetscPrintf(PETSC_COMM_WORLD, "done\n\n");
-
-            io->lastModification = controlFileDataNow;
         }
     }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode UpdateInput(io_ *io, word &modified)
+{
+    mesh_ *mesh = io->access->mesh;
+
+    PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
+
+    // read writing settings (mandatory entries)
+    readDictWord  ("control.dat", "-intervalType", &(io->intervalType));
+    readDictDouble("control.dat", "-timeInterval", &(io->timeInterval));
+
+    // read purge write (optional)
+    io->purgeWrite     = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-purgeWrite", &(io->purgeWrite), PETSC_NULL);
+
+    io->lastModification = modified;
 
     return(0);
 }

@@ -95,6 +95,9 @@ PetscErrorCode InitializeIO(io_ *io);
 //! \brief Re-read IO write parameters
 PetscErrorCode RereadIO(domain_ *domain);
 
+//! \brief Called by RereadIO, triggers updates in each domain
+PetscErrorCode UpdateInput(io_ *io, word &modified);
+
 //! \brief read and save the different fields stored in the fields/meshName/time folder
 PetscErrorCode readFields(domain_ *domain, PetscReal timeValue);
 
