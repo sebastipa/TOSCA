@@ -2961,10 +2961,13 @@ inline void scalarPointLocalVolumeInterpolation
     // the value there is returned (Prevents extrapolation ouside of boundaries).
 
     DMDALocalInfo    info = mesh->info;
-    PetscInt         xs = info.xs, xe = info.xs + info.xm;
-    PetscInt         ys = info.ys, ye = info.ys + info.ym;
-    PetscInt         zs = info.zs, ze = info.zs + info.zm;
-    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+    PetscInt         xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx   = info.mx, my = info.my, mz = info.mz;
+    PetscInt         gxs  = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt         gys  = info.gys, gye = info.gys + info.gym;
+    PetscInt         gzs  = info.gzs, gze = info.gzs + info.gzm;
 
     PetscInt         i, j, k;
 
@@ -2972,26 +2975,38 @@ inline void scalarPointLocalVolumeInterpolation
     // do the search if surrounded by cells
     if(ic > 1 && ic < mx-2)
     {
-        PetscReal dcsiRightSq
-        =
-        std::pow(cent[kc][jc][ic+1].x - px,2) +
-        std::pow(cent[kc][jc][ic+1].y - py,2) +
-        std::pow(cent[kc][jc][ic+1].z - pz,2);
-
-        PetscReal dcsiLeftSq
-        =
-        std::pow(px - cent[kc][jc][ic-1].x,2) +
-        std::pow(py - cent[kc][jc][ic-1].y,2) +
-        std::pow(pz - cent[kc][jc][ic-1].z,2);
-
-        if(dcsiRightSq <= dcsiLeftSq)
+        if (ic-1 < gxs)
         {
-            iR = ic + 1; iL = ic;
+            iL = ic; iR = ic + 1;
+        }
+        else if(ic+1 >= gxe)
+        {
+            iL = ic - 1; iR = ic;
         }
         else
         {
-            iR = ic; iL = ic-1;
+            PetscReal dcsiRightSq
+            =
+            std::pow(cent[kc][jc][ic+1].x - px,2) +
+            std::pow(cent[kc][jc][ic+1].y - py,2) +
+            std::pow(cent[kc][jc][ic+1].z - pz,2);
+
+            PetscReal dcsiLeftSq
+            =
+            std::pow(px - cent[kc][jc][ic-1].x,2) +
+            std::pow(py - cent[kc][jc][ic-1].y,2) +
+            std::pow(pz - cent[kc][jc][ic-1].z,2);
+
+            if(dcsiRightSq <= dcsiLeftSq)
+            {
+                iR = ic + 1; iL = ic;
+            }
+            else
+            {
+                iR = ic; iL = ic-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(ic == 1)
@@ -3015,26 +3030,39 @@ inline void scalarPointLocalVolumeInterpolation
     // do the search if surrounded by cells
     if(jc > 1 && jc < my-2)
     {
-        PetscReal detaRightSq
-        =
-        std::pow(cent[kc][jc+1][ic].x - px,2) +
-        std::pow(cent[kc][jc+1][ic].y - py,2) +
-        std::pow(cent[kc][jc+1][ic].z - pz,2);
-
-        PetscReal detaLeftSq
-        =
-        std::pow(px - cent[kc][jc-1][ic].x,2) +
-        std::pow(py - cent[kc][jc-1][ic].y,2) +
-        std::pow(pz - cent[kc][jc-1][ic].z,2);
-
-        if(detaRightSq <= detaLeftSq)
+        // check processor bounds
+        if (jc-1 < gys)
         {
-            jR = jc + 1; jL = jc;
+            jL = jc; jR = jc + 1;
+        }
+        else if(jc+1 >= gye)
+        {
+            jL = jc - 1; jR = jc;
         }
         else
         {
-            jR = jc; jL = jc-1;
+            PetscReal detaRightSq
+            =
+            std::pow(cent[kc][jc+1][ic].x - px,2) +
+            std::pow(cent[kc][jc+1][ic].y - py,2) +
+            std::pow(cent[kc][jc+1][ic].z - pz,2);
+
+            PetscReal detaLeftSq
+            =
+            std::pow(px - cent[kc][jc-1][ic].x,2) +
+            std::pow(py - cent[kc][jc-1][ic].y,2) +
+            std::pow(pz - cent[kc][jc-1][ic].z,2);
+
+            if(detaRightSq <= detaLeftSq)
+            {
+                jR = jc + 1; jL = jc;
+            }
+            else
+            {
+                jR = jc; jL = jc-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(jc == 1)
@@ -3058,26 +3086,39 @@ inline void scalarPointLocalVolumeInterpolation
     // do the search if surrounded by cells
     if(kc > 1 && kc < mz-2)
     {
-        PetscReal dzetRightSq
-        =
-        std::pow(cent[kc+1][jc][ic].x - px,2) +
-        std::pow(cent[kc+1][jc][ic].y - py,2) +
-        std::pow(cent[kc+1][jc][ic].z - pz,2);
-
-        PetscReal dzetLeftSq
-        =
-        std::pow(px - cent[kc-1][jc][ic].x,2) +
-        std::pow(py - cent[kc-1][jc][ic].y,2) +
-        std::pow(pz - cent[kc-1][jc][ic].z,2);
-
-        if(dzetRightSq <= dzetLeftSq)
+        // check processor bounds
+        if (kc-1 < gzs)
         {
-            kR = kc + 1; kL = kc;
+            kL = kc; kR = kc + 1;
+        }
+        else if(kc+1 >= gze)
+        {
+            kL = kc - 1; kR = kc;
         }
         else
         {
-            kR = kc; kL = kc-1;
+            PetscReal dzetRightSq
+            =
+            std::pow(cent[kc+1][jc][ic].x - px,2) +
+            std::pow(cent[kc+1][jc][ic].y - py,2) +
+            std::pow(cent[kc+1][jc][ic].z - pz,2);
+
+            PetscReal dzetLeftSq
+            =
+            std::pow(px - cent[kc-1][jc][ic].x,2) +
+            std::pow(py - cent[kc-1][jc][ic].y,2) +
+            std::pow(pz - cent[kc-1][jc][ic].z,2);
+
+            if(dzetRightSq <= dzetLeftSq)
+            {
+                kR = kc + 1; kL = kc;
+            }
+            else
+            {
+                kR = kc; kL = kc-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(kc == 1)
@@ -3245,10 +3286,13 @@ inline void PointInterpolationWeights
     // the value there is returned (Prevents extrapolation ouside of boundaries).
 
     DMDALocalInfo    info = mesh->info;
-    PetscInt         xs = info.xs, xe = info.xs + info.xm;
-    PetscInt         ys = info.ys, ye = info.ys + info.ym;
-    PetscInt         zs = info.zs, ze = info.zs + info.zm;
-    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+    PetscInt         xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx   = info.mx, my = info.my, mz = info.mz;
+    PetscInt         gxs  = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt         gys  = info.gys, gye = info.gys + info.gym;
+    PetscInt         gzs  = info.gzs, gze = info.gzs + info.gzm;
 
     PetscInt         i, j, k;
 
@@ -3257,26 +3301,38 @@ inline void PointInterpolationWeights
     // do the search if surrounded by cells
     if(ic > 1 && ic < mx-2)
     {
-        PetscReal dcsiRightSq
-        =
-        std::pow(cent[kc][jc][ic+1].x - px,2) +
-        std::pow(cent[kc][jc][ic+1].y - py,2) +
-        std::pow(cent[kc][jc][ic+1].z - pz,2);
-
-        PetscReal dcsiLeftSq
-        =
-        std::pow(px - cent[kc][jc][ic-1].x,2) +
-        std::pow(py - cent[kc][jc][ic-1].y,2) +
-        std::pow(pz - cent[kc][jc][ic-1].z,2);
-
-        if(dcsiRightSq <= dcsiLeftSq)
+        if (ic-1 < gxs)
         {
-            iR = ic + 1; iL = ic;
+            iL = ic; iR = ic + 1;
+        }
+        else if(ic+1 >= gxe)
+        {
+            iL = ic - 1; iR = ic;
         }
         else
         {
-            iR = ic; iL = ic-1;
+            PetscReal dcsiRightSq
+            =
+            std::pow(cent[kc][jc][ic+1].x - px,2) +
+            std::pow(cent[kc][jc][ic+1].y - py,2) +
+            std::pow(cent[kc][jc][ic+1].z - pz,2);
+
+            PetscReal dcsiLeftSq
+            =
+            std::pow(px - cent[kc][jc][ic-1].x,2) +
+            std::pow(py - cent[kc][jc][ic-1].y,2) +
+            std::pow(pz - cent[kc][jc][ic-1].z,2);
+
+            if(dcsiRightSq <= dcsiLeftSq)
+            {
+                iR = ic + 1; iL = ic;
+            }
+            else
+            {
+                iR = ic; iL = ic-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(ic == 1)
@@ -3300,26 +3356,39 @@ inline void PointInterpolationWeights
     // do the search if surrounded by cells
     if(jc > 1 && jc < my-2)
     {
-        PetscReal detaRightSq
-        =
-        std::pow(cent[kc][jc+1][ic].x - px,2) +
-        std::pow(cent[kc][jc+1][ic].y - py,2) +
-        std::pow(cent[kc][jc+1][ic].z - pz,2);
-
-        PetscReal detaLeftSq
-        =
-        std::pow(px - cent[kc][jc-1][ic].x,2) +
-        std::pow(py - cent[kc][jc-1][ic].y,2) +
-        std::pow(pz - cent[kc][jc-1][ic].z,2);
-
-        if(detaRightSq <= detaLeftSq)
+        // check processor bounds
+        if (jc-1 < gys)
         {
-            jR = jc + 1; jL = jc;
+            jL = jc; jR = jc + 1;
+        }
+        else if(jc+1 >= gye)
+        {
+            jL = jc - 1; jR = jc;
         }
         else
         {
-            jR = jc; jL = jc-1;
+            PetscReal detaRightSq
+            =
+            std::pow(cent[kc][jc+1][ic].x - px,2) +
+            std::pow(cent[kc][jc+1][ic].y - py,2) +
+            std::pow(cent[kc][jc+1][ic].z - pz,2);
+
+            PetscReal detaLeftSq
+            =
+            std::pow(px - cent[kc][jc-1][ic].x,2) +
+            std::pow(py - cent[kc][jc-1][ic].y,2) +
+            std::pow(pz - cent[kc][jc-1][ic].z,2);
+
+            if(detaRightSq <= detaLeftSq)
+            {
+                jR = jc + 1; jL = jc;
+            }
+            else
+            {
+                jR = jc; jL = jc-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(jc == 1)
@@ -3343,26 +3412,39 @@ inline void PointInterpolationWeights
     // do the search if surrounded by cells
     if(kc > 1 && kc < mz-2)
     {
-        PetscReal dzetRightSq
-        =
-        std::pow(cent[kc+1][jc][ic].x - px,2) +
-        std::pow(cent[kc+1][jc][ic].y - py,2) +
-        std::pow(cent[kc+1][jc][ic].z - pz,2);
-
-        PetscReal dzetLeftSq
-        =
-        std::pow(px - cent[kc-1][jc][ic].x,2) +
-        std::pow(py - cent[kc-1][jc][ic].y,2) +
-        std::pow(pz - cent[kc-1][jc][ic].z,2);
-
-        if(dzetRightSq <= dzetLeftSq)
+        // check processor bounds
+        if (kc-1 < gzs)
         {
-            kR = kc + 1; kL = kc;
+            kL = kc; kR = kc + 1;
+        }
+        else if(kc+1 >= gze)
+        {
+            kL = kc - 1; kR = kc;
         }
         else
         {
-            kR = kc; kL = kc-1;
+            PetscReal dzetRightSq
+            =
+            std::pow(cent[kc+1][jc][ic].x - px,2) +
+            std::pow(cent[kc+1][jc][ic].y - py,2) +
+            std::pow(cent[kc+1][jc][ic].z - pz,2);
+
+            PetscReal dzetLeftSq
+            =
+            std::pow(px - cent[kc-1][jc][ic].x,2) +
+            std::pow(py - cent[kc-1][jc][ic].y,2) +
+            std::pow(pz - cent[kc-1][jc][ic].z,2);
+
+            if(dzetRightSq <= dzetLeftSq)
+            {
+                kR = kc + 1; kL = kc;
+            }
+            else
+            {
+                kR = kc; kL = kc-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(kc == 1)
@@ -3516,37 +3598,53 @@ inline void PointInterpolationCells
     // the value there is returned (Prevents extrapolation ouside of boundaries).
 
     DMDALocalInfo    info = mesh->info;
-    PetscInt         xs = info.xs, xe = info.xs + info.xm;
-    PetscInt         ys = info.ys, ye = info.ys + info.ym;
-    PetscInt         zs = info.zs, ze = info.zs + info.zm;
-    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+    PetscInt         xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx   = info.mx, my = info.my, mz = info.mz;
+    PetscInt         gxs  = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt         gys  = info.gys, gye = info.gys + info.gym;
+    PetscInt         gzs  = info.gzs, gze = info.gzs + info.gzm;
 
     PetscInt         i, j, k;
 
     PetscInt iL, iR;
+
     // do the search if surrounded by cells
     if(ic > 1 && ic < mx-2)
     {
-        PetscReal dcsiRightSq
-        =
-        std::pow(cent[kc][jc][ic+1].x - px,2) +
-        std::pow(cent[kc][jc][ic+1].y - py,2) +
-        std::pow(cent[kc][jc][ic+1].z - pz,2);
-
-        PetscReal dcsiLeftSq
-        =
-        std::pow(px - cent[kc][jc][ic-1].x,2) +
-        std::pow(py - cent[kc][jc][ic-1].y,2) +
-        std::pow(pz - cent[kc][jc][ic-1].z,2);
-
-        if(dcsiRightSq <= dcsiLeftSq)
+        if (ic-1 < gxs)
         {
-            iR = ic + 1; iL = ic;
+            iL = ic; iR = ic + 1;
+        }
+        else if(ic+1 >= gxe)
+        {
+            iL = ic - 1; iR = ic;
         }
         else
         {
-            iR = ic; iL = ic-1;
+            PetscReal dcsiRightSq
+            =
+            std::pow(cent[kc][jc][ic+1].x - px,2) +
+            std::pow(cent[kc][jc][ic+1].y - py,2) +
+            std::pow(cent[kc][jc][ic+1].z - pz,2);
+
+            PetscReal dcsiLeftSq
+            =
+            std::pow(px - cent[kc][jc][ic-1].x,2) +
+            std::pow(py - cent[kc][jc][ic-1].y,2) +
+            std::pow(pz - cent[kc][jc][ic-1].z,2);
+
+            if(dcsiRightSq <= dcsiLeftSq)
+            {
+                iR = ic + 1; iL = ic;
+            }
+            else
+            {
+                iR = ic; iL = ic-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(ic == 1)
@@ -3570,26 +3668,39 @@ inline void PointInterpolationCells
     // do the search if surrounded by cells
     if(jc > 1 && jc < my-2)
     {
-        PetscReal detaRightSq
-        =
-        std::pow(cent[kc][jc+1][ic].x - px,2) +
-        std::pow(cent[kc][jc+1][ic].y - py,2) +
-        std::pow(cent[kc][jc+1][ic].z - pz,2);
-
-        PetscReal detaLeftSq
-        =
-        std::pow(px - cent[kc][jc-1][ic].x,2) +
-        std::pow(py - cent[kc][jc-1][ic].y,2) +
-        std::pow(pz - cent[kc][jc-1][ic].z,2);
-
-        if(detaRightSq <= detaLeftSq)
+        // check processor bounds
+        if (jc-1 < gys)
         {
-            jR = jc + 1; jL = jc;
+            jL = jc; jR = jc + 1;
+        }
+        else if(jc+1 >= gye)
+        {
+            jL = jc - 1; jR = jc;
         }
         else
         {
-            jR = jc; jL = jc-1;
+            PetscReal detaRightSq
+            =
+            std::pow(cent[kc][jc+1][ic].x - px,2) +
+            std::pow(cent[kc][jc+1][ic].y - py,2) +
+            std::pow(cent[kc][jc+1][ic].z - pz,2);
+
+            PetscReal detaLeftSq
+            =
+            std::pow(px - cent[kc][jc-1][ic].x,2) +
+            std::pow(py - cent[kc][jc-1][ic].y,2) +
+            std::pow(pz - cent[kc][jc-1][ic].z,2);
+
+            if(detaRightSq <= detaLeftSq)
+            {
+                jR = jc + 1; jL = jc;
+            }
+            else
+            {
+                jR = jc; jL = jc-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(jc == 1)
@@ -3613,26 +3724,39 @@ inline void PointInterpolationCells
     // do the search if surrounded by cells
     if(kc > 1 && kc < mz-2)
     {
-        PetscReal dzetRightSq
-        =
-        std::pow(cent[kc+1][jc][ic].x - px,2) +
-        std::pow(cent[kc+1][jc][ic].y - py,2) +
-        std::pow(cent[kc+1][jc][ic].z - pz,2);
-
-        PetscReal dzetLeftSq
-        =
-        std::pow(px - cent[kc-1][jc][ic].x,2) +
-        std::pow(py - cent[kc-1][jc][ic].y,2) +
-        std::pow(pz - cent[kc-1][jc][ic].z,2);
-
-        if(dzetRightSq <= dzetLeftSq)
+        // check processor bounds
+        if (kc-1 < gzs)
         {
-            kR = kc + 1; kL = kc;
+            kL = kc; kR = kc + 1;
+        }
+        else if(kc+1 >= gze)
+        {
+            kL = kc - 1; kR = kc;
         }
         else
         {
-            kR = kc; kL = kc-1;
+            PetscReal dzetRightSq
+            =
+            std::pow(cent[kc+1][jc][ic].x - px,2) +
+            std::pow(cent[kc+1][jc][ic].y - py,2) +
+            std::pow(cent[kc+1][jc][ic].z - pz,2);
+
+            PetscReal dzetLeftSq
+            =
+            std::pow(px - cent[kc-1][jc][ic].x,2) +
+            std::pow(py - cent[kc-1][jc][ic].y,2) +
+            std::pow(pz - cent[kc-1][jc][ic].z,2);
+
+            if(dzetRightSq <= dzetLeftSq)
+            {
+                kR = kc + 1; kL = kc;
+            }
+            else
+            {
+                kR = kc; kL = kc-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(kc == 1)
@@ -3684,10 +3808,13 @@ inline void vectorPointLocalVolumeInterpolation
     // the value there is returned (Prevents extrapolation ouside of boundaries).
 
     DMDALocalInfo    info = mesh->info;
-    PetscInt         xs = info.xs, xe = info.xs + info.xm;
-    PetscInt         ys = info.ys, ye = info.ys + info.ym;
-    PetscInt         zs = info.zs, ze = info.zs + info.zm;
-    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+    PetscInt         xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx   = info.mx, my = info.my, mz = info.mz;
+    PetscInt         gxs  = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt         gys  = info.gys, gye = info.gys + info.gym;
+    PetscInt         gzs  = info.gzs, gze = info.gzs + info.gzm;
 
     PetscInt         i, j, k;
 
@@ -3695,26 +3822,38 @@ inline void vectorPointLocalVolumeInterpolation
     // do the search if surrounded by cells
     if(ic > 1 && ic < mx-2)
     {
-        PetscReal dcsiRightSq
-        =
-        std::pow(cent[kc][jc][ic+1].x - px,2) +
-        std::pow(cent[kc][jc][ic+1].y - py,2) +
-        std::pow(cent[kc][jc][ic+1].z - pz,2);
-
-        PetscReal dcsiLeftSq
-        =
-        std::pow(px - cent[kc][jc][ic-1].x,2) +
-        std::pow(py - cent[kc][jc][ic-1].y,2) +
-        std::pow(pz - cent[kc][jc][ic-1].z,2);
-
-        if(dcsiRightSq <= dcsiLeftSq)
+        if (ic-1 < gxs)
         {
-            iR = ic + 1; iL = ic;
+            iL = ic; iR = ic + 1;
+        }
+        else if(ic+1 >= gxe)
+        {
+            iL = ic - 1; iR = ic;
         }
         else
         {
-            iR = ic; iL = ic-1;
+            PetscReal dcsiRightSq
+            =
+            std::pow(cent[kc][jc][ic+1].x - px,2) +
+            std::pow(cent[kc][jc][ic+1].y - py,2) +
+            std::pow(cent[kc][jc][ic+1].z - pz,2);
+
+            PetscReal dcsiLeftSq
+            =
+            std::pow(px - cent[kc][jc][ic-1].x,2) +
+            std::pow(py - cent[kc][jc][ic-1].y,2) +
+            std::pow(pz - cent[kc][jc][ic-1].z,2);
+
+            if(dcsiRightSq <= dcsiLeftSq)
+            {
+                iR = ic + 1; iL = ic;
+            }
+            else
+            {
+                iR = ic; iL = ic-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(ic == 1)
@@ -3738,26 +3877,39 @@ inline void vectorPointLocalVolumeInterpolation
     // do the search if surrounded by cells
     if(jc > 1 && jc < my-2)
     {
-        PetscReal detaRightSq
-        =
-        std::pow(cent[kc][jc+1][ic].x - px,2) +
-        std::pow(cent[kc][jc+1][ic].y - py,2) +
-        std::pow(cent[kc][jc+1][ic].z - pz,2);
-
-        PetscReal detaLeftSq
-        =
-        std::pow(px - cent[kc][jc-1][ic].x,2) +
-        std::pow(py - cent[kc][jc-1][ic].y,2) +
-        std::pow(pz - cent[kc][jc-1][ic].z,2);
-
-        if(detaRightSq <= detaLeftSq)
+        // check processor bounds
+        if (jc-1 < gys)
         {
-            jR = jc + 1; jL = jc;
+            jL = jc; jR = jc + 1;
+        }
+        else if(jc+1 >= gye)
+        {
+            jL = jc - 1; jR = jc;
         }
         else
         {
-            jR = jc; jL = jc-1;
+            PetscReal detaRightSq
+            =
+            std::pow(cent[kc][jc+1][ic].x - px,2) +
+            std::pow(cent[kc][jc+1][ic].y - py,2) +
+            std::pow(cent[kc][jc+1][ic].z - pz,2);
+
+            PetscReal detaLeftSq
+            =
+            std::pow(px - cent[kc][jc-1][ic].x,2) +
+            std::pow(py - cent[kc][jc-1][ic].y,2) +
+            std::pow(pz - cent[kc][jc-1][ic].z,2);
+
+            if(detaRightSq <= detaLeftSq)
+            {
+                jR = jc + 1; jL = jc;
+            }
+            else
+            {
+                jR = jc; jL = jc-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(jc == 1)
@@ -3781,26 +3933,39 @@ inline void vectorPointLocalVolumeInterpolation
     // do the search if surrounded by cells
     if(kc > 1 && kc < mz-2)
     {
-        PetscReal dzetRightSq
-        =
-        std::pow(cent[kc+1][jc][ic].x - px,2) +
-        std::pow(cent[kc+1][jc][ic].y - py,2) +
-        std::pow(cent[kc+1][jc][ic].z - pz,2);
-
-        PetscReal dzetLeftSq
-        =
-        std::pow(px - cent[kc-1][jc][ic].x,2) +
-        std::pow(py - cent[kc-1][jc][ic].y,2) +
-        std::pow(pz - cent[kc-1][jc][ic].z,2);
-
-        if(dzetRightSq <= dzetLeftSq)
+        // check processor bounds
+        if (kc-1 < gzs)
         {
-            kR = kc + 1; kL = kc;
+            kL = kc; kR = kc + 1;
+        }
+        else if(kc+1 >= gze)
+        {
+            kL = kc - 1; kR = kc;
         }
         else
         {
-            kR = kc; kL = kc-1;
+            PetscReal dzetRightSq
+            =
+            std::pow(cent[kc+1][jc][ic].x - px,2) +
+            std::pow(cent[kc+1][jc][ic].y - py,2) +
+            std::pow(cent[kc+1][jc][ic].z - pz,2);
+
+            PetscReal dzetLeftSq
+            =
+            std::pow(px - cent[kc-1][jc][ic].x,2) +
+            std::pow(py - cent[kc-1][jc][ic].y,2) +
+            std::pow(pz - cent[kc-1][jc][ic].z,2);
+
+            if(dzetRightSq <= dzetLeftSq)
+            {
+                kR = kc + 1; kL = kc;
+            }
+            else
+            {
+                kR = kc; kL = kc-1;
+            }
         }
+
     }
     // on boundary, already know where to pick data
     else if(kc == 1)

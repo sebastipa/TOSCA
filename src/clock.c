@@ -254,6 +254,31 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 }
             }
 
+            // check cfl limit for rotating ibm
+            if(flags->isIBMActive)
+            {
+                ibm_ *ibm = domain[d].ibm;
+
+                for (PetscInt i=0; i < ibm->numBodies; i++)
+                {
+                    ibmObject   *ibmBody = ibm->ibmBody[i];
+
+                    if(ibm->dynamic)
+                    {
+                        if(ibmBody->bodyMotion == "rotation")
+                        {
+                            ibmRotation *ibmRot  = ibmBody->ibmRot;
+
+                            PetscReal maxSpeed = ibmRot->maxR * ibmRot->angSpeed;
+
+                            PetscReal dtIBM = dx_min / maxSpeed;
+
+                            clock->dt = std::min(clock->dt, dtIBM);
+                        }
+                    }
+                }
+            }
+
         }
         else
         {

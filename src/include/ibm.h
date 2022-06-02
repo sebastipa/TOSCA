@@ -61,6 +61,7 @@ typedef struct
     PetscReal     angSpeed;
     PetscReal     angAcc;
     PetscReal     rotAngle;
+    PetscReal     maxR;
 
     Cmpnts        rotAxis;
     Cmpnts        rotCenter;

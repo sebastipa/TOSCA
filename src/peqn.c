@@ -1436,6 +1436,8 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             pCell.j = (PetscInt)pibmcell[Id.k][Id.j][Id.i].y;
                             pCell.k = (PetscInt)pibmcell[Id.k][Id.j][Id.i].z;
 
+                            // PetscPrintf(PETSC_COMM_SELF, "fluid cell = %ld %ld %ld, ibm cell = %ld %ld %ld, pressure interpolation cell = %ld %ld %ld\n", k, j, i, Id.k, Id.j, Id.i, pCell.k, pCell.j, pCell.i);
+
                             // interpolation weights of the 8 cells around the point
                             PetscReal intWts[8];
 
@@ -2971,15 +2973,12 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
     PetscInt           ys    = info.ys, ye = info.ys + info.ym;
     PetscInt           zs    = info.zs, ze = info.zs + info.zm;
     PetscInt           mx    = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt           lxs, lxe, lys, lye, lzs, lze;
+    PetscInt           gxs   = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt           gys   = info.gys, gye = info.gys + info.gym;
+    PetscInt           gzs   = info.gzs, gze = info.gzs + info.gzm;
 
     Cmpnts             ***cent, ***pibmpt, ***pibmcell;
     PetscReal          ***aj, ***nvert, ***lPhi, ***gPhi;
-
-    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
-    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
-    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
 
     DMDAVecGetArray(da, mesh->lAj, &aj);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
@@ -3013,12 +3012,13 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
         //find the closest neighbour of k,j,i to checkPt
         PetscInt    i1, j1, k1;
         PetscReal   dmin = 10e10, d;
-        PetscInt    ic, jc, kc;
+        PetscInt    ic, jc, kc, setFlag = 0;
 
         for (k1=k-1; k1<k+2; k1++)
         for (j1=j-1; j1<j+2; j1++)
         for (i1=i-1; i1<i+2; i1++)
         {
+
             if
             (
                 (
@@ -3041,8 +3041,17 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
                     ic = i1;
                     jc = j1;
                     kc = k1;
+                    setFlag = 1;
                 }
             }
+
+        }
+
+        if(setFlag == 0)
+        {
+            char error[512];
+            sprintf(error, "no closest fluid cell to ibm fluid %ld %ld %ld\n", k, j, i);
+            fatalErrorInFunction("updateibmphi",  error);
         }
 
         PetscInt intId[6];
@@ -3068,7 +3077,7 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
         while ( (intFlag == 1) && isInsideSimDomain(checkPt, mesh->bounds) && (sumDel <= 3*refLength))
         {
             PetscInt ibmCellCtr = 0;
-            PetscInt icc, jcc, kcc;
+            PetscInt icc, jcc, kcc, setFlag = 0;
 
             for (PetscInt kk = 0; kk<2; kk++)
             for (PetscInt jj = 0; jj<2; jj++)
@@ -3090,74 +3099,80 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
                 sumDel += nMag(del);
 
                 for (k1=kc-1; k1<kc+2; k1++)
-                for (j1=jc-1; j1<jc+2; j1++)
-                for (i1=ic-1; i1<ic+2; i1++)
                 {
-
-                    if
-                    (
-                        (
-                            k1>=1 && k1<mz-1 &&
-                            j1>=1 && j1<my-1 &&
-                            i1>=1 && i1<mx-1
-                        ) && isFluidCell(k1, j1, i1, nvert)
-                    )
+                    //check processor ghost bounds 
+                    if (k1 < gzs || k1 >= gze) {intFlag = 2; break;}
+                    for (j1=jc-1; j1<jc+2; j1++)
                     {
-                        d = pow((checkPt.x - cent[k1][j1][i1].x), 2) +
-                            pow((checkPt.y - cent[k1][j1][i1].y), 2) +
-                            pow((checkPt.z - cent[k1][j1][i1].z), 2);
-
-                        if
-                        (
-                            d < dmin
-                        )
+                        if (j1 < gys || j1 >= gye) {intFlag = 2; break;}
+                        for (i1=ic-1; i1<ic+2; i1++)
                         {
-                            dmin  = d;
-                            icc = i1;
-                            jcc = j1;
-                            kcc = k1;
+                            if (i1 < gxs || i1 >= gxe) {intFlag = 2; break;}
+
+                            if
+                            (
+                                (
+                                    k1>=1 && k1<mz-1 &&
+                                    j1>=1 && j1<my-1 &&
+                                    i1>=1 && i1<mx-1
+                                ) && isFluidCell(k1, j1, i1, nvert)
+                            )
+                            {
+                                d = pow((checkPt.x - cent[k1][j1][i1].x), 2) +
+                                    pow((checkPt.y - cent[k1][j1][i1].y), 2) +
+                                    pow((checkPt.z - cent[k1][j1][i1].z), 2);
+
+                                if
+                                (
+                                    d < dmin
+                                )
+                                {
+                                    dmin  = d;
+                                    icc = i1;
+                                    jcc = j1;
+                                    kcc = k1;
+                                    setFlag = 1;
+                                }
+                            }
+
                         }
                     }
-
                 }
 
-                kc = kcc; jc = jcc; ic = icc;
-
-                PointInterpolationCells
-                (
-                        mesh,
-                        checkPt.x, checkPt.y, checkPt.z,
-                        ic, jc, kc,
-                        cent,
-                        intId
-                );
-            }
-            else
-            {
-                intFlag = 0;
-
-                //ensure that the trilinear interpolation cells are within the processor ghost bounds
-                //if not set interpolation flag to 2 and dont interpolate
-
-                if      ( (intId[0] < lzs-3) || (intId[0] > lze+2) ) intFlag = 2;
-                else if ( (intId[1] < lzs-3) || (intId[1] > lze+2) ) intFlag = 2;
-                else if ( (intId[2] < lys-3) || (intId[2] > lye+2) ) intFlag = 2;
-                else if ( (intId[3] < lys-3) || (intId[3] > lye+2) ) intFlag = 2;
-                else if ( (intId[4] < lxs-3) || (intId[4] > lxe+2) ) intFlag = 2;
-                else if ( (intId[5] < lxs-3) || (intId[5] > lxe+2) ) intFlag = 2;
-
-                if(intFlag == 0)
+                if(setFlag == 0)
                 {
-                    scalarPointLocalVolumeInterpolation
+                    //closest point not set, do not interpolate
+                    intFlag = 2;
+                }
+
+                if( intFlag == 1)
+                {
+                    kc = kcc; jc = jcc; ic = icc;
+
+                    PointInterpolationCells
                     (
                             mesh,
                             checkPt.x, checkPt.y, checkPt.z,
                             ic, jc, kc,
                             cent,
-                            lPhi,
-                            gPhi[k][j][i]
+                            intId
                     );
                 }
+
+            }
+            else
+            {
+                intFlag = 0;
+
+                scalarPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        checkPt.x, checkPt.y, checkPt.z,
+                        ic, jc, kc,
+                        cent,
+                        lPhi,
+                        gPhi[k][j][i]
+                );
 
             }
         }
@@ -3566,7 +3581,6 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
     }
 
-    PetscPrintf(PETSC_COMM_WORLD, "Flux adjusted \n");
     if(flags->isIBMActive)
     {
 
@@ -3600,17 +3614,12 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
                 // set coefficient matrix
                 SetCoeffMatrix(peqn);
 
-                MPI_Barrier(mesh->MESH_COMM);
             }
 
     }
 
-    PetscPrintf(PETSC_COMM_WORLD, "Coefficient matrix set \n");
-
     // compute the RHS (divergence of predicted velocity)
     SetRHS(peqn);
-
-    PetscPrintf(PETSC_COMM_WORLD, "RHS set \n");
 
     // transform Phi2 to the unknown in HYPRE (used as initial guess)
     Petsc2HypreVector(peqn->phi, peqn->hypreP, peqn->thisRankStart);
