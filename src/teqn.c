@@ -150,7 +150,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                   ***coor, ***db;
     Vec           Coor;
 
-    PetscReal     ***tmprt, ***rhok, ***nvert, ***ocode;
+    PetscReal     ***tmprt, ***rhok, ***nvert;
 
     PetscReal     ***iaj, ***jaj, ***kaj;
 

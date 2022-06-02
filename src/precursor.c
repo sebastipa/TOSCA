@@ -163,11 +163,16 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
     PetscInt      i, j, k, commColor = 2;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
-    Cmpnts        ***cent;
+    Cmpnts        ***cent, ***coor;
+
+    Vec           Coor;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMGetCoordinatesLocal(da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
 
     PetscPrintf(mesh_s->MESH_COMM, "    - creating successor/precursor 1 to 1 processor mapping\n");
 
@@ -200,17 +205,16 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
     // min k and max k indices
     PetscInt lmink   = 0, gmink;
     PetscInt lmaxk   = 0, gmaxk;
-    PetscInt lkStart = 0;
-    PetscInt lkEnd   = 0;
 
     // number of ranks in the new communicator
     PetscMPIInt lranksp = 0, granksp;
 
     if
     (
-        (xSP >= xS && xSP <= xE) // the left-most cell center is in/on the fringe
-        ||
-        (xEP >= xS && xEP <= xE) // the right-most cell center is in/on the fringe
+        //(xSP >= xS && xSP <= xE) // the left-most cell center is in/on the fringe
+        //||
+        //(xEP >= xS && xEP <= xE) // the right-most cell center is in/on the fringe
+        xSP <= xE && xEP >= xS
     )
     {
         lfringeControlled[rank]    = 1;
@@ -220,10 +224,6 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
         lmaxk                      = lze;
 
         lranksp                    = 1;
-
-        // set mapping info
-        lkStart = zs;
-        lkEnd   = ze;
     }
 
     // scatter control information
@@ -233,10 +233,6 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
     // scatter min and max ids
     MPI_Allreduce(&lmink, &gmink, 1, MPIU_INT, MPI_MIN, mesh_s->MESH_COMM);
     MPI_Allreduce(&lmaxk, &gmaxk, 1, MPIU_INT, MPI_MAX, mesh_s->MESH_COMM);
-
-    // scatter k start and k end
-    MPI_Allreduce(&lkStart, &(precursor->map.kStart), 1, MPIU_INT, MPI_MIN, mesh_s->MESH_COMM);
-    MPI_Allreduce(&lkEnd,   &(precursor->map.kEnd)  , 1, MPIU_INT, MPI_MAX, mesh_s->MESH_COMM);
 
     // scatter number of ranks
     MPI_Allreduce(&lranksp, &granksp, 1, MPI_INT, MPI_SUM, mesh_s->MESH_COMM);
@@ -277,7 +273,12 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
     jP = std::floor(my/2.0);
     iP = std::floor(mx/2.0);
 
-    // access the processors line
+    // find min and max fringe k-indices
+    PetscReal lminDistS = 1e30, gminDistS = 1e30;
+    PetscReal lminDistE = 1e30, gminDistE = 1e30;
+    PetscInt lfringeMinK = 0;
+    PetscInt lfringeMaxK = 0;
+    // access the line of processors in k that have i and j indices equal to mx/2 and my/2
     if
     (
         (iP < xe && iP >= xs)
@@ -285,12 +286,47 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
         (jP < ye && jP >= ys)
     )
     {
-        // this processor is entirely or partially contained in the fringe
+        for(k=zs; k<lze; k++)
+        {
+            PetscReal distS = fabs(coor[k][jP][iP].x - xS);
+            PetscReal distE = fabs(coor[k][jP][iP].x - xE);
+
+            if(distS < lminDistS)
+            {
+                lminDistS   = distS;
+                lfringeMinK = k;
+            }
+
+            if(distE < lminDistE)
+            {
+                lminDistE   = distE;
+                lfringeMaxK = k;
+            }
+        }
+    }
+
+    MPI_Allreduce(&lminDistS, &gminDistS, 1, MPIU_REAL, MPI_MIN, mesh_s->MESH_COMM);
+    MPI_Allreduce(&lminDistE, &gminDistE, 1, MPIU_REAL, MPI_MIN, mesh_s->MESH_COMM);
+
+    // compare to see which processor got the right k
+    if(gminDistS != lminDistS) lfringeMinK = 0;
+    if(gminDistE != lminDistE) lfringeMaxK = 0;
+
+    MPI_Allreduce(&lfringeMinK, &(precursor->map.kStart), 1, MPIU_INT, MPI_MAX, mesh_s->MESH_COMM);
+    MPI_Allreduce(&lfringeMaxK, &(precursor->map.kEnd), 1, MPIU_INT, MPI_MAX, mesh_s->MESH_COMM);
+
+    // access the line of processors in k that have i and j indices equal to mx/2 and my/2
+    if
+    (
+        (iP < xe && iP >= xs)
+        &&
+        (jP < ye && jP >= ys)
+    )
+    {
+        // test if this processor is entirely or partially contained in the fringe
         if
         (
-            (xSP >= xS && xSP <= xE) // the left-most cell center is in/on the fringe
-            ||
-            (xEP >= xS && xEP <= xE) // the right-most cell center is in/on the fringe
+            xSP <= xE && xEP >= xS
         )
         {
             MPI_Comm_rank(mesh_p->MESH_COMM, &rankP);
@@ -298,8 +334,37 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
             // recast this rank number into an id into the k line
             PetscInt processorIdx = std::floor(rankP / (m * n));
 
-            // set ownership range
-            llz[processorIdx] = lzsucc[processorIdx];
+            PetscInt ghosts = 0;
+
+            // test if processor entirely inside the fringe inside the fringe
+            if
+            (
+                coor[zs][jP][iP].x    < xE && coor[zs][jP][iP].x    > xS &&
+                coor[lze-1][jP][iP].x < xE && coor[lze-1][jP][iP].x > xS
+            )
+            {
+                // ownership equal to successor (no physical ghosts)
+                llz[processorIdx] = lzsucc[processorIdx];
+            }
+            // test if left intersection
+            else if(coor[zs][jP][iP].x <= xS && coor[lze-1][jP][iP].x < xE && coor[lze-1][jP][iP].x >= xS)
+            {
+                // ownership range equal to intersection between fringe and processor range + 1 physical ghost node
+                llz[processorIdx] = ze - precursor->map.kStart + 1;
+            }
+            // test if right intersection
+            else if(coor[lze-1][jP][iP].x >= xE && coor[zs][jP][iP].x <= xE && coor[zs][jP][iP].x > xS)
+            {
+                // ownership rage equal to intersection between fringe and processor range + 1 physical ghost node
+                llz[processorIdx] = precursor->map.kEnd - zs + 1;
+            }
+            // it covers two cases: fringe entirely contained in processor, even if coincident
+            else
+            {
+                // size of the fringe region + two ghosts
+                llz[processorIdx] = precursor->map.kEnd - precursor->map.kStart + 2;
+            }
+
         }
     }
 
@@ -343,6 +408,7 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
     }
 
     DMDAVecRestoreArray(fda, mesh_s->lCent, &cent);
+    DMDAVecRestoreArray(fda, Coor, &coor);
 
     MPI_Barrier(mesh_s->MESH_COMM);
 

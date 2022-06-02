@@ -1328,7 +1328,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     precursor_    *precursor;
     domain_       *pdomain;
-    PetscInt      kStart;
+    PetscInt      kStart, kEnd;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1354,6 +1354,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 DMDAVecGetArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucontP);
                 kStart = precursor->map.kStart;
+                kEnd   = precursor->map.kEnd;
             }
         }
     }
@@ -1473,11 +1474,15 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                         // note: here we can use contravariant fluxes since uBar is defined at every point
 
-                        if(precursor->thisProcessorInFringe)
+                        if
+                        (
+                            precursor->thisProcessorInFringe && // is this processor in the fringe?
+                            k >= kStart && k <= kEnd            // is this face in the fringe?
+                        )
                         {
-                            uBarContI = ucontP[k+kStart][j][i].x;
-                            uBarContJ = ucontP[k+kStart][j][i].y;
-                            uBarContK = ucontP[k+kStart][j][i].z;
+                            uBarContI = ucontP[k-kStart][j][i].x;
+                            uBarContJ = ucontP[k-kStart][j][i].y;
+                            uBarContK = ucontP[k-kStart][j][i].z;
                         }
                         else
                         {
