@@ -59,47 +59,6 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode InitializeIBMInterpolation(domain_ *domain)
-{
-    PetscInt nDomains = domain[0].info.nDomains;
-
-    // loop through the domains to set the domain ibm pointer
-    for(PetscInt d = 0; d < nDomains; d++)
-    {
-        flags_ flags = domain[d].flags;
-
-        if(flags.isIBMActive)
-        {
-            if (domain[d].ibm->IBInterpolationModel == "MLS")
-            {
-                // MLS interpolation algorithm
-                MLSInterpolation(domain[d].ibm);
-            }
-            else if (domain[d].ibm->IBInterpolationModel == "CURVIB")
-            {
-                CurvibInterpolation(domain[d].ibm);
-            }
-            else
-            {
-                char error[512];
-                sprintf(error, "incorrect IB interpolation method. Use MLS or CURVIB");
-                fatalErrorInFunction("InitializeIBM",  error);
-            }
-
-            MPI_Barrier(domain[d].mesh->MESH_COMM);
-
-            //update the boundary condition around ibm cells
-            UpdateImmersedBCs(domain[d].ibm);
-
-            contravariantToCartesian(domain[d].ueqn);
-
-        }
-    }
-
-    return (0);
-}
-
-//***************************************************************************************************************//
 PetscErrorCode UpdateIBM(ibm_ *ibm)
 {
     mesh_ *mesh = ibm->access->mesh;
@@ -181,18 +140,6 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
 
         MPI_Barrier(mesh->MESH_COMM);
     }
-
-    if(ibm->computeForce)
-    {
-        if(ibm->dynamic)
-        {
-            checkIBMElementControlledProcessor(ibm);
-        }
-
-        ComputeForceMoment(ibm);
-    }
-
-    MPI_Barrier(mesh->MESH_COMM);
 
     //update the boundary condition around ibm cells
     UpdateImmersedBCs(ibm);
@@ -310,9 +257,9 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     PetscReal   dmin = 10e6, d;
                     PetscInt    ic, jc, kc;
 
-                    for (k1=ck-2; k1<ck+3; k1++)
-                    for (j1=cj-2; j1<cj+3; j1++)
-                    for (i1=ci-2; i1<ci+3; i1++)
+                    for (k1=ck-1; k1<ck+2; k1++)
+                    for (j1=cj-1; j1<cj+2; j1++)
+                    for (i1=ci-1; i1<ci+2; i1++)
                     {
                         if
                         (
@@ -546,16 +493,23 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
             //compute power
             PetscReal ibmPower = 0.0;
             PetscReal netMoment = 0.0;
+
             if(ibmBody->bodyMotion == "rotation")
             {
                 ibmPower  = nDot(gMoment[b], nScale(ibmRot->angSpeed, ibmRot->rotAxis));
                 netMoment = nDot(gMoment[b], ibmRot->rotAxis);
             }
 
+            //write data
             if(ibmrank == 0)
             {
-                printf("Net force = %lf %lf %lf\n", gForce[b].x, gForce[b].y, gForce[b].z);
-                printf("Net Moment = %lf %lf %lf, net moment along rotation axis = %lf\n", gMoment[b].x, gMoment[b].y, gMoment[b].z, netMoment);
+                printf("IBM Object: %s, ", ibmBody->bodyName.c_str());
+                printf("Net force(N) = %lf %lf %lf\n", gForce[b].x, gForce[b].y, gForce[b].z);
+
+                if(ibmBody->bodyMotion == "rotation")
+                {
+                    printf("Net moment(Nm) = %lf, Power(KW) = %lf\n", netMoment, ibmPower/1000.0);
+                }
 
                 if(ibmBody->bodyMotion == "rotation")
                 {
@@ -634,6 +588,8 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+    MPI_Barrier(mesh->MESH_COMM);
 
     return 0;
 
@@ -762,14 +718,14 @@ PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b)
     }
 
     // write the current angular position of the ibm to a file
-    writeAngularPosition(ibm, b);
+    writeIBMData(ibm, b);
 
     return (0);
 }
 
 //***************************************************************************************************************//
 
-PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b)
+PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b)
 {
     clock_      *clock = ibm->access->clock;
     io_         *io    = ibm->access->io;
@@ -845,6 +801,8 @@ PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b)
             else
             {
                 fprintf(f, "AngularPosition             %lf\n", ibmRot->rotAngle);
+                fprintf(f, "AngularSpeed                %lf\n", ibmRot->angSpeed * 60/(2.0 * M_PI));
+                fprintf(f, "AngularAcceleration         %lf\n", ibmRot->angAcc * 60/(2.0 * M_PI));
             }
 
             fclose(f);
@@ -1130,9 +1088,9 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         PetscInt    ic, jc, kc;
 
         // must be close so don't loop over all cells
-        for (k1=k-2; k1<k+3; k1++)
-        for (j1=j-2; j1<j+3; j1++)
-        for (i1=i-2; i1<i+3; i1++)
+        for (k1=k-1; k1<k+2; k1++)
+        for (j1=j-1; j1<j+2; j1++)
+        for (i1=i-1; i1<i+2; i1++)
         {
 
             if
@@ -1546,6 +1504,51 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
         {
             gnvert[k][j][i] = 3;
         }
+    }
+
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->Nvert, &gnvert);
+
+    DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+    DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+
+    //ibm nvert cleanup - make solid ibm fluid cells that dont have even one fluid cell around it
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->Nvert, &gnvert);
+
+    for (k = lzs; k < lze; k++)
+    for (j = lys; j < lye; j++)
+    for (i = lxs; i < lxe; i++)
+    {
+        PetscInt ctr = 0;
+
+        ip = (i < mx - 1 ? (i + 1) : (i));
+        im = (i > 0 ? (i - 1) : (i));
+
+        jp = (j < my - 1 ? (j + 1) : (j));
+        jm = (j > 0 ? (j - 1) : (j));
+
+        kp = (k < mz - 1 ? (k + 1) : (k));
+        km = (k > 0 ? (k - 1) : (k));
+
+        if (isIBMFluidCell(k, j, i, gnvert))
+        {
+            for (kk = km; kk < kp + 1; kk++)
+            for (jj = jm; jj < jp + 1; jj++)
+            for (ii = im; ii < ip + 1; ii++)
+            {
+                if (isFluidCell(kk, jj, ii, nvert))
+                {
+                    ctr ++;
+                }
+            }
+
+            if(ctr == 0)
+            {
+                gnvert[k][j][i] = 3.0;
+            }
+        }
+
     }
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
@@ -2570,11 +2573,17 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
       // check if this folder exists, if yes angular position is set, if no, angular position is 0
       if(dir_exist(timeName.c_str()))
       {
-          PetscPrintf(ibm->access->mesh->MESH_COMM, "   reading angular position for time: %s \n",timeName.c_str());
+          PetscPrintf(ibm->access->mesh->MESH_COMM, "   reading IBM data for time: %s \n",timeName.c_str());
 
           dictName = timeName + "/" + ibmBody->bodyName;
 
           readDictDouble(dictName.c_str(), "AngularPosition", &(ibmRot->rotAngle));
+          readDictDouble(dictName.c_str(), "AngularSpeed", &(ibmRot->angSpeed));
+          readDictDouble(dictName.c_str(), "AngularAcceleration", &(ibmRot->angAcc));
+
+          //transform angular speed and acceleration from rpm to rad/s
+          ibmRot->angSpeed = ibmRot->angSpeed*2*M_PI/60.0;
+          ibmRot->angAcc   = ibmRot->angAcc*2*M_PI/60.0;
       }
       else
       {

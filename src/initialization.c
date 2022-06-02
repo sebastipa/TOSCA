@@ -131,9 +131,6 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
     // initialize overset
     InitializeOverset(domain);
 
-    // initialize ibm
-    InitializeIBMInterpolation(domain);
-
     return(0);
 
 }

@@ -164,13 +164,11 @@ struct ibm_
 //! \brief initialize ibm: top level function
 PetscErrorCode InitializeIBM(ibm_ *ibm);
 
-PetscErrorCode InitializeIBMInterpolation(domain_ *domain);
-
 //! \brief update imb: top level function
 PetscErrorCode UpdateIBM(ibm_ *ibm);
 
 //! \brief writes the angular position when the body is rotating
-PetscErrorCode writeAngularPosition(ibm_ *ibm, PetscInt b);
+PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b);
 
 //! \brief read the IBMProperties.dat file , IBM mesh files and allocate memory for the objects
 PetscErrorCode readIBMProperties(ibm_ *ibm);

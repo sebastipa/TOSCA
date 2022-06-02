@@ -50,11 +50,16 @@ int main(int argc, char **argv)
 
         for(PetscInt d=0; d<info.nDomains; d++)
         {
-            // create old fields
-            VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
-
             // reset flags based on domain preferences
             flags = domain[d].flags;
+
+            if(flags.isIBMActive)
+            {
+                UpdateIBM(domain[d].ibm);
+            }
+
+            // copy old fields - contains all the bc for this time step - after all the boundary updates
+            VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
 
             if(flags.isTeqnActive)
             {
@@ -127,12 +132,6 @@ int main(int argc, char **argv)
                 FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);
             }
 
-            if(flags.isIBMActive)
-            {
-                UpdateIBM(domain[d].ibm);
-
-            }
-
             if(flags.isTeqnActive)
             {
                 UpdateTemperatureBCs(domain[d].teqn);
@@ -143,6 +142,21 @@ int main(int argc, char **argv)
 
             // update contravariant BC
             UpdateContravariantBCs(domain[d].ueqn);
+
+            if(flags.isIBMActive)
+            {
+                if(domain[d].ibm->computeForce)
+                {
+                    if(domain[d].ibm->dynamic)
+                    {
+                        checkIBMElementControlledProcessor(domain[d].ibm);
+                    }
+
+                    ComputeForceMoment(domain[d].ibm);
+                }
+            }
+
+            MPI_Barrier(domain[d].mesh->MESH_COMM);
 
         }
 

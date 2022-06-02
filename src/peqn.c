@@ -3015,9 +3015,9 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
         PetscReal   dmin = 10e10, d;
         PetscInt    ic, jc, kc;
 
-        for (k1=k-2; k1<k+3; k1++)
-        for (j1=j-2; j1<j+3; j1++)
-        for (i1=i-2; i1<i+3; i1++)
+        for (k1=k-1; k1<k+2; k1++)
+        for (j1=j-1; j1<j+2; j1++)
+        for (i1=i-1; i1<i+2; i1++)
         {
             if
             (
