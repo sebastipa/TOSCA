@@ -150,6 +150,9 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition);
 //! \brief Inizializes the closest cells and the owner of the 3LM mesh points
 PetscErrorCode findAvgLineIds(acquisition_ *acquisition);
 
+//! \brief Reads velocity and pressure averages (they don't use auxiliary fields like TBL, LBL, IBL)
+PetscErrorCode read3LMFields(acquisition_ *acquisition);
+
 // ABL PLANAR AVERAGING ACQUISITION
 // ============================================================================================================= //
 

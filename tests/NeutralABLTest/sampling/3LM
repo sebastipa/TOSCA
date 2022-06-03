@@ -1,10 +1,11 @@
-nstw         20
-nspw         20
-upDir        (0.0 0.0 1.0)
-streamDir    (1.0 0.0 0.0)
+nstw          20
+nspw          20
+upDir         (0.0 0.0 1.0)
+streamDir     (1.0 0.0 0.0)
+xSample       10
 
-avgStartTime 1000
-avgPeriod    10
+avgStartTime 10000
+avgPeriod    5
 
 level1
 {

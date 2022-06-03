@@ -161,6 +161,8 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
   }
 
+  averaging3LMInitialize(domain);
+
   return(0);
 }
 
@@ -908,6 +910,21 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                 time,
                 "keFarm",
                 acquisition->keBudFields->Pf
+            );
+        }
+
+        if(domain->acquisition->isAverage3LMActive)
+        {
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "dTdz3LM",
+                acquisition->LM3->avgdTdz
             );
         }
     }

@@ -6465,6 +6465,12 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
 {
     // 3LM averaging is done only on background domain
     acquisition_ *acquisition = domain[0].acquisition;
+    mesh_        *mesh  = acquisition->access->mesh;
+    flags_       *flags = acquisition->access->flags;
+
+    DMDALocalInfo info = mesh->info;
+
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
 
     if(acquisition->isAverage3LMActive)
     {
@@ -6473,10 +6479,19 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
         PetscPrintf(mesh->MESH_COMM, "Creating 3LM acquisition grid...\n");
         PetscPrintf(mesh->MESH_COMM, "   reading parameters...\n");
 
+        // check that a cartesian mesh is used
         if(mesh->meshFileType != "cartesian")
         {
            char error[512];
             sprintf(error, "3LM averaging only available for cartesian meshes\n");
+            fatalErrorInFunction("averaging3LMInitialize",  error);
+        }
+
+        // check if temperature transport is active
+        if(!flags->isTeqnActive)
+        {
+           char error[512];
+            sprintf(error, "3LM averaging not available without temperature transport (set potentialT to true)");
             fatalErrorInFunction("averaging3LMInitialize",  error);
         }
 
@@ -6494,6 +6509,7 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
         readDictInt(path2dict,    "nstw",          &(lm3->nstw));
         readDictVector(path2dict, "upDir",         &(lm3->upDir));
         readDictVector(path2dict, "streamDir",     &(lm3->streamDir));
+        readDictDouble(path2dict, "xSample",       &(lm3->xSample));
 
         // make the direction vector unitary
         mUnit(lm3->upDir);
@@ -6506,14 +6522,30 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
         lm3->avgWeight = 0;
 
         // allocate memory for points
-        lm3->points       = (Cmpnts**)malloc(lm3->nstw*sizeof(Cmpnts*));
-        lm3->closestCells = (cellIds**)malloc(lm3->nstw*sizeof(cellIds*));
+        lm3->points        = (Cmpnts**)malloc(lm3->nstw*sizeof(Cmpnts*));
+        lm3->closestCells  = (cellIds**)malloc(lm3->nstw*sizeof(cellIds*));
+        lm3->etaTBL        = (PetscReal**)malloc(lm3->nstw*sizeof(PetscReal*));
+        lm3->etaLBL        = (PetscReal**)malloc(lm3->nstw*sizeof(PetscReal*));
+        lm3->etaIBL        = (PetscReal**)malloc(lm3->nstw*sizeof(PetscReal*));
+        lm3->bkgU          = (PetscReal**)malloc(my*sizeof(PetscReal*));
 
         for(PetscInt pk=0; pk<lm3->nstw; pk++)
         {
             lm3->points[pk]       = (Cmpnts*)malloc(lm3->nspw*sizeof(Cmpnts));
             lm3->closestCells[pk] = (cellIds*)malloc(lm3->nspw*sizeof(cellIds));
+            lm3->etaTBL[pk]        = (PetscReal*)malloc(lm3->nstw*sizeof(PetscReal));
+            lm3->etaLBL[pk]        = (PetscReal*)malloc(lm3->nstw*sizeof(PetscReal));
+            lm3->etaIBL[pk]        = (PetscReal*)malloc(lm3->nstw*sizeof(PetscReal));
         }
+
+        for(PetscInt j=0; j<my; j++)
+        {
+            lm3->bkgU[j]          = (PetscReal*)malloc(mx*sizeof(PetscReal));
+        }
+
+        // allocate memory for auxiliary fields
+        VecDuplicate(mesh->Cent,  &(lm3->avgU)); VecSet(lm3->avgU,0.);
+        VecDuplicate(mesh->Nvert, &(lm3->avgdTdz));  VecSet(lm3->avgdTdz,0.);
 
         // allocate memory for levels
         lm3->levels = (level3LM**)malloc(3*sizeof(level3LM*));
@@ -6608,7 +6640,8 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
             }
         }
 
-        write3LMPoints(acquisition);
+        // read checkpoint file if present
+        read3LMFields(acquisition);
 
         // now do the search and save the closest i,k indices to the vertical
         // averaging line in each processor. Here is where the assumptions of
@@ -6616,9 +6649,139 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
         // hypotesis are not verified.
         findAvgLineIds(acquisition);
 
-        PetscPrintf(mesh->MESH_COMM, "done\n\n");
+        // write points and check points info
+        write3LMPoints(acquisition);
 
         MPI_Barrier(mesh->MESH_COMM);
+
+        PetscPrintf(mesh->MESH_COMM, "done\n\n");
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode read3LMFields(acquisition_ *acquisition)
+{
+    // only read velocity and pressure (BL has auxiliary fields saved in fields/ so it is not cumulated
+    // and thus there is no need to read it)
+
+    mesh_  *mesh  = acquisition->access->mesh;
+    clock_ *clock = acquisition->access->clock;
+    data3LM *lm3  = acquisition->LM3;
+
+    // pointer for stdtod and stdtol
+    char *eptr;
+
+    PetscMPIInt           rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    word   lm3FolderName     = "./postProcessing/" + mesh->meshName + "/3LM";
+
+    FILE *f;
+    word path2dict = lm3FolderName + "/restartReadTime";
+    f = fopen(path2dict.c_str(), "r");
+    if(!f)
+    {
+        PetscPrintf(mesh->MESH_COMM, "   no restart file found: initializing\n");
+    }
+    else
+    {
+        fclose(f);
+
+        readDictWord(path2dict.c_str(), "restartReadTime", &(lm3->checkPointTimeName));
+        word   lm3ChkpTimeName = lm3FolderName +  "/" + lm3->checkPointTimeName;
+        PetscPrintf(mesh->MESH_COMM, "   found restart file: reading into %s...\n", lm3ChkpTimeName.c_str());
+
+        // read fields
+        if(!rank)
+        {
+            for(PetscInt l=0; l<3; l++)
+            {
+                // get this level pointer
+                level3LM *lev = lm3->levels[l];
+
+                // read velocity
+                {
+                    char fileName[256];
+                    sprintf(fileName, "%s/U_L%ld",lm3ChkpTimeName.c_str(), l+1);
+
+                    FILE *fp = fopen(fileName, "r");
+                    if(!fp)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("read3LMFields",  error);
+                    }
+                    else
+                    {
+                        // read header lines
+                        char buffer[512];
+                        fgets(buffer,512,fp);
+                        fgets(buffer,512,fp);
+                        fgets(buffer,512,fp);
+                        fgets(buffer,512,fp);
+
+                        char token[10];
+
+                        // read field
+                        for(PetscInt pk=0; pk<lm3->nstw; pk++)
+                        {
+                            for(PetscInt pi=0; pi<lm3->nspw; pi++)
+                            {
+                                char indata[256];
+                                fscanf(fp, "%c%s", token, indata);
+                                lev->U[pk][pi].x = std::strtod(indata, &eptr);
+                                fscanf(fp, "%s", indata);
+                                lev->U[pk][pi].y = std::strtod(indata, &eptr);
+                                fscanf(fp, "%s%c", indata, token);
+                                lev->U[pk][pi].z = std::strtod(indata, &eptr);
+                            }
+                            fscanf(fp, "%c", token);
+                        }
+
+                        fclose(fp);
+                    }
+                }
+
+                // read pressure
+                {
+                    char fileName[256];
+                    sprintf(fileName, "%s/P_L%ld",lm3ChkpTimeName.c_str(), l+1);
+
+                    FILE *fp = fopen(fileName, "r");
+                    if(!fp)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("read3LMFields",  error);
+                    }
+                    else
+                    {
+                        // read header lines
+                        char buffer[512];
+
+                        fgets(buffer,512,fp);
+                        fgets(buffer,512,fp);
+                        fgets(buffer,512,fp);
+                        fgets(buffer,512,fp);
+
+                        /// read field
+                        for(PetscInt pk=0; pk<lm3->nstw; pk++)
+                        {
+                            for(PetscInt pi=0; pi<lm3->nspw; pi++)
+                            {
+                                char indata[256];
+                                fscanf(fp, "%s", indata);
+                                lev->P[pk][pi] = std::strtod(indata, &eptr);
+                            }
+                        }
+                        fclose(fp);
+                    }
+                }
+            }
+        }
     }
 
     return(0);
@@ -6634,10 +6797,12 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
     {
         mesh_  *mesh  = acquisition->access->mesh;
         clock_ *clock = acquisition->access->clock;
+        flags_ *flags = acquisition->access->flags;
         data3LM *lm3  = acquisition->LM3;
 
         ueqn_   *ueqn = acquisition->access->ueqn;
         peqn_   *peqn = acquisition->access->peqn;
+        teqn_   *teqn = acquisition->access->teqn;
 
         // check if must accumulate averaged fields
         PetscInt accumulateAvg = 0;
@@ -6667,13 +6832,22 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
             PetscInt         lxs, lxe, lys, lye, lzs, lze;
             PetscInt         i, j, k, pi, pk, r, l;
 
-            Cmpnts           ***cent, ***ucat;
-            PetscReal        ***p;
+            Cmpnts           ***cent, ***ucat, ***um, ***eta;
+            PetscReal        ***p, ***dtdz, ***t, ***aj;
 
             PetscReal        ts, te;
 
             PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
             PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+            // max perturbation amplitude
+            PetscReal maxPerturb  = 1e-10;
+
+            // get up direction
+            Cmpnts  upDir = lm3->upDir;
+
+            // processor perturbation for search (changes between processors)
+            PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)nprocs;
 
             lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
             lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
@@ -6682,16 +6856,71 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
             PetscTime(&ts);
 
             DMDAVecGetArray(fda, mesh->lCent, &cent);
+            DMDAVecGetArray(fda, mesh->lEta, &eta);
+            DMDAVecGetArray(da,  mesh->lAj, &aj);
             DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+            DMDAVecGetArray(fda, lm3->avgU, &um);
             DMDAVecGetArray(da, peqn->lP, &p);
+            DMDAVecGetArray(da, teqn->lTmprt, &t);
+            DMDAVecGetArray(da, lm3->avgdTdz, &dtdz);
 
             // set time averaging weights
             PetscReal mN = (PetscReal)lm3->avgWeight;
             PetscReal m1 = mN  / (mN + 1.0);
             PetscReal m2 = 1.0 / (mN + 1.0);
 
-            // get up direction
-            Cmpnts  upDir = lm3->upDir;
+            // 1. create auxiliary fields avgU, avgddTdz, and reference inflow plane
+            std::vector<std::vector<PetscReal>> lbkgU(my);
+
+            for(j=0; j<my; j++)
+            {
+                lbkgU[j].resize(mx);
+
+                for(i=0; i<mx; i++)
+                {
+                    lbkgU[j][i]    = 0.0;
+                }
+            }
+
+            // average auxiliary fields
+            for (k = lzs; k < lze; k++)
+            {
+                for (j = lys; j < lye; j++)
+                {
+                    for (i = lxs; i < lxe; i++)
+                    {
+                        // pre-set base variables for speed
+                        PetscReal U = ucat[k][j][i].x,
+                                  V = ucat[k][j][i].y,
+                                  W = ucat[k][j][i].z;
+
+                        // velocity average
+                        um[k][j][i].x = m1 * um[k][j][i].x + m2 * U;
+                        um[k][j][i].y = m1 * um[k][j][i].y + m2 * V;
+                        um[k][j][i].z = m1 * um[k][j][i].z + m2 * W;
+
+                        PetscReal dz = 1.0 / (aj[k][j][i] * nMag(eta[k][j][i]));
+                        dtdz[k][j][i] = m1 * dtdz[k][j][i] + m2 * (t[k][j+1][i] - 2.0 *t[k][j][i] + t[k][j-1][i])/(dz*dz);
+
+                        if(k == lm3->kSample)
+                        {
+                            lbkgU[j][i]    = nMag(um[k][j][i]);
+                        }
+                    }
+                }
+            }
+
+            // scatter reference planes (all nodes must have reference state)
+            for(j=0; j<my; j++)
+            {
+                // scatter vectors
+                MPI_Allreduce(&(lbkgU[j][0]), &(lm3->bkgU[j][0]), mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+                // clean vectors
+                std::vector<PetscReal> ().swap(lbkgU[j]);
+            }
+
+            // 2. vertical average pressure and velocity in the three layers
 
             // loop over levels
             for(l=0; l<3; l++)
@@ -6802,15 +7031,196 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
                 }
             }
 
+            // 3. compute BL heights (top capping, bottom capping, internal farm)
+
+            // local arrays
+            std::vector<std::vector<PetscReal>> lTBL(lm3->nstw);
+            std::vector<std::vector<PetscReal>> gTBL(lm3->nstw);
+            std::vector<std::vector<PetscReal>> lddtmin(lm3->nstw);
+            std::vector<std::vector<PetscReal>> gddtmin(lm3->nstw);
+            std::vector<std::vector<PetscReal>> lLBL(lm3->nstw);
+            std::vector<std::vector<PetscReal>> gLBL(lm3->nstw);
+            std::vector<std::vector<PetscReal>> lddtmax(lm3->nstw);
+            std::vector<std::vector<PetscReal>> gddtmax(lm3->nstw);
+            std::vector<std::vector<PetscReal>> lIBL(lm3->nstw);
+            std::vector<std::vector<PetscReal>> gIBL(lm3->nstw);
+
+            // loop over 3LM grid points
+            for(pk=0; pk<lm3->nstw; pk++)
+            {
+                // resize
+                lTBL[pk].resize(lm3->nspw);
+                gTBL[pk].resize(lm3->nspw);
+                lLBL[pk].resize(lm3->nspw);
+                gLBL[pk].resize(lm3->nspw);
+                lIBL[pk].resize(lm3->nspw);
+                gIBL[pk].resize(lm3->nspw);
+                lddtmin[pk].resize(lm3->nspw);
+                gddtmin[pk].resize(lm3->nspw);
+                lddtmax[pk].resize(lm3->nspw);
+                gddtmax[pk].resize(lm3->nspw);
+
+                for(pi=0; pi<lm3->nspw; pi++)
+                {
+                    // initialize
+                    lTBL[pk][pi] = 0.0;
+                    gTBL[pk][pi] = 0.0;
+                    lLBL[pk][pi] = 0.0;
+                    gLBL[pk][pi] = 0.0;
+                    lIBL[pk][pi] = 1e20;
+                    gIBL[pk][pi] = 1e20;
+                    lddtmin[pk][pi] =  1e20;
+                    gddtmin[pk][pi] =  1e20;
+                    lddtmax[pk][pi] = -1e20;
+                    gddtmax[pk][pi] = -1e20;
+
+                    // get averaging line ids
+                    cellIds lineIds = lm3->closestCells[pk][pi];
+
+                    // test if this averaging line intercepts this processor
+                    if
+                    (
+                        lineIds.k < lze && lineIds.k >= lzs &&
+                        lineIds.i < lxe && lineIds.i >= lxs
+                    )
+                    {
+                        k = lineIds.k;
+                        i = lineIds.i;
+
+                        // find max and min dtdz in this processor and the lowest height at which velocity is less
+                        // than 5% of the reference plane (it is always verified above IBL so we take the lower in the proc)
+                        for(j=lys; j<lye; j++)
+                        {
+                            // do a box average of ddtdz for smoothing
+                            PetscReal dtdzAvg = 0.0;
+                            PetscInt  nBox    = 0;
+
+                            for(PetscInt kk=k-2; kk<k+3; kk++)
+                            for(PetscInt ii=i-2; ii<i+3; ii++)
+                            {
+                                if(kk>=lzs && kk<lze && ii>=lxs && ii<lxe)
+                                {
+                                    dtdzAvg += dtdz[kk][j][ii];
+                                    nBox++;
+                                }
+                            }
+
+                            dtdzAvg /= nBox;
+
+                            // save local minimum
+                            if(dtdzAvg < lddtmin[pk][pi])
+                            {
+                                lddtmin[pk][pi]      = dtdzAvg + procContrib;
+                                lTBL[pk][pi] = nDot(cent[k][j][i], upDir);
+                            }
+
+                            // save local maximum
+                            if(dtdzAvg > lddtmax[pk][pi])
+                            {
+                                lddtmax[pk][pi]      = dtdzAvg + procContrib;
+                                lLBL[pk][pi] = nDot(cent[k][j][i], upDir);
+                            }
+
+                            // percentage delta on velocity ratio
+                            PetscReal distU = fabs(nMag(um[k][j][i]) / lm3->bkgU[j][i] - 1.0) * 100;
+
+                            // excludes the points inside the IBL
+                            if(distU < 5.0)
+                            {
+                                // look for lowest height
+                                if(nDot(cent[k][j][i], upDir) < lIBL[pk][pi])
+                                {
+                                    lIBL[pk][pi] = nDot(cent[k][j][i], upDir);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // find global min and max
+            for(pk=0; pk<lm3->nstw; pk++)
+            {
+                MPI_Allreduce(&(lddtmin[pk][0]), &(gddtmin[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+                MPI_Allreduce(&(lddtmax[pk][0]), &(gddtmax[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
+
+                // zero the heights of those processors with local minima
+                for(pi=0; pi<lm3->nspw; pi++)
+                {
+                    if(lddtmin[pk][pi] != gddtmin[pk][pi])
+                    {
+                        lTBL[pk][pi] = 0.0;
+                    }
+
+                    if(lddtmax[pk][pi] != gddtmax[pk][pi])
+                    {
+                        lLBL[pk][pi] = 0.0;
+                    }
+                }
+            }
+
+            // now take the maximum of TBL and LBL value at each point among all processors, while the minimum for IBL
+            for(pk=0; pk<lm3->nstw; pk++)
+            {
+                MPI_Reduce(&(lTBL[pk][0]), &(gTBL[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MAX, 0, mesh->MESH_COMM);
+                MPI_Reduce(&(lLBL[pk][0]), &(gLBL[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MAX, 0, mesh->MESH_COMM);
+                MPI_Reduce(&(lIBL[pk][0]), &(gIBL[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MIN, 0, mesh->MESH_COMM);
+            }
+
+            PetscReal monitorT = 0.0;
+            PetscReal monitorL = 0.0;
+            PetscReal monitorI = 0.0;
+
+            // time average
+            for(pk=0; pk<lm3->nstw; pk++)
+            {
+                for(pi=0; pi<lm3->nspw; pi++)
+                {
+                    if(!rank)
+                    {
+                        // compute boundary layer height
+                        lm3->etaTBL[pk][pi] = gTBL[pk][pi];
+                        lm3->etaLBL[pk][pi] = gLBL[pk][pi];
+                        lm3->etaIBL[pk][pi] = gIBL[pk][pi];
+
+                        // compute average
+                        monitorT += lm3->etaTBL[pk][pi];
+                        monitorL += lm3->etaLBL[pk][pi];
+                        monitorI += lm3->etaIBL[pk][pi];
+                    }
+                }
+
+                // clean memory
+                std::vector<PetscReal> ().swap(lTBL[pk]);
+                std::vector<PetscReal> ().swap(gTBL[pk]);
+                std::vector<PetscReal> ().swap(lLBL[pk]);
+                std::vector<PetscReal> ().swap(gLBL[pk]);
+                std::vector<PetscReal> ().swap(lIBL[pk]);
+                std::vector<PetscReal> ().swap(gIBL[pk]);
+                std::vector<PetscReal> ().swap(lddtmin[pk]);
+                std::vector<PetscReal> ().swap(gddtmin[pk]);
+                std::vector<PetscReal> ().swap(lddtmax[pk]);
+                std::vector<PetscReal> ().swap(gddtmax[pk]);
+            }
+
+            monitorT = monitorT / (lm3->nstw * lm3->nspw);
+            monitorL = monitorL / (lm3->nstw * lm3->nspw);
+            monitorI = monitorI / (lm3->nstw * lm3->nspw);
+
             DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+            DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+            DMDAVecRestoreArray(da,  mesh->lAj, &aj);
             DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
-            DMDAVecRestoreArray(da, peqn->lP, &p);
+            DMDAVecRestoreArray(fda, lm3->avgU, &um);
+            DMDAVecRestoreArray(da,  peqn->lP, &p);
+            DMDAVecRestoreArray(da, teqn->lTmprt, &t);
+            DMDAVecRestoreArray(da, lm3->avgdTdz, &dtdz);
 
             lm3->avgWeight++;
 
             PetscTime(&te);
 
-            PetscPrintf(mesh->MESH_COMM, "Averaged 3LM data in %lf s\n", te-ts);
+            PetscPrintf(mesh->MESH_COMM, "Averaged 3LM data in %lf s, avg LBL/TBL/IBL = %.3f/%.3f/%.3f m\n", te-ts, monitorL, monitorT, monitorI);
         }
 
         // write fields
@@ -6859,6 +7269,22 @@ PetscErrorCode write3LMPoints(acquisition_ *acquisition)
             sprintf(error, "could not create %s directory\n", lm3FolderTimeName.c_str());
             fatalErrorInFunction("write3LMPoints",  error);
         }
+
+        // write a file containing the start time for checkpoint read in case of restart
+        FILE *f;
+        word fieldName = lm3FolderName + "/restartReadTime";
+        f = fopen(fieldName.c_str(), "w");
+
+        if(!f)
+        {
+            char error[512];
+            sprintf(error, "cannot open file %s\n", fieldName.c_str());
+            fatalErrorInFunction("write3LMPoints",  error);
+        }
+
+        fprintf(f, "restartReadTime\t\t%s\n", (getStartTimeName(clock)).c_str());
+
+        fclose(f);
     }
 
     // write 3LM mesh points
@@ -6992,6 +7418,111 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
 
                         fclose(fp);
                     }
+                }
+            }
+
+            // write TBL height
+            {
+                char fileName[256];
+                sprintf(fileName, "%s/TBL",lm3FolderTimeName.c_str());
+
+                FILE *fp = fopen(fileName, "w");
+                if(!fp)
+                {
+                   char error[512];
+                    sprintf(error, "cannot open file %s\n", fileName);
+                    fatalErrorInFunction("write3LMFields",  error);
+                }
+                else
+                {
+                    // write header lines
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "etaBL given as table of values for each point, where each\n");
+                    PetscFPrintf(mesh->MESH_COMM, fp, "line is an array of points in the spanwise direction and each\n");
+                    PetscFPrintf(mesh->MESH_COMM, fp, "column is an array of points in the streamwise direction\n\n");
+
+                    // write mesh points
+                    for(PetscInt pk=0; pk<lm3->nstw; pk++)
+                    {
+                        for(PetscInt pi=0; pi<lm3->nspw; pi++)
+                        {
+                            PetscFPrintf(mesh->MESH_COMM, fp, "%*.4lf ", -15, lm3->etaTBL[pk][pi]);
+                        }
+                        // new line
+                        PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+                    }
+
+                    fclose(fp);
+                }
+            }
+
+            // write LBL height
+            {
+                char fileName[256];
+                sprintf(fileName, "%s/LBL",lm3FolderTimeName.c_str());
+
+                FILE *fp = fopen(fileName, "w");
+                if(!fp)
+                {
+                   char error[512];
+                    sprintf(error, "cannot open file %s\n", fileName);
+                    fatalErrorInFunction("write3LMFields",  error);
+                }
+                else
+                {
+                    // write header lines
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "etaBL given as table of values for each point, where each\n");
+                    PetscFPrintf(mesh->MESH_COMM, fp, "line is an array of points in the spanwise direction and each\n");
+                    PetscFPrintf(mesh->MESH_COMM, fp, "column is an array of points in the streamwise direction\n\n");
+
+                    // write mesh points
+                    for(PetscInt pk=0; pk<lm3->nstw; pk++)
+                    {
+                        for(PetscInt pi=0; pi<lm3->nspw; pi++)
+                        {
+                            PetscFPrintf(mesh->MESH_COMM, fp, "%*.4lf ", -15, lm3->etaLBL[pk][pi]);
+                        }
+                        // new line
+                        PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+                    }
+
+                    fclose(fp);
+                }
+            }
+
+            // write IBL height
+            {
+                char fileName[256];
+                sprintf(fileName, "%s/IBL",lm3FolderTimeName.c_str());
+
+                FILE *fp = fopen(fileName, "w");
+                if(!fp)
+                {
+                   char error[512];
+                    sprintf(error, "cannot open file %s\n", fileName);
+                    fatalErrorInFunction("write3LMFields",  error);
+                }
+                else
+                {
+                    // write header lines
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "etaBL given as table of values for each point, where each\n");
+                    PetscFPrintf(mesh->MESH_COMM, fp, "line is an array of points in the spanwise direction and each\n");
+                    PetscFPrintf(mesh->MESH_COMM, fp, "column is an array of points in the streamwise direction\n\n");
+
+                    // write mesh points
+                    for(PetscInt pk=0; pk<lm3->nstw; pk++)
+                    {
+                        for(PetscInt pi=0; pi<lm3->nspw; pi++)
+                        {
+                            PetscFPrintf(mesh->MESH_COMM, fp, "%*.4lf ", -15, lm3->etaIBL[pk][pi]);
+                        }
+                        // new line
+                        PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+                    }
+
+                    fclose(fp);
                 }
             }
         }
@@ -7139,11 +7670,47 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
         std::vector<cellIds>    ().swap(lclosestCells[pk]);
     }
 
-    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
-
     PetscTime(&te);
 
     PetscPrintf(mesh->MESH_COMM, "in %lf s\n", te-ts);
+
+    PetscTime(&ts);
+
+    PetscPrintf(mesh->MESH_COMM, "   finding sampling planes for BL detection ");
+
+    PetscReal lminDist  = 1e20, gminDist  = 1e20;
+    PetscReal lkminDist = 0,    gkminDist = 0;
+
+    i = std::floor((lxs+lxe)/2.0);
+    j = std::floor((lys+lye)/2.0);
+
+    for(k=lzs; k<lze; k++)
+    {
+        PetscReal dist = fabs(cent[k][j][i].x - lm3->xSample) + procContrib;
+
+        if(dist < lminDist)
+        {
+            lminDist = dist;
+            lkminDist = k;
+        }
+    }
+
+    MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+    if(lminDist != gminDist)
+    {
+        lkminDist = 0;
+    }
+
+    MPI_Allreduce(&lkminDist, &gkminDist, 1, MPIU_INT, MPI_MAX, mesh->MESH_COMM);
+
+    lm3->kSample = gkminDist;
+
+    PetscTime(&te);
+
+    PetscPrintf(mesh->MESH_COMM, "in %lf s (kSample = %ld)\n", te-ts, lm3->kSample);
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
     return(0);
 }
