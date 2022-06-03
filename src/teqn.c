@@ -41,6 +41,14 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         // read time discretization scheme
         readDictWord("control.dat", "-dTdtScheme", &(teqn->ddtScheme));
 
+        //need to set tRef wen abl is not active still
+        if (teqn->access->abl == NULL)
+        {
+            PetscPrintf(mesh->MESH_COMM, "Reading NON ABL TREF ...\n");
+            readDictDouble("./boundary/T", "tRefNoAbl", &(teqn->tRefNoAbl));
+            //printf("tref = %lf", teqn->tRefNoAbl);
+        }
+
         // create the SNES solver
         if(teqn->ddtScheme=="backwardEuler")
         {

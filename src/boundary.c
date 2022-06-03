@@ -2294,7 +2294,16 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 // set to zero if solid.
                 if(isIBMCell(k, j, i, nvert))
                 {
-                    t[k][j][i] = teqn->access->abl->tRef;
+                    if (teqn->access->abl == NULL)
+                    {
+                        //printf("here update T BC .......\n");
+                        t[k][j][i] = teqn->tRefNoAbl;
+                        //printf("T = %lf\n", t[k][j][i]);
+                    }
+                    else
+                    {
+                        t[k][j][i] = teqn->access->abl->tRef;
+                    }
                     continue;
                 }
 

@@ -37,6 +37,8 @@ struct teqn_
     // access
     access_       *access;                     //!< access database
 
+    PetscReal     tRefNoAbl;                    //tRef if no abl
+
 };
 
 #endif

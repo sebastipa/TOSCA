@@ -1279,7 +1279,16 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 
          if (flags->isTeqnActive)
          {
-             ibmPtTemp = ibm->access->abl->tRef;
+             if (flags->isAblActive)
+             {
+                 ibmPtTemp = ibm->access->abl->tRef;
+             }
+             else
+             {
+                 //printf("here ibm 1 ..................");
+                 ibmPtTemp = ibm->access->teqn->tRefNoAbl;
+             }
+
          }
 
          // cabot wall model to interpolate the velocity at the ibm fluid node
@@ -1709,7 +1718,15 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
 
       if(flags->isTeqnActive)
       {
-          tmp[n] = ibm->access->abl->tRef;
+          if (flags->isAblActive)
+          {
+              tmp[n] = ibm->access->abl->tRef;
+          }
+          else
+          {
+              //printf("here ibm 2 .........................");
+              tmp[n] = ibm->access->teqn->tRefNoAbl;
+          }
       }
 
       // get normalized distance

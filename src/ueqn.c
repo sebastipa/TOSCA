@@ -1899,7 +1899,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     if (ueqn->access->abl == NULL)
     {
         //printf("\nABL NULL ....\n");
-        tRef = 20;
+        tRef = ueqn->access->teqn->tRefNoAbl;
     }
     else
     {
@@ -3502,63 +3502,188 @@ PetscErrorCode adjustFluxesVents(ueqn_ *ueqn)
          //increase leak in this case
          if (fabs(fluxInlet) > fabs(fluxOutlet) && fabs(fluxInlet) > fabs(fluxOutlet + fluxLeak))
          {
-             for (q=0 ; q < vents->numberOfVents; q++)
+             printf("desired leak flux=%lf\n", vents->desiredLeakFlux);
+             //dont let leak get too high.
+             if(fluxLeak < 1.1 * vents->desiredLeakFlux)
              {
-                 if (vents->vent[q]->dir == "leak")
-                 numCellsLeak += vents->vent[q]->nCellsVent;
-             }
-
-             //MPI_Allreduce(&lNumCellsLeak, &numCellsLeak, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-             fluxDifCellLeak= fluxDif/numCellsLeak;
-             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellLeak = %f\n", fluxDif, fluxDifCellLeak);
-
-             for (k=lzs; k<lze; k++)
-             {
-                for (j=lys; j<lye; j++)
-                {
-                   for (i=lxs; i<lxe; i++)
-                   {
-                       if (markVent[k][j][i] > 0)
-                       {
-                           q=markVent[k][j][i] - 1;
-
-                           if (vents->vent[q]->dir == "leak")
-                           {
-                               if (vents->vent[q]->face == "iLeft")
-                               {
-                                  ucont[k][j][i-1].x -= fluxDifCellLeak;
-                               }
-
-                               if (vents->vent[q]->face == "iRight")
-                               {
-                                  ucont[k][j][i].x += fluxDifCellLeak;
-                               }
-
-                               if (vents->vent[q]->face == "jLeft")
-                               {
-                                  ucont[k][j-1][i].y -= fluxDifCellLeak;
-                               }
-
-                               if (vents->vent[q]->face == "jRight")
-                               {
-                                  ucont[k][j][i].y += fluxDifCellLeak;
-                               }
-
-                               if (vents->vent[q]->face == "kLeft")
-                               {
-                                  ucont[k-1][j][i].z -= fluxDifCellLeak;
-                               }
-
-                               if (vents->vent[q]->face == "kRight")
-                               {
-                                  ucont[k][j][i].z += fluxDifCellLeak;
-                               }
-
-                           }
-                       }
-                    }
+                 //printf("here.............................");
+                 for (q=0 ; q < vents->numberOfVents; q++)
+                 {
+                     if (vents->vent[q]->dir == "leak")
+                     numCellsLeak += vents->vent[q]->nCellsVent;
                  }
-               }
+
+                 //MPI_Allreduce(&lNumCellsLeak, &numCellsLeak, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                 fluxDifCellLeak= fluxDif/numCellsLeak;
+                 PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellLeak = %f\n", fluxDif, fluxDifCellLeak);
+
+                 for (k=lzs; k<lze; k++)
+                 {
+                    for (j=lys; j<lye; j++)
+                    {
+                       for (i=lxs; i<lxe; i++)
+                       {
+                           if (markVent[k][j][i] > 0)
+                           {
+                               q=markVent[k][j][i] - 1;
+
+                               if (vents->vent[q]->dir == "leak")
+                               {
+                                   if (vents->vent[q]->face == "iLeft")
+                                   {
+                                      ucont[k][j][i-1].x -= fluxDifCellLeak;
+                                   }
+
+                                   if (vents->vent[q]->face == "iRight")
+                                   {
+                                      ucont[k][j][i].x += fluxDifCellLeak;
+                                   }
+
+                                   if (vents->vent[q]->face == "jLeft")
+                                   {
+                                      ucont[k][j-1][i].y -= fluxDifCellLeak;
+                                   }
+
+                                   if (vents->vent[q]->face == "jRight")
+                                   {
+                                      ucont[k][j][i].y += fluxDifCellLeak;
+                                   }
+
+                                   if (vents->vent[q]->face == "kLeft")
+                                   {
+                                      ucont[k-1][j][i].z -= fluxDifCellLeak;
+                                   }
+
+                                   if (vents->vent[q]->face == "kRight")
+                                   {
+                                      ucont[k][j][i].z += fluxDifCellLeak;
+                                   }
+
+                               }
+                           }
+                        }
+                     }
+                   }
+             }
+             else
+             {
+                 //determine how many cells to divide up the flux difference amongst.
+                 for (q=0 ; q < vents->numberOfVents; q++)
+                 {
+                     if (vents->vent[q]->dir == "outlet")
+                     numCellsVentsOut += vents->vent[q]->nCellsVent;
+                 }
+
+                 for (q=0 ; q < vents->numberOfVents; q++)
+                 {
+                     if (vents->vent[q]->dir == "inlet")
+                     numCellsVentsIn += vents->vent[q]->nCellsVent;
+                 }
+
+                 //MPI_Allreduce(&lNumCellsVentsOut, &numCellsVentsOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                 //MPI_Allreduce(&lNumCellsVentsIn, &numCellsVentsIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+                 fluxDifCellOutlet = (0.5*fluxDif)/numCellsVentsOut;
+                 PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellOutlet = %f\n", 0.5*fluxDif, fluxDifCellOutlet);
+
+                 fluxDifCellInlet = (0.5*fluxDif)/numCellsVentsIn;
+                 PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellInlet = %f\n", 0.5*fluxDif, fluxDifCellInlet);
+
+                 for (k=lzs; k<lze; k++)
+                 {
+                    for (j=lys; j<lye; j++)
+                    {
+                       for (i=lxs; i<lxe; i++)
+                       {
+                           if (markVent[k][j][i] > 0)
+                           {
+                               q=markVent[k][j][i] - 1;
+
+                               if (vents->vent[q]->dir == "outlet")
+                               {
+                                   if (vents->vent[q]->face == "iLeft")
+                                   {
+                                               ucont[k][j][i-1].x -= fluxDifCellOutlet;
+                                   }
+
+                                   if (vents->vent[q]->face == "iRight")
+                                   {
+
+                                               ucont[k][j][i].x += fluxDifCellOutlet;
+
+                                   }
+
+                                   if (vents->vent[q]->face == "jLeft")
+                                   {
+
+                                               ucont[k][j-1][i].y -= fluxDifCellOutlet;
+                                   }
+
+                                   if (vents->vent[q]->face == "jRight")
+                                   {
+                                       ucont[k][j][i].y += fluxDifCellOutlet;
+                                   }
+
+                                   if (vents->vent[q]->face == "kLeft")
+                                   {
+
+                                               ucont[k-1][j][i].z -= fluxDifCellOutlet;
+
+                                   }
+
+                                   if (vents->vent[q]->face == "kRight")
+                                   {
+
+                                               ucont[k][j][i].z += fluxDifCellOutlet;
+                                   }
+
+                               }
+
+
+                               if (vents->vent[q]->dir == "inlet" )
+                               {
+                                   if (vents->vent[q]->face == "iLeft")
+                                   {
+                                               ucont[k][j][i-1].x -= fluxDifCellInlet;
+                                   }
+
+                                   if (vents->vent[q]->face == "iRight")
+                                   {
+
+                                               ucont[k][j][i].x += fluxDifCellInlet;
+
+                                   }
+
+                                   if (vents->vent[q]->face == "jLeft")
+                                   {
+
+                                               ucont[k][j-1][i].y -= fluxDifCellInlet;
+                                   }
+
+                                   if (vents->vent[q]->face == "jRight")
+                                   {
+                                       ucont[k][j][i].y += fluxDifCellInlet;
+                                   }
+
+                                   if (vents->vent[q]->face == "kLeft")
+                                   {
+
+                                               ucont[k-1][j][i].z -= fluxDifCellInlet;
+
+                                   }
+
+                                   if (vents->vent[q]->face == "kRight")
+                                   {
+
+                                               ucont[k][j][i].z += fluxDifCellInlet;
+                                   }
+
+                               }
+                           }
+                        }
+                     }
+                   }
+             }
          }
          //reduce leak in this case
          if (fabs(fluxInlet) > fabs(fluxOutlet) && fabs(fluxInlet) < fabs(fluxOutlet + fluxLeak))
