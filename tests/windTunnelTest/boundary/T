@@ -1,6 +1,10 @@
 # OKWind Input file - T boundary conditions
 # -------------------------------------------
 
+# tRef if isAblActive=0
+
+tRefNoAbl 20.0
+
 #internal field
 
 internalField    uniform

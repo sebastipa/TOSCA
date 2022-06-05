@@ -1,6 +1,6 @@
 
 numberOfVents       5 #includes supply, exhaust, and leaks.
-roomPressure        neg #"pos" for positive pressure
+roomPressure        neu #"pos" for positive pressure. "neg" for negative pressure, "neu" for neutral pressure (no leaks)
 
 vent0
 {

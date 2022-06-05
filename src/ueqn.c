@@ -3411,20 +3411,20 @@ PetscErrorCode adjustFluxesVents(ueqn_ *ueqn)
                            {
                                if (vents->vent[q]->face == "iLeft")
                                {
-                                           ucont[k][j][i-1].x -= 2*fluxDifCellOutlet;
+                                           ucont[k][j][i-1].x -= fluxDifCellOutlet;
                                }
 
                                if (vents->vent[q]->face == "iRight")
                                {
 
-                                           ucont[k][j][i].x += 2*fluxDifCellOutlet;
+                                           ucont[k][j][i].x += fluxDifCellOutlet;
 
                                }
 
                                if (vents->vent[q]->face == "jLeft")
                                {
 
-                                           ucont[k][j-1][i].y -= 2*fluxDifCellOutlet;
+                                           ucont[k][j-1][i].y -= fluxDifCellOutlet;
                                }
 
                                if (vents->vent[q]->face == "jRight")
@@ -3435,20 +3435,20 @@ PetscErrorCode adjustFluxesVents(ueqn_ *ueqn)
                                if (vents->vent[q]->face == "kLeft")
                                {
 
-                                           ucont[k-1][j][i].z -= 2*fluxDifCellOutlet;
+                                           ucont[k-1][j][i].z -= fluxDifCellOutlet;
 
                                }
 
                                if (vents->vent[q]->face == "kRight")
                                {
 
-                                           ucont[k][j][i].z += 2*fluxDifCellOutlet;
+                                           ucont[k][j][i].z += fluxDifCellOutlet;
                                }
 
                            }
 
 
-                           /*if (vents->vent[q]->dir == "inlet" )
+                           if (vents->vent[q]->dir == "inlet" )
                            {
                                if (vents->vent[q]->face == "iLeft")
                                {
@@ -3486,7 +3486,7 @@ PetscErrorCode adjustFluxesVents(ueqn_ *ueqn)
                                            ucont[k][j][i].z += fluxDifCellInlet;
                                }
 
-                           }*/
+                           }
                        }
                     }
                  }
@@ -3747,6 +3747,254 @@ PetscErrorCode adjustFluxesVents(ueqn_ *ueqn)
                }
          }
          //adjust vents in this case
+         if (fabs(fluxInlet) < fabs(fluxOutlet))
+         {
+             //determine how many cells to divide up the flux difference amongst.
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "outlet")
+                 numCellsVentsOut += vents->vent[q]->nCellsVent;
+             }
+
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "inlet")
+                 numCellsVentsIn += vents->vent[q]->nCellsVent;
+             }
+
+             //MPI_Allreduce(&lNumCellsVentsOut, &numCellsVentsOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+             //MPI_Allreduce(&lNumCellsVentsIn, &numCellsVentsIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+             fluxDifCellOutlet = (0.5*fluxDif)/numCellsVentsOut;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellOutlet = %f\n", 0.5*fluxDif, fluxDifCellOutlet);
+
+             fluxDifCellInlet = (0.5*fluxDif)/numCellsVentsIn;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellInlet = %f\n", 0.5*fluxDif, fluxDifCellInlet);
+
+             for (k=lzs; k<lze; k++)
+             {
+                for (j=lys; j<lye; j++)
+                {
+                   for (i=lxs; i<lxe; i++)
+                   {
+                       if (markVent[k][j][i] > 0)
+                       {
+                           q=markVent[k][j][i] - 1;
+
+                           if (vents->vent[q]->dir == "outlet")
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                           ucont[k][j][i-1].x += fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+
+                                           ucont[k][j][i].x -= fluxDifCellOutlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+
+                                           ucont[k][j-1][i].y += fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                   ucont[k][j][i].y -= fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+
+                                           ucont[k-1][j][i].z += fluxDifCellOutlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+
+                                           ucont[k][j][i].z -= fluxDifCellOutlet;
+                               }
+
+                           }
+
+
+                           if (vents->vent[q]->dir == "inlet" )
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                           ucont[k][j][i-1].x += fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+
+                                           ucont[k][j][i].x -= fluxDifCellInlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+
+                                           ucont[k][j-1][i].y += fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                   ucont[k][j][i].y -= fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+
+                                           ucont[k-1][j][i].z += fluxDifCellInlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+
+                                           ucont[k][j][i].z -= fluxDifCellInlet;
+                               }
+
+                           }
+                       }
+                    }
+                 }
+               }
+         }
+      }
+
+      if (vents->roomPressure == "neu") //if no leak is present in room, room must be neutral pressure.
+      {
+
+         fluxDif = fabs(fluxInlet - fluxOutlet + fluxLeak);
+         PetscPrintf(mesh->MESH_COMM, "\n Before adjustment, fluxDif = %lf\n", fluxDif);
+
+         //adjust vents in this case
+         if (fabs(fluxOutlet) < fabs(fluxInlet))
+         {
+             //determine how many cells to divide up the flux difference amongst.
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "outlet")
+                 numCellsVentsOut += vents->vent[q]->nCellsVent;
+             }
+
+             for (q=0 ; q < vents->numberOfVents; q++)
+             {
+                 if (vents->vent[q]->dir == "inlet")
+                 numCellsVentsIn += vents->vent[q]->nCellsVent;
+             }
+
+             //MPI_Allreduce(&lNumCellsVentsOut, &numCellsVentsOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+             //MPI_Allreduce(&lNumCellsVentsIn, &numCellsVentsIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+             fluxDifCellOutlet = (0.5*fluxDif)/numCellsVentsOut;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellOutlet = %f\n", 0.5*fluxDif, fluxDifCellOutlet);
+
+             fluxDifCellInlet = (0.5*fluxDif)/numCellsVentsIn;
+             PetscPrintf(mesh->MESH_COMM, "\n fluxDif =%f fluxDifCellInlet = %f\n", 0.5*fluxDif, fluxDifCellInlet);
+
+             for (k=lzs; k<lze; k++)
+             {
+                for (j=lys; j<lye; j++)
+                {
+                   for (i=lxs; i<lxe; i++)
+                   {
+                       if (markVent[k][j][i] > 0)
+                       {
+                           q=markVent[k][j][i] - 1;
+
+                           if (vents->vent[q]->dir == "outlet")
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                           ucont[k][j][i-1].x -= fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+
+                                           ucont[k][j][i].x += fluxDifCellOutlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+
+                                           ucont[k][j-1][i].y -= fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                   ucont[k][j][i].y += 2*fluxDifCellOutlet;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+
+                                           ucont[k-1][j][i].z -= fluxDifCellOutlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+
+                                           ucont[k][j][i].z += fluxDifCellOutlet;
+                               }
+
+                           }
+
+
+                           if (vents->vent[q]->dir == "inlet" )
+                           {
+                               if (vents->vent[q]->face == "iLeft")
+                               {
+                                           ucont[k][j][i-1].x -= fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "iRight")
+                               {
+
+                                           ucont[k][j][i].x += fluxDifCellInlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "jLeft")
+                               {
+
+                                           ucont[k][j-1][i].y -= fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "jRight")
+                               {
+                                   ucont[k][j][i].y += fluxDifCellInlet;
+                               }
+
+                               if (vents->vent[q]->face == "kLeft")
+                               {
+
+                                           ucont[k-1][j][i].z -= fluxDifCellInlet;
+
+                               }
+
+                               if (vents->vent[q]->face == "kRight")
+                               {
+
+                                           ucont[k][j][i].z += fluxDifCellInlet;
+                               }
+
+                           }
+                       }
+                    }
+                 }
+               }
+         }
+
          if (fabs(fluxInlet) < fabs(fluxOutlet))
          {
              //determine how many cells to divide up the flux difference amongst.
@@ -4256,6 +4504,12 @@ PetscErrorCode adjustFluxesVents(ueqn_ *ueqn)
     if (vents->roomPressure == "pos")
     {
        fluxDif = fabs(fluxInlet - fluxOutlet - fluxLeak);
+       PetscPrintf(mesh->MESH_COMM, "\n After adjustment, fluxDif = %lf\n", fluxDif);
+    }
+
+    if (vents->roomPressure == "neu")
+    {
+       fluxDif = fabs(fluxInlet - fluxOutlet);
        PetscPrintf(mesh->MESH_COMM, "\n After adjustment, fluxDif = %lf\n", fluxDif);
     }
 

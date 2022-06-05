@@ -18,7 +18,7 @@
 # Solution
 # ---------------------------------
 #-abl                      0
--potentialT                0
+-potentialT                1
 #-zDampingLayer            0
 #-xDampingLayer            0
 -ibm                       1

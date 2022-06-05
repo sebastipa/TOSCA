@@ -151,11 +151,10 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       // LES model initialize
       InitializeLES(domain[d].les);
 
-      // averages and kebudgets initialize
+      // averages initialize
       if(flags->isAquisitionActive)
       {
           averageFieldsInitialize(domain[d].acquisition);
-          averageKEBudgetsInitialize(domain[d].acquisition);
       }
 
       PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
@@ -307,7 +306,6 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
     mesh_  *mesh  = domain->mesh;
     clock_ *clock = domain->clock;
     io_    *io    = domain->io;
-    flags_ *flags = &(domain->flags);
     acquisition_ *acquisition = domain->acquisition;
 
     // HDF5 file with path
@@ -464,21 +462,6 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             time,
             "Q",
             acquisition->fields->Q
-        );
-    }
-
-    if(io->windFarmForce)
-    {
-        writeVectorToXMF
-        (
-            domain,
-            filexmf,
-            hdfileName.c_str(),
-            &file_id,
-            &dataspace_id,
-            time,
-            "bf",
-            acquisition->fields->windFarmForce
         );
     }
 
