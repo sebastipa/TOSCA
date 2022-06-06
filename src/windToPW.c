@@ -3903,12 +3903,22 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 fclose(fp);
             }
 
+<<<<<<< HEAD
             fp = fopen(jSecName.c_str(), "r");
             if(fp!=NULL)
             {
                 isjavail = 1;
                 fclose(fp);
             }
+=======
+        fp = fopen(jSecName.c_str(), "r");
+        if(fp!=NULL)
+        {
+                       
+            isjavail = 1;
+            fclose(fp);
+        }
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
             fp = fopen(iSecName.c_str(), "r");
             if(fp!=NULL)

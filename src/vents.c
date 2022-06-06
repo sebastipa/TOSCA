@@ -131,6 +131,13 @@ PetscErrorCode readVentsProperties(vents_ *vents)
     vents->vent[i]->ventBCVec.x = 0;
     vents->vent[i]->ventBCVec.y = 0;
     vents->vent[i]->ventBCVec.z = 0;
+    vents->desiredLeakFlux = 0;
+
+    if (vents->vent[i]->dir == "leak")
+    {
+        //printf("here...................");
+        vents->desiredLeakFlux += vents->vent[i]->ventDesiredFlux;
+    }
 
     // read temp BC info
     if(flags->isTeqnActive)
