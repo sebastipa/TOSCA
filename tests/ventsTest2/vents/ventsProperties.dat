@@ -1,7 +1,10 @@
 
 numberOfVents       11
+<<<<<<< HEAD
 roomPressure        pos
-
+=======
+roomPressure        neg
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
 vent0
 {
@@ -19,7 +22,11 @@ vent0
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
+<<<<<<< HEAD
     ventDesiredFlux    0.086
+=======
+    ventDesiredFlux    0.083
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -29,9 +36,11 @@ vent0
     #T_BC_info
 
     ventTBC			   fixedValue
-
+<<<<<<< HEAD
     ventTBCVal		   24
-
+=======
+    ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent1
@@ -50,8 +59,11 @@ vent1
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
+<<<<<<< HEAD
     ventDesiredFlux    0.086
-
+=======
+    ventDesiredFlux    0.083
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -61,7 +73,11 @@ vent1
     #T_BC_info
 
     ventTBC			   fixedValue
+<<<<<<< HEAD
     ventTBCVal		   24
+=======
+    ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent2
@@ -79,9 +95,11 @@ vent2
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-
+<<<<<<< HEAD
     ventDesiredFlux    0.083
-
+=======
+    ventDesiredFlux    0.08
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -91,9 +109,11 @@ vent2
     #T_BC_info
 
     ventTBC			   fixedValue
-
+<<<<<<< HEAD
     ventTBCVal		   24
-
+=======
+    ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent3
@@ -111,9 +131,11 @@ vent3
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-
+<<<<<<< HEAD
     ventDesiredFlux    0.082
-
+=======
+    ventDesiredFlux    0.079
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -123,9 +145,11 @@ vent3
     #T_BC_info
 
     ventTBC			   fixedValue
-
+<<<<<<< HEAD
     ventTBCVal		   24
-
+=======
+    ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent4
@@ -143,9 +167,11 @@ vent4
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-
+<<<<<<< HEAD
     ventDesiredFlux    0.084
-
+=======
+    ventDesiredFlux    0.081
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -155,9 +181,11 @@ vent4
     #T_BC_info
 
     ventTBC			   fixedValue
-
+<<<<<<< HEAD
     ventTBCVal		   24
-
+=======
+    ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent5
@@ -175,9 +203,11 @@ vent5
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-
+<<<<<<< HEAD
     ventDesiredFlux    0.084
-
+=======
+    ventDesiredFlux    0.081
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -187,9 +217,11 @@ vent5
     #T_BC_info
 
     ventTBC			   fixedValue
-
+<<<<<<< HEAD
     ventTBCVal		   24
-
+=======
+    ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent6
@@ -207,9 +239,11 @@ vent6
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-
+<<<<<<< HEAD
     ventDesiredFlux    0.083
-
+=======
+    ventDesiredFlux    0.08
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -219,9 +253,11 @@ vent6
     #T_BC_info
 
     ventTBC			   fixedValue
-
+<<<<<<< HEAD
     ventTBCVal		   24
-
+=======
+    ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent7
@@ -239,9 +275,11 @@ vent7
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-
+<<<<<<< HEAD
     ventDesiredFlux    0.084
-
+=======
+    ventDesiredFlux    0.081
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -251,9 +289,11 @@ vent7
     #T_BC_info
 
     ventTBC			   fixedValue
-
+<<<<<<< HEAD
     ventTBCVal		   24
-
+=======
+    ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent8
@@ -273,9 +313,11 @@ vent8
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 1.177 0.0)
-
+<<<<<<< HEAD
     ventDesiredFlux    0.323
-
+=======
+    ventDesiredFlux    0.335
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -285,9 +327,11 @@ vent8
     #T_BC_info
 
     ventTBC			   zeroGradient
-
+<<<<<<< HEAD
     #ventTBCVal		   24
-
+=======
+    #ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent9
@@ -307,9 +351,11 @@ vent9
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 1.177 0.0)
-
+<<<<<<< HEAD
     ventDesiredFlux    0.325
-
+=======
+    ventDesiredFlux    0.337
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     #Nut_BC_info
 
@@ -319,9 +365,11 @@ vent9
     #T_BC_info
 
     ventTBC			   zeroGradient
-
+<<<<<<< HEAD
     #ventTBCVal		   24
-
+=======
+    #ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
 
 vent10
@@ -351,7 +399,9 @@ vent10
     #T_BC_info
 
     ventTBC			   zeroGradient
-
+<<<<<<< HEAD
     #ventTBCVal		   24
-
+=======
+    #ventTBCVal		   22.0
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 }
