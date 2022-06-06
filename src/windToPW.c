@@ -151,10 +151,11 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       // LES model initialize
       InitializeLES(domain[d].les);
 
-      // averages initialize
+      // averages and kebudgets initialize
       if(flags->isAquisitionActive)
       {
           averageFieldsInitialize(domain[d].acquisition);
+          averageKEBudgetsInitialize(domain[d].acquisition);
       }
 
       PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
@@ -306,6 +307,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
     mesh_  *mesh  = domain->mesh;
     clock_ *clock = domain->clock;
     io_    *io    = domain->io;
+    flags_ *flags = &(domain->flags);
     acquisition_ *acquisition = domain->acquisition;
 
     // HDF5 file with path
@@ -462,6 +464,21 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             time,
             "Q",
             acquisition->fields->Q
+        );
+    }
+
+    if(io->windFarmForce)
+    {
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "bf",
+            acquisition->fields->windFarmForce
         );
     }
 
@@ -3221,6 +3238,7 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
 
                   }
 
+
                   // load temperature
                   if(flags.isTeqnActive)
                   {
@@ -3266,7 +3284,26 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
                     fclose(xmf);
                 }
 
-              }
+                    if(!rank)
+                    {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeKSectionScalarToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ti],
+                          "T",
+                          kSections->scalarSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                    }
 
               PetscPrintf(mesh->MESH_COMM, "done\n\n");
 
@@ -3558,6 +3595,7 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
 
 PetscErrorCode binaryISectionsToXMF(domain_ *domain)
 {
+
   PetscInt  nDomains = domain[0].info.nDomains;
   word      meshDir, sectionDir, indexDir;
 
