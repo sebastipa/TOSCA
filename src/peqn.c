@@ -2728,15 +2728,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 jzet[k][j][i].y * jeta[k][j][i].y +
                                 jzet[k][j][i].z * jeta[k][j][i].z
                             ) * jaj[k][j][i]
-<<<<<<< HEAD
                         );
-=======
-                        ) * clock->dt;
-
-                        /*if (k==65 && i==65 && (j>47))
-                        {printf("\nPeqn outlet Cont k,j,i.... %i,%i,%i\n", k,j,i);
-                        printf("%f\n", ucont[k][j+1][i].y);}*/
->>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
                     }
                 }
@@ -3569,12 +3561,6 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     PetscReal     ts, te;
     Cmpnts       ***ucont;
     DM            fda   = mesh->fda;
-<<<<<<< HEAD
-=======
-
-    // to prevent small time. Needs to be removed!!!!!!
-    if(clock->dt < 10e-5) return 0;
->>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     PetscTime(&ts);
 
@@ -3629,30 +3615,12 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
     }
 
-<<<<<<< HEAD
     PetscPrintf(PETSC_COMM_WORLD, "Coefficient matrix set \n");
 
     // compute the RHS (divergence of predicted velocity)
     SetRHS(peqn);
 
     PetscPrintf(PETSC_COMM_WORLD, "RHS set \n");
-=======
-   //printf("\nPreSetRHS outlet Cont k,j,i.... %i,%i,%i\n", 65, 50, 65);
-    //printf("%f\n", ucont[65][50][65].y);
-   // printf("\nPreSetRHS outlet Cont k,j,i.... %i,%i,%i\n", 65, 49, 65);
-    //printf("%f\n", ucont[65][49][65].y);
-    //printf("\nPreSetRHS outlet Cont k,j,i.... %i,%i,%i\n", 65, 48, 65);
-    //printf("%f\n", ucont[65][48][65].y);
-    // compute the RHS (divergence of predicted velocity)
-    SetRHS(peqn);
-
-   // printf("\nSetRHS outlet Cont k,j,i.... %i,%i,%i\n", 65, 50, 65);
-   // printf("%f\n", ucont[65][50][65].y);
-   // printf("\nSetRHS outlet Cont k,j,i.... %i,%i,%i\n", 65, 49, 65);
-   // printf("%f\n", ucont[65][49][65].y);
-   // printf("\nSetRHS outlet Cont k,j,i.... %i,%i,%i\n", 65, 48, 65);
-   // printf("%f\n", ucont[65][48][65].y);
->>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
 
     // transform Phi2 to the unknown in HYPRE (used as initial guess)
     Petsc2HypreVector(peqn->phi, peqn->hypreP, peqn->thisRankStart);
@@ -3730,19 +3698,10 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
 
     UpdatePressure(peqn);
-<<<<<<< HEAD
     // set pressure reference
     SetPressureReference(peqn);
 
 
-=======
-
-
-    // set pressure reference
-    SetPressureReference(peqn);
-
-    
->>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013
     // update velocity
     ProjectVelocity(peqn);
 

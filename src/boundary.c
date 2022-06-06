@@ -2294,16 +2294,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 // set to zero if solid.
                 if(isIBMCell(k, j, i, nvert))
                 {
-                    if (teqn->access->abl == NULL)
-                    {
-                        //printf("here update T BC .......\n");
-                        t[k][j][i] = teqn->tRefNoAbl;
-                        //printf("T = %lf\n", t[k][j][i]);
-                    }
-                    else
-                    {
-                        t[k][j][i] = teqn->access->abl->tRef;
-                    }
+                    t[k][j][i] = teqn->access->abl->tRef;
                     continue;
                 }
 
@@ -2676,8 +2667,54 @@ PetscErrorCode UpdateNutBCs(les_ *les)
 
                     continue; //with this set-up no IBMs can't be touching a vent. Shouldn't be an issue. Even IMBs blocking a vent should be at least one cell length away
                 }
+                //if (k==65 && j == my-2 && i == 65) {printf("BAD nut .....................\n");}
+                //if (k==64 && j == my-2 && i == 65) {printf("BAD nut2 .....................\n");}
+                //if (k==65 && j == my-2 && i == 64) {printf("BAD nut3 .....................\n");}
+
+                /*if (markVent[k][j][i] > 0)
+                {
+                    //printf("in Nut .... %i,%i,%i\n", k, j, i); // check for if continue is working properly
+                    q = markVent[k][j][i] - 1;
+                    UpdateVentNutBCs(les, q, k, j, i);
+                    continue;
+                }*/
+
+                //if (k == 65 && j == 1 && i == 65) printf("HERE BAD NUT..........................");
+
+                // if ghost cells are solid set to zero and skip
+                if (isIBMCell(k, j, i-1, nvert) && i==1)
+                {
+                    nut[k][j][i-1] = 0.0;
+                    continue;
+                }
+                if (isIBMCell(k, j, i+1, nvert) && i==mx-2)
+                {
+                    nut[k][j][i+1] = 0.0;
+                    continue;
+                }
+                if (isIBMCell(k, j-1, i, nvert) && j==1)
+                {
+                    nut[k][j-1][i] = 0.0;
+                    continue;
+                }
+                if (isIBMCell(k, j+1, i, nvert) && j==my-2)
+                {
+                    nut[k][j+1][i] = 0.0;
+                    continue;
+                }
+                if (isIBMCell(k-1, j, i, nvert) && k==1)
+                {
+                    nut[k-1][j][i] = 0.0;
+                    continue;
+                }
+                if (isIBMCell(k+1, j, i, nvert) && k==mz-2)
+                {
+                    nut[k+1][j][i] = 0.0;
+                    continue;
+                }
+
                 // set to zero at solid internal cells and skip
-                if(isIBMCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert))
                 {
                     nut[k][j][i] = 0.0;
                     continue;
