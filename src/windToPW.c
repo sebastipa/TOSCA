@@ -3238,7 +3238,6 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
 
                   }
 
-
                   // load temperature
                   if(flags.isTeqnActive)
                   {
@@ -3284,26 +3283,7 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
                     fclose(xmf);
                 }
 
-                    if(!rank)
-                    {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                      writeKSectionScalarToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ti],
-                          "T",
-                          kSections->scalarSec
-                      );
-
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                    }
+              }
 
               PetscPrintf(mesh->MESH_COMM, "done\n\n");
 
@@ -3313,7 +3293,6 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
 
     return(0);
 }
-
 //***************************************************************************************************************//
 
 PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)

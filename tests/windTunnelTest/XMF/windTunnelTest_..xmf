@@ -56,59 +56,6 @@
        </DataItem>
      </Attribute>
    </Grid>
-   <Grid Name="mesh1" GridType="Uniform">
-	   <Time Value="1.000000"/>
-     <Topology TopologyType="3DSMesh" NumberOfElements="30 66 100"/>
-     <Geometry GeometryType="X_Y_Z">
-       <DataItem Dimensions="30 66 100" NumberType="Float" Precision="4" Format="HDF">
-        windTunnelTest_1.00:/X
-       </DataItem>
-       <DataItem Dimensions="30 66 100" NumberType="Float" Precision="4" Format="HDF">
-        windTunnelTest_1.00:/Y
-       </DataItem>
-       <DataItem Dimensions="30 66 100" NumberType="Float" Precision="4" Format="HDF">
-        windTunnelTest_1.00:/Z
-       </DataItem>
-     </Geometry>
-     <Attribute Name="U" AttributeType="Vector" Center="Cell">
-       <DataItem Dimensions="29 65 99 3" Function="JOIN($0, $1, $2)" ItemType="Function">
-       <DataItem Dimensions="29 65 99 1" NumberType="Float" Precision="4" Format="HDF" ItemType="Uniform">
-        windTunnelTest_1.00:/U_x
-       </DataItem>
-       <DataItem Dimensions="29 65 99 1" NumberType="Float" Precision="4" Format="HDF" ItemType="Uniform">
-        windTunnelTest_1.00:/U_y
-       </DataItem>
-       <DataItem Dimensions="29 65 99 1" NumberType="Float" Precision="4" Format="HDF" ItemType="Uniform">
-        windTunnelTest_1.00:/U_z
-       </DataItem>
-       </DataItem>
-     </Attribute>
-     <Attribute Name="p" AttributeType="Scalar" Center="Cell">
-       <DataItem Dimensions="29 65 99" NumberType="Float" Precision="4" Format="HDF">
-        windTunnelTest_1.00:/p_
-       </DataItem>
-     </Attribute>
-     <Attribute Name="nv" AttributeType="Scalar" Center="Cell">
-       <DataItem Dimensions="29 65 99" NumberType="Float" Precision="4" Format="HDF">
-        windTunnelTest_1.00:/nv_
-       </DataItem>
-     </Attribute>
-     <Attribute Name="nut" AttributeType="Scalar" Center="Cell">
-       <DataItem Dimensions="29 65 99" NumberType="Float" Precision="4" Format="HDF">
-        windTunnelTest_1.00:/nut_
-       </DataItem>
-     </Attribute>
-     <Attribute Name="cs" AttributeType="Scalar" Center="Cell">
-       <DataItem Dimensions="29 65 99" NumberType="Float" Precision="4" Format="HDF">
-        windTunnelTest_1.00:/cs_
-       </DataItem>
-     </Attribute>
-     <Attribute Name="T" AttributeType="Scalar" Center="Cell">
-       <DataItem Dimensions="29 65 99" NumberType="Float" Precision="4" Format="HDF">
-        windTunnelTest_1.00:/T_
-       </DataItem>
-     </Attribute>
-   </Grid>
    </Grid>
  </Domain>
 </Xdmf>
