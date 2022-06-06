@@ -1,6 +1,7 @@
 # OKWind Input file - T boundary conditions
 # -------------------------------------------
 
+<<<<<<< HEAD:tests/ventsTest2/boundary/T
 # tRef if isAblActive=0
 
 tRefNoAbl 20.0
@@ -12,6 +13,15 @@ internalField    uniform
   value  20.0
 }
 
+=======
+#internal field
+
+internalField    uniform
+{
+  value  20.0
+}
+
+>>>>>>> 2c54ea06bf6d7777922fad236abcb9cabfc86013:tests/SuccessorOversetTest/boundary/overset/nut
 # boundary patches
 
 iLeft   	 zeroGradient

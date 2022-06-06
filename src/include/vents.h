@@ -60,8 +60,6 @@ struct vents_
 
     ventObject         **vent;
 
-    PetscReal          desiredLeakFlux;
-
     // access database
     access_            *access;
 
