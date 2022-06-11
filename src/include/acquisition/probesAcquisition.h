@@ -14,6 +14,7 @@ struct probeRake
     PetscReal     timeInterval;               //!< acquisition time interval (overrides simulation time step if smaller)
     PetscInt      Uflag;                      //!< flag telling if velocity field must be acquired
     PetscInt      Tflag;                      //!< flag telling if fempearature field must be acquired
+    PetscInt      Pflag;                      //!< flag telling if pressure field must be acquired
 
     PetscReal     **locations;                //!< array of [n, 3] where n is the number of probes in the rake and 3 are the probe coords
     PetscInt      **cells;                    //!< array of [n, 3] where n is the number of probes in the rake and 3 are cell indices of the computational pt closes to the probe

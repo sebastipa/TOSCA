@@ -14,6 +14,7 @@ struct clock_
     PetscReal        startDt;                   //!< time step
     PetscReal        dtOld;                     //!< old time step
     PetscReal        cfl;                       //!< cfl number
+    PetscReal        dxMin;                     //!< min cell side size
 
     PetscInt         it;                        //!< current iteration value
     PetscInt         itStart;                   //!< start iteration value (zero)

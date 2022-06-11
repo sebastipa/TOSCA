@@ -10,19 +10,18 @@
 // DYNAMIC TIME STEPPING
 // ============================================================================================================= //
 
-inline void timeStepSet(clock_ *clock, PetscReal timeStart, PetscReal timeInterval, PetscReal minD, PetscReal maxU, PetscInt &flag, PetscReal &cfl)
+inline void timeStepSet(clock_ *clock, PetscReal timeStart, PetscReal timeInterval, PetscReal dByU, PetscInt &flag, PetscReal &cfl)
 {
     PetscReal initialTimeStep  = clock->dt;
 
     // compute current fraction of the acquisition period
     PetscReal currentAcquistionPeriodFraction = (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval + 1e-10);
 
-
     // compute current distance to write time
     PetscReal currentDistanceToWriteTime = (1.0-currentAcquistionPeriodFraction)*timeInterval;
 
     // compute what will be the two CFL if adjusting with current or next distance
-    PetscReal currentCFL = currentDistanceToWriteTime * maxU / minD;
+    PetscReal currentCFL = currentDistanceToWriteTime / dByU;
 
     if(currentCFL < clock->cfl)
     {
@@ -39,6 +38,21 @@ inline void timeStepSet(clock_ *clock, PetscReal timeStart, PetscReal timeInterv
     }
 
     return;
+}
+
+inline PetscInt mustWrite(PetscReal time, PetscReal startTime, PetscReal timeInterval)
+{
+    return
+    (
+        (
+            (time - startTime) / timeInterval -
+            std::floor
+            (
+                (time - startTime) / timeInterval + 1e-10
+            ) < 1e-10
+        ) &&
+        time >= startTime
+    );
 }
 
 // MATH FUNCTIONS

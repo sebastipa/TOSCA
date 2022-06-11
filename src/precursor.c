@@ -47,13 +47,14 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     PetscInt isKEBudgetsActive      = 0;
     PetscInt isQCritActive          = 0;
     PetscInt isL2CritActive         = 0;
+    PetscInt isPerturbABLActive     = 0;
 
     flags->isAquisitionActive
     =
     PetscMin((PetscInt)
     (
         isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive + isKEBudgetsActive +
-        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive),
+        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isPerturbABLActive),
         1
     );
 
@@ -101,6 +102,15 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
     {
         // set I/O
         InitializeIO(domain->io);
+
+        // override any possible IO
+        domain->io->averaging      = 0;
+        domain->io->phaseAveraging = 0;
+        domain->io->keBudgets      = 0;
+        domain->io->qCrit          = 0;
+        domain->io->l2Crit         = 0;
+        domain->io->windFarmForce  = 0;
+        domain->io->sources        = 0;
 
         // set wall models
         SetWallModels(domain->ueqn);
@@ -658,7 +668,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
     flags_     *flags     = domain->access.flags;
 
     if(precursor->thisProcessorInFringe)
-    {   
+    {
         setRunTimeWrite(domain);
 
         // set initial field

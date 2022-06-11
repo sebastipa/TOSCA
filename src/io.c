@@ -138,7 +138,8 @@ PetscErrorCode RereadIO(domain_ *domain)
 
 PetscErrorCode UpdateInput(io_ *io, word &modified)
 {
-    mesh_ *mesh = io->access->mesh;
+    mesh_   *mesh  = io->access->mesh;
+    clock_  *clock = io->access->clock;
 
     PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
@@ -146,9 +147,34 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
     readDictWord  ("control.dat", "-intervalType", &(io->intervalType));
     readDictDouble("control.dat", "-timeInterval", &(io->timeInterval));
 
+    // read time controls (mandatory entries)
+    readDictDouble("control.dat", "-cfl",          &(clock->cfl));
+    readDictDouble("control.dat", "-endTime",      &(clock->endTime));
+
     // read purge write (optional)
     io->purgeWrite     = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-purgeWrite", &(io->purgeWrite), PETSC_NULL);
+
+    // read equation tolerances
+    ueqn_ *ueqn = io->access->ueqn;
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU",  &(ueqn->relExitTol), PETSC_NULL);
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU",  &(ueqn->absExitTol), PETSC_NULL);
+    SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, ueqn->relExitTol, 1e-30, 20, 1000);
+
+    peqn_ *peqn = io->access->peqn;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-poissonIt", &(peqn->poissonIt), PETSC_NULL);
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-poissonTol", &(peqn->poissonTol), PETSC_NULL);
+    HYPRE_BoomerAMGSetTol (peqn->PC, peqn->poissonTol);
+    if(peqn->hypreSolverType == 1)
+    {
+        HYPRE_GMRESSetMaxIter   (peqn->hypreSlvr, peqn->poissonIt);
+        HYPRE_GMRESSetTol       (peqn->hypreSlvr, peqn->poissonTol);
+    }
+    else if(peqn->hypreSolverType == 2)
+    {
+        HYPRE_PCGSetMaxIter   (peqn->hypreSlvr, peqn->poissonIt);
+        HYPRE_PCGSetTol       (peqn->hypreSlvr, peqn->poissonTol);
+    }
 
     io->lastModification = modified;
 
@@ -420,10 +446,11 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     }
 
     // read averaged fields
-    PetscInt avgAvailable      = 0;
-    PetscInt phaseAvgAvailable = 0;
-    PetscInt keBudAvailable    = 0;
-    PetscInt lm3Available      = 0;
+    PetscInt avgAvailable        = 0;
+    PetscInt phaseAvgAvailable   = 0;
+    PetscInt keBudAvailable      = 0;
+    PetscInt lm3Available        = 0;
+    PetscInt perturbABLAvailable = 0;
 
     if(io->averaging)
     {
@@ -1465,6 +1492,59 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         MPI_Barrier(mesh->MESH_COMM);
     }
 
+    if(acquisition->isPerturbABLActive)
+    {
+        FILE *fp;
+
+        field = "/UpABL";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "UpABL...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->perturbABL->pertU,viewer);
+            PetscViewerDestroy(&viewer);
+            perturbABLAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        field = "/PpABL";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "PpABL...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->perturbABL->pertP,viewer);
+            PetscViewerDestroy(&viewer);
+            perturbABLAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        field = "/TpABL";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "TpABL...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->perturbABL->pertT,viewer);
+            PetscViewerDestroy(&viewer);
+            perturbABLAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+    }
+
     // read average, phase and ke budget average weights
     if(avgAvailable)
     {
@@ -1496,6 +1576,14 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         fileName = location + field;
         readDictInt(fileName.c_str(), "lm3AvgWeight", &(acquisition->LM3->avgWeight));
         PetscPrintf(mesh->MESH_COMM, "Reading 3LM average weight: %ld and counting...\n",acquisition->LM3->avgWeight);
+    }
+
+    if(perturbABLAvailable)
+    {
+        field = "/fieldInfo";
+        fileName = location + field;
+        readDictInt(fileName.c_str(), "perturbABLAvgWeight", &(acquisition->perturbABL->avgWeight));
+        PetscPrintf(mesh->MESH_COMM, "Reading ABL perturbation average weight: %ld and counting...\n",acquisition->perturbABL->avgWeight);
     }
 
     PetscPrintf(mesh->MESH_COMM, "\n");
@@ -1805,26 +1893,6 @@ PetscErrorCode writeFields(io_ *io)
             writeBinaryField(mesh->MESH_COMM, acquisition->fields->avgUU, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
-            if(flags->isLesActive)
-            {
-                Vec Cs;  VecDuplicate(peqn->P, &Cs);  VecSet(Cs, 0.);
-                Vec Nut; VecDuplicate(peqn->P, &Nut); VecSet(Nut, 0.);
-
-                VecScalarLocalToGlobalCopy(mesh, les->lCs, Cs);
-                VecScalarLocalToGlobalCopy(mesh, les->lNu_t, Nut);
-
-                fieldName = timeName + "/cs";
-                writeBinaryField(mesh->MESH_COMM, Cs, fieldName.c_str());
-
-                fieldName = timeName + "/nut";
-                writeBinaryField(mesh->MESH_COMM, Nut, fieldName.c_str());
-
-                VecDestroy(&Cs);
-                VecDestroy(&Nut);
-
-                MPI_Barrier(mesh->MESH_COMM);
-            }
-
             if(io->windFarmForce && flags->isWindFarmActive)
             {
                 farm_ *farm = io->access->farm;
@@ -1841,14 +1909,6 @@ PetscErrorCode writeFields(io_ *io)
                 MPI_Barrier(mesh->MESH_COMM);
 
             }
-
-            writeBinaryField(mesh->MESH_COMM, acquisition->fields->avgP, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
-
-            // write avgUU
-            fieldName = timeName + "/avgUU";
-            writeBinaryField(mesh->MESH_COMM, acquisition->fields->avgUU, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
 
             if(flags->isLesActive)
             {
@@ -2289,6 +2349,43 @@ PetscErrorCode writeFields(io_ *io)
                 }
 
                 fprintf(f, "lm3AvgWeight\t\t%ld\n", acquisition->LM3->avgWeight);
+
+                fclose(f);
+            }
+        }
+
+        if(acquisition->isPerturbABLActive)
+        {
+            // write perturbation velocity
+            fieldName = timeName + "/UpABL";
+            writeBinaryField(mesh->MESH_COMM, acquisition->perturbABL->pertU, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write perturbation pressure
+            fieldName = timeName + "/PpABL";
+            writeBinaryField(mesh->MESH_COMM, acquisition->perturbABL->pertP, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write perturbation temperature
+            fieldName = timeName + "/TpABL";
+            writeBinaryField(mesh->MESH_COMM, acquisition->perturbABL->pertT, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write weights
+            if(!rank)
+            {
+                FILE *f;
+                fieldName = timeName + "/fieldInfo";
+                f = fopen(fieldName.c_str(), "a");
+
+                if(!f)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                    fatalErrorInFunction("writeFields",  error);
+                }
+
+                fprintf(f, "perturbABLAvgWeight\t\t%ld\n", acquisition->perturbABL->avgWeight);
 
                 fclose(f);
             }
@@ -2898,14 +2995,8 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
         // write every "timeInterval" seconds
         if
         (
-            (intervalType == "adjustableTime") &&
-            (
-                (clock->time - clock->startTime) / timeInterval -
-                std::floor
-                (
-                    (clock->time - clock->startTime) / timeInterval + epsilon
-                ) < 1e-10
-            )
+            intervalType == "adjustableTime" &&
+            mustWrite(clock->time, clock->startTime, timeInterval)
         )
         {
             io->runTimeWrite = 1;

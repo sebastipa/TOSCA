@@ -9,6 +9,7 @@
 #include "acquisition/sectionsAcquisition.h"
 #include "acquisition/ablAcquisition.h"
 #include "acquisition/keAcquisition.h"
+#include "acquisition/perturbAcquisition.h"
 
 //! \brief Struct containing all acquisition data structures
 struct acquisition_
@@ -21,12 +22,14 @@ struct acquisition_
     sections      *iSections;                 //!< information about the i-sections
     dataABL       *statisticsABL;             //!< ABL statistics
     data3LM       *LM3;                       //!< 3LM statistics
+    perturbFields *perturbABL;                //!< ABL perturbation fields for gtavity waves
 
     // acquisition flags
     PetscInt      isProbesActive;
     PetscInt      isSectionsActive;
     PetscInt      isAverageABLActive;
     PetscInt      isAverage3LMActive;
+    PetscInt      isPerturbABLActive;
 
     access_       *access;                    //!< access database
 };
@@ -152,6 +155,15 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition);
 
 //! \brief Reads velocity and pressure averages (they don't use auxiliary fields like TBL, LBL, IBL)
 PetscErrorCode read3LMFields(acquisition_ *acquisition);
+
+// ABL PERTURBATION ACQUISITION
+// ============================================================================================================= //
+
+//! \brief Initializes ABL perturbation fields w.r.t. given reference
+PetscErrorCode perturbationABLInitialize(acquisition_ *acquisition);
+
+//! \brief Performs perturbation averaging and writes to memory
+PetscErrorCode averagePerturbationABL(acquisition_ *acquisition);
 
 // ABL PLANAR AVERAGING ACQUISITION
 // ============================================================================================================= //

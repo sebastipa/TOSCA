@@ -111,7 +111,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         // 4th arg: convergene tolerance in terms of the norm of the change in the solution |deltaU| / |U| < tol
         // 5th arg: maximum number of iterations
         // 6th arg: maximum function evaluations
-        SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, 1e-30, 1e-30, 20, 1000);
+        SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, ueqn->relExitTol, 1e-30, 20, 1000);
 
         SNESGetKSP(ueqn->snesU, &(ueqn->ksp));
         KSPGetPC(ueqn->ksp,&(ueqn->pc));
@@ -3482,16 +3482,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
                 r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
 
-                PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
-
-                Compute_du_dxyz
-                (
-                    mesh,
-                    csi0,   csi1,   csi2,   eta0,   eta1,   eta2,   zet0,   zet1,   zet2,   ajc,
-                    dudc,   dvdc,   dwdc,   dude,   dvde,   dwde,   dudz,   dvdz,   dwdz,
-                    &du_dx, &dv_dx, &dw_dx, &du_dy, &dv_dy, &dw_dy, &du_dz, &dv_dz, &dw_dz
-                );
-
                 PetscInt    iL, iR;
                 PetscReal denom;
                 getFace2Cell4StencilCsi(mesh, i, mx, &iL, &iR, &denom);
@@ -3786,16 +3776,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
                 r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
 
-                PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
-
-                Compute_du_dxyz
-                (
-                    mesh,
-                    csi0,   csi1,   csi2,   eta0,   eta1,   eta2,   zet0,   zet1,   zet2,   ajc,
-                    dudc,   dvdc,   dwdc,   dude,   dvde,   dwde,   dudz,   dvdz,   dwdz,
-                    &du_dx, &dv_dx, &dw_dx, &du_dy, &dv_dy, &dw_dy, &du_dz, &dv_dz, &dw_dz
-                );
-
                 PetscInt    jL, jR;
                 PetscReal denom;
                 getFace2Cell4StencilEta(mesh, j, my, &jL, &jR, &denom);
@@ -4088,16 +4068,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
                 r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
                 r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
-
-                PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
-
-                Compute_du_dxyz
-                (
-                    mesh,
-                    csi0,   csi1,   csi2,   eta0,   eta1,   eta2,   zet0,   zet1,   zet2,   ajc,
-                    dudc,   dvdc,   dwdc,   dude,   dvde,   dwde,   dudz,   dvdz,   dwdz,
-                    &du_dx, &dv_dx, &dw_dx, &du_dy, &dv_dy, &dw_dy, &du_dz, &dv_dz, &dw_dz
-                );
 
                 PetscInt    kL, kR;
                 PetscReal denom;

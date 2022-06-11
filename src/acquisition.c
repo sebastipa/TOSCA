@@ -55,15 +55,16 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
                 acquisition->isSectionsActive   = 0;
                 acquisition->isAverageABLActive = 0;
                 acquisition->isAverage3LMActive = 0;
+                acquisition->isPerturbABLActive = 0;
 
                 PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",        &(acquisition->isProbesActive),     PETSC_NULL);
                 PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &(acquisition->isSectionsActive),   PETSC_NULL);
                 PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averageABL",    &(acquisition->isAverageABLActive), PETSC_NULL);
                 PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-average3LM",    &(acquisition->isAverage3LMActive), PETSC_NULL);
+                PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",    &(acquisition->isPerturbABLActive), PETSC_NULL);
 
                 // set domain folder flag to 1 is sections are active
                 if(acquisition->isSectionsActive) createDomainFolder = 1;
-
             }
 
             // set domain folder flag to 1 if wind farm is active
@@ -101,13 +102,14 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
             // initialize sections
             sectionsInitialize(acquisition);
 
-            MPI_Barrier(domain[d].mesh->MESH_COMM);
-
             // initialize averages
             averageFieldsInitialize(acquisition);
 
             // initialize MKE budgets
             averageKEBudgetsInitialize(acquisition);
+
+            // initialize ABL perturbation fields (must go after sections)
+            perturbationABLInitialize(acquisition);
 
         }
 
@@ -170,6 +172,7 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
             acquisition->isSectionsActive   = 0;
             acquisition->isAverageABLActive = 1;
             acquisition->isAverage3LMActive = 0;
+            acquisition->isPerturbABLActive = 0;
         }
 
         // create precursor folders
@@ -200,6 +203,9 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
         // initialize ke budgets
         averageKEBudgetsInitialize(acquisition);
 
+        // initialize ABL perturbation fields (must go after sections)
+        perturbationABLInitialize(acquisition);
+
         // initialize probes
         ProbesInitialize(domain);
 
@@ -208,6 +214,7 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
 
         // initialize ABL averaging
         averagingABLInitialize(domain);
+
     }
 
     // sync processors
@@ -241,6 +248,9 @@ PetscErrorCode WriteAcquisition(domain_ *domain)
 
             // average ke budgets
             averageKEBudgets(acquisition);
+
+            // average perturbation fields
+            averagePerturbationABL(acquisition);
         }
 
         // write the fields
@@ -1122,12 +1132,7 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
             PetscReal startTimeAvg         = io->avgStartTime;
             PetscReal timeIntervalAvg      = io->avgPrd;
             // check if must accumulate averaged fields
-            if
-            (
-                clock->time >= startTimeAvg &&
-                (clock->time - startTimeAvg ) / timeIntervalAvg -
-                std::floor((clock->time - startTimeAvg) / timeIntervalAvg + epsilon) < 1e-10
-            )
+            if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg))
             {
                 accumulateAvg = 1;
             }
@@ -1139,12 +1144,7 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
             PetscReal timeIntervalPhaseAvg = io->phAvgPrd;
 
             // check if must accumulate phase averaged fields
-            if
-            (
-                clock->time >= startTimePhaseAvg &&
-                (clock->time - startTimePhaseAvg ) / timeIntervalPhaseAvg -
-                std::floor((clock->time - startTimePhaseAvg) / timeIntervalPhaseAvg + epsilon) < 1e-10
-            )
+            if(mustWrite(clock->time, startTimePhaseAvg, timeIntervalPhaseAvg))
             {
                 accumulatePhaseAvg = 1;
             }
@@ -2001,12 +2001,7 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
         PetscReal timeIntervalAvg      = ke->avgPrd;
 
         // check if must accumulate
-        if
-        (
-            clock->time >= startTimeAvg &&
-            (clock->time - startTimeAvg ) / timeIntervalAvg -
-            std::floor((clock->time - startTimeAvg) / timeIntervalAvg) < 1e-10
-        )
+        if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg))
         {
             accumulate = 1;
         }
@@ -2621,12 +2616,7 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
         PetscReal timeIntervalAvg      = ke->avgPrd;
 
         // check if must accumulate
-        if
-        (
-            clock->time >= startTimeAvg &&
-            (clock->time - startTimeAvg ) / timeIntervalAvg -
-            std::floor((clock->time - startTimeAvg) / timeIntervalAvg) < 1e-10
-        )
+        if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg))
         {
             accumulate = 1;
         }
@@ -3802,13 +3792,62 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             dirRes = mkdir(ksliceNameNut, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                               char error[512];
+                                char error[512];
                                 sprintf(error, "could not create %s directory\n", ksliceNameNut);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
                             else
                             {
                                 //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                atLeastOneScalar++;
+                            }
+                        }
+
+                        if(acquisition->isPerturbABLActive)
+                        {
+                            char ksliceNameUpABL[260];
+                            char ksliceNamePpABL[260];
+                            char ksliceNameTpABL[260];
+                            sprintf(ksliceNameUpABL, "%s/UpABL", ksliceName);
+                            sprintf(ksliceNamePpABL, "%s/PpABL", ksliceName);
+                            sprintf(ksliceNameTpABL, "%s/TpABL", ksliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(ksliceNameUpABL, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", ksliceNameUpABL);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                atLeastOneVector++;
+                            }
+
+                            errno = 0;
+                            dirRes = mkdir(ksliceNamePpABL, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", ksliceNamePpABL);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                atLeastOneScalar++;
+                            }
+
+                            errno = 0;
+                            dirRes = mkdir(ksliceNameTpABL, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", ksliceNameTpABL);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
                                 atLeastOneScalar++;
                             }
                         }
@@ -4054,6 +4093,58 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             {
                                char error[512];
                                 sprintf(error, "could not create %s directory\n", jsliceNameNut);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                atLeastOneScalar++;
+                            }
+                        }
+
+                        if(acquisition->isPerturbABLActive)
+                        {
+                            char jsliceNameUpABL[260];
+                            char jsliceNamePpABL[260];
+                            char jsliceNameTpABL[260];
+                            sprintf(jsliceNameUpABL, "%s/UpABL", jsliceName);
+                            sprintf(jsliceNamePpABL, "%s/PpABL", jsliceName);
+                            sprintf(jsliceNameTpABL, "%s/TpABL", jsliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(jsliceNameUpABL, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", jsliceNameUpABL);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                atLeastOneVector++;
+                            }
+
+                            errno = 0;
+                            dirRes = mkdir(jsliceNamePpABL, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", jsliceNamePpABL);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                atLeastOneScalar++;
+                            }
+
+                            errno = 0;
+                            dirRes = mkdir(jsliceNameTpABL, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", jsliceNameTpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
                             else
@@ -4311,6 +4402,55 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                                 atLeastOneScalar++;
                             }
                         }
+
+                        if(acquisition->isPerturbABLActive)
+                        {
+                            char isliceNameUpABL[260];
+                            char isliceNamePpABL[260];
+                            char isliceNameTpABL[260];
+                            sprintf(isliceNameUpABL, "%s/UpABL", isliceName);
+                            sprintf(isliceNamePpABL, "%s/PpABL", isliceName);
+                            sprintf(isliceNameTpABL, "%s/TpABL", isliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(isliceNameUpABL, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", isliceNameUpABL);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                atLeastOneVector++;
+                            }
+
+                            errno = 0;
+                            dirRes = mkdir(isliceNamePpABL, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", isliceNamePpABL);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                atLeastOneScalar++;
+                            }
+
+                            errno = 0;
+                            dirRes = mkdir(isliceNameTpABL, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", isliceNameTpABL);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                atLeastOneScalar++;
+                            }
+                        }
                     }
                 }
             }
@@ -4365,6 +4505,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
         clock_ *clock = acquisition->access->clock;
         mesh_  *mesh  = acquisition->access->mesh;
         flags_ *flags = acquisition->access->flags;
+        io_    *io    = acquisition->access->io;
 
         ueqn_  *ueqn  = acquisition->access->ueqn;
         peqn_  *peqn  = acquisition->access->peqn;
@@ -4396,7 +4537,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     // adjustableTime: write only if clock->time is multiple of time interval
                     (
                         iSections->intervalType == "adjustableTime" &&
-                        (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval + epsilon) < 1e-10
+                        mustWrite(clock->time, timeStart, timeInterval)
                     ) ||
                     // timeStep: write every timeInterval iterations
                     (
@@ -4442,7 +4583,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     // adjustableTime: write only if clock->time is multiple of time interval
                     (
                         jSections->intervalType == "adjustableTime" &&
-                        (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval + epsilon) < 1e-10
+                        mustWrite(clock->time, timeStart, timeInterval)
                     ) ||
                     // timeStep: write every timeInterval iterations
                     (
@@ -4489,7 +4630,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     // adjustableTime: write only if clock->time is multiple of time interval
                     (
                         kSections->intervalType == "adjustableTime" &&
-                        (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval + epsilon) < 1e-10
+                        mustWrite(clock->time, timeStart, timeInterval)
                     ) ||
                     // timeStep: write every timeInterval iterations
                     (
@@ -4515,6 +4656,75 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
 
                     if(flags->isTeqnActive) kSectionSaveScalar(mesh, kSections, kplane, teqn->Tmprt, "T");
                     if(flags->isLesActive)  kSectionSaveScalar(mesh, kSections, kplane, les->lNu_t, "nut");
+                }
+            }
+        }
+
+        // write perturbation sections only at run-time write since they are averages
+        if(acquisition->isPerturbABLActive && io->runTimeWrite)
+        {
+            perturbFields *perturbABL = acquisition->perturbABL;
+
+            // write i sections
+            if(acquisition->iSections->available)
+            {
+                sections *iSections = acquisition->iSections;
+
+                PetscPrintf(mesh->MESH_COMM, "Saving i-sections perturbation fields:\n");
+
+                for(PetscInt i=0; i<iSections->nSections; i++)
+                {
+                    PetscInt iplane = iSections->indices[i];
+
+                    // exclude ghost nodes
+                    if (iplane<1 || iplane>mx-2) continue;
+
+                    // store data
+                    iSectionSaveVector(mesh, iSections, iplane, perturbABL->pertU, "UpABL");
+                    iSectionSaveScalar(mesh, iSections, iplane, perturbABL->pertP, "PpABL");
+                    iSectionSaveScalar(mesh, iSections, iplane, perturbABL->pertT, "TpABL");
+                }
+            }
+
+            // write j sections
+            if(acquisition->jSections->available)
+            {
+                sections *jSections = acquisition->jSections;
+
+                PetscPrintf(mesh->MESH_COMM, "Saving j-sections perturbation fields:\n");
+
+                for(PetscInt j=0; j<jSections->nSections; j++)
+                {
+                    PetscInt jplane = jSections->indices[j];
+
+                    // exclude ghost nodes
+                    if (jplane<1 || jplane>my-2) continue;
+
+                    // store data
+                    jSectionSaveVector(mesh, jSections, jplane, perturbABL->pertU, "UpABL");
+                    jSectionSaveScalar(mesh, jSections, jplane, perturbABL->pertP, "PpABL");
+                    jSectionSaveScalar(mesh, jSections, jplane, perturbABL->pertT, "TpABL");
+                }
+            }
+
+            // write k sections
+            if(acquisition->kSections->available)
+            {
+                sections *kSections = acquisition->kSections;
+
+                PetscPrintf(mesh->MESH_COMM, "Saving k-sections perturbation fields:\n");
+
+                for(PetscInt k=0; k<kSections->nSections; k++)
+                {
+                    PetscInt kplane = kSections->indices[k];
+
+                    // exclude ghost nodes
+                    if (kplane<1 || kplane>mz-2) continue;
+
+                    // store data
+                    kSectionSaveVector(mesh, kSections, kplane, perturbABL->pertU, "UpABL");
+                    kSectionSaveScalar(mesh, kSections, kplane, perturbABL->pertP, "PpABL");
+                    kSectionSaveScalar(mesh, kSections, kplane, perturbABL->pertT, "TpABL");
                 }
             }
         }
@@ -5169,6 +5379,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                     readError = fscanf(f, "%[^\n]", fields);
                     probes->rakes[nRakes].Uflag = foundInString(fields, "U");
                     probes->rakes[nRakes].Tflag = foundInString(fields, "T");
+                    probes->rakes[nRakes].Pflag = foundInString(fields, "p");
 
                     // set T flag to zero if T equation is not active
                     if(!flags->isTeqnActive) probes->rakes[nRakes].Tflag = 0;
@@ -5453,6 +5664,9 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
 
                         // initialize temperature file
                         if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
+
+                        // initialize pressure file
+                        if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
                     }
                 }
 
@@ -5478,6 +5692,14 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                 else
                 {
                     PetscPrintf(probes->rakes[r].RAKE_COMM, "   get T                                : no\n");
+                }
+                if(probes->rakes[r].Pflag)
+                {
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   get p                                : yes\n");
+                }
+                else
+                {
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   get p                                : no\n");
                 }
 
                 for(p=0; p<probes->rakes[r].probesNumber; p++)
@@ -5596,12 +5818,7 @@ PetscErrorCode writeProbes(domain_ *domain)
                 double timeInterval = rake->timeInterval;
 
                 // check the time and see if must write
-                if
-                (
-                    clock->time >= timeStart && // past acquisition start
-                    (clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval) < 1e-10
-
-                )
+                if(mustWrite(clock->time, timeStart, timeInterval))
                 {
                     // initialize local vectors
                     std::vector<Cmpnts> lprobeValuesU;
@@ -5610,6 +5827,10 @@ PetscErrorCode writeProbes(domain_ *domain)
                     // initialize local vectors
                     std::vector<PetscReal> lprobeValuesT;
                     std::vector<PetscReal> gprobeValuesT;
+
+                    // initialize local vectors
+                    std::vector<PetscReal> lprobeValuesP;
+                    std::vector<PetscReal> gprobeValuesP;
 
                     if(rake->Uflag)
                     {
@@ -5621,6 +5842,12 @@ PetscErrorCode writeProbes(domain_ *domain)
                     {
                         lprobeValuesT.resize(rake->probesNumber);
                         gprobeValuesT.resize(rake->probesNumber);
+                    }
+
+                    if(rake->Pflag)
+                    {
+                        lprobeValuesP.resize(rake->probesNumber);
+                        gprobeValuesP.resize(rake->probesNumber);
                     }
 
                     for(p=0; p<rake->probesNumber; p++)
@@ -5685,6 +5912,26 @@ PetscErrorCode writeProbes(domain_ *domain)
 
                                 DMDAVecRestoreArray(mesh->da, teqn->lTmprt, &t);
                             }
+
+                            if(rake->Pflag)
+                            {
+                                PetscReal ***lp;
+
+                                // get u equation
+                                peqn_ *peqn = domain[rake->domainID[p]].peqn;
+
+                                DMDAVecGetArray(mesh->da, peqn->lP, &lp);
+
+                                if(meshRank == rake->owner[p])
+                                {
+                                    k = rake->cells[p][0];
+                                    j = rake->cells[p][1];
+                                    i = rake->cells[p][2];
+                                    lprobeValuesP[p] = lp[k][j][i];
+                                }
+
+                                DMDAVecRestoreArray(mesh->da, peqn->lP, &lp);
+                            }
                         }
                     }
 
@@ -5738,11 +5985,39 @@ PetscErrorCode writeProbes(domain_ *domain)
                         }
                     }
 
+                    if(rake->Pflag)
+                    {
+                        MPI_Reduce(&lprobeValuesP[0], &gprobeValuesP[0], rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
+
+                        // only master process writes on the file
+                        if(!rakeRank)
+                        {
+                            // write velocity
+                            FILE *ft;
+                            word fileName = rake->timeName + "/p";
+                            ft = fopen(fileName.c_str(), "a");
+
+                            fprintf(ft, "\t %.3lf\t\t\t\t\t\t", clock->time);
+                            for(p=0; p<rake->probesNumber; p++)
+                            {
+                                if(rake->domainID[p] != -1)
+                                {
+                                    fprintf(ft, "%.10lf\t\t", gprobeValuesP[p]);
+                                }
+                            }
+                            fprintf(ft, "\n");
+                            fclose(ft);
+                        }
+                    }
+
                     std::vector<Cmpnts> ().swap(lprobeValuesU);
                     std::vector<Cmpnts> ().swap(gprobeValuesU);
 
                     std::vector<PetscReal> ().swap(lprobeValuesT);
                     std::vector<PetscReal> ().swap(gprobeValuesT);
+
+                    std::vector<PetscReal> ().swap(lprobeValuesP);
+                    std::vector<PetscReal> ().swap(gprobeValuesP);
                 }
             }
         }
@@ -6461,6 +6736,300 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
 
 //***************************************************************************************************************//
 
+PetscErrorCode perturbationABLInitialize(acquisition_ *acquisition)
+{
+    if(acquisition->isPerturbABLActive)
+    {
+        mesh_         *mesh  = acquisition->access->mesh;
+        ueqn_         *ueqn  = acquisition->access->ueqn;
+        peqn_         *peqn  = acquisition->access->peqn;
+        teqn_         *teqn  = acquisition->access->teqn;
+        flags_        *flags = acquisition->access->flags;
+        DM            da = mesh->da, fda = mesh->fda;
+        DMDALocalInfo info = mesh->info;
+        PetscInt      xs = info.xs, xe = info.xs + info.xm;
+        PetscInt      ys = info.ys, ye = info.ys + info.ym;
+        PetscInt      zs = info.zs, ze = info.zs + info.zm;
+        PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+        PetscInt      i, j, k;
+        PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+        Cmpnts           ***cent;
+
+        PetscReal        ts, te;
+
+        PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+        PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+        lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+        lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+        lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+        // max perturbation amplitude
+        PetscReal maxPerturb  = 1e-10;
+
+        // processor perturbation (changes between processors)
+        PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)nprocs;
+
+        // do a couple of checks first
+        if(!acquisition->isSectionsActive)
+        {
+            char error[512];
+            sprintf(error, "found -perturbABL with -sections deactivated. Please define sections also");
+            fatalErrorInFunction("perturbationABLInitialize",  error);
+        }
+
+        if(!flags->isTeqnActive)
+        {
+            char error[512];
+            sprintf(error, "found -perturbABL with -potentialT deactivated. Pot. temperature is necessary.");
+            fatalErrorInFunction("perturbationABLInitialize",  error);
+        }
+
+        if(mesh->meshFileType != "cartesian")
+        {
+            char error[512];
+            sprintf(error, "ABL perturbations only available for cartesian meshes\n");
+            fatalErrorInFunction("perturbationABLInitialize",  error);
+        }
+
+        PetscPrintf(mesh->MESH_COMM, "Creating ABL perturbation fields...\n");
+
+        PetscPrintf(mesh->MESH_COMM, "   reading parameters\n");
+
+        // allocate memory for the 3LM data
+        PetscMalloc(sizeof(perturbFields), &(acquisition->perturbABL));
+        perturbFields *perturbABL = acquisition->perturbABL;
+
+        char path2dict[256];
+        sprintf(path2dict, "./sampling/perturbABL");
+
+        // read input file located inside sampling/ and called 3LM
+        readDictDouble(path2dict, "avgStartTime",  &(perturbABL->avgStartTime));
+        readDictDouble(path2dict, "avgPeriod",     &(perturbABL->avgPrd));
+        readDictDouble(path2dict, "xSample",       &(perturbABL->xSample));
+
+        // initialize snapshot weighting to zero
+        perturbABL->avgWeight = 0;
+
+        perturbABL->bkgU          = (Cmpnts**)malloc(my*sizeof(Cmpnts*));
+        perturbABL->bkgP          = (PetscReal**)malloc(my*sizeof(PetscReal*));
+        perturbABL->bkgT          = (PetscReal**)malloc(my*sizeof(PetscReal*));
+
+        for(PetscInt j=0; j<my; j++)
+        {
+            perturbABL->bkgU[j]          = (Cmpnts*)malloc(mx*sizeof(Cmpnts));
+            perturbABL->bkgP[j]          = (PetscReal*)malloc(mx*sizeof(PetscReal));
+            perturbABL->bkgT[j]          = (PetscReal*)malloc(mx*sizeof(PetscReal));
+        }
+
+        VecDuplicate(mesh->Cent,  &(perturbABL->pertU));  VecSet(perturbABL->pertU,0.);
+        VecDuplicate(mesh->Nvert, &(perturbABL->pertP));  VecSet(perturbABL->pertP,0.);
+        VecDuplicate(mesh->Nvert, &(perturbABL->pertT));  VecSet(perturbABL->pertT,0.);
+
+        // find the k index
+        PetscTime(&ts);
+
+        PetscPrintf(mesh->MESH_COMM, "   found sampling plane for reference ABL state ");
+
+        DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+        PetscReal lminDist  = 1e20, gminDist  = 1e20;
+        PetscReal lkminDist = 0,    gkminDist = 0;
+
+        i = std::floor((lxs+lxe)/2.0);
+        j = std::floor((lys+lye)/2.0);
+
+        for(k=lzs; k<lze; k++)
+        {
+            PetscReal dist = fabs(cent[k][j][i].x - perturbABL->xSample) + procContrib;
+
+            if(dist < lminDist)
+            {
+                lminDist = dist;
+                lkminDist = k;
+            }
+        }
+
+        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+        if(lminDist != gminDist)
+        {
+            lkminDist = 0;
+        }
+
+        MPI_Allreduce(&lkminDist, &gkminDist, 1, MPIU_INT, MPI_MAX, mesh->MESH_COMM);
+
+        perturbABL->kSample = gkminDist;
+
+        DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+        MPI_Barrier(mesh->MESH_COMM);
+
+        PetscTime(&te);
+
+        PetscPrintf(mesh->MESH_COMM, "in %lf s (kSample = %ld)\n", te-ts, perturbABL->kSample);
+
+        PetscPrintf(mesh->MESH_COMM, "done\n\n");
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode averagePerturbationABL(acquisition_ *acquisition)
+{
+    if(acquisition->isPerturbABLActive)
+    {
+        mesh_  *mesh  = acquisition->access->mesh;
+        clock_ *clock = acquisition->access->clock;
+        flags_ *flags = acquisition->access->flags;
+
+        ueqn_   *ueqn = acquisition->access->ueqn;
+        peqn_   *peqn = acquisition->access->peqn;
+        teqn_   *teqn = acquisition->access->teqn;
+
+        perturbFields *perturbABL = acquisition->perturbABL;
+
+        PetscReal        ts, te;
+
+        // check if must accumulate averaged fields
+        PetscInt accumulateAvg = 0;
+
+        PetscReal startTimeAvg         = perturbABL->avgStartTime;
+        PetscReal timeIntervalAvg      = perturbABL->avgPrd;
+
+        if
+        (
+            mustWrite(clock->time, startTimeAvg, timeIntervalAvg)
+        )
+        {
+            accumulateAvg = 1;
+        }
+
+        if(accumulateAvg)
+        {
+            DM               da = mesh->da, fda = mesh->fda;
+            DMDALocalInfo    info = mesh->info;
+            PetscInt         xs = info.xs, xe = info.xs + info.xm;
+            PetscInt         ys = info.ys, ye = info.ys + info.ym;
+            PetscInt         zs = info.zs, ze = info.zs + info.zm;
+            PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+            PetscInt         lxs, lxe, lys, lye, lzs, lze;
+            PetscInt         i, j, k;
+
+            Cmpnts           ***ucat, ***up;
+            PetscReal        ***p, ***pp, ***t, ***tp;
+
+            lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+            lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+            lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+            // set time averaging weights
+            PetscReal mN = (PetscReal)perturbABL->avgWeight;
+            PetscReal m1 = mN  / (mN + 1.0);
+            PetscReal m2 = 1.0 / (mN + 1.0);
+
+            PetscTime(&ts);
+
+            DMDAVecGetArray(fda, perturbABL->pertU, &up);
+            DMDAVecGetArray(da,  perturbABL->pertP, &pp);
+            DMDAVecGetArray(da,  perturbABL->pertT, &tp);
+            DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+            DMDAVecGetArray(da,  peqn->lP, &p);
+            DMDAVecGetArray(da,  teqn->lTmprt, &t);
+
+            std::vector<std::vector<Cmpnts>>    lbkgU(my);
+            std::vector<std::vector<PetscReal>> lbkgP(my);
+            std::vector<std::vector<PetscReal>> lbkgT(my);
+
+            for(j=0; j<my; j++)
+            {
+                lbkgU[j].resize(mx);
+                lbkgP[j].resize(mx);
+                lbkgT[j].resize(mx);
+
+                for(i=0; i<mx; i++)
+                {
+                    lbkgU[j][i]    = nSetZero();
+                    lbkgP[j][i]    = 0.0;
+                    lbkgT[j][i]    = 0.0;
+                }
+            }
+
+            // perform the average of the reference state first
+            for (k = lzs; k < lze; k++)
+            {
+                for (j = lys; j < lye; j++)
+                {
+                    for (i = lxs; i < lxe; i++)
+                    {
+                        if(k == perturbABL->kSample)
+                        {
+                            lbkgU[j][i].x    = m1 * perturbABL->bkgU[j][i].x + m2 * ucat[k][j][i].x;
+                            lbkgU[j][i].y    = m1 * perturbABL->bkgU[j][i].y + m2 * ucat[k][j][i].y;
+                            lbkgU[j][i].z    = m1 * perturbABL->bkgU[j][i].z + m2 * ucat[k][j][i].z;
+
+                            lbkgP[j][i]      = m1 * perturbABL->bkgP[j][i]   + m2 * p[k][j][i];
+                            lbkgT[j][i]      = m1 * perturbABL->bkgT[j][i]   + m2 * t[k][j][i];
+                        }
+                    }
+                }
+            }
+
+            // scatter reference planes (all nodes must have reference state)
+            for(j=0; j<my; j++)
+            {
+                // scatter vectors
+                MPI_Allreduce(&(lbkgU[j][0]), &(perturbABL->bkgU[j][0]), 3*mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&(lbkgP[j][0]), &(perturbABL->bkgP[j][0]), mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&(lbkgT[j][0]), &(perturbABL->bkgT[j][0]), mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+                // clean vectors
+                std::vector<Cmpnts>    ().swap(lbkgU[j]);
+                std::vector<PetscReal> ().swap(lbkgP[j]);
+                std::vector<PetscReal> ().swap(lbkgT[j]);
+            }
+
+            // compute the perturbations
+            for (k = lzs; k < lze; k++)
+            {
+                for (j = lys; j < lye; j++)
+                {
+                    for (i = lxs; i < lxe; i++)
+                    {
+                        up[k][j][i].x = m1 * up[k][j][i].x + m2 * (ucat[k][j][i].x - perturbABL->bkgU[j][i].x);
+                        up[k][j][i].y = m1 * up[k][j][i].y + m2 * (ucat[k][j][i].y - perturbABL->bkgU[j][i].y);
+                        up[k][j][i].z = m1 * up[k][j][i].z + m2 * (ucat[k][j][i].z - perturbABL->bkgU[j][i].z);
+
+                        pp[k][j][i]   = m1 * pp[k][j][i]   + m2 * (p[k][j][i] - perturbABL->bkgP[j][i]);
+                        tp[k][j][i]   = m1 * tp[k][j][i]   + m2 * (t[k][j][i] - perturbABL->bkgT[j][i]);
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(fda, perturbABL->pertU, &up);
+            DMDAVecRestoreArray(da,  perturbABL->pertP, &pp);
+            DMDAVecRestoreArray(da,  perturbABL->pertT, &tp);
+            DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+            DMDAVecRestoreArray(da,  peqn->lP, &p);
+            DMDAVecRestoreArray(da,  teqn->lTmprt, &t);
+
+            perturbABL->avgWeight++;
+
+            PetscTime(&te);
+            PetscPrintf(mesh->MESH_COMM, "Averaged ABL perturbations in %f s\n", te-ts);
+        }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode averaging3LMInitialize(domain_ *domain)
 {
     // 3LM averaging is done only on background domain
@@ -6810,12 +7379,7 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
         PetscReal startTimeAvg         = lm3->avgStartTime;
         PetscReal timeIntervalAvg      = lm3->avgPrd;
 
-        if
-        (
-            clock->time >= startTimeAvg &&
-            (clock->time - startTimeAvg ) / timeIntervalAvg -
-            std::floor((clock->time - startTimeAvg) / timeIntervalAvg) < 1e-10
-        )
+        if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg))
         {
             accumulateAvg = 1;
         }
@@ -7676,7 +8240,7 @@ PetscErrorCode findAvgLineIds(acquisition_ *acquisition)
 
     PetscTime(&ts);
 
-    PetscPrintf(mesh->MESH_COMM, "   finding sampling planes for BL detection ");
+    PetscPrintf(mesh->MESH_COMM, "   found sampling plane for BL detection ");
 
     PetscReal lminDist  = 1e20, gminDist  = 1e20;
     PetscReal lkminDist = 0,    gkminDist = 0;
@@ -8419,13 +8983,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
         PetscReal timeIntervalAvg = ablStat->avgPrd;
 
         // check if must accumulate averaged fields
-        if
-        (
-            clock->time >= startTimeAvg &&
-            (clock->time - startTimeAvg ) / timeIntervalAvg -
-            std::floor((clock->time - startTimeAvg) / timeIntervalAvg) < 1e-10 ||
-            clock->it == clock->itStart
-        )
+        if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg) || clock->it == clock->itStart)
         {
             accumulateAvg = 1;
         }

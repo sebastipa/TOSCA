@@ -11,10 +11,10 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     PetscInt nDomains = domain[0].info.nDomains;
     flags_   *flags   = domain[0].access.flags;
 
-    PetscInt  flag   = 0;
-    PetscReal cfl    = 1e10;
-    PetscReal dx_min = 1e10;
-    PetscReal maxU   = 0.0;
+    PetscInt  flag       = 0;
+    PetscReal cfl        = 1e10;
+    PetscReal maxU       = 0.0;
+    PetscReal dxByU_min  = 1e10;
 
     clock_        *clock = domain[0].clock;
 
@@ -45,9 +45,10 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
         lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
 
-        PetscReal lmaxU   = 0.0;
-        PetscReal ldx     = 1e10;
-        PetscReal ldi_min = 1e10, ldj_min = 1e10, ldk_min = 1e10;
+        PetscReal lmaxU      = 0.0;
+        PetscReal ldx        = 1e10;
+        PetscReal ldi_min    = 1e10, ldj_min = 1e10, ldk_min = 1e10;
+        PetscReal ldxByU_min = 1e10;
 
         cfl = PetscMin(cfl, clock->cfl);
 
@@ -66,49 +67,66 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 for (i=lxs; i<lxe; i++)
                 {
                     // contravariant velocity magnitude
-                    PetscReal Umag =
-                    sqrt
-                    (
-                        ucat[k][j][i].x*ucat[k][j][i].x +
-                        ucat[k][j][i].y*ucat[k][j][i].y +
-                        ucat[k][j][i].z*ucat[k][j][i].z
-                    );
+                    PetscReal Umag = nMag(ucat[k][j][i]);
 
+                    // minimum overall velocity in this proc
                     lmaxU = PetscMax(Umag, lmaxU);
 
-                    PetscReal ldi = 1./aj[k][j][i]/sqrt( csi[k][j][i].x*csi[k][j][i].x + csi[k][j][i].y*csi[k][j][i].y + csi[k][j][i].z*csi[k][j][i].z );
-                    PetscReal ldj = 1./aj[k][j][i]/sqrt( eta[k][j][i].x*eta[k][j][i].x + eta[k][j][i].y*eta[k][j][i].y + eta[k][j][i].z*eta[k][j][i].z );
-                    PetscReal ldk = 1./aj[k][j][i]/sqrt( zet[k][j][i].x*zet[k][j][i].x + zet[k][j][i].y*zet[k][j][i].y + zet[k][j][i].z*zet[k][j][i].z );
+                    // compute cell sizes
+                    PetscReal ldi = 1./aj[k][j][i]/nMag(csi[k][j][i]);
+                    PetscReal ldj = 1./aj[k][j][i]/nMag(eta[k][j][i]);
+                    PetscReal ldk = 1./aj[k][j][i]/nMag(zet[k][j][i]);
 
-                    ldi_min = PetscMin ( ldi_min, ldi );
-                    ldj_min = PetscMin ( ldj_min, ldj );
-                    ldk_min = PetscMin ( ldk_min, ldk );
+                    // minimum overall GCC sizes in this proc
+                    if(clock->it == clock->itStart)
+                    {
+                        ldi_min = PetscMin(ldi_min, ldi);
+                        ldj_min = PetscMin(ldj_min, ldj);
+                        ldk_min = PetscMin(ldk_min, ldk);
+                    }
+
+                    // compute dxByU
+                    PetscReal ldxByU = PetscMin(ldi, PetscMin(ldj, ldk)) / Umag;
 
                     if(isFluidCell(k, j, i, nvert))
                     {
-                        ldx = PetscMin(ldi_min, PetscMin(ldj_min, ldk_min));
+                        // min overall cell size
+                        if(clock->it == clock->itStart)
+                        {
+                            ldx = PetscMin(ldi_min, PetscMin(ldj_min, ldk_min));
+                        }
+
+                        // min overall dxByU
+                        ldxByU_min = PetscMin(ldxByU_min, ldxByU);
                     }
                 }
             }
         }
 
-        ldx   = PetscMin(ldx, dx_min);
-        lmaxU = PetscMax(lmaxU, maxU);
+        if(clock->it == clock->itStart)
+        {
+            ldx = PetscMin(ldx, clock->dxMin);
+            MPI_Allreduce(&ldx, &clock->dxMin, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+        }
 
-        MPI_Allreduce(&ldx,   &dx_min, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
-        MPI_Allreduce(&lmaxU, &maxU, 1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
+        lmaxU      = PetscMax(lmaxU, maxU);
+        ldxByU_min = PetscMin(ldxByU_min, dxByU_min);
+
+        MPI_Allreduce(&lmaxU,        &maxU,      1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
+        MPI_Allreduce(&ldxByU_min,   &dxByU_min, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
 
         DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
         DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
         DMDAVecRestoreArray(fda, mesh->lEta, &eta);
         DMDAVecRestoreArray(fda, mesh->lZet, &zet);
-        DMDAVecRestoreArray(da, mesh->lAj, &aj);
-        DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+        DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+        DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
 
         // output fields
         if(flags->isAdjustableTime)
         {
-            clock->dt = clock->cfl * dx_min / maxU;
+            // 2. takes the local ratio
+            clock->dt = clock->cfl * dxByU_min;
 
             PetscReal timeStart;
             PetscReal timeInterval;
@@ -116,7 +134,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             timeStart    = clock->startTime;
             timeInterval = domain[d].io->timeInterval;
 
-            timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+            timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
 
             // averaged fields
             if(domain[d].io->averaging)
@@ -124,7 +142,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 timeStart    = domain[d].io->avgStartTime;
                 timeInterval = domain[d].io->avgPrd;
 
-                timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
             }
 
             // phase averaged fields
@@ -133,7 +151,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 timeStart    = domain[d].io->phAvgStartTime;
                 timeInterval = domain[d].io->phAvgPrd;
 
-                timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
             }
 
             // ke budgets
@@ -142,7 +160,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 timeStart    = acquisition->keBudFields->avgStartTime;
                 timeInterval = acquisition->keBudFields->avgPrd;
 
-                timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
             }
 
             //ibm write pressure force
@@ -167,7 +185,16 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     timeStart    = domain[0].acquisition->LM3->avgStartTime;
                     timeInterval = domain[0].acquisition->LM3->avgPrd;
 
-                    timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                    timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                }
+
+                // ABL perturbations
+                if(acquisition->isPerturbABLActive)
+                {
+                    timeStart    = domain[0].acquisition->perturbABL->avgStartTime;
+                    timeInterval = domain[0].acquisition->perturbABL->avgPrd;
+
+                    timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
                 }
 
                 // ABL averaging for background domain only
@@ -176,7 +203,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     timeStart    = domain[0].acquisition->statisticsABL->avgStartTime;
                     timeInterval = domain[0].acquisition->statisticsABL->avgPrd;
 
-                    timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                    timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
                 }
 
                 if(acquisition->isProbesActive)
@@ -186,7 +213,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                         timeStart    = acquisition->probes->rakes[r].timeStart;
                         timeInterval = acquisition->probes->rakes[r].timeInterval;
 
-                        timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                        timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
                     }
                 }
 
@@ -200,7 +227,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                             timeStart    = acquisition->iSections->timeStart;
                             timeInterval = acquisition->iSections->timeInterval;
 
-                            timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                            timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
                         }
                     }
 
@@ -212,7 +239,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                             timeStart    = acquisition->jSections->timeStart;
                             timeInterval = acquisition->jSections->timeInterval;
 
-                            timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                            timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
                         }
                     }
 
@@ -224,7 +251,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                             timeStart    = acquisition->kSections->timeStart;
                             timeInterval = acquisition->kSections->timeInterval;
 
-                            timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                            timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
                         }
                     }
                 }
@@ -236,7 +263,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                         timeStart    = domain[d].farm->timeStart;
                         timeInterval = domain[d].farm->timeInterval;
 
-                        timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                        timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
                     }
                 }
             }
@@ -263,7 +290,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 {
                     computeMaxTipSpeed(domain[d].farm);
 
-                    PetscReal dtFarm = dx_min / farm->maxTipSpeed;
+                    PetscReal dtFarm = clock->dxMin / farm->maxTipSpeed;
 
                     clock->dt = std::min(clock->dt, dtFarm);
                 }
@@ -297,8 +324,9 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         }
         else
         {
-            if(clock->it>clock->itStart) clock->cfl =  maxU * clock->dt / dx_min;
+            if(clock->it>clock->itStart) clock->cfl =  clock->dt / dxByU_min;
 
+            // added by Arjun for fixed time step as a last control
             if(clock->cfl > 1.0)
             {
                 clock->dt = clock->dt/2.0;
@@ -321,12 +349,20 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         clock->dt = clock->endTime - clock->time;
     }
 
+<<<<<<< HEAD
+=======
+    if (clock->dt < 1e-10)
+    {
+        clock->dt = clock->startDt;
+    }
+
+>>>>>>> added ABL perturbation fields. Fixed bugs. Enhanced re-reading. Modified CFL time-stepping evaluation
     clock->time = clock->time + clock->dt;
 
-    cfl = clock->dt * maxU / dx_min;
+    cfl = clock->dt / dxByU_min;
 
     PetscPrintf(PETSC_COMM_WORLD, "\n\nTime: %lf\n\n", clock->time);
-    PetscPrintf(PETSC_COMM_WORLD, "Iteration = %ld, CFL = %lf, uMax = %.6f, dt = %.6f, deltaMin = %.6f, adjust due to write flag: %ld\n", clock->it, cfl, maxU, clock->dt, dx_min, flag);
+    PetscPrintf(PETSC_COMM_WORLD, "Iteration = %ld, CFL = %lf, uMax = %.6f, dt = %.6f, dtMaxCFL = %.6f, adjust due to write flag: %ld\n", clock->it, cfl, maxU, clock->dt, dxByU_min, flag);
 
     return(0);
 }

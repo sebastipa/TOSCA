@@ -26,11 +26,20 @@ PetscErrorCode binary3DToXMF(domain_ *domain, postProcess *pp);
 //! \brief Reads binary i-section data and writes paraview data into XMF folder
 PetscErrorCode binaryISectionsToXMF(domain_ *domain);
 
+//! \brief Reads binary i-section pertirbation data and writes paraview data into XMF folder
+PetscErrorCode binaryISectionsPerturbToXMF(domain_ *domain);
+
 //! \brief Reads binary j-section data and writes paraview data into XMF folder
 PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp);
 
+//! \brief Reads binary j-section perturbation data and writes paraview data into XMF folder
+PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp);
+
 //! \brief Reads binary k-section data and writes paraview data into XMF folder
 PetscErrorCode binaryKSectionsToXMF(domain_ *domain);
+
+//! \brief Reads binary k-section perturbation data and writes paraview data into XMF folder
+PetscErrorCode binaryKSectionsPerturbToXMF(domain_ *domain);
 
 //! \brief Initialize post processing parameters
 PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInfo_ *info, flags_ *flags);

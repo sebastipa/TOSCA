@@ -175,6 +175,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscInt isQCritActive          = 0;
     PetscInt isL2CritActive         = 0;
     PetscInt isSourcesActive        = 0;
+    PetscInt isPerturbABLActive     = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",        &isProbesActive,         PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &isSectionsActive,       PETSC_NULL);
@@ -186,13 +187,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQ",      &isQCritActive,          PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2",     &isL2CritActive,         PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeSources",&isSourcesActive,        PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",    &isPerturbABLActive,     PETSC_NULL);
 
     flags->isAquisitionActive
     =
     PetscMin(
     (
         isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive + isKEBudgetsActive +
-        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isSourcesActive),
+        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isSourcesActive + isPerturbABLActive),
         1
     );
 
@@ -291,6 +293,7 @@ PetscErrorCode ReadTimeControls(clock_ *clock)
     clock->time    = clock->startTime;
     clock->it      = 0;
     clock->itStart = 0;
+    clock->dxMin   = 1e10;
     clock->startDt = clock->dt;
 
     // get time precision (optional)
