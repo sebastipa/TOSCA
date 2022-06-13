@@ -148,6 +148,9 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       // temperature equation initialize
       InitializeTEqn(domain[d].teqn);
 
+      // temperature equation initialize
+      InitializeCEqn(domain[d].ceqn);
+
       // LES model initialize
       InitializeLES(domain[d].les);
 
@@ -214,6 +217,7 @@ PetscErrorCode postProcessInitializePrecursor(postProcess *pp, clock_ *clock)
     InitializeUEqn(domain->ueqn);
     InitializePEqn(domain->peqn);
     InitializeTEqn(domain->teqn);
+    InitializeCEqn(domain->ceqn);
     InitializeLES(domain->les);
 
     // averages initialize
@@ -449,6 +453,21 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             time,
             "T",
             domain->teqn->Tmprt
+        );
+    }
+
+    if(domain->flags.isCeqnActive)
+    {
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "C",
+            domain->ceqn->Conc
         );
     }
 
@@ -3046,9 +3065,11 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            ceqn_  *ceqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
+            if(flags.isCeqnActive) ceqn = domain[d].ceqn;
             if(flags.isLesActive)  les  = domain[d].les;
 
             DMDALocalInfo info = mesh->info;
@@ -3266,6 +3287,34 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
 
                   }
 
+                  // load concentration
+                  if(flags.isCeqnActive)
+                  {
+                    kSectionLoadScalar(mesh, kSections, kplane, "C", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeKSectionScalarToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ti],
+                          "C",
+                          kSections->scalarSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                    }
+
+                  }
+
                   // close this time section in the XMF file
                   if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
 
@@ -3314,9 +3363,11 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            ceqn_  *ceqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
+            if(flags.isCeqnActive) ceqn = domain[d].ceqn;
             if(flags.isLesActive)  les  = domain[d].les;
 
             DMDALocalInfo info = mesh->info;
@@ -3535,6 +3586,34 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
 
                     }
 
+                    // load concentration
+                    if(flags.isCeqnActive)
+                    {
+                      jSectionLoadScalar(mesh, jSections, jplane, "C", timeSeries[ti]);
+
+                      if(!rank)
+                      {
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeJSectionScalarToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "C",
+                            jSections->scalarSec
+                        );
+
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
+                      }
+
+                    }
+
                     // close this time section in the XMF file
                     if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
 
@@ -3594,9 +3673,11 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
       ueqn_  *ueqn  = domain[d].ueqn;
       peqn_  *peqn  = domain[d].peqn;
       teqn_  *teqn;
+      ceqn_  *ceqn;
       les_   *les;
 
       if(flags.isTeqnActive) teqn = domain[d].teqn;
+      if(flags.isCeqnActive) ceqn = domain[d].ceqn;
       if(flags.isLesActive)  les  = domain[d].les;
 
       DMDALocalInfo info = mesh->info;
@@ -3815,6 +3896,33 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
 
             }
 
+            // load concentration
+            if(flags.isCeqnActive)
+            {
+              iSectionLoadScalar(mesh, iSections, iplane, "C", timeSeries[ti]);
+
+              if(!rank)
+              {
+                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                writeISectionScalarToXMF
+                (
+                    mesh,
+                    fieldsFileName.c_str(),
+                    hdfileName.c_str(),
+                    &file_id,
+                    &dataspace_id,
+                    timeSeries[ti],
+                    "C",
+                    iSections->scalarSec
+                );
+
+                status = H5Sclose(dataspace_id);
+                status = H5Fclose(file_id);
+              }
+
+            }
             // close this time section in the XMF file
             if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
 
@@ -3970,6 +4078,11 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                   atLeastOneScalar++;
                 }
 
+                if(flags.isCeqnActive)
+                {
+                  atLeastOneScalar++;
+                }
+
                 if(flags.isLesActive)
                 {
                   atLeastOneScalar++;
@@ -4058,6 +4171,11 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                   atLeastOneScalar++;
                 }
 
+                if(flags.isCeqnActive)
+                {
+                  atLeastOneScalar++;
+                }
+
                 if(flags.isLesActive)
                 {
                   atLeastOneScalar++;
@@ -4142,6 +4260,11 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 atLeastOneVector++;
 
                 if(flags.isTeqnActive)
+                {
+                  atLeastOneScalar++;
+                }
+
+                if(flags.isCeqnActive)
                 {
                   atLeastOneScalar++;
                 }

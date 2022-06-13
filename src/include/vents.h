@@ -49,6 +49,10 @@ typedef struct
 
     PetscScalar       ventTBCVal; //value of fixed temp or temp gradient.
 
+    word              ventCBC; //Temp BC type
+
+    PetscScalar       ventCBCVal; //value of fixed temp or temp gradient.
+
 }ventObject;
 
 

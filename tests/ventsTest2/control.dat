@@ -26,6 +26,7 @@
 -absTolU                   1e-8
 -poissonIt                 6
 -poissonTol                1e-8
+-ceqn                      1
 
 # Turbulence Model
 # ---------------------------------
@@ -36,6 +37,7 @@
 # ---------------------------------
 -dUdtScheme                backwardEuler
 -dTdtScheme                backwardEuler
+-dCdtScheme                backwardEuler
 -divScheme                 centralUpwind
 
 # Wind Turbine
@@ -47,6 +49,7 @@
 -nu                        1.4367e-5
 -Pr                       0.71
 -rho                       1.225
+-Sch                      0.63
 
 # Mesh
 # ---------------------------------

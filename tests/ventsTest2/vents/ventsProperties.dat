@@ -29,6 +29,11 @@ vent0
 
     ventTBC			   fixedValue
     ventTBCVal		   24
+
+    #C_BC_info
+
+    ventCBC			   fixedValue
+    ventCBCVal		   5.0
 }
 
 vent1
@@ -58,6 +63,11 @@ vent1
 
     ventTBC			   fixedValue
     ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    #ventCBCVal		   0.
 }
 
 vent2
@@ -86,6 +96,11 @@ vent2
 
     ventTBC			   fixedValue
     ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    ventCBCVal		   0.
 }
 
 vent3
@@ -114,6 +129,11 @@ vent3
 
     ventTBC			   fixedValue
     ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    ventCBCVal		   0.
 }
 
 vent4
@@ -142,6 +162,11 @@ vent4
 
     ventTBC			   fixedValue
     ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    ventCBCVal		   0.
 }
 
 vent5
@@ -170,6 +195,11 @@ vent5
 
     ventTBC			   fixedValue
     ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    ventCBCVal		   0.
 }
 
 vent6
@@ -198,6 +228,11 @@ vent6
 
     ventTBC			   fixedValue
     ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    ventCBCVal		   0.
 }
 
 vent7
@@ -226,6 +261,11 @@ vent7
 
     ventTBC			   fixedValue
     ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    ventCBCVal		   0.
 }
 
 vent8
@@ -256,6 +296,11 @@ vent8
 
     ventTBC			   zeroGradient
     #ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    ventCBCVal		   0.
 }
 
 vent9
@@ -286,6 +331,11 @@ vent9
 
     ventTBC			   zeroGradient
     #ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    ventCBCVal		   0.
 }
 
 vent10
@@ -316,4 +366,9 @@ vent10
 
     ventTBC			   zeroGradient
     #ventTBCVal		   24
+
+    C_BC_info
+
+    ventCBC			   zeroGradient
+    ventCBCVal		   0.
 }

@@ -1,4 +1,4 @@
-# Set PETSC_DIR and PETSC_ARCH variables in the bash file 
+# Set PETSC_DIR and PETSC_ARCH variables in the bash file
 
 CC      = mpicxx
 PETSC=${PETSC_DIR}
@@ -25,15 +25,15 @@ CPPFLAGS =      -DNDEBUG -I$(PETSCINC1) -I$(PETSCINC2) -I$(HDF5INC) -O -g
 
 SOURCEC =       main.c initialization.c io.c overset.c wallfunctions.c boundary.c \
 		mesh.c inflow.c abl.c ueqn.c peqn.c les.c teqn.c turbines.c \
-		initialField.c acquisition.c ibm.c clock.c precursor.c vents.c\
+		initialField.c acquisition.c ibm.c clock.c precursor.c vents.c ceqn.c\
 
 OBJSM   =       main.o initialization.o io.o overset.o wallfunctions.o boundary.o \
 		mesh.o inflow.o abl.o ueqn.o peqn.o les.o teqn.o turbines.o \
-		initialField.o acquisition.o ibm.o clock.o precursor.o vents.o\
+		initialField.o acquisition.o ibm.o clock.o precursor.o vents.o ceqn.o\
 
 OBJSW   =       windToPW.o initialization.o io.o wallfunctions.o overset.o boundary.o \
                 mesh.o inflow.o abl.o ueqn.o peqn.o les.o teqn.o turbines.o \
-                initialField.o acquisition.o ibm.o clock.o precursor.o vents.o\
+                initialField.o acquisition.o ibm.o clock.o precursor.o vents.o ceqn.o\
 
 tosca:   $(OBJSM)
 		$(CC) -o tosca $(OBJSM) $(CPPFLAGS) $(LIBDIR) $(LIBFLAG)

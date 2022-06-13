@@ -23,6 +23,9 @@ PetscErrorCode SetInitialFieldP(peqn_ *peqn);
 //!< \brief set the initial variables for LES
 PetscErrorCode SetInitialFieldLES(les_ *les);
 
+//!< \brief set the initial variables for concentration field
+PetscErrorCode SetInitialFieldC(ceqn_ *ceqn);
+
 //!< \brief set uniform value for the cartesian velocity
 PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef);
 
@@ -40,3 +43,6 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn);
 
 //!< \brief set the internal field as the spreaded inlet flow condition
 PetscErrorCode SpreadInletFlowT(teqn_ *teqn);
+
+//!< \brief set uniform value for the concentration
+PetscErrorCode SetUniformFieldC(ceqn_ *ceqn, PetscReal &cRef);

@@ -150,6 +150,17 @@ PetscErrorCode readVentsProperties(vents_ *vents)
         }
     }
 
+    // read temp BC info
+    if(flags->isCeqnActive)
+    {
+        readSubDictWord("./vents/ventsProperties.dat", ventName, "ventCBC", &(vents->vent[i]->ventCBC));
+
+        if (vents->vent[i]->ventCBC == "fixedValue" || vents->vent[i]->ventCBC == "fixedGradient")
+        {
+            readSubDictDouble("./vents/ventsProperties.dat", ventName, "ventCBCVal", &(vents->vent[i]->ventCBCVal));
+        }
+    }
+
   }
 
 

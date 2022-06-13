@@ -75,6 +75,7 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
 
     // copy simulation physical constants
     domain->constants.Pr    = abl->access->constants->Pr;
+    domain->constants.Sch    = abl->access->constants->Sch;
     domain->constants.nu    = abl->access->constants->nu;
     domain->constants.rho   = abl->access->constants->rho;
 

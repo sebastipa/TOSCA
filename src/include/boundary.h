@@ -4,6 +4,8 @@
 #ifndef _BOUNDARY_H_
 #define _BOUNDARY_H_
 
+#include "ceqn.h"
+
 //! \brief Structure dafining the type of boundary conditions for a scalar
 struct scalarBC
 {
@@ -123,6 +125,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn);
 //! \brief Update temperature boundary conditions
 PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn);
 
+//! \brief Update temperature boundary conditions
+PetscErrorCode UpdateConcentrationBCs(ceqn_ *ceqn);
+
 //! \brief Update effective viscosity boundary conditions
 PetscErrorCode UpdateNutBCs(les_ *les);
 
@@ -140,3 +145,6 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn);
 
 //! \brief Update wall model for specified wall heat flux
 PetscErrorCode UpdateWallModelsT(teqn_ *teqn);
+
+//! \brief Update wall model for specified wall heat flux
+//PetscErrorCode UpdateWallModelsC(ceqn_ *ceqn); no wall models included for concentration yet

@@ -67,7 +67,13 @@ int main(int argc, char **argv)
                 UpdateWallModelsT(domain[d].teqn);
             }
 
-            if(domain[d].ueqn->centralUpwindDiv || flags.isTeqnActive)
+            if(flags.isCeqnActive)
+            {
+                VecCopy(domain[d].ceqn->Conc, domain[d].ceqn->Conc_o);
+                //UpdateWallModelsC(domain[d].ceqn); no wall model for C at this point.
+            }
+
+            if(domain[d].ueqn->centralUpwindDiv || flags.isTeqnActive || flags.isCeqnActive)
             {
                 UpdateFluxLimiter(domain[d].ueqn);
             }
@@ -120,6 +126,19 @@ int main(int argc, char **argv)
                 }
             }
 
+            // concentration step
+            if(flags.isCeqnActive)
+            {
+                SolveCEqn(domain[d].ceqn);
+
+                // save concentration equation right hand side
+                if(domain[d].ceqn->ddtScheme=="backwardEuler")
+                {
+                    VecSet(domain[d].ceqn->Rhs_o, 0.0);
+                    FormC (domain[d].ceqn, domain[d].ceqn->Rhs_o, 1.0);
+                }
+            }
+
             MPI_Barrier(domain[d].mesh->MESH_COMM);
 
             // print time step continuity errors
@@ -135,6 +154,11 @@ int main(int argc, char **argv)
             if(flags.isTeqnActive)
             {
                 UpdateTemperatureBCs(domain[d].teqn);
+            }
+
+            if(flags.isCeqnActive)
+            {
+                UpdateConcentrationBCs(domain[d].ceqn);
             }
 
             // update cartesian BC

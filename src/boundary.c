@@ -87,6 +87,11 @@ PetscErrorCode SetBoundaryConditions(mesh_ *mesh)
         readScalarBC(location, "T", &(mesh->boundaryT));
     }
 
+    if (mesh->access->flags->isCeqnActive)
+    {
+        readScalarBC(location, "C", &(mesh->boundaryC));
+    }
+
     // check boundary conditions
     checkBoundaryConditions(mesh);
 
@@ -104,7 +109,7 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
 
     vectorBC boundaryU   = mesh->boundaryU;
 
-    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagNut(6,0);
+    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagNut(6,0), flagC(6,0);
 
     std::vector<word> UAvailableBC = {"noSlip", "slip", "velocityWallFunction",
                                         "fixedValue", "inletFunction", "zeroGradient",
@@ -113,8 +118,12 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
     std::vector<word> TAvailableBC = {"inletFunction", "zeroGradient", "fixedValue", "thetaWallFunction",
                                         "fixedGradient", "periodic", "oversetInterpolate"};
 
+
     std::vector<word> nutAvailableBC = {"inletFunction", "zeroGradient", "fixedValue",
                                           "periodic", "oversetInterpolate", "vents"};
+
+    std::vector<word> CAvailableBC = {"inletFunction", "zeroGradient", "fixedValue",
+                                         "periodic", "oversetInterpolate", "vents"};
 
     for(PetscInt i = 0; i < UAvailableBC.size(); i++)
     {
@@ -243,6 +252,74 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
         {
            char error[512];
             sprintf(error, "In %s/T, T boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.iRight.c_str());
+            fatalErrorInFunction("checkBoundaryConditions", error);
+        }
+    }
+
+    if(mesh->access->flags->isCeqnActive)
+    {
+        scalarBC boundaryC   = mesh->boundaryC;
+
+        for(PetscInt i = 0; i < CAvailableBC.size(); i++)
+        {
+            if( boundaryC.kLeft.compare(CAvailableBC[i]) == 0 )
+                flagC[0] = 1;
+
+            if( boundaryC.kRight.compare(CAvailableBC[i]) == 0 )
+                flagC[1] = 1;
+
+            if( boundaryC.jLeft.compare(CAvailableBC[i]) == 0 )
+                flagC[2] = 1;
+
+            if( boundaryC.jRight.compare(CAvailableBC[i]) == 0 )
+                flagC[3] = 1;
+
+            if( boundaryC.iLeft.compare(CAvailableBC[i]) == 0 )
+                flagC[4] = 1;
+
+            if( boundaryC.iRight.compare(CAvailableBC[i]) == 0 )
+                flagC[5] = 1;
+        }
+
+        if(flagC[0] == 0)
+        {
+           char error[512];
+            sprintf(error, "In %s/C, C boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryC.kLeft.c_str());
+            fatalErrorInFunction("checkBoundaryConditions", error);
+        }
+
+        if(flagC[1] == 0)
+        {
+           char error[512];
+            sprintf(error, "In %s/C, C boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryC.kRight.c_str());
+            fatalErrorInFunction("checkBoundaryConditions", error);
+        }
+
+        if(flagC[2] == 0)
+        {
+           char error[512];
+            sprintf(error, "In %s/C, C boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryC.jLeft.c_str());
+            fatalErrorInFunction("checkBoundaryConditions", error);
+        }
+
+        if(flagC[3] == 0)
+        {
+           char error[512];
+            sprintf(error, "In %s/C, C boundary condition at jRight = '%s' does not match with available BC\n", location.c_str(), boundaryC.jRight.c_str());
+            fatalErrorInFunction("checkBoundaryConditions", error);
+        }
+
+        if(flagC[4] == 0)
+        {
+           char error[512];
+            sprintf(error, "In %s/C, C boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryC.iLeft.c_str());
+            fatalErrorInFunction("checkBoundaryConditions", error);
+        }
+
+        if(flagT[5] == 0)
+        {
+           char error[512];
+            sprintf(error, "In %s/C, C boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryC.iRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
     }
@@ -2593,6 +2670,568 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode UpdateConcentrationBCs(ceqn_ *ceqn)
+{
+    mesh_        *mesh = ceqn->access->mesh;
+    vents_       *vents = ceqn->access->vents;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    word          typeName = "boundary/C";
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, q;
+
+    PetscReal     ***c, ***lc, ***nvert;
+    PetscReal     ***aj;
+    Cmpnts        ***csi, ***eta, ***zet, ***cent;
+
+    PetscInt      ***markVent;
+
+    // variables to recover inletFunction 3 lapse rate
+    PetscReal        ldataHeight = 0, gdataHeight = 0;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+
+    // read inflow if necessary
+    /*if(mesh->boundaryC.kLeft == "inletFunction")
+    {
+        inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
+
+        // read the inflow data if necessary
+        if (ifPtr->typeT == 3 || ifPtr->typeT == 4)
+        {
+            readInflowT(ifPtr, mesh->access->clock);
+
+            // compute hight at which inflow data ends
+
+            // type 3: inflow and actual meshes have same cell dimensions
+            if (ifPtr->typeT == 3)
+            {
+                PetscInt lcount = 0, gcount = 0;
+
+                // make sure this processor can access data
+                if(lys <= ifPtr->n1*ifPtr->prds1 && ifPtr->n1*ifPtr->prds1 <= lye)
+                {
+                    // compute end of data height (j is vertical direction)
+                    i = std::floor(0.5*(lxe-lxs) + lxs);
+                    k = std::floor(0.5*(lze-lzs) + lzs);
+                    ldataHeight = cent[k][ifPtr->n1*ifPtr->prds1][i].z;
+                    lcount      = 1;
+                }
+
+                MPI_Allreduce(&ldataHeight, &gdataHeight, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+                gdataHeight = gdataHeight / gcount;
+            }
+
+            // type 4: inflow and actual meshes are different, use inflow width info
+            else if (ifPtr->typeT == 4)
+            {
+                gdataHeight = ifPtr->n1 * ifPtr->prds1 * ifPtr->width1;
+            }
+        }
+    }*/
+
+    DMDAVecGetArray(fda, mesh->lCsi,   &csi);
+    DMDAVecGetArray(fda, mesh->lEta,   &eta);
+    DMDAVecGetArray(fda, mesh->lZet,   &zet);
+    DMDAVecGetArray(da,  mesh->lAj,    &aj);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+
+    DMDAVecGetArray(da, ceqn->lConc, &lc);
+    DMDAVecGetArray(da, ceqn->Conc,  &c);
+
+    DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+
+                if (markVent[k][j][i] > 0)
+                {
+                    q = markVent[k][j][i] - 1;
+
+                    if (i == 1 && vents->vent[q]->ventCBC == "fixedValue")
+                    {
+                        c[k][j][i-1] = vents->vent[q]->ventCBCVal;
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventCBC == "fixedValue")
+                    {
+                        c[k][j][i+1] = vents->vent[q]->ventCBCVal;
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventCBC == "fixedValue")
+                    {
+                        c[k][j-1][i] = vents->vent[q]->ventCBCVal;
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventCBC == "fixedValue")
+                    {
+                        c[k][j+1][i] = vents->vent[q]->ventCBCVal;
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventCBC == "fixedValue")
+                    {
+                        c[k-1][j][i] = vents->vent[q]->ventCBCVal;
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventCBC == "fixedValue")
+                    {
+                        c[k+1][j][i] = vents->vent[q]->ventCBCVal;
+                    }
+
+                    if (i == 1 && vents->vent[q]->ventCBC == "zeroGradient")
+                    {
+                        c[k][j][i-1] = lc[k][j][i];
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventCBC == "zeroGradient")
+                    {
+                        c[k][j][i+1] = lc[k][j][i];
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventCBC == "zeroGradient")
+                    {
+                        c[k][j-1][i] = lc[k][j][i];
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                        c[k][j+1][i] = lc[k][j][i];
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventCBC == "zeroGradient")
+                    {
+                        c[k-1][j][i] = lc[k][j][i];
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                        c[k+1][j][i] = lc[k][j][i];
+                    }
+
+                    // fixedGradient boundary condition on i-left patch
+                    if (vents->vent[q]->ventCBC == "fixedGradient" && i==1)
+                    {
+                        // get the area at the boundary cell
+                        PetscReal area
+                        =
+                        sqrt
+                        (
+                            csi[k][j][i].x*csi[k][j][i].x +
+                            csi[k][j][i].y*csi[k][j][i].y +
+                            csi[k][j][i].z*csi[k][j][i].z
+                        );
+
+                        PetscReal d = aj[k][j][i]/area;
+
+                        c[k][j][i-1] = d * vents->vent[q]->ventCBCVal + lc[k][j][i];
+                    }
+                    // fixedGradient boundary condition on i-right patch
+                    if (vents->vent[q]->ventCBC == "fixedGradient" && i==mx-2)
+                    {
+                        // get the area at the boundary cell
+                        PetscReal area
+                        =
+                        sqrt
+                        (
+                            csi[k][j][i].x*csi[k][j][i].x +
+                            csi[k][j][i].y*csi[k][j][i].y +
+                            csi[k][j][i].z*csi[k][j][i].z
+                        );
+
+                        PetscReal d = aj[k][j][i]/area;
+
+                        c[k][j][i+1] = d * vents->vent[q]->ventCBCVal + lc[k][j][i];
+                    }
+                    // fixedGradient boundary condition on j-left patch
+                    if (vents->vent[q]->ventCBC == "fixedGradient" && j==1)
+                    {
+                        // get the area at the boundary cell
+                        PetscReal area
+                        =
+                        sqrt
+                        (
+                            eta[k][j][i].x*eta[k][j][i].x +
+                            eta[k][j][i].y*eta[k][j][i].y +
+                            eta[k][j][i].z*eta[k][j][i].z
+                        );
+
+                        PetscReal d = aj[k][j][i]/area;
+
+                        c[k][j-1][i] = d * vents->vent[q]->ventCBCVal + lc[k][j][i];
+                    }
+                    // fixedGradient boundary condition on j-right patch
+                    if (vents->vent[q]->ventCBC == "fixedGradient" && j==my-2)
+                    {
+                        // get the area at the boundary cell
+                        PetscReal area
+                        =
+                        sqrt
+                        (
+                            eta[k][j][i].x*eta[k][j][i].x +
+                            eta[k][j][i].y*eta[k][j][i].y +
+                            eta[k][j][i].z*eta[k][j][i].z
+                        );
+
+                        PetscReal d = aj[k][j][i]/area;
+
+                        c[k][j+1][i] = d * vents->vent[q]->ventCBCVal + lc[k][j][i];
+                    }
+                    // fixedGradient boundary condition on k-left patch
+                    if (vents->vent[q]->ventCBC == "fixedGradient" && k==1)
+                    {
+                        // get the area at the boundary cell
+                        PetscReal area
+                        =
+                        sqrt
+                        (
+                            zet[k][j][i].x*zet[k][j][i].x +
+                            zet[k][j][i].y*zet[k][j][i].y +
+                            zet[k][j][i].z*zet[k][j][i].z
+                        );
+
+                        PetscReal d = aj[k][j][i]/area;
+
+                        c[k-1][j][i] = d * vents->vent[q]->ventCBCVal + lc[k][j][i];
+                    }
+                    // fixedGradient boundary condition on k-right patch
+                    if (vents->vent[q]->ventCBC == "fixedGradient" && k==mz-2)
+                    {
+                        // get the area at the boundary cell
+                        PetscReal area
+                        =
+                        sqrt
+                        (
+                            zet[k][j][i].x*zet[k][j][i].x +
+                            zet[k][j][i].y*zet[k][j][i].y +
+                            zet[k][j][i].z*zet[k][j][i].z
+                        );
+
+                        PetscReal d = aj[k][j][i]/area;
+
+                        c[k+1][j][i] = d * vents->vent[q]->ventCBCVal + lc[k][j][i];
+                    }
+
+                    continue;
+                }
+
+                // set to zero if solid. Skip this if imb is a source!
+                if(isIBMCell(k, j, i, nvert))
+                {
+                    if (ceqn->access->abl == NULL)
+                    {
+                        //printf("here update Cref for ibm .......\n");
+                        c[k][j][i] = ceqn->cRefNoAbl;
+                        //printf("T = %lf\n", t[k][j][i]);
+                    }
+                    /*else
+                    {
+                        c[k][j][i] = ceqn->access->abl->cRef;
+                    }
+                    continue;*/
+                }
+
+                // special boundary condition where inflow is mapped from precursor
+                /*if(mesh->boundaryC.kLeft=="inletFunction" && k==1)
+                {
+                    inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
+
+                    // periodized mapped inflow
+                    if (ifPtr->typeT == 3)
+                    {
+                        // periodize inflow according to input
+
+                        // compute period fraction (handle index = n case)
+                        PetscInt jif = j % ifPtr->n1 == 0 ? ifPtr->n1 : j % ifPtr->n1;
+                        PetscInt iif = i % ifPtr->n2 == 0 ? ifPtr->n2 : i % ifPtr->n2;
+
+                        // index is less than nPrds times inflow points: have data
+                        if
+                        (
+                            j<=ifPtr->n1*ifPtr->prds1 &&
+                            i<=ifPtr->n2*ifPtr->prds2
+                        )
+                        {
+                            t[k-1][j][i] = ifPtr->t_plane[jif][iif];
+                        }
+                        // index is more than nPrds times inflow points: apply lapse rate
+                        else
+                        {
+                            PetscReal delta = 0;
+
+                            // extrapolate along j
+                            if(j>ifPtr->n1*ifPtr->prds1)
+                            {
+                                jif   = ifPtr->n1;
+
+                                delta = cent[k][j][i].z - gdataHeight;
+                            }
+
+                            // extrapolate along i
+                            if(i>ifPtr->n2*ifPtr->prds2) iif = ifPtr->n2;
+
+                            t[k-1][j][i] = ifPtr->t_plane[jif][iif] + delta * teqn->access->abl->gTop;
+                        }
+                    }
+
+                    // interpolated periodized mapped inflow
+                    else if (ifPtr->typeT == 4)
+                    {
+                        PetscReal delta = PetscMax(0.0, cent[k][j][i].z - gdataHeight);
+
+                        t[k-1][j][i]
+                        =
+                        ifPtr->inflowWeights[j][i][0] *
+                        ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+                        ifPtr->inflowWeights[j][i][1] *
+                        ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+                        ifPtr->inflowWeights[j][i][2] *
+                        ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+                        ifPtr->inflowWeights[j][i][3] *
+                        ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i] +
+                        delta * teqn->access->abl->gTop;
+                    }
+                }*/
+
+                // zeroGradient boundary condition on i-left patch
+                if ((mesh->boundaryC.iLeft=="zeroGradient" || mesh->boundaryC.iLeft=="thetaWallFunction") && i==1)
+                {
+                    c[k][j][i-1] = lc[k][j][i];
+                }
+                // zeroGradient boundary condition on i-right patch
+                if ((mesh->boundaryC.iRight=="zeroGradient" || mesh->boundaryC.iRight=="thetaWallFunction") && i==mx-2)
+                {
+                    c[k][j][i+1] = lc[k][j][i];
+                }
+                // zeroGradient boundary condition on j-left patch
+                if ((mesh->boundaryC.jLeft=="zeroGradient" || mesh->boundaryC.jLeft=="thetaWallFunction") && j==1)
+                {
+                    c[k][j-1][i] = lc[k][j][i];
+                }
+                // zeroGradient boundary condition on j-right patch
+                if ((mesh->boundaryC.jRight=="zeroGradient" || mesh->boundaryC.jRight=="thetaWallFunction") && j==my-2)
+                {
+                    c[k][j+1][i] = lc[k][j][i];
+                }
+                // zeroGradient boundary condition on k-left patch
+                if (mesh->boundaryC.kLeft=="zeroGradient" && k==1)
+                {
+                    c[k-1][j][i] = lc[k][j][i];
+                }
+                // zeroGradient boundary condition on k-right patch
+                if (mesh->boundaryC.kRight=="zeroGradient" && k==mz-2)
+                {
+                    c[k+1][j][i] = lc[k][j][i];
+                }
+
+                // fixedValue boundary condition on i-left patch
+                if (mesh->boundaryC.iLeft=="fixedValue" && i==1)
+                {
+                    c[k][j][i-1] = mesh->boundaryC.iLval;
+                }
+                // fixedValue boundary condition on i-right patch
+                if (mesh->boundaryC.iRight=="fixedValue" && i==mx-2)
+                {
+                    c[k][j][i+1] = mesh->boundaryC.iRval;
+                }
+                // fixedValue boundary condition on j-left patch
+                if (mesh->boundaryC.jLeft=="fixedValue" && j==1)
+                {
+                    c[k][j-1][i] = mesh->boundaryC.jLval;
+                }
+                // fixedValue boundary condition on j-right patch
+                if (mesh->boundaryC.jRight=="fixedValue" && j==my-2)
+                {
+                    c[k][j+1][i] = mesh->boundaryC.jRval;
+                }
+                // fixedValue boundary condition on k-left patch
+                if (mesh->boundaryC.kLeft=="fixedValue" && k==1)
+                {
+                    c[k-1][j][i] = mesh->boundaryC.kLval;
+                }
+                // fixedValue boundary condition on k-right patch
+                if (mesh->boundaryC.kRight=="fixedValue" && k==mz-2)
+                {
+                    c[k+1][j][i] = mesh->boundaryC.kRval;
+                }
+
+                // fixedGradient boundary condition on i-left patch
+                if (mesh->boundaryC.iLeft=="fixedGradient" && i==1)
+                {
+                    // get the area at the boundary cell
+                    PetscReal area
+                    =
+                    sqrt
+                    (
+                        csi[k][j][i].x*csi[k][j][i].x +
+                        csi[k][j][i].y*csi[k][j][i].y +
+                        csi[k][j][i].z*csi[k][j][i].z
+                    );
+
+                    PetscReal d = aj[k][j][i]/area;
+
+                    c[k][j][i-1] = d * mesh->boundaryC.iLval + lc[k][j][i];
+                }
+                // fixedGradient boundary condition on i-right patch
+                if (mesh->boundaryC.iRight=="fixedGradient" && i==mx-2)
+                {
+                    // get the area at the boundary cell
+                    PetscReal area
+                    =
+                    sqrt
+                    (
+                        csi[k][j][i].x*csi[k][j][i].x +
+                        csi[k][j][i].y*csi[k][j][i].y +
+                        csi[k][j][i].z*csi[k][j][i].z
+                    );
+
+                    PetscReal d = aj[k][j][i]/area;
+
+                    c[k][j][i+1] = d * mesh->boundaryC.iRval + lc[k][j][i];
+                }
+                // fixedGradient boundary condition on j-left patch
+                if (mesh->boundaryC.jLeft=="fixedGradient" && j==1)
+                {
+                    // get the area at the boundary cell
+                    PetscReal area
+                    =
+                    sqrt
+                    (
+                        eta[k][j][i].x*eta[k][j][i].x +
+                        eta[k][j][i].y*eta[k][j][i].y +
+                        eta[k][j][i].z*eta[k][j][i].z
+                    );
+
+                    PetscReal d = aj[k][j][i]/area;
+
+                    c[k][j-1][i] = d * mesh->boundaryC.jLval + lc[k][j][i];
+                }
+                // fixedGradient boundary condition on j-right patch
+                if (mesh->boundaryC.jRight=="fixedGradient" && j==my-2)
+                {
+                    // get the area at the boundary cell
+                    PetscReal area
+                    =
+                    sqrt
+                    (
+                        eta[k][j][i].x*eta[k][j][i].x +
+                        eta[k][j][i].y*eta[k][j][i].y +
+                        eta[k][j][i].z*eta[k][j][i].z
+                    );
+
+                    PetscReal d = aj[k][j][i]/area;
+
+                    c[k][j+1][i] = d * mesh->boundaryC.jRval + lc[k][j][i];
+                }
+                // fixedGradient boundary condition on k-left patch
+                if (mesh->boundaryC.kLeft=="fixedGradient" && k==1)
+                {
+                    // get the area at the boundary cell
+                    PetscReal area
+                    =
+                    sqrt
+                    (
+                        zet[k][j][i].x*zet[k][j][i].x +
+                        zet[k][j][i].y*zet[k][j][i].y +
+                        zet[k][j][i].z*zet[k][j][i].z
+                    );
+
+                    PetscReal d = aj[k][j][i]/area;
+
+                    c[k-1][j][i] = d * mesh->boundaryC.kLval + lc[k][j][i];
+                }
+                // fixedGradient boundary condition on k-right patch
+                if (mesh->boundaryC.kRight=="fixedGradient" && k==mz-2)
+                {
+                    // get the area at the boundary cell
+                    PetscReal area
+                    =
+                    sqrt
+                    (
+                        zet[k][j][i].x*zet[k][j][i].x +
+                        zet[k][j][i].y*zet[k][j][i].y +
+                        zet[k][j][i].z*zet[k][j][i].z
+                    );
+
+                    PetscReal d = aj[k][j][i]/area;
+
+                    c[k+1][j][i] = d * mesh->boundaryC.kRval + lc[k][j][i];
+                }
+
+                // periodic boundary condition on i-left patch
+                /*if (mesh->boundaryT.iLeft=="periodic" && i==1)
+                {
+                    if(mesh->i_periodic)       t[k][j][i-1] = lt[k][j][mx-2];
+                    else if(mesh->ii_periodic) t[k][j][i-1] = lt[k][j][-2];
+                }
+                // periodic boundary condition on i-right patch
+                if (mesh->boundaryT.iRight=="periodic" && i==mx-2)
+                {
+                    if(mesh->i_periodic)        t[k][j][i+1] = lt[k][j][1];
+                    else if (mesh->ii_periodic) t[k][j][i+1] = lt[k][j][mx+1];
+                }
+                // periodic boundary condition on j-left patch
+                if (mesh->boundaryT.jLeft=="periodic" && j==1)
+                {
+                    if(mesh->j_periodic)       t[k][j-1][i] = lt[k][my-2][i];
+                    else if(mesh->jj_periodic) t[k][j-1][i] = lt[k][-2][i];
+                }
+                // periodic boundary condition on j-right patch
+                if (mesh->boundaryT.jRight=="periodic" && j==my-2)
+                {
+                    if(mesh->j_periodic)       t[k][j+1][i] = lt[k][1][i];
+                    else if(mesh->jj_periodic) t[k][j+1][i] = lt[k][my+1][i];
+                }
+                // periodic boundary condition on k-left patch
+                if (mesh->boundaryT.kLeft=="periodic" && k==1)
+                {
+                    if(mesh->k_periodic)       t[k-1][j][i] = lt[mz-2][j][i];
+                    else if(mesh->kk_periodic) t[k-1][j][i] = lt[-2][j][i];
+                }
+                // periodic boundary condition on k-right patch
+                if (mesh->boundaryT.kRight=="periodic" && k==mz-2)
+                {
+                    if(mesh->k_periodic)       t[k+1][j][i] = lt[1][j][i];
+                    else if(mesh->kk_periodic) t[k+1][j][i] = lt[mz+1][j][i];
+                }*/
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+    DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+
+    DMDAVecRestoreArray(da, ceqn->lConc, &lc);
+    DMDAVecRestoreArray(da, ceqn->Conc,  &c);
+
+    // scatter global to local
+    DMGlobalToLocalBegin(da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
+    DMGlobalToLocalEnd  (da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode UpdateNutBCs(les_ *les)
 {
     mesh_          *mesh = les->access->mesh;
@@ -3911,6 +4550,453 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode UpdateWallModelsC(ceqn_ *ceqn)
+{
+    mesh_        *mesh  = ceqn->access->mesh;
+    ueqn_        *ueqn  = ceqn->access->ueqn;
+    clock_       *clock = ceqn->access->clock;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    word          typeName = "boundary/WallModels";
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscScalar   ***aj, ***nvert, ***t;
+    Cmpnts        ***csi, ***eta, ***zet;
+    Cmpnts        ***jeta;
+    Cmpnts        ***ucat;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    // only applies if nut is defined
+    if(!ceqn->access->flags->isCeqnActive) return(0);
+
+    // this function wall heat flux to be added in the teqn
+
+    DMDAVecGetArray(fda, mesh->lCsi,   &csi);
+    DMDAVecGetArray(fda, mesh->lEta,   &eta);
+    DMDAVecGetArray(fda, mesh->lZet,   &zet);
+    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecGetArray(da,  mesh->lAj,    &aj);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(da,  ceqn->lConc, &t);
+
+    /*if(mesh->boundaryC.jLWF==-3) //This will always be skipped for C
+    {
+        Shumann *wm = ceqn->jLWM->wmShumann;
+
+        PetscInt updateTemp = 0;
+
+        if(clock->time != wm->tLast)
+        {
+            updateTemp = 1;
+            wm->tLast = clock->time;
+        }
+
+        // set surface temperature
+        if(!wm->surfaceThetaSet)
+        {
+            if(ys==0)
+            {
+                j=1;
+
+                PetscMalloc(sizeof(PetscReal*)*mz, &(wm->surfaceTheta));
+
+                for (k=lzs; k<lze; k++)
+                {
+                    PetscMalloc(sizeof(PetscReal)*mx, &(wm->surfaceTheta[k]));
+
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j-1][i]);
+                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j-1][i]);
+                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j-1][i]);
+                    }
+
+                }
+            }
+
+            wm->surfaceThetaSet = 1;
+        }
+
+        // compute some averaged global parameters first depending on the wall model
+        PetscReal UParallelMeanMag  = 0.0;
+        PetscReal deltaTheta        = 0.0;
+        PetscReal dist              = 0.0;
+        PetscInt  nCells            = 0;
+        PetscReal frictionVel       = 0.0;
+        PetscReal phiM, phiH, L;
+        PetscReal qWall;
+
+        PetscReal lUParallelMeanMag = 0.0;
+        PetscReal ldeltaTheta       = 0.0;
+        PetscReal ldist             = 0.0;
+        PetscInt  lnCells           = 0;
+
+        // compute average friction velocity
+        if(wm->wfEvalType=="averaged")
+        {
+            // select processors next to the j-left patch
+            if(ys==0)
+            {
+                j=1;
+
+                // loop over boundary cells and compute UParallelMeanMag
+                for (k=lzs; k<lze; k++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        // get the cell area
+                        PetscReal area = nMag(eta[k][j][i]);
+
+                        // distance from wall and velocity at point b
+                        PetscReal s = 0.5/aj[k][j][i]/area;
+
+                        // get cell temperature
+                        PetscReal cellTheta = t[k][j][i];
+
+                        PetscReal ni[3], nj[3], nk[3];
+                        calculateNormal(csi[k][j][i], eta[k][j][i], zet[k][j][i], ni, nj, nk);
+
+                        // get j normal
+                        Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
+
+                        // get cell velocity
+                        Cmpnts    Ucell = nSet(ucat[k][j][i]);
+
+                        // compute wall-normal velocity
+                        Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
+
+                        // compute wall-parallel velocity
+                        Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
+
+                        if (isFluidCell(k, j, i, nvert))
+                        {
+                            // update surface temperature
+                            if(updateTemp) wm->surfaceTheta[k][i] += wm->heatingRate * clock->dt;
+
+                            ldeltaTheta += (cellTheta - wm->surfaceTheta[k][i]);
+
+                            // increment velocity
+                            lUParallelMeanMag += nMag(UcellParallel);
+
+                            // increment distance
+                            ldist += s;
+
+                            // increment cell count
+                            lnCells++;
+                        }
+                    }
+                }
+            }
+
+            MPI_Allreduce(&lUParallelMeanMag, &UParallelMeanMag, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&ldeltaTheta, &deltaTheta, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&ldist, &dist, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&lnCells, &nCells, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+            UParallelMeanMag = UParallelMeanMag / nCells;
+            deltaTheta       = deltaTheta / nCells;
+            dist             = dist / nCells;
+
+            qWallShumann
+            (
+                UParallelMeanMag, dist, wm->roughness,
+                wm->gammaM, wm->gammaH, wm->alphaH,
+                wm->thetaRef, deltaTheta, wm->kappa,
+                qWall, frictionVel, phiM, phiH, L
+            );
+
+            // print information (debugging)
+            // PetscPrintf(mesh->MESH_COMM, "ShumannGrotzbach T: uStar = %lf, <U_||> = %lf, L = %lf, phiM = %lf, phiH = %lf, deltaT = %lf, qWall = %lf\n", frictionVel, UParallelMeanMag, L, phiM, phiH, deltaTheta, qWall);
+        }
+
+        // compute the wall shear stress
+
+        // select processors next to the j-left patch
+        if(ys==0)
+        {
+            j=1;
+
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // get the cell area
+                    PetscReal area = nMag(eta[k][j][i]);
+
+                    // get cell normals
+                    PetscReal ni[3], nj[3], nk[3];
+                    calculateNormal(csi[k][j][i], eta[k][j][i], zet[k][j][i], ni, nj, nk);
+
+                    // get j normal
+                    Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
+
+                    // velocity at point b
+                    Cmpnts Ucell = nSet(ucat[k][j][i]);
+
+                    // get cell temperature
+                    PetscReal cellTheta = t[k][j][i];
+
+                    // compute wall-normal velocity
+                    Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
+
+                    // compute wall-parallel velocity
+                    Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
+
+                    // compute local friction velocity
+                    if(wm->wfEvalType=="localized")
+                    {
+                        // distance from wall and velocity at point b
+                        PetscReal s = 0.5/aj[k][j][i]/area;
+
+                        // update surface temperature
+                        if(updateTemp) wm->surfaceTheta[k][i] += wm->heatingRate * clock->dt;
+
+                        deltaTheta = (cellTheta - wm->surfaceTheta[k][i]);
+
+                        UParallelMeanMag = nMag(UcellParallel);
+
+                        qWallShumann
+                        (
+                            UParallelMeanMag, s, wm->roughness,
+                            wm->gammaM, wm->gammaH, wm->alphaH,
+                            wm->thetaRef, deltaTheta, wm->kappa,
+                            qWall, frictionVel, phiM, phiH, L
+                        );
+                    }
+
+                    if (isFluidCell(k, j, i, nvert))
+                    {
+                        teqn->jLWM->qWall.x[k][i] = 0.0;
+                        teqn->jLWM->qWall.y[k][i] = 0.0;
+                        teqn->jLWM->qWall.z[k][i] = qWall;
+                    }
+                }
+            }
+        }
+    }
+
+    if(mesh->boundaryC.jRWF==-3) //This will always be skipped for C
+    {
+        Shumann *wm = ceqn->jRWM->wmShumann;
+
+        PetscInt updateTemp = 0;
+
+        if(clock->time != wm->tLast)
+        {
+            updateTemp = 1;
+            wm->tLast = clock->time;
+        }
+
+        // set surface temperature
+        if(!wm->surfaceThetaSet)
+        {
+            if(ye==my)
+            {
+                j=my-2;
+
+                PetscMalloc(sizeof(PetscReal*)*mz, &(wm->surfaceTheta));
+
+                for (k=lzs; k<lze; k++)
+                {
+                    PetscMalloc(sizeof(PetscReal)*mx, &(wm->surfaceTheta[k]));
+
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j+1][i]);
+                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j+1][i]);
+                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j+1][i]);
+                    }
+
+                }
+            }
+
+            wm->surfaceThetaSet = 1;
+        }
+
+        // compute some averaged global parameters first depending on the wall model
+        PetscReal UParallelMeanMag  = 0.0;
+        PetscReal deltaTheta        = 0.0;
+        PetscReal dist              = 0.0;
+        PetscInt  nCells            = 0;
+        PetscReal frictionVel       = 0.0;
+        PetscReal phiM, phiH, L;
+        PetscReal qWall;
+
+        PetscReal lUParallelMeanMag = 0.0;
+        PetscReal ldeltaTheta       = 0.0;
+        PetscReal ldist             = 0.0;
+        PetscInt  lnCells           = 0;
+
+        // compute average friction velocity
+        if(wm->wfEvalType=="averaged")
+        {
+            // select processors next to the j-right patch
+            if(ye==my)
+            {
+                j=my-2;
+
+                // loop over boundary cells and compute UParallelMeanMag
+                for (k=lzs; k<lze; k++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        // get the cell area
+                        PetscReal area = nMag(eta[k][j][i]);
+
+                        // distance from wall and velocity at point b
+                        PetscReal s = 0.5/aj[k][j][i]/area;
+
+                        // get cell temperature
+                        PetscReal cellTheta = t[k][j][i];
+
+                        // get cell normals and flip them
+                        PetscReal ni[3], nj[3], nk[3];
+                        calculateNormal(csi[k][j][i], eta[k][j][i], zet[k][j][i], ni, nj, nk);
+
+                        // get j normal
+                        Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
+
+                        // velocity at point b
+                        Cmpnts Ucell = nSet(ucat[k][j][i]);
+
+                        // compute wall-normal velocity
+                        Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
+
+                        // compute wall-parallel velocity
+                        Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
+
+                        if (isFluidCell(k, j, i, nvert))
+                        {
+                            // update surface temperature
+                            if(updateTemp) wm->surfaceTheta[k][i] += wm->heatingRate * clock->dt;
+
+                            ldeltaTheta += (cellTheta - wm->surfaceTheta[k][i]);
+
+                            // increment velocity
+                            lUParallelMeanMag += nMag(UcellParallel);
+
+                            // increment distance
+                            ldist += s;
+
+                            // increment cell count
+                            lnCells++;
+                        }
+                    }
+                }
+            }
+
+            MPI_Allreduce(&lUParallelMeanMag, &UParallelMeanMag, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&ldeltaTheta, &deltaTheta, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&ldist, &dist, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&lnCells, &nCells, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+            UParallelMeanMag = UParallelMeanMag / nCells;
+            deltaTheta       = deltaTheta / nCells;
+            dist             = dist / nCells;
+
+            qWallShumann
+            (
+                UParallelMeanMag, dist, wm->roughness,
+                wm->gammaM, wm->gammaH, wm->alphaH,
+                wm->thetaRef, deltaTheta, wm->kappa,
+                qWall, frictionVel, phiM, phiH, L
+            );
+
+            // print information (debugging)
+            // PetscPrintf(PETSC_COMM_WORLD, "ShumannGrotzbach: uStar = %lf, <U_||> = %lf\n", frictionVel, UParallelMeanMag);
+        }
+
+        // compute the wall shear stress
+
+        // select processors next to the j-left patch
+        if(ye==my)
+        {
+            j=my-2;
+
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // get the cell area
+                    PetscReal area = nMag(eta[k][j][i]);
+
+                    // get cell normals and flip them
+                    PetscReal ni[3], nj[3], nk[3];
+                    calculateNormal(csi[k][j][i], eta[k][j][i], zet[k][j][i], ni, nj, nk);
+
+                    // get j normal
+                    Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
+
+                    // velocity at point b
+                    Cmpnts Ucell = nSet(ucat[k][j][i]);
+
+                    // get cell temperature
+                    PetscReal cellTheta = t[k][j][i];
+
+                    // compute wall-normal velocity
+                    Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
+
+                    // compute wall-parallel velocity
+                    Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
+
+                    // compute local friction velocity
+                    if(wm->wfEvalType=="localized")
+                    {
+                        // distance from wall and velocity at point b
+                        PetscReal s = 0.5/aj[k][j][i]/area;
+
+                        // update surface temperature
+                        if(updateTemp) wm->surfaceTheta[k][i] += wm->heatingRate * clock->dt;
+
+                        deltaTheta = (cellTheta - wm->surfaceTheta[k][i]);
+
+                        UParallelMeanMag = nMag(UcellParallel);
+
+                        qWallShumann
+                        (
+                            UParallelMeanMag, s, wm->roughness,
+                            wm->gammaM, wm->gammaH, wm->alphaH,
+                            wm->thetaRef, deltaTheta, wm->kappa,
+                            qWall, frictionVel, phiM, phiH, L
+                        );
+                    }
+
+                    if (isFluidCell(k, j, i, nvert))
+                    {
+                        teqn->jLWM->qWall.x[k][i] = 0.0;
+                        teqn->jLWM->qWall.y[k][i] = 0.0;
+                        teqn->jLWM->qWall.z[k][i] = qWall;
+                    }
+                }
+            }
+        }
+    }*/
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
+    DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(da,  ceqn->lConc, &t);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
 {
     mesh_         *mesh = ibm->access->mesh;
@@ -4025,6 +5111,7 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
     mesh_         *mesh  = ueqn->access->mesh;
     flags_        *flags = ueqn->access->flags;
     teqn_         *teqn;
+    ceqn_         *ceqn;
 
     DMDALocalInfo info = mesh->info;
     PetscInt      xs  = info.xs, xe = info.xs + info.xm;
@@ -4533,6 +5620,251 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
         {
             // zero value on the wall function means no wall function
             mesh->boundaryT.jRWF = 0;
+        }
+    }
+
+    if(flags->isCeqnActive)
+    {
+        // get ceqn pointer
+        ceqn = ueqn->access->ceqn;
+
+        // i-left boundary wall function This will always be skipped for C
+        if (mesh->boundaryC.iLeft == "thetaWallFunction")
+        {
+            readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(mesh->boundaryT.iLWF));
+
+            // allocate memory
+            PetscMalloc(sizeof(wallModel), &(teqn->iLWM));
+
+            // initialize the patch field for Visc term at the wall in the temperature eqn.
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iLWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iLWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iLWM->qWall.z));
+
+            for (k = 0; k < mz; k++)
+            {
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iLWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iLWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iLWM->qWall.z[k]));
+            }
+
+            for (k = 0; k < mz; k++)
+            {
+                for (j = 0; j < my; j++)
+                {
+                    teqn->iLWM->qWall.x[k][j] = 0.0;
+                    teqn->iLWM->qWall.y[k][j] = 0.0;
+                    teqn->iLWM->qWall.z[k][j] = 0.0;
+                }
+            }
+
+            if (mesh->boundaryT.iLWF == -3)
+            {
+                PetscMalloc(sizeof(Shumann), &(teqn->iLWM->wmShumann));
+
+                Shumann *wm = teqn->iLWM->wmShumann;
+                readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "invalid wall model chosen. Please use option -3 \n");
+                fatalErrorInFunction("SetWallModels", error);
+            }
+        }
+        else
+        {
+            // zero value on the wall function means no wall function
+            mesh->boundaryC.iLWF = 0;
+        }
+
+        // i-right boundary wall function This will always be skipped for C
+        if (mesh->boundaryC.iRight == "thetaWallFunction")
+        {
+            readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(mesh->boundaryT.iRWF));
+
+            PetscMalloc(sizeof(wallModel), &(teqn->iRWM));
+
+            // initialize the patch field for Visc term at the wall in the momentum eqn.
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iRWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iRWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iRWM->qWall.z));
+
+            for (k = 0; k < mz; k++)
+            {
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iRWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iRWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iRWM->qWall.z[k]));
+            }
+
+            for (k = 0; k < mz; k++)
+            {
+                for (j = 0; j < my; j++)
+                {
+                    teqn->iRWM->qWall.x[k][j] = 0.0;
+                    teqn->iRWM->qWall.y[k][j] = 0.0;
+                    teqn->iRWM->qWall.z[k][j] = 0.0;
+                }
+            }
+
+            if (mesh->boundaryT.iRWF == -3)
+            {
+                PetscMalloc(sizeof(Shumann), &(teqn->iRWM->wmShumann));
+
+                Shumann *wm = teqn->iLWM->wmShumann;
+                readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "invalid wall model chosen. Please use option -3 \n");
+                fatalErrorInFunction("SetWallModels", error);
+            }
+        }
+        else
+        {
+            // zero value on the wall function means no wall function
+            mesh->boundaryC.iRWF = 0;
+        }
+
+        // i-left boundary wall function. This will always be skipped for C
+        if (mesh->boundaryC.jLeft == "thetaWallFunction")
+        {
+            readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(mesh->boundaryT.jLWF));
+
+            PetscMalloc(sizeof(wallModel), &(teqn->jLWM));
+
+            // initialize the patch field for Visc term at the wall in the momentum eqn.
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jLWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jLWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jLWM->qWall.z));
+
+            for (k = 0; k < mz; k++)
+            {
+                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jLWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jLWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jLWM->qWall.z[k]));
+            }
+
+            for (k = 0; k < mz; k++)
+            {
+                for (i = 0; i < mx; i++)
+                {
+                    teqn->jLWM->qWall.x[k][i] = 0.0;
+                    teqn->jLWM->qWall.y[k][i] = 0.0;
+                    teqn->jLWM->qWall.z[k][i] = 0.0;
+                }
+            }
+
+            if (mesh->boundaryT.jLWF == -3)
+            {
+                PetscMalloc(sizeof(Shumann), &(teqn->jLWM->wmShumann));
+
+                Shumann *wm = teqn->jLWM->wmShumann;
+                readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                // force surface temperature update at first time step
+                wm->tLast = -1.0;
+
+                // set surface theta flag to zero
+                wm->surfaceThetaSet = 0;
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+                fatalErrorInFunction("SetWallModels", error);
+            }
+        }
+        else
+        {
+            // zero value on the wall function means no wall function
+            mesh->boundaryC.jLWF = 0;
+        }
+
+        // i-right boundary wall function. This will always be skipped for C
+        if (mesh->boundaryC.jRight == "thetaWallFunction")
+        {
+            readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(mesh->boundaryT.jRWF));
+
+            PetscMalloc(sizeof(wallModel), &(teqn->jRWM));
+
+            // initialize the patch field for Visc term at the wall in the momentum eqn.
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jRWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jRWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jRWM->qWall.z));
+
+            for (k = 0; k < mz; k++)
+            {
+                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jRWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jRWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jRWM->qWall.z[k]));
+            }
+
+            for (k = 0; k < mz; k++)
+            {
+                for (i = 0; i < mx; i++)
+                {
+                    teqn->jRWM->qWall.x[k][i] = 0.0;
+                    teqn->jRWM->qWall.y[k][i] = 0.0;
+                    teqn->jRWM->qWall.z[k][i] = 0.0;
+                }
+            }
+
+            if (mesh->boundaryT.jRWF == -3)
+            {
+                PetscMalloc(sizeof(Shumann), &(teqn->jRWM->wmShumann));
+
+                Shumann *wm = teqn->jLWM->wmShumann;
+                readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "invalid wall model chosen. Please use option -3 \n");
+                fatalErrorInFunction("SetWallModels", error);
+            }
+        }
+        else
+        {
+            // zero value on the wall function means no wall function
+            mesh->boundaryC.jRWF = 0;
         }
     }
 

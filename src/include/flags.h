@@ -19,6 +19,7 @@ struct flags_
     PetscInt isSideForceActive;
     PetscInt isPrecursorSpinUp;
     PetscInt isVentsActive;
+    PetscInt isCeqnActive;
 };
 
 #endif

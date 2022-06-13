@@ -29,6 +29,11 @@ vent0
 
     ventTBC			   fixedValue
     ventTBCVal		   22.0
+
+    #C_BC_info
+
+    ventCBC			   fixedValue
+    ventCBCVal		   5.0
 }
 
 vent1
@@ -58,6 +63,11 @@ vent1
 
     ventTBC			   fixedValue
     ventTBCVal		   22.0
+
+    #C_BC_info
+
+    ventCBC		 zeroGradient
+    ventCBCVal		   5.0
 }
 
 vent2
@@ -87,6 +97,11 @@ vent2
 
     ventTBC			   fixedValue
     ventTBCVal		   22.0
+
+    #C_BC_info
+
+    ventCBC			   fixedValue
+    ventCBCVal		   5.0
 }
 
 vent3
@@ -116,6 +131,11 @@ vent3
 
     ventTBC			   fixedValue
     ventTBCVal		   22.0
+
+    #C_BC_info
+
+    ventCBC			   fixedValue
+    ventCBCVal		   5.0
 }
 
 vent4
@@ -146,4 +166,10 @@ vent4
 
     ventTBC			   zeroGradient
     #ventTBCVal		   22.0
+
+
+    #C_BC_info
+
+    ventCBC		 zeroGradient
+    #ventCBCVal		   0.0
 }

@@ -1,0 +1,27 @@
+# OKWind Input file - C boundary conditions
+# -------------------------------------------
+
+# cRef if isAblActive=0
+
+cRefNoAbl 0.0
+
+#internal field
+
+internalField    uniform
+{
+  value  0.0
+}
+
+# boundary patches
+
+iLeft   	 zeroGradient
+
+iRight  	 zeroGradient
+
+jLeft   	 zeroGradient
+
+jRight  	 zeroGradient
+
+kLeft   	 zeroGradient
+
+kRight  	 zeroGradient

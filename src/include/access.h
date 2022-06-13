@@ -4,6 +4,8 @@
 #ifndef _DATABASE_H_
 #define _DATABASE_H_
 
+#include "ceqn.h"
+
 //! \brief access database
 struct access_
 {
@@ -16,6 +18,7 @@ struct access_
     ueqn_        *ueqn;
     peqn_        *peqn;
     teqn_        *teqn;
+    ceqn_        *ceqn;
     les_         *les;
     farm_        *farm;
     overset_     *os;

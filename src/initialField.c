@@ -20,6 +20,7 @@ PetscErrorCode SetInitialField(domain_ *domain)
         word   filenameU   = "./boundary/" + mesh->meshName + "/U";
         word   filenameT   = "./boundary/" + mesh->meshName + "/T";
         word   filenameNut = "./boundary/" + mesh->meshName + "/nut";
+        word   filenameC = "./boundary/" + mesh->meshName + "/C";
 
         // read the internal field U
         readDictWord(filenameU.c_str(), "internalField", &(domain[d].ueqn->initFieldType));
@@ -36,6 +37,11 @@ PetscErrorCode SetInitialField(domain_ *domain)
             readDictWord(filenameNut.c_str(), "internalField", &(domain[d].les->initFieldType));
         }
 
+        if(flags->isCeqnActive)
+        {
+            readDictWord(filenameC.c_str(), "internalField", &(domain[d].ceqn->initFieldType));
+        }
+
         SetInitialFieldU(domain[d].ueqn);
 
         if(flags->isTeqnActive)
@@ -48,6 +54,11 @@ PetscErrorCode SetInitialField(domain_ *domain)
         if(flags->isLesActive)
         {
             SetInitialFieldLES(domain[d].les);
+        }
+
+        if(flags->isCeqnActive)
+        {
+            SetInitialFieldC(domain[d].ceqn);
         }
 
         // if readFields is on, read all the fields
@@ -63,6 +74,11 @@ PetscErrorCode SetInitialField(domain_ *domain)
         if(flags->isTeqnActive)
         {
             VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
+        }
+
+        if(flags->isCeqnActive)
+        {
+            VecCopy(domain[d].ceqn->Conc, domain[d].ceqn->Conc_o);
         }
     }
 
@@ -298,6 +314,86 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
         char error[512];
         sprintf(error, "Invalid initial field keyword. Available initial fields at time=0 are:\n\n        1. uniform\n        2. ABLFlow\n        3. spreadInflow\n");
         fatalErrorInFunction("SetInitialFieldT", error);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetInitialFieldC(ceqn_ *ceqn)
+{
+    clock_ *clock     = ceqn->access->clock;
+    mesh_  *mesh      = ceqn->access->mesh;
+    word   filename  = "./boundary/" + mesh->meshName + "/C";
+
+    /*if(ceqn->initFieldType == "readField")
+    {
+        if(clock->time == 0)
+        {
+            char error[512];
+            sprintf(error, "readField option not available at startTime 0. Use uniform field or spread the inflow\n");
+            fatalErrorInFunction("SetInitialFieldC", error);
+        }
+
+        if(ceqn->access->flags->isCeqnActive)
+        {
+            if(ceqn->access->ueqn->initFieldType != "readField")
+            {
+                char error[512];
+                sprintf(error, "readField requires all fields to be set to this keyword. Velocity not set as readField\n");
+                fatalErrorInFunction("SetInitialFieldC", error);
+            }
+        }
+
+        // all fields read together later
+    }*/
+    //else
+    if (ceqn->initFieldType == "uniform")
+    {
+        PetscReal cRef;
+
+        readSubDictDouble(filename.c_str(), "uniform", "value", &(cRef));
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for C: %s\n\n", ceqn->initFieldType.c_str());
+        SetUniformFieldC(ceqn, cRef);
+    }
+    /*else if (ceqn->initFieldType == "ABLFlow")
+    {
+        if(!(ceqn->access->flags->isAblActive))
+        {
+            char error[512];
+            sprintf(error, "activate ABL flag before setting the ABLFlow initial field\n");
+            fatalErrorInFunction("SetInitialFieldC", error);
+        }
+
+        if(!(ceqn->access->flags->isCeqnActive))
+        {
+            char error[512];
+            sprintf(error, "activate Ceqn flag before setting the ABLFlow initial field\n");
+            fatalErrorInFunction("SetInitialFieldC", error);
+        }
+
+        if(ceqn->access->ueqn->initFieldType != "ABLFlow")
+        {
+            char error[512];
+            sprintf(error, "Set initial field in /boundary/U to ABLFlow\n");
+            fatalErrorInFunction("SetInitialFieldC", error);
+        }
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for C: %s\n\n", ceqn->initFieldType.c_str());
+        SetABLInitialFlowC(ceqn);
+    }
+    else if (teqn->initFieldType == "spreadInflow")
+    {
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for T: %s\n\n", teqn->initFieldType.c_str());
+        SpreadInletFlowT(teqn);
+    }*/
+    else
+    {
+        char error[512];
+        sprintf(error, "Invalid initial field keyword. Available C initial fields at time=0 are:\n\n        1. uniform\n");
+        fatalErrorInFunction("SetInitialFieldC", error);
     }
 
     return(0);
@@ -1091,7 +1187,7 @@ PetscErrorCode SetUniformFieldT(teqn_ *teqn, PetscReal &tRef)
 
     DMDAVecGetArray(da, teqn->Tmprt,  &temp);
 
-    // loop on the internal cells and set the reference cartesian velocity
+    // loop on the internal cells and set the reference temperature
     for(k=lzs; k<lze; k++)
     {
         for(j=lys; j<lye; j++)
@@ -1114,6 +1210,51 @@ PetscErrorCode SetUniformFieldT(teqn_ *teqn, PetscReal &tRef)
     return(0);
 }
 
+//***************************************************************************************************************//
+
+PetscErrorCode SetUniformFieldC(ceqn_ *ceqn, PetscReal &cRef)
+{
+    mesh_         *mesh = ceqn->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***temp;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, ceqn->Conc,  &temp);
+
+    // loop on the internal cells and set the reference concentration
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                temp[k][j][i] = cRef;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, ceqn->Conc,  &temp);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
+    DMGlobalToLocalEnd(da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
+
+    UpdateConcentrationBCs(ceqn);
+
+    return(0);
+}
 //***************************************************************************************************************//
 
 PetscErrorCode SetABLInitialFlowT(teqn_ *teqn)

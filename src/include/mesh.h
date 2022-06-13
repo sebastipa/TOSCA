@@ -62,6 +62,7 @@ struct mesh_
     // boundary conditions
     scalarBC       boundaryNut;
     scalarBC       boundaryT;
+    scalarBC       boundaryC;
     vectorBC       boundaryU;
 
     // special inflow boundary conditions

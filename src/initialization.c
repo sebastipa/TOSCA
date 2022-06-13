@@ -115,6 +115,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // temperature equation initialize
         InitializeTEqn(domain[d].teqn);
 
+        // concentration equation initialize
+        InitializeCEqn(domain[d].ceqn);
+
         // LES model initialize
         InitializeLES(domain[d].les);
 
@@ -159,6 +162,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isXDampingActive   = 0;
     flags->isSideForceActive  = 0;
     flags->isVentsActive      = 0;
+    flags->isCeqnActive       = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",       &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);
@@ -171,6 +175,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sideForce",     &(flags->isSideForceActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-vents",&(flags->isVentsActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-ceqn",&(flags->isCeqnActive), PETSC_NULL);
 
     // read acquisition flags
     PetscInt isProbesActive         = 0;
@@ -340,6 +345,16 @@ PetscErrorCode ReadPhysicalConstants(domain_ *domain)
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,"-Pr", &(domain->constants.Pr), PETSC_NULL);
     }
 
+    // read Schmidt number
+    if(domain->flags.isCeqnActive)
+    {
+      readDictDouble("control.dat", "-Sch",  &(domain->constants.Sch));
+    }
+    else
+    {
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,"-Sch", &(domain->constants.Sch), PETSC_NULL);
+    }
+
     return(0);
 }
 
@@ -354,6 +369,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     domain->ueqn        = NULL;
     domain->peqn        = NULL;
     domain->teqn        = NULL;
+    domain->ceqn        = NULL;
     domain->les         = NULL;
     domain->ibm         = NULL;
     domain->vents       = NULL;
@@ -369,6 +385,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     domain->peqn = new peqn_;
 
     if(domain->flags.isTeqnActive)       domain->teqn        = new teqn_;
+    if(domain->flags.isCeqnActive)       domain->ceqn        = new ceqn_;
     if(domain->flags.isLesActive)        domain->les         = new les_;
     if(domain->flags.isAblActive)        domain->abl         = new abl_;
     if(domain->flags.isWindFarmActive)   domain->farm        = new farm_;
@@ -419,6 +436,13 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
         // t equation two way access
         domain->access.teqn  = domain->teqn;
         domain->teqn->access = &(domain->access);
+    }
+
+    if(domain->flags.isCeqnActive)
+    {
+        // t equation two way access
+        domain->access.ceqn  = domain->ceqn;
+        domain->ceqn->access = &(domain->access);
     }
 
     if(domain->flags.isLesActive)

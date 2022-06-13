@@ -17,6 +17,7 @@
 #include "ueqn.h"
 #include "peqn.h"
 #include "teqn.h"
+#include "ceqn.h"
 #include "les.h"
 #include "precursor.h"
 #include "turbines.h"
@@ -38,6 +39,7 @@ struct domain_
     ueqn_         *ueqn;             //!< momentum equation data structure
     peqn_         *peqn;             //!< pressure equation data structure
     teqn_         *teqn;             //!< potential temperature transport equation
+    ceqn_         *ceqn;             //!< potential particle concentration transport equation
     les_          *les;              //!< LES model data structure
 
     overset_      *os;               //!< overset data structure

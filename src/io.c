@@ -148,6 +148,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     mesh_        *mesh  = domain->mesh;
     peqn_        *peqn  = domain->peqn;
     teqn_        *teqn  = domain->teqn;
+    ceqn_        *ceqn  = domain->ceqn;
     les_         *les   = domain->les;
     clock_       *clock = domain->clock;
     io_          *io    = domain->io;
@@ -194,6 +195,17 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         fileName = location + field;
         PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
         VecLoad(teqn->Tmprt, viewer);
+        PetscViewerDestroy(&viewer);
+    }
+
+    // read concentration
+    if(domain->flags.isCeqnActive)
+    {
+        PetscPrintf(mesh->MESH_COMM, "Reading C...\n");
+        field = "/C";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(ceqn->Conc, viewer);
         PetscViewerDestroy(&viewer);
     }
 
@@ -280,6 +292,13 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
         DMGlobalToLocalEnd(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
         VecCopy(teqn->Tmprt, teqn->Tmprt_o);
+    }
+
+    if(domain->flags.isCeqnActive)
+    {
+        DMGlobalToLocalBegin(mesh->da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
+        DMGlobalToLocalEnd(mesh->da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
+        VecCopy(ceqn->Conc, ceqn->Conc_o);
     }
 
     // read Q-Criterion
@@ -1312,6 +1331,7 @@ PetscErrorCode writeFields(io_ *io)
     ueqn_       *ueqn  = io->access->ueqn;
     peqn_       *peqn  = io->access->peqn;
     teqn_       *teqn  = io->access->teqn;
+    ceqn_       *ceqn  = io->access->ceqn;
     les_        *les   = io->access->les;
     clock_      *clock = io->access->clock;
     flags_      *flags = io->access->flags;
@@ -1357,6 +1377,14 @@ PetscErrorCode writeFields(io_ *io)
         {
             fieldName = timeName + "/T";
             writeBinaryField(mesh->MESH_COMM, teqn->Tmprt, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        // write concentration
+        if(flags->isCeqnActive)
+        {
+            fieldName = timeName + "/C";
+            writeBinaryField(mesh->MESH_COMM, ceqn->Conc, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
         }
 

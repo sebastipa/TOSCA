@@ -57,10 +57,12 @@ struct constants_
 {
     // dimensionless numbers
     PetscReal        Pr;                         //!< Prantl number
+    PetscReal        Sch;                        //!< Schmidt number 
 
     // physical constants
     PetscReal        nu;                         //!< kinematic viscosity
     PetscReal        rho;                        //!< flow density [Kg/m3]
+
 
 };
 
