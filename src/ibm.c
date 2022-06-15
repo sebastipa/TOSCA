@@ -6,6 +6,7 @@
 #include "include/io.h"
 #include "include/inline.h"
 #include "include/wallfunctions.h"
+#include "include/ibmInput.h"
 
 //***************************************************************************************************************//
 
@@ -14,6 +15,8 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
     if(ibm != NULL)
     {
         readIBMProperties(ibm);
+
+        setIBMWallModels(ibm);
 
         findBodyBoundingBox(ibm);
 
@@ -156,6 +159,340 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
 
 //***************************************************************************************************************//
 
+PetscErrorCode setIBMWallModels(ibm_ *ibm)
+{
+    mesh_         *mesh  = ibm->access->mesh;
+    flags_        *flags = ibm->access->flags;
+
+    word          fileNameU = "./boundary/" + mesh->meshName + "/U";
+
+    PetscPrintf(mesh->MESH_COMM, "Reading IBM wall model...");
+
+    for (PetscInt i=0; i < ibm->numBodies; i++)
+    {
+        char objectName[256];
+        sprintf(objectName, "object%ld", i);
+
+        ibmObject   *ibmBody = ibm->ibmBody[i];
+
+        // read wall model
+        readSubDictWord("./IBM/IBMProperties.dat", objectName, "wallModelU", &(ibmBody->wallModelU));
+
+        // read wall model properties
+        readSubDictWord("./IBM/IBMProperties.dat", objectName, "wallModelUProp", &(ibmBody->wallModelUProp));
+
+        //copy the wall model properties from the U boundary condition
+        if(ibmBody->wallModelUProp == "matchUiLeft")
+        {
+            //check that the iLeft has a wall model bc
+            if (mesh->boundaryU.iLeft == "velocityWallFunction")
+            {
+                PetscInt wallModelType;
+
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+
+                // allocate memory and connect pointers
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+
+                if(wallModelType == -1)
+                {
+                    if(ibmBody->wallModelU == "Cabot")
+                    {
+                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+
+                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
+
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall model type = %s. But U iLeft bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
+                        fatalErrorInFunction("setIBMWallModels", error);
+                    }
+                }
+                else if (wallModelType == -3)
+                {
+                    if(ibmBody->wallModelU == "Schumann")
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+
+                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall model type = %s. But U iLeft bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
+                        fatalErrorInFunction("setIBMWallModels", error);
+                    }
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+                    fatalErrorInFunction("setIBMWallModels", error);
+                }
+
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "wall model prop = %s. But U iLeft bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
+                fatalErrorInFunction("setIBMWallModels", error);
+            }
+        }
+        else if(ibmBody->wallModelUProp == "matchUiRight")
+        {
+            //check that the iLeft has a wall model bc
+            if (mesh->boundaryU.iRight == "velocityWallFunction")
+            {
+                PetscInt wallModelType;
+
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+
+                // allocate memory and connect pointers
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+
+                if(wallModelType == -1)
+                {
+                    if(ibmBody->wallModelU == "Cabot")
+                    {
+                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+
+                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
+
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall model type = %s. But U iRight bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
+                        fatalErrorInFunction("setIBMWallModels", error);
+                    }
+                }
+                else if (wallModelType == -3)
+                {
+                    if(ibmBody->wallModelU == "Schumann")
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+
+                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall model type = %s. But U iRight bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
+                        fatalErrorInFunction("setIBMWallModels", error);
+                    }
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+                    fatalErrorInFunction("setIBMWallModels", error);
+                }
+
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "wall model prop = %s. But U iRight bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
+                fatalErrorInFunction("setIBMWallModels", error);
+            }
+        }
+        else if(ibmBody->wallModelUProp == "matchUjLeft")
+        {
+            //check that the iLeft has a wall model bc
+            if (mesh->boundaryU.jLeft == "velocityWallFunction")
+            {
+                PetscInt wallModelType;
+
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+
+                // allocate memory and connect pointers
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+
+                if(wallModelType == -1)
+                {
+                    if(ibmBody->wallModelU == "Cabot")
+                    {
+                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+
+                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
+
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall model type = %s. But U jLeft bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
+                        fatalErrorInFunction("setIBMWallModels", error);
+                    }
+                }
+                else if (wallModelType == -3)
+                {
+                    if(ibmBody->wallModelU == "Schumann")
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+
+                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall model type = %s. But U jLeft bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
+                        fatalErrorInFunction("setIBMWallModels", error);
+                    }
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+                    fatalErrorInFunction("setIBMWallModels", error);
+                }
+
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "wall model prop = %s. But U jLeft bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
+                fatalErrorInFunction("setIBMWallModels", error);
+            }
+        }
+        else if(ibmBody->wallModelUProp == "matchUjRight")
+        {
+            //check that the iLeft has a wall model bc
+            if (mesh->boundaryU.jRight == "velocityWallFunction")
+            {
+                PetscInt wallModelType;
+
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+
+                // allocate memory and connect pointers
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+
+                if(wallModelType == -1)
+                {
+                    if(ibmBody->wallModelU == "Cabot")
+                    {
+                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+
+                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
+
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall model type = %s. But U jRight bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
+                        fatalErrorInFunction("setIBMWallModels", error);
+                    }
+                }
+                else if (wallModelType == -3)
+                {
+                    if(ibmBody->wallModelU == "Schumann")
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+
+                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall model type = %s. But U jRight bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
+                        fatalErrorInFunction("setIBMWallModels", error);
+                    }
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+                    fatalErrorInFunction("setIBMWallModels", error);
+                }
+
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "wall model prop = %s. But U jRight bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
+                fatalErrorInFunction("setIBMWallModels", error);
+            }
+        }
+        else if (ibmBody->wallModelUProp == "setHere")
+        {
+            // allocate memory and connect pointers
+            PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+
+            if(ibmBody->wallModelU == "Cabot")
+            {
+                PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+
+                Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+
+            }
+            else if (ibmBody->wallModelU == "Schumann")
+            {
+                PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+
+                Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+
+                readSubDictWord  ("./IBM/IBMProperties.dat", objectName, "uStarEval", &(wm->wfEvalType));
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",     &(wm->kappa));
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "thetaRef",  &(wm->thetaRef));
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kRough",    &(wm->roughness));
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "gammaM",    &(wm->gammaM));
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "invalid wall model chosen. Please use option Cabot or Schumann \n");
+                fatalErrorInFunction("setIBMWallModels", error);
+            }
+        }
+    }
+
+    PetscPrintf(mesh->MESH_COMM, "done\n\n");
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    return (0);
+}
+//***************************************************************************************************************//
 PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 {
 
@@ -164,6 +501,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     peqn_         *peqn  = ibm->access->peqn;
     constants_    *cst   = ibm->access->constants;
     clock_        *clock = ibm->access->clock;
+    io_           *io    = ibm->access->io;
 
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
@@ -552,9 +890,6 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                         }
                         else
                         {
-                            //write file heading
-                            fp = fopen(fileName, "w");
-
                             word w1   = "time [s]";
                             word w2   = "aeroTq [Nm]";
                             word w3   = "aeroPwr [W]";
@@ -582,6 +917,11 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
                 }
 
+                if(io->writePForce)
+                {
+                    writeElementPForce(ibm, b);
+                }
+
             }
         }
 
@@ -600,7 +940,127 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 }
 
 //***************************************************************************************************************//
+PetscErrorCode writeElementPForce(ibm_ *ibm, PetscInt b)
+{
+    clock_      *clock = ibm->access->clock;
+    io_         *io    = ibm->access->io;
+    mesh_       *mesh  = ibm->access->mesh;
+    ibmObject   *ibmBody = ibm->ibmBody[b];
+    ibmMesh     *ibMsh = ibmBody->ibMsh;
 
+    // write flags for current time step
+    PetscInt    writeNow         =  0;
+
+    PetscReal   startTimeAvg     = ibm->startTime;
+    PetscReal   timeIntervalAvg  = ibm->writePrd;
+    PetscReal   epsilon          = 1e-8;
+
+    word        timeName;
+    word        path;
+
+    // set time folder name
+    timeName = getTimeName(clock);
+    path     = "./postProcessing/" + mesh->meshName + "/IBM/" + ibmBody->bodyName.c_str() + "/elementForce/" + timeName;
+
+    // create/initialize ibm write directory
+    if
+    (
+        clock->it == clock->itStart
+    )
+    {
+        errno = 0;
+        word ibmFolder = "./postProcessing/" + mesh->meshName + "/IBM/";
+
+        PetscInt dirRes = mkdir(ibmFolder.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+           char error[512];
+            sprintf(error, "could not create %s directory", ibmFolder.c_str());
+            fatalErrorInFunction("writeElementPForce",  error);
+        }
+
+        word ibmBodyFolder = ibmFolder + ibmBody->bodyName.c_str();
+        dirRes = mkdir(ibmBodyFolder.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+           char error[512];
+            sprintf(error, "could not create %s directory", ibmBodyFolder.c_str());
+            fatalErrorInFunction("writeElementPForce",  error);
+        }
+
+        word elementForceFolder = ibmBodyFolder + "/elementForce/";
+        dirRes = mkdir(elementForceFolder.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+           char error[512];
+            sprintf(error, "could not create %s directory", elementForceFolder.c_str());
+            fatalErrorInFunction("writeElementPForce",  error);
+        }
+
+    }
+    // check if must accumulate
+    if
+    (
+        clock->time >= startTimeAvg &&
+        (clock->time - startTimeAvg ) / timeIntervalAvg -
+        std::floor((clock->time - startTimeAvg) / timeIntervalAvg + + epsilon) < 1e-10
+    )
+    {
+        writeNow = 1;
+    }
+
+    if(writeNow)
+    {
+        word    fileName = path + "/" + ibmBody->bodyName.c_str() + "_pForce.dlo";
+
+        PetscInt dirRes = mkdir(path.c_str(), 0777);
+
+        if(dirRes != 0 && errno != EEXIST)
+        {
+           char error[512];
+            sprintf(error, "could not create %s directory\n", path.c_str());
+            fatalErrorInFunction("writeElementPForce",  error);
+        }
+
+        FILE *f;
+
+        f = fopen(fileName.c_str(), "w");
+
+        if(!f)
+        {
+           char error[512];
+            sprintf(error, "cannot open file %s\n", fileName.c_str());
+            fatalErrorInFunction("writeElementPForce",  error);
+        }
+        else
+        {
+            fprintf(f, "** Pressure based on Esurface\n");
+
+            // use global element id for "inp" file format
+            if(ibmBody->fileType == "inp")
+            {
+                for(PetscInt e = 0; e < ibMsh->elems; e++)
+                {
+                    fprintf(f, "%ld, P, %lf \n", ibmBody->elementMapping[e], nMag(ibmBody->ibmPForce[e]));
+                }
+            }
+            else
+            {
+                for(PetscInt e = 0; e < ibMsh->elems; e++)
+                {
+                    fprintf(f, "%ld, P, %lf \n", e, nMag(ibmBody->ibmPForce[e]));
+                }
+            }
+
+        }
+
+        fclose(f);
+
+    }
+
+    return (0);
+}
+//***************************************************************************************************************//
 PetscErrorCode UpdateIBMesh(ibm_ *ibm)
 {
 
@@ -1081,7 +1541,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         PetscInt   cElem = ibF[c].closestElem;
         Cmpnts	   eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
-        PetscReal  roughness = ibm->ibmBody[ibF[c].bodyID]->roughness;
+        PetscReal  roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot->roughness;
         // background mesh projection point is taken 1 cell distance along the normal directional of the closest ibm mesh element
         cellSize = pow( 1./aj[k][j][i], 1./3.);
         bPt = nScale(cellSize, eNorm);
@@ -1314,6 +1774,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          {
              temp[k][j][i] = (1.0 - (sb/sc)) * ibmPtTemp + (sb/sc) * bPtTemp;
          }
+
+         findIBMWallShear(ibm, c, ustar);
     }
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
@@ -1338,7 +1800,137 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 }
 
 //***************************************************************************************************************//
+PetscErrorCode findIBMWallShear(ibm_ *ibm, PetscInt c, PetscReal ustar)
+{
+    mesh_         *mesh  = ibm->access->mesh;
+    clock_        *clock = ibm->access->clock;
+    constants_    *cst   = ibm->access->constants;
 
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    PetscInt      i, j, k;
+    PetscInt      i1, j1, k1;
+
+    Vec           Coor;
+    Cmpnts        ***coor, faceCent;
+    PetscReal     ***nvert;
+
+    //local pointer for ibmFluidCells
+    ibmFluidCell  *ibF = ibm->ibmFCells;
+
+    ibmObject     *ibmBody = ibm->ibmBody[ibF[c].bodyID];
+    ibmMesh       *ibMsh = ibmBody->ibMsh;
+    PetscInt      cElem = ibF[c].closestElem;
+    Cmpnts	      eNorm = ibMsh->eN[cElem];
+    PetscReal     yFace, tau13;
+
+    DMGetCoordinatesLocal(da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    // current ibm fluid cell index
+    i = ibF[c].cellId.i;
+    j = ibF[c].cellId.j;
+    k = ibF[c].cellId.k;
+
+    PetscInt      isFace = 0;
+    //check the neighbourhood of current ibm fluid cell for fluid cells
+    for (k1=k-1; k1<k+2; k1++)
+    for (j1=j-1; j1<j+2; j1++)
+    for (i1=i-1; i1<i+2; i1++)
+    {
+        if
+        (
+            (
+                k1>=1 && k1<mz-1 &&
+                j1>=1 && j1<my-1 &&
+                i1>=1 && i1<mx-1
+            ) && isFluidCell(k1, j1, i1, nvert)
+        )
+        {
+            //save the face center co-ordinate to interpolate
+            if(k1 > k && j1 == j && i1 == i)
+            {
+                faceCent = nSet(nScale(1.0/4.0, nSum(coor[k][j][i], nSum(coor[k][j][i-1], nSum(coor[k][j-1][i], coor[k][j-1][i-1])))));
+                isFace = 1;
+            }
+            else if (k1 < k && j1 == j && i1 == i)
+            {
+                faceCent = nSet(nScale(1.0/4.0, nSum(coor[k-1][j][i], nSum(coor[k-1][j][i-1], nSum(coor[k-1][j-1][i], coor[k-1][j-1][i-1])))));
+                isFace = 1;
+            }
+            else if (k1 == k && j1 > j && i1 == i)
+            {
+                faceCent = nSet(nScale(1.0/4.0, nSum(coor[k][j][i], nSum(coor[k][j][i-1], nSum(coor[k-1][j][i], coor[k-1][j][i-1])))));
+                isFace = 1;
+            }
+            else if (k1 == k && j1 < j && i1 == i)
+            {
+                faceCent = nSet(nScale(1.0/4.0, nSum(coor[k][j-1][i], nSum(coor[k][j-1][i-1], nSum(coor[k-1][j-1][i], coor[k-1][j-1][i-1])))));
+                isFace = 1;
+            }
+            else if (k1 == k && j1 == j && i1 > i)
+            {
+                faceCent = nSet(nScale(1.0/4.0, nSum(coor[k][j][i], nSum(coor[k-1][j][i], nSum(coor[k][j-1][i], coor[k-1][j-1][i])))));
+                isFace = 1;
+            }
+            else if (k1 == k && j1 == j && i1 < i)
+            {
+                faceCent = nSet(nScale(1.0/4.0, nSum(coor[k][j][i-1], nSum(coor[k-1][j][i-1], nSum(coor[k][j-1][i-1], coor[k-1][j-1][i-1])))));
+                isFace = 1;
+            }
+
+            // only for the cells that share a face, not diagonal cells
+            if(isFace)
+            {
+                //find distance from the closest ibm mesh cell to this face
+                yFace = nDot(nSub(faceCent, ibF[c].pMin), eNorm);
+
+                if(ibmBody->wallModelU == "Cabot")
+                {
+                    Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+
+                    tau13 = cst->nu * ustar / (wm->kappa * yFace);
+                }
+                else if(ibmBody->wallModelU == "Schumann")
+                {
+                    Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+
+                    tau13 = cst->nu * ustar / (wm->kappa * yFace);
+                }
+
+                //find the shear stress tensor at this face
+
+                //transform it to wall normal co-ordinate system
+
+                //replace its tau13 component
+
+                //transform back to the original co-ordinate system
+
+                //save this tensor
+            }
+
+        }
+    }
+
+    DMDAVecRestoreArray(fda, Coor, &coor);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
 PetscErrorCode ibmSearch(ibm_ *ibm)
 {
   mesh_         *mesh = ibm->access->mesh;
@@ -1886,147 +2478,6 @@ PetscErrorCode checkIBMexists(ibm_ *ibm)
 
     return 0;
 }
-//***************************************************************************************************************//
-
-PetscErrorCode readIBMProperties(ibm_ *ibm)
-{
-  PetscMPIInt rank;
-
-  mesh_ *mesh = ibm->access->mesh;
-
-  MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-  PetscPrintf(PETSC_COMM_WORLD, "\nIBM initialization...\n");
-
-  // read debug switch
-  readDictInt("./IBM/IBMProperties.dat", "debug", &(ibm->dbg));
-
-  // read dynamic IBM switch
-  readDictInt("./IBM/IBMProperties.dat", "dynamic", &(ibm->dynamic));
-
-  // read compute force and moment
-  readDictInt("./IBM/IBMProperties.dat", "computeForce", &(ibm->computeForce));
-
-  // read check normals
-  readDictInt("./IBM/IBMProperties.dat", "checkNormal", &(ibm->checkNormal));
-
-  // read the number of ibm bodies
-  readDictInt("./IBM/IBMProperties.dat", "NumberofBodies", &(ibm->numBodies));
-
-  // read the interpolation method - MLS or CURVIB
-  readDictWord("./IBM/IBMProperties.dat", "InterpolationMethod", &(ibm->IBInterpolationModel));
-
-  //counter for number of moving objects
-  int movingObject = 0;
-
-  // initialize pointers to NULL
-  ibm->ibmFCells = NULL;
-  ibm->sBox      = NULL;
-
-  // allocate memory for each ibm object
-  PetscMalloc(ibm->numBodies * sizeof(ibmObject*), &(ibm->ibmBody));
-
-  // allocate memory for the search box Parameters
-  PetscMalloc(ibm->numBodies * sizeof(searchBox), &(ibm->sBox));
-
-  for (PetscInt i=0; i < ibm->numBodies; i++)
-  {
-    PetscMalloc(sizeof(ibmObject), &(ibm->ibmBody[i]));
-
-    // set pointers to null
-    ibm->ibmBody[i]->bound          = NULL;
-    ibm->ibmBody[i]->searchCellList = NULL;
-    ibm->ibmBody[i]->ibMsh          = NULL;
-    ibm->ibmBody[i]->ibmRot         = NULL;
-
-    // allocate memory for the IBM mesh of the object
-    PetscMalloc(sizeof(ibmMesh), &(ibm->ibmBody[i]->ibMsh));
-
-    // allocate memory for the bounding box  of the object
-    PetscMalloc(sizeof(boundingBox), &(ibm->ibmBody[i]->bound));
-
-    char objectName[256];
-    sprintf(objectName, "object%ld", i);
-
-    // read object name
-    readSubDictWord("./IBM/IBMProperties.dat", objectName, "bodyName", &(ibm->ibmBody[i]->bodyName));
-
-    // read ibm file type
-    readSubDictWord("./IBM/IBMProperties.dat", objectName, "fileType", &(ibm->ibmBody[i]->fileType));
-
-    if(ibm->ibmBody[i]->fileType == "inp")
-    {
-
-    }
-
-    // read the ibm motion
-    readSubDictWord("./IBM/IBMProperties.dat", objectName, "bodyMotion", &(ibm->ibmBody[i]->bodyMotion));
-
-    if(ibm->ibmBody[i]->bodyMotion != "static")
-    {
-        movingObject ++;
-    }
-
-    //read body surface roughness
-    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(ibm->ibmBody[i]->roughness));
-
-    // read the body base location
-    readSubDictVector("./IBM/IBMProperties.dat", objectName, "baseLocation", &(ibm->ibmBody[i]->baseLocation));
-
-    if(ibm->dynamic)
-    {
-        if(ibm->ibmBody[i]->bodyMotion == "rotation")
-        {
-            // allocate memory for ibm rotation
-            PetscMalloc( sizeof(ibmRotation), &(ibm->ibmBody[i]->ibmRot));
-
-            ibmRotation *ibmRot = ibm->ibmBody[i]->ibmRot;
-
-            // set the initial rotation angle
-            ibmRot->rotAngle = 0;
-
-            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "angularSpeed", &(ibmRot->angSpeed));
-            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "angularAcceleration", &(ibmRot->angAcc));
-            readSubDictVector("./IBM/IBMProperties.dat", objectName, "rotationAxis", &(ibmRot->rotAxis));
-            readSubDictVector("./IBM/IBMProperties.dat", objectName, "rotationCenter", &(ibmRot->rotCenter));
-            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "maxTipRadius", &(ibmRot->maxR));
-
-            //transform angular speed and acceleration from rpm to rad/s
-            ibmRot->angSpeed = ibmRot->angSpeed*2*M_PI/60.0;
-            ibmRot->angAcc   = ibmRot->angAcc*2*M_PI/60.0;
-        }
-    }
-
-    // read the search cell ratio wrt to the average cell size of the domain mesh
-    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "searchCellRatio", &(ibm->ibmBody[i]->searchCellRatio));
-
-    //set the body index as the index of the loop
-    ibm->ibmBody[i]->bodyID = i;
-
-  }
-
-  if(movingObject == 0 && ibm->dynamic == 1)
-  {
-     char error[512];
-      sprintf(error, "ibm dynamic motion set to true but there are no moving objects. Set dynamic to 0 in IBMProperties\n");
-      fatalErrorInFunction("readIBMProperties",  error);
-  }
-
-  if(movingObject > 0 && ibm->dynamic == 0)
-  {
-     char error[512];
-      sprintf(error, "ibm dynamic motion set to false but there are moving objects. Set dynamic to 1 in IBMProperties\n");
-      fatalErrorInFunction("readIBMProperties",  error);
-  }
-
-  for (PetscInt i=0; i < ibm->numBodies; i++)
-  {
-      // read the mesh file for the ibm object
-      readIBMObjectMesh(ibm, i);
-  }
-
-  return 0;
-}
 
 //***************************************************************************************************************//
 PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
@@ -2136,11 +2587,14 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 
         }
 
-        // if(ibm->ibmBody[b]->fileType == "ascii")
-        // {
-        //     writeSTLFile(ibm->ibmBody[b]);
-        //     MPI_Barrier(ibm->access->mesh->MESH_COMM);
-        // }
+        if(ibm->writeSTL)
+        {
+            {
+                writeSTLFile(ibm->ibmBody[b]);
+                MPI_Barrier(ibm->access->mesh->MESH_COMM);
+                PetscPrintf(PETSC_COMM_WORLD, "\nwriting the stl file.\n");
+            }
+        }
 
     }
     return (0);
@@ -2548,381 +3002,6 @@ PetscErrorCode checkIBMElementControlledProcessor(ibm_ *ibm)
     return (0);
 }
 
-//***************************************************************************************************************//
-PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
-{
-  ibmObject     *ibmBody = ibm->ibmBody[b];
-  clock_        *clock   = ibm->access->clock;
-  ibmMesh       *ibMesh  = ibmBody->ibMsh;
-
-  if(ibmBody->fileType == "ucd")
-  {
-      readIBMFileUCD(ibmBody);
-  }
-  else if(ibmBody->fileType == "ascii")
-  {
-      readIBMFileASCIIRaster(ibmBody);
-  }
-  else if(ibmBody->fileType == "stl")
-  {
-      // readIBMFileSTL(ibmBody);
-  }
-  else
-  {
-      char error[530];
-      sprintf(error, "wrong ibm file type. Use ucd, ascii or stl\n");
-      fatalErrorInFunction("readIBMObjectMesh",  error);
-  }
-
-  // reset the co-ordinates if the angular position is read
-  if(ibmBody->bodyMotion == "rotation")
-  {
-      word        timeName, dictName;
-      ibmRotation   *ibmRot  = ibmBody->ibmRot;
-
-      //read the angular position from file
-      timeName = "./fields/" + ibm->access->mesh->meshName + "/ibm/" + getTimeName(clock);
-
-      // check if this folder exists, if yes angular position is set, if no, angular position is 0
-      if(dir_exist(timeName.c_str()))
-      {
-          PetscPrintf(ibm->access->mesh->MESH_COMM, "   reading IBM data for time: %s \n",timeName.c_str());
-
-          dictName = timeName + "/" + ibmBody->bodyName;
-
-          readDictDouble(dictName.c_str(), "AngularPosition", &(ibmRot->rotAngle));
-          readDictDouble(dictName.c_str(), "AngularSpeed", &(ibmRot->angSpeed));
-          readDictDouble(dictName.c_str(), "AngularAcceleration", &(ibmRot->angAcc));
-
-          //transform angular speed and acceleration from rpm to rad/s
-          ibmRot->angSpeed = ibmRot->angSpeed*2*M_PI/60.0;
-          ibmRot->angAcc   = ibmRot->angAcc*2*M_PI/60.0;
-      }
-      else
-      {
-          ibmRot->rotAngle = 0.0;
-      }
-
-      for(PetscInt i = 0; i < ibMesh->nodes; i++)
-      {
-          Cmpnts rvec   = nSub(ibMesh->nCoor[i], ibmRot->rotCenter);
-          Cmpnts angVel = nScale(ibmRot->angSpeed, ibmRot->rotAxis);
-
-          // rotate the vector to the required angular position
-          mRot(ibmRot->rotAxis, rvec, ibmRot->rotAngle);
-
-          // find the new co-ordinate
-          ibMesh->nCoor[i] = nSum(rvec, ibmRot->rotCenter);
-
-          ibMesh->nU[i]  = nCross(angVel, rvec);
-      }
-  }
-
-  // allocate memory for the element normal, area and center coordinate
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eN));
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eT1));
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eT2));
-
-  PetscMalloc(ibMesh->elems * sizeof(PetscInt), &(ibMesh->flipNormal));
-
-  for (PetscInt i=0; i<ibMesh->elems; i++)
-  {
-      ibMesh->flipNormal[i] = 0;
-  }
-
-  PetscMalloc(ibMesh->elems * sizeof(PetscReal), &(ibMesh->eA));
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eCent));
-
-
-  if(ibm->computeForce)
-  {
-      // allocate memory for pressure and surface stress
-      PetscMalloc( ibMesh->elems * sizeof(PetscReal), &(ibmBody->ibmPressure));
-      PetscMalloc( ibMesh->elems * sizeof(Cmpnts), &(ibmBody->ibmPForce));
-
-      PetscMalloc( ibMesh->elems * sizeof(PetscReal), &(ibmBody->ibmWallShear1));
-      PetscMalloc( ibMesh->elems * sizeof(PetscReal), &(ibmBody->ibmWallShear2));
-
-      // allocate memory for the closest cell id to the ibm mesh element
-      PetscMalloc( ibMesh->elems * sizeof(cellIds), &(ibmBody->closestCells));
-      PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->thisPtControlled));
-      PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->thisPtControlTransfer));
-  }
-
-  //allocate memory for the smallest bounding sphere for each element - used for finding the nearest IBM Mesh element to IBM fluid cell
-  PetscMalloc(ibMesh->elems * sizeof(PetscReal), &(ibMesh->eRVec));
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eQVec));
-
-  PetscPrintf(PETSC_COMM_WORLD, "...  done.\n\n");
-
-  return 0;
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode readIBMFileSTL(ibmObject *ibmBody)
-{
-    char      ibmFile[256];
-    FILE      *fd;
-    PetscInt  readError; char* charError;
-    char      string[128];
-    ibmMesh   *ibMesh = ibmBody->ibMsh;
-
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s", ibmBody->bodyName.c_str());
-
-    sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
-
-    // open the ibm object file in read mode
-    fd = fopen(ibmFile, "r");
-
-    if(fd == NULL)
-    {
-      char error[512];
-      sprintf(error, "cannot open file %s\n", ibmFile);
-      fatalErrorInFunction("readIBMObjectMesh",  error);
-    }
-
-    return 0;
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode readIBMFileASCIIRaster(ibmObject *ibmBody)
-{
-    char      ibmFile[256];
-    FILE      *fd;
-    PetscInt  readError; char* charError;
-    char      string[128];
-    ibmMesh   *ibMesh = ibmBody->ibMsh;
-
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s", ibmBody->bodyName.c_str());
-
-    sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
-
-    // open the ibm object file in read mode
-    fd = fopen(ibmFile, "r");
-
-    if(fd == NULL)
-    {
-      char error[512];
-      sprintf(error, "cannot open file %s\n", ibmFile);
-      fatalErrorInFunction("readIBMObjectMesh",  error);
-    }
-
-    //skip the first line
-    charError = fgets(string, 128, fd);
-
-    PetscInt    numX, numY;
-    PetscReal   xMax, xMin, yMax, yMin, zMax, zMin;
-    PetscReal   delX, delY;
-    readError = fscanf(fd, "%ld %ld",  &numX, &numY);
-
-    readError = fscanf(fd, "%le %le", &xMin, &xMax);
-    readError = fscanf(fd, "%le %le", &yMin, &yMax);
-    readError = fscanf(fd, "%le %le", &zMin, &zMax);
-
-    delX = (xMax - xMin)/ (numX-1);
-    delY = (yMax - yMin)/ (numY-1);
-
-    ibMesh->nodes = numX * numY;
-    ibMesh->elems = 2 * (numX-1) * (numY-1);
-
-    // allocate memory for the x, y and z co-ordinates of the nodes
-    PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nCoor));
-
-    // allocate memory for the node velocity
-    PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nU));
-
-    // set the node co-rdinates from the file and initialize the node velocity to 0
-    PetscInt n = 0;
-    for(PetscInt j = 0; j < numY; j++)
-    {
-        for(PetscInt i = 0; i < numX; i++)
-        {
-            ibMesh->nCoor[n].x = xMin + i*delX;
-
-            ibMesh->nCoor[n].y = yMin + j* delY;
-
-            readError = fscanf(fd, "%le", &(ibMesh->nCoor[n].z));
-
-            // translate the body based on the base location
-            mSum(ibMesh->nCoor[n], ibmBody->baseLocation);
-
-            // initialize node velocity to 0
-            mSetValue(ibMesh->nU[n], 0.0);
-            n++;
-        }
-    }
-
-    // allocate memory for the pointer to nodes (n1, n2 and n3) of an element
-    PetscMalloc(ibMesh->elems * sizeof(PetscInt), &(ibMesh->nID1));
-    PetscMalloc(ibMesh->elems * sizeof(PetscInt), &(ibMesh->nID2));
-    PetscMalloc(ibMesh->elems * sizeof(PetscInt), &(ibMesh->nID3));
-
-    n = 0;
-    for(PetscInt j = 0; j < numY-1; j++)
-    {
-        for(PetscInt i = 0; i < numX-1; i++)
-        {
-            ibMesh->nID1[n] = numX*j + i;
-            ibMesh->nID2[n] = numX*(j) + i+1;
-            ibMesh->nID3[n] = numX*(j+1) + i;
-
-            n++;
-
-            ibMesh->nID1[n] = numX*(j) + i+1;
-            ibMesh->nID2[n] = numX*(j+1) + i+1;
-            ibMesh->nID3[n] = numX*(j+1) + i;
-
-            n++;
-        }
-    }
-
-    if ( fd != NULL ) fclose(fd);
-
-    return 0;
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode writeSTLFile(ibmObject *ibmBody)
-{
-    ibmMesh       *ibMesh  = ibmBody->ibMsh;
-
-    PetscPrintf(PETSC_COMM_WORLD, "writing IBM mesh to STL...\n");
-
-    PetscMPIInt rank;   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
-    PetscInt    n1, n2, n3;
-
-    if(!rank)
-    {
-        FILE *f;
-        char fileName[256];
-        sprintf(fileName, "./IBM/%s.stl", ibmBody->bodyName.c_str());
-        f = fopen(fileName, "w");
-
-        if(!f)
-        {
-            char error[512];
-            sprintf(error, "cannot open file %s\n", fileName);
-            fatalErrorInFunction("writeSTLFile",  error);
-        }
-        else
-        {
-            fprintf(f, "solid %s\n", ibmBody->bodyName.c_str());
-
-            for(PetscInt i = 0; i < ibMesh->elems; i++)
-            {
-                n1 = ibMesh->nID1[i]; n2 = ibMesh->nID2[i]; n3 = ibMesh->nID3[i];
-
-                fprintf(f, "   facet normal %le %le %le\n", ibMesh->eN[i].x, ibMesh->eN[i].y, ibMesh->eN[i].z);
-                fprintf(f, "      outer loop\n");
-                fprintf(f, "         vertex  %le %le %le\n", ibMesh->nCoor[n1].x, ibMesh->nCoor[n1].y, ibMesh->nCoor[n1].z);
-                fprintf(f, "         vertex  %le %le %le\n", ibMesh->nCoor[n2].x, ibMesh->nCoor[n2].y, ibMesh->nCoor[n2].z);
-                fprintf(f, "         vertex  %le %le %le\n", ibMesh->nCoor[n3].x, ibMesh->nCoor[n3].y, ibMesh->nCoor[n3].z);
-                fprintf(f, "      endloop\n");
-                fprintf(f, "   endfacet\n");
-
-
-            }
-            fprintf(f, "endsolid\n");
-
-            fclose(f);
-        }
-    }
-
-    return 0;
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode readIBMFileUCD(ibmObject *ibmBody)
-{
-
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s", ibmBody->bodyName.c_str());
-
-    char ibmFile[256];
-    sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
-
-    FILE *fd;
-    PetscInt  readError; char* charError;
-
-    // pointer to the mesh object of the current body
-    ibmMesh *ibMesh = ibmBody->ibMsh;
-
-    // open the ibm object file in read mode
-    fd = fopen(ibmFile, "r");
-
-    if(fd == NULL)
-    {
-      char error[530];
-      sprintf(error, "cannot open file %s\n", ibmFile);
-      fatalErrorInFunction("readIBMObjectMesh",  error);
-    }
-
-    // local variables to read file variables
-    PetscInt         nodes = 0;                          // number of ib nodes
-    PetscInt         elem = 0;                           // numbe of elements
-    PetscInt         tmp;                            // temporary access variables
-    char             string[128], tmpS[128];                    // temporary string variable
-
-    // skip the first 3 header lines of the file created by pointwise.
-    charError = fgets(string, 128, fd);
-    charError = fgets(string, 128, fd);
-    charError = fgets(string, 128, fd);
-
-    // scan the number of nodes and elements
-    readError = fscanf(fd, "%ld %ld %ld %ld %ld",  &nodes, &elem, &tmp, &tmp, &tmp);
-
-    ibMesh->nodes = nodes;
-    ibMesh->elems = elem;
-
-    if(nodes == 0)
-    {
-      char error[512];
-      sprintf(error, "nodes read = 0. check the IBM file and make sure there are no header comments %s\n", ibmFile);
-      fatalErrorInFunction("readIBMObjectMesh",  error);
-    }
-
-    // allocate memory for the x, y and z co-ordinates of the nodes
-    PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nCoor));
-
-    // allocate memory for the node velocity
-    PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nU));
-
-    // read the node co-rdinates from the file and initialize the node velocity to 0
-    for(PetscInt i = 0; i < nodes; i++)
-    {
-      readError = fscanf(fd, "%ld %le %le %le", &tmp, &ibMesh->nCoor[i].x, &ibMesh->nCoor[i].y, &ibMesh->nCoor[i].z);
-
-      // translate the body based on the based location
-      mSum(ibMesh->nCoor[i], ibmBody->baseLocation);
-
-      // initialize node velocity to 0
-      mSetValue(ibMesh->nU[i], 0.0);
-    }
-
-    // allocate memory for the pointer to nodes (n1, n2 and n3) of an element
-    PetscMalloc(elem * sizeof(PetscInt), &(ibMesh->nID1));
-    PetscMalloc(elem * sizeof(PetscInt), &(ibMesh->nID2));
-    PetscMalloc(elem * sizeof(PetscInt), &(ibMesh->nID3));
-
-    // read the nodes that form the 3 vertices of an element
-    for(PetscInt i = 0; i < elem; i++)
-    {
-      readError = fscanf(fd, "%ld %ld %s %ld %ld %ld", &tmp, &tmp, tmpS, &ibMesh->nID1[i], &ibMesh->nID2[i], &ibMesh->nID3[i]);
-
-      // node numbers start from 0
-      ibMesh->nID1[i] = ibMesh->nID1[i] - 1;
-      ibMesh->nID2[i] = ibMesh->nID2[i] - 1;
-      ibMesh->nID3[i] = ibMesh->nID3[i] - 1;
-
-    }
-
-    if ( fd != NULL ) fclose(fd);
-
-    return 0;
-}
 //***************************************************************************************************************//
 
 PetscErrorCode elementBoundingSphere(ibmMesh *ibMesh)
@@ -3990,89 +4069,4 @@ inline void triangleIntp(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3, ibmFluidCell *ib
   ibF->cs3 = 1. - ibF->cs1 - ibF->cs2;
 
   return;
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode printstuff(ibm_ *ibm)
-{
-  mesh_ *mesh = ibm->access->mesh;
-  ueqn_ *ueqn = ibm->access->ueqn;
-  peqn_ *peqn = ibm->access->peqn;
-
-  DM               da      = mesh->da, fda = mesh->fda;
-  DMDALocalInfo    info    = mesh->info;
-  PetscInt         xs      = info.xs, xe = info.xs + info.xm;
-  PetscInt         ys      = info.ys, ye = info.ys + info.ym;
-  PetscInt         zs      = info.zs, ze = info.zs + info.zm;
-  PetscInt         mx      = info.mx, my = info.my, mz = info.mz;
-
-  PetscInt         lxs, lxe, lys, lye, lzs, lze;
-  PetscInt         i, j, k;
-
-  Cmpnts           ***ucont, ***ucat;
-
-  PetscReal        ***nvert, ***phi;
-
-  // indices for internal cells
-  lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
-  lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
-  lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
-
-  DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
-  DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
-  DMDAVecGetArray(da,  mesh->lNvert,  &nvert);
-  DMDAVecGetArray(da, peqn->Phi, &phi);
-
-  for (k=zs; k<ze; k++)
-  {
-      for (j=ys; j<ye; j++)
-      {
-          for (i=xs; i<xe; i++)
-          {
-            if(isIBMFluidCell(k, j, i, nvert))
-            {
-              PetscPrintf(mesh->MESH_COMM, "at cell %d %d %d, ucat = %f %f %f\n", k, j, i, ucat[k][j][i].x, ucat[k][j][i].y, ucat[k][j][i].z);
-            }
-          }
-      }
-  }
-
-  // for (k=zs; k<ze; k++)
-  // {
-  //     for (j=ys; j<ye; j++)
-  //     {
-  //         for (i=xs; i<xe; i++)
-  //         {
-  //           if(k == 5)
-  //           {
-  //             PetscPrintf(mesh->MESH_COMM, "at cell %d %d %d, ucat = %2.8f %2.8f %2.8f\n", k, j, i, ucat[k][j][i].x, ucat[k][j][i].y, ucat[k][j][i].z);
-  //             // PetscPrintf(mesh->MESH_COMM, "at cell %d %d %d, ucont = %f %f %f\n", k, j, i, ucont[k][j][i].x, ucont[k][j][i].y, ucont[k][j][i].z);
-  //
-  //           }
-  //         }
-  //     }
-  // }
-
-  // for (k=zs; k<ze; k++)
-  // {
-  //     for (j=ys; j<ye; j++)
-  //     {
-  //         for (i=xs; i<xe; i++)
-  //         {
-  //           if(k == 5)
-  //           {
-  //             PetscPrintf(mesh->MESH_COMM, "at cell %d %d %d, nvert = %f, phi = %f\n", k, j, i, nvert[k][j][i], phi[k][j][i]);
-  //
-  //           }
-  //         }
-  //     }
-  // }
-
-  DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
-  DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
-  DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
-  DMDAVecRestoreArray(da, peqn->Phi, &phi);
-
-  return 0;
 }

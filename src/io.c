@@ -38,10 +38,12 @@ PetscErrorCode InitializeIO(io_ *io)
     io->averaging      = 0;
     io->phaseAveraging = 0;
     io->keBudgets      = 0;
+    io->writePForce    = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averaging", &(io->averaging), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-phaseAveraging", &(io->phaseAveraging), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-keBudgets", &(io->keBudgets), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-writePressureForce", &(io->writePForce), PETSC_NULL);
 
     // read q-criterion flag
     io->qCrit          = 0;

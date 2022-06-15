@@ -1,5 +1,5 @@
 //! \file  ibm.h
-//! \brief LES model header file.
+//! \brief IBM model header file.
 
 #ifndef IBM_H
 #define IBM_H
@@ -80,13 +80,17 @@ typedef struct
 
     word          fileType;
 
+    word          wallModelU;
+
+    word          wallModelUProp;
+
+    wallModel     *ibmWallmodel;
+
     Cmpnts        baseLocation;
 
     ibmRotation   *ibmRot;
 
     PetscReal     searchCellRatio;
-
-    PetscReal     roughness;
 
     boundingBox   *bound;
 
@@ -105,6 +109,9 @@ typedef struct
 
     // communication color
     MPI_Comm            IBM_COMM;                             //!< communicator for this IBM
+
+    // element localToGlobalMapping
+    PetscInt      *elementMapping;
 
 }ibmObject;
 
@@ -152,8 +159,11 @@ struct ibm_
     PetscInt             dynamic;
     PetscInt        computeForce;
     PetscInt         checkNormal;
+    PetscInt            writeSTL;
 
-
+    //write forces
+    PetscReal        startTime;
+    PetscReal        writePrd;
 };
 
 #endif
@@ -171,20 +181,8 @@ PetscErrorCode UpdateIBM(ibm_ *ibm);
 //! \brief writes the angular position when the body is rotating
 PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b);
 
-//! \brief read the IBMProperties.dat file , IBM mesh files and allocate memory for the objects
-PetscErrorCode readIBMProperties(ibm_ *ibm);
-
-// \brief read the IBM mesh
-PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b);
-
-//! \brief read the ibm mesh in ASCII format
-PetscErrorCode readIBMFileASCIIRaster(ibmObject *ibmBody);
-
-//! \brief read the ibm mesh in ucd format
-PetscErrorCode readIBMFileUCD(ibmObject *ibmBody);
-
-//! \brief write the STL mesh
-PetscErrorCode writeSTLFile(ibmObject *ibmBody);
+//! \brief writes the pressure force acting on each element
+PetscErrorCode writeElementPForce(ibm_ *ibm, PetscInt b);
 
 //! \brief find in which processors the ibm body belongs
 PetscErrorCode findIBMControlledProcs(ibm_ *ibm);
@@ -200,6 +198,9 @@ PetscErrorCode UpdateIBMesh(ibm_ *ibm);
 
 //! \brief rotate the ibm mesh based on the angular speed input
 PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b);
+
+//! \brief set IBM wall model type and properties
+PetscErrorCode setIBMWallModels(ibm_ *ibm);
 
 //! \brief find the bounding box around an ibm body
 PetscErrorCode findBodyBoundingBox(ibm_ *ibm);
@@ -229,6 +230,9 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm);
 PetscErrorCode CurvibInterpolation(ibm_ *ibm);
 
 PetscErrorCode ComputeForceMoment(ibm_ *ibm);
+
+//! \brief compute shear stress at faces close to the IBM
+PetscErrorCode findIBMWallShear(ibm_ *ibm, PetscInt c, PetscReal ustar);
 
 // check if a given body exists in the mesh based on the IBMProperties.dat file
 PetscErrorCode checkIBMexists(ibm_ *ibm);
@@ -273,6 +277,3 @@ inline void disP2Line(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts *po, PetscReal *d);
 
 //! \brief find the interpolation weights of a point inside a triangle from its nodes
 inline void triangleIntp(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3, ibmFluidCell *ibF);
-
-//! \brief used for debugging
-PetscErrorCode printstuff(ibm_ *ibm);

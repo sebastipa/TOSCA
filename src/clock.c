@@ -9,6 +9,7 @@
 PetscErrorCode adjustTimeStep (domain_ *domain)
 {
     PetscInt nDomains = domain[0].info.nDomains;
+    flags_   *flags   = domain[0].access.flags;
 
     PetscInt  flag   = 0;
     PetscReal cfl    = 1e10;
@@ -142,6 +143,20 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 timeInterval = acquisition->keBudFields->avgPrd;
 
                 timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+            }
+
+            //ibm write pressure force
+            if(flags->isIBMActive)
+            {
+                ibm_ *ibm = domain[d].ibm;
+
+                if(domain[d].io->writePForce)
+                {
+                    timeStart    = ibm->startTime;
+                    timeInterval = ibm->writePrd;
+
+                    timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                }
             }
 
             if(flags->isAquisitionActive)
@@ -283,13 +298,21 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         else
         {
             if(clock->it>clock->itStart) clock->cfl =  maxU * clock->dt / dx_min;
+
+            if(clock->cfl > 1.0)
+            {
+                clock->dt = clock->dt/2.0;
+            }
         }
     }
 
     // prevent time step from increasing too fast
-    if(clock->dt > 1.5 * clock->dtOld)
+    if(flags->isAdjustableTime)
     {
-        clock->dt = 1.5 * clock->dtOld;
+        if(clock->dt > 1.5 * clock->dtOld)
+        {
+            clock->dt = 1.5 * clock->dtOld;
+        }
     }
 
     // make sure to hit last time

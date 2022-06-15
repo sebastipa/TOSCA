@@ -24,6 +24,7 @@ struct Shumann
 struct Cabot
 {
     PetscReal        roughness;
+    PetscReal        kappa;                   //!< von karman constant (usually 0.4)
 };
 
 //! \brief wall models container

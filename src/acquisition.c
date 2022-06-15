@@ -26,7 +26,7 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
         flags_   *flags   = domain[d].access.flags;
 
         // test if some post processing is present
-        if(flags->isAquisitionActive || flags->isWindFarmActive)
+        if(flags->isAquisitionActive || flags->isWindFarmActive || flags->isIBMActive)
         {
             // create post processing folder
             PetscMPIInt rank;
