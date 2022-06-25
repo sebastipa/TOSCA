@@ -2607,7 +2607,7 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
             // check that the normal points outwards
             for (e=0; e<ibMesh->elems; e++)
             {
-                if(e%1000 == 0 && ibm->debug)
+                if(e%1000 == 0 && ibm->dbg)
                 PetscPrintf(PETSC_COMM_WORLD, "element = %ld\n", e);
 
                 //move reference distance from the element center
@@ -3634,7 +3634,7 @@ PetscErrorCode createSearchCellList(ibm_ *ibm)
             n2 = ibMsh->nID2[e];
             n3 = ibMsh->nID3[e];
 
-            if(e%1000 == 0 && ibm->debug)
+            if(e%1000 == 0 && ibm->dbg)
                 PetscPrintf(PETSC_COMM_WORLD, "element = %ld\n", e);
 
             // min and max coordinate value of the element vertices

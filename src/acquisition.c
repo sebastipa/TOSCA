@@ -3806,18 +3806,20 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
 
                         if(acquisition->isPerturbABLActive)
                         {
-                            char ksliceNameUpABL[260];
-                            char ksliceNamePpABL[260];
-                            char ksliceNameTpABL[260];
+                            char ksliceNameUpABL[512];
+                            char ksliceNamePpABL[512];
+                            char ksliceNameTpABL[512];
+
                             sprintf(ksliceNameUpABL, "%s/UpABL", ksliceName);
                             sprintf(ksliceNamePpABL, "%s/PpABL", ksliceName);
                             sprintf(ksliceNameTpABL, "%s/TpABL", ksliceName);
 
                             errno = 0;
                             dirRes = mkdir(ksliceNameUpABL, 0777);
+
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[512];
+                                char error[600];
                                 sprintf(error, "could not create %s directory\n", ksliceNameUpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -3830,7 +3832,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             dirRes = mkdir(ksliceNamePpABL, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[512];
+                                char error[600];
                                 sprintf(error, "could not create %s directory\n", ksliceNamePpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -3843,7 +3845,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             dirRes = mkdir(ksliceNameTpABL, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[512];
+                                char error[600];
                                 sprintf(error, "could not create %s directory\n", ksliceNameTpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -4105,9 +4107,9 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
 
                         if(acquisition->isPerturbABLActive)
                         {
-                            char jsliceNameUpABL[260];
-                            char jsliceNamePpABL[260];
-                            char jsliceNameTpABL[260];
+                            char jsliceNameUpABL[512];
+                            char jsliceNamePpABL[512];
+                            char jsliceNameTpABL[512];
                             sprintf(jsliceNameUpABL, "%s/UpABL", jsliceName);
                             sprintf(jsliceNamePpABL, "%s/PpABL", jsliceName);
                             sprintf(jsliceNameTpABL, "%s/TpABL", jsliceName);
@@ -4116,7 +4118,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             dirRes = mkdir(jsliceNameUpABL, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[512];
+                                char error[600];
                                 sprintf(error, "could not create %s directory\n", jsliceNameUpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -4130,7 +4132,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             dirRes = mkdir(jsliceNamePpABL, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[512];
+                                char error[600];
                                 sprintf(error, "could not create %s directory\n", jsliceNamePpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -4144,7 +4146,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             dirRes = mkdir(jsliceNameTpABL, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[512];
+                                char error[600];
                                 sprintf(error, "could not create %s directory\n", jsliceNameTpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -4406,9 +4408,9 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
 
                         if(acquisition->isPerturbABLActive)
                         {
-                            char isliceNameUpABL[260];
-                            char isliceNamePpABL[260];
-                            char isliceNameTpABL[260];
+                            char isliceNameUpABL[512];
+                            char isliceNamePpABL[512];
+                            char isliceNameTpABL[512];
                             sprintf(isliceNameUpABL, "%s/UpABL", isliceName);
                             sprintf(isliceNamePpABL, "%s/PpABL", isliceName);
                             sprintf(isliceNameTpABL, "%s/TpABL", isliceName);
@@ -4417,7 +4419,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             dirRes = mkdir(isliceNameUpABL, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[512];
+                                char error[600];
                                 sprintf(error, "could not create %s directory\n", isliceNameUpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -4430,7 +4432,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             dirRes = mkdir(isliceNamePpABL, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[512];
+                                char error[600];
                                 sprintf(error, "could not create %s directory\n", isliceNamePpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -4443,7 +4445,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             dirRes = mkdir(isliceNameTpABL, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[512];
+                                char error[600];
                                 sprintf(error, "could not create %s directory\n", isliceNameTpABL);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
@@ -7288,10 +7290,13 @@ PetscErrorCode read3LMFields(acquisition_ *acquisition)
                     {
                         // read header lines
                         char buffer[512];
-                        fgets(buffer,512,fp);
-                        fgets(buffer,512,fp);
-                        fgets(buffer,512,fp);
-                        fgets(buffer,512,fp);
+                        char* charError;
+                        PetscInt  readError;
+
+                        charError = fgets(buffer,512,fp);
+                        charError = fgets(buffer,512,fp);
+                        charError = fgets(buffer,512,fp);
+                        charError = fgets(buffer,512,fp);
 
                         char token[10];
 
@@ -7301,14 +7306,14 @@ PetscErrorCode read3LMFields(acquisition_ *acquisition)
                             for(PetscInt pi=0; pi<lm3->nspw; pi++)
                             {
                                 char indata[256];
-                                fscanf(fp, "%c%s", token, indata);
+                                readError = fscanf(fp, "%c%s", token, indata);
                                 lev->U[pk][pi].x = std::strtod(indata, &eptr);
-                                fscanf(fp, "%s", indata);
+                                readError = fscanf(fp, "%s", indata);
                                 lev->U[pk][pi].y = std::strtod(indata, &eptr);
-                                fscanf(fp, "%s%c", indata, token);
+                                readError = fscanf(fp, "%s%c", indata, token);
                                 lev->U[pk][pi].z = std::strtod(indata, &eptr);
                             }
-                            fscanf(fp, "%c", token);
+                            readError = fscanf(fp, "%c", token);
                         }
 
                         fclose(fp);
@@ -7331,11 +7336,13 @@ PetscErrorCode read3LMFields(acquisition_ *acquisition)
                     {
                         // read header lines
                         char buffer[512];
+                        char* charError;
+                        PetscInt  readError;
 
-                        fgets(buffer,512,fp);
-                        fgets(buffer,512,fp);
-                        fgets(buffer,512,fp);
-                        fgets(buffer,512,fp);
+                        charError = fgets(buffer,512,fp);
+                        charError = fgets(buffer,512,fp);
+                        charError = fgets(buffer,512,fp);
+                        charError = fgets(buffer,512,fp);
 
                         /// read field
                         for(PetscInt pk=0; pk<lm3->nstw; pk++)
@@ -7343,7 +7350,7 @@ PetscErrorCode read3LMFields(acquisition_ *acquisition)
                             for(PetscInt pi=0; pi<lm3->nspw; pi++)
                             {
                                 char indata[256];
-                                fscanf(fp, "%s", indata);
+                                readError = fscanf(fp, "%s", indata);
                                 lev->P[pk][pi] = std::strtod(indata, &eptr);
                             }
                         }

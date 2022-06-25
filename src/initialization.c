@@ -337,7 +337,7 @@ PetscErrorCode SetStartTime(clock_ *clock, domain_ *domain, simInfo_ *info)
         else
         {
             char error[512];
-            sprintf(error, "unknown parameter startFrom %s, known parameters are \n-startTime\n-latestTime");
+            sprintf(error, "unknown parameter startFrom %s, known parameters are \n-startTime\n-latestTime", clock->startFrom.c_str());
             fatalErrorInFunction("SetStartTime",  error);
         }
     }

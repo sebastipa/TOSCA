@@ -4,19 +4,25 @@ NumberofBodies                      1
 InterpolationMethod                 CURVIB
 
 debug                               0
-
 dynamic                             0
-
 checkNormal			    1
-
 computeForce                        1
-
 writeSTL			    0
+
+writeSettings
+{
+    timeStart           0
+    intervalType        adjustableTime
+    timeInterval        0.5
+}
+
 #ibm object properties
 
 object0
 {
     bodyName                        sphere
+    bodyType                        closedBody
+
     fileType                        ucd
     bodyMotion                      static
     baseLocation                    (0.0 0.0 0.0)
@@ -26,33 +32,7 @@ object0
     wallModelUProp		    setHere
     roughness                       0.00
     kappa			    0.4
-    #motion properties
-
-    angularSpeed                    0.75
-    rotationAxis                    (1.0 0.0 0.0)
-    rotationCenter                  (5.0 5.0 2.5)
-
-
+ 
     searchCellRatio                 3
 }
-
-
-
-object1
-{
-    bodyName                        rotatingBlock
-    attachedMeshID		    1			#to indicate if a particular user needs to use this IBM, by default all IBM's are user0
-    bodyMotion                      rotation   
-    baseLocation     	            (5.0 5.0 2.5)
-
-    #motion properties
-
-    angularSpeed     	            0.75
-    rotationAxis            	    (1.0 0.0 0.0) 
-    rotationCenter                  (5.0 5.0 2.5)
-
-    
-    searchCellRatio                 3
-}
-
 

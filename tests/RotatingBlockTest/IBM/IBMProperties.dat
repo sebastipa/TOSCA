@@ -6,25 +6,43 @@ NumberofBodies                      1
 InterpolationMethod                 CURVIB
 
 debug                               0
-
 dynamic                             1
+checkNormal                         1
+computeForce                        1
+writeSTL                            0
+
+writeSettings
+{
+    timeStart           0
+    intervalType        adjustableTime
+    timeInterval        1.0
+}
+
 #ibm object properties
 
 object0
 {
     bodyName                        rotatingBlock
+    bodyType                        closedBody
+
     fileType 			    ucd
-    attachedMeshID		    0			
     bodyMotion                      rotation
     baseLocation     	            (0.0 0.0 0.0)
 
+    #wall model
+    wallModelU                      Cabot
+    wallModelUProp                  setHere
+    roughness                       0.00
+    kappa                           0.4
+
     #motion properties
 
+    maxTipRadius                    1.0
     angularSpeed     	            0.75
+    angularAcceleration             1.5
     rotationAxis            	    (1.0 0.0 0.0) 
     rotationCenter                  (0.0 0.0 0.0)
 
-    #For MLS method 
     searchCellRatio                 3
 }
 

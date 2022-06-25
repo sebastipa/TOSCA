@@ -3,11 +3,12 @@
 
 # Simulation
 # ---------------------------------
--startTime 		0.0
--endTime 		30
--cfl 			0.6
--adjustTimeStep 	1
--timeStep 		0.2
+-startFrom                 startTime
+-startTime 		   0.0
+-endTime 		   30
+-cfl 		 	   0.6
+-adjustTimeStep 	   1
+-timeStep 		   0.2
 
 
 # Write Data
@@ -59,6 +60,7 @@
 #-averaging3LM 1
 
 #-computeQ 1
+-writePressureForce 1
 
 #-averaging 3
 #-avgPeriod 0.1
