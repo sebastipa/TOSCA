@@ -163,7 +163,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
             }
 
-            //ibm write pressure force
+            // ibm write pressure force
             if(flags->isIBMActive)
             {
                 ibm_ *ibm = domain[d].ibm;
@@ -173,7 +173,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     timeStart    = ibm->startTime;
                     timeInterval = ibm->writePrd;
 
-                    timeStepSet(clock, timeStart, timeInterval, dx_min, maxU, flag, cfl);
+                    timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
                 }
             }
 
@@ -313,7 +313,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
 
                             PetscReal maxSpeed = ibmRot->maxR * ibmRot->angSpeed;
 
-                            PetscReal dtIBM = dx_min / maxSpeed;
+                            PetscReal dtIBM = dxByU_min*maxU / maxSpeed;
 
                             clock->dt = std::min(clock->dt, dtIBM);
                         }
@@ -343,20 +343,18 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         }
     }
 
+    // avoid too small time step (will not write, have to fix this)
+    if (clock->dt < 1e-10)
+    {
+        clock->dt = clock->startDt;
+    }
+
     // make sure to hit last time
     if(clock->time + clock->dt > clock->endTime)
     {
         clock->dt = clock->endTime - clock->time;
     }
 
-<<<<<<< HEAD
-=======
-    if (clock->dt < 1e-10)
-    {
-        clock->dt = clock->startDt;
-    }
-
->>>>>>> added ABL perturbation fields. Fixed bugs. Enhanced re-reading. Modified CFL time-stepping evaluation
     clock->time = clock->time + clock->dt;
 
     cfl = clock->dt / dxByU_min;

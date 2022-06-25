@@ -4223,11 +4223,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         if(ueqn->centralDiv)
                         {
                             // ucat is interpolated at the face
-<<<<<<< HEAD
-                            div3[k][j][i].x = - ucont[k][j][i].z  *
-=======
                             div3[k][j][i].x = - ucont[k][j][i].z *
->>>>>>> fixed bug in rayleigh damping, added pTilde buoyancy formulation, added hydrostatic assumption
                             central
                             (
                                 ucat[k][j][i].x, ucat[k+1][j][i].x

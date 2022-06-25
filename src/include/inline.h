@@ -3417,15 +3417,9 @@ inline void PointInterpolationWeights
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-<<<<<<< HEAD
-       char error[512];
-        sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("PointInterpolationWeights",  error);
-=======
         char error[512];
         sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation (j = %ld)\n", jc);
         fatalErrorInFunction("scalarPointInterpolationWeights",  error);
->>>>>>> concurrent precursor restart: same domain with different n processors
     }
 
     PetscInt kL, kR;
@@ -3479,15 +3473,9 @@ inline void PointInterpolationWeights
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-<<<<<<< HEAD
-       char error[512];
-        sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("PointInterpolationWeights",  error);
-=======
         char error[512];
         sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation (k = %ld)\n", kc);
         fatalErrorInFunction("scalarPointInterpolationWeights",  error);
->>>>>>> concurrent precursor restart: same domain with different n processors
     }
 
     intId[0] = kL;
@@ -3685,15 +3673,9 @@ inline void PointInterpolationCells
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-<<<<<<< HEAD
-       char error[512];
-        sprintf(error, "i-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("PointInterpolationCells",  error);
-=======
         char error[512];
         sprintf(error, "i-index out of bounds: ended up in the ghosts when looking for interpolation (i = %ld)\n", ic);
         fatalErrorInFunction("scalarPointInterpolationCells",  error);
->>>>>>> concurrent precursor restart: same domain with different n processors
     }
 
     PetscInt jL, jR;
@@ -3747,15 +3729,9 @@ inline void PointInterpolationCells
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-<<<<<<< HEAD
-       char error[512];
-        sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("PointInterpolationCells",  error);
-=======
         char error[512];
         sprintf(error, "j-index out of bounds: ended up in the ghosts when looking for interpolation (j = %ld)\n", jc);
         fatalErrorInFunction("scalarPointInterpolationCells",  error);
->>>>>>> concurrent precursor restart: same domain with different n processors
     }
 
     PetscInt kL, kR;
@@ -3809,15 +3785,9 @@ inline void PointInterpolationCells
     // outside the boundary: the Vec V might not contain useful data.
     else
     {
-<<<<<<< HEAD
-       char error[512];
-        sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation data\n");
-        fatalErrorInFunction("PointInterpolationCells",  error);
-=======
         char error[512];
         sprintf(error, "k-index out of bounds: ended up in the ghosts when looking for interpolation (k = %ld)\n", kc);
         fatalErrorInFunction("scalarPointInterpolationCells",  error);
->>>>>>> concurrent precursor restart: same domain with different n processors
     }
 
     intId[0] = kL;
