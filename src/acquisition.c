@@ -2565,8 +2565,9 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
             if(flags->isAblActive)
             {
                 DMDAVecRestoreArray(da, ke->Pinf,   &pinf);
-                DMDAVecRestoreArray(fda, lSourcesCont, &sources);
+                DMDAVecRestoreArray(fda, lSourcesCat, &sources);
                 VecDestroy(&lSourcesCont);
+                VecDestroy(&lSourcesCat);
             }
 
             DMDAVecRestoreArray(da,  ke->Error,   &error);
