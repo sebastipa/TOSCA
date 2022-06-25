@@ -14,6 +14,8 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
 {
     if(ibm != NULL)
     {
+        mesh_ *mesh = ibm->access->mesh;
+
         readIBMProperties(ibm);
 
         setIBMWallModels(ibm);
@@ -24,14 +26,18 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
 
         createSearchCellList(ibm);
 
+        MPI_Barrier(mesh->MESH_COMM);
+
         computeIBMElementNormal(ibm);
+
+        MPI_Barrier(mesh->MESH_COMM);
 
         // ibm search algorithm
         PetscPrintf(PETSC_COMM_WORLD, "IBM search algorithm...");
         ibmSearch(ibm);
         PetscPrintf(PETSC_COMM_WORLD, "done\n");
 
-        MPI_Barrier(ibm->access->mesh->MESH_COMM);
+        MPI_Barrier(mesh->MESH_COMM);
 
         checkIBMexists(ibm);
 
@@ -52,7 +58,7 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
 
             findIBMMeshSupportNodes(ibm);
 
-            MPI_Barrier(ibm->access->mesh->MESH_COMM);
+            MPI_Barrier(mesh->MESH_COMM);
 
         }
 
@@ -558,19 +564,26 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
         ibmMesh     *ibMsh   = ibmBody->ibMsh;
         ibmRotation *ibmRot  = ibmBody->ibmRot;
 
-
         //check if process controls this ibm body
         if(ibmBody->ibmControlled)
         {
             PetscMPIInt   ibmnprocs; MPI_Comm_size(ibmBody->IBM_COMM, &ibmnprocs);
             PetscMPIInt   ibmrank;   MPI_Comm_rank(ibmBody->IBM_COMM, &ibmrank);
 
+            PetscReal *gElemPressure = new PetscReal[ibMsh->elems];
+            PetscReal *lElemPressure = new PetscReal[ibMsh->elems];
+
             //loop through the ibm mesh elements
             for(e = 0; e < ibMsh->elems; e++)
             {
+                //set element pressure variable to 0
+                gElemPressure[e] = 0.0;
+                lElemPressure[e] = 0.0;
+
                 //this processor controls this ibm element
                 if(ibmBody->thisPtControlled[e])
                 {
+
                     eN = ibMsh->eN[e], eT1 = ibMsh->eT1[e], eT2 = ibMsh->eT2[e];
                     n1 = ibMsh->nID1[e], n2 = ibMsh->nID2[e], n3 = ibMsh->nID3[e];
                     eC = ibMsh->eCent[e];
@@ -741,7 +754,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                                     ic, jc, kc,
                                     cent,
                                     lP,
-                                    ibmBody->ibmPressure[e]
+                                    lElemPressure[e]
                             );
 
                             vectorPointLocalVolumeInterpolation
@@ -760,13 +773,13 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     // while loop fails
                     if(intFlag > 0)
                     {
-                        ibmBody->ibmPressure[e] = lP[initCp.k][initCp.j][initCp.i];
+                        lElemPressure[e] = lP[initCp.k][initCp.j][initCp.i];
 
                         bPtVel = nSet(ucat[initCp.k][initCp.j][initCp.i]);
                     }
 
                     //set the ibm element pressure force
-                    PetscReal pForce = ibmBody->ibmPressure[e] * eA * cst->rho;
+                    PetscReal pForce = lElemPressure[e] * eA * cst->rho;
                     ibmBody->ibmPForce[e] = nSet(nScale(-pForce, eN));
 
                     //Velocity of the ibm mesh element
@@ -831,6 +844,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
             MPI_Allreduce(&(lForce[b]), &(gForce[b]), 3, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
             MPI_Allreduce(&(lMoment[b]), &(gMoment[b]), 3, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
+            MPI_Allreduce(lElemPressure, gElemPressure, ibMsh->elems, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
 
             //compute power
             PetscReal ibmPower = 0.0;
@@ -845,84 +859,11 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
             //write data
             if(ibmrank == 0)
             {
-                printf("IBM Object: %s, ", ibmBody->bodyName.c_str());
-                printf("Net force(N) = %lf %lf %lf\n", gForce[b].x, gForce[b].y, gForce[b].z);
-
-                if(ibmBody->bodyMotion == "rotation")
-                {
-                    printf("Net moment(Nm) = %lf, Power(KW) = %lf\n", netMoment, ibmPower/1000.0);
-                }
-
-                if(ibmBody->bodyMotion == "rotation")
-                {
-                    //write the force torque to a file
-                    FILE *fp;
-                    char fileName[80];
-                    char folder[80];
-
-                    sprintf(folder, "./postProcessing/%s/turbineOut", (mesh->meshName).c_str());
-                    sprintf(fileName, "./postProcessing/%s/turbineOut/ibmPower", (mesh->meshName).c_str());
-
-                    // create/initialize output directory (at simulation start only)
-                    if
-                    (
-                        clock->it == clock->itStart
-                    )
-                    {
-                        errno = 0;
-                        PetscInt dirRes;
-
-                        dirRes = mkdir(folder, 0777);
-                        if(dirRes != 0 && errno != EEXIST)
-                        {
-                            char error[512];
-                            sprintf(error, "could not create %s directory\n", fileName);
-                            fatalErrorInFunction("ComputeForceMoment",  error);
-                        }
-
-                        fp = fopen(fileName, "w");
-
-                        if(!fp)
-                        {
-                           char error[512];
-                            sprintf(error, "cannot open file %s\n", fileName);
-                            fatalErrorInFunction("ComputeForceMoment",  error);
-                        }
-                        else
-                        {
-                            word w1   = "time [s]";
-                            word w2   = "aeroTq [Nm]";
-                            word w3   = "aeroPwr [W]";
-                            word w4   = "omega [rpm]";
-                            int width = -20;
-
-                            if(fp)
-                            {
-                                fprintf(fp, "%*s %*s %*s %*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str());
-                            }
-
-                            fclose(fp);
-                        }
-                    }
-
-                    fp = fopen(fileName, "a");
-
-                    if(fp)
-                    {
-                        int width = -20;
-                        fprintf(fp, "%*.5f %*.5f %*.5f %*.5f \n", width, clock->time, width, netMoment, width, ibmPower, width, ibmRot->angSpeed * 60/(2*M_PI));
-                    }
-
-                    fclose(fp);
-
-                }
-
-                if(io->writePForce)
-                {
-                    writeElementPForce(ibm, b);
-                }
-
+                writeIBMForceData(ibm, b, gElemPressure, netMoment, ibmPower, gForce[b]);
             }
+
+            delete[] gElemPressure;
+            delete[] lElemPressure;
         }
 
     }
@@ -940,7 +881,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode writeElementPForce(ibm_ *ibm, PetscInt b)
+PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressure, PetscReal netMoment, PetscReal ibmPower, Cmpnts netForce)
 {
     clock_      *clock = ibm->access->clock;
     io_         *io    = ibm->access->io;
@@ -951,16 +892,19 @@ PetscErrorCode writeElementPForce(ibm_ *ibm, PetscInt b)
     // write flags for current time step
     PetscInt    writeNow         =  0;
 
-    PetscReal   startTimeAvg     = ibm->startTime;
-    PetscReal   timeIntervalAvg  = ibm->writePrd;
+    PetscReal   timeStart     = ibm->timeStart;
+    PetscReal   timeInterval  = ibm->timeInterval;
+    word        intervalType     = ibm->intervalType;
+
     PetscReal   epsilon          = 1e-8;
 
     word        timeName;
-    word        path;
+    word        elementForcePath, netForcePath;
 
     // set time folder name
     timeName = getTimeName(clock);
-    path     = "./postProcessing/" + mesh->meshName + "/IBM/" + ibmBody->bodyName.c_str() + "/elementForce/" + timeName;
+    elementForcePath     = "./postProcessing/" + mesh->meshName + "/IBM/" + getStartTimeName(clock) + "/" + ibmBody->bodyName.c_str() + "/elementForce/" + timeName;
+    netForcePath         = "./postProcessing/" + mesh->meshName + "/IBM/" + getStartTimeName(clock) + "/" + ibmBody->bodyName.c_str() + "/netForce/";
 
     // create/initialize ibm write directory
     if
@@ -979,7 +923,16 @@ PetscErrorCode writeElementPForce(ibm_ *ibm, PetscInt b)
             fatalErrorInFunction("writeElementPForce",  error);
         }
 
-        word ibmBodyFolder = ibmFolder + ibmBody->bodyName.c_str();
+        word timeFolder = ibmFolder + getStartTimeName(clock);
+        dirRes = mkdir(timeFolder.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+           char error[512];
+            sprintf(error, "could not create %s directory", timeFolder.c_str());
+            fatalErrorInFunction("writeElementPForce",  error);
+        }
+
+        word ibmBodyFolder = timeFolder + "/" + ibmBody->bodyName.c_str();
         dirRes = mkdir(ibmBodyFolder.c_str(), 0777);
         if(dirRes != 0 && errno != EEXIST)
         {
@@ -988,22 +941,95 @@ PetscErrorCode writeElementPForce(ibm_ *ibm, PetscInt b)
             fatalErrorInFunction("writeElementPForce",  error);
         }
 
-        word elementForceFolder = ibmBodyFolder + "/elementForce/";
-        dirRes = mkdir(elementForceFolder.c_str(), 0777);
+        if(io->writePForce)
+        {
+            word elementForceFolder = ibmBodyFolder + "/elementForce/";
+            dirRes = mkdir(elementForceFolder.c_str(), 0777);
+            if(dirRes != 0 && errno != EEXIST)
+            {
+               char error[512];
+                sprintf(error, "could not create %s directory", elementForceFolder.c_str());
+                fatalErrorInFunction("writeElementPForce",  error);
+            }
+        }
+
+        word netForceFolder = ibmBodyFolder + "/netForce/";
+        dirRes = mkdir(netForceFolder.c_str(), 0777);
         if(dirRes != 0 && errno != EEXIST)
         {
            char error[512];
-            sprintf(error, "could not create %s directory", elementForceFolder.c_str());
+            sprintf(error, "could not create %s directory", netForceFolder.c_str());
             fatalErrorInFunction("writeElementPForce",  error);
         }
 
+        //create net force file
+        word  fileName = netForcePath + "/" + ibmBody->bodyName.c_str() + "_netForce";
+
+        FILE *fp;
+        fp = fopen(fileName.c_str(), "w");
+
+        if(!fp)
+        {
+           char error[512];
+            sprintf(error, "cannot open file %s\n", fileName.c_str());
+            fatalErrorInFunction("ComputeForceMoment",  error);
+        }
+        else
+        {
+            word w1   = "time [s]";
+            word w2   = "aeroTq [Nm]";
+            word w3   = "aeroPwr [W]";
+            word w4   = "omega [rpm]";
+            word w5   = "Fx [N]";
+            word w6   = "Fy [N]";
+            word w7   = "Fz [N]";
+            int width = -20;
+
+            if(fp)
+            {
+                if(ibmBody->bodyMotion == "rotation")
+                {
+                    fprintf(fp, "%*s %*s %*s %*s %*s %*s %*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(),  width, w5.c_str(),  width, w6.c_str(),  width, w7.c_str());
+                }
+                else if (ibmBody->bodyMotion == "static")
+                {
+                    fprintf(fp, "%*s %*s %*s %*s\n", width, w1.c_str(), width, w5.c_str(),  width, w6.c_str(),  width, w7.c_str());
+                }
+            }
+
+            fclose(fp);
+        }
+
     }
+
     // check if must accumulate
     if
     (
-        clock->time >= startTimeAvg &&
-        (clock->time - startTimeAvg ) / timeIntervalAvg -
-        std::floor((clock->time - startTimeAvg) / timeIntervalAvg + + epsilon) < 1e-10
+        (intervalType == "adjustableTime") &&
+        (clock->time >= timeStart) &&
+        (
+            (clock->time - timeStart) / timeInterval -
+            std::floor
+            (
+                (clock->time - timeStart) / timeInterval + epsilon
+            ) < 1e-10
+        )
+    )
+    {
+        writeNow = 1;
+    }
+    // write every "timeInterval" iterations
+    else if
+    (
+        (clock->it > 0) &&
+        (intervalType == "timeStep") &&
+        (
+            clock->it / timeInterval -
+            std::floor
+            (
+                clock->it / timeInterval
+            ) < 1e-10
+        )
     )
     {
         writeNow = 1;
@@ -1011,55 +1037,105 @@ PetscErrorCode writeElementPForce(ibm_ *ibm, PetscInt b)
 
     if(writeNow)
     {
-        word    fileName = path + "/" + ibmBody->bodyName.c_str() + "_pForce.dlo";
+        word    fileName;
+        FILE    *f;
 
-        PetscInt dirRes = mkdir(path.c_str(), 0777);
-
-        if(dirRes != 0 && errno != EEXIST)
+        if(io->writePForce)
         {
-           char error[512];
-            sprintf(error, "could not create %s directory\n", path.c_str());
-            fatalErrorInFunction("writeElementPForce",  error);
-        }
+            //write element force
+            fileName = elementForcePath + "/" + ibmBody->bodyName.c_str() + "_pForce.dlo";
+            PetscInt dirRes = mkdir(elementForcePath.c_str(), 0777);
 
-        FILE *f;
-
-        f = fopen(fileName.c_str(), "w");
-
-        if(!f)
-        {
-           char error[512];
-            sprintf(error, "cannot open file %s\n", fileName.c_str());
-            fatalErrorInFunction("writeElementPForce",  error);
-        }
-        else
-        {
-            fprintf(f, "** Pressure based on Esurface\n");
-
-            // use global element id for "inp" file format
-            if(ibmBody->fileType == "inp")
+            if(dirRes != 0 && errno != EEXIST)
             {
-                for(PetscInt e = 0; e < ibMsh->elems; e++)
-                {
-                    fprintf(f, "%ld, P, %lf \n", ibmBody->elementMapping[e], nMag(ibmBody->ibmPForce[e]));
-                }
+               char error[512];
+                sprintf(error, "could not create %s directory\n", elementForcePath.c_str());
+                fatalErrorInFunction("writeElementPForce",  error);
+            }
+
+            f = fopen(fileName.c_str(), "w");
+
+            if(!f)
+            {
+               char error[512];
+                sprintf(error, "cannot open file %s\n", fileName.c_str());
+                fatalErrorInFunction("writeElementPForce",  error);
             }
             else
             {
-                for(PetscInt e = 0; e < ibMsh->elems; e++)
+                fprintf(f, "** Pressure based on Esurface\n");
+
+                if(ibmBody->bodyType == "surfaceBody")
                 {
-                    fprintf(f, "%ld, P, %lf \n", e, nMag(ibmBody->ibmPForce[e]));
+
+                    for(PetscInt e = 0; e < ibMsh->elems; e++)
+                    {
+                        for(PetscInt s = 0; s < ibmBody->numSurfaces; s++)
+                        {
+                            surface* ibmSurface = ibmBody->ibmSurface[s];
+
+                            if(ibmSurface->surfaceFileType == "inp")
+                            {
+                                if(ibmSurface->surfaceId == ibMsh->eSurface[e])
+                                {
+                                    fprintf(f, "%ld, P, %lf \n", ibmBody->elementMapping[e], gElemPressure[e]);
+                                }
+                            }
+                        }
+                    }
+
                 }
+                else
+                {
+                    // use global element id for "inp" file format
+                    if(ibmBody->fileType == "inp")
+                    {
+                        for(PetscInt e = 0; e < ibMsh->elems; e++)
+                        {
+                            fprintf(f, "%ld, P, %lf \n", ibmBody->elementMapping[e], gElemPressure[e]);
+                        }
+                    }
+                    else
+                    {
+                        for(PetscInt e = 0; e < ibMsh->elems; e++)
+                        {
+                            fprintf(f, "%ld, P, %lf \n", e, gElemPressure[e]);
+                        }
+                    }
+                }
+
+            }
+
+            fclose(f);
+
+        }
+
+        //write net force
+        fileName = netForcePath + "/" + ibmBody->bodyName.c_str() + "_netForce";
+
+        f = fopen(fileName.c_str(), "a");
+
+        if(f)
+        {
+            int width = -20;
+
+            if(ibmBody->bodyMotion == "rotation")
+            {
+                fprintf(f, "%*.5f %*.5f %*.5f %*.5f %*.5f %*.5f %*.5f\n", width, clock->time, width, netMoment, width, ibmPower, width, ibmBody->ibmRot->angSpeed * 60/(2*M_PI), width, netForce.x,  width, netForce.y,  width, netForce.z);
+            }
+            else if (ibmBody->bodyMotion == "static")
+            {
+                fprintf(f, "%*.5f %*.5f %*.5f %*.5f\n", width, clock->time, width, netForce.x,  width, netForce.y,  width, netForce.z);
             }
 
         }
 
         fclose(f);
-
     }
 
     return (0);
 }
+
 //***************************************************************************************************************//
 PetscErrorCode UpdateIBMesh(ibm_ *ibm)
 {
@@ -1750,7 +1826,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 
          if (flags->isTeqnActive)
          {
-             ibmPtTemp = ibm->access->abl->tRef;
+             ibmPtTemp = 320;//ibm->access->abl->tRef;
          }
 
          // cabot wall model to interpolate the velocity at the ibm fluid node
@@ -2313,7 +2389,7 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
 
       if(flags->isTeqnActive)
       {
-          tmp[n] = ibm->access->abl->tRef;
+          tmp[n] = 20;//ibm->access->abl->tRef;
       }
 
       // get normalized distance
@@ -2523,13 +2599,17 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 
         if(ibm->checkNormal)
         {
+            PetscPrintf(PETSC_COMM_WORLD, "Checking IBM element normal direction for body: %s...", ibm->ibmBody[b]->bodyName.c_str());
             // set offset distance
             minBound = PetscMin( PetscMin(ibBox->Lx, ibBox->Ly), ibBox->Lz);
-            offset   = 0.01 * minBound;
+            offset   = 0.001 * minBound;
 
             // check that the normal points outwards
             for (e=0; e<ibMesh->elems; e++)
             {
+                if(e%1000 == 0 && ibm->debug)
+                PetscPrintf(PETSC_COMM_WORLD, "element = %ld\n", e);
+
                 //move reference distance from the element center
                 offsetVec = nScale(offset, ibMesh->eN[e]);
                 refPt = nSum(ibMesh->eCent[e], offsetVec);
@@ -2552,6 +2632,7 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 
             }
 
+            PetscPrintf(PETSC_COMM_WORLD, "done\n");
         }
 
         for (e=0; e<ibMesh->elems; e++)
@@ -2592,7 +2673,6 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
             {
                 writeSTLFile(ibm->ibmBody[b]);
                 MPI_Barrier(ibm->access->mesh->MESH_COMM);
-                PetscPrintf(PETSC_COMM_WORLD, "\nwriting the stl file.\n");
             }
         }
 
@@ -2616,7 +2696,7 @@ PetscErrorCode findIBMControlledProcs(ibm_ *ibm)
     for (b = 0; b < ibm->numBodies; b++)
     {
         // define communicator color
-        PetscInt    commColor = 0;
+        PetscInt    commColor = MPI_UNDEFINED;
         ibmObject   *ibmBody  = ibm->ibmBody[b];
 
         if(ibm->numIBMFluid!=0)
@@ -2635,14 +2715,15 @@ PetscErrorCode findIBMControlledProcs(ibm_ *ibm)
                     //atleast one ibm fluid cell close to this body found for this processor, break out of loop
                     break;
                 }
+                else
+                {
+                    ibmBody->ibmControlled = 0;
+                }
             }
         }
         else
         {
             ibmBody->ibmControlled = 0;
-
-            //if commColor not set, set to undefined
-            commColor = MPI_UNDEFINED;
         }
 
         // create communicator
@@ -2654,8 +2735,7 @@ PetscErrorCode findIBMControlledProcs(ibm_ *ibm)
 
         if(ibmBody->ibmControlled == 1 && ibm->dbg)
         {
-            PetscPrintf(PETSC_COMM_SELF,"num ibm fluid for global rank %d = %d\n", rank, ibm->numIBMFluid);
-            PetscPrintf(PETSC_COMM_SELF,"ibm controlling processor rank in the new communicator = %d\n", thisIBMRank);
+            PetscPrintf(PETSC_COMM_SELF,"body %ld, controlling processor - global rank %ld (local rank %ld)\n", b, rank, thisIBMRank);
         }
 
     }
@@ -3553,6 +3633,9 @@ PetscErrorCode createSearchCellList(ibm_ *ibm)
             n1 = ibMsh->nID1[e];
             n2 = ibMsh->nID2[e];
             n3 = ibMsh->nID3[e];
+
+            if(e%1000 == 0 && ibm->debug)
+                PetscPrintf(PETSC_COMM_WORLD, "element = %ld\n", e);
 
             // min and max coordinate value of the element vertices
             xv_min = PetscMin( PetscMin( ibMsh->nCoor[n1].x, ibMsh->nCoor[n2].x ), ibMsh->nCoor[n3].x );

@@ -1786,9 +1786,9 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
             for (i=lxs; i<lxe; i++)
             {
                 // set to zero if solid
-                if(isIBMCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert))
                 {
-                    t[k][j][i] = teqn->access->abl->tRef;
+                    t[k][j][i] = 320;//teqn->access->abl->tRef;
                     continue;
                 }
 

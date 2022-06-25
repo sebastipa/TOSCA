@@ -152,6 +152,8 @@ PetscErrorCode readSubDictWord(const char *dictName, const char *subdict, const 
 //! \brief Read mandatory array of PetscInt from sub-dictionary
 PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, const char *keyword, labelList &value);
 
+std::string* readSubDictWordArray(const char *dictName, const char *subdict, const char *keyword, PetscInt numW);
+
 //! \brief Trims a string removing pre and trail spaces
 word trim(const word& str);
 

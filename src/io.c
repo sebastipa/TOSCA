@@ -38,6 +38,8 @@ PetscErrorCode InitializeIO(io_ *io)
     io->averaging      = 0;
     io->phaseAveraging = 0;
     io->keBudgets      = 0;
+
+    // read IBM pressure force write flag
     io->writePForce    = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averaging", &(io->averaging), PETSC_NULL);
@@ -4519,6 +4521,146 @@ PetscErrorCode readSubDictIntArray(const char *dictName, const char *subdict, co
 
 //***************************************************************************************************************//
 
+std::string* readSubDictWordArray(const char *dictName, const char *subdict, const char *keyword, PetscInt numW)
+{
+    // file stream
+    std::ifstream indata;
+
+    // word by word read
+    char word[256];
+
+    // pointer for strtod and strtol
+    char *eptr;
+
+    PetscInt numWords = 0;
+
+    std::string *wordArray;
+
+    wordArray = new std::string[numW];
+
+    // open dictionary
+    indata.open(dictName);
+
+    if(!indata)
+    {
+       char error[512];
+        sprintf(error, "could not open %s dictionary\n", dictName);
+        fatalErrorInFunction("readSubDictWordArray",  error);
+    }
+    else
+    {
+        // get word by word till end of dictionary
+        while(!indata.eof())
+        {
+            indata >> word;
+
+            // test if found subdictionary
+            if
+            (
+                    strcmp
+                    (
+                            subdict,
+                            word
+                    ) == 0
+            )
+            {
+                // read the first "{"
+                indata >> word;
+
+                std::string token1(word);
+                std::string token2;
+
+                // test if braket is the first word after the subdictionary entry
+                if(trim(token1)=="{")
+                {
+                    // start reading inside the subdictionary
+                    indata >> token2;
+
+                    // read until "}" or end of dictionary is encountered
+                    while(trim(token2)!="}" && !indata.eof())
+                    {
+                        // look for the keyword
+                        if(token2==keyword)
+                        {
+                            // read "("
+                            indata >> word;
+
+                            std::string first(word);
+
+                            if(first.size() != 1 || first.compare("("))
+                            {
+                                char error[512];
+                                sprintf(error, "Should start with ( and must have space after, for keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
+                                fatalErrorInFunction("readSubDictWordArray",  error);
+                            }
+
+                            indata >> word;
+
+                            std::string next(word);
+
+                            while (next.find (")") == std::string::npos && numWords < numW)
+                            {
+
+                                wordArray[numWords] = next;
+
+                                indata >> word;
+
+                                next = word;
+
+                                numWords ++;
+                            }
+
+                            if(next.find (")") != std::string::npos)
+                            {
+                                if(next.size() != 1 )
+                                {
+                                    char error[512];
+                                    sprintf(error, "Should have space between the word and ), for keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
+                                    fatalErrorInFunction("readSubDictWordArray",  error);
+                                }
+
+                            }
+                            else
+                            {
+                                char error[512];
+                                sprintf(error, "expected <)>  after word array defined by keyword '%s' in subdict %s of %s dictionary\n", keyword, subdict, dictName);
+                                fatalErrorInFunction("readSubDictWordArray",  error);
+                            }
+
+                            indata.close();
+
+                            return wordArray;
+
+                        }
+
+                        indata >> token2;
+                    }
+
+                    char error[512];
+                    sprintf(error, "could not find keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
+                    fatalErrorInFunction("readSubDictWordArray",  error);
+
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "expected '{' token in subdict %s of %s dictionary, found '%s'\n", subdict, dictName, word);
+                    fatalErrorInFunction("readSubDictWordArray",  error);
+                }
+            }
+        }
+
+        indata.close();
+
+        char error[512];
+        sprintf(error, "could not find subdictionary %s in dictionary %s\n", subdict, dictName);
+        fatalErrorInFunction("readSubDictWordArray",  error);
+    }
+
+    return wordArray;
+}
+
+//***************************************************************************************************************//
 word trim(const word& str)
 {
     auto first = str.find_first_not_of(' ');

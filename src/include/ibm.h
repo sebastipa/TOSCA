@@ -48,6 +48,7 @@ typedef struct
     Cmpnts       *eT1;                         //!< pointers to the component of face tangential1 (eT1 = eN x k, where k is unit normal along z, which is taken as a generic direction)
     Cmpnts       *eT2;                         //!< pointers to the component of face tangential2 (eT2 = eN x eT1)
 
+    PetscInt     *eSurface;                    //!< pointer to the surfaceBody that this element belongs to
     PetscReal    *eA;                          //!< area of the element
     Cmpnts       *eCent;                       //!< coordinate of the element center
     Cmpnts       *nU;                          //!< velocity of the nodes
@@ -70,11 +71,37 @@ typedef struct
 
 typedef struct
 {
+    word     surfaceName;
+
+    word     surfaceFileType;
+
+    PetscInt surfaceId;
+
+    Cmpnts   baseLocation;
+
+    word     elementSet;
+
+    // element localToGlobalMapping
+    PetscInt      *elementMapping;
+
+    ibmMesh  *ibMsh;
+}surface;
+
+typedef struct
+{
     word          bodyName;
+
+    word          bodyType;
+
+    PetscInt      numSurfaces;
 
     PetscInt      bodyID;
 
+    word          elementSet;
+
     ibmMesh       *ibMsh;
+
+    surface       **ibmSurface;
 
     word          bodyMotion;
 
@@ -96,9 +123,7 @@ typedef struct
 
     list          *searchCellList;
 
-    PetscReal     *ibmPressure;                               //!< pressure acting on each ibm element
     Cmpnts        *ibmPForce;                                 //!< pressure force acting on each ibm element
-    PetscReal     *ibmWallShear1, *ibmWallShear2;
 
     PetscInt      *thisPtControlled;                          //!< flag telling if a ibm mesh point is controlled by this processor
     PetscInt      *thisPtControlTransfer;                     //!< flag telling that the control of this point is being transferred to another processor
@@ -152,7 +177,7 @@ struct ibm_
     PetscInt           numIBMFluid;                   //!< number of ibm fluid cells within each processor
 
     // access database
-    access_            *access;
+    access_              *access;
 
     // flags
     PetscInt                 dbg;
@@ -161,9 +186,10 @@ struct ibm_
     PetscInt         checkNormal;
     PetscInt            writeSTL;
 
-    //write forces
-    PetscReal        startTime;
-    PetscReal        writePrd;
+    // output parameters
+    PetscReal          timeStart;                    //!< start time of acquisition system
+    word            intervalType;                    //!< timeStep: sample at every (timeInterval) iter, adjustableTime sample at every (timeInterval) seconds
+    PetscReal       timeInterval;                    //!< acquisition time interval (overrides simulation time step if smaller and adjustableTime active)
 };
 
 #endif
@@ -181,8 +207,8 @@ PetscErrorCode UpdateIBM(ibm_ *ibm);
 //! \brief writes the angular position when the body is rotating
 PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b);
 
-//! \brief writes the pressure force acting on each element
-PetscErrorCode writeElementPForce(ibm_ *ibm, PetscInt b);
+//! \brief writes the IBM force data for element and net force
+PetscErrorCode writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressure, PetscReal netMoment, PetscReal ibmPower, Cmpnts netForce);
 
 //! \brief find in which processors the ibm body belongs
 PetscErrorCode findIBMControlledProcs(ibm_ *ibm);

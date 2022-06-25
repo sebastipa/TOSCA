@@ -781,7 +781,18 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
-                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
+                    if(isIBMCell(k, j, i, nvert))
+                    {
+                        nut = lnu_t[k][j][i+1];
+                    }
+                    else if (isIBMCell(k, j, i+1, nvert))
+                    {
+                        nut = lnu_t[k][j][i];
+                    }
+                    else
+                    {
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
+                    }
 
                     // compute stability dependent turbulent Prandtl number
                     PetscReal gradTdotG = dtde*(-9.81);
@@ -916,7 +927,18 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
-                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
+                    if(isIBMCell(k, j, i, nvert))
+                    {
+                        nut = lnu_t[k][j+1][i];
+                    }
+                    else if (isIBMCell(k, j+1, i, nvert))
+                    {
+                        nut = lnu_t[k][j][i];
+                    }
+                    else
+                    {
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
+                    }
 
                     // compute stability depentend turbulent Prandtl number
                     PetscReal gradTdotG = dtde*(-9.81);
@@ -1052,7 +1074,18 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
-                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
+                    if(isIBMCell(k, j, i, nvert))
+                    {
+                        nut = lnu_t[k+1][j][i];
+                    }
+                    else if (isIBMCell(k+1, j, i, nvert))
+                    {
+                        nut = lnu_t[k][j][i];
+                    }
+                    else
+                    {
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
+                    }
 
                     // compute stability depentend turbulent Prandtl number
                     PetscReal gradTdotG = dtde*(-9.81);

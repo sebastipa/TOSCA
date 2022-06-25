@@ -163,15 +163,14 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
             }
 
-            // ibm write pressure force
             if(flags->isIBMActive)
             {
                 ibm_ *ibm = domain[d].ibm;
 
-                if(domain[d].io->writePForce)
+                if(domain[d].ibm->intervalType == "adjustableTime")
                 {
-                    timeStart    = ibm->startTime;
-                    timeInterval = ibm->writePrd;
+                    timeStart    = ibm->timeStart;
+                    timeInterval = ibm->timeInterval;
 
                     timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
                 }
