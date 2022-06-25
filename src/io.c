@@ -1751,7 +1751,12 @@ PetscErrorCode writeFields(io_ *io)
     les_        *les   = io->access->les;
     clock_      *clock = io->access->clock;
     flags_      *flags = io->access->flags;
-    acquisition_ *acquisition = io->access->acquisition;
+    acquisition_ *acquisition;
+
+    if(flags->isAquisitionActive)
+    {
+        acquisition = io->access->acquisition;
+    }
 
     PetscViewer viewer;
     word        timeName, fieldName;
@@ -2322,72 +2327,75 @@ PetscErrorCode writeFields(io_ *io)
 
         }
 
-        if(acquisition->isAverage3LMActive)
+        if(flags->isAquisitionActive)
         {
-            // write avgUmTauSGS
-            fieldName = timeName + "/Um3LM";
-            writeBinaryField(mesh->MESH_COMM, acquisition->LM3->avgU, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
-
-            // write avgUmTauSGS
-            fieldName = timeName + "/dTdz3LM";
-            writeBinaryField(mesh->MESH_COMM, acquisition->LM3->avgdTdz, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
-
-            // write weights
-            if(!rank)
+            if(acquisition->isAverage3LMActive)
             {
-                FILE *f;
-                fieldName = timeName + "/fieldInfo";
-                f = fopen(fieldName.c_str(), "a");
+                // write avgUmTauSGS
+                fieldName = timeName + "/Um3LM";
+                writeBinaryField(mesh->MESH_COMM, acquisition->LM3->avgU, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
 
-                if(!f)
+                // write avgUmTauSGS
+                fieldName = timeName + "/dTdz3LM";
+                writeBinaryField(mesh->MESH_COMM, acquisition->LM3->avgdTdz, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write weights
+                if(!rank)
                 {
-                    char error[512];
-                    sprintf(error, "cannot open file %s\n", fieldName.c_str());
-                    fatalErrorInFunction("writeFields",  error);
+                    FILE *f;
+                    fieldName = timeName + "/fieldInfo";
+                    f = fopen(fieldName.c_str(), "a");
+
+                    if(!f)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                        fatalErrorInFunction("writeFields",  error);
+                    }
+
+                    fprintf(f, "lm3AvgWeight\t\t%ld\n", acquisition->LM3->avgWeight);
+
+                    fclose(f);
                 }
-
-                fprintf(f, "lm3AvgWeight\t\t%ld\n", acquisition->LM3->avgWeight);
-
-                fclose(f);
             }
-        }
 
-        if(acquisition->isPerturbABLActive)
-        {
-            // write perturbation velocity
-            fieldName = timeName + "/UpABL";
-            writeBinaryField(mesh->MESH_COMM, acquisition->perturbABL->pertU, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
-
-            // write perturbation pressure
-            fieldName = timeName + "/PpABL";
-            writeBinaryField(mesh->MESH_COMM, acquisition->perturbABL->pertP, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
-
-            // write perturbation temperature
-            fieldName = timeName + "/TpABL";
-            writeBinaryField(mesh->MESH_COMM, acquisition->perturbABL->pertT, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
-
-            // write weights
-            if(!rank)
+            if(acquisition->isPerturbABLActive)
             {
-                FILE *f;
-                fieldName = timeName + "/fieldInfo";
-                f = fopen(fieldName.c_str(), "a");
+                // write perturbation velocity
+                fieldName = timeName + "/UpABL";
+                writeBinaryField(mesh->MESH_COMM, acquisition->perturbABL->pertU, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
 
-                if(!f)
+                // write perturbation pressure
+                fieldName = timeName + "/PpABL";
+                writeBinaryField(mesh->MESH_COMM, acquisition->perturbABL->pertP, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write perturbation temperature
+                fieldName = timeName + "/TpABL";
+                writeBinaryField(mesh->MESH_COMM, acquisition->perturbABL->pertT, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write weights
+                if(!rank)
                 {
-                    char error[512];
-                    sprintf(error, "cannot open file %s\n", fieldName.c_str());
-                    fatalErrorInFunction("writeFields",  error);
+                    FILE *f;
+                    fieldName = timeName + "/fieldInfo";
+                    f = fopen(fieldName.c_str(), "a");
+
+                    if(!f)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                        fatalErrorInFunction("writeFields",  error);
+                    }
+
+                    fprintf(f, "perturbABLAvgWeight\t\t%ld\n", acquisition->perturbABL->avgWeight);
+
+                    fclose(f);
                 }
-
-                fprintf(f, "perturbABLAvgWeight\t\t%ld\n", acquisition->perturbABL->avgWeight);
-
-                fclose(f);
             }
         }
 
@@ -2508,6 +2516,75 @@ word thisCaseName()
         printf("\n\n --> Fatal error in function thisCaseName: could not retrieve case name\n");
         exit(0);
     }
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode getTimeList(const char* dataLoc, std::vector<PetscReal> &timeSeries, PetscInt &ntimes)
+{
+    // get file names inside path
+    DIR *dir; struct dirent *diread;
+
+    // pointer for stdtod and stdtol
+    char *eptr;
+
+    ntimes = 0;
+
+    if ((dir = opendir(dataLoc)) != nullptr)
+    {
+        while ((diread = readdir(dir)) != nullptr)
+        {
+            char* timeName = diread->d_name;
+            if
+            (
+                strcmp(timeName, ".") !=0 &&
+                strcmp(timeName, "..") !=0
+            )
+            {
+                PetscReal timeValue;
+                timeValue = std::strtod(timeName, &eptr);
+
+                // make sure the folder's name is a number by comparing char value after the name:
+                // it should be the null character
+                if(*eptr == '\0')
+                {
+                    timeSeries.push_back(timeValue);
+                    ntimes++;
+                }
+            }
+        }
+        closedir (dir);
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "could not access %s directory\n", dataLoc);
+        fatalErrorInFunction("getTimeList", error);
+    }
+
+    // sort the timeSeries
+    for(PetscInt i=0; i<ntimes; i++)
+    {
+        PetscReal min   = 1e20;
+        PetscReal value = 0.;
+        PetscInt  label    = 0;
+
+        for(PetscInt s=i; s<ntimes; s++)
+        {
+            if(timeSeries[s] < min)
+            {
+                value = timeSeries[s];
+                label = s;
+                min   = value;
+            }
+        }
+        // exchange values so that elements are not lost
+        timeSeries[label] = timeSeries[i];
+        // put the min value on the unchanged part at the last index of changed part
+        timeSeries[i] = value;
+    }
+
+    return(0);
 }
 
 //***************************************************************************************************************//

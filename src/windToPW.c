@@ -118,6 +118,9 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
 
   domain_ *domain = *domainAddr;
 
+  // set simulation start time
+  SetStartTime(clock, domain,info);
+
   for(PetscInt d=0; d<info->nDomains; d++)
   {
       PetscPrintf(PETSC_COMM_WORLD, "\nDomain %ld\n", d);
@@ -231,14 +234,23 @@ PetscErrorCode postProcessInitializePrecursor(postProcess *pp, clock_ *clock)
     // set I/O
     InitializeIO(domain->io);
 
+    // override any possible IO
+    domain->io->averaging      = 0;
+    domain->io->phaseAveraging = 0;
+    domain->io->keBudgets      = 0;
+    domain->io->qCrit          = 0;
+    domain->io->l2Crit         = 0;
+    domain->io->windFarmForce  = 0;
+    domain->io->sources        = 0;
+
     // initialize equations
     InitializeUEqn(domain->ueqn);
     InitializePEqn(domain->peqn);
     InitializeTEqn(domain->teqn);
     InitializeLES(domain->les);
 
-    // averages initialize
-    averageFieldsInitialize(domain->acquisition);
+    // initialize acquisition
+    InitializeAcquisitionPrecursor(domain);
 
     return(0);
 }
@@ -2958,75 +2970,6 @@ PetscErrorCode iSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt iplane, c
         err = fread(&(sec->scalarSec[k][0]), sizeof(PetscReal), my, fp);
     }
     fclose(fp);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode getTimeList(const char* dataLoc, std::vector<PetscReal> &timeSeries, PetscInt &ntimes)
-{
-    // get file names inside path
-    DIR *dir; struct dirent *diread;
-
-    // pointer for stdtod and stdtol
-    char *eptr;
-
-    ntimes = 0;
-
-    if ((dir = opendir(dataLoc)) != nullptr)
-    {
-        while ((diread = readdir(dir)) != nullptr)
-        {
-            char* timeName = diread->d_name;
-            if
-            (
-                strcmp(timeName, ".") !=0 &&
-                strcmp(timeName, "..") !=0
-            )
-            {
-                PetscReal timeValue;
-                timeValue = std::strtod(timeName, &eptr);
-
-                // make sure the folder's name is a number by comparing char value after the name:
-                // it should be the null character
-                if(*eptr == '\0')
-                {
-                    timeSeries.push_back(timeValue);
-                    ntimes++;
-                }
-            }
-        }
-        closedir (dir);
-    }
-    else
-    {
-       char error[512];
-        sprintf(error, "could not access %s directory\n", dataLoc);
-        fatalErrorInFunction("getTimeList", error);
-    }
-
-    // sort the timeSeries
-    for(PetscInt i=0; i<ntimes; i++)
-    {
-        PetscReal min   = 1e20;
-        PetscReal value = 0.;
-        PetscInt label    = 0;
-
-        for(PetscInt s=i; s<ntimes; s++)
-        {
-            if(timeSeries[s] < min)
-            {
-                value = timeSeries[s];
-                label = s;
-                min   = value;
-            }
-        }
-        // exchange values so that elements are not lost
-        timeSeries[label] = timeSeries[i];
-        // put the min value on the unchanged part at the last index of changed part
-        timeSeries[i] = value;
-    }
 
     return(0);
 }

@@ -18,14 +18,14 @@ int main(int argc, char **argv)
     domain_ *domain;
 
     // simulation clock
-    clock_  clock;
+    clock_   clock;
     ReadTimeControls(&clock);
 
-    // simulation flags
+    // simulation flags (initialize)
     flags_ flags;
     SetSimulationFlags(&flags);
 
-    // simulation info
+    // simulation info (initialize)
     simInfo_ info;
     SetSimulationInfo(&info);
 
@@ -34,6 +34,7 @@ int main(int argc, char **argv)
     PetscReal iterationTimeStart, iterationTimeEnd;
     PetscTime(&solutionTimeStart);
 
+    // initialize simulation
     simulationInitialize(&domain, &clock, &info, &flags);
 
     while(clock.time < clock.endTime)
@@ -127,8 +128,11 @@ int main(int argc, char **argv)
 
             MPI_Barrier(domain[d].mesh->MESH_COMM);
 
-            // print time step continuity errors
-            ContinuityErrors(domain[d].peqn);
+            // print time step continuity errors (slower)
+            // ContinuityErrors(domain[d].peqn);
+
+            // print time step continuity errors (optimized)
+            ContinuityErrorsOptimized(domain[d].peqn);
 
             // save momentum right hand side
             if(domain[d].ueqn->ddtScheme=="backwardEuler")
@@ -178,9 +182,9 @@ int main(int argc, char **argv)
 
         PetscPrintf(PETSC_COMM_WORLD, "Total iteration time = %lf s\n", iterationTimeEnd - iterationTimeStart);
 
-    }
+        MPI_Barrier(PETSC_COMM_WORLD);
 
-    MPI_Barrier(PETSC_COMM_WORLD);
+    }
 
     PetscTime(&solutionTimeEnd);
 

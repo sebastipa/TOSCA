@@ -88,8 +88,8 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
     // allocate domain memory
     SetDomainMemory(domain);
 
-    // set clock pointer
-    domain->clock = abl->access->clock;
+    // set precursor clock parameters
+    SetStartTimePrecursor(domain, abl);
 
     // set access database pointers
     SetAccessPointers(domain);
@@ -136,6 +136,34 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
 
         // initialize acquisition
         InitializeAcquisitionPrecursor(domain);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetStartTimePrecursor(domain_ *domain, abl_ *abl)
+{
+    // set precursor clock pointer
+    domain->clock = abl->access->clock;
+
+    // check that the startTime is present in the available times
+    if(domain->flags.isPrecursorSpinUp == 0)
+    {
+        word location = "./fields/precursor/";
+        std::vector<PetscReal>        timeSeries;
+        PetscInt                      ntimes;
+        getTimeList(location.c_str(), timeSeries, ntimes);
+
+        if(timeSeries[ntimes-1] != domain->clock->startTime)
+        {
+            char error[512];
+            sprintf(error, "startTime value %f not available in ./fields/precursor/. Found %f", domain->clock->startTime, timeSeries[ntimes-1]);
+            fatalErrorInFunction("SetStartTimePrecursor",  error);
+        }
+
+        std::vector<PetscReal> ().swap(timeSeries);
     }
 
     return(0);
@@ -740,8 +768,11 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
 
         MPI_Barrier(domain->mesh->MESH_COMM);
 
-        // print time step continuity errors
-        ContinuityErrors(domain->peqn);
+        // print time step continuity errors (slower)
+        // ContinuityErrors(domain->peqn);
+
+        // print time step continuity errors (optimized)
+        ContinuityErrorsOptimized(domain->peqn);
 
         // save momentum right hand side
         if(domain->ueqn->ddtScheme=="backwardEuler")

@@ -23,6 +23,9 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domain, flags_ *flags, simInfo_ *
 //! \brief Read time controls
 PetscErrorCode ReadTimeControls(clock_ *clock);
 
+//! \brief Get startFrom parameter and set initial time (check multiple domains cosistency)
+PetscErrorCode SetStartTime(clock_ *clock, domain_ *domain, simInfo_ *info);
+
 //! \brief Read physical constants
 PetscErrorCode ReadPhysicalConstants(domain_ *domain);
 

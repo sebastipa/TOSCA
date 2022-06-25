@@ -51,6 +51,9 @@ void warningInFunction(const char* functionName, const char* wrngMsg);
 //! \brief Retrieves this case name
 word thisCaseName();
 
+//! \brief Returns the time list (from folder names) and size contained in a folder
+PetscErrorCode getTimeList(const char* dataLoc, std::vector<PetscReal> &timeSeries, PetscInt &ntimes);
+
 //! \brief Finds a word inside a string
 PetscInt foundInString(const char *str, word keyword);
 

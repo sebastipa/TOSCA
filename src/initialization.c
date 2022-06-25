@@ -67,6 +67,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
 
     domain_ *domain = *domainAddr;
 
+    // set simulation start time
+    SetStartTime(clock, domain,info);
+
     for(PetscInt d=0; d<info->nDomains; d++)
     {
         PetscPrintf(PETSC_COMM_WORLD, "\nDomain %ld\n", d);
@@ -285,12 +288,11 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
 
 PetscErrorCode ReadTimeControls(clock_ *clock)
 {
-    readDictDouble("control.dat", "-startTime", &(clock->startTime));
+    readDictWord  ("control.dat", "-startFrom", &(clock->startFrom));
     readDictDouble("control.dat", "-timeStep",  &(clock->dt));
     readDictDouble("control.dat", "-cfl",       &(clock->cfl));
     readDictDouble("control.dat", "-endTime",   &(clock->endTime));
 
-    clock->time    = clock->startTime;
     clock->it      = 0;
     clock->itStart = 0;
     clock->dxMin   = 1e10;
@@ -302,6 +304,61 @@ PetscErrorCode ReadTimeControls(clock_ *clock)
     clock->timePrecision = 2;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-timePrecision",(PetscInt*)&(clock->timePrecision), PETSC_NULL);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetStartTime(clock_ *clock, domain_ *domain, simInfo_ *info)
+{
+    // get start time for each doman
+    std::vector<PetscReal> startTime(info->nDomains);
+
+    for(PetscInt d=0; d<info->nDomains; d++)
+    {
+        mesh_ *mesh = domain[d].mesh;
+
+        if(clock->startFrom == "startTime")
+        {
+            readDictDouble("control.dat", "-startTime", &(startTime[d]));
+        }
+        else if(clock->startFrom == "latestTime")
+        {
+            word location = "./fields/" + mesh->meshName;
+            std::vector<PetscReal>        timeSeries;
+            PetscInt                      ntimes;
+            getTimeList(location.c_str(), timeSeries, ntimes);
+
+            startTime[d] = timeSeries[ntimes-1];
+
+            std::vector<PetscReal> ().swap(timeSeries);
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "unknown parameter startFrom %s, known parameters are \n-startTime\n-latestTime");
+            fatalErrorInFunction("SetStartTime",  error);
+        }
+    }
+
+    // check that all start times are the same
+    for(PetscInt d=1; d<info->nDomains; d++)
+    {
+        if(startTime[d] != startTime[0])
+        {
+            char error[512];
+            sprintf(error, "available startTime value is not equal for each domain\n");
+            fatalErrorInFunction("SetStartTime",  error);
+        }
+    }
+
+    clock->startTime = startTime[0];
+
+    clock->time    = clock->startTime;
+
+    // clea nmemory
+    std::vector<PetscReal> ().swap(startTime);
 
     return(0);
 }

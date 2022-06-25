@@ -28,6 +28,9 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl);
 //! \brief Precursor solution flags definition
 PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain);
 
+//! \brief Checks that start time is available to read if spinUp == 0
+PetscErrorCode SetStartTimePrecursor(domain_ *domain, abl_ *abl);
+
 //! \brief Precursor mesh initialization
 PetscErrorCode InitializeMeshPrecursor(abl_ *abl);
 

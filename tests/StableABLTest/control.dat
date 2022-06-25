@@ -3,6 +3,7 @@
 
 # Simulation
 # ---------------------------------
+-startFrom                 startTime
 -startTime                 0
 -endTime                   10000
 -cfl                       0.9

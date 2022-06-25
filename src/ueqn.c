@@ -986,7 +986,14 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
         {
             if(abl->xDampingControlType == "alphaOptimized")
             {
-                clock_ *clock = ueqn->access->clock;
+                clock_     *clock     = ueqn->access->clock;
+                precursor_ *precursor = ueqn->access->abl->precursor;
+
+                // get precursor mesh info (used to stay within processor bounds)
+                DM         da_p       = precursor->domain->mesh->da,
+                           fda_p      = precursor->domain->mesh->fda;
+
+                PetscInt      kStart, kEnd;
 
                 // fringe region starting cell lines
                 PetscReal lsumStart1   = 0.0, gsumStart1   = 0.0,
@@ -1006,11 +1013,11 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 PetscInt  lcount1 = 0,   gcount1 = 0,
                           lcount2 = 0,   gcount2 = 0;
 
-                precursor_ *precursor = ueqn->access->abl->precursor;
-
                 if(precursor->thisProcessorInFringe)
                 {
-                    DMDAVecGetArray(fda, precursor->domain->ueqn->lUcat, &ucatP);
+                    DMDAVecGetArray(fda_p, precursor->domain->ueqn->lUcat, &ucatP);
+                    kStart = precursor->map.kStart;
+                    kEnd   = precursor->map.kEnd;
                 }
 
                 DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
@@ -1049,14 +1056,16 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             // velocity values at reference height in precursor domain (two levels to interpolate)
                             if(precursor->thisProcessorInFringe)
                             {
-                                if(j == precursor->domain->abl->closestLabels[0])
+                                // stay within the precursor processor bounds (boundary procs could have less cells)
+                                if(j == precursor->domain->abl->closestLabels[0] && k >= kStart && k <= kEnd)
                                 {
-                                    lsum1 += ucatP[k][j][i].y;
+                                    lsum1 += ucatP[k-kStart][j][i].y;
                                     lcount1 ++;
                                 }
-                                else if(j == precursor->domain->abl->closestLabels[1])
+                                // stay within the precursor processor bounds (boundary procs could have less cells)
+                                else if(j == precursor->domain->abl->closestLabels[1] && k >= kStart && k <= kEnd)
                                 {
-                                    lsum2 += ucatP[k][j][i].y;
+                                    lsum2 += ucatP[k-kStart][j][i].y;
                                     lcount2 ++;
                                 }
                             }
@@ -1082,7 +1091,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                 if(precursor->thisProcessorInFringe)
                 {
-                    DMDAVecRestoreArray(fda, precursor->domain->ueqn->lUcat, &ucatP);
+                    DMDAVecRestoreArray(fda_p, precursor->domain->ueqn->lUcat, &ucatP);
                 }
 
                 DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
@@ -1478,6 +1487,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         (
                             precursor->thisProcessorInFringe && // is this processor in the fringe?
                             k >= kStart && k <= kEnd            // is this face in the fringe?
+
                         )
                         {
                             uBarContI = ucontP[k-kStart][j][i].x;
@@ -1880,7 +1890,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***gcont;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert, ***tmprt;
+    PetscReal     ***nvert, ***tmprt, ***aj;
 
     PetscInt           i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
@@ -1896,10 +1906,46 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
     DMDAVecGetArray(fda, ueqn->gCont,  &gcont);
-
     DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecGetArray(da,  mesh->lAj,    &aj);
+    DMDAVecGetArray(da,  teqn->lTmprt, &tmprt);
+
+    /*
+    // compute the planar averaged state as a function of height
+    std::vector<PetscReal> lavgT(my);
+    std::vector<PetscReal> gavgT(my);
+    std::vector<PetscReal> lavgV(my);
+    std::vector<PetscReal> gavgV(my);
+
+    for(j=0; j<my; j++)
+    {
+        lavgT[j] = gavgT[j] = lavgV[j] = gavgV[j] = 0.0;
+    }
+
+    // loop over i-face centers
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                lavgT[j] += tmprt[k][j][i] / aj[k][j][i];
+                lavgV[j] += 1.0 / aj[k][j][i];
+            }
+        }
+    }
+
+    MPI_Allreduce(&lavgT[0], &gavgT[0], my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lavgV[0], &gavgV[0], my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    // divide by total volume per level
+    for(j=1; j<my-1; j++)
+    {
+        gavgT[j] /= gavgV[j];
+    }
+    */
 
     // loop over i-face centers
     for(k=zs; k<lze; k++)
@@ -1947,9 +1993,9 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecRestoreArray(da,  mesh->lAj,       &aj);
 
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
-    DMDAVecGetArray(da, teqn->lTmprt, &tmprt);
     DMDAVecGetArray(fda, Rhs,  &rhs);
 
     for (k=lzs; k<lze; k++)
@@ -1959,7 +2005,8 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             for (i=lxs; i<lxe; i++)
             {
                 // interpolate at cell faces
-                PetscReal tempI = 0.5*(tmprt[k][j][i] + tmprt[k][j][i+1]);
+                PetscReal tempI    = 0.5*(tmprt[k][j][i] + tmprt[k][j][i+1]);
+                //PetscReal tempRefI = gavgT[j];
 
                 if (isFluidIFace(k, j, i, i+1, nvert))
                 {
@@ -1969,12 +2016,15 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     (
                         gcont[k][j][i].x *
                         (tRef - tempI) / tRef
+                        //(tempRefI - tempI) / tRef
+                        //(2* tRef - tempI) / tRef
                     );
                 }
 
 
                 // interpolate at cell faces
-                PetscReal tempJ =  0.5*(tmprt[k][j][i] + tmprt[k][j+1][i]);
+                PetscReal tempJ    =  0.5*(tmprt[k][j][i] + tmprt[k][j+1][i]);
+                //PetscReal tempRefJ =  0.5*(gavgT[j] + gavgT[j+1]);
 
                 if (isFluidJFace(k, j, i, j+1, nvert))
                 {
@@ -1984,12 +2034,15 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     (
                         gcont[k][j][i].y *
                         (tRef - tempJ) / tRef
+                        //(tempRefJ - tempJ) / tRef
+                        //(2* tRef - tempJ) / tRef
                     );
                 }
 
 
                 // interpolate at cell faces
-                PetscReal tempK =  0.5*(tmprt[k][j][i] + tmprt[k+1][j][i]);
+                PetscReal tempK    =  0.5*(tmprt[k][j][i] + tmprt[k+1][j][i]);
+                //PetscReal tempRefK =  gavgT[j];
 
                 if(isFluidKFace(k, j, i, k+1, nvert))
                 {
@@ -1999,6 +2052,8 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     (
                         gcont[k][j][i].z *
                         (tRef - tempK) / tRef
+                        //(tempRefK - tempK) / tRef
+                        //(2* tRef - tempK) / tRef
                     );
                 }
 
@@ -2010,6 +2065,14 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(da,  teqn->lTmprt, &tmprt);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
     DMDAVecRestoreArray(fda, ueqn->gCont, &gcont);
+
+    // clean memory
+    /*
+    std::vector<PetscReal> ().swap(lavgT);
+    std::vector<PetscReal> ().swap(gavgT);
+    std::vector<PetscReal> ().swap(lavgV);
+    std::vector<PetscReal> ().swap(gavgV);
+    */
 
     return(0);
 }

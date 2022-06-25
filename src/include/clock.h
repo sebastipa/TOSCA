@@ -10,6 +10,8 @@ struct clock_
     PetscReal        startTime;                 //!< simulation start time
     PetscReal        endTime;                   //!< simulation end time
 
+    word             startFrom;                 //!< choose if start from startTime value or latestTime (startTime is ignored)
+
     PetscReal        dt;                        //!< time step
     PetscReal        startDt;                   //!< time step
     PetscReal        dtOld;                     //!< old time step

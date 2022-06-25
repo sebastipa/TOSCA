@@ -3912,3 +3912,82 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn)
 }
 
 //***************************************************************************************************************//
+
+PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn)
+{
+    mesh_         *mesh = peqn->access->mesh;
+    ueqn_         *ueqn = peqn->access->ueqn;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, r;
+
+    PetscReal     ***aj, ***nvert;
+    Cmpnts        ***ucont;
+
+    PetscReal     lmaxdiv = 0.0, gmaxdiv = 0.0;
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecGetArray(da,  mesh->lAj, &aj);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                PetscReal div
+                =
+                fabs
+                (
+                    (
+                        ucont[k][j][i].x - ucont[k][j][i-1].x +
+                        ucont[k][j][i].y - ucont[k][j-1][i].y +
+                        ucont[k][j][i].z - ucont[k-1][j][i].z
+                    )*aj[k][j][i]
+                );
+
+                if
+                (
+                    nvert[k  ][j  ][i  ] +
+                    nvert[k+1][j  ][i  ] +
+                    nvert[k-1][j  ][i  ] +
+                    nvert[k  ][j+1][i  ] +
+                    nvert[k  ][j-1][i  ] +
+                    nvert[k  ][j  ][i+1] +
+                    nvert[k  ][j  ][i-1] > 0.1
+                )
+                {
+                    div = 0.;
+                }
+
+                if(div > lmaxdiv) lmaxdiv = div;
+
+            }
+        }
+    }
+
+    MPI_Allreduce(&lmaxdiv, &gmaxdiv, 1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
+
+    PetscPrintf(mesh->MESH_COMM, "Time step continuity error: %e\n", gmaxdiv);
+
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
+    DMDAVecRestoreArray(da,  mesh->lAj,     &aj);
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    return(0);
+}
+
+//***************************************************************************************************************//

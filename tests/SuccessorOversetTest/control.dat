@@ -3,6 +3,7 @@
 
 # Simulation
 # ---------------------------------
+-startFrom                 startTime
 -startTime                 9000.00
 -endTime                   9500
 -cfl                       0.7

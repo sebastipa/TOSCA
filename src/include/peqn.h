@@ -112,8 +112,11 @@ PetscErrorCode SolvePEqn(peqn_ *peqn);
 //! \brief Set pressure = 0 at k = 0, j = 0, i = 0
 PetscErrorCode SetPressureReference(peqn_ *peqn);
 
-//! \brief Compute continuity errors
+//! \brief Compute continuity errors (also calculates which cell and processor has the max)
 PetscErrorCode ContinuityErrors(peqn_ *peqn);
+
+//! \brief Compute continuity errors (only prints the max)
+PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn);
 
 //! \brief get the cell id from stencil position
 cellIds GetIdFromStencil(int stencil, int k, int j, int i);
