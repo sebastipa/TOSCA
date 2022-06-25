@@ -12,13 +12,31 @@ PetscErrorCode readIBMProperties(ibm_ *ibm);
 PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b);
 
 //! \brief read the ibm mesh in ASCII format
-PetscErrorCode readIBMFileASCIIRaster(ibmObject *ibmBody);
+PetscErrorCode readIBMBodyFileASCIIRaster(ibmObject *ibmBody);
 
 //! \brief read the ibm mesh in ucd format
-PetscErrorCode readIBMFileUCD(ibmObject *ibmBody);
+PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody);
 
 //! \brief read the ibm mesh in abaqus inp format
-PetscErrorCode readIBMFileAbaqusInp(ibmObject *ibmBody);
+PetscErrorCode readIBMBodyFileAbaqusInp(ibmObject *ibmBody);
+
+//! \brief read the ibm mesh in stl format
+PetscErrorCode readIBMBodyFileSTL(ibmObject *ibmBody);
+
+//! \brief read the ibm mesh in ASCII format
+PetscErrorCode readIBMSurfaceFileASCIIRaster(surface *ibmSurface);
+
+//! \brief read the ibm mesh in ucd format
+PetscErrorCode readIBMSurfaceFileUCD(surface *ibmSurface);
+
+//! \brief read the ibm mesh in abaqus inp format
+PetscErrorCode readIBMSurfaceFileAbaqusInp(surface *ibmSurface);
+
+//! \brief read the ibm mesh in stl format
+PetscErrorCode readIBMSurfaceFileSTL(surface *ibmSurface);
+
+//!< \brief combine the mesh nodes and elements of different surface bodies into one ibm body
+PetscErrorCode combineMesh(ibmObject *ibmBody);
 
 //! \brief write the STL mesh
 PetscErrorCode writeSTLFile(ibmObject *ibmBody);
