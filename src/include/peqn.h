@@ -86,9 +86,6 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn);
 //! \brief Compute coefficient matrix
 PetscErrorCode SetCoeffMatrix(peqn_ *peqn);
 
-//! \brief Set coefficient matrix to zero
-PetscErrorCode ZeroCoeffMatrix(peqn_ *peqn);
-
 //! \brief Set RHS of the pressure equation
 PetscErrorCode SetRHS(peqn_ *peqn);
 
