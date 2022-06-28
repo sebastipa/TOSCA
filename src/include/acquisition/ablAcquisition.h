@@ -23,30 +23,30 @@ typedef struct
 //! \brief Struct defining a gridded point mesh for three layer model data (used for its validation)
 struct data3LM
 {
-    word      checkPointTimeName;             //!< name of the time where checkpoint is contained
-    PetscInt  nstw;                           //!< number of points in streamwise direction
-    PetscInt  nspw;                           //!< number of points in the spanwise direction
-    Cmpnts    upDir;                          //!< vertical direction unit vector
-    Cmpnts    streamDir;                      //!< streamwise direction unit vector
-    Cmpnts    spanDir;                        //!< spanwise direction unit vector
-    Cmpnts    **points;                       //!< array of [nstw, nspw] where point coordinates are stored
-    cellIds   **closestCells;                 //!< array of [nstw, nspw] where i and k ids of the averaging line are stored (j is meaningless)
+    word           checkPointTimeName;             //!< name of the time where checkpoint is contained
+    PetscInt       nstw;                           //!< number of points in streamwise direction
+    PetscInt       nspw;                           //!< number of points in the spanwise direction
+    Cmpnts         upDir;                          //!< vertical direction unit vector
+    Cmpnts         streamDir;                      //!< streamwise direction unit vector
+    Cmpnts         spanDir;                        //!< spanwise direction unit vector
+    Cmpnts         **points;                       //!< array of [nstw, nspw] where point coordinates are stored
+    cellIds        **closestCells;                 //!< array of [nstw, nspw] where i and k ids of the averaging line are stored (j is meaningless)
 
-    PetscReal avgStartTime;                   //!< start time of acquisition system
-    PetscReal avgPrd;                         //!< acquisition time interval (overrides simulation time step if smaller)
+    PetscReal      avgStartTime;                   //!< start time of acquisition system
+    PetscReal      avgPrd;                         //!< acquisition time interval (overrides simulation time step if smaller)
 
-    PetscInt  avgWeight;                      //!< number of averages taken up to this time step (snapshot weighting)
+    PetscInt       avgWeight;                      //!< number of averages taken up to this time step (snapshot weighting)
 
-    level3LM  **levels;                       //!< array of pointers to the three levels of the 3LM model
+    level3LM       **levels;                       //!< array of pointers to the three levels of the 3LM model
 
-    PetscReal **etaTBL;                        //!< total boundary layer displacement
-    PetscReal **etaLBL;                        //!< total boundary layer displacement
-    PetscReal **etaIBL;
-    PetscReal **bkgU;
-    PetscReal xSample;
-    PetscInt  kSample;
-    Vec       avgU;                           //!< average velocity needed to compute Tau
-    Vec       avgdTdz;                           //!< defined as the average in time of sqrt(uw^2 + vw^2), lowercase are fluctuations
+    PetscReal      **etaTBL;                        //!< total boundary layer displacement
+    PetscReal      **etaLBL;                        //!< total boundary layer displacement
+    PetscReal      **etaIBL;
+    PetscReal      **bkgU;
+    PetscReal      xSample;
+    PetscInt       kSample;
+    Vec            avgU;                           //!< average velocity needed to compute Tau
+    Vec            avgdTdz;                        //!< defined as the average in time of sqrt(uw^2 + vw^2), lowercase are fluctuations
 };
 
 //! \brief Struct defining ABL simulation acquisition data

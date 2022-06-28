@@ -2723,7 +2723,7 @@ PetscErrorCode kSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt kplane, c
 
     if(!fp)
     {
-       char error[512];
+        char error[512];
         sprintf(error, "cannot open file: %s\n", fname.c_str());
         fatalErrorInFunction("kSectionLoadVector",  error);
     }

@@ -22,7 +22,7 @@ struct acquisition_
     sections      *iSections;                 //!< information about the i-sections
     dataABL       *statisticsABL;             //!< ABL statistics
     data3LM       *LM3;                       //!< 3LM statistics
-    perturbFields *perturbABL;                //!< ABL perturbation fields for gtavity waves
+    perturbFields *perturbABL;                //!< ABL perturbation fields for gravity waves
 
     // acquisition flags
     PetscInt      isProbesActive;

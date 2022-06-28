@@ -4999,7 +4999,7 @@ PetscErrorCode kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, V
         {
            char error[512];
             sprintf(error, "cannot open file %s", fname);
-            fatalErrorInFunction("save_inflow_section",  error);
+            fatalErrorInFunction("kSectionSaveVector",  error);
         }
 
         for(j=0; j<my; j++)
@@ -6748,6 +6748,7 @@ PetscErrorCode perturbationABLInitialize(acquisition_ *acquisition)
         peqn_         *peqn  = acquisition->access->peqn;
         teqn_         *teqn  = acquisition->access->teqn;
         flags_        *flags = acquisition->access->flags;
+        clock_        *clock = acquisition->access->clock;
         DM            da = mesh->da, fda = mesh->fda;
         DMDALocalInfo info = mesh->info;
         PetscInt      xs = info.xs, xe = info.xs + info.xm;
@@ -6812,9 +6813,11 @@ PetscErrorCode perturbationABLInitialize(acquisition_ *acquisition)
         readDictDouble(path2dict, "avgStartTime",  &(perturbABL->avgStartTime));
         readDictDouble(path2dict, "avgPeriod",     &(perturbABL->avgPrd));
         readDictDouble(path2dict, "xSample",       &(perturbABL->xSample));
+        readDictInt   (path2dict, "readAverages",  &(perturbABL->read));
 
         // initialize snapshot weighting to zero
-        perturbABL->avgWeight = 0;
+        perturbABL->avgWeight     = 0;
+        perturbABL->initialized   = 0;
 
         perturbABL->bkgU          = (Cmpnts**)malloc(my*sizeof(Cmpnts*));
         perturbABL->bkgP          = (PetscReal**)malloc(my*sizeof(PetscReal*));
@@ -6825,6 +6828,106 @@ PetscErrorCode perturbationABLInitialize(acquisition_ *acquisition)
             perturbABL->bkgU[j]          = (Cmpnts*)malloc(mx*sizeof(Cmpnts));
             perturbABL->bkgP[j]          = (PetscReal*)malloc(mx*sizeof(PetscReal));
             perturbABL->bkgT[j]          = (PetscReal*)malloc(mx*sizeof(PetscReal));
+
+            for(PetscInt i=0; i<mx; i++)
+            {
+                perturbABL->bkgU[j][i] = nSetZero();
+                perturbABL->bkgP[j][i] = 0.0;
+                perturbABL->bkgT[j][i] = 0.0;
+
+            }
+        }
+
+        // read average fields
+        if(perturbABL->read)
+        {
+            PetscPrintf(mesh->MESH_COMM, "   reading reference state\n");
+
+            std::vector<std::vector<Cmpnts>>    lbkgU(my);
+            std::vector<std::vector<PetscReal>> lbkgP(my);
+            std::vector<std::vector<PetscReal>> lbkgT(my);
+
+            for(j=0; j<my; j++)
+            {
+                lbkgU[j].resize(mx);
+                lbkgP[j].resize(mx);
+                lbkgT[j].resize(mx);
+
+                for(i=0; i<mx; i++)
+                {
+                    lbkgU[j][i]    = nSetZero();
+                    lbkgP[j][i]    = 0.0;
+                    lbkgT[j][i]    = 0.0;
+                }
+            }
+
+            if(!rank)
+            {
+                FILE *fp;
+
+                word pAvgUName = "./fields/" + mesh->meshName + "/" + getStartTimeName(clock) + "/PAvgUABL";
+                word pAvgPName = "./fields/" + mesh->meshName + "/" + getStartTimeName(clock) + "/PAvgPABL";
+                word pAvgTName = "./fields/" + mesh->meshName + "/" + getStartTimeName(clock) + "/PAvgTABL";
+
+                // open velocity and read
+                fp = fopen(pAvgUName.c_str(), "rb");
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file: %s\n", pAvgUName.c_str());
+                    fatalErrorInFunction("averagePerturbationABL",  error);
+                }
+                for(j=0; j<my; j++)
+                {
+                    PetscInt err;
+                    err = fread(&(lbkgU[j][0]), sizeof(Cmpnts), mx, fp);
+                }
+                fclose(fp);
+
+                // open pressure and read
+                fp = fopen(pAvgPName.c_str(), "rb");
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file: %s\n", pAvgPName.c_str());
+                    fatalErrorInFunction("averagePerturbationABL",  error);
+                }
+                for(j=0; j<my; j++)
+                {
+                    PetscInt err;
+                    err = fread(&(lbkgP[j][0]), sizeof(PetscReal), mx, fp);
+                }
+                fclose(fp);
+
+                // open temperature and read
+                fp = fopen(pAvgTName.c_str(), "rb");
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file: %s\n", pAvgTName.c_str());
+                    fatalErrorInFunction("averagePerturbationABL",  error);
+                }
+                for(j=0; j<my; j++)
+                {
+                    PetscInt err;
+                    err = fread(&(lbkgT[j][0]), sizeof(PetscReal), mx, fp);
+                }
+                fclose(fp);
+            }
+
+            // scatter reference planes (all nodes must have reference state)
+            for(j=0; j<my; j++)
+            {
+                // scatter vectors
+                MPI_Allreduce(&(lbkgU[j][0]), &(perturbABL->bkgU[j][0]), 3*mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&(lbkgP[j][0]), &(perturbABL->bkgP[j][0]), mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&(lbkgT[j][0]), &(perturbABL->bkgT[j][0]), mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+                // clean vectors
+                std::vector<Cmpnts>    ().swap(lbkgU[j]);
+                std::vector<PetscReal> ().swap(lbkgP[j]);
+                std::vector<PetscReal> ().swap(lbkgT[j]);
+            }
         }
 
         VecDuplicate(mesh->Cent,  &(perturbABL->pertU));  VecSet(perturbABL->pertU,0.);
@@ -6889,6 +6992,24 @@ PetscErrorCode averagePerturbationABL(acquisition_ *acquisition)
         mesh_  *mesh  = acquisition->access->mesh;
         clock_ *clock = acquisition->access->clock;
         flags_ *flags = acquisition->access->flags;
+        io_    *io    = acquisition->access->io;
+        
+        DM               da = mesh->da, fda = mesh->fda;
+        DMDALocalInfo    info = mesh->info;
+        PetscInt         xs = info.xs, xe = info.xs + info.xm;
+        PetscInt         ys = info.ys, ye = info.ys + info.ym;
+        PetscInt         zs = info.zs, ze = info.zs + info.zm;
+        PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+        PetscInt         lxs, lxe, lys, lye, lzs, lze;
+        PetscInt         i, j, k;
+
+        Cmpnts           ***ucat, ***up;
+        PetscReal        ***p, ***pp, ***t, ***tp;
+
+        lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+        lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+        lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
         ueqn_   *ueqn = acquisition->access->ueqn;
         peqn_   *peqn = acquisition->access->peqn;
@@ -6904,6 +7025,8 @@ PetscErrorCode averagePerturbationABL(acquisition_ *acquisition)
         PetscReal startTimeAvg         = perturbABL->avgStartTime;
         PetscReal timeIntervalAvg      = perturbABL->avgPrd;
 
+        PetscMPIInt rank;  MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
         if
         (
             mustWrite(clock->time, startTimeAvg, timeIntervalAvg)
@@ -6914,23 +7037,6 @@ PetscErrorCode averagePerturbationABL(acquisition_ *acquisition)
 
         if(accumulateAvg)
         {
-            DM               da = mesh->da, fda = mesh->fda;
-            DMDALocalInfo    info = mesh->info;
-            PetscInt         xs = info.xs, xe = info.xs + info.xm;
-            PetscInt         ys = info.ys, ye = info.ys + info.ym;
-            PetscInt         zs = info.zs, ze = info.zs + info.zm;
-            PetscInt         mx = info.mx, my = info.my, mz = info.mz;
-
-            PetscInt         lxs, lxe, lys, lye, lzs, lze;
-            PetscInt         i, j, k;
-
-            Cmpnts           ***ucat, ***up;
-            PetscReal        ***p, ***pp, ***t, ***tp;
-
-            lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-            lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-            lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
             // set time averaging weights
             PetscReal mN = (PetscReal)perturbABL->avgWeight;
             PetscReal m1 = mN  / (mN + 1.0);
@@ -6945,56 +7051,86 @@ PetscErrorCode averagePerturbationABL(acquisition_ *acquisition)
             DMDAVecGetArray(da,  peqn->lP, &p);
             DMDAVecGetArray(da,  teqn->lTmprt, &t);
 
-            std::vector<std::vector<Cmpnts>>    lbkgU(my);
-            std::vector<std::vector<PetscReal>> lbkgP(my);
-            std::vector<std::vector<PetscReal>> lbkgT(my);
+            // conditions:
+            // read and not initialized: first average, already have state
 
-            for(j=0; j<my; j++)
+            if(perturbABL->read && !perturbABL->initialized)
             {
-                lbkgU[j].resize(mx);
-                lbkgP[j].resize(mx);
-                lbkgT[j].resize(mx);
-
-                for(i=0; i<mx; i++)
-                {
-                    lbkgU[j][i]    = nSetZero();
-                    lbkgP[j][i]    = 0.0;
-                    lbkgT[j][i]    = 0.0;
-                }
+                // already have state, only set initialized flag to 1
+                perturbABL->initialized = 1;
             }
-
-            // perform the average of the reference state first
-            for (k = lzs; k < lze; k++)
+            else
             {
-                for (j = lys; j < lye; j++)
-                {
-                    for (i = lxs; i < lxe; i++)
-                    {
-                        if(k == perturbABL->kSample)
-                        {
-                            lbkgU[j][i].x    = m1 * perturbABL->bkgU[j][i].x + m2 * ucat[k][j][i].x;
-                            lbkgU[j][i].y    = m1 * perturbABL->bkgU[j][i].y + m2 * ucat[k][j][i].y;
-                            lbkgU[j][i].z    = m1 * perturbABL->bkgU[j][i].z + m2 * ucat[k][j][i].z;
+                // if not initialized will initialzed based on inst. fields
+                // if initialized will average normally
+                std::vector<std::vector<Cmpnts>>    lbkgU(my);
+                std::vector<std::vector<PetscReal>> lbkgP(my);
+                std::vector<std::vector<PetscReal>> lbkgT(my);
 
-                            lbkgP[j][i]      = m1 * perturbABL->bkgP[j][i]   + m2 * p[k][j][i];
-                            lbkgT[j][i]      = m1 * perturbABL->bkgT[j][i]   + m2 * t[k][j][i];
+                for(j=0; j<my; j++)
+                {
+                    lbkgU[j].resize(mx);
+                    lbkgP[j].resize(mx);
+                    lbkgT[j].resize(mx);
+
+                    for(i=0; i<mx; i++)
+                    {
+                        lbkgU[j][i]    = nSetZero();
+                        lbkgP[j][i]    = 0.0;
+                        lbkgT[j][i]    = 0.0;
+                    }
+                }
+
+                // perform the average of the reference state first
+                for (k = lzs; k < lze; k++)
+                {
+                    for (j = lys; j < lye; j++)
+                    {
+                        for (i = lxs; i < lxe; i++)
+                        {
+                            if(k == perturbABL->kSample)
+                            {
+                                // ref. planes NOT initialized: get data from fields
+                                if(!perturbABL->initialized)
+                                {
+                                    lbkgU[j][i].x    = ucat[k][j][i].x;
+                                    lbkgU[j][i].y    = ucat[k][j][i].y;
+                                    lbkgU[j][i].z    = ucat[k][j][i].z;
+
+                                    lbkgP[j][i]      = p[k][j][i];
+                                    lbkgT[j][i]      = t[k][j][i];
+                                }
+                                // ref. planes already initialized
+                                else
+                                {
+                                    lbkgU[j][i].x    = m1 * perturbABL->bkgU[j][i].x + m2 * ucat[k][j][i].x;
+                                    lbkgU[j][i].y    = m1 * perturbABL->bkgU[j][i].y + m2 * ucat[k][j][i].y;
+                                    lbkgU[j][i].z    = m1 * perturbABL->bkgU[j][i].z + m2 * ucat[k][j][i].z;
+
+                                    lbkgP[j][i]      = m1 * perturbABL->bkgP[j][i]   + m2 * p[k][j][i];
+                                    lbkgT[j][i]      = m1 * perturbABL->bkgT[j][i]   + m2 * t[k][j][i];
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            // scatter reference planes (all nodes must have reference state)
-            for(j=0; j<my; j++)
-            {
-                // scatter vectors
-                MPI_Allreduce(&(lbkgU[j][0]), &(perturbABL->bkgU[j][0]), 3*mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-                MPI_Allreduce(&(lbkgP[j][0]), &(perturbABL->bkgP[j][0]), mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-                MPI_Allreduce(&(lbkgT[j][0]), &(perturbABL->bkgT[j][0]), mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                // scatter reference planes (all nodes must have reference state)
+                for(j=0; j<my; j++)
+                {
+                    // scatter vectors
+                    MPI_Allreduce(&(lbkgU[j][0]), &(perturbABL->bkgU[j][0]), 3*mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                    MPI_Allreduce(&(lbkgP[j][0]), &(perturbABL->bkgP[j][0]), mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                    MPI_Allreduce(&(lbkgT[j][0]), &(perturbABL->bkgT[j][0]), mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-                // clean vectors
-                std::vector<Cmpnts>    ().swap(lbkgU[j]);
-                std::vector<PetscReal> ().swap(lbkgP[j]);
-                std::vector<PetscReal> ().swap(lbkgT[j]);
+                    // clean vectors
+                    std::vector<Cmpnts>    ().swap(lbkgU[j]);
+                    std::vector<PetscReal> ().swap(lbkgP[j]);
+                    std::vector<PetscReal> ().swap(lbkgT[j]);
+                }
+
+                // set initialized to 1
+                perturbABL->initialized = 1;
             }
 
             // compute the perturbations
@@ -7025,6 +7161,58 @@ PetscErrorCode averagePerturbationABL(acquisition_ *acquisition)
 
             PetscTime(&te);
             PetscPrintf(mesh->MESH_COMM, "Averaged ABL perturbations in %f s\n", te-ts);
+        }
+
+        // write checkpoint averages
+        if(io->runTimeWrite)
+        {
+            PetscPrintf(mesh->MESH_COMM, "Writing perturbation fields for time %lf\n", clock->time);
+            // only master reads
+            if(!rank)
+            {
+                FILE *fp;
+
+                word pAvgUName = "./fields/" + mesh->meshName + "/" + getTimeName(clock) + "/PAvgUABL";
+                word pAvgPName = "./fields/" + mesh->meshName + "/" + getTimeName(clock) + "/PAvgPABL";
+                word pAvgTName = "./fields/" + mesh->meshName + "/" + getTimeName(clock) + "/PAvgTABL";
+
+                // write velocity
+                fp=fopen(pAvgUName.c_str(), "wb");
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s", pAvgUName.c_str());
+                    fatalErrorInFunction("averagePerturbationABL",  error);
+                }
+
+                for(j=0; j<my; j++) fwrite(&perturbABL->bkgU[j][0], sizeof(Cmpnts), mx, fp);
+                fclose(fp);
+
+                // write pressure
+                fp=fopen(pAvgPName.c_str(), "wb");
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s", pAvgPName.c_str());
+                    fatalErrorInFunction("averagePerturbationABL",  error);
+                }
+
+                for(j=0; j<my; j++) fwrite(&perturbABL->bkgP[j][0], sizeof(PetscReal), mx, fp);
+                fclose(fp);
+
+                // write temperature
+                fp=fopen(pAvgTName.c_str(), "wb");
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s", pAvgTName.c_str());
+                    fatalErrorInFunction("averagePerturbationABL",  error);
+                }
+
+                for(j=0; j<my; j++) fwrite(&perturbABL->bkgT[j][0], sizeof(PetscReal), mx, fp);
+                fclose(fp);
+
+            }
         }
     }
 
@@ -7113,6 +7301,11 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
         for(PetscInt j=0; j<my; j++)
         {
             lm3->bkgU[j]          = (PetscReal*)malloc(mx*sizeof(PetscReal));
+
+            for(PetscInt i=0; i<mx; i++)
+            {
+                lm3->bkgU[j][i] = 0.0;
+            }
         }
 
         // allocate memory for auxiliary fields

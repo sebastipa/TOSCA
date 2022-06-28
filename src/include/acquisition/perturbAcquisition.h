@@ -22,6 +22,10 @@ struct perturbFields
     Vec           pertU;
     Vec           pertP;
     Vec           pertT;
+
+    // flags
+    PetscInt      read;
+    PetscInt      initialized;
 };
 
 #endif
