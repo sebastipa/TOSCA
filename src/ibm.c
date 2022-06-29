@@ -3570,8 +3570,8 @@ PetscErrorCode findSearchCellDim(ibm_ *ibm)
         sBox->ncy = ceil(ibBox->Ly/searchCellsize);
         sBox->ncz = ceil(ibBox->Lz/searchCellsize);
 
-        // //set a default value
-        // sBox->ncx = 1; sBox->ncy = 1; sBox->ncz = 1;
+        //set a default value (override - hard coded for now)
+        sBox->ncx = 10; sBox->ncy = 10; sBox->ncz = 10;
 
         // cell size for the search algorithm
         sBox->dcx = (ibBox->Lx) / (sBox->ncx);
