@@ -87,45 +87,52 @@ typedef struct
     ibmMesh  *ibMsh;
 }surface;
 
+// struct to define the bounding boxes around each process that define the local ibm mesh elements within each processor
+typedef struct
+{
+    PetscInt      *thisElemControlled;                        //!< flag telling if a ibm element is controlled by this processor
+    PetscInt      *thisElemTransfered;                   //!< flag telling that the control of this point is being transferred to another processor
+
+    boundingBox   innerZone;
+    boundingBox   outerZone;
+
+}elementBox;
+
 typedef struct
 {
     word          bodyName;
-
     word          bodyType;
 
     PetscInt      numSurfaces;
-
     PetscInt      bodyID;
 
     word          elementSet;
 
     ibmMesh       *ibMsh;
-
     surface       **ibmSurface;
 
     word          bodyMotion;
-
     word          fileType;
 
     word          wallModelU;
-
     word          wallModelUProp;
-
     wallModel     *ibmWallmodel;
 
     Cmpnts        baseLocation;
 
     ibmRotation   *ibmRot;
-
     PetscReal     searchCellRatio;
-
     boundingBox   *bound;
-
     list          *searchCellList;
 
     Cmpnts        *ibmPForce;                                 //!< pressure force acting on each ibm element
 
-    PetscInt      *thisPtControlled;                          //!< flag telling if a ibm mesh point is controlled by this processor
+    Cmpnts        procBoundCenter;                            //!< center of the processor bounding box for the ibm body
+    Cmpnts        procBoundSize;                              //!< size of the processor bounding box in the x, y and z direction
+
+    //element processor mapping for element normal projection - used in force calculation
+
+    PetscInt      *thisPtControlled;                          //!< flag telling if a ibm mesh point is controlled by this processor based on normal projection
     PetscInt      *thisPtControlTransfer;                     //!< flag telling that the control of this point is being transferred to another processor
     cellIds       *closestCells;                              //!< closest cell id to the outward normal projection from the ibm mesh element
 
@@ -137,6 +144,9 @@ typedef struct
 
     // element localToGlobalMapping
     PetscInt      *elementMapping;
+
+    //local ibm elements box
+    elementBox    *eBox;
 
 }ibmObject;
 
@@ -213,11 +223,20 @@ PetscErrorCode writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressure
 //! \brief find in which processors the ibm body belongs
 PetscErrorCode findIBMControlledProcs(ibm_ *ibm);
 
-//! \brief create list of ibm element processors and their closest ibm fluid cell to the ibm element normal
-PetscErrorCode initFindIBMElementProcs(ibm_ *ibm);
+//! \brief create list of ibm element processors and their closest ibm fluid cell to the ibm element normal projection
+PetscErrorCode initElementProjectionProcs(ibm_ *ibm);
 
 //! \brief transfer ibm mesh element across processors based on their movement - for dynamic case
-PetscErrorCode checkIBMElementControlledProcessor(ibm_ *ibm);
+PetscErrorCode IBMProjectionProcessorTransfer(ibm_ *ibm);
+
+//! \brief create inner and outer buffer zones for ibm mesh element parallelization
+PetscErrorCode createProcessorBufferZones(ibm_ *ibm);
+
+//! \brief create list of ibm element processors and their closest ibm fluid cell to the ibm element
+PetscErrorCode initElementProcs(ibm_ *ibm);
+
+//! \brief transfer ibm mesh element across processors based on their movement - for dynamic case
+PetscErrorCode IBMElementProcessorTransfer(ibm_ *ibm);
 
 //! \brief update the ibm mesh when the ibm body is moving
 PetscErrorCode UpdateIBMesh(ibm_ *ibm);
@@ -271,17 +290,22 @@ PetscErrorCode destroyLists(ibm_ *ibm);
 
 PetscErrorCode computeIBMElementNormal(ibm_ *ibm);
 
-//! \brief ray tracing algorithm
+//! \brief ray casting algorithm
 PetscReal rayCastingTest(Cmpnts p, ibmMesh *ibmMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList);
 
+//! \brief ray casting algorithm in local positive cell neighbourhood
+PetscErrorCode rayCastLocal(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts p3, Cmpnts p4, ibmMesh *ibMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList, PetscInt &intersect);
 //! \brief find element bounding sphere
-PetscErrorCode elementBoundingSphere(ibmMesh *ibMesh);
+PetscErrorCode elementBoundingSphere(ibmObject *ibmBody);
 
 //! \brief inline function to generate a random direction along the z index of the search cell for the ray casting algorithm
 inline Cmpnts randomdirection(Cmpnts p, cellIds sCell, boundingBox *ibBox, searchBox *sBox, PetscInt seed);
 
 //! \brief inline function to check if the ray intersects an ibm element
 inline PetscInt intsectElement(Cmpnts p, Cmpnts dir, Cmpnts node1, Cmpnts node2, Cmpnts node3, PetscReal *t, PetscReal *u, PetscReal *v);
+
+//! \brief inline function to check if the line intersects an ibm element
+inline PetscBool isLineTriangleInt(Cmpnts p1, Cmpnts p2, ibmMesh *ibMsh, PetscInt e);
 
 //! \brief inline function to check if a search cell is a support to an ibm fluid node
 inline bool isSearchCellSupport(PetscReal rad, Cmpnts pt, cellIds cID, boundingBox *ibBox, searchBox *sBox);

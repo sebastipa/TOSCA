@@ -129,7 +129,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         //KSPGMRESSetPreAllocateVectors(ksp);            --> crazy thing consumes memory
 
         PCSetType(ueqn->pc, PCNONE);
-        PetscReal rtol=ueqn->relExitTol, atol=ueqn->absExitTol, dtol=PETSC_DEFAULT;
+        PetscReal rtol=ueqn->relExitTol, atol=ueqn->absExitTol, dtol=1e30;
         KSPSetTolerances(ueqn->ksp, rtol, atol, dtol, 1000);
     }
     else if(ueqn->ddtScheme == "forwardEuler" || ueqn->ddtScheme == "rungeKutta4")

@@ -158,7 +158,7 @@ int main(int argc, char **argv)
                 {
                     if(domain[d].ibm->dynamic)
                     {
-                        checkIBMElementControlledProcessor(domain[d].ibm);
+                        IBMProjectionProcessorTransfer(domain[d].ibm);
                     }
 
                     ComputeForceMoment(domain[d].ibm);

@@ -17,6 +17,9 @@ PetscErrorCode readIBMBodyFileASCIIRaster(ibmObject *ibmBody);
 //! \brief read the ibm mesh in ucd format
 PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody);
 
+//! \brief read the ibm mesh in ucd2 format (without 0 tri entries)
+PetscErrorCode readIBMBodyFileUCD2(ibmObject *ibmBody);
+
 //! \brief read the ibm mesh in abaqus inp format
 PetscErrorCode readIBMBodyFileAbaqusInp(ibmObject *ibmBody);
 
@@ -28,6 +31,9 @@ PetscErrorCode readIBMSurfaceFileASCIIRaster(surface *ibmSurface);
 
 //! \brief read the ibm mesh in ucd format
 PetscErrorCode readIBMSurfaceFileUCD(surface *ibmSurface);
+
+//! \brief read the ibm mesh in ucd2 format (without 0 tri entries)
+PetscErrorCode readIBMSurfaceFileUCD2(surface *ibmSurface);
 
 //! \brief read the ibm mesh in abaqus inp format
 PetscErrorCode readIBMSurfaceFileAbaqusInp(surface *ibmSurface);

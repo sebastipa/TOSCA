@@ -3284,6 +3284,34 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
 
                   }
 
+                  // load temperature
+                  if(flags.isIBMActive)
+                  {
+                    kSectionLoadScalar(mesh, kSections, kplane, "nv", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeKSectionScalarToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ti],
+                          "nv",
+                          kSections->scalarSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                    }
+
+                  }
+
                   // close this time section in the XMF file
                   if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
 
@@ -3545,6 +3573,34 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
                             &dataspace_id,
                             timeSeries[ti],
                             "T",
+                            jSections->scalarSec
+                        );
+
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
+                      }
+
+                    }
+
+                    // load nut
+                    if(flags.isIBMActive)
+                    {
+                      jSectionLoadScalar(mesh, jSections, jplane, "nv", timeSeries[ti]);
+
+                      if(!rank)
+                      {
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeJSectionScalarToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "nv",
                             jSections->scalarSec
                         );
 
@@ -3824,6 +3880,34 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
                     &dataspace_id,
                     timeSeries[ti],
                     "T",
+                    iSections->scalarSec
+                );
+
+                status = H5Sclose(dataspace_id);
+                status = H5Fclose(file_id);
+              }
+
+            }
+
+            // load nut
+            if(flags.isIBMActive)
+            {
+              iSectionLoadScalar(mesh, iSections, iplane, "nv", timeSeries[ti]);
+
+              if(!rank)
+              {
+                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                writeISectionScalarToXMF
+                (
+                    mesh,
+                    fieldsFileName.c_str(),
+                    hdfileName.c_str(),
+                    &file_id,
+                    &dataspace_id,
+                    timeSeries[ti],
+                    "nv",
                     iSections->scalarSec
                 );
 

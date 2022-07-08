@@ -29,22 +29,13 @@ struct peqn_
     PetscInt      amgCoarsenType;
     PetscReal     amgThresh;                  //!< threshold value - 0.5 : Cartesian, 0.6 : Distorted
 
-    word          solverType;                 //!< HYPRE or PETSc
-
     // hypre solver
     HYPRE_Solver       hypreSlvr;             //!< solver
-    HYPRE_Solver       hyprePC;                    //!< preconditioner
+    HYPRE_Solver       PC;                    //!< preconditioner
     HYPRE_IJMatrix     hypreA;                //!< coefficient matrix
     HYPRE_ParCSRMatrix hypreParA;             //!< coefficient matrix
     HYPRE_IJVector     hypreP, hypreRhs;      //!< unknwon and RHS
     HYPRE_ParVector    hypreParP, hypreParRhs;//!< unknown and RHS
-
-    // PETSC solver
-    Mat                petscA;                //!< coefficient matrix
-    KSP                ksp;                   //!< linear krylov-subspace context
-    PC                 petscPC;               //!< preconditioner
-    Vec                petscRhs;              //!< right hand side
-    MatNullSpace       petscNs;               //!< null space
 
     // access
     access_            *access;                 //!< access database
@@ -59,35 +50,20 @@ PetscErrorCode InitializePEqn(peqn_ *peqn);
 //! \brief Initializes HYPRE solver
 PetscErrorCode CreateHypreSolver(peqn_ *peqn);
 
-//! \brief Initializes PETSc solver
-PetscErrorCode CreatePETScSolver(peqn_ *peqn);
-
 //! \brief Initializes HYPRE matrix
 PetscErrorCode CreateHypreMatrix(peqn_ *peqn);
-
-//! \brief Initializes PETSc matrix
-PetscErrorCode CreatePETScMatrix(peqn_ *peqn);
 
 //! \brief Initializes HYPRE vector
 PetscErrorCode CreateHypreVector(peqn_ *peqn);
 
-//! \brief Initializes PETSc vector
-PetscErrorCode CreatePETScVector(peqn_ *peqn);
-
 //! \brief Destroys HYPRE solver
 PetscErrorCode DestroyHypreSolver(peqn_ *peqn);
-
-//! \brief Destroys PETSc solver
-PetscErrorCode DestroyPETScSolver(peqn_ *peqn);
 
 //! \brief Destroys HYPRE matrix
 PetscErrorCode DestroyHypreMatrix(peqn_ *peqn);
 
 //! \brief Destroys HYPRE vector
 PetscErrorCode DestroyHypreVector(peqn_ *peqn);
-
-//! \brief Destroys PETSc vector
-PetscErrorCode DestroyPETScVector(peqn_ *peqn);
 
 //! \brief Transfer vector values from Petsc 2 Hypre
 PetscErrorCode Petsc2HypreVector(Vec &A, HYPRE_IJVector &B, HYPRE_Int startID);
@@ -99,10 +75,7 @@ PetscErrorCode Hypre2PetscVector(HYPRE_IJVector &B, Vec &A, HYPRE_Int startID);
 PetscErrorCode phiToPhi(peqn_ *peqn);
 
 //! \brief Compute L2 norm of system residual
-PetscReal      L2NormHypre(peqn_ *peqn, HYPRE_IJMatrix &A, HYPRE_IJVector &X, HYPRE_IJVector &B);
-
-//! \brief Compute L2 norm of system residual
-PetscReal      L2NormPETSc(peqn_ *peqn, Mat &A, Vec &X, Vec &B);
+PetscReal         L2NormHypre(peqn_ *peqn, HYPRE_IJMatrix &A, HYPRE_IJVector &X, HYPRE_IJVector &B);
 
 //! \brief Compute pressure gradient term
 PetscErrorCode GradP(peqn_ *peqn);
@@ -120,10 +93,7 @@ PetscErrorCode ZeroCoeffMatrix(peqn_ *peqn);
 PetscErrorCode SetRHS(peqn_ *peqn);
 
 //! \brief Subtract average from the solution
-PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B);
-
-//! \brief Subtract average from the solution
-PetscErrorCode SubtractAveragePETSc(peqn_ *peqn, Vec &B);
+PetscErrorCode SubtractAverage(peqn_ *peqn, HYPRE_IJVector &B);
 
 //! \brief Correct IBM volume flux
 PetscErrorCode AdjustIBMFlux(peqn_ *peqn);

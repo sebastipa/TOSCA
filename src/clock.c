@@ -16,6 +16,10 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     PetscReal maxU       = 0.0;
     PetscReal dxByU_min  = 1e10;
 
+    cellIds   lmaxUCell, maxUCell;
+
+    lmaxUCell.i = 0; lmaxUCell.j = 0; lmaxUCell.k = 0;
+
     clock_        *clock = domain[0].clock;
 
     // save old time step
@@ -66,11 +70,17 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // contravariant velocity magnitude
+                    // cartesian velocity magnitude
                     PetscReal Umag = nMag(ucat[k][j][i]);
 
-                    // minimum overall velocity in this proc
-                    lmaxU = PetscMax(Umag, lmaxU);
+                    // maximum overall velocity in this proc
+                    if(Umag > lmaxU)
+                    {
+                        lmaxU = Umag;
+                        lmaxUCell.i = i;
+                        lmaxUCell.j = j;
+                        lmaxUCell.k = k;
+                    }
 
                     // compute cell sizes
                     PetscReal ldi = 1./aj[k][j][i]/nMag(csi[k][j][i]);
@@ -114,6 +124,14 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
 
         MPI_Allreduce(&lmaxU,        &maxU,      1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
         MPI_Allreduce(&ldxByU_min,   &dxByU_min, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+        // check if maxU is in this processor and print where it is
+        if(lmaxU != maxU)
+        {
+            lmaxUCell.i = 0; lmaxUCell.j = 0; lmaxUCell.k = 0;
+        }
+
+        MPI_Allreduce(&lmaxUCell, &maxUCell, 3, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
 
         DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
         DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
@@ -310,9 +328,9 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                         {
                             ibmRotation *ibmRot  = ibmBody->ibmRot;
 
-                            PetscReal maxSpeed = ibmRot->maxR * ibmRot->angSpeed;
+                            PetscReal maxSpeed   = ibmRot->maxR * ibmRot->angSpeed;
 
-                            PetscReal dtIBM = dxByU_min*maxU / maxSpeed;
+                            PetscReal dtIBM      = dxByU_min*maxU / maxSpeed;
 
                             clock->dt = std::min(clock->dt, dtIBM);
                         }
@@ -359,7 +377,15 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     cfl = clock->dt / dxByU_min;
 
     PetscPrintf(PETSC_COMM_WORLD, "\n\nTime: %lf\n\n", clock->time);
-    PetscPrintf(PETSC_COMM_WORLD, "Iteration = %ld, CFL = %lf, uMax = %.6f, dt = %.6f, dtMaxCFL = %.6f, adjust due to write flag: %ld\n", clock->it, cfl, maxU, clock->dt, dxByU_min, flag);
+
+    if(clock->it==clock->itStart)
+    {
+        PetscPrintf(PETSC_COMM_WORLD, "Iteration = %ld, CFL = %lf, uMax = %.6f, dt = %.6f, dtMaxCFL = %.6f, adjust due to write flag: %ld\n", clock->it, cfl, maxU, clock->dt, dxByU_min, flag);
+    }
+    else
+    {
+        PetscPrintf(PETSC_COMM_WORLD, "Iteration = %ld, CFL = %lf, uMax = %.6f (i,j,k = %ld, %ld, %ld), dt = %.6f, dtMaxCFL = %.6f, adjust due to write flag: %ld\n", clock->it, cfl, maxU, maxUCell.i, maxUCell.j, maxUCell.k, clock->dt, dxByU_min, flag);
+    }
 
     return(0);
 }

@@ -511,16 +511,17 @@ inline void AxByC ( PetscReal a, Cmpnts &X, PetscReal b, Cmpnts &Y, Cmpnts *C)
 //***************************************************************************************************************//
 
 // domain checks
-inline bool isInsideSimDomain ( Cmpnts pt, const boundingBox &simBox)
+inline bool isInsideBoundingBox ( Cmpnts pt, const boundingBox &simBox)
 {
-    return (pt.x > simBox.xmin
-       &&   pt.x < simBox.xmax
-       &&   pt.y > simBox.ymin
-       &&   pt.y < simBox.ymax
-       &&   pt.z > simBox.zmin
-       &&   pt.z < simBox.zmax ) ;
+    return (pt.x >= simBox.xmin
+       &&   pt.x <= simBox.xmax
+       &&   pt.y >= simBox.ymin
+       &&   pt.y <= simBox.ymax
+       &&   pt.z >= simBox.zmin
+       &&   pt.z <= simBox.zmax ) ;
 
 }
+
 // MESH OPERATIONS
 // ============================================================================================================= //
 

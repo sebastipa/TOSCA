@@ -519,26 +519,24 @@ PetscErrorCode setKeBoundsAndComms(mesh_ *mesh, keFields *ke)
                       zmin_b = box->center.z - 0.5 * box->sizeZ,
                       zmax_b = box->center.z + 0.5 * box->sizeZ;
 
+            // exclusion region
             if
             (
-                (
-                    coor[zs ][ys ][xs ].x <= xmax_b || coor[lze-1][lye-1][lxe-1].x >= xmin_b
-                ) &&
-                (
-                    coor[zs ][ys ][xs ].y <= ymax_b || coor[lze-1][lye-1][lxe-1].y >= ymin_b
-                ) &&
-                (
-                    coor[zs ][ys ][xs ].z <= zmax_b || coor[lze-1][lye-1][lxe-1].z >= zmin_b
-                )
+                coor[zs ][ys ][xs ].x > xmax_b ||
+                coor[lze-1][lye-1][lxe-1].x < xmin_b ||
+                coor[zs ][ys ][xs ].y > ymax_b ||
+                coor[lze-1][lye-1][lxe-1].y < ymin_b ||
+                coor[zs ][ys ][xs ].z > zmax_b ||
+                coor[lze-1][lye-1][lxe-1].z < zmin_b
             )
-            {
-                commColor = 1;
-                box->thisBoxControlled = 1;
-            }
-            else
             {
                 commColor = 0;
                 box->thisBoxControlled = 0;
+            }
+            else
+            {
+                commColor = 1;
+                box->thisBoxControlled = 1;
             }
 
             // create communicator
@@ -3619,7 +3617,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
             // check if intervalType is known
             if(kSections->intervalType != "timeStep" && kSections->intervalType != "adjustableTime")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", kSections->intervalType.c_str());
                 fatalErrorInFunction("sectionsInitialize",  error);
             }
@@ -3795,6 +3793,27 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             {
                                 char error[512];
                                 sprintf(error, "could not create %s directory\n", ksliceNameNut);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                atLeastOneScalar++;
+                            }
+                        }
+
+                        // create nv directory in which time snapshots are saved
+                        if(flags->isIBMActive)
+                        {
+                            char ksliceNameNv[260];
+                            sprintf(ksliceNameNv, "%s/nv", ksliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(ksliceNameNv, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", ksliceNameNv);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
                             else
@@ -4105,6 +4124,27 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             }
                         }
 
+                        // create nv directory in which time snapshots are saved
+                        if(flags->isIBMActive)
+                        {
+                            char jsliceNameNv[260];
+                            sprintf(jsliceNameNv, "%s/nv", jsliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(jsliceNameNv, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", jsliceNameNv);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                atLeastOneScalar++;
+                            }
+                        }
+
                         if(acquisition->isPerturbABLActive)
                         {
                             char jsliceNameUpABL[512];
@@ -4406,6 +4446,27 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                             }
                         }
 
+                        // create nv directory in which time snapshots are saved
+                        if(flags->isIBMActive)
+                        {
+                            char isliceNameNv[260];
+                            sprintf(isliceNameNv, "%s/nv", isliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(isliceNameNv, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", isliceNameNv);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                atLeastOneScalar++;
+                            }
+                        }
+
                         if(acquisition->isPerturbABLActive)
                         {
                             char isliceNameUpABL[512];
@@ -4566,6 +4627,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
 
                     if(flags->isTeqnActive) iSectionSaveScalar(mesh, iSections, iplane, teqn->Tmprt, "T");
                     if(flags->isLesActive)  iSectionSaveScalar(mesh, iSections, iplane, les->lNu_t, "nut");
+                    if(flags->isIBMActive)  iSectionSaveScalar(mesh, iSections, iplane, mesh->lNvert, "nv");
                 }
             }
         }
@@ -4612,6 +4674,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
 
                     if(flags->isTeqnActive) jSectionSaveScalar(mesh, jSections, jplane, teqn->Tmprt, "T");
                     if(flags->isLesActive)  jSectionSaveScalar(mesh, jSections, jplane, les->lNu_t, "nut");
+                    if(flags->isIBMActive)  jSectionSaveScalar(mesh, jSections, jplane, mesh->lNvert, "nv");
                 }
             }
         }
@@ -4659,6 +4722,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
 
                     if(flags->isTeqnActive) kSectionSaveScalar(mesh, kSections, kplane, teqn->Tmprt, "T");
                     if(flags->isLesActive)  kSectionSaveScalar(mesh, kSections, kplane, les->lNu_t, "nut");
+                    if(flags->isIBMActive)  kSectionSaveScalar(mesh, kSections, kplane, mesh->lNvert, "nv");
                 }
             }
         }
@@ -6993,7 +7057,7 @@ PetscErrorCode averagePerturbationABL(acquisition_ *acquisition)
         clock_ *clock = acquisition->access->clock;
         flags_ *flags = acquisition->access->flags;
         io_    *io    = acquisition->access->io;
-        
+
         DM               da = mesh->da, fda = mesh->fda;
         DMDALocalInfo    info = mesh->info;
         PetscInt         xs = info.xs, xe = info.xs + info.xm;

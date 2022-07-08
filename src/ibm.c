@@ -16,21 +16,23 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
     {
         mesh_ *mesh = ibm->access->mesh;
 
+        //read ibm input file
         readIBMProperties(ibm);
 
+        //set the wall model properties
         setIBMWallModels(ibm);
 
+        //find the ibm cartesian bounding box
         findBodyBoundingBox(ibm);
 
+        //find the search cell dimensions from the average cell size
         findSearchCellDim(ibm);
 
+        //create the ibm search cell list - ibm elements in each search cell
         createSearchCellList(ibm);
 
-        MPI_Barrier(mesh->MESH_COMM);
-
+        //compute element normals and check that they point outwards
         computeIBMElementNormal(ibm);
-
-        MPI_Barrier(mesh->MESH_COMM);
 
         // ibm search algorithm
         PetscPrintf(PETSC_COMM_WORLD, "IBM search algorithm...");
@@ -39,23 +41,42 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
 
         MPI_Barrier(mesh->MESH_COMM);
 
+        //check that the ibm object has been detected
         checkIBMexists(ibm);
 
+        //create local list of ibm fluid cells
         findIBMFluidCells(ibm);
 
-        findClosestIBMElement(ibm);
+        MPI_Barrier(mesh->MESH_COMM);
+
+        //find the processors that have ibm body in it - to parallelize
+        findIBMControlledProcs(ibm);
+
+        MPI_Barrier(mesh->MESH_COMM);
 
         if(ibm->computeForce)
         {
-            findIBMControlledProcs(ibm);
+            // divide the ibm elements into ibm processors based on the closest ibm fluid to the ibm element normal projection
+            initElementProjectionProcs(ibm);
 
-            initFindIBMElementProcs(ibm);
+            MPI_Barrier(mesh->MESH_COMM);
+
         }
+
+        //divide the ibm elements into ibm processors based on the closest ibm fluid to the element center
+        initElementProcs(ibm);
+
+        //find the closest normal projection element to every ibm fluid cell
+        findClosestIBMElement(ibm);
+
+        MPI_Barrier(mesh->MESH_COMM);
 
         if (ibm->IBInterpolationModel == "MLS")
         {
+            //find the fluid nodes within the support radius
             findFluidSupportNodes(ibm);
 
+            //find the solid nodes within the support radius
             findIBMMeshSupportNodes(ibm);
 
             MPI_Barrier(mesh->MESH_COMM);
@@ -76,9 +97,9 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
     PetscTime(&ibmTimeStart);
 
     //copy current nvert before next time step
-    VecCopy(mesh->Nvert, mesh->Nvert_o);
-    DMGlobalToLocalBegin(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
-    DMGlobalToLocalEnd(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
+    VecCopy(mesh->lNvert, mesh->lNvert_o);
+
+    PetscReal iterationTimeStart, iterationTimeEnd;
 
     //search to update the ibm cells and support nodes if dynamic ibm
     if(ibm->dynamic)
@@ -90,36 +111,37 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
         }
 
         //reset nvert values to 0, they will be recomputed during ibm search
-        VecSet(mesh->Nvert,0.);
         VecSet(mesh->lNvert,0.);
 
         UpdateIBMesh(ibm);
 
-        MPI_Barrier(mesh->MESH_COMM);
-
         findBodyBoundingBox(ibm);
-
-        MPI_Barrier(mesh->MESH_COMM);
 
         findSearchCellDim(ibm);
 
-        MPI_Barrier(mesh->MESH_COMM);
-
         createSearchCellList(ibm);
-
         MPI_Barrier(mesh->MESH_COMM);
 
+        PetscTime(&iterationTimeStart);
         ibmSearch(ibm);
-
         MPI_Barrier(mesh->MESH_COMM);
+        PetscTime(&iterationTimeEnd);
+        PetscPrintf(PETSC_COMM_WORLD, "ibm search time = %lf s\n", iterationTimeEnd - iterationTimeStart);
 
         findIBMFluidCells(ibm);
-
         MPI_Barrier(mesh->MESH_COMM);
 
+        PetscTime(&iterationTimeStart);
+        IBMElementProcessorTransfer(ibm);
+        MPI_Barrier(mesh->MESH_COMM);
+        PetscTime(&iterationTimeEnd);
+        PetscPrintf(PETSC_COMM_WORLD, "IBMElementProcessorTransfer time = %lf s\n", iterationTimeEnd - iterationTimeStart);
+
+        PetscTime(&iterationTimeStart);
         findClosestIBMElement(ibm);
-
         MPI_Barrier(mesh->MESH_COMM);
+        PetscTime(&iterationTimeEnd);
+        PetscPrintf(PETSC_COMM_WORLD, "findClosestIBMElement time = %lf s\n", iterationTimeEnd - iterationTimeStart);
 
         if (ibm->IBInterpolationModel == "MLS")
         {
@@ -145,6 +167,7 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
     }
     else if (ibm->IBInterpolationModel == "CURVIB")
     {
+
         CurvibInterpolation(ibm);
 
         MPI_Barrier(mesh->MESH_COMM);
@@ -172,7 +195,7 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
 
     word          fileNameU = "./boundary/" + mesh->meshName + "/U";
 
-    PetscPrintf(mesh->MESH_COMM, "Reading IBM wall model...");
+    PetscPrintf(mesh->MESH_COMM, "\nReading IBM wall model...");
 
     for (PetscInt i=0; i < ibm->numBodies; i++)
     {
@@ -564,7 +587,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
         ibmMesh     *ibMsh   = ibmBody->ibMsh;
         ibmRotation *ibmRot  = ibmBody->ibmRot;
 
-        //check if process controls this ibm body
+        //check if processor controls this ibm body
         if(ibmBody->ibmControlled)
         {
             PetscMPIInt   ibmnprocs; MPI_Comm_size(ibmBody->IBM_COMM, &ibmnprocs);
@@ -658,7 +681,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     PetscReal sumDel = 0.0;
 
                     // if there is an ibm solid cell in the interpolation, increase reference length further
-                    while ( (intFlag == 1) && isInsideSimDomain(checkPt, mesh->bounds) && (sumDel <= 3*refLength))
+                    while ( (intFlag == 1) && isInsideBoundingBox(checkPt, mesh->bounds) && (sumDel <= 3*refLength))
                     {
                         PetscInt ibmCellCtr = 0;
                         PetscInt icc, jcc, kcc, setFlag = 0;
@@ -1369,15 +1392,29 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
+    PetscMPIInt        nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt        rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    PetscReal iterationTimeStart, iterationTimeEnd;
+
     //local pointer for ibmFluidCells
     ibmFluidCell *ibF = ibm->ibmFCells;
+
+    PetscTime(&iterationTimeStart);
 
     // loop through the ibm bodies
     for(b = 0; b < ibm->numBodies; b++)
     {
-            // smallest bounding sphere algorithm
-        elementBoundingSphere(ibm->ibmBody[b]->ibMsh);
+        // smallest bounding sphere algorithm
+        elementBoundingSphere(ibm->ibmBody[b]);
     }
+
+    MPI_Barrier(mesh->MESH_COMM);
+    PetscTime(&iterationTimeEnd);
+
+    PetscPrintf(PETSC_COMM_WORLD, "elementBoundingSphere time = %lf s\n", iterationTimeEnd - iterationTimeStart);
+
+    PetscTime(&iterationTimeStart);
 
     for(c = 0; c < ibm->numIBMFluid; c++)
     {
@@ -1397,9 +1434,10 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
         // loop through the ibm bodies
         for (b = 0; b < ibm->numBodies; b++)
         {
-
-            boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
-            ibmMesh       *ibMsh = ibm->ibmBody[b]->ibMsh;                         // pointer to the ibm body mesh
+            ibmObject     *ibmBody = ibm->ibmBody[b];
+            boundingBox   *ibBox   = ibmBody->bound;                         // bounding box of the ibm body
+            ibmMesh       *ibMsh   = ibmBody->ibMsh;                         // pointer to the ibm body mesh
+            elementBox    *eBox    = ibmBody->eBox;
 
             Cmpnts        *qvec   = ibMsh->eQVec;
             PetscReal     *rvec   = ibMsh->eRVec;
@@ -1408,92 +1446,100 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
             Cmpnts        *eN    = ibMsh->eN;
             Cmpnts        *nCoor = ibMsh->nCoor;
 
-            //loop through the IBM elements
-            for(PetscInt e = 0; e < ibMsh->elems; e++)
+            //check if processor controls this ibm body
+            if(ibmBody->ibmControlled)
             {
-
-                dis = nSub(cent[k][j][i], qvec[e]);
-                d_center = nMag(dis);
-
-                // find the ibm mesh element whose bounding sphere center is closest to cent[k][j][i]
-                if(d_center - rvec[e] < dmin)
+                //loop through the IBM elements
+                for(PetscInt e = 0; e < ibMsh->elems; e++)
                 {
-                    n1 = nv1[e];
-                    n2 = nv2[e];
-                    n3 = nv3[e];
 
-                    elemNorm = eN[e];
-
-                    p1 = nCoor[n1];
-                    p2 = nCoor[n2];
-                    p3 = nCoor[n3];
-
-                    dis = nSub(cent[k][j][i], p1);
-                    normProj = nDot(dis, elemNorm);
-
-                    if (fabs(normProj) < 1.e-10) normProj = 1.e-10;
-
-                    // cent[k][j][i] located on the positive side of surface triangle
-                    if(normProj >= 0)
+                    //this processor controls this ibm element
+                    if(eBox->thisElemControlled[e])
                     {
-                        dis = nScale(normProj, elemNorm);
-                        pj  = nSub(cent[k][j][i], dis);
 
-                        // The projected point is inside the triangle
-                        if(isPointInTriangle(pj, p1, p2, p3, elemNorm) == 1)
+                        dis = nSub(cent[k][j][i], qvec[e]);
+                        d_center = nMag(dis);
+
+                        // find the ibm mesh element whose bounding sphere center is closest to cent[k][j][i]
+                        if(d_center - rvec[e] < dmin)
                         {
-                            if(normProj < dmin)
+                            n1 = nv1[e];
+                            n2 = nv2[e];
+                            n3 = nv3[e];
+
+                            elemNorm = eN[e];
+
+                            p1 = nCoor[n1];
+                            p2 = nCoor[n2];
+                            p3 = nCoor[n3];
+
+                            dis = nSub(cent[k][j][i], p1);
+                            normProj = nDot(dis, elemNorm);
+
+                            if (fabs(normProj) < 1.e-10) normProj = 1.e-10;
+
+                            // cent[k][j][i] located on the positive side of surface triangle
+                            if(normProj >= 0)
                             {
-                                dmin    = normProj;
-                                pmin    = pj;
-                                cellMin = e;
-                                bodyID  = b;
-                            }
-                        }
-                        // The projected point is on the triangle line
-                        else
-                        {
-                            // po is the projected point on the line and d is the distance to that point from cent[k][j][i]
-                            disP2Line(cent[k][j][i], p1, p2, &po, &d);
+                                dis = nScale(normProj, elemNorm);
+                                pj  = nSub(cent[k][j][i], dis);
 
-                            if (d < dmin)
-                            {
-                                dmin = d;
-                                pmin = po;
-                                cellMin = e;
-                                bodyID  = b;
-                            }
+                                // The projected point is inside the triangle
+                                if(isPointInTriangle(pj, p1, p2, p3, elemNorm) == 1)
+                                {
+                                    if(normProj < dmin)
+                                    {
+                                        dmin    = normProj;
+                                        pmin    = pj;
+                                        cellMin = e;
+                                        bodyID  = b;
+                                    }
+                                }
+                                // The projected point is on the triangle line
+                                else
+                                {
+                                    // po is the projected point on the line and d is the distance to that point from cent[k][j][i]
+                                    disP2Line(cent[k][j][i], p1, p2, &po, &d);
 
-                            disP2Line(cent[k][j][i], p2, p3, &po, &d);
+                                    if (d < dmin)
+                                    {
+                                        dmin = d;
+                                        pmin = po;
+                                        cellMin = e;
+                                        bodyID  = b;
+                                    }
 
-                            if (d < dmin)
-                            {
-                                dmin = d;
-                                pmin = po;
-                                cellMin = e;
-                                bodyID  = b;
-                            }
+                                    disP2Line(cent[k][j][i], p2, p3, &po, &d);
 
-                            disP2Line(cent[k][j][i], p3, p1, &po, &d);
+                                    if (d < dmin)
+                                    {
+                                        dmin = d;
+                                        pmin = po;
+                                        cellMin = e;
+                                        bodyID  = b;
+                                    }
 
-                            if (d < dmin)
-                            {
-                                dmin = d;
-                                pmin = po;
-                                cellMin = e;
-                                bodyID  = b;
+                                    disP2Line(cent[k][j][i], p3, p1, &po, &d);
+
+                                    if (d < dmin)
+                                    {
+                                        dmin = d;
+                                        pmin = po;
+                                        cellMin = e;
+                                        bodyID  = b;
+                                    }
+                                }
                             }
                         }
                     }
                 }
-
             }
         }
 
         if (cellMin == -100)
         {
-           char error[512];
-            sprintf(error, "Nearest Cell Searching Error for cell %ld %ld %ld\n", k, j, i);
+            char error[512];
+            sprintf(error, "Rank %d, total ibm fluid cells = %ld, Nearest Cell Searching Error for cell %ld %ld %ld\n",rank, ibm->numIBMFluid, k, j, i);
             fatalErrorInFunction("findClosestIBMElement",  error);
         }
 
@@ -1554,6 +1600,11 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
         }
 
     }
+
+    MPI_Barrier(mesh->MESH_COMM);
+    PetscTime(&iterationTimeEnd);
+
+    PetscPrintf(PETSC_COMM_WORLD, "closest elem time = %lf s\n", iterationTimeEnd - iterationTimeStart);
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
@@ -1681,7 +1732,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         // restrict this to 3*ref length
         PetscReal sumDel = 0.0;
 
-        while ( (intFlag == 1) && isInsideSimDomain(bPt, mesh->bounds) && (sumDel <= 3*cellSize))
+        while ( (intFlag == 1) && isInsideBoundingBox(bPt, mesh->bounds) && (sumDel <= 3*cellSize))
         {
             PetscInt ibmCellCtr = 0;
             PetscInt icc, jcc, kcc, setFlag = 0;
@@ -1844,6 +1895,12 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          else
          {
              wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+         }
+
+         if(nMag(ucat[k][j][i]) > 100.0)
+         {
+            mScale(100.0/nMag(ucat[k][j][i]), ucat[k][j][i]);
+            PetscPrintf(PETSC_COMM_SELF, "ibm cell velocity at %ld %ld %ld greater than 100. Interpolated from background point velocity %lf \n", k, j, i, nMag(bPtVel));
          }
 
          if (flags->isTeqnActive)
@@ -2026,7 +2083,7 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
 
   cellIds       sCell;
 
-  PetscReal     ***nvert, ***nvert_o, ***gnvert;
+  PetscReal     ***nvert, ***nvert_o;
   Cmpnts        ***cent;
 
   lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
@@ -2044,7 +2101,7 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
     list      *searchCellList = ibm->ibmBody[b]->searchCellList;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
-    DMDAVecGetArray(da, mesh->Nvert, &nvert);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
     DMDAVecGetArray(da, mesh->lNvert_o, &nvert_o);
 
     for (k = lzs; k < lze; k++)
@@ -2113,17 +2170,16 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
     }
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
-    DMDAVecRestoreArray(da, mesh->Nvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
     DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
 
     MPI_Barrier(mesh->MESH_COMM);
 
-    DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
-    DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+    DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+    DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
 
     // set nvert at solid fluid intersection IB Nodes
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
-    DMDAVecGetArray(da, mesh->Nvert, &gnvert);
 
     for (k = zs; k < ze; k++)
     for (j = ys; j < ye; j++)
@@ -2131,7 +2187,7 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
     {
         if (nvert[k][j][i] < 0)
         {
-          gnvert[k][j][i] = 0;
+          nvert[k][j][i] = 0;
         }
 
         ip = (i < mx - 1 ? (i + 1) : (i));
@@ -2152,23 +2208,39 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
             {
                 if ((PetscInt) (nvert[kk][jj][ii] + 0.5) == 4)
                 { //if next to a solid node
-                    gnvert[k][j][i] = PetscMax(2, nvert[k][j][i]);
+                    nvert[k][j][i] = PetscMax(2, nvert[k][j][i]);
                 }
             }
         }
     }
 
-    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-    DMDAVecRestoreArray(da, mesh->Nvert, &gnvert);
+    DMDAVecGetArray(da, mesh->lNvert_o, &nvert_o);
 
-    DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
-    DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+    //check for cells that change phase (solid to fluid or viceversa) without being an ibm fluid cell
+    if(b == ibm->numBodies-1)
+    {
+        for (k = lzs; k < lze; k++)
+        for (j = lys; j < lye; j++)
+        for (i = lxs; i < lxe; i++)
+        {
+            if (nvert_o[k][j][i] > 2.5 && nvert[k][j][i] < 0.5)
+            {
+                PetscPrintf(PETSC_COMM_SELF, "phase change for element %ld %ld %ld - nvert_o = %lf, nvert = %lf\n", k, j, i, nvert_o[k][j][i], nvert[k][j][i]);
+                nvert[k][j][i]=2;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+    DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
 
     // nvert values of 4 for solid and 2 for IB fluid nodes where used for the current body
     // to differentiate it from other bodies.
     // reset back to nvert values of 3 for solid and 1 for IB fluid
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
-    DMDAVecGetArray(da, mesh->Nvert, &gnvert);
 
     // Back to the old nvert 3 and 1
     for (k = lzs; k < lze; k++)
@@ -2177,69 +2249,65 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
     {
         if ((PetscInt) (nvert[k][j][i] + 0.5) == 2)
         {
-            gnvert[k][j][i] = 1;
+            nvert[k][j][i] = 1;
         }
         if ((PetscInt) (nvert[k][j][i] + 0.5) == 4)
         {
-            gnvert[k][j][i] = 3;
+            nvert[k][j][i] = 3;
         }
     }
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-    DMDAVecRestoreArray(da, mesh->Nvert, &gnvert);
 
-    DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
-    DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+    DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+    DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+  }
 
-    //ibm nvert cleanup - make solid ibm fluid cells that dont have even one fluid cell around it
-    DMDAVecGetArray(da, mesh->lNvert, &nvert);
-    DMDAVecGetArray(da, mesh->Nvert, &gnvert);
+  //ibm nvert cleanup - make solid, ibm fluid cells that dont have even one fluid cell around it
+  DMDAVecGetArray(da, mesh->lNvert, &nvert);
 
-    for (k = lzs; k < lze; k++)
-    for (j = lys; j < lye; j++)
-    for (i = lxs; i < lxe; i++)
-    {
-        PetscInt ctr = 0;
+  for (k = lzs; k < lze; k++)
+  for (j = lys; j < lye; j++)
+  for (i = lxs; i < lxe; i++)
+  {
+      PetscInt ctr = 0;
 
-        ip = (i < mx - 1 ? (i + 1) : (i));
-        im = (i > 0 ? (i - 1) : (i));
+      ip = (i < mx - 1 ? (i + 1) : (i));
+      im = (i > 0 ? (i - 1) : (i));
 
-        jp = (j < my - 1 ? (j + 1) : (j));
-        jm = (j > 0 ? (j - 1) : (j));
+      jp = (j < my - 1 ? (j + 1) : (j));
+      jm = (j > 0 ? (j - 1) : (j));
 
-        kp = (k < mz - 1 ? (k + 1) : (k));
-        km = (k > 0 ? (k - 1) : (k));
+      kp = (k < mz - 1 ? (k + 1) : (k));
+      km = (k > 0 ? (k - 1) : (k));
 
-        if (isIBMFluidCell(k, j, i, gnvert))
-        {
+      if (isIBMFluidCell(k, j, i, nvert))
+      {
 
-            for (kk = km; kk < kp + 1; kk++)
-            for (jj = jm; jj < jp + 1; jj++)
-            for (ii = im; ii < ip + 1; ii++)
-            {
-                if (isFluidCell(kk, jj, ii, nvert))
-                {
-                    ctr ++;
-                }
-            }
+          for (kk = km; kk < kp + 1; kk++)
+          for (jj = jm; jj < jp + 1; jj++)
+          for (ii = im; ii < ip + 1; ii++)
+          {
+              if (isFluidCell(kk, jj, ii, nvert))
+              {
+                  ctr ++;
+              }
+          }
 
-            if(ctr == 0)
-            {
-                gnvert[k][j][i] = 3.0;
-            }
-        }
-
-    }
-
-    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-    DMDAVecRestoreArray(da, mesh->Nvert, &gnvert);
-
-    DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
-    DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
-
-    MPI_Barrier(mesh->MESH_COMM);
+          if(ctr == 0)
+          {
+              nvert[k][j][i] = 3.0;
+          }
+      }
 
   }
+
+  DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+  DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+  DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+
+  MPI_Barrier(mesh->MESH_COMM);
 
   return 0;
 }
@@ -2525,29 +2593,23 @@ PetscErrorCode checkIBMexists(ibm_ *ibm)
 
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
 
-    // loop through the ibm bodies
-    for (b = 0; b < ibm->numBodies; b++)
+    for (k = lzs; k < lze; k++)
+    for (j = lys; j < lye; j++)
+    for (i = lxs; i < lxe; i++)
     {
+      if(isIBMCell(k, j, i, nvert))
+      {
+         lsum ++ ;
+      }
+    }
 
-          for (k = lzs; k < lze; k++)
-          for (j = lys; j < lye; j++)
-          for (i = lxs; i < lxe; i++)
-          {
-              if(isIBMCell(k, j, i, nvert))
-              {
-                 lsum ++ ;
-              }
-          }
+    MPI_Allreduce(&lsum, &sum, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
 
-          MPI_Allreduce(&lsum, &sum, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
-
-          if(sum == 0)
-          {
-              char error[512];
-              sprintf(error, "IBMProperties file indicates that mesh [%s] is linked to ibm body [%s]. But it is not found in the mesh. Check ibm body base location or ensure that the correct nvert field has been read or mesh is too coarse.\n", mesh->meshName.c_str(), ibm->ibmBody[b]->bodyName.c_str());
-              fatalErrorInFunction("checkIBMexists", error);
-          }
-
+    if(sum == 0)
+    {
+      char error[512];
+      sprintf(error, "no ibm solid or fluid cell found in the mesh\n");
+      fatalErrorInFunction("checkIBMexists", error);
     }
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
@@ -2602,13 +2664,13 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
             PetscPrintf(PETSC_COMM_WORLD, "Checking IBM element normal direction for body: %s...", ibm->ibmBody[b]->bodyName.c_str());
             // set offset distance
             minBound = PetscMin( PetscMin(ibBox->Lx, ibBox->Ly), ibBox->Lz);
-            offset   = 0.001 * minBound;
+            offset   = 1.0e-7;
 
             // check that the normal points outwards
             for (e=0; e<ibMesh->elems; e++)
             {
-                if(e%1000 == 0 && ibm->dbg)
-                PetscPrintf(PETSC_COMM_WORLD, "element = %ld\n", e);
+                // if(e%1000 == 0 && ibm->dbg)
+                // PetscPrintf(PETSC_COMM_WORLD, "element = %ld\n", e);
 
                 //move reference distance from the element center
                 offsetVec = nScale(offset, ibMesh->eN[e]);
@@ -2683,14 +2745,34 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 
 PetscErrorCode findIBMControlledProcs(ibm_ *ibm)
 {
-    PetscInt      b, c;
     mesh_         *mesh = ibm->access->mesh;
 
-    PetscMPIInt      rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    DMDALocalInfo info = mesh->info;
+    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+
+    PetscInt       xs = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs = info.zs, ze = info.zs + info.zm;
+    PetscInt       mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt       i, j, k, b;
+    PetscInt       lxs, lxe, lys, lye, lzs, lze;
+
+    Vec            Coor;
+    Cmpnts         ***coor;
 
     //local pointer for ibmFluidCells
     ibmFluidCell *ibF = ibm->ibmFCells;
 
+    PetscMPIInt    rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // indices for internal cells
+    lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+    lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+    lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+    DMGetCoordinatesLocal(da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
 
     // loop through the ibm bodies
     for (b = 0; b < ibm->numBodies; b++)
@@ -2699,31 +2781,54 @@ PetscErrorCode findIBMControlledProcs(ibm_ *ibm)
         PetscInt    commColor = MPI_UNDEFINED;
         ibmObject   *ibmBody  = ibm->ibmBody[b];
 
-        if(ibm->numIBMFluid!=0)
+        if(ibm->dynamic)
         {
-            // loop through the ibm fluid cells
-            for(c = 0; c < ibm->numIBMFluid; c++)
+            PetscReal xmin_b = ibmBody->procBoundCenter.x - 0.5 * ibmBody->procBoundSize.x,
+                      xmax_b = ibmBody->procBoundCenter.x + 0.5 * ibmBody->procBoundSize.x,
+                      ymin_b = ibmBody->procBoundCenter.y - 0.5 * ibmBody->procBoundSize.y,
+                      ymax_b = ibmBody->procBoundCenter.y + 0.5 * ibmBody->procBoundSize.y,
+                      zmin_b = ibmBody->procBoundCenter.z - 0.5 * ibmBody->procBoundSize.z,
+                      zmax_b = ibmBody->procBoundCenter.z + 0.5 * ibmBody->procBoundSize.z;
+
+            if
+            (
+                (
+                  coor[zs ][ys ][xs ].x > xmax_b || coor[lze-1][lye-1][lxe-1].x < xmin_b
+                ) ||
+                (
+                  coor[zs ][ys ][xs ].y > ymax_b || coor[lze-1][lye-1][lxe-1].y < ymin_b
+                ) ||
+                (
+                  coor[zs ][ys ][xs ].z > zmax_b || coor[lze-1][lye-1][lxe-1].z < zmin_b
+                )
+            )
             {
-                if( b == ibF[c].bodyID)
-                {
-                    // set this ibm body to be controlled by this processor
-                    ibmBody->ibmControlled = 1;
-
-                    // set the communicator color
-                    commColor = 1;
-
-                    //atleast one ibm fluid cell close to this body found for this processor, break out of loop
-                    break;
-                }
-                else
-                {
-                    ibmBody->ibmControlled = 0;
-                }
+                ibmBody->ibmControlled = 0;
             }
+            else
+            {
+                // set this ibm body to be controlled by this processor
+                ibmBody->ibmControlled = 1;
+
+                // set the communicator color
+                commColor = 1;
+            }
+
         }
         else
         {
-            ibmBody->ibmControlled = 0;
+            if(ibm->numIBMFluid!=0)
+            {
+                // set this ibm body to be controlled by this processor
+                ibmBody->ibmControlled = 1;
+
+                // set the communicator color
+                commColor = 1;
+            }
+            else
+            {
+                ibmBody->ibmControlled = 0;
+            }
         }
 
         // create communicator
@@ -2740,6 +2845,8 @@ PetscErrorCode findIBMControlledProcs(ibm_ *ibm)
 
     }
 
+    DMDAVecRestoreArray(fda, Coor, &coor);
+
     MPI_Barrier(mesh->MESH_COMM);
 
     return (0);
@@ -2747,7 +2854,7 @@ PetscErrorCode findIBMControlledProcs(ibm_ *ibm)
 
 //***************************************************************************************************************//
 
-PetscErrorCode initFindIBMElementProcs(ibm_ *ibm)
+PetscErrorCode initElementProjectionProcs(ibm_ *ibm)
 {
     mesh_              *mesh = ibm->access->mesh;
     DM                 da = mesh->da, fda = mesh->fda;
@@ -2858,12 +2965,18 @@ PetscErrorCode initFindIBMElementProcs(ibm_ *ibm)
             // find the min distance among the ibm communicator processors
             MPI_Allreduce(&(lminDist[0]), &(gminDist[0]), nptsIBM, MPIU_REAL, MPIU_MIN, ibmBody->IBM_COMM);
 
+            PetscInt lsum = 0, gsum = 0;
             for(e = 0; e < ibMsh->elems; e++)
             {
                 // point is controlled
                 if(lminDist[e] == gminDist[e])
                 {
                     ibmBody->thisPtControlled[e] = 1;
+
+                    if(ibm->dbg)
+                    {
+                        lsum++;
+                    }
                 }
                 // point is not controlled
                 else
@@ -2873,6 +2986,19 @@ PetscErrorCode initFindIBMElementProcs(ibm_ *ibm)
 
                 //initialize flag for ibm element processor flag to 0
                 ibmBody->thisPtControlTransfer[e] = 0;
+            }
+
+            //for debug purpose
+            if(ibm->dbg)
+            {
+                // the master rank of this IBM_COMM communicator will write this IBM I/O file
+                PetscMPIInt thisIBMRank = 10;
+                MPI_Comm_rank(ibmBody->IBM_COMM, &thisIBMRank);
+
+                PetscPrintf(PETSC_COMM_SELF,"body %ld, controlling processor - global rank %ld (local rank %ld), number of elements = %ld\n", b, rank, thisIBMRank, lsum);
+                MPI_Allreduce(&lsum, &gsum, 1, MPIU_INT, MPIU_SUM, ibmBody->IBM_COMM);
+                PetscPrintf(ibmBody->IBM_COMM, "body %ld, total number of elements = %ld\n", b, gsum);
+
             }
 
             // clean memory
@@ -2892,7 +3018,7 @@ PetscErrorCode initFindIBMElementProcs(ibm_ *ibm)
 
 //***************************************************************************************************************//
 
-PetscErrorCode checkIBMElementControlledProcessor(ibm_ *ibm)
+PetscErrorCode IBMProjectionProcessorTransfer(ibm_ *ibm)
 {
     mesh_            *mesh = ibm->access->mesh;
     DM               da = mesh->da, fda = mesh->fda;
@@ -3070,6 +3196,31 @@ PetscErrorCode checkIBMElementControlledProcessor(ibm_ *ibm)
 
             }
 
+
+            if(ibm->dbg)
+            {
+                MPI_Barrier(ibmBody->IBM_COMM);
+
+                PetscInt lsum = 0, gsum = 0;
+                for(e = 0; e < ibMsh->elems; e++)
+                {
+                    //for debug purpose
+                    if(ibmBody->thisPtControlled[e] == 1 && ibm->dbg)
+                    {
+                        lsum++;
+                    }
+                }
+
+                // the master rank of this IBM_COMM communicator will write this IBM I/O file
+                PetscMPIInt thisIBMRank = 10;
+                MPI_Comm_rank(ibmBody->IBM_COMM, &thisIBMRank);
+
+                PetscPrintf(PETSC_COMM_SELF,"body %ld, controlling processor - global rank %ld (local rank %ld), number of elements = %ld\n", b, rank, thisIBMRank, lsum);
+                MPI_Allreduce(&lsum, &gsum, 1, MPIU_INT, MPIU_SUM, ibmBody->IBM_COMM);
+                PetscPrintf(ibmBody->IBM_COMM, "body %ld, total number of elements = %ld\n", b, gsum);
+
+            }
+
         }
 
     }
@@ -3084,10 +3235,450 @@ PetscErrorCode checkIBMElementControlledProcessor(ibm_ *ibm)
 
 //***************************************************************************************************************//
 
-PetscErrorCode elementBoundingSphere(ibmMesh *ibMesh)
+PetscErrorCode createProcessorBufferZones(ibm_ *ibm)
 {
+    mesh_         *mesh = ibm->access->mesh;
+    PetscInt      b;
+
+    DMDALocalInfo info = mesh->info;
+    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+
+    PetscInt       xs = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs = info.zs, ze = info.zs + info.zm;
+    PetscInt       mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt       lxs, lxe, lys, lye, lzs, lze;
+    PetscReal      buffer = 4.0;
+    Vec            Coor;
+    Cmpnts         ***coor;
+
+    PetscMPIInt   rank, size;
+    MPI_Comm_size(mesh->MESH_COMM, &size);
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // indices for internal cells
+    lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+    lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+    lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+    DMGetCoordinatesLocal(da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
+
+    // loop through the ibm bodies
+    for (b = 0; b < ibm->numBodies; b++)
+    {
+        ibmObject   *ibmBody  = ibm->ibmBody[b];
+        elementBox  *eBox = ibmBody->eBox;
+
+        if(ibmBody->ibmControlled)
+        {
+            //set the inner buffer zone - 2 cell widths from the cell boundary
+            eBox->innerZone.xmin = coor[lzs+1 ][lys ][lxs ].x - buffer;
+            eBox->innerZone.xmax = coor[lze-3 ][lye-1 ][lxe-1 ].x + buffer;
+            eBox->innerZone.ymin = coor[lzs ][lys ][lxs+1 ].y - buffer;
+            eBox->innerZone.ymax = coor[lze-1 ][lye-1 ][lxe-3 ].y + buffer;
+            eBox->innerZone.zmin = coor[lzs ][lys+1 ][lxs ].z - buffer;
+            eBox->innerZone.zmax = coor[lze-1 ][lye-3 ][lxe-1 ].z + buffer;
+
+            eBox->innerZone.Lx = eBox->innerZone.xmax - eBox->innerZone.xmin;
+            eBox->innerZone.Ly = eBox->innerZone.ymax - eBox->innerZone.ymin;
+            eBox->innerZone.Lz = eBox->innerZone.zmax - eBox->innerZone.zmin;
+
+            if(eBox->innerZone.Lx <= 0)
+            {
+                char error[512];
+                sprintf(error, "processor domain size in coordinate x direction is 4 cells or less. Cannot create inner buffer zone for ibm elements\n");
+                fatalErrorInFunction("createProcessorBufferZones",  error);
+            }
+
+            if(eBox->innerZone.Ly <= 0)
+            {
+                char error[512];
+                sprintf(error, "processor domain size in coordinate y direction is 4 cells or less. Cannot create inner buffer zone for ibm elements\n");
+                fatalErrorInFunction("createProcessorBufferZones",  error);
+            }
+
+            if(eBox->innerZone.Lz <= 0)
+            {
+                char error[512];
+                sprintf(error, "processor domain size in coordinate z direction is 4 cells or less. Cannot create inner buffer zone for ibm elements\n");
+                fatalErrorInFunction("createProcessorBufferZones",  error);
+            }
+
+            //set the outer buffer zone
+            //min values
+            if(lzs == 1)
+            {
+                eBox->outerZone.xmin = coor[lzs-1 ][lys ][lxs].x - buffer;
+            }
+            else
+            {
+                eBox->outerZone.xmin = coor[lzs-3 ][ys ][xs].x - buffer;
+            }
+
+            if(lxs == 1)
+            {
+                eBox->outerZone.ymin = coor[lzs ][lys ][lxs-1].y - buffer;
+            }
+            else
+            {
+                eBox->outerZone.ymin = coor[lzs ][lys ][lxs-3].y - buffer;
+            }
+
+            if(lys == 1)
+            {
+                eBox->outerZone.zmin = coor[lzs ][lys-1 ][lxs].z - buffer;
+            }
+            else
+            {
+                eBox->outerZone.zmin = coor[lzs ][lys-3 ][lxs].z - buffer;
+            }
+
+            //max values
+            if(lze == mz-1)
+            {
+                eBox->outerZone.xmax = coor[lze-1 ][lye-1 ][lxe-1].x + buffer;
+            }
+            else
+            {
+                eBox->outerZone.xmax = coor[lze+1 ][lye-1 ][lxe-1].x + buffer;
+            }
+
+            if(lxe == mx-1)
+            {
+                eBox->outerZone.ymax = coor[lze-1 ][lye-1 ][lxe-1].y + buffer;
+            }
+            else
+            {
+                eBox->outerZone.ymax = coor[lze-1 ][lye-1 ][lxe+1].y + buffer;
+            }
+
+            if(lye == my-1)
+            {
+                eBox->outerZone.zmax = coor[lze-1 ][lye-1 ][lxe-1].z + buffer;
+            }
+            else
+            {
+                eBox->outerZone.zmax = coor[lze-1 ][lye+1 ][lxe-1].z + buffer;
+            }
+
+            eBox->outerZone.Lx = eBox->outerZone.xmax - eBox->outerZone.xmin;
+            eBox->outerZone.Ly = eBox->outerZone.ymax - eBox->outerZone.ymin;
+            eBox->outerZone.Lz = eBox->outerZone.zmax - eBox->outerZone.zmin;
+
+            if(ibm->dbg)
+            {
+                PetscPrintf(PETSC_COMM_SELF, "Rank = %d, inner box dimensions:\n   xmin = %lf, xmax = %lf\n   ymin = %lf, ymax = %lf\n   zmin = %lf, zmax = %lf\n   Lx = %lf, Ly = %lf, Lz = %lf\n", rank, eBox->innerZone.xmin, eBox->innerZone.xmax, eBox->innerZone.ymin,
+                                eBox->innerZone.ymax, eBox->innerZone.zmin, eBox->innerZone.zmax, eBox->innerZone.Lx, eBox->innerZone.Ly, eBox->innerZone.Lz);
+
+                PetscPrintf(PETSC_COMM_SELF, "Rank = %d, outer box dimensions:\n   xmin = %lf, xmax = %lf\n   ymin = %lf, ymax = %lf\n   zmin = %lf, zmax = %lf\n   Lx = %lf, Ly = %lf, Lz = %lf\n", rank, eBox->outerZone.xmin, eBox->outerZone.xmax, eBox->outerZone.ymin,
+                                                eBox->outerZone.ymax, eBox->outerZone.zmin, eBox->outerZone.zmax, eBox->outerZone.Lx, eBox->outerZone.Ly, eBox->outerZone.Lz);
+
+            }
+        }
+        else
+        {
+            //initialize the bounding box to extreme values
+            eBox->outerZone.xmin =  1.e23;
+            eBox->outerZone.xmax = -1.e23;
+            eBox->outerZone.ymin =  1.e23;
+            eBox->outerZone.ymax = -1.e23;
+            eBox->outerZone.zmin =  1.e23;
+            eBox->outerZone.zmax = -1.e23;
+
+            eBox->outerZone.Lx   =  0.;
+            eBox->outerZone.Ly   =  0.;
+            eBox->outerZone.Lz   =  0.;
+
+        }
+    }
+
+    DMDAVecRestoreArray(fda, Coor, &coor);
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode initElementProcs(ibm_ *ibm)
+{
+    Cmpnts             p1, p2, p3;
+    PetscInt           b, e;
+    mesh_              *mesh  = ibm->access->mesh;
+
+    //create the processor inner and outer buffer zones
+    createProcessorBufferZones(ibm);
+
+    // loop through the ibm bodies
+    for (b = 0; b < ibm->numBodies; b++)
+    {
+
+        ibmObject   *ibmBody  = ibm->ibmBody[b];
+        ibmMesh     *ibMsh    = ibmBody->ibMsh;                         // pointer to the ibm body mesh
+        PetscInt    *nv1      = ibMsh->nID1,
+                    *nv2      = ibMsh->nID2,
+                    *nv3      = ibMsh->nID3;
+        Cmpnts      *nCoor    = ibMsh->nCoor;
+
+        PetscMPIInt   ibmRank, ibmProcSize;
+        MPI_Comm_size(ibmBody->IBM_COMM, &ibmProcSize);
+        MPI_Comm_rank(ibmBody->IBM_COMM, &ibmRank);
+
+        //check if process controls this ibm body
+        if(ibmBody->ibmControlled)
+        {
+            elementBox  *eBox = ibmBody->eBox;
+            PetscInt    sum = 0;
+
+            //loop through the ibm mesh elements
+            for(e = 0; e < ibMsh->elems; e++)
+            {
+                //element node coordinates
+                p1 = nCoor[nv1[e]];
+                p2 = nCoor[nv2[e]];
+                p3 = nCoor[nv3[e]];
+
+                //check if the element node coordinates is in the outer buffer zone of the processor
+                if(    isInsideBoundingBox(p1, eBox->outerZone)
+                    || isInsideBoundingBox(p2, eBox->outerZone)
+                    || isInsideBoundingBox(p3, eBox->outerZone)
+                )
+                {
+                    eBox->thisElemControlled[e] = 1;
+                }
+                else
+                {
+                    eBox->thisElemControlled[e] = 0;
+                }
+
+                //initialize flag for ibm element transfer to 0
+                eBox->thisElemTransfered[e] = 0;
+
+                if(ibm->dbg && eBox->thisElemControlled[e] == 1)
+                {
+                    sum++;
+                }
+            }
+
+            if(ibm->dbg)
+            {
+                PetscPrintf(PETSC_COMM_SELF, "rank = %d, number of ibm elements = %ld\n", ibmRank, sum);
+            }
+        }
+
+    }
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+/*the elements of the ibm mesh are divided among the ibm processors based on the location of the element center.
+ 2 buffer zones are created around the processor boundary - the inner zone and the outer zone
+ these buffer zones determine if the processor controls this element, if needs to be transferred to another processor
+ or removed from the current processor.
+ Based on this, an element can belong to multiple processors at the same time.
+
+ Based on the element location w.r.t processor boundary and the buffer zone, the processor can decide to:
+ a) Control this element - use it in its calculations
+ b) Transfer it to another processor - transfer does not mean elimination from the current processor
+ c) Delete it from the current processor
+*/
+
+PetscErrorCode IBMElementProcessorTransfer(ibm_ *ibm)
+{
+    mesh_            *mesh = ibm->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         c, b, e;
+
+    Cmpnts           p1, p2, p3;
+
+    Cmpnts           ***cent;
+    PetscReal        ***nvert;
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    // loop through the ibm bodies
+    for (b = 0; b < ibm->numBodies; b++)
+    {
+        ibmObject   *ibmBody  = ibm->ibmBody[b];
+        ibmMesh     *ibMsh    = ibmBody->ibMsh;
+        PetscInt    *nv1      = ibMsh->nID1,
+                    *nv2      = ibMsh->nID2,
+                    *nv3      = ibMsh->nID3;
+        Cmpnts      *nCoor    = ibMsh->nCoor;
+
+
+        //check if process controls this ibm body
+        if(ibmBody->ibmControlled)
+        {
+            elementBox  *eBox     = ibmBody->eBox;
+
+            //find the current ibm processor rank and total ibm processors
+            PetscMPIInt   ibmRank, ibmProcSize;
+            MPI_Comm_size(ibmBody->IBM_COMM, &ibmProcSize);
+            MPI_Comm_rank(ibmBody->IBM_COMM, &ibmRank);
+
+            // create temporary vectors
+            std::vector <PetscInt>   lNumTransfers(ibmProcSize);
+            std::vector <PetscInt>   gNumTransfers(ibmProcSize);
+
+            std::vector <PetscInt>   lTransferElem;
+            std::vector <PetscInt>   gTransferElem;
+
+            // total number of transfer elements, start index within the global element transfer array
+            PetscInt   totalNumTransfers = 0, startInd = 0;
+
+            //initialize the temporary arrays
+            for (c=0; c < ibmProcSize; c++){
+                lNumTransfers[c] = 0;
+                gNumTransfers[c] = 0;
+            }
+
+            //loop through the ibm mesh elements
+            for(e = 0; e < ibMsh->elems; e++)
+            {
+                //this processor previosly controlled this ibm element
+                if(eBox->thisElemControlled[e])
+                {
+                    //element node coordinates
+                    p1 = nCoor[nv1[e]];
+                    p2 = nCoor[nv2[e]];
+                    p3 = nCoor[nv3[e]];
+
+                    //check the element location w.r.t processor buffer zones
+                    if(    isInsideBoundingBox(p1, eBox->outerZone)
+                        || isInsideBoundingBox(p2, eBox->outerZone)
+                        || isInsideBoundingBox(p3, eBox->outerZone)
+                    )
+                    {
+                        eBox->thisElemControlled[e] = 1;
+                        eBox->thisElemTransfered[e] = 1;
+
+                        if(    isInsideBoundingBox(p1, eBox->innerZone)
+                            || isInsideBoundingBox(p2, eBox->innerZone)
+                            || isInsideBoundingBox(p3, eBox->innerZone)
+                        )
+                        {
+                            eBox->thisElemTransfered[e] = 0;
+                        }
+                    }
+                    else
+                    {
+                        eBox->thisElemControlled[e] = 0;
+                        eBox->thisElemTransfered[e] = 0;
+                    }
+
+                    if(eBox->thisElemTransfered[e])
+                    {
+                        lNumTransfers[ibmRank]++;
+                    }
+
+                }
+
+            }
+
+            //scatter the number of transfers for each processor
+            MPI_Allreduce(&(lNumTransfers[0]), &(gNumTransfers[0]), ibmProcSize, MPIU_INT, MPI_SUM, ibmBody->IBM_COMM);
+
+            //find total number of transfer elements
+            for (c=0; c < ibmProcSize; c++){
+                totalNumTransfers += gNumTransfers[c];
+            }
+
+            lTransferElem.resize(totalNumTransfers);
+            gTransferElem.resize(totalNumTransfers);
+
+            //find the start index for each processor in lTransferElem array
+            for (c=0; c< ibmRank; c++){
+                startInd += gNumTransfers[c];
+            }
+
+            //loop through the elements and fill the lTransferElem array
+            for(e = 0; e < ibMsh->elems; e++)
+            {
+                if(eBox->thisElemTransfered[e])
+                {
+                    lTransferElem[startInd] = e;
+                    startInd++;
+                }
+            }
+
+            //scatter the lTransferElem array among all the ibm processors
+            MPI_Allreduce(&lTransferElem[0], &(gTransferElem[0]), totalNumTransfers, MPIU_INT, MPI_SUM, ibmBody->IBM_COMM);
+
+            //loop through the transferred elements and see if they are in the processor buffer zone for transfer
+            for(c = 0; c < totalNumTransfers; c++)
+            {
+                e = gTransferElem[c];
+
+                //element center
+                p1 = nCoor[nv1[e]];
+                p2 = nCoor[nv2[e]];
+                p3 = nCoor[nv3[e]];
+
+                if(    isInsideBoundingBox(p1, eBox->outerZone)
+                    || isInsideBoundingBox(p2, eBox->outerZone)
+                    || isInsideBoundingBox(p3, eBox->outerZone)
+                )
+                {
+                    eBox->thisElemControlled[e] = 1;
+                }
+
+            }
+
+            if(ibm->dbg)
+            {
+                PetscInt sum = 0;
+                for(e = 0; e < ibMsh->elems; e++)
+                {
+                    if(eBox->thisElemControlled[e])
+                    {
+                        sum++;
+                    }
+
+                }
+                PetscPrintf(PETSC_COMM_SELF, "rank = %d, ibm elements controlled= %ld, transferred = %ld\n", ibmRank, sum, lNumTransfers[ibmRank]);
+            }
+
+            //clean the temporary vectors
+            std::vector<PetscInt> ().swap(lNumTransfers);
+            std::vector<PetscInt> ().swap(gNumTransfers);
+
+            std::vector<PetscInt> ().swap(lTransferElem);
+            std::vector<PetscInt> ().swap(gTransferElem);
+
+        }
+
+    }
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode elementBoundingSphere(ibmObject *ibmBody)
+{
+    ibmMesh     *ibMesh = ibmBody->ibMsh;
+    elementBox  *eBox = ibmBody->eBox;
     PetscInt    n1, n2, n3;
-    Cmpnts      p1, p2, p3, tmp1, tmp2, tmp3;
+    Cmpnts      p1, p2, p3;
     Cmpnts      pa, pb, pc, pf, pu, pv, pd, pt;
     PetscReal   l12, l23, l31, lu, lv;
     PetscReal   gama, lamda;
@@ -3095,91 +3686,96 @@ PetscErrorCode elementBoundingSphere(ibmMesh *ibMesh)
     Cmpnts      *qvec = ibMesh->eQVec;
     PetscReal   *rvec = ibMesh->eRVec;
 
-    for (PetscInt i=0; i<ibMesh->elems; i++)
+    //check if processor controls this ibm body
+    if(ibmBody->ibmControlled)
     {
-        // get the element nodes
-        n1 = ibMesh->nID1[i]; n2 = ibMesh->nID2[i]; n3 = ibMesh->nID3[i];
-
-        p1 = ibMesh->nCoor[n1]; p2 = ibMesh->nCoor[n2]; p3 = ibMesh->nCoor[n3];
-
-        tmp1 = nSum(p1, p2);
-        tmp2 = nSum(p2, p3);
-        tmp3 = nSum(p3, p1);
-
-        l12 = nMag(tmp1);
-        l23 = nMag(tmp2);
-        l31 = nMag(tmp3);
-
-        //Find the longest edge and assign the corresponding two vertices to pa and pb
-        if (l12 > l23)
+        for (PetscInt i=0; i<ibMesh->elems; i++)
         {
-            if (l12 > l31)
+            //this processor controls this ibm element
+            if(eBox->thisElemControlled[i])
             {
-                pa = p1;
-                pb = p2;
-                pc = p3;
+                // get the element nodes
+                n1 = ibMesh->nID1[i]; n2 = ibMesh->nID2[i]; n3 = ibMesh->nID3[i];
+
+                p1 = ibMesh->nCoor[n1]; p2 = ibMesh->nCoor[n2]; p3 = ibMesh->nCoor[n3];
+
+                l12 = nMag(nSub(p1, p2));
+                l23 = nMag(nSub(p2, p3));
+                l31 = nMag(nSub(p3, p1));
+
+                //Find the longest edge and assign the corresponding two vertices to pa and pb
+                if (l12 > l23)
+                {
+                    if (l12 > l31)
+                    {
+                        pa = p1;
+                        pb = p2;
+                        pc = p3;
+                    }
+                    else
+                    {
+                        pa = p3;
+                        pb = p1;
+                        pc = p2;
+                    }
+                }
+                else
+                {
+                    if (l31 < l23)
+                    {
+                        pa = p2;
+                        pb = p3;
+                        pc = p1;
+                    }
+                    else
+                    {
+                        pa = p3;
+                        pb = p1;
+                        pc = p2;
+                    }
+                }
+
+                pf = nSum(pa, pb);
+                mScale(0.5, pf);
+
+                // u = a - f; v = c - f;
+                pu = nSub(pa, pf);
+                pv = nSub(pc, pf);
+
+                // d = (u X v) X u;
+                pt = nCross(pu, pv);
+                pd = nCross(pt, pu);
+
+                // gama = (v^2 - u^2) / (2 d \dot (v - u));
+                lu   = nMag(pu);
+                lv   = nMag(pv);
+
+                gama = lv * lv - lu * lu ;
+
+                pt    = nSub(pv, pu);
+                lamda = 2.0 * nDot(pd, pt);
+
+                gama  /= lamda;
+
+                if (gama < 0)
+                {
+                    lamda = 0;
+                }
+                else
+                {
+                    lamda = gama;
+                }
+
+
+                qvec[i] = nSet(pd);
+                mScale(lamda, qvec[i]);
+                mSum(qvec[i], pf);
+
+                rvec[i] = nMag(nSub(qvec[i], pa));
             }
-            else
-            {
-                pa = p3;
-                pb = p1;
-                pc = p2;
-            }
-        }
-        else
-        {
-            if (l31 < l23)
-            {
-                pa = p2;
-                pb = p3;
-                pc = p1;
-            }
-            else
-            {
-                pa = p3;
-                pb = p1;
-                pc = p2;
-            }
+
         }
 
-        pf = nSum(pa, pb);
-        mScale(0.5, pf);
-
-        // u = a - f; v = c - f;
-        pu = nSub(pa, pf);
-        pv = nSub(pc, pf);
-
-        // d = (u X v) X u;
-        pt = nCross(pu, pv);
-        pd = nCross(pt, pu);
-
-        // gama = (v^2 - u^2) / (2 d \dot (v - u));
-        lu   = nMag(pu);
-        lv   = nMag(pv);
-
-        gama = lv * lv - lu * lu ;
-
-        pt    = nSub(pv, pu);
-        lamda = 2.0 * nDot(pd, pt);
-
-        gama  /= lamda;
-
-        if (gama < 0)
-        {
-            lamda = 0;
-        }
-        else
-        {
-            lamda = gama;
-        }
-
-
-        qvec[i] = nSet(pd);
-        mScale(lamda, qvec[i]);
-        mSum(qvec[i], pf);
-
-        tmp1 = nSub(qvec[i], pa);
-        rvec[i] = nMag(tmp1);
     }
 
     return(0);
@@ -3222,6 +3818,32 @@ PetscErrorCode findBodyBoundingBox(ibm_ *ibm)
       ibBox.zmin = PetscMin(ibBox.zmin, ibMsh->nCoor[n].z);
       ibBox.zmax = PetscMax(ibBox.zmax, ibMsh->nCoor[n].z);
     }
+
+    // if(ibm->ibmBody[i]->bodyMotion == "rotation")
+    // {
+    //     ibmRotation   *ibmRot  = ibm->ibmBody[i]->ibmRot;
+    //
+    //     Cmpnts rotPlaneVec = nUnit(ibmRot->rotAxis);
+    //
+    //     rotPlaneVec.x = 1.0 - rotPlaneVec.x;
+    //     rotPlaneVec.y = 1.0 - rotPlaneVec.y;
+    //     rotPlaneVec.z = 1.0 - rotPlaneVec.z;
+    //
+    //     Cmpnts radVec = nSet(nScale(ibmRot->maxR, rotPlaneVec));
+    //
+    //     Cmpnts minRadVec = nSet(nSub(ibmRot->rotCenter, radVec));
+    //     Cmpnts maxRadVec = nSet(nSum(ibmRot->rotCenter, radVec));
+    //
+    //     ibBox.xmin = PetscMin(ibBox.xmin, minRadVec.x);
+    //     ibBox.xmax = PetscMax(ibBox.xmax, maxRadVec.x);
+    //
+    //     ibBox.ymin = PetscMin(ibBox.ymin, minRadVec.y);
+    //     ibBox.ymax = PetscMax(ibBox.ymax, maxRadVec.y);
+    //
+    //     ibBox.zmin = PetscMin(ibBox.zmin, minRadVec.z);
+    //     ibBox.zmax = PetscMax(ibBox.zmax, maxRadVec.z);
+    //
+    // }
 
     // set a buffer for the bounding box
     ibBox.xmin -= 0.05;
@@ -3562,7 +4184,6 @@ PetscErrorCode findSearchCellDim(ibm_ *ibm)
         //compare the searchCellsize to the body bounding box
         boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
         searchBox     *sBox  = &(ibm->sBox[b]);
-
         //search cell size taken to be n times the average cell size
         searchCellsize = ibm->ibmBody[b]->searchCellRatio * cellSize;
 
@@ -3570,8 +4191,11 @@ PetscErrorCode findSearchCellDim(ibm_ *ibm)
         sBox->ncy = ceil(ibBox->Ly/searchCellsize);
         sBox->ncz = ceil(ibBox->Lz/searchCellsize);
 
-        //set a default value (override - hard coded for now)
-        sBox->ncx = 10; sBox->ncy = 10; sBox->ncz = 10;
+        //set a default value
+        // if(b == 1)
+        // {
+            sBox->ncx = 10; sBox->ncy = 10; sBox->ncz = 10;
+        // }
 
         // cell size for the search algorithm
         sBox->dcx = (ibBox->Lx) / (sBox->ncx);
@@ -3634,8 +4258,13 @@ PetscErrorCode createSearchCellList(ibm_ *ibm)
             n2 = ibMsh->nID2[e];
             n3 = ibMsh->nID3[e];
 
-            if(e%1000 == 0 && ibm->dbg)
-                PetscPrintf(PETSC_COMM_WORLD, "element = %ld\n", e);
+            PetscReal solutionTimeStart, solutionTimeEnd;
+
+            // if(e%1000 == 1 && ibm->dbg)
+            // {
+            //     PetscTime(&solutionTimeStart);
+            //     PetscPrintf(PETSC_COMM_WORLD, "element = %ld\n", e);
+            // }
 
             // min and max coordinate value of the element vertices
             xv_min = PetscMin( PetscMin( ibMsh->nCoor[n1].x, ibMsh->nCoor[n2].x ), ibMsh->nCoor[n3].x );
@@ -3675,6 +4304,12 @@ PetscErrorCode createSearchCellList(ibm_ *ibm)
                     }
                 }
             }
+
+            // if(e%1000 == 0 && ibm->dbg)
+            // {
+            //     PetscTime(&solutionTimeEnd);
+            //     PetscPrintf(PETSC_COMM_WORLD, "Total ibm search cell time = %lf s\n", solutionTimeEnd - solutionTimeStart);
+            // }
         }
     }
 
@@ -3771,6 +4406,109 @@ inline void insertIBMSupportNodes(Cmpnts pt, cellIds sCell, ibmFluidCell *ibF, i
     currentElem = currentElem->next;
   }
   return;
+}
+
+//***************************************************************************************************************//
+PetscErrorCode rayCastLocal(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts p3, Cmpnts p4, ibmMesh *ibMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList, PetscInt &intersect)
+{
+    PetscInt	i, j, k, e;
+    PetscBool   cutElement;
+    PetscInt    ks, js, is;
+    PetscInt    kp, jp, ip;
+
+    node        *current;
+    PetscBool	*Element_Searched;
+
+    kp = sCell.k;
+    jp = sCell.j;
+    ip = sCell.i;
+
+    ks=PetscMax(kp-1,0);
+    js=PetscMax(jp-1,0);
+    is=PetscMax(ip-1,0);
+
+    Element_Searched = new PetscBool[ibMsh->elems];
+
+    for (e = 0; e < ibMsh->elems; e++)
+    {
+        Element_Searched[e] = PETSC_FALSE;
+    }
+
+    for (k=ks; k<kp+2 && k<sBox->ncz; k++)
+    {
+        for (j=js; j<jp+2 && j<sBox->ncy; j++)
+        {
+            for (i=is; i<ip+2 && i<sBox->ncx; i++)
+            {
+                current = searchCellList[k * sBox->ncx * sBox->ncy + j * sBox->ncx + i].head;
+
+                while(current)
+                {
+                    // element currently pointed to
+                    e = current->Node;
+
+                    if (!Element_Searched[e])
+                    {
+                        Element_Searched[e] = PETSC_TRUE;
+
+                        cutElement = isLineTriangleInt(p, p1, ibMsh, e);
+
+                        if (cutElement)
+                        {
+                            break;
+                        }
+
+                        cutElement = isLineTriangleInt(p, p2, ibMsh, e);
+
+                        if (cutElement)
+                        {
+                            break;
+                        }
+
+                        cutElement = isLineTriangleInt(p, p3, ibMsh, e);
+
+                        if (cutElement)
+                        {
+                            break;
+                        }
+
+                        cutElement = isLineTriangleInt(p, p4, ibMsh, e);
+
+                        if (cutElement)
+                        {
+                            break;
+                        }
+                    }
+
+                    current = current->next;
+                }
+                if (cutElement)
+                {
+                    break;
+                }
+            }
+            if (cutElement)
+            {
+                break;
+            }
+        }
+        if (cutElement)
+        {
+            break;
+        }
+    }
+
+    if (cutElement)
+    {
+        intersect = 2;
+    }
+    else
+    {
+        intersect = 0;
+    }
+
+    PetscFree(Element_Searched);
+    return (0);
 }
 
 //***************************************************************************************************************//
@@ -4000,6 +4738,71 @@ inline PetscInt intsectElement(Cmpnts p, Cmpnts dir, Cmpnts node1, Cmpnts node2,
 
   *t = nDot(edge2, qvec) * invDet;
   return 1;
+}
+
+//***************************************************************************************************************//
+
+inline PetscBool isLineTriangleInt(Cmpnts p1, Cmpnts p2, ibmMesh *ibMsh, PetscInt e)
+{
+    PetscInt  cutthrough = 0;
+    PetscInt  n1e, n2e, n3e;
+
+    Cmpnts    pe1, pe2, pe3, nor;
+    Cmpnts    dp1, p2p1, pe2pe1, pe3pe1, pint;
+
+    PetscReal tf1, tf2, d;
+
+    n1e = ibMsh->nID1[e];
+    n2e = ibMsh->nID2[e];
+    n3e = ibMsh->nID3[e];
+
+    pe1 = ibMsh->nCoor[n1e];
+    pe2 = ibMsh->nCoor[n2e];
+    pe3 = ibMsh->nCoor[n3e];
+
+    nor = ibMsh->eN[e];
+
+    tf1 = nDot(nSub(p1, pe1), nor);
+    tf2 = nDot(nSub(p2, pe1), nor);
+
+    if(tf1 * tf2 < 0)
+    {
+        //p1 & p2 on different sides of triangle
+        dp1 = nSub(p1, pe1);
+        p2p1 = nSub(p2, p1);
+
+        pe2pe1 = nSub(pe2, pe1);
+        pe3pe1 = nSub(pe3, pe1);
+
+        PetscReal dx1, dy1, dz1, dx2, dy2, dz2, dx3, dy3, dz3;
+
+        PetscReal nftx, nfty, nftz;
+
+        dx1 = dp1.x, dy1 = dp1.y, dz1 = dp1.z;
+
+        nftx = p2p1.x; nfty = p2p1.y; nftz = p2p1.z;
+
+        dx2 = pe2pe1.x; dy2 = pe2pe1.y; dz2 = pe2pe1.z;
+        dx3 = pe3pe1.x; dy3 = pe3pe1.y; dz3 = pe3pe1.z;
+
+        d = - (dx1 * (dy2 * dz3 - dz2 * dy3) -
+           dy1 * (dx2 * dz3 - dz2 * dx3) +
+           dz1 * (dx2 * dy3 - dy2 * dx3)) /
+             (nftx * (dy2 * dz3 - dz2 * dy3) -
+          nfty * (dx2 * dz3 - dz2 * dx3) +
+          nftz * (dx2 * dy3 - dy2 * dx3));
+
+        pint = nSum(p1, nScale(d, p2p1));
+
+        cutthrough = isPointInTriangle(pint, pe1, pe2, pe3, nor);
+
+        if (cutthrough == 1)
+        {
+            return (PETSC_TRUE);
+        }
+    }
+
+    return (PETSC_FALSE);
 }
 
 //***************************************************************************************************************//

@@ -27,6 +27,7 @@
 -absTolU                   1e-6
 -poissonIt                 10
 -poissonTol                1e-10
+-poissonSolver             HYPRE
 
 # Turbulence Model
 # ---------------------------------

@@ -142,6 +142,7 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
 {
     mesh_   *mesh  = io->access->mesh;
     clock_  *clock = io->access->clock;
+    flags_  *flags = io->access->flags;
 
     PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
@@ -166,19 +167,29 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
     peqn_ *peqn = io->access->peqn;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-poissonIt", &(peqn->poissonIt), PETSC_NULL);
     PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-poissonTol", &(peqn->poissonTol), PETSC_NULL);
-    HYPRE_BoomerAMGSetTol (peqn->PC, peqn->poissonTol);
-    if(peqn->hypreSolverType == 1)
+
+    if(peqn->solverType == "HYPRE")
     {
-        HYPRE_GMRESSetMaxIter   (peqn->hypreSlvr, peqn->poissonIt);
-        HYPRE_GMRESSetTol       (peqn->hypreSlvr, peqn->poissonTol);
+        HYPRE_BoomerAMGSetTol (peqn->hyprePC, peqn->poissonTol);
+        if(peqn->hypreSolverType == 1)
+        {
+            HYPRE_GMRESSetMaxIter   (peqn->hypreSlvr, peqn->poissonIt);
+            HYPRE_GMRESSetTol       (peqn->hypreSlvr, peqn->poissonTol);
+        }
+        else if(peqn->hypreSolverType == 2)
+        {
+            HYPRE_PCGSetMaxIter   (peqn->hypreSlvr, peqn->poissonIt);
+            HYPRE_PCGSetTol       (peqn->hypreSlvr, peqn->poissonTol);
+        }
     }
-    else if(peqn->hypreSolverType == 2)
+    else if(peqn->solverType == "PETSc")
     {
-        HYPRE_PCGSetMaxIter   (peqn->hypreSlvr, peqn->poissonIt);
-        HYPRE_PCGSetTol       (peqn->hypreSlvr, peqn->poissonTol);
+        KSPSetTolerances(peqn->ksp, 1e-30, peqn->poissonTol, 1e30, peqn->poissonIt);
     }
 
     io->lastModification = modified;
+
+    MPI_Barrier(mesh->MESH_COMM);
 
     return(0);
 }

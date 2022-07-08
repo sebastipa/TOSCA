@@ -55,23 +55,43 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
     peqn->poissonIt       = 8;
     peqn->poissonTol      = 1.e-8;
 
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-amgAgg",    &(peqn->amgAgg),   PETSC_NULL);
-    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-amgThresh", &(peqn->amgThresh), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-amgCoarsenType", &(peqn->amgCoarsenType), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-poissonIt", &(peqn->poissonIt), PETSC_NULL);
-    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-poissonTol", &(peqn->poissonTol), PETSC_NULL);
+    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-amgAgg",         &(peqn->amgAgg),          PETSC_NULL);
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-amgThresh",      &(peqn->amgThresh),       PETSC_NULL);
+    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-amgCoarsenType", &(peqn->amgCoarsenType),  PETSC_NULL);
+    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-poissonIt",      &(peqn->poissonIt),       PETSC_NULL);
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-poissonTol",     &(peqn->poissonTol),      PETSC_NULL);
+    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-hypreSolverType",&(peqn->hypreSolverType), PETSC_NULL);
+    readDictWord       ("control.dat",          "-poissonSolver",  &(peqn->solverType));
 
     // compute connectivity and create the solver
     SetPoissonConnectivity(peqn);
 
-    // create parallel coeff. matrix framework
-    CreateHypreMatrix(peqn);
+    if(peqn->solverType == "HYPRE")
+    {
+        // create parallel coeff. matrix framework
+        CreateHypreMatrix(peqn);
 
-    // create parallel sol and rhs vector frameworks
-    CreateHypreVector(peqn);
+        // create parallel sol and rhs vector frameworks
+        CreateHypreVector(peqn);
 
-    // create solver framework
-    CreateHypreSolver(peqn);
+        // create solver framework
+        CreateHypreSolver(peqn);
+    }
+    else if(peqn->solverType == "PETSc")
+    {
+        // create parallel rhs vector frameworks
+        CreatePETScVector(peqn);
+
+        // create parallel coeff. matrix framework
+        CreatePETScMatrix(peqn);
+
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "unknown solverType type %s. Known types are HYPRE and PETSc\n", peqn->solverType.c_str());
+        fatalErrorInFunction("InitializePEqn",  error);
+    }
 
     // if ibm active set the pressure interpolation cells for coefficient matrix
     if(peqn->access->flags->isIBMActive)
@@ -81,11 +101,23 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
         if( !(peqn->access->ibm->dynamic) )
         {
             SetCoeffMatrix(peqn);
+
+            if(peqn->solverType == "PETSc")
+            {
+                // create solver framework
+                CreatePETScSolver(peqn);
+            }
         }
     }
     else
     {
         SetCoeffMatrix(peqn);
+
+        if(peqn->solverType == "PETSc")
+        {
+            // create solver framework
+            CreatePETScSolver(peqn);
+        }
     }
 
     return(0);
@@ -303,7 +335,7 @@ PetscErrorCode CreateHypreMatrix(peqn_ *peqn)
 
     for(PetscInt i=0; i<peqn->thisRankSize; i++)
     {
-        nonZeroEntriesPerRow[i] = 27;
+        nonZeroEntriesPerRow[i] = 19;
     }
 
     HYPRE_IJMatrixCreate
@@ -340,6 +372,37 @@ PetscErrorCode CreateHypreMatrix(peqn_ *peqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode CreatePETScMatrix(peqn_ *peqn)
+{
+    mesh_         *mesh  = peqn->access->mesh;
+    flags_        *flags = peqn->access->flags;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      localSize;
+
+    MatCreate(mesh->MESH_COMM, &(peqn->petscA));
+    VecGetLocalSize(peqn->phi, &localSize);
+    MatSetSizes(peqn->petscA, localSize, localSize, PETSC_DETERMINE, PETSC_DETERMINE);
+    MatSetType(peqn->petscA,MATMPIAIJ);
+    MatMPIAIJSetPreallocation(peqn->petscA, 19, PETSC_NULL, 10, PETSC_NULL);
+    MatSetFromOptions(peqn->petscA);
+
+    // this option tells PETSc that if sparsity patterns changes its ok (for dynamic IBM cases, does internal reallocation stuff)
+    MatSetOption(peqn->petscA, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+
+    // this option tells PETSc to force constant sparsity pattern discarding new entries
+    //MatSetOption(peqn->petscA,MAT_NEW_NONZERO_LOCATIONS,PETSC_FALSE);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode CreateHypreVector(peqn_ *peqn)
 {
     // p vector
@@ -355,6 +418,15 @@ PetscErrorCode CreateHypreVector(peqn_ *peqn)
     HYPRE_IJVectorGetObject(peqn->hypreP,   (void **) &(peqn->hypreParP  ));
     HYPRE_IJVectorGetObject(peqn->hypreRhs, (void **) &(peqn->hypreParRhs));
 
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode CreatePETScVector(peqn_ *peqn)
+{
+    VecDuplicate(peqn->phi, &peqn->petscRhs);
+    VecSet(peqn->petscRhs,0.0);
     return(0);
 }
 
@@ -381,35 +453,35 @@ PetscErrorCode CreateHypreSolver(peqn_ *peqn)
     // 22 CGC-E coarsening by M. Griebel, B. Metsch and A.Schweitzer
 
     // PRECONDITIONER
-    HYPRE_BoomerAMGCreate(&(peqn->PC));
-    HYPRE_BoomerAMGSetInterpType(peqn->PC, 13);                    // 6:ext, 13: FF1
+    HYPRE_BoomerAMGCreate(&(peqn->hyprePC));
+    HYPRE_BoomerAMGSetInterpType(peqn->hyprePC, 13);                    // 6:ext, 13: FF1
 
     if(peqn->amgAgg)
     {
-        HYPRE_BoomerAMGSetAggNumLevels(peqn->PC, peqn->amgAgg);    // FF1 + aggresive coarsening is good for > 50mil grids
+        HYPRE_BoomerAMGSetAggNumLevels(peqn->hyprePC, peqn->amgAgg);    // FF1 + aggresive coarsening is good for > 50mil grids
     }
 
-    HYPRE_BoomerAMGSetStrongThreshold(peqn->PC, peqn->amgThresh);  // 0.5 : Cartesian, 0.6 : Distorted
+    HYPRE_BoomerAMGSetStrongThreshold(peqn->hyprePC, peqn->amgThresh);  // 0.5 : Cartesian, 0.6 : Distorted
 
-    HYPRE_BoomerAMGSetTol (peqn->PC, peqn->poissonTol);
-    HYPRE_BoomerAMGSetPrintLevel(peqn->PC, 0);                     // 1
-    HYPRE_BoomerAMGSetCoarsenType(peqn->PC, peqn->amgCoarsenType); // 0:CLJP, 6:Falgout, 8:PMIS, 10:HMIS,
-    HYPRE_BoomerAMGSetCycleType(peqn->PC, 1);                      // 1
-    HYPRE_BoomerAMGSetMaxIter(peqn->PC, 3);                        // haji 28 oct 2017 set it to 2 (it was 1 before)
+    HYPRE_BoomerAMGSetTol (peqn->hyprePC, peqn->poissonTol);
+    HYPRE_BoomerAMGSetPrintLevel(peqn->hyprePC, 0);                     // 1
+    HYPRE_BoomerAMGSetCoarsenType(peqn->hyprePC, peqn->amgCoarsenType); // 0:CLJP, 6:Falgout, 8:PMIS, 10:HMIS,
+    HYPRE_BoomerAMGSetCycleType(peqn->hyprePC, 1);                      // 1
+    HYPRE_BoomerAMGSetMaxIter(peqn->hyprePC, 3);                        // haji 28 oct 2017 set it to 2 (it was 1 before)
 
     //HYPRE_BoomerAMGSetRelaxType(precon_p, 6);
     //HYPRE_BoomerAMGSetRelaxWt(precon_p,0.8);
     //HYPRE_BoomerAMGSetCycleNumSweeps(precon_p,5,3);         // 5 sweep at coarsest level
     //HYPRE_BoomerAMGSetLevelOuterWt(precon_p,0.5,0);
-    HYPRE_BoomerAMGSetSmoothType(peqn->PC, 7);                 // more complex smoother
-    HYPRE_BoomerAMGSetSmoothNumSweeps(peqn->PC,3);
+    HYPRE_BoomerAMGSetSmoothType(peqn->hyprePC, 7);                 // more complex smoother
+    HYPRE_BoomerAMGSetSmoothNumSweeps(peqn->hyprePC,3);
 
     // SOLVER
     if(peqn->hypreSolverType == 1)
     {
         HYPRE_ParCSRGMRESCreate (peqn->access->mesh->MESH_COMM, &(peqn->hypreSlvr));
         HYPRE_ParCSRGMRESSetKDim(peqn->hypreSlvr, 5);
-        HYPRE_GMRESSetPrecond   (peqn->hypreSlvr, (HYPRE_PtrToSolverFcn)HYPRE_BoomerAMGSolve, (HYPRE_PtrToSolverFcn)HYPRE_BoomerAMGSetup, peqn->PC);
+        HYPRE_GMRESSetPrecond   (peqn->hypreSlvr, (HYPRE_PtrToSolverFcn)HYPRE_BoomerAMGSolve, (HYPRE_PtrToSolverFcn)HYPRE_BoomerAMGSetup, peqn->hyprePC);
         HYPRE_GMRESSetMaxIter   (peqn->hypreSlvr, peqn->poissonIt);
         HYPRE_GMRESSetTol       (peqn->hypreSlvr, peqn->poissonTol);
         HYPRE_GMRESSetPrintLevel(peqn->hypreSlvr, 0);
@@ -419,7 +491,7 @@ PetscErrorCode CreateHypreSolver(peqn_ *peqn)
         HYPRE_ParCSRPCGCreate (peqn->access->mesh->MESH_COMM, &(peqn->hypreSlvr));
         HYPRE_PCGSetTwoNorm   (peqn->hypreSlvr, 1);
         HYPRE_PCGSetLogging   (peqn->hypreSlvr, 1);
-        HYPRE_PCGSetPrecond   (peqn->hypreSlvr, (HYPRE_PtrToSolverFcn)HYPRE_BoomerAMGSolve, (HYPRE_PtrToSolverFcn)HYPRE_BoomerAMGSetup, peqn->PC);
+        HYPRE_PCGSetPrecond   (peqn->hypreSlvr, (HYPRE_PtrToSolverFcn)HYPRE_BoomerAMGSolve, (HYPRE_PtrToSolverFcn)HYPRE_BoomerAMGSetup, peqn->hyprePC);
         HYPRE_PCGSetMaxIter   (peqn->hypreSlvr, peqn->poissonIt);
         HYPRE_PCGSetTol       (peqn->hypreSlvr, peqn->poissonTol);
         HYPRE_PCGSetPrintLevel(peqn->hypreSlvr, 0 );
@@ -430,6 +502,65 @@ PetscErrorCode CreateHypreSolver(peqn_ *peqn)
         sprintf(error, "Unknown HYPRE solver type. Available types are:\n    - 1: GMRES\n    - 2: PCG\n");
         fatalErrorInFunction("CreateHypreSolver",  error);
     }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode MyKSPMonitorPoisson(KSP ksp, PetscInt iter, PetscReal rnorm, void* dummy)
+{
+    peqn_* peqn = (peqn_*)dummy;
+    if(iter==1)
+    {
+        peqn->initialPoissonRes = rnorm;
+    }
+    return(0);
+}
+
+PetscErrorCode CreatePETScSolver(peqn_ *peqn)
+{
+    mesh_ *mesh = peqn->access->mesh;
+
+    KSPCreate(mesh->MESH_COMM, &(peqn->ksp));
+
+    //PetscViewerAndFormat *vf;
+	//PetscViewerAndFormatCreate(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_DEFAULT,&vf);
+	//KSPMonitorSet(peqn->ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorTrueResidualNorm,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy);
+    KSPMonitorSet(peqn->ksp, MyKSPMonitorPoisson, (void*)peqn, PETSC_NULL);
+
+    KSPSetOperators(peqn->ksp, peqn->petscA, peqn->petscA);
+    // hardcoded option
+    //PetscOptionsSetValue(PETSC_NULL, "-ksp_initial_guess_nonzero", "true");
+
+    KSPGetPC(peqn->ksp, &(peqn->petscPC));
+
+    //PCSetType(peqn->petscPC,PCJACOBI);
+    //PCSetType(peqn->petscPC, PCMG);
+    //PCSetType(peqn->petscPC, PCILU);
+    //PCMGSetType(peqn->petscPC,PC_MG_KASKADE);
+	PCSetType(peqn->petscPC,PCSOR);
+	//PCSetType(peqn->petscPC,PCGAMG);
+
+    // omega = 1 equivalent to Gauss Seidel preconditioner
+    PCSORSetOmega(peqn->petscPC,1.0);
+    PCSORSetIterations(peqn->petscPC,10,2);
+
+    KSPSetPCSide(peqn->ksp,PC_LEFT);
+
+    // null space
+    MatNullSpaceCreate(mesh->MESH_COMM, PETSC_TRUE,0,0, &(peqn->petscNs));
+    MatSetNullSpace(peqn->petscA,peqn->petscNs);
+
+
+    KSPSetType(peqn->ksp,KSPPGMRES);
+
+    KSPSetTolerances(peqn->ksp, 1e-30, peqn->poissonTol, 1e30, peqn->poissonIt);
+
+	KSPGMRESSetRestart(peqn->ksp, 100);
+	KSPSetFromOptions(peqn->ksp);
+
+    KSPSetUp(peqn->ksp);
 
     return(0);
 }
@@ -455,10 +586,18 @@ PetscErrorCode DestroyHypreVector(peqn_ *peqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode DestroyPETScVector(peqn_ *peqn)
+{
+    VecDestroy(&(peqn->petscRhs));
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode DestroyHypreSolver(peqn_ *peqn)
 {
     // destroy AMG preconditioner
-    HYPRE_BoomerAMGDestroy(peqn->PC);
+    HYPRE_BoomerAMGDestroy(peqn->hyprePC);
 
     if(peqn->hypreSolverType == 1)
     {
@@ -470,6 +609,16 @@ PetscErrorCode DestroyHypreSolver(peqn_ *peqn)
         // destroy PCG solver if created
         HYPRE_ParCSRPCGDestroy  (peqn->hypreSlvr);
     }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode DestroyPETScSolver(peqn_ *peqn)
+{
+    // destroy AMG preconditioner
+    KSPDestroy(&(peqn->ksp));
 
     return(0);
 }
@@ -605,13 +754,16 @@ cellIds GetIdFromStencil(int stencil, int k, int j, int i)
 PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
 {
     mesh_         *mesh  = peqn->access->mesh;
-    flags_         *flags = peqn->access->flags;
+    flags_        *flags = peqn->access->flags;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
     PetscInt      ys   = info.ys, ye = info.ys + info.ym;
     PetscInt      zs   = info.zs, ze = info.zs + info.zm;
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+    PetscInt      gxs  = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt      gys  = info.gys, gye = info.gys + info.gym;
+    PetscInt      gzs  = info.gzs, gze = info.gzs + info.gzm;
 
     PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
@@ -638,6 +790,11 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    if(peqn->solverType == "PETSc")
+    {
+        MatZeroEntries(peqn->petscA);
+    }
 
     DMDAVecGetArray(fda, mesh->lCsi,  &csi);
     DMDAVecGetArray(fda, mesh->lEta,  &eta);
@@ -757,10 +914,18 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
 
                 if(isIBMCell(k, j, i, nvert))
                 {
-    				HYPRE_Int nrows = 1, ncols = 1;
+                    if(peqn->solverType == "HYPRE")
+                    {
+        				HYPRE_Int nrows = 1, ncols = 1;
 
-    				HYPRE_Int col = row;
-    				HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &one);
+        				HYPRE_Int col = row;
+        				HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &one);
+                    }
+                    else if(peqn->solverType == "PETSc")
+                    {
+                        PetscInt rowId = (PetscInt)row;
+                        MatSetValues(peqn->petscA, 1, &rowId, 1, &rowId, &one, INSERT_VALUES);
+                    }
                 }
                 // i,j,k is a fluid point
                 else
@@ -1410,81 +1575,845 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             m == CP
                         )
                         {
-                            // the number of values to be set with this call
-                            HYPRE_Int nrows = 1, ncols = 1;
+                            if(peqn->solverType == "HYPRE")
+                            {
+                                // the number of values to be set with this call
+                                HYPRE_Int nrows = 1, ncols = 1;
 
-                            // the global column index to be set
-                            HYPRE_Int col = idx[m];
+                                // the global column index to be set
+                                HYPRE_Int col = idx[m];
 
-                            // using Set instead of SddTo since this proc. is
-                            // not putting values on other processors' elements.
-                            HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
+                                HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
+                            }
+                            else if(peqn->solverType == "PETSc")
+                            {
+                                PetscInt rowId = (PetscInt)row;
+                                PetscInt col   = (PetscInt)idx[m];
+                                MatSetValues(peqn->petscA, 1, &rowId, 1, &col, &vol[m], INSERT_VALUES);
+                            }
                         }
 
-                        // Id of the ibm fluid cell from its relative stencil position
-                        cellIds Id = GetIdFromStencil(m, k, j, i);
-
-                        // FOR IBM  phi contribution only if stencil has an ibm fluid cell
-                        if(fabs(vol[m]) > 1.e-10 && isIBMFluidCell(Id.k, Id.j, Id.i, nvert))
+                        if(peqn->solverType == "HYPRE")
                         {
-                            // the number of values to be set with this call
-                            HYPRE_Int nrows = 1, ncols = 1;
+                            // Id of the ibm fluid cell from its relative stencil position
+                            cellIds Id = GetIdFromStencil(m, k, j, i);
 
-                            cellIds pCell;
-                            pCell.i = (PetscInt)pibmcell[Id.k][Id.j][Id.i].x;
-                            pCell.j = (PetscInt)pibmcell[Id.k][Id.j][Id.i].y;
-                            pCell.k = (PetscInt)pibmcell[Id.k][Id.j][Id.i].z;
-
-                            // interpolation weights of the 8 cells around the point
-                            PetscReal intWts[8];
-
-                            // cell ids of the cells - kL, kR, jL, jR, iL, iR
-                            PetscInt  intId[6];
-
-                            if(pibmpt[Id.k][Id.j][Id.i].x > 1e9)
+                            // FOR IBM  phi contribution only if stencil has an ibm fluid cell
+                            if(fabs(vol[m]) > 1.e-10 && isIBMFluidCell(Id.k, Id.j, Id.i, nvert))
                             {
-                                // interpolation point too far to the ibm fluid cell, use closest fluid cell pressure
-                                HYPRE_Int col = matID(pCell.i, pCell.j, pCell.k);
-                                HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
+                                // the number of values to be set with this call
+                                HYPRE_Int nrows = 1, ncols = 1;
 
-                            }
-                            else
-                            {
-                                // get weights and ids of interpolation cells
-                                PointInterpolationWeights
-                                (
+                                cellIds pCell;
+                                PetscInt inProcessor = 1;
+
+                                pCell.i = (PetscInt)pibmcell[Id.k][Id.j][Id.i].x;
+                                pCell.j = (PetscInt)pibmcell[Id.k][Id.j][Id.i].y;
+                                pCell.k = (PetscInt)pibmcell[Id.k][Id.j][Id.i].z;
+
+                                if(pCell.i < gxs || pCell.i >= gxe || pCell.j < gys || pCell.j >= gye || pCell.k < gzs || pCell.k >= gze)
+                                {
+                                    inProcessor = 0;
+                                }
+
+                                // interpolation weights of the 8 cells around the point
+                                PetscReal intWts[8];
+
+                                // cell ids of the cells - kL, kR, jL, jR, iL, iR
+                                PetscInt  intId[6];
+
+                                // interpolation point not in processor - skip
+                                if(!inProcessor)
+                                {
+                                    PetscPrintf(PETSC_COMM_SELF, "Warning: normal projection cell %ld %ld %ld from IBM cell = %ld %ld %ld contrib. to pressure cell %ld %ld %ld is outside proc. ghosts\n", pCell.k, pCell.j, pCell.i, Id.k, Id.j, Id.i, k, j, i);
+                                }
+                                // interpolation point too far from ibm fluid cell, use nearest-neighbor interpolation
+                                else if(pibmpt[Id.k][Id.j][Id.i].x > 1e9)
+                                {
+                                    HYPRE_Int col = matID(pCell.i, pCell.j, pCell.k);
+                                    HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
+                                }
+                                // tri-linear interpolation
+                                else
+                                {
+                                    // get weights and ids of interpolation cells
+                                    PointInterpolationWeights
+                                    (
                                         mesh,
                                         pibmpt[Id.k][Id.j][Id.i].x, pibmpt[Id.k][Id.j][Id.i].y, pibmpt[Id.k][Id.j][Id.i].z,
                                         pCell.i, pCell.j, pCell.k,
                                         cent,
                                         intWts,
                                         intId
-                                );
+                                    );
 
-                                PetscScalar coeff;
-                                PetscInt  ctr = 0;
+                                    PetscScalar coeff;
+                                    PetscInt    ctr = 0;
 
-                                // loop over interpolation cells
-                                for (PetscInt kk = 0; kk<2; kk++)
-                                for (PetscInt jj = 0; jj<2; jj++)
-                                for (PetscInt ii = 0; ii<2; ii++)
-                                {
-                                    HYPRE_Int col = matID(intId[ii+4], intId[jj+2], intId[kk]);
-
-                                    if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                                    // loop over interpolation cells
+                                    for (PetscInt kk = 0; kk<2; kk++)
+                                    for (PetscInt jj = 0; jj<2; jj++)
+                                    for (PetscInt ii = 0; ii<2; ii++)
                                     {
-                                        char error[512];
-                                        sprintf(error, "ibm cell - %ld %ld %ld, ibm cell in pressure matrix %ld %ld %ld, indices = %ld %ld %ld %ld %ld %ld\n", Id.k, Id.j, Id.i, intId[kk], intId[jj+2], intId[ii+4], intId[0], intId[1], intId[2], intId[3], intId[4], intId[5]);
-                                        fatalErrorInFunction("SetCoeffMatrix",  error);
+                                        HYPRE_Int col = matID(intId[ii+4], intId[jj+2], intId[kk]);
+
+                                        if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                                        {
+                                            char error[512];
+                                            sprintf(error, "IBM cell %ld %ld %ld normal projection cell %ld %ld %ld tri-linear interpolation support (minmax ids =  %ld %ld %ld %ld %ld %ld)\n", intId[kk], intId[jj+2], intId[ii+4], Id.k, Id.j, Id.i, intId[0], intId[1], intId[2], intId[3], intId[4], intId[5]);
+                                            fatalErrorInFunction("SetCoeffMatrix",  error);
+                                        }
+
+                                        coeff = intWts[ctr] * vol[m];
+                                        ctr++;
+
+                                        HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &coeff);
                                     }
-
-                                    coeff = intWts[ctr] * vol[m];
-                                    ctr++;
-
-                                    HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &coeff);
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
+    if(peqn->solverType == "PETSc")
+    {
+        MatAssemblyBegin(peqn->petscA, MAT_FLUSH_ASSEMBLY);
+    	MatAssemblyEnd  (peqn->petscA, MAT_FLUSH_ASSEMBLY);
+
+        for (k=lzs; k<lze; k++)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    PetscReal one  = 1.0;
+                    PetscReal zero = 0.0;
+
+                    row = matID(i, j, k);
+
+
+                    if(!isIBMCell(k, j, i, nvert))
+                    {
+
+                        // initialize contributions to zero
+                        for (m=0; m<19; m++)
+                        {
+                            vol[m] = 0.;
+                        }
+
+                        // contribution from east face in i-direction (i+1/2)
+
+                        PetscReal r = 1.0;
+
+                        // dpdc{i} = (p_{i+1} - p_{i}) * g11_{i}
+
+                        if
+                        (
+                            i != mx-2  || // exclude boundary cell for zero gradient BC if non-periodic
+                            mesh->i_periodic ||
+                            mesh->ii_periodic
+
+                        )
+                        {
+                            vol[CP] -= g11[k][j][i] / r; // i, j, k
+                            vol[EP] += g11[k][j][i] / r; // i+1, j, k
+                        }
+
+                        // dpde{i} = ({p_{i+1,j+1} + p{i, j+1} - p{i+1, j-1} - p{i, j-1}) * 0.25 * g12[k][j][i]
+
+                        if
+                        (
+                            // j-right boundary -> use upwind only at the corner faces
+                            (
+                                j==my-2 &&
+                                i==mx-2
+                            )
+                        )
+                        {
+                            if ( j!=1 )
+                            {
+                                // upwind differencing
+                                vol[CP] += g12[k][j][i] * 0.5 / r; // i, j, k
+                                vol[EP] += g12[k][j][i] * 0.5 / r; // i+1, j, k
+                                vol[SP] -= g12[k][j][i] * 0.5 / r; // i, j-1, k
+                                vol[SE] -= g12[k][j][i] * 0.5 / r; // i+1, j-1, k
+                            }
+                        }
+                        else if
+                        (
+                            // j-left boundary -> use upwind  only at the corner faces
+                            (
+                                j == 1 &&
+                                i == mx-2
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[NP] += g12[k][j][i] * 0.5 / r; // i, j+1, k
+                            vol[NE] += g12[k][j][i] * 0.5 / r; // i+1, j+1, k
+                            vol[CP] -= g12[k][j][i] * 0.5 / r; // i, j, k
+                            vol[EP] -= g12[k][j][i] * 0.5 / r; // i+1, j, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[NP] += g12[k][j][i] * 0.25 / r; // i, j+1, k
+                            vol[NE] += g12[k][j][i] * 0.25 / r; // i+1, j+1, k
+                            vol[SP] -= g12[k][j][i] * 0.25 / r; // i, j-1, k
+                            vol[SE] -= g12[k][j][i] * 0.25 / r; // i+1, j-1, k
+                        }
+
+                        // dpdz{i}=(p_{i,k+1} + p{i+1,k+1} - p{i, k-1} - p{i+1, k-1}) * 0.25 / r * g13[k][j][i]
+                        if
+                        (
+                            // k-right boundary -> use upwind  only at the corner faces
+                            (
+                                k==mz-2 &&
+                                i==mx-2
+                            )
+                        )
+                        {
+                            if (k!=1)
+                            {
+                                // upwind differencing
+                                vol[CP] += g13[k][j][i] * 0.5 / r; // i, j, k
+                                vol[EP] += g13[k][j][i] * 0.5 / r; // i+1, j, k
+                                vol[BP] -= g13[k][j][i] * 0.5 / r; // i, j, k-1
+                                vol[BE] -= g13[k][j][i] * 0.5 / r; // i+1, j, k-1
+                            }
+                        }
+                        else if
+                        (
+                            // k-left boundary  -> use upwind  only at the corner faces
+                            (
+                                k==1 &&
+                                i==mx-2
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[TP] += g13[k][j][i] * 0.5 / r; // i, j, k+1
+                            vol[TE] += g13[k][j][i] * 0.5 / r; // i+1, j, k+1
+                            vol[CP] -= g13[k][j][i] * 0.5 / r; // i, j, k
+                            vol[EP] -= g13[k][j][i] * 0.5 / r; // i+1, j, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[TP] += g13[k][j][i] * 0.25 / r; //i, j, k+1
+                            vol[TE] += g13[k][j][i] * 0.25 / r; //i+1, j, k+1
+                            vol[BP] -= g13[k][j][i] * 0.25 / r; //i, j, k-1
+                            vol[BE] -= g13[k][j][i] * 0.25 / r; //i+1, j, k-1
+                        }
+
+                        // contribution from west face in i-direction (i-1/2)
+
+                        // -dpdc{i-1} = -(p_{i} - p_{i-1}) * g11_{i}
+
+                        if
+                        (
+                            i != 1 ||  // exclude boundary cell for zero gradient BC if non-periodic
+                            mesh->i_periodic ||
+                            mesh->ii_periodic
+                        )
+                        {
+                            vol[CP] -= g11[k][j][i-1] / r;  //i, j, k
+                            vol[WP] += g11[k][j][i-1] / r;  //i-1, j, k
+                        }
+
+                        // -dpde{i-1} = -({p_{i,j+1}+p{i-1, j+1} - p{i, j-1}-p{i-1, j-1}) * 0.25 / r * g12[k][j][i-1]
+
+                        if
+                        (
+                            // j-right boundary -> use upwind only at the corner faces
+                            (
+                                j==my-2 &&
+                                i==1
+                            )
+                        )
+                        {
+                            if ( j!=1 )
+                            {
+                                // upwind differencing
+                                vol[CP] -= g12[k][j][i-1] * 0.5 / r; // i, j, k
+                                vol[WP] -= g12[k][j][i-1] * 0.5 / r; // i-1, j, k
+                                vol[SP] += g12[k][j][i-1] * 0.5 / r; // i, j-1, k
+                                vol[SW] += g12[k][j][i-1] * 0.5 / r; // i-1, j-1, k
+                            }
+                        }
+                        else if
+                        (
+                            // j-left boundary -> use upwind  only at the corner faces
+                            (
+                                j==1 &&
+                                i==1
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[NP] -= g12[k][j][i-1] * 0.5 / r; // i, j+1, k
+                            vol[NW] -= g12[k][j][i-1] * 0.5 / r; // i-1, j+1, k
+                            vol[CP] += g12[k][j][i-1] * 0.5 / r; // i, j, k
+                            vol[WP] += g12[k][j][i-1] * 0.5 / r; // i-1, j, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[NP] -= g12[k][j][i-1] * 0.25 / r; // i, j+1, k
+                            vol[NW] -= g12[k][j][i-1] * 0.25 / r; // i-1, j+1, k
+                            vol[SP] += g12[k][j][i-1] * 0.25 / r; // i, j-1, k
+                            vol[SW] += g12[k][j][i-1] * 0.25 / r; // i-1, j-1, k
+                        }
+
+                        // -dpdz{i-1}=-(p_{i,k+1}+p{i-1,k+1} - p{i, k-1}-p{i-1, k-1}) * 0.25 / r * g13[k][j][i]
+                        if
+                        (
+                            // k-right boundary -> use upwind  only at the corner faces
+                            (
+                                k==mz-2 &&
+                                i==1
+                            )
+                        )
+                        {
+                            if (k!=1)
+                            {
+                                // upwind differencing
+                                vol[CP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k
+                                vol[WP] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k
+                                vol[BP] += g13[k][j][i-1] * 0.5 / r; // i, j, k-1
+                                vol[BW] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k-1
+                            }
+                        }
+                        else if
+                        (
+                            // k-left boundary  -> use upwind  only at the corner faces
+                            (
+                                k==1 &&
+                                i==1
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[TP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k+1
+                            vol[TW] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k+1
+                            vol[CP] += g13[k][j][i-1] * 0.5 / r; // i, j, k
+                            vol[WP] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[TP] -= g13[k][j][i-1] * 0.25 / r; // i, j, k+1
+                            vol[TW] -= g13[k][j][i-1] * 0.25 / r; // i-1, j, k+1
+                            vol[BP] += g13[k][j][i-1] * 0.25 / r; // i, j, k-1
+                            vol[BW] += g13[k][j][i-1] * 0.25 / r; // i-1, j, k-1
+                        }
+
+                        // contribution from north face in j-direction (j+1/2)
+
+                        // dpdc{j} = (p_{i+1,j}+p{i+1,j+1} - p{i-1,j}-p{i-1,j+1}) * 0.25 / r
+                        if
+                        (
+                            // i-right boundary -> use upwind  only at the corner faces
+                            (
+                                i==mx-2 &&
+                                j==my-2
+                            )
+                        )
+                        {
+                            if (i!=1 )
+                            {
+                                // upwind differencing
+                                vol[CP] += g21[k][j][i] * 0.5 / r; // i, j, k
+                                vol[NP] += g21[k][j][i] * 0.5 / r; // i, j+1, k
+                                vol[WP] -= g21[k][j][i] * 0.5 / r; // i-1, j, k
+                                vol[NW] -= g21[k][j][i] * 0.5 / r; // i-1, j+1, k
+                            }
+                        }
+                        else if
+                        (
+                            // i-left boundary -> use upwind  only at the corner faces
+                            (
+                                i==1 &&
+                                j==my-2
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[EP] += g21[k][j][i] * 0.5 / r; // i+1, j, k
+                            vol[NE] += g21[k][j][i] * 0.5 / r; // i+1, j+1, k
+                            vol[CP] -= g21[k][j][i] * 0.5 / r; // i, j, k
+                            vol[NP] -= g21[k][j][i] * 0.5 / r; // i, j+1, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[EP] += g21[k][j][i] * 0.25 / r; // i+1, j, k
+                            vol[NE] += g21[k][j][i] * 0.25 / r; // i+1, j+1, k
+                            vol[WP] -= g21[k][j][i] * 0.25 / r; // i-1, j, k
+                            vol[NW] -= g21[k][j][i] * 0.25 / r; // i-1, j+1, k
+                        }
+
+                        // dpde{j} = (p{j+1} - p{j}) * g22[k][j][i]
+                        if
+                        (
+                            j != my-2  ||
+                            mesh->j_periodic ||
+                            mesh->jj_periodic
+                        )
+                        {
+                            vol[CP] -= g22[k][j][i] / r;
+                            vol[NP] += g22[k][j][i] / r;
+                        }
+
+                        // dpdz{j} = (p{j, k+1}+p{j+1,k+1} - p{j,k-1}-p{j+1,k-1}) *0.25 / r
+                        if
+                        (
+                            // k-right boundary -> use upwind  only at the corner faces
+                            (
+                                k==mz-2 &&
+                                j==my-2
+                            )
+                        )
+                        {
+                            if (k!=1)
+                            {
+                                // upwind differencing
+                                vol[CP] += g23[k][j][i] * 0.5 / r; //i,j,k
+                                vol[NP] += g23[k][j][i] * 0.5 / r; //i, j+1, k
+                                vol[BP] -= g23[k][j][i] * 0.5 / r;//i, j, k-1
+                                vol[BN] -= g23[k][j][i] * 0.5 / r;//i, j+1, k-1
+                            }
+                        }
+                        else if
+                        (
+                            // k-left boundary -> use upwind  only at the corner faces
+                            (
+                                k==1 &&
+                                j==my-2
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[TP] += g23[k][j][i] * 0.5 / r; //i, j, k+1
+                            vol[TN] += g23[k][j][i] * 0.5 / r;//i, j+1, k+1
+                            vol[CP] -= g23[k][j][i] * 0.5 / r;//i, j, k
+                            vol[NP] -= g23[k][j][i] * 0.5 / r;//i, j+1, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[TP] += g23[k][j][i] * 0.25 / r; // i, j, k+1
+                            vol[TN] += g23[k][j][i] * 0.25 / r; // i, j+1, k+1
+                            vol[BP] -= g23[k][j][i] * 0.25 / r; // i, j, k-1
+                            vol[BN] -= g23[k][j][i] * 0.25 / r; // i, j+1, k-1
+                        }
+
+                        // contribution from south face in j-direction (j-1/2)
+
+                        // -dpdc{j-1} = -(p_{i+1,j}+p{i+1,j-1} - p{i-1,j}-p{i-1,j-1}) * 0.25 / r * g21[k][j-1][i]
+                        if
+                        (
+                            // i-right boundary -> use upwind  only at the corner faces
+                            (
+                                i==mx-2 &&
+                                j==1
+                            )
+                        )
+                        {
+                            if (i!=1 )
+                            {
+                                // upwind differencing
+                                vol[CP] -= g21[k][j-1][i] * 0.5 / r; // i, j, k
+                                vol[SP] -= g21[k][j-1][i] * 0.5 / r; // i, j-1, k
+                                vol[WP] += g21[k][j-1][i] * 0.5 / r; // i-1, j, k
+                                vol[SW] += g21[k][j-1][i] * 0.5 / r; // i-1, j-1, k
+                            }
+                        }
+                        else if
+                        (
+                            // i-left boundary -> use upwind  only at the corner faces
+                            (
+                                i==1 &&
+                                j==1
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[EP] -= g21[k][j-1][i] * 0.5 / r; // i+1, j, k
+                            vol[SE] -= g21[k][j-1][i] * 0.5 / r; // i+1, j-1, k
+                            vol[CP] += g21[k][j-1][i] * 0.5 / r; // i, j, k
+                            vol[SP] += g21[k][j-1][i] * 0.5 / r; // i, j-1, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[EP] -= g21[k][j-1][i] * 0.25 / r; // i+1, j, k
+                            vol[SE] -= g21[k][j-1][i] * 0.25 / r; // i+1, j-1, k
+                            vol[WP] += g21[k][j-1][i] * 0.25 / r; // i-1, j, k
+                            vol[SW] += g21[k][j-1][i] * 0.25 / r; // i-1, j-1, k
+                        }
+
+                        // -dpde{j-1} = -(p{j} - p{j-1}) * g22[k][j-1][i]
+                        if
+                        (
+                            j!=1       ||
+                            mesh->j_periodic ||
+                            mesh->jj_periodic
+                        )
+                        {
+                            vol[CP] -= g22[k][j-1][i] / r;
+                            vol[SP] += g22[k][j-1][i] / r;
+                        }
+
+                        // -dpdz{j-1} = -(p{j,k+1}+p{j-1,k+1} - p{j,k-1}-p{j-1,k-1}) * 0.25 / r * g23[k][j-1][i]
+                        if
+                        (
+                            // k-right boundary -> use upwind  only at the corner faces
+                            (
+                                k==mz-2 &&
+                                j==1
+                            )
+                        )
+                        {
+                            if (k!=1)
+                            {
+                                // upwind differencing
+                                vol[CP] -= g23[k][j-1][i] * 0.5 / r; //i, j, k
+                                vol[SP] -= g23[k][j-1][i] * 0.5 / r; //i, j-1, k
+                                vol[BP] += g23[k][j-1][i] * 0.5 / r; //i, j, k-1
+                                vol[BS] += g23[k][j-1][i] * 0.5 / r; //i, j-1, k-1
+                            }
+                        }
+                        else if
+                        (
+                            // k-left boundary -> use upwind  only at the corner faces
+                            (
+                                k==1 &&
+                                j==1
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[TP] -= g23[k][j-1][i] * 0.5 / r; // i, j, k+1
+                            vol[TS] -= g23[k][j-1][i] * 0.5 / r; // i, j-1, k+1
+                            vol[CP] += g23[k][j-1][i] * 0.5 / r; // i, j, k
+                            vol[SP] += g23[k][j-1][i] * 0.5 / r; // i, j-1, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[TP] -= g23[k][j-1][i] * 0.25 / r; // i, j, k+1
+                            vol[TS] -= g23[k][j-1][i] * 0.25 / r; // i, j-1, k+1
+                            vol[BP] += g23[k][j-1][i] * 0.25 / r; // i, j, k-1
+                            vol[BS] += g23[k][j-1][i] * 0.25 / r; // i, j-1, k-1
+                        }
+
+                        // contribution from top face in k-direction (k+1/2)
+
+                        // dpdc{k} = (p{i+1,k}+p{i+1,k+1} - p{i-1,k}-p{i-1,k+1}) * 0.25 / r * g31[k][j][i]
+                        if
+                        (
+                            // i-right boundary -> use upwind  only at the corner faces
+                            (
+                                i==mx-2 &&
+                                k==mz-2
+                            )
+                        )
+                        {
+                            if (i!=1 )
+                            {
+                                // upwind differencing
+                                vol[CP] += g31[k][j][i] * 0.5 / r; // i, j, k
+                                vol[TP] += g31[k][j][i] * 0.5 / r; // i, j, k+1
+                                vol[WP] -= g31[k][j][i] * 0.5 / r; // i-1, j, k
+                                vol[TW] -= g31[k][j][i] * 0.5 / r; // i-1, j, k+1
+                            }
+                        }
+                        else if
+                        (
+                            // i-left boundary -> use upwind  only at the corner faces
+                            (
+                                i==1 &&
+                                k==mz-2
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[EP] += g31[k][j][i] * 0.5 / r; // i+1, j, k
+                            vol[TE] += g31[k][j][i] * 0.5 / r; // i+1, j, k+1
+                            vol[CP] -= g31[k][j][i] * 0.5 / r; // i, j, k
+                            vol[TP] -= g31[k][j][i] * 0.5 / r; // i, j, k+1
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[EP] += g31[k][j][i] * 0.25 / r; // i+1, j, k
+                            vol[TE] += g31[k][j][i] * 0.25 / r; // i+1, j, k+1
+                            vol[WP] -= g31[k][j][i] * 0.25 / r; // i-1, j, k
+                            vol[TW] -= g31[k][j][i] * 0.25 / r; // i-1, j, k+1
+                        }
+
+                        // dpde{k} = (p{j+1, k}+p{j+1,k+1} - p{j-1, k}-p{j-1,k+1}) * 0.25 / r * g32[k][j][i]
+                        if
+                        (
+                            // j-right boundary -> use upwind  only at the corner faces
+                            (
+                                j==my-2 &&
+                                k==mz-2
+                            )
+                        )
+                        {
+                            if (j!=1)
+                            {
+                                // upwind differencing
+                                vol[CP] += g32[k][j][i] * 0.5 / r; // i, j,k
+                                vol[TP] += g32[k][j][i] * 0.5 / r; // i, j, k+1
+                                vol[SP] -= g32[k][j][i] * 0.5 / r; // i, j-1, k
+                                vol[TS] -= g32[k][j][i] * 0.5 / r; // i, j-1, k+1
+                            }
+                        }
+                        else if
+                        (
+                            // j-left boundary -> use upwind  only at the corner faces
+                            (
+                                j==1 &&
+                                k==mz-2
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[NP] += g32[k][j][i] * 0.5 / r; // i, j+1, k
+                            vol[TN] += g32[k][j][i] * 0.5 / r; // i, j+1, k+1
+                            vol[CP] -= g32[k][j][i] * 0.5 / r; // i, j, k
+                            vol[TP] -= g32[k][j][i] * 0.5 / r; // i, j, k+1
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[NP] += g32[k][j][i] * 0.25 / r;//i, j+1, k
+                            vol[TN] += g32[k][j][i] * 0.25 / r;//i, j+1, k+1
+                            vol[SP] -= g32[k][j][i] * 0.25 / r;//i, j-1, k
+                            vol[TS] -= g32[k][j][i] * 0.25 / r;//i, j-1, k+1
+                        }
+
+                        // dpdz{k} = p{k+1} - p{k}
+                        if
+                        (
+                            k != mz-2  ||
+                            mesh->k_periodic ||
+                            mesh->kk_periodic
+                        )
+                        {
+                            vol[CP] -= g33[k][j][i] / r; // i, j, k
+                            vol[TP] += g33[k][j][i] / r; // i, j, k+1
+                        }
+
+                        // contribution from bottom face in k-direction (k-1/2)
+
+                        // -dpdc{k-1} = -(p{i+1,k}+p{i+1,k-1} - p{i-1,k}-p{i-1,k-1}) * 0.25 / r * g31[k-1][j][i]
+                        if
+                        (
+                            // i-right boundary -> use upwind  only at the corner faces
+                            (
+                                i==mx-2 &&
+                                k==1
+                            )
+                        )
+                        {
+                            if (i!=1 )
+                            {
+                                // upwind differencing
+                                vol[CP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k
+                                vol[BP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k-1
+                                vol[WP] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k
+                                vol[BW] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k-1
+                            }
+                        }
+                        else if
+                        (
+                            // i-left boundary -> use upwind  only at the corner faces
+                            (
+                                i==1 &&
+                                k==1
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[EP] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k
+                            vol[BE] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k-1
+                            vol[CP] += g31[k-1][j][i] * 0.5 / r; // i, j, k
+                            vol[BP] += g31[k-1][j][i] * 0.5 / r; // i, j, k-1
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[EP] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k
+                            vol[BE] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k-1
+                            vol[WP] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k
+                            vol[BW] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k-1
+                        }
+
+                        // -dpde{k-1} = -(p{j+1, k}+p{j+1,k-1} - p{j-1, k}-p{j-1,k-1}) *  0.25 / r * g32[k-1][j][i]
+                        // ( p{i, j+1,k-1/2} - p{i, j-1,k-1/2} ) / (2eta)
+                        if
+                        (
+                            // j-right boundary -> use upwind  only at the corner faces
+                            (
+                                j==my-2 &&
+                                k==1
+                            )
+                        )
+                        {
+                            if ( j!=1 )
+                            {
+                                // upwind differencing
+                                vol[CP] -= g32[k-1][j][i] * 0.5 / r; // i, j,k
+                                vol[BP] -= g32[k-1][j][i] * 0.5 / r; // i, j, k-1
+                                vol[SP] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k
+                                vol[BS] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k-1
+                            }
+                        }
+                        else if
+                        (
+                            // j-left boundary -> use upwind  only at the corner faces
+                            (
+                                j==1 &&
+                                k==1
+                            )
+                        )
+                        {
+                            // upwind differencing
+                            vol[NP] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k
+                            vol[BN] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k-1
+                            vol[CP] += g32[k-1][j][i] * 0.5 / r; // i, j, k
+                            vol[BP] += g32[k-1][j][i] * 0.5 / r; // i, j, k-1
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[NP] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k
+                            vol[BN] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k-1
+                            vol[SP] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k
+                            vol[BS] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k-1
+                        }
+
+                        // -dpdz{k-1} = -(p{k} - p{k-1}) * g33[k-1][j][i]
+                        if
+                        (
+                            k != 1     ||
+                            mesh->k_periodic ||
+                            mesh->kk_periodic
+                        )
+                        {
+                            vol[CP] -= g33[k-1][j][i] / r; // i, j, k
+                            vol[BP] += g33[k-1][j][i] / r; //i, j, k-1
+                        }
+
+                        idx[CP] = matID(i  , j  , k  );
+                        idx[EP] = matID(i+1, j  , k  );
+                        idx[WP] = matID(i-1, j  , k  );
+                        idx[NP] = matID(i  , j+1, k  );
+                        idx[SP] = matID(i  , j-1, k  );
+                        idx[TP] = matID(i  , j  , k+1);
+                        idx[BP] = matID(i  , j  , k-1);
+                        idx[NE] = matID(i+1, j+1, k  );
+                        idx[SE] = matID(i+1, j-1, k  );
+                        idx[NW] = matID(i-1, j+1, k  );
+                        idx[SW] = matID(i-1, j-1, k  );
+                        idx[TN] = matID(i  , j+1, k+1);
+                        idx[BN] = matID(i  , j+1, k-1);
+                        idx[TS] = matID(i  , j-1, k+1);
+                        idx[BS] = matID(i  , j-1, k-1);
+                        idx[TE] = matID(i+1, j  , k+1);
+                        idx[BE] = matID(i+1, j  , k-1);
+                        idx[TW] = matID(i-1, j  , k+1);
+                        idx[BW] = matID(i-1, j  , k-1);
+
+                        PetscInt rowId = (PetscInt)row;
+
+                        for(m=0; m<19; m++)
+                        {
+                            PetscInt col   = (PetscInt)idx[m];
+
+                            // Id of the ibm fluid cell from its relative stencil position
+                            cellIds Id = GetIdFromStencil(m, k, j, i);
+
+                            // FOR IBM  phi contribution only if stencil has an ibm fluid cell
+                            if(fabs(vol[m]) > 1.e-10 && isIBMFluidCell(Id.k, Id.j, Id.i, nvert))
+                            {
+                                // the number of values to be set with this call
+                                HYPRE_Int nrows = 1, ncols = 1;
+
+                                cellIds pCell;
+                                PetscInt inProcessor = 1;
+
+                                pCell.i = (PetscInt)pibmcell[Id.k][Id.j][Id.i].x;
+                                pCell.j = (PetscInt)pibmcell[Id.k][Id.j][Id.i].y;
+                                pCell.k = (PetscInt)pibmcell[Id.k][Id.j][Id.i].z;
+
+                                if(pCell.i < gxs || pCell.i >= gxe || pCell.j < gys || pCell.j >= gye || pCell.k < gzs || pCell.k >= gze)
+                                {
+                                    inProcessor = 0;
+                                }
+
+                                // interpolation weights of the 8 cells around the point
+                                PetscReal intWts[8];
+
+                                // cell ids of the cells - kL, kR, jL, jR, iL, iR
+                                PetscInt  intId[6];
+
+                                // interpolation point not in processor - skip
+                                if(!inProcessor)
+                                {
+                                    PetscPrintf(PETSC_COMM_SELF, "Warning: normal projection cell %ld %ld %ld from IBM cell = %ld %ld %ld contrib. to pressure cell %ld %ld %ld is outside proc. ghosts\n", pCell.k, pCell.j, pCell.i, Id.k, Id.j, Id.i, k, j, i);
+                                }
+                                // interpolation point too far from ibm fluid cell, use nearest-neighbor interpolation
+                                if(pibmpt[Id.k][Id.j][Id.i].x > 1e9)
+                                {
+                                    col   = (PetscInt)matID(pCell.i, pCell.j, pCell.k);
+                                    MatSetValues(peqn->petscA, 1, &rowId, 1, &col, &vol[m], ADD_VALUES);
+                                }
+                                else
+                                {
+                                    // get weights and ids of interpolation cells
+                                    PointInterpolationWeights
+                                    (
+                                            mesh,
+                                            pibmpt[Id.k][Id.j][Id.i].x, pibmpt[Id.k][Id.j][Id.i].y, pibmpt[Id.k][Id.j][Id.i].z,
+                                            pCell.i, pCell.j, pCell.k,
+                                            cent,
+                                            intWts,
+                                            intId
+                                    );
+
+                                    PetscScalar coeff;
+                                    PetscInt  ctr = 0;
+
+                                    // loop over interpolation cells
+                                    for (PetscInt kk = 0; kk<2; kk++)
+                                    for (PetscInt jj = 0; jj<2; jj++)
+                                    for (PetscInt ii = 0; ii<2; ii++)
+                                    {
+                                        HYPRE_Int col = matID(intId[ii+4], intId[jj+2], intId[kk]);
+
+                                        if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                                        {
+                                            char error[512];
+                                            sprintf(error, "ibm cell - %ld %ld %ld, ibm cell in pressure matrix %ld %ld %ld, indices = %ld %ld %ld %ld %ld %ld\n", Id.k, Id.j, Id.i, intId[kk], intId[jj+2], intId[ii+4], intId[0], intId[1], intId[2], intId[3], intId[4], intId[5]);
+                                            fatalErrorInFunction("SetCoeffMatrix",  error);
+                                        }
+
+                                        coeff = intWts[ctr] * vol[m];
+                                        ctr++;
+
+                                        PetscInt colId   = (PetscInt)col;
+                                        MatSetValues(peqn->petscA, 1, &rowId, 1, &colId, &coeff, ADD_VALUES);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1493,7 +2422,15 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     }
 
     // assemble the matrix
-    HYPRE_IJMatrixAssemble(peqn->hypreA);
+    if(peqn->solverType == "HYPRE")
+    {
+        HYPRE_IJMatrixAssemble(peqn->hypreA);
+    }
+    else if(peqn->solverType == "PETSc")
+    {
+        MatAssemblyBegin(peqn->petscA, MAT_FINAL_ASSEMBLY);
+    	MatAssemblyEnd  (peqn->petscA, MAT_FINAL_ASSEMBLY);
+    }
 
     // restore the arrays
     DMDAVecRestoreArray(da, G11, &g11);
@@ -1806,7 +2743,7 @@ PetscReal L2NormHypre(peqn_ *peqn, HYPRE_IJMatrix &A, HYPRE_IJVector &X, HYPRE_I
 
 //***************************************************************************************************************//
 
-PetscErrorCode SubtractAverage(peqn_ *peqn, HYPRE_IJVector &B)
+PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
 {
     mesh_         *mesh  = peqn->access->mesh;
     DM            da   = mesh->da, fda = mesh->fda;
@@ -1888,6 +2825,67 @@ PetscErrorCode SubtractAverage(peqn_ *peqn, HYPRE_IJVector &B)
 
 //***************************************************************************************************************//
 
+PetscErrorCode SubtractAveragePETSc(peqn_ *peqn, Vec &B)
+{
+    mesh_         *mesh  = peqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt           xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscInt           lxs, lxe, lys, lye, lzs, lze;
+    PetscInt           size;
+    PetscReal          ***nvert, ***gid, *b;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, peqn->lGid, &gid);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    VecGetArray(B, &b);
+
+    // get local Petsc array dimension
+    VecGetLocalSize(B, &size);
+
+    PetscReal lsum = 0, gsum = 0;
+    PetscInt    lcount = 0, gcount = 0;
+
+    for(PetscInt id=0; id<size; id++)
+    {
+        lsum += b[id];
+        lcount++;
+    }
+
+    // global number of counts among processors
+    MPI_Allreduce(&lsum, &gsum, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    // global number of counts among processors
+    MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+    // compute the mean of the values in the vector
+    PetscReal val = -gsum/(PetscReal)gcount;
+
+    for(PetscInt id=0; id<size; id++)
+    {
+        b[id] += val;
+    }
+
+    VecRestoreArray(B, &b);
+    DMDAVecRestoreArray(da, peqn->lGid, &gid);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    VecAssemblyBegin(B);
+    VecAssemblyEnd  (B);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode SetRHS(peqn_ *peqn)
 {
     mesh_         *mesh  = peqn->access->mesh;
@@ -1900,12 +2898,12 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     PetscInt           zs     = info.zs, ze = info.zs + info.zm;
     PetscInt           mx     = info.mx, my = info.my, mz = info.mz;
 
-    PetscInt           i, j, k;
+    PetscInt           i, j, k, size;
     PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
     PetscReal        dt   = clock->dt;
 
-    PetscReal     ***nvert, ***gid;
+    PetscReal     ***nvert, ***gid, *rhs;
     Cmpnts        ***ucont;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
@@ -1915,6 +2913,12 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
     DMDAVecGetArray(da,  mesh->lNvert,  &nvert);
     DMDAVecGetArray(da,  peqn->lGid,    &gid);
+
+    if(peqn->solverType == "PETSc")
+    {
+        VecGetArray(peqn->petscRhs, &rhs);
+        VecGetLocalSize(peqn->petscRhs, &size);
+    }
 
     PetscReal lsum     = 0.0, gsum  = 0.0;
     PetscInt    lcount   = 0, gcount  = 0;
@@ -1959,19 +2963,36 @@ PetscErrorCode SetRHS(peqn_ *peqn)
 
                 }
 
-                // get connectivity
-                HYPRE_Int idx = matID(i,j,k);
-
-                // set the RHS value
-                HYPRE_IJVectorSetValues(peqn->hypreRhs, 1, &idx, &val);
-
-                // sum up this cell value
-                if (!isIBMCell(k, j, i, nvert))
+                if(peqn->solverType == "HYPRE")
                 {
-                    lsum += val;
-                    lcount++;
-                }
+                    // get connectivity
+                    HYPRE_Int idx = matID(i,j,k);
 
+                    // set the RHS value
+                    HYPRE_IJVectorSetValues(peqn->hypreRhs, 1, &idx, &val);
+
+                    // sum up this cell value
+                    if (!isIBMCell(k, j, i, nvert))
+                    {
+                        lsum += val;
+                        lcount++;
+                    }
+                }
+                else if(peqn->solverType == "PETSc")
+                {
+                    // get connectivity
+                    PetscInt idx = (PetscInt)matID(i,j,k) - peqn->thisRankStart;
+
+                    // set the RHS value
+                    rhs[idx] = val;
+
+                    // sum up this cell value
+                    if (!isIBMCell(k, j, i, nvert))
+                    {
+                        lsum += val;
+                        lcount++;
+                    }
+                }
             }
         }
     }
@@ -1991,18 +3012,40 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                 {
                     if (!isIBMCell(k, j, i, nvert))
                     {
-                        // get connectivity
-                        HYPRE_Int idx = matID(i,j,k);
+                        if(peqn->solverType == "HYPRE")
+                        {
+                            // get connectivity
+                            HYPRE_Int idx = matID(i,j,k);
 
-                        // subtract the mean to apply compatibility condition
-                        HYPRE_IJVectorAddToValues(peqn->hypreRhs, 1, &idx, &gsum);
+                            // subtract the mean to apply compatibility condition
+                            HYPRE_IJVectorAddToValues(peqn->hypreRhs, 1, &idx, &gsum);
+                        }
+                        else if(peqn->solverType == "PETSc")
+                        {
+                            // get connectivity
+                            PetscInt idx = (PetscInt)matID(i,j,k) - peqn->thisRankStart;
+
+                            // set the RHS value
+                            rhs[idx] += gsum;
+                        }
                     }
                 }
             }
         }
     }
 
-    HYPRE_IJVectorAssemble(peqn->hypreRhs);
+
+    if(peqn->solverType == "HYPRE")
+    {
+        HYPRE_IJVectorAssemble(peqn->hypreRhs);
+    }
+    if(peqn->solverType == "PETSc")
+    {
+        VecAssemblyBegin(peqn->petscRhs);
+    	VecAssemblyEnd  (peqn->petscRhs);
+
+        VecRestoreArray(peqn->petscRhs, &rhs);
+    }
 
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
     DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
@@ -2808,13 +3851,15 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-              if (isIBMSolidCell(k, j, i, nvert))
+              if (isIBMCell(k, j, i, nvert))
               {
                       continue;
               }
 
-              if (isFluidCell(k, j, i, nvert) || isIBMFluidCell(k, j, i, nvert))
+              if (isFluidCell(k, j, i, nvert))
               {
+                  // p updated only for fluid cells. For ibm fluid cells it is interpolated from the fluid cells in updateIBMPhi function later
+
                   p[k][j][i] += (lphi[k][j][i]/clock->dt);
                   lPsum += p[k][j][i];
                   lnPoints++;
@@ -2835,7 +3880,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-              if (isFluidCell(k, j, i, nvert) || isIBMFluidCell(k, j, i, nvert))
+              if (isFluidCell(k, j, i, nvert))
               {
                   p[k][j][i] -= gPsum;
               }
@@ -2853,6 +3898,12 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
 
     DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
     DMGlobalToLocalEnd  (da, peqn->P, INSERT_VALUES, peqn->lP);
+
+    //update phi and p for ibm fluid cells from the new fluid cell phi and p
+    if(peqn->access->flags->isIBMActive)
+    {
+         updateIBMPhi(peqn->access->ibm);
+    }
 
     return(0);
 }
@@ -2886,13 +3937,15 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
     PetscInt           gzs   = info.gzs, gze = info.gzs + info.gzm;
 
     Cmpnts             ***cent, ***pibmpt, ***pibmcell;
-    PetscReal          ***aj, ***nvert, ***lPhi, ***gPhi;
+    PetscReal          ***aj, ***nvert, ***lPhi, ***gPhi, ***p, ***lp;
 
     DMDAVecGetArray(da, mesh->lAj, &aj);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
     DMDAVecGetArray(fda, mesh->lCent, &cent);
     DMDAVecGetArray(da, peqn->lPhi, &lPhi);
     DMDAVecGetArray(da, peqn->Phi, &gPhi);
+    DMDAVecGetArray(da, peqn->P, &p);
+    DMDAVecGetArray(da, peqn->lP, &lp);
 
     DMDAVecGetArray(fda, peqn->pIBMPt, &pibmpt);
     DMDAVecGetArray(fda, peqn->pIBMCell, &pibmcell);
@@ -2982,7 +4035,7 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
         // restrict this to 3*ref length
         PetscReal sumDel = 0.0;
 
-        while ( (intFlag == 1) && isInsideSimDomain(checkPt, mesh->bounds) && (sumDel <= 3*refLength))
+        while ( (intFlag == 1) && isInsideBoundingBox(checkPt, mesh->bounds) && (sumDel <= 1.5*refLength))
         {
             PetscInt ibmCellCtr = 0;
             PetscInt icc, jcc, kcc, setFlag = 0;
@@ -3072,6 +4125,7 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
             {
                 intFlag = 0;
 
+                //interpolate phi
                 scalarPointLocalVolumeInterpolation
                 (
                         mesh,
@@ -3080,6 +4134,17 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
                         cent,
                         lPhi,
                         gPhi[k][j][i]
+                );
+
+                //interpolate pressure
+                scalarPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        checkPt.x, checkPt.y, checkPt.z,
+                        ic, jc, kc,
+                        cent,
+                        lp,
+                        p[k][j][i]
                 );
 
             }
@@ -3097,7 +4162,9 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
                 pibmcell[k][j][i].y = (PetscReal)initCp.j;
                 pibmcell[k][j][i].z = (PetscReal)initCp.k;
 
+                // interpolate phi and pressure
                 gPhi[k][j][i] = lPhi[initCp.k][initCp.j][initCp.i];
+                p[k][j][i]    = lp[initCp.k][initCp.j][initCp.i];
         }
         else
         {
@@ -3118,6 +4185,8 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
     DMDAVecRestoreArray(da, peqn->lPhi, &lPhi);
     DMDAVecRestoreArray(da, peqn->Phi, &gPhi);
+    DMDAVecRestoreArray(da, peqn->P, &p);
+    DMDAVecRestoreArray(da, peqn->lP, &lp);
 
     DMDAVecRestoreArray(fda, peqn->pIBMPt, &pibmpt);
     DMDAVecRestoreArray(fda, peqn->pIBMCell, &pibmcell);
@@ -3130,6 +4199,9 @@ PetscErrorCode updateIBMPhi(ibm_ *ibm)
 
     DMGlobalToLocalBegin(da, peqn->Phi, INSERT_VALUES, peqn->lPhi);
     DMGlobalToLocalEnd  (da, peqn->Phi, INSERT_VALUES, peqn->lPhi);
+
+    DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
+    DMGlobalToLocalEnd  (da, peqn->P, INSERT_VALUES, peqn->lP);
 
     return (0);
 }
@@ -3487,117 +4559,151 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     // add flux correction
     if(flags->isIBMActive)
     {
-
         AdjustIBMFlux(peqn);
 
         MPI_Barrier(mesh->MESH_COMM);
-
     }
 
     if(flags->isIBMActive)
     {
         if( peqn->access->ibm->dynamic )
         {
-            // destroy the initialized hypre matrix
-            DestroyHypreMatrix(peqn);
+            if(peqn->solverType == "HYPRE")
+            {
+                DestroyHypreMatrix(peqn);
+                DestroyHypreVector(peqn);
 
-            // destroy the initialized hypre vector
-            DestroyHypreVector(peqn);
+                CreateHypreMatrix(peqn);
+                CreateHypreVector(peqn);
 
-            // create parallel coeff. matrix framework
-            CreateHypreMatrix(peqn);
-
-            // create parallel sol and rhs vector frameworks
-            CreateHypreVector(peqn);
-
-            DestroyHypreSolver(peqn);
-
-            CreateHypreSolver(peqn);
-
-            MPI_Barrier(mesh->MESH_COMM);
+                MPI_Barrier(mesh->MESH_COMM);
+            }
 
             // if ibm active set the pressure interpolation cells for coefficient matrix
             updateIBMPhi(peqn->access->ibm);
 
-            MPI_Barrier(mesh->MESH_COMM);
-
             // set coefficient matrix
             SetCoeffMatrix(peqn);
 
+            MPI_Barrier(mesh->MESH_COMM);
+
+            if(peqn->solverType == "PETSc")
+            {
+                // destroy rhs framework
+                VecSet(peqn->petscRhs, 0.0);
+
+                // create solver framework
+                if(clock->it > clock->itStart)
+                {
+                    DestroyPETScSolver(peqn);
+                }
+
+                CreatePETScSolver(peqn);
+            }
         }
     }
 
     // compute the RHS (divergence of predicted velocity)
     SetRHS(peqn);
 
-    // transform Phi2 to the unknown in HYPRE (used as initial guess)
-    Petsc2HypreVector(peqn->phi, peqn->hypreP, peqn->thisRankStart);
-
-    MPI_Barrier(mesh->MESH_COMM);
-
-    // initialize the solver
-    if((clock->it == clock->itStart) || (flags->isIBMActive && peqn->access->ibm->dynamic))
+    if(peqn->solverType == "HYPRE")
     {
+        // transform Phi2 to the unknown in HYPRE (used as initial guess)
+        Petsc2HypreVector(peqn->phi, peqn->hypreP, peqn->thisRankStart);
 
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // initialize the solver
+        if((clock->it == clock->itStart) || (flags->isIBMActive && peqn->access->ibm->dynamic))
+        {
+            if(peqn->hypreSolverType == 1)
+            {
+                PetscPrintf(mesh->MESH_COMM, "BoomerGMRES: Setup = ");
+                HYPRE_ParCSRGMRESSetup(peqn->hypreSlvr, peqn->hypreParA, peqn->hypreParRhs, peqn->hypreParP);
+                PetscPrintf(mesh->MESH_COMM, "1, Solving for p, ");
+            }
+            else if (peqn->hypreSolverType == 2)
+            {
+                PetscPrintf(mesh->MESH_COMM, "BoomerPCG: Setup = ");
+                HYPRE_ParCSRPCGSetup  (peqn->hypreSlvr, peqn->hypreParA, peqn->hypreParRhs, peqn->hypreParP);
+                PetscPrintf(mesh->MESH_COMM, "1, Solving for p, ");
+            }
+        }
+
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // compute initial residual
+        peqn->initialPoissonRes = L2NormHypre(peqn, peqn->hypreA, peqn->hypreP, peqn->hypreRhs);
+
+        // solve the Poisson equation
         if(peqn->hypreSolverType == 1)
         {
-            HYPRE_ParCSRGMRESSetup(peqn->hypreSlvr, peqn->hypreParA, peqn->hypreParRhs, peqn->hypreParP);
+            HYPRE_ParCSRGMRESSolve
+            (
+                    peqn->hypreSlvr,
+                    peqn->hypreParA,
+                    peqn->hypreParRhs,
+                    peqn->hypreParP
+            );
+
+            // get iteration number
+            HYPRE_GMRESGetNumIterations(peqn->hypreSlvr, &(peqn->poissonIterations));
+
+            // compute final relative residual norm
+            HYPRE_ParCSRGMRESGetFinalRelativeResidualNorm(peqn->hypreSlvr, &(peqn->finalPoissonRes));
+
+            PetscPrintf(mesh->MESH_COMM, "Initial residual = %e, Final residual = %e, Iterations = %ld, Elapsed Time = ", peqn->initialPoissonRes, peqn->finalPoissonRes, peqn->poissonIterations);
         }
         else if (peqn->hypreSolverType == 2)
         {
-            HYPRE_ParCSRPCGSetup  (peqn->hypreSlvr, peqn->hypreParA, peqn->hypreParRhs, peqn->hypreParP);
+            HYPRE_ParCSRPCGSolve
+            (
+                    peqn->hypreSlvr,
+                    peqn->hypreParA,
+                    peqn->hypreParRhs,
+                    peqn->hypreParP
+            );
+
+            // get iteration number
+            HYPRE_PCGGetNumIterations(peqn->hypreSlvr, &(peqn->poissonIterations));
+
+            // compute final relative residual norm
+            HYPRE_PCGGetFinalRelativeResidualNorm(peqn->hypreSlvr, &(peqn->finalPoissonRes));
+
+            PetscPrintf(mesh->MESH_COMM, "Initial residual = %e, Final residual = %e, Iterations = %ld, Elapsed Time = ", peqn->initialPoissonRes, peqn->finalPoissonRes, peqn->poissonIterations);
         }
 
+        // subtract the mean from the solution vector
+        SubtractAverageHypre(peqn, peqn->hypreP);
+
+        // transform the HYPRE solution to the Phi2 petsc vector
+        Hypre2PetscVector(peqn->hypreP, peqn->phi, peqn->thisRankStart);
     }
-
-    MPI_Barrier(mesh->MESH_COMM);
-
-    // compute initial residual
-    peqn->initialPoissonRes = L2NormHypre(peqn, peqn->hypreA, peqn->hypreP, peqn->hypreRhs);
-
-    // solve the Poisson equation
-    if(peqn->hypreSolverType == 1)
+    else if(peqn->solverType == "PETSc")
     {
-        HYPRE_ParCSRGMRESSolve
-        (
-                peqn->hypreSlvr,
-                peqn->hypreParA,
-                peqn->hypreParRhs,
-                peqn->hypreParP
-        );
+        // compute initial residual
+        KSPSolve(peqn->ksp, peqn->petscRhs, peqn->phi);
 
-        // get iteration number
-        HYPRE_GMRESGetNumIterations(peqn->hypreSlvr, &(peqn->poissonIterations));
+        // compute info
+        KSPGetResidualNorm(peqn->ksp,&(peqn->finalPoissonRes));
+        PetscInt numIter;
+        KSPGetIterationNumber(peqn->ksp, &numIter);
+        peqn->poissonIterations = (HYPRE_Int)numIter;
 
-        // compute final relative residual norm
-        HYPRE_ParCSRGMRESGetFinalRelativeResidualNorm(peqn->hypreSlvr, &(peqn->finalPoissonRes));
+        PetscPrintf(mesh->MESH_COMM, "MGGMRES: Solving for p, Initial residual = %e, Final residual = %e, Iterations = %ld, Elapsed Time = ",peqn->initialPoissonRes, peqn->finalPoissonRes, peqn->poissonIterations);
 
-        PetscPrintf(mesh->MESH_COMM, "BoomerGMRES: Solving for p, Initial residual = %e, Final residual = %e, Iterations = %ld, Elapsed Time = ", peqn->initialPoissonRes, peqn->finalPoissonRes, peqn->poissonIterations);
+        if(flags->isIBMActive)
+        {
+            if( peqn->access->ibm->dynamic )
+            {
+                MatMPIAIJSetPreallocation(peqn->petscA, 27, PETSC_NULL, 27, PETSC_NULL);
+
+                MatSetOption(peqn->petscA, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+            }
+        }
+
+        SubtractAveragePETSc(peqn, peqn->phi);
     }
-    else if (peqn->hypreSolverType == 2)
-    {
-        HYPRE_ParCSRPCGSolve
-        (
-                peqn->hypreSlvr,
-                peqn->hypreParA,
-                peqn->hypreParRhs,
-                peqn->hypreParP
-        );
-
-        // get iteration number
-        HYPRE_PCGGetNumIterations(peqn->hypreSlvr, &(peqn->poissonIterations));
-
-        // compute final relative residual norm
-        HYPRE_PCGGetFinalRelativeResidualNorm(peqn->hypreSlvr, &(peqn->finalPoissonRes));
-
-        PetscPrintf(mesh->MESH_COMM, "BoomerPCG: Solving for p, Initial residual = %e, Final residual = %e, Iterations = %ld, Elapsed Time = ", peqn->initialPoissonRes, peqn->finalPoissonRes, peqn->poissonIterations);
-    }
-
-    // subtract the mean from the solution vector
-    SubtractAverage(peqn, peqn->hypreP);
-
-    // transform the HYPRE solution to the Phi2 petsc vector
-    Hypre2PetscVector(peqn->hypreP, peqn->phi, peqn->thisRankStart);
 
     // wait until al processes reach this point
     MPI_Barrier(mesh->MESH_COMM);
@@ -3639,7 +4745,7 @@ PetscErrorCode SetPressureReference(peqn_ *peqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***p, ***lp;
+    PetscReal     ***p, ***lp, ***nvert;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -3647,6 +4753,7 @@ PetscErrorCode SetPressureReference(peqn_ *peqn)
 
     DMDAVecGetArray(da, peqn->lP, &lp);
     DMDAVecGetArray(da, peqn->P, &p);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
 
     // test if this processor contains the 0,0,0 cell
     PetscReal lscale = 0.0, gscale = 0.0;
@@ -3663,13 +4770,17 @@ PetscErrorCode SetPressureReference(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-                p[k][j][i] -= gscale;
+                if(!isIBMSolidCell(k, j, i, nvert))
+                {
+                    p[k][j][i] -= gscale;
+                }
             }
         }
     }
 
     DMDAVecRestoreArray(da, peqn->lP, &lp);
     DMDAVecRestoreArray(da, peqn->P, &p);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
     // scatter Phi from global to local
     DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
