@@ -2428,11 +2428,6 @@ PetscErrorCode UpdatePhiBCs(peqn_ *peqn)
     DMDAVecGetArray(da, peqn->lPhi, &lphi);
     DMDAVecGetArray(da, peqn->Phi, &phi);
 
-    if(peqn->access->flags->isIBMActive)
-    {
-         updateIBMPhi(peqn->access->ibm);
-    }
-
     for (k=zs; k<ze; k++)
     {
         for (j=ys; j<ye; j++)

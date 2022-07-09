@@ -145,6 +145,7 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
     flags_  *flags = io->access->flags;
 
     PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
 
     // read writing settings (mandatory entries)
     readDictWord  ("control.dat", "-intervalType", &(io->intervalType));
@@ -153,6 +154,11 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
     // read time controls (mandatory entries)
     readDictDouble("control.dat", "-cfl",          &(clock->cfl));
     readDictDouble("control.dat", "-endTime",      &(clock->endTime));
+
+    if(!flags->isAdjustableTime)
+    {
+        readDictDouble("control.dat", "-timeStep",  &(clock->dt));
+    }
 
     // read purge write (optional)
     io->purgeWrite     = 0;

@@ -55,12 +55,12 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
     peqn->poissonIt       = 8;
     peqn->poissonTol      = 1.e-8;
 
-    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-amgAgg",         &(peqn->amgAgg),          PETSC_NULL);
-    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-amgThresh",      &(peqn->amgThresh),       PETSC_NULL);
-    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-amgCoarsenType", &(peqn->amgCoarsenType),  PETSC_NULL);
-    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-poissonIt",      &(peqn->poissonIt),       PETSC_NULL);
-    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-poissonTol",     &(peqn->poissonTol),      PETSC_NULL);
-    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-hypreSolverType",&(peqn->hypreSolverType), PETSC_NULL);
+    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-amgAgg",         &(peqn->amgAgg),   PETSC_NULL);
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-amgThresh",      &(peqn->amgThresh), PETSC_NULL);
+    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-amgCoarsenType", &(peqn->amgCoarsenType), PETSC_NULL);
+    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-poissonIt",      &(peqn->poissonIt), PETSC_NULL);
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-poissonTol",     &(peqn->poissonTol), PETSC_NULL);
+    PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-hypreSolverType",&(peqn->hypreSolverType),   PETSC_NULL);
     readDictWord       ("control.dat",          "-poissonSolver",  &(peqn->solverType));
 
     // compute connectivity and create the solver

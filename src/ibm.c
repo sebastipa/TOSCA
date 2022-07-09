@@ -1495,10 +1495,10 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
                                         bodyID  = b;
                                     }
                                 }
-                                // The projected point is on the triangle line
+                                // The projected point is outside the triangle
                                 else
                                 {
-                                    // po is the projected point on the line and d is the distance to that point from cent[k][j][i]
+                                    // po is the approximated projected point and d is the distance to that point from cent[k][j][i]
                                     disP2Line(cent[k][j][i], p1, p2, &po, &d);
 
                                     if (d < dmin)

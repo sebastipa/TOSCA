@@ -1,12 +1,12 @@
 # TOSCA Input file - control dictionary
-# --------------------------------- 
+# ---------------------------------
 
 # Simulation
 # ---------------------------------
 -startFrom                 startTime
 -startTime                 0
 -endTime                   40
--cfl                       0.8
+-cfl                       0.6
 -adjustTimeStep            1
 -timeStep                  0.05
 
@@ -16,14 +16,15 @@
 -timeInterval              0.4
 -purgeWrite                0
 
-# Solution 
+# Solution
 # ---------------------------------
 -ibm                       1
 -overset                   0
 -absTolU                   1e-8
--poissonIt                 6
+-poissonIt                 40
 -poissonTol                1e-8
 -poissonSolver             HYPRE
+-hypreSolverType           1
 
 # Turbulence Model
 # ---------------------------------
@@ -39,7 +40,7 @@
 # ---------------------------------
 -windplant                 0
 
-# Constants 
+# Constants
 # ---------------------------------
 -nu                        1.4367e-5
 -rho                       1.225
@@ -65,10 +66,7 @@
 #-phaseAvgPeriod            500
 #-phaseAvgStartTime         0
 
-# PostProcessing 
+# PostProcessing
 # ---------------------------------
 -writeRaster                0
 -postProcessFields          1
-
-
-

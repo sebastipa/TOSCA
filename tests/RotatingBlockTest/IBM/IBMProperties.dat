@@ -8,7 +8,7 @@ InterpolationMethod                 CURVIB
 debug                               0
 dynamic                             1
 checkNormal                         1
-computeForce                        1
+computeForce                        0
 writeSTL                            0
 
 writeSettings
@@ -28,10 +28,14 @@ object0
     fileType 			            ucd
     bodyMotion                      rotation
     baseLocation     	            (0.0 0.0 0.0)
-    
+
     #procBounds
     procBoundCenter                 (0.0 0.0 0.0)
     procBoundSize                   (3.0 3.0 3.0)
+
+    #procBounds
+    procBoundCenter                 (0.0 0.0 0.0)
+    procBoundSize                   (2.0 5.0 5.0)
 
     #wall model
     wallModelU                      Cabot
@@ -42,12 +46,10 @@ object0
     #motion properties
 
     maxTipRadius                    1.0
-    angularSpeed     	            0.375
-    angularAcceleration             1.5
-    rotationAxis            	    (1.0 0.0 0.0) 
+    angularSpeed     	            8.0
+    angularAcceleration             0.0
+    rotationAxis            	    (1.0 0.0 0.0)
     rotationCenter                  (0.0 0.0 0.0)
 
     searchCellRatio                 3
 }
-
-
