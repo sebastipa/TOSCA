@@ -32,6 +32,10 @@ vkConst 0.4
 # Rampanelli and Zardi temperature model parameter.
 smearT 0.5
 
+# Activation flags 
+coriolisActive 1
+controllerActive 1
+
 # Coriolis parameter: 7.272205217e-5 * sin(latitude)
 fCoriolis 5.156303966e-5
 
