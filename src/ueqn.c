@@ -769,13 +769,38 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
             // update uBarInstX at this time step for this processor. These fields are defined at
             // k-face centers, so the indexing is equal to cell centers.
-
             for (j=lys; j<lye; j++)
             {
                 for (i=lxs; i<lxe; i++)
                 {
+                    // steady prescribed ubar
+                    if (ifPtr->typeU == 0)
+                    {
+                        PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                        PetscReal uMag;
+
+                        if(h <= ifPtr->hInv)
+                        {
+                            uMag
+                            =
+                            PetscMax
+                            (
+                                (ifPtr->uTau/0.4)*std::log(h/ifPtr->roughness),
+                                1e-5
+                            );
+                        }
+                        else
+                        {
+                            uMag
+                            =
+                            (ifPtr->uTau/0.4)*std::log(ifPtr->hInv/ifPtr->roughness);
+                        }
+
+                        // set velocity according to log law
+                        luBarInstX[j][i] = nScale(uMag, ifPtr->Udir);
+                    }
                     // unsteady mapped
-                    if (ifPtr->typeU == 1)
+                    else if (ifPtr->typeU == 1)
                     {
                         // periodize inflow according to input
 
@@ -851,8 +876,25 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                     if(ueqn->access->flags->isTeqnActive)
                     {
+                        // steady prescribed ubar
+                        if (ifPtr->typeT == 0)
+                        {
+                            PetscReal b  = abl->smear * abl->gTop * abl->dInv;
+                            PetscReal a  = abl->gInv - b;
+                            PetscReal h  = cent[k][j][i].z - mesh->bounds.zmin;
+
+                            // non dimensional height eta
+                            PetscReal eta = (h - abl->hInv) / abl->smear / abl->dInv;
+
+                            // non dimensional functions
+                            PetscReal f_eta = (std::tanh(eta) + 1) / 2;
+                            PetscReal g_eta = (std::log(2 * std::cosh(eta)) + eta) / 2;
+
+                            // potential temperature
+                            ltBarInstX[j][i] = abl->tRef + a * f_eta + b * g_eta;
+                        }
                         // periodized mapped inflow
-                        if (ifPtr->typeT == 1)
+                        else if (ifPtr->typeT == 1)
                         {
                             // periodize inflow according to input
 
@@ -1698,10 +1740,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     nudK           = central(nud_x, nudk_x);
                 }
 
-                if
-                (
-                    isFluidIFace(k, j, i, i+1, nvert)
-                )
+                if(isFluidIFace(k, j, i, i+1, nvert))
                 {
                     rhs[k][j][i].x
                     +=
@@ -1715,10 +1754,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
-                if
-                (
-                    isFluidJFace(k, j, i, j+1, nvert)
-                )
+                if(isFluidJFace(k, j, i, j+1, nvert))
                 {
                     rhs[k][j][i].y
                     +=
@@ -1732,10 +1768,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
-                if
-                (
-                    isFluidKFace(k, j, i, k+1, nvert)
-                )
+                if(isFluidKFace(k, j, i, k+1, nvert))
                 {
                     rhs[k][j][i].z
                     +=
@@ -1889,10 +1922,10 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
 
     Cmpnts        ***rhs, ***gcont;
-    Cmpnts        ***icsi, ***jeta, ***kzet;
+    Cmpnts        ***icsi, ***jeta, ***kzet, ***cent;
     PetscReal     ***nvert, ***tmprt, ***aj;
 
-    PetscInt           i, j, k;
+    PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
     Cmpnts        gravity;
@@ -1900,6 +1933,27 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                   gravity.y = 0;
                   gravity.z = -9.81;
     PetscReal     tRef      = ueqn->access->abl->tRef;
+
+    // damping viscosity for fringe region exclusion
+    double nudI;
+    double nudJ;
+    double nudK;
+
+    // fringe region parameters (set only if active)
+    double xS;
+    double xE;
+    double xD;
+
+    if(ueqn->access->flags->isXDampingActive)
+    {
+        xS     = ueqn->access->abl->xDampingStart;
+        xE     = ueqn->access->abl->xDampingEnd;
+        xD     = ueqn->access->abl->xDampingDelta;
+    }
+    else
+    {
+        nudI = nudJ = nudK = 1.0;
+    }
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1993,9 +2047,10 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
-    DMDAVecRestoreArray(da,  mesh->lAj,       &aj);
+    DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
 
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
     DMDAVecGetArray(fda, Rhs,  &rhs);
 
     for (k=lzs; k<lze; k++)
@@ -2004,15 +2059,34 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
+                if(ueqn->access->flags->isXDampingActive)
+                {
+                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    double x     = cent[k][j][i].x;
+                    double xi    = cent[k][j][i+1].x;
+                    double xj    = cent[k][j+1][i].x;
+                    double xk    = cent[k+1][j][i].x;
+
+                    // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    double nud_x   = viscStipa(xS, xE, xD, x);
+                    double nudi_x  = viscStipa(xS, xE, xD, xi);
+                    double nudj_x  = viscStipa(xS, xE, xD, xj);
+                    double nudk_x  = viscStipa(xS, xE, xD, xk);
+
+                    nudI           = central(nud_x, nudi_x);
+                    nudJ           = central(nud_x, nudj_x);
+                    nudK           = central(nud_x, nudk_x);
+                }
+
                 // interpolate at cell faces
                 PetscReal tempI    = 0.5*(tmprt[k][j][i] + tmprt[k][j][i+1]);
                 //PetscReal tempRefI = gavgT[j];
 
-                if (isFluidIFace(k, j, i, i+1, nvert))
+                if(isFluidIFace(k, j, i, i+1, nvert))
                 {
                     rhs[k][j][i].x
                     +=
-                    scale *
+                    scale * nudI *
                     (
                         gcont[k][j][i].x *
                         (tRef - tempI) / tRef
@@ -2026,11 +2100,11 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 PetscReal tempJ    =  0.5*(tmprt[k][j][i] + tmprt[k][j+1][i]);
                 //PetscReal tempRefJ =  0.5*(gavgT[j] + gavgT[j+1]);
 
-                if (isFluidJFace(k, j, i, j+1, nvert))
+                if(isFluidJFace(k, j, i, j+1, nvert))
                 {
                     rhs[k][j][i].y
                     +=
-                    scale *
+                    scale * nudJ *
                     (
                         gcont[k][j][i].y *
                         (tRef - tempJ) / tRef
@@ -2048,7 +2122,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].z
                     +=
-                    scale *
+                    scale * nudK *
                     (
                         gcont[k][j][i].z *
                         (tRef - tempK) / tRef
@@ -2065,6 +2139,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(da,  teqn->lTmprt, &tmprt);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
     DMDAVecRestoreArray(fda, ueqn->gCont, &gcont);
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     // clean memory
     /*
@@ -4754,7 +4829,10 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     // add coriolis term
     if(ueqn->access->flags->isAblActive)
     {
-        Coriolis(ueqn, Rhs, 1.0);
+        if(ueqn->access->abl->coriolisActive)
+        {
+            Coriolis(ueqn, Rhs, 1.0);
+        }
     }
 
     // add side force term
@@ -4811,7 +4889,10 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     // add driving source terms after as it is not scaled by 1/dt
     if(ueqn->access->flags->isAblActive)
     {
-        sourceU(ueqn, Rhs, 1.0);
+        if(ueqn->access->abl->controllerActive)
+        {
+            sourceU(ueqn, Rhs, 1.0);
+        }
     }
 
     resetNonResolvedCellFaces(mesh, Rhs);
@@ -4855,7 +4936,10 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     // add coriolis term
     if(ueqn->access->flags->isAblActive)
     {
-        Coriolis(ueqn, ueqn->Rhs, 1.0);
+        if(ueqn->access->abl->coriolisActive)
+        {
+            Coriolis(ueqn, ueqn->Rhs, 1.0);
+        }
     }
 
     // add side force term
@@ -4901,7 +4985,10 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     // the rhs is not multiplied by dt in this function
     if(ueqn->access->flags->isAblActive)
     {
-        sourceU(ueqn, ueqn->Rhs, 1.0 / clock->dt);
+        if(ueqn->access->abl->controllerActive)
+        {
+            sourceU(ueqn, ueqn->Rhs, 1.0 / clock->dt);
+        }
     }
 
     resetNonResolvedCellFaces(mesh, ueqn->Rhs);

@@ -1877,7 +1877,14 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 
          if (flags->isTeqnActive)
          {
-             ibmPtTemp = 320;//ibm->access->abl->tRef;
+             if(flags->isAblActive)
+             {
+                 ibmPtTemp = ibm->access->abl->tRef;
+             }
+             else
+             {
+                 ibmPtTemp = ibm->access->constants->tRef;
+             }
          }
 
          // cabot wall model to interpolate the velocity at the ibm fluid node
@@ -4191,7 +4198,7 @@ PetscErrorCode findSearchCellDim(ibm_ *ibm)
         sBox->ncy = ceil(ibBox->Ly/searchCellsize);
         sBox->ncz = ceil(ibBox->Lz/searchCellsize);
 
-        //set a default value
+        //set a default value (this needs optimization)
         // if(b == 1)
         // {
             sBox->ncx = 10; sBox->ncy = 10; sBox->ncz = 10;

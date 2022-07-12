@@ -47,7 +47,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
     if(mesh->meshFileType != "cartesian")
     {
-       char error[512];
+        char error[512];
         sprintf(error, "ABL capabilites only available for cartesian meshes\n");
         fatalErrorInFunction("InitializeABL",  error);
     }
@@ -65,9 +65,17 @@ PetscErrorCode InitializeABL(abl_ *abl)
     readDictDouble("ABLProperties.dat", "gTop",             &(abl->gTop));
     readDictDouble("ABLProperties.dat", "vkConst",          &(abl->vkConst));
     readDictDouble("ABLProperties.dat", "smearT",           &(abl->smear));
-    readDictDouble("ABLProperties.dat", "controllerHeight", &(abl->controllerHeight));
-    readDictDouble("ABLProperties.dat", "fCoriolis",        &(abl->fc));
-    readDictWord  ("ABLProperties.dat", "controllerType",   &(abl->controllerType));
+    readDictInt   ("ABLProperties.dat", "coriolisActive",   &(abl->coriolisActive));
+    readDictInt   ("ABLProperties.dat", "controllerActive", &(abl->controllerActive));
+    if(abl->coriolisActive)
+    {
+        readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
+    }
+    if(abl->controllerActive)
+    {
+        readDictDouble("ABLProperties.dat", "controllerHeight", &(abl->controllerHeight));
+        readDictWord  ("ABLProperties.dat", "controllerType",   &(abl->controllerType));
+    }
 
     PetscPrintf(mesh->MESH_COMM, "   initializing levels\n");
 
@@ -227,7 +235,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
             if(mesh->boundaryU.kLeft == "inletFunction")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "fringe region in x direction and inflowFunctions cannot be used together\n");
                 fatalErrorInFunction("ABLInitialize", error);
             }
@@ -241,8 +249,23 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // set inflowFunction internal uBarSelectionType
             ifPtr->typeU = abl->xFringeUBarSelectionType;
 
+            // steady prescribed ubar
+            if (ifPtr->typeU == 0)
+            {
+                // set tBarSelectionType the same as uBarSelectionType
+                ifPtr->typeT  = 0;
+
+                // velocity properties
+                readSubDictVector("ABLProperties.dat", "xDampingProperties", "directionU", &(ifPtr->Udir));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "hInversion", &(ifPtr->hInv));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "frictionU",  &(ifPtr->uTau));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "kRough",     &(ifPtr->roughness));
+                mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
+
+                // temperature properties: already stored in the abl struct
+            }
             // unsteady mapped ubar
-            if (ifPtr->typeU == 1)
+            else if (ifPtr->typeU == 1)
             {
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 1;
@@ -295,7 +318,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             }
             else
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "unknown uBarSelectionType in xDampingLayer, available types are:\n        1 : unsteady mapped ubar from database\n        2 : unsteady interpolated uBar from database");
                 fatalErrorInFunction("ABLInitialize",  error);
             }
@@ -437,172 +460,175 @@ PetscErrorCode InitializeABL(abl_ *abl)
         readSubDictDouble("ABLProperties.dat", "sideForceProperties", "zEndSideF",     &(abl->zEndSideF));
     }
 
-    // source terms are computed
-    if(abl->controllerType == "write")
+    if(abl->controllerActive)
     {
-        PetscPrintf(mesh->MESH_COMM, "   reading driving controller properties\n");
-
-        readDictDouble("ABLProperties.dat", "relaxPI",          &(abl->relax));
-        readDictDouble("ABLProperties.dat", "alphaPI",          &(abl->alpha));
-        readDictDouble("ABLProperties.dat", "timeWindowPI",     &(abl->timeWindow));
-    }
-    // source terms are read or averaged from available database
-    else if(abl->controllerType=="read" || abl->controllerType=="average")
-    {
-        // use the vector class to append data in the vector (simpler)
-        std::vector<std::vector<PetscReal>> preCompSourcesTmp;
-
-        // word by word read
-        char word[256];
-
-        // buffer for read data
-        PetscReal buffer;
-
-        // time counter
-        PetscInt ntimes;
-
-        // file is located into the main folder
-        std::ifstream indata;
-        indata.open("inflowDatabase/momentumSource");
-
-        if(!indata)
+        // source terms are computed
+        if(abl->controllerType == "write")
         {
-           char error[512];
-            sprintf(error, "cannot open file inflowDatabase/momentumSource\n");
-            fatalErrorInFunction("ABLInitialize",  error);
+            PetscPrintf(mesh->MESH_COMM, "   reading driving controller properties\n");
+
+            readDictDouble("ABLProperties.dat", "relaxPI",          &(abl->relax));
+            readDictDouble("ABLProperties.dat", "alphaPI",          &(abl->alpha));
+            readDictDouble("ABLProperties.dat", "timeWindowPI",     &(abl->timeWindow));
         }
-        else
+        // source terms are read or averaged from available database
+        else if(abl->controllerType=="read" || abl->controllerType=="average")
         {
-            std::string tmpStr;
+            // use the vector class to append data in the vector (simpler)
+            std::vector<std::vector<PetscReal>> preCompSourcesTmp;
 
-            // read lines and get number of saved times
-            for (ntimes = 0; std::getline(indata, tmpStr); ntimes++);
+            // word by word read
+            char word[256];
 
-            // first line is header
-            ntimes--;
+            // buffer for read data
+            PetscReal buffer;
 
-            // save the number of times
-            abl->nSourceTimes = ntimes;
-            abl->currentCloseIdx = 0;
+            // time counter
+            PetscInt ntimes;
 
-            // go back on top of file
-            indata.close();
+            // file is located into the main folder
+            std::ifstream indata;
             indata.open("inflowDatabase/momentumSource");
 
-            // skip header line
-            std::getline(indata, tmpStr);
-
-            // resize the source table
-            preCompSourcesTmp.resize(ntimes);
-
-            for(PetscInt t=0; t<ntimes; t++)
-            {
-                // read along the line: time | sourceX | sourceY | sourceZ
-                for(PetscInt i=0; i<4; i++)
-                {
-                    indata >> word;
-                    std::sscanf(word, "%lf", &buffer);
-
-                    preCompSourcesTmp[t].push_back(buffer);
-                }
-
-            }
-
-            indata.close();
-        }
-
-        // now store the source data into preCompSources and free the temporary variable
-        PetscMalloc(sizeof(PetscReal) * ntimes, &(abl->preCompSources));
-        for(PetscInt t=0; t<ntimes; t++)
-        {
-            PetscMalloc(sizeof(PetscReal) * 4, &(abl->preCompSources[t]));
-        }
-
-        for(PetscInt t=0; t<ntimes; t++)
-        {
-            for(PetscInt i=0; i<4; i++)
-            {
-               abl->preCompSources[t][i] =  preCompSourcesTmp[t][i];
-            }
-        }
-
-        // clean the temporary variables
-        for(PetscInt t=0; t<ntimes; t++)
-        {
-            std::vector<PetscReal> ().swap(preCompSourcesTmp[t]);
-        }
-
-        // if controllerType is average then average the preCompSources
-        if(abl->controllerType=="average")
-        {
-            readDictDouble("ABLProperties.dat", "controllerAvgStartTime", &(abl->sourceAvgStartTime));
-
-            // check that average start time is in the list
-            if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
-            {
-                char error[512];
-                sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
-                fatalErrorInFunction("ABLInitialize",  error);
-            }
-            // check that more than 100 s of history are used to average
-            else if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
+            if(!indata)
             {
                char error[512];
-                sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average is too poor (less than 100 s)");
+                sprintf(error, "cannot open file inflowDatabase/momentumSource\n");
                 fatalErrorInFunction("ABLInitialize",  error);
             }
             else
             {
-                // warn if less then 1000 s of history are used to average
-                if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 1000.00)
-                {
-                   char error[512];
-                    sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average could be too poor (less than 1000 s)");
-                    warningInFunction("ABLInitialize",  error);
-                }
+                std::string tmpStr;
 
-                // initialize average counter to zero
-                PetscInt  nAvgSources = 0;
-                PetscInt  timeOldSet  = 0;
-                PetscReal timeOld;
+                // read lines and get number of saved times
+                for (ntimes = 0; std::getline(indata, tmpStr); ntimes++);
 
-                abl->avgTimeStep = 0.0;
+                // first line is header
+                ntimes--;
 
-                // average source terms
+                // save the number of times
+                abl->nSourceTimes = ntimes;
+                abl->currentCloseIdx = 0;
+
+                // go back on top of file
+                indata.close();
+                indata.open("inflowDatabase/momentumSource");
+
+                // skip header line
+                std::getline(indata, tmpStr);
+
+                // resize the source table
+                preCompSourcesTmp.resize(ntimes);
+
                 for(PetscInt t=0; t<ntimes; t++)
                 {
-                    if(abl->preCompSources[t][0] > abl->sourceAvgStartTime)
+                    // read along the line: time | sourceX | sourceY | sourceZ
+                    for(PetscInt i=0; i<4; i++)
                     {
-                        if(!timeOldSet)
-                        {
-                            timeOld    = abl->preCompSources[t][0];
-                            timeOldSet = 1;
-                        }
+                        indata >> word;
+                        std::sscanf(word, "%lf", &buffer);
 
-                        abl->cumulatedSource.x += abl->preCompSources[t][1];
-                        abl->cumulatedSource.y += abl->preCompSources[t][2];
-                        abl->cumulatedSource.z += abl->preCompSources[t][3];
-                        abl->avgTimeStep       += (abl->preCompSources[t][0] - timeOld);
-                        timeOld                =  abl->preCompSources[t][0];
-                        nAvgSources++;
+                        preCompSourcesTmp[t].push_back(buffer);
                     }
+
                 }
 
-                // divide by total number of sources used for the average
-                abl->cumulatedSource.x = abl->cumulatedSource.x / nAvgSources;
-                abl->cumulatedSource.y = abl->cumulatedSource.y / nAvgSources;
-                abl->cumulatedSource.z = abl->cumulatedSource.z / nAvgSources;
-                abl->avgTimeStep       = abl->avgTimeStep       / nAvgSources;
+                indata.close();
+            }
 
-                PetscPrintf(mesh->MESH_COMM, "   average driving sources = (%e %e %e), average time step = %lf\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z, abl->avgTimeStep);
+            // now store the source data into preCompSources and free the temporary variable
+            PetscMalloc(sizeof(PetscReal) * ntimes, &(abl->preCompSources));
+            for(PetscInt t=0; t<ntimes; t++)
+            {
+                PetscMalloc(sizeof(PetscReal) * 4, &(abl->preCompSources[t]));
+            }
+
+            for(PetscInt t=0; t<ntimes; t++)
+            {
+                for(PetscInt i=0; i<4; i++)
+                {
+                   abl->preCompSources[t][i] =  preCompSourcesTmp[t][i];
+                }
+            }
+
+            // clean the temporary variables
+            for(PetscInt t=0; t<ntimes; t++)
+            {
+                std::vector<PetscReal> ().swap(preCompSourcesTmp[t]);
+            }
+
+            // if controllerType is average then average the preCompSources
+            if(abl->controllerType=="average")
+            {
+                readDictDouble("ABLProperties.dat", "controllerAvgStartTime", &(abl->sourceAvgStartTime));
+
+                // check that average start time is in the list
+                if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
+                {
+                    char error[512];
+                    sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
+                    fatalErrorInFunction("ABLInitialize",  error);
+                }
+                // check that more than 100 s of history are used to average
+                else if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
+                {
+                   char error[512];
+                    sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average is too poor (less than 100 s)");
+                    fatalErrorInFunction("ABLInitialize",  error);
+                }
+                else
+                {
+                    // warn if less then 1000 s of history are used to average
+                    if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 1000.00)
+                    {
+                       char error[512];
+                        sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average could be too poor (less than 1000 s)");
+                        warningInFunction("ABLInitialize",  error);
+                    }
+
+                    // initialize average counter to zero
+                    PetscInt  nAvgSources = 0;
+                    PetscInt  timeOldSet  = 0;
+                    PetscReal timeOld;
+
+                    abl->avgTimeStep = 0.0;
+
+                    // average source terms
+                    for(PetscInt t=0; t<ntimes; t++)
+                    {
+                        if(abl->preCompSources[t][0] > abl->sourceAvgStartTime)
+                        {
+                            if(!timeOldSet)
+                            {
+                                timeOld    = abl->preCompSources[t][0];
+                                timeOldSet = 1;
+                            }
+
+                            abl->cumulatedSource.x += abl->preCompSources[t][1];
+                            abl->cumulatedSource.y += abl->preCompSources[t][2];
+                            abl->cumulatedSource.z += abl->preCompSources[t][3];
+                            abl->avgTimeStep       += (abl->preCompSources[t][0] - timeOld);
+                            timeOld                =  abl->preCompSources[t][0];
+                            nAvgSources++;
+                        }
+                    }
+
+                    // divide by total number of sources used for the average
+                    abl->cumulatedSource.x = abl->cumulatedSource.x / nAvgSources;
+                    abl->cumulatedSource.y = abl->cumulatedSource.y / nAvgSources;
+                    abl->cumulatedSource.z = abl->cumulatedSource.z / nAvgSources;
+                    abl->avgTimeStep       = abl->avgTimeStep       / nAvgSources;
+
+                    PetscPrintf(mesh->MESH_COMM, "   average driving sources = (%e %e %e), average time step = %lf\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z, abl->avgTimeStep);
+                }
             }
         }
-    }
-    else
-    {
-       char error[512];
-        sprintf(error, "unknown controllerType, available types are:\n        1 : write\n        2 : read\n        3 : average");
-        fatalErrorInFunction("ABLInitialize",  error);
+        else
+        {
+            char error[512];
+            sprintf(error, "unknown controllerType, available types are:\n        1 : write\n        2 : read\n        3 : average");
+            fatalErrorInFunction("ABLInitialize",  error);
+        }
     }
 
     PetscPrintf(mesh->MESH_COMM, "done\n\n");

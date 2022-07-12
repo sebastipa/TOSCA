@@ -87,7 +87,10 @@ int main(int argc, char **argv)
 
             if(flags.isAblActive)
             {
-                CorrectSourceTerms(domain[d].ueqn, 1);
+                if(domain[d].abl->controllerActive)
+                {
+                    CorrectSourceTerms(domain[d].ueqn, 1);
+                }
             }
 
             if(flags.isXDampingActive || flags.isZDampingActive)

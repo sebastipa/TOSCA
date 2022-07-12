@@ -38,7 +38,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         PetscInt      zs = info.zs, ze = info.zs + info.zm;
         PetscInt      mx = info.mx, my = info.my, mz = info.mz;
 
-        Cmpnts        ***ucat;
+        Cmpnts        ***ucat, ***ucont;
         Cmpnts        ***csi, ***eta, ***zet;
         PetscReal     ***nvert, ***aj;
 
@@ -57,6 +57,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         cfl = PetscMin(cfl, clock->cfl);
 
         DMDAVecGetArray(fda, ueqn->Ucat,   &ucat);
+        DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
         DMDAVecGetArray(fda, mesh->lCsi,   &csi);
         DMDAVecGetArray(fda, mesh->lEta,   &eta);
         DMDAVecGetArray(fda, mesh->lZet,   &zet);
@@ -95,8 +96,13 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                         ldk_min = PetscMin(ldk_min, ldk);
                     }
 
+                    // compute directional velocity in curvilinear coordinates
+                    PetscReal Vi = fabs(0.5 * (ucont[k][j][i].x + ucont[k][j][i-1].x) / nMag(csi[k][j][i])),
+                              Vj = fabs(0.5 * (ucont[k][j][i].y + ucont[k][j-1][i].y) / nMag(eta[k][j][i])),
+                              Vk = fabs(0.5 * (ucont[k][j][i].z + ucont[k-1][j][i].z) / nMag(zet[k][j][i]));
+
                     // compute dxByU
-                    PetscReal ldxByU = PetscMin(ldi, PetscMin(ldj, ldk)) / Umag;
+                    PetscReal ldxByU = PetscMin(ldi/Vi, PetscMin(ldj/Vj, ldk/Vk));
 
                     if(isFluidCell(k, j, i, nvert))
                     {
@@ -134,6 +140,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         MPI_Allreduce(&lmaxUCell, &maxUCell, 3, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
 
         DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
+        DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
         DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
         DMDAVecRestoreArray(fda, mesh->lEta, &eta);
         DMDAVecRestoreArray(fda, mesh->lZet, &zet);

@@ -549,15 +549,16 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
                             gcoorp[k][j][i].y = lcoors[k+kStart][j][i].y;
                             gcoorp[k][j][i].z = lcoors[k+kStart][j][i].z;
 
-                            if(gcoorp[k][j][i].y==0.0 && gcoorp[k][j][i].z==0.0)
+                            // save coordinates to write the mesh
+                            if(i==0 && j==0)
                             {
                                 lxpoints[k] = gcoorp[k][j][i].x;
                             }
-                            if(gcoorp[k][j][i].z==0.0 && gcoorp[k][j][i].x==0.0)
+                            if(j==0 && k==0)
                             {
                                 lypoints[i] = gcoorp[k][j][i].y;
                             }
-                            if(gcoorp[k][j][i].x==0.0 && gcoorp[k][j][i].y==0.0)
+                            if(k==0 && i==0)
                             {
                                 lzpoints[j] = gcoorp[k][j][i].z;
                             }

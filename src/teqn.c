@@ -1234,7 +1234,7 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     if(teqn->access->flags->isXDampingActive)
     {
         // this is causing spurious oscillation: deactivate
-        // dampingSourceT(teqn, Rhs, 1.0);
+        dampingSourceT(teqn, Rhs, 1.0);
     }
 
     // multiply for dt
@@ -1270,7 +1270,7 @@ PetscErrorCode FormExplicitRhsT(teqn_ *teqn)
     if(teqn->access->flags->isXDampingActive)
     {
         // this is causing spurious oscillation: deactivate
-        // dampingSourceT(teqn, Rhs, 1.0);
+        dampingSourceT(teqn, teqn->Rhs, 1.0);
     }
 
     // set to zero at non-resolved cell faces

@@ -6,6 +6,9 @@
 
 struct abl_
 {
+    // flags
+    PetscInt     controllerActive;               //!< activate velocity controller
+    PetscInt     coriolisActive;                 //!< activate coriolis force
     // physical quantities
     PetscReal    uTau;                           //!< friction Velocity
     PetscReal    hRough;                         //!< equivalent roughness length

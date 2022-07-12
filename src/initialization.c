@@ -385,7 +385,13 @@ PetscErrorCode ReadPhysicalConstants(domain_ *domain)
     // read Prandtl number
     if(domain->flags.isTeqnActive)
     {
-      readDictDouble("control.dat", "-Pr",  &(domain->constants.Pr));
+        readDictDouble("control.dat", "-Pr",  &(domain->constants.Pr));
+
+        // read reference temperature if abl is not active
+        if(!domain->flags.isAblActive)
+        {
+            readDictDouble("control.dat", "-tRef",  &(domain->constants.tRef));
+        }
     }
     else
     {

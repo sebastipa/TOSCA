@@ -4629,6 +4629,11 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
                 PetscPrintf(mesh->MESH_COMM, "1, Solving for p, ");
             }
         }
+        else
+        {
+            if(peqn->hypreSolverType == 1) PetscPrintf(mesh->MESH_COMM, "BoomerGMRES: ");
+            else if (peqn->hypreSolverType == 2) PetscPrintf(mesh->MESH_COMM, "BoomerPCG: ");
+        }
 
         MPI_Barrier(mesh->MESH_COMM);
 

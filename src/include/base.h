@@ -62,6 +62,9 @@ struct constants_
     PetscReal        nu;                         //!< kinematic viscosity
     PetscReal        rho;                        //!< flow density [Kg/m3]
 
+    // reference temperature
+    PetscReal        tRef;                       //!< reference T, required when ABL is not active
+
 };
 
 //! \brief Cell indices
