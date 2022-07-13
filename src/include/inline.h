@@ -2880,7 +2880,6 @@ inline double viscStipa(double &hS, double &hE, double &delta, double &h)
         s1 = 1.0 / (1.0 + std::exp(1.0/(h1_hat - 1.0) + 1.0 / h1_hat));
     }
 
-
     // compute smoothing function falling component
     if(h2_hat <= 0.0)
     {

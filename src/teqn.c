@@ -523,7 +523,7 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
     precursor_    *precursor;
     domain_       *pdomain;
-    PetscInt      kStart;
+    PetscInt      kStart, kEnd;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -544,6 +544,7 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
             {
                 DMDAVecGetArray(pdomain->mesh->da, pdomain->teqn->lTmprt,  &tP);
                 kStart = precursor->map.kStart;
+                kEnd   = precursor->map.kEnd;
             }
         }
     }
@@ -570,17 +571,21 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     PetscReal nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
                     PetscReal tBarInstX;
 
-                    if(abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
+                    if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
                     {
                         // set desired temperature
                         tBarInstX  = abl->tBarInstX[j][i];
                     }
                     else if(abl->xFringeUBarSelectionType == 3)
                     {
-                        if(precursor->thisProcessorInFringe)
+                        if
+                        (
+                            precursor->thisProcessorInFringe && // is this processor in the fringe?
+                            k >= kStart && k <= kEnd            // is this face in the fringe?
+                        )
                         {
                             // set desired temperature
-                            tBarInstX  = tP[k+kStart][j][i];
+                            tBarInstX  = tP[k-kStart][j][i];
                         }
                         else
                         {

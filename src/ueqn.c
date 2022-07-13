@@ -698,7 +698,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
     // update uBar for xDampingLayer (read from inflow data)
     if(ueqn->access->flags->isXDampingActive)
     {
-        if(abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
+        if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
         {
             // get inflow database info pointer
             inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
@@ -718,52 +718,50 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                 for(i=0; i<mx; i++)
                 {
-                    luBarInstX[j][i].x = 0.0;
-                    luBarInstX[j][i].y = 0.0;
-                    luBarInstX[j][i].z = 0.0;
-
-                    ltBarInstX[j][i]   = 0.0;
+                    luBarInstX[j][i] = nSetZero();
+                    ltBarInstX[j][i] = 0.0;
                 }
             }
 
             DMDAVecGetArray(fda, mesh->lCent, &cent);
 
-            // read inflow if necessary
+            if(abl->xFringeUBarSelectionType != 0)
             {
+                // read inflow if necessary
                 readInflowU(ifPtr, ueqn->access->clock);
-            }
 
-            // read T data from database
-            if(ueqn->access->flags->isTeqnActive)
-            {
-                readInflowT(ifPtr, ueqn->access->clock);
-
-                // compute hight at which temperature inflow data ends
-
-                // type 1: inflow and actual meshes have same cell dimensions
-                if (ifPtr->typeT == 1)
+                // read T data from database
+                if(ueqn->access->flags->isTeqnActive)
                 {
-                    PetscInt lcount = 0, gcount = 0;
+                    readInflowT(ifPtr, ueqn->access->clock);
 
-                    // make sure this processor can access data
-                    if(lys <= ifPtr->n1*ifPtr->prds1 && ifPtr->n1*ifPtr->prds1 <= lye)
+                    // compute hight at which temperature inflow data ends
+
+                    // type 1: inflow and actual meshes have same cell dimensions
+                    if (ifPtr->typeT == 1)
                     {
-                        // compute end of data height (j is vertical direction)
-                        i = std::floor(0.5*(lxe-lxs) + lxs);
-                        k = std::floor(0.5*(lze-lzs) + lzs);
-                        ldataHeight = cent[k][ifPtr->n1*ifPtr->prds1][i].z;
-                        lcount      = 1;
+                        PetscInt lcount = 0, gcount = 0;
+
+                        // make sure this processor can access data
+                        if(lys <= ifPtr->n1*ifPtr->prds1 && ifPtr->n1*ifPtr->prds1 <= lye)
+                        {
+                            // compute end of data height (j is vertical direction)
+                            i = std::floor(0.5*(lxe-lxs) + lxs);
+                            k = std::floor(0.5*(lze-lzs) + lzs);
+                            ldataHeight = cent[k][ifPtr->n1*ifPtr->prds1][i].z;
+                            lcount      = 1;
+                        }
+
+                        MPI_Allreduce(&ldataHeight, &gdataHeight, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                        MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+                        gdataHeight = gdataHeight / gcount;
                     }
-
-                    MPI_Allreduce(&ldataHeight, &gdataHeight, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-                    MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
-
-                    gdataHeight = gdataHeight / gcount;
-                }
-                // type 2: inflow and actual meshes are different, use inflow width
-                else if (ifPtr->typeT == 2)
-                {
-                    gdataHeight = ifPtr->n1 * ifPtr->prds1 * ifPtr->width1;
+                    // type 2: inflow and actual meshes are different, use inflow width
+                    else if (ifPtr->typeT == 2)
+                    {
+                        gdataHeight = ifPtr->n1 * ifPtr->prds1 * ifPtr->width1;
+                    }
                 }
             }
 
@@ -773,10 +771,14 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
+                    // set k to the starting value of this processor. It is needed to
+                    // get the z coordinate. This is only valid for cartesian meshes
+                    PetscInt k_idx = lzs;
+
                     // steady prescribed ubar
                     if (ifPtr->typeU == 0)
                     {
-                        PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                        PetscReal h = cent[k_idx][j][i].z - mesh->bounds.zmin;
                         PetscReal uMag;
 
                         if(h <= ifPtr->hInv)
@@ -870,10 +872,6 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
                     }
 
-                    // set k to the starting value of this processor. It is needed to
-                    // get the z coordinate. This is only valid for cartesian meshes
-                    PetscInt k_idx = lzs;
-
                     if(ueqn->access->flags->isTeqnActive)
                     {
                         // steady prescribed ubar
@@ -881,7 +879,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         {
                             PetscReal b  = abl->smear * abl->gTop * abl->dInv;
                             PetscReal a  = abl->gInv - b;
-                            PetscReal h  = cent[k][j][i].z - mesh->bounds.zmin;
+                            PetscReal h  = cent[k_idx][j][i].z - mesh->bounds.zmin;
 
                             // non dimensional height eta
                             PetscReal eta = (h - abl->hInv) / abl->smear / abl->dInv;
@@ -929,7 +927,6 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                                 ltBarInstX[j][i] = ifPtr->t_plane[jif][iif] + delta * abl->gTop;
                             }
                         }
-
                         // interpolated periodized mapped inflow
                         else if (ifPtr->typeT == 2)
                         {
@@ -1475,7 +1472,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // X DAMPING LAYER
                     // ---------------
 
-                    if(abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
+                    if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
                     {
                         Cmpnts uBarInstX  = nSet(abl->uBarInstX[j][i]);
                         Cmpnts uBarInstXi = nSet(abl->uBarInstX[j][i+1]);
@@ -1494,6 +1491,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         );
 
                         // j-fluxes
+                        /*
                         rhs[k][j][i].y
                         +=
                         scale * central(nud_x, nudj_x) *
@@ -1504,6 +1502,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                                 (central(uBarInstX.z, uBarInstXj.z) - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
                             )
                         );
+                        */
 
                         // k-fluxes
                         rhs[k][j][i].z
@@ -1620,7 +1619,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // j-fluxes: total damping to reach no penetration at jRight (damp also in xFringe if present)
                     rhs[k][j][i].y
                     +=
-                    -1.0 * scale * central(nud_z, nudj_z) *
+                    -1.0 * scale * central(nud_z, nudj_z) * 
                     (
                         central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].x +
                         central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].y +
@@ -1934,27 +1933,6 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                   gravity.z = -9.81;
     PetscReal     tRef      = ueqn->access->abl->tRef;
 
-    // damping viscosity for fringe region exclusion
-    double nudI;
-    double nudJ;
-    double nudK;
-
-    // fringe region parameters (set only if active)
-    double xS;
-    double xE;
-    double xD;
-
-    if(ueqn->access->flags->isXDampingActive)
-    {
-        xS     = ueqn->access->abl->xDampingStart;
-        xE     = ueqn->access->abl->xDampingEnd;
-        xD     = ueqn->access->abl->xDampingDelta;
-    }
-    else
-    {
-        nudI = nudJ = nudK = 1.0;
-    }
-
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
@@ -2059,25 +2037,6 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if(ueqn->access->flags->isXDampingActive)
-                {
-                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    double x     = cent[k][j][i].x;
-                    double xi    = cent[k][j][i+1].x;
-                    double xj    = cent[k][j+1][i].x;
-                    double xk    = cent[k+1][j][i].x;
-
-                    // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    double nud_x   = viscStipa(xS, xE, xD, x);
-                    double nudi_x  = viscStipa(xS, xE, xD, xi);
-                    double nudj_x  = viscStipa(xS, xE, xD, xj);
-                    double nudk_x  = viscStipa(xS, xE, xD, xk);
-
-                    nudI           = central(nud_x, nudi_x);
-                    nudJ           = central(nud_x, nudj_x);
-                    nudK           = central(nud_x, nudk_x);
-                }
-
                 // interpolate at cell faces
                 PetscReal tempI    = 0.5*(tmprt[k][j][i] + tmprt[k][j][i+1]);
                 //PetscReal tempRefI = gavgT[j];
@@ -2086,7 +2045,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].x
                     +=
-                    scale * nudI *
+                    scale *
                     (
                         gcont[k][j][i].x *
                         (tRef - tempI) / tRef
@@ -2104,7 +2063,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].y
                     +=
-                    scale * nudJ *
+                    scale *
                     (
                         gcont[k][j][i].y *
                         (tRef - tempJ) / tRef
@@ -2122,7 +2081,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].z
                     +=
-                    scale * nudK *
+                    scale *
                     (
                         gcont[k][j][i].z *
                         (tRef - tempK) / tRef

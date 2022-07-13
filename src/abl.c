@@ -224,7 +224,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         readSubDictInt("ABLProperties.dat", "xDampingProperties", "uBarSelectionType", &(abl->xFringeUBarSelectionType));
 
-        if(abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
+        if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
         {
             // in x damping the uBar varies in time and it is actually the same as
             // the inflowFunction type 3 and 4, which correspond to uBarSelectionType
@@ -250,10 +250,14 @@ PetscErrorCode InitializeABL(abl_ *abl)
             ifPtr->typeU = abl->xFringeUBarSelectionType;
 
             // steady prescribed ubar
-            if (ifPtr->typeU == 0)
+            if(ifPtr->typeU == 0)
             {
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 0;
+
+                // no need to map inflow
+                ifPtr->mapT   = 0;
+                ifPtr->mapNut = 0;
 
                 // velocity properties
                 readSubDictVector("ABLProperties.dat", "xDampingProperties", "directionU", &(ifPtr->Udir));
