@@ -64,6 +64,8 @@ xDampingProperties
     xDampingEnd     400
     xDampingDelta   100
     xDampingAlpha   0.1
+    xDampingAlphaControlType alphaFixed
+    advectionDampingType     0
     
     uBarSelectionType 2
     n1Inflow 50 

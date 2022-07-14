@@ -1619,7 +1619,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // j-fluxes: total damping to reach no penetration at jRight (damp also in xFringe if present)
                     rhs[k][j][i].y
                     +=
-                    -1.0 * scale * central(nud_z, nudj_z) * 
+                    -1.0 * scale * central(nud_z, nudj_z) *
                     (
                         central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].x +
                         central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].y +
@@ -1734,6 +1734,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     double nudj_x  = viscStipa(xS, xE, xD, xj);
                     double nudk_x  = viscStipa(xS, xE, xD, xk);
 
+                    // interpolate to faces
                     nudI           = central(nud_x, nudi_x);
                     nudJ           = central(nud_x, nudj_x);
                     nudK           = central(nud_x, nudk_x);
@@ -3461,6 +3462,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     Cmpnts           ***icsi, ***ieta, ***izet;
     Cmpnts           ***jcsi, ***jeta, ***jzet;
     Cmpnts           ***kcsi, ***keta, ***kzet;
+    Cmpnts           ***cent;
 
     PetscReal        ***nvert, ***lnu_t;
 
@@ -3509,6 +3511,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(da,  mesh->lJAj, &jaj);
     DMDAVecGetArray(da,  mesh->lKAj, &kaj);
 
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
 
     DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
@@ -3539,6 +3543,29 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         DMDAVecGetArray(da, les->lNu_t, &lnu_t);
     }
 
+    // damping viscosity for fringe region exclusion
+    double nudI;
+    double nudJ;
+    double nudK;
+
+    // fringe region parameters (set only if active)
+    double xS;
+    double xE;
+    double xDS;
+    double xDE;
+
+    if(ueqn->access->flags->isXDampingActive)
+    {
+        xS     = ueqn->access->abl->advDampingStart;
+        xE     = ueqn->access->abl->advDampingEnd;
+        xDE    = ueqn->access->abl->advDampingDeltaEnd;
+        xDS    = ueqn->access->abl->advDampingDeltaStart;
+    }
+    else
+    {
+        nudI = nudJ = nudK = 1.0;
+    }
+
     // i direction
     for (k=zs; k<ze; k++)
     {
@@ -3548,6 +3575,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 if(i==mx-1 || j==my-1 || k==mz-1) continue;
                 if(j==0 || k==0) continue;
+
+                if(ueqn->access->flags->isXDampingActive)
+                {
+                    // compute cell center x at i,j,k, i+1,j,k points
+                    double x     = cent[k][j][i].x;
+                    double xi    = cent[k][j][i+1].x;
+
+                    // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    double nud_x   = viscStipaDelta(xS, xE, xDS, xDE, x);
+                    double nudi_x  = viscStipaDelta(xS, xE, xDS, xDE, xi);
+
+                    // interpolate to i faces
+                    nudI           = central(nud_x, nudi_x);
+                }
 
                 // get 1/V at the i-face
                 PetscReal ajc = iaj[k][j][i];
@@ -3642,25 +3683,14 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // test: inviscid flow or weno3Div
                     if(ueqn->inviscid || ueqn->weno3Div)
                     {
-                        div1[k][j][i].x = - ucont[k][j][i].x *
-                        weno3
+                        div1[k][j][i] = nScale
                         (
-                            ucat[k][j][iL].x, ucat[k][j][i].x, ucat[k][j][i+1].x, ucat[k][j][iR].x,
-                            ucont[k][j][i].x
-                        );
-
-                        div1[k][j][i].y = - ucont[k][j][i].x *
-                        weno3
-                        (
-                            ucat[k][j][iL].y, ucat[k][j][i].y, ucat[k][j][i+1].y, ucat[k][j][iR].y,
-                            ucont[k][j][i].x
-                        );
-
-                        div1[k][j][i].z = - ucont[k][j][i].x *
-                        weno3
-                        (
-                            ucat[k][j][iL].z, ucat[k][j][i].z, ucat[k][j][i+1].z, ucat[k][j][iR].z,
-                            ucont[k][j][i].x
+                            - ucont[k][j][i].x,
+                            weno3Vec
+                            (
+                                ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                                ucont[k][j][i].x
+                            )
                         );
                     }
                     else
@@ -3669,45 +3699,25 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         if(ueqn->centralDiv)
                         {
                             // ucat is interpolated at the face
-                            div1[k][j][i].x = - ucont[k][j][i].x *
-                            central
+                            div1[k][j][i] = nScale
                             (
-                                ucat[k][j][i].x, ucat[k][j][i+1].x
-                            );
-
-                            div1[k][j][i].y = - ucont[k][j][i].x *
-                            central
-                            (
-                                ucat[k][j][i].y, ucat[k][j][i+1].y
-                            );
-
-                            div1[k][j][i].z = - ucont[k][j][i].x *
-                            central
-                            (
-                                ucat[k][j][i].z, ucat[k][j][i+1].z
+                                - ucont[k][j][i].x,
+                                centralVec
+                                (
+                                    ucat[k][j][i], ucat[k][j][i+1]
+                                )
                             );
                         }
                         else if(ueqn->centralUpwindDiv)
                         {
-                            div1[k][j][i].x = - ucont[k][j][i].x *
-                            centralUpwind
+                            div1[k][j][i] = nScale
                             (
-                                ucat[k][j][iL].x, ucat[k][j][i].x, ucat[k][j][i+1].x, ucat[k][j][iR].x,
-                                ucont[k][j][i].x, limiter[k][j][i].x
-                            );
-
-                            div1[k][j][i].y = - ucont[k][j][i].x *
-                            centralUpwind
-                            (
-                                ucat[k][j][iL].y, ucat[k][j][i].y, ucat[k][j][i+1].y, ucat[k][j][iR].y,
-                                ucont[k][j][i].x, limiter[k][j][i].x
-                            );
-
-                            div1[k][j][i].z = - ucont[k][j][i].x *
-                            centralUpwind
-                            (
-                                ucat[k][j][iL].z, ucat[k][j][i].z, ucat[k][j][i+1].z, ucat[k][j][iR].z,
-                                ucont[k][j][i].x, limiter[k][j][i].x
+                                - ucont[k][j][i].x,
+                                centralUpwindVec
+                                (
+                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                                    ucont[k][j][i].x, limiter[k][j][i].x
+                                )
                             );
                         }
                         else if(ueqn->centralUpwindWDiv)
@@ -3718,56 +3728,35 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             PetscReal d2 = 1.0 / (aj[k][j][i+1] * nMag(csi[k][j][i+1]));
                             PetscReal d3 = 1.0 / (aj[k][j][iR ] * nMag(csi[k][j][iR ]));
 
-                            div1[k][j][i].x = - ucont[k][j][i].x *
-                            wCentralUpwind
+                            div1[k][j][i] = nScale
                             (
-                                ucat[k][j][iL].x, ucat[k][j][i].x, ucat[k][j][i+1].x, ucat[k][j][iR].x,
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].x, limiter[k][j][i].x
-                            );
-
-                            div1[k][j][i].y = - ucont[k][j][i].x *
-                            wCentralUpwind
-                            (
-                                ucat[k][j][iL].y, ucat[k][j][i].y, ucat[k][j][i+1].y, ucat[k][j][iR].y,
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].x, limiter[k][j][i].x
-                            );
-
-                            div1[k][j][i].z = - ucont[k][j][i].x *
-                            wCentralUpwind
-                            (
-                                ucat[k][j][iL].z, ucat[k][j][i].z, ucat[k][j][i+1].z, ucat[k][j][iR].z,
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].x, limiter[k][j][i].x
+                                - ucont[k][j][i].x,
+                                wCentralUpwindVec
+                                (
+                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                                    d0, d1, d2, d3,
+                                    ucont[k][j][i].x, limiter[k][j][i].x
+                                )
                             );
                         }
                         // quickDiv scheme (3rd order upwind)
                         else if(ueqn->quickDiv)
                         {
-                            div1[k][j][i].x = - ucont[k][j][i].x *
-                            quadraticUpwind
+                            div1[k][j][i] = nScale
                             (
-                                ucat[k][j][iL].x, ucat[k][j][i].x, ucat[k][j][i+1].x, ucat[k][j][iR].x,
-                                ucont[k][j][i].x
-                            );
-
-                            div1[k][j][i].y = - ucont[k][j][i].x *
-                            quadraticUpwind
-                            (
-                                ucat[k][j][iL].y, ucat[k][j][i].y, ucat[k][j][i+1].y, ucat[k][j][iR].y,
-                                ucont[k][j][i].x
-                            );
-
-                            div1[k][j][i].z = - ucont[k][j][i].x *
-                            quadraticUpwind
-                            (
-                                ucat[k][j][iL].z, ucat[k][j][i].z, ucat[k][j][i+1].z, ucat[k][j][iR].z,
-                                ucont[k][j][i].x
+                                - ucont[k][j][i].x,
+                                quadraticUpwindVec
+                                (
+                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                                    ucont[k][j][i].x
+                                )
                             );
                         }
                     }
                 }
+
+                // damp vertical component if fringe region is active
+                div1[k][j][i].z *= nudI;
 
                 PetscReal nuEff, nu = cst->nu, nut;
 
@@ -3843,6 +3832,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 if(i==mx-1 || j==my-1 || k==mz-1) continue;
                 if(i==0 || k==0) continue;
+
+                if(ueqn->access->flags->isXDampingActive)
+                {
+                    // compute cell center x at i,j,k, i,j+1,k a points
+                    double x     = cent[k][j][i].x;
+                    double xj    = cent[k][j+1][i].x;
+
+                    // compute Stipa viscosity at i,j,k, i,j+1,k points
+                    double nud_x   = viscStipaDelta(xS, xE, xDS, xDE, x);
+                    double nudj_x  = viscStipaDelta(xS, xE, xDS, xDE, xj);
+
+                    // interpolate to j faces
+                    nudJ           = central(nud_x, nudj_x);
+                }
 
                 // get 1/V at the j-face
                 PetscReal ajc = jaj[k][j][i];
@@ -3936,25 +3939,14 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // test: inviscid flow or weno3Div
                     if( ueqn->inviscid || ueqn->weno3Div)
                     {
-                        div2[k][j][i].x = - ucont[k][j][i].y *
-                        weno3
+                        div2[k][j][i] = nScale
                         (
-                            ucat[k][jL][i].x, ucat[k][j][i].x, ucat[k][j+1][i].x, ucat[k][jR][i].x,
-                            ucont[k][j][i].y
-                        );
-
-                        div2[k][j][i].y = - ucont[k][j][i].y *
-                        weno3
-                        (
-                            ucat[k][jL][i].y, ucat[k][j][i].y, ucat[k][j+1][i].y, ucat[k][jR][i].y,
-                            ucont[k][j][i].y
-                        );
-
-                        div2[k][j][i].z = - ucont[k][j][i].y *
-                        weno3
-                        (
-                            ucat[k][jL][i].z, ucat[k][j][i].z, ucat[k][j+1][i].z, ucat[k][jR][i].z,
-                            ucont[k][j][i].y
+                            - ucont[k][j][i].y,
+                            weno3Vec
+                            (
+                                ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                                ucont[k][j][i].y
+                            )
                         );
                     }
                     else
@@ -3962,46 +3954,25 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // second order divergence scheme
                         if(ueqn->centralDiv)
                         {
-                            div2[k][j][i].x = - ucont[k][j][i].y *
-                            central
+                            div2[k][j][i] = nScale
                             (
-                                ucat[k][j][i].x, ucat[k][j+1][i].x
-                            );
-
-                            div2[k][j][i].y = - ucont[k][j][i].y *
-
-                            central
-                            (
-                                ucat[k][j][i].y, ucat[k][j+1][i].y
-                            );
-
-                            div2[k][j][i].z = - ucont[k][j][i].y *
-                            central
-                            (
-                                ucat[k][j][i].z, ucat[k][j+1][i].z
+                                - ucont[k][j][i].y,
+                                centralVec
+                                (
+                                    ucat[k][j][i], ucat[k][j+1][i]
+                                )
                             );
                         }
                         else if(ueqn->centralUpwindDiv)
                         {
-                            div2[k][j][i].x = - ucont[k][j][i].y *
-                            centralUpwind
+                            div2[k][j][i] = nScale
                             (
-                                ucat[k][jL][i].x, ucat[k][j][i].x, ucat[k][j+1][i].x, ucat[k][jR][i].x,
-                                ucont[k][j][i].y, limiter[k][j][i].y
-                            );
-
-                            div2[k][j][i].y = - ucont[k][j][i].y *
-                            centralUpwind
-                            (
-                                ucat[k][jL][i].y, ucat[k][j][i].y, ucat[k][j+1][i].y, ucat[k][jR][i].y,
-                                ucont[k][j][i].y, limiter[k][j][i].y
-                            );
-
-                            div2[k][j][i].z = - ucont[k][j][i].y *
-                            centralUpwind
-                            (
-                                ucat[k][jL][i].z, ucat[k][j][i].z, ucat[k][j+1][i].z, ucat[k][jR][i].z,
-                                ucont[k][j][i].y, limiter[k][j][i].y
+                                - ucont[k][j][i].y,
+                                centralUpwindVec
+                                (
+                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                                    ucont[k][j][i].y, limiter[k][j][i].y
+                                )
                             );
                         }
                         else if(ueqn->centralUpwindWDiv)
@@ -4012,56 +3983,35 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             PetscReal d2 = 1.0 / (aj[k][j+1][i] * nMag(eta[k][j+1][i]));
                             PetscReal d3 = 1.0 / (aj[k][jR ][i] * nMag(eta[k][jR ][i]));
 
-                            div2[k][j][i].x = - ucont[k][j][i].y *
-                            wCentralUpwind
+                            div2[k][j][i] = nScale
                             (
-                                ucat[k][jL][i].x, ucat[k][j][i].x, ucat[k][j+1][i].x, ucat[k][jR][i].x,
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].y, limiter[k][j][i].y
-                            );
-
-                            div2[k][j][i].y = - ucont[k][j][i].y *
-                            wCentralUpwind
-                            (
-                                ucat[k][jL][i].y, ucat[k][j][i].y, ucat[k][j+1][i].y, ucat[k][jR][i].y,
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].y, limiter[k][j][i].y
-                            );
-
-                            div2[k][j][i].z = - ucont[k][j][i].y *
-                            wCentralUpwind
-                            (
-                                ucat[k][jL][i].z, ucat[k][j][i].z, ucat[k][j+1][i].z, ucat[k][jR][i].z,
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].y, limiter[k][j][i].y
+                                - ucont[k][j][i].y,
+                                wCentralUpwindVec
+                                (
+                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                                    d0, d1, d2, d3,
+                                    ucont[k][j][i].y, limiter[k][j][i].y
+                                )
                             );
                         }
                         // quickDiv scheme (3rd order upwind)
                         else if(ueqn->quickDiv)
                         {
-                            div2[k][j][i].x = - ucont[k][j][i].y *
-                            quadraticUpwind
+                            div2[k][j][i] = nScale
                             (
-                                ucat[k][jL][i].x, ucat[k][j][i].x, ucat[k][j+1][i].x, ucat[k][jR][i].x,
-                                ucont[k][j][i].y
-                            );
-
-                            div2[k][j][i].y = - ucont[k][j][i].y *
-                            quadraticUpwind
-                            (
-                                ucat[k][jL][i].y, ucat[k][j][i].y, ucat[k][j+1][i].y, ucat[k][jR][i].y,
-                                ucont[k][j][i].y
-                            );
-
-                            div2[k][j][i].z = - ucont[k][j][i].y *
-                            quadraticUpwind
-                            (
-                                ucat[k][jL][i].z, ucat[k][j][i].z, ucat[k][j+1][i].z, ucat[k][jR][i].z,
-                                ucont[k][j][i].y
+                                - ucont[k][j][i].y,
+                                quadraticUpwindVec
+                                (
+                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                                    ucont[k][j][i].y
+                                )
                             );
                         }
                     }
                 }
+
+                // damp vertical component if fringe region is active
+                div2[k][j][i].z *= nudJ;
 
                 PetscReal nuEff, nu = cst->nu, nut;
 
@@ -4136,6 +4086,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 if(i==mx-1 || j==my-1 || k==mz-1) continue;
                 if(i==0 || j==0) continue;
+
+                if(ueqn->access->flags->isXDampingActive)
+                {
+                    // compute cell center x at i,j,k, i,j,k+1 points
+                    double x     = cent[k][j][i].x;
+                    double xk    = cent[k+1][j][i].x;
+
+                    // compute Stipa viscosity at i,j,k, i,j,k+1 points
+                    double nud_x   = viscStipaDelta(xS, xE, xDS, xDE, x);
+                    double nudk_x  = viscStipaDelta(xS, xE, xDS, xDE, xk);
+
+                    // interpolate to k faces
+                    nudK           = central(nud_x, nudk_x);
+                }
 
                 // get 1/V at the j-face
                 PetscReal ajc = kaj[k][j][i];
@@ -4227,28 +4191,17 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 // not IBM
                 else
                 {
-                    // test: inviscid flow or weno3Div
+                    // inviscid flow or weno3Div
                     if(ueqn->inviscid || ueqn->weno3Div)
                     {
-                        div3[k][j][i].x = - ucont[k][j][i].z *
-                        weno3
+                        div3[k][j][i] = nScale
                         (
-                            ucat[kL][j][i].x, ucat[k][j][i].x, ucat[k+1][j][i].x, ucat[kR][j][i].x,
-                            ucont[k][j][i].z
-                        );
-
-                        div3[k][j][i].y = - ucont[k][j][i].z *
-                        weno3
-                        (
-                            ucat[kL][j][i].y, ucat[k][j][i].y, ucat[k+1][j][i].y, ucat[kR][j][i].y,
-                            ucont[k][j][i].z
-                        );
-
-                        div3[k][j][i].z = - ucont[k][j][i].z *
-                        weno3
-                        (
-                            ucat[kL][j][i].z, ucat[k][j][i].z, ucat[k+1][j][i].z, ucat[kR][j][i].z,
-                            ucont[k][j][i].z
+                            - ucont[k][j][i].z,
+                            weno3Vec
+                            (
+                                ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                                ucont[k][j][i].z
+                            )
                         );
                     }
                     else
@@ -4257,45 +4210,25 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         if(ueqn->centralDiv)
                         {
                             // ucat is interpolated at the face
-                            div3[k][j][i].x = - ucont[k][j][i].z *
-                            central
+                            div3[k][j][i] = nScale
                             (
-                                ucat[k][j][i].x, ucat[k+1][j][i].x
-                            );
-
-                            div3[k][j][i].y = - ucont[k][j][i].z *
-                            central
-                            (
-                                ucat[k][j][i].y, ucat[k+1][j][i].y
-                            );
-
-                            div3[k][j][i].z = - ucont[k][j][i].z *
-                            central
-                            (
-                                ucat[k][j][i].z, ucat[k+1][j][i].z
+                                - ucont[k][j][i].z,
+                                centralVec
+                                (
+                                    ucat[k][j][i], ucat[k+1][j][i]
+                                )
                             );
                         }
                         else if(ueqn->centralUpwindDiv)
                         {
-                            div3[k][j][i].x = - ucont[k][j][i].z *
-                            centralUpwind
+                            div3[k][j][i] = nScale
                             (
-                                ucat[kL][j][i].x, ucat[k][j][i].x, ucat[k+1][j][i].x, ucat[kR][j][i].x,
-                                ucont[k][j][i].z, limiter[k][j][i].z
-                            );
-
-                            div3[k][j][i].y = - ucont[k][j][i].z *
-                            centralUpwind
-                            (
-                                ucat[kL][j][i].y, ucat[k][j][i].y, ucat[k+1][j][i].y, ucat[kR][j][i].y,
-                                ucont[k][j][i].z, limiter[k][j][i].z
-                            );
-
-                            div3[k][j][i].z = - ucont[k][j][i].z *
-                            centralUpwind
-                            (
-                                ucat[kL][j][i].z, ucat[k][j][i].z, ucat[k+1][j][i].z, ucat[kR][j][i].z,
-                                ucont[k][j][i].z, limiter[k][j][i].z
+                                - ucont[k][j][i].z,
+                                centralUpwindVec
+                                (
+                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                                    ucont[k][j][i].z, limiter[k][j][i].z
+                                )
                             );
                         }
                         else if(ueqn->centralUpwindWDiv)
@@ -4306,56 +4239,35 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             PetscReal d2 = 1.0 / (aj[k+1][j][i] * nMag(zet[k+1][j][i]));
                             PetscReal d3 = 1.0 / (aj[kR ][j][i] * nMag(zet[kR ][j][i]));
 
-                            div3[k][j][i].x = - ucont[k][j][i].z *
-                            wCentralUpwind
+                            div3[k][j][i] = nScale
                             (
-                                ucat[kL][j][i].x, ucat[k][j][i].x, ucat[k+1][j][i].x, ucat[kR][j][i].x,
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].z, limiter[k][j][i].z
-                            );
-
-                            div3[k][j][i].y = - ucont[k][j][i].z *
-                            wCentralUpwind
-                            (
-                                ucat[kL][j][i].y, ucat[k][j][i].y, ucat[k+1][j][i].y, ucat[kR][j][i].y,
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].z, limiter[k][j][i].z
-                            );
-
-                            div3[k][j][i].z = - ucont[k][j][i].z *
-                            wCentralUpwind
-                            (
-                                ucat[kL][j][i].z, ucat[k][j][i].z, ucat[k+1][j][i].z, ucat[kR][j][i].z,
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].z, limiter[k][j][i].z
+                                - ucont[k][j][i].z,
+                                wCentralUpwindVec
+                                (
+                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                                    d0, d1, d2, d3,
+                                    ucont[k][j][i].z, limiter[k][j][i].z
+                                )
                             );
                         }
                         // quickDiv scheme (3rd order upwind)
                         else if(ueqn->quickDiv)
                         {
-                            div3[k][j][i].x = - ucont[k][j][i].z *
-                            quadraticUpwind
+                            div3[k][j][i] = nScale
                             (
-                                ucat[kL][j][i].x, ucat[k][j][i].x, ucat[k+1][j][i].x, ucat[kR][j][i].x,
-                                ucont[k][j][i].z
-                            );
-
-                            div3[k][j][i].y = - ucont[k][j][i].z *
-                            quadraticUpwind
-                            (
-                                ucat[kL][j][i].y, ucat[k][j][i].y, ucat[k+1][j][i].y, ucat[kR][j][i].y,
-                                ucont[k][j][i].z
-                            );
-
-                            div3[k][j][i].z = - ucont[k][j][i].z *
-                            quadraticUpwind
-                            (
-                                ucat[kL][j][i].z, ucat[k][j][i].z, ucat[k+1][j][i].z, ucat[kR][j][i].z,
-                                ucont[k][j][i].z
+                                - ucont[k][j][i].z,
+                                quadraticUpwindVec
+                                (
+                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                                    ucont[k][j][i].z
+                                )
                             );
                         }
                     }
                 }
+
+                // damp vertical component if fringe region is active
+                div3[k][j][i].z *= nudK;
 
                 PetscReal nuEff, nu = cst->nu, nut;
 
@@ -4706,6 +4618,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     {
         DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
     }
+
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
     DMDAVecRestoreArray(da, mesh->lIAj, &iaj);

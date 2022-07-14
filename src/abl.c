@@ -217,6 +217,17 @@ PetscErrorCode InitializeABL(abl_ *abl)
             readSubDictDouble("ABLProperties.dat", "xDampingProperties", "xDampingTimeWindow",        &(abl->xDampingTimeWindow));
         }
 
+        // read advection term damping type (0: none, 1: LanzilaoMeyers2022 damping)
+        readSubDictInt("ABLProperties.dat", "xDampingProperties", "advectionDampingType", &(abl->advectionDampingType));
+
+        if(abl->advectionDampingType)
+        {
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingStart",            &(abl->advDampingStart));
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingEnd",              &(abl->advDampingEnd));
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingDeltaStart",       &(abl->advDampingDeltaStart));
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingDeltaEnd",         &(abl->advDampingDeltaEnd));
+        }
+
         // read type of fringe region in uBarSelectionType
         // 1. periodized mapped
         // 2. interpolated mapped

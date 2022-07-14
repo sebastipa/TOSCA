@@ -79,6 +79,58 @@ inline PetscReal signNonZero(PetscReal a)
 // VECTOR ALGEBRA
 // ============================================================================================================= //
 
+inline Cmpnts nMax(Cmpnts v, PetscReal c)
+{
+    Cmpnts vMax;
+
+    vMax.x = PetscMax(v.x, c);
+    vMax.y = PetscMax(v.y, c);
+    vMax.z = PetscMax(v.z, c);
+
+    return(vMax);
+}
+
+//***************************************************************************************************************//
+
+inline Cmpnts nAbs(Cmpnts v)
+{
+    Cmpnts vR;
+
+    vR.x = fabs(v.x);
+    vR.y = fabs(v.y);
+    vR.z = fabs(v.z);
+
+    return(vR);
+}
+
+//***************************************************************************************************************//
+
+inline Cmpnts nInv(Cmpnts v)
+{
+    Cmpnts vR;
+
+    vR.x = 1.0 / v.x;
+    vR.y = 1.0 / v.y;
+    vR.z = 1.0 / v.z;
+
+    return(vR);
+}
+
+//***************************************************************************************************************//
+
+inline Cmpnts nPow(Cmpnts v, PetscReal c)
+{
+    Cmpnts vR;
+
+    vR.x = pow(v.x, c);
+    vR.y = pow(v.y, c);
+    vR.z = pow(v.z, c);
+
+    return(vR);
+}
+
+//***************************************************************************************************************//
+
 inline Cmpnts nScale(PetscReal c, Cmpnts v)
 {
     Cmpnts vScaled;
@@ -88,6 +140,32 @@ inline Cmpnts nScale(PetscReal c, Cmpnts v)
     vScaled.z = c * v.z;
 
     return(vScaled);
+}
+
+//***************************************************************************************************************//
+
+inline Cmpnts nMultElWise(Cmpnts v1, Cmpnts v2)
+{
+    Cmpnts vR;
+
+    vR.x = v1.x * v2.x;
+    vR.y = v1.y * v2.y;
+    vR.z = v1.z * v2.z;
+
+    return(vR);
+}
+
+//***************************************************************************************************************//
+
+inline Cmpnts nDivElWise(Cmpnts v1, Cmpnts v2)
+{
+    Cmpnts vR;
+
+    vR.x = v1.x / v2.x;
+    vR.y = v1.y / v2.y;
+    vR.z = v1.z / v2.z;
+
+    return(vR);
 }
 
 //***************************************************************************************************************//
@@ -2164,6 +2242,26 @@ inline PetscReal wCentral(PetscReal f0, PetscReal f1, PetscReal d0, PetscReal d1
 
 //***************************************************************************************************************//
 
+inline Cmpnts wCentralVec(Cmpnts f0, Cmpnts f1, PetscReal d0, PetscReal d1)
+{
+    // distance btw upwind and downwind cell centers
+    PetscReal d  = 0.5 * (d0 + d1);
+
+    // distance btw upwind cell center and face center
+    PetscReal dF = 0.5 * d0;
+
+    return
+    (
+        nSum
+        (
+            f0,
+            nScale(dF/d, nSub(f1, f0))
+        )
+    );
+}
+
+//***************************************************************************************************************//
+
 inline PetscReal central4(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3)
 {
     return 0.0625 * (- f0 + 9. * f1 + 9.* f2 - f3);
@@ -2204,6 +2302,40 @@ inline PetscReal centralUpwind(PetscReal f0, PetscReal f1, PetscReal f2, PetscRe
 
 //***************************************************************************************************************//
 
+inline Cmpnts centralUpwindVec(Cmpnts f0, Cmpnts f1, Cmpnts f2, Cmpnts f3, PetscReal wavespeed)
+{
+    Cmpnts r, n, d;
+    Cmpnts fUU, fU, fD;
+
+    if(wavespeed>0)
+    {
+        n = nSub(f1,f0); d = nMax(nSub(f2,f1), 1e-5); r = nDivElWise(n,d);
+        fUU = nSet(f0); fU  = nSet(f1); fD  = nSet(f2);
+	}
+	else
+    {
+        n = nSub(f2,f3); d = nMax(nSub(f1,f2), 1e-5); r = nDivElWise(n,d);
+        fUU = nSet(f3); fU  = nSet(f2); fD  = nSet(f1);
+	}
+
+    // Van Leer limiter function
+    Cmpnts lim = nScale(0.5, nDivElWise(nSum(r, nAbs(r)), nSum(nSetFromComponents(1.0, 1.0, 1.0), nAbs(r))));
+
+    // central scheme
+    Cmpnts C = nScale(0.5, nSum(fU, fD));
+
+    // quickDiv correction to the central scheme
+    Cmpnts corr = nScale(1./8., nSub(nScale(2.0, fU), nSum(fD, fUU)));
+
+	return
+    (
+       nSum(C, nMultElWise(nSub(nSetFromComponents(1.0, 1.0, 1.0),lim),corr))
+    );
+}
+
+
+//***************************************************************************************************************//
+
 inline PetscReal centralUpwind
 (
     PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3,
@@ -2230,6 +2362,37 @@ inline PetscReal centralUpwind
 	return
     (
        C + (1.0-limiter)*corr
+    );
+}
+
+//***************************************************************************************************************//
+
+inline Cmpnts centralUpwindVec
+(
+    Cmpnts f0, Cmpnts f1, Cmpnts f2, Cmpnts f3,
+    PetscReal wavespeed, PetscReal limiter
+)
+{
+    Cmpnts fUU, fU, fD;
+
+    if(wavespeed>0)
+    {
+        fUU = nSet(f0); fU  = nSet(f1); fD  = nSet(f2);
+	}
+	else
+    {
+        fUU = nSet(f3); fU  = nSet(f2); fD  = nSet(f1);
+	}
+
+    // central scheme
+    Cmpnts C = nScale(0.5, nSum(fU,fD));
+
+    // quickDiv correction to the central scheme
+    Cmpnts corr = nScale(1./8., nSub(nScale(2.0,fU), nSum(fD,fUU)));
+
+	return
+    (
+       nSum(C, nScale(1.0-limiter,corr))
     );
 }
 
@@ -2289,6 +2452,60 @@ inline PetscReal wCentralUpwind
 
 //***************************************************************************************************************//
 
+inline Cmpnts wCentralUpwindVec
+(
+    Cmpnts f0, Cmpnts f1, Cmpnts f2, Cmpnts f3,
+    PetscReal d0, PetscReal d1, PetscReal d2, PetscReal d3,
+    PetscReal wavespeed, PetscReal limiter
+)
+{
+    Cmpnts    fUU, fU, fD;
+    PetscReal dUU, dU, dD;
+
+    if(d0 != d0 || d1 != d1 || d2 != d2 || d3 != d3)
+    {
+        char error[512];
+        sprintf(error, "nan-distances provided\n");
+        fatalErrorInFunction("wCentralUpwind",  error);
+    }
+
+    if(wavespeed > 0)
+    {
+        fUU = nSet(f0); fU  = nSet(f1); fD  = nSet(f2);
+        dUU = d0; dU  = d1; dD  = d2;
+	}
+	else
+    {
+        fUU = nSet(f3); fU  = nSet(f2); fD  = nSet(f1);
+        dUU = d3; dU  = d2; dD  = d1;
+	}
+
+    // compute cell to cell and cell to face distances
+    PetscReal da  = 0.5 * (dUU + dU);
+    PetscReal db  = 0.5 * (dU  + dD);
+    PetscReal dc  = 0.5 * (dUU + 2.0*dU + dD);
+    PetscReal dfQ = 0.5 * (2.0*dU + dUU);
+    PetscReal dfC = 0.5 * dU;
+
+    // central scheme
+    Cmpnts C = nSum(nScale(dfC/ db, nSub(fD, fU)), fU);
+
+    // quickDiv correction a, b, c terms
+    Cmpnts a = nSum(nSub(nScale(da,fD), nScale(dc,fU)), nScale(db,fUU));
+    Cmpnts b = nSub(nScale(dc*dc+dc*da,fU), nSum(nScale(da*da+dc*da,fD), nScale(dc*dc-da*da,fUU)));
+    Cmpnts c = nScale(da*db*dc, nSub(nSum(nScale(da/db, nSub(fD,fU)), fUU), fU));
+
+    // quadratic quickDiv correction to the central scheme
+    Cmpnts corr = nScale(1.0/(da*db*dc), nSum(nSum(nScale(dfQ*dfQ, a), nScale(dfQ, b)), c));
+
+	return
+    (
+       nSum(C, nScale(1.0 - limiter, corr))
+    );
+}
+
+//***************************************************************************************************************//
+
 inline PetscReal quadraticUpwind
 (
     PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3,
@@ -2307,6 +2524,28 @@ inline PetscReal quadraticUpwind
 	}
 
     return 0.5 * (fU + fD) + (2.0*fU - fD - fUU) / 8.0;
+}
+
+//***************************************************************************************************************//
+
+inline Cmpnts quadraticUpwindVec
+(
+    Cmpnts f0, Cmpnts f1, Cmpnts f2, Cmpnts f3,
+    PetscReal wavespeed
+)
+{
+	Cmpnts fUU, fU, fD;
+
+	if(wavespeed>0)
+    {
+		fUU = nSet(f0); fU  = nSet(f1); fD  = nSet(f2);
+	}
+	else
+    {
+		fUU = nSet(f3); fU  = nSet(f2); fD  = nSet(f1);
+	}
+
+    return nSum(nScale(0.5, nSum(fU, fD)), nScale(1./8., nSub(nScale(2.0,fU), nSum(fD, fUU))));
 }
 
 //***************************************************************************************************************//
@@ -2379,6 +2618,42 @@ inline PetscReal weno3(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, P
 	PetscReal u1 = ( -fL*0.5 + fC*1.5 );
 
 	return w0*u0 + w1*u1;
+}
+
+//***************************************************************************************************************//
+
+inline Cmpnts weno3Vec(Cmpnts f0, Cmpnts f1, Cmpnts f2, Cmpnts f3, PetscReal wavespeed)
+{
+	Cmpnts fL, fC, fR;
+
+	if(wavespeed>0)
+    {
+		fL = nSet(f0); fC = nSet(f1); fR = nSet(f2);
+	}
+	else
+    {
+		fL = nSet(f3); fC = nSet(f2); fR = nSet(f1);
+	}
+
+	PetscReal d0=2./3., d1=1./3.;
+
+	const Cmpnts eps = nSetFromComponents(1e-6, 1e-6, 1e-6);
+
+	Cmpnts beta0 = nPow(nSub(fC,fR),  2.);
+	Cmpnts beta1 = nPow(nSub(fL,fC),  2.);
+
+	Cmpnts alpha0 = nScale(d0, nInv(nPow( nSum(eps,beta0), 2. )));
+	Cmpnts alpha1 = nScale(d1, nInv(nPow( nSum(eps,beta1), 2. )));
+
+	Cmpnts sumalpha = nSum(alpha0, alpha1);
+
+	Cmpnts w0 = nMultElWise(alpha0, nInv(sumalpha));
+	Cmpnts w1 = nMultElWise(alpha1, nInv(sumalpha));
+
+	Cmpnts u0 = nSum(nScale(0.5,fC),  nScale(0.5,fR));
+	Cmpnts u1 = nSum(nScale(-0.5,fL), nScale(1.5,fC));
+
+	return nSum(nMultElWise(w0,u0), nMultElWise(w1,u1));
 }
 
 //***************************************************************************************************************//
@@ -2861,6 +3136,54 @@ inline double viscStipa(double &hS, double &hE, double &delta, double &h)
 
     double h1_hat = (h-hS)/delta;
     double h2_hat = (h-hE)/delta + 1.0;
+
+    double viscosity;
+
+    double s1, s2;
+
+    // compute smoothing function rise component
+    if(h1_hat <= 0.0)
+    {
+        s1 = 0.0;
+    }
+    else if(h1_hat >= 1.0)
+    {
+        s1 = 1.0;
+    }
+    else
+    {
+        s1 = 1.0 / (1.0 + std::exp(1.0/(h1_hat - 1.0) + 1.0 / h1_hat));
+    }
+
+    // compute smoothing function falling component
+    if(h2_hat <= 0.0)
+    {
+        s2 = 0.0;
+    }
+    else if(h2_hat >= 1.0)
+    {
+        s2 = 1.0;
+    }
+    else
+    {
+        s2 = 1.0 / (1.0 + std::exp(1.0/(h2_hat - 1.0) + 1.0 / h2_hat));
+    }
+
+    viscosity = 1.0 - (s1 - s2);
+
+    return(viscosity);
+}
+
+//***************************************************************************************************************//
+
+inline double viscStipaDelta(double &hS, double &hE, double &deltaS, double &deltaE, double &h)
+{
+    // make sure delta is positive and strictly greater than zero
+    deltaS = std::max(fabs(deltaS), 1e-5);
+    deltaE = std::max(fabs(deltaE), 1e-5);
+
+    double h1_hat = (h-hS)/deltaS;
+    double h2_hat = (h-hE)/deltaE + 1.0;
 
     double viscosity;
 
