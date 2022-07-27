@@ -571,7 +571,13 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     PetscReal nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
                     PetscReal tBarInstX;
 
-                    if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
+                    if
+                    (
+                        abl->xFringeUBarSelectionType == 0 ||
+                        abl->xFringeUBarSelectionType == 1 ||
+                        abl->xFringeUBarSelectionType == 2 ||
+                        abl->xFringeUBarSelectionType == 4
+                    )
                     {
                         // set desired temperature
                         tBarInstX  = abl->tBarInstX[j][i];
@@ -642,7 +648,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***ucont;
 
-    Cmpnts        ***csi, ***eta, ***zet;
+    Cmpnts        ***csi, ***eta, ***zet, ***cent;
     Cmpnts        ***icsi, ***ieta, ***izet;
     Cmpnts        ***jcsi, ***jeta, ***jzet;
     Cmpnts        ***kcsi, ***keta, ***kzet;
@@ -682,6 +688,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(da,  mesh->lIAj,        &iaj);
     DMDAVecGetArray(da,  mesh->lJAj,        &jaj);
     DMDAVecGetArray(da,  mesh->lKAj,        &kaj);
+    DMDAVecGetArray(fda, mesh->lCent,       &cent);
     DMDAVecGetArray(da,  mesh->lNvert,      &nvert);
     DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
 
@@ -1194,6 +1201,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(da,  mesh->lIAj,        &iaj);
     DMDAVecRestoreArray(da,  mesh->lJAj,        &jaj);
     DMDAVecRestoreArray(da,  mesh->lKAj,        &kaj);
+    DMDAVecRestoreArray(fda, mesh->lCent,       &cent);
     DMDAVecRestoreArray(da,  mesh->lNvert,      &nvert);
     DMDAVecRestoreArray(fda, mesh->fluxLimiter, &limiter);
 

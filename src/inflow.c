@@ -12,258 +12,326 @@
 
 PetscErrorCode SetInflowFunctions(mesh_ *mesh)
 {
-  // read inlet functions subdictionaries (if present)
-  if(mesh->boundaryU.kLeft == "inletFunction")
-  {
-    word           fileName, location, field;
+    PetscInt inletFunctionsAllocated = 0;
 
-    PetscPrintf(mesh->MESH_COMM, "Creating inflow boundary data...");
-
-    // allocate memory for this patch inlet function data
-    PetscMalloc(sizeof(inletFunctionTypes), &mesh->inletF.kLeft);
-
-    // set local pointer to this inlet function type
-    inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
-
-    location = "./boundary/" + mesh->meshName + "/";
-    field    = "U";
-    fileName = location + field;
-
-    readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeU));
-
-    // power law profile
-    if (ifPtr->typeU == 1)
+    // read inlet functions subdictionaries (if present)
+    if(mesh->boundaryU.kLeft == "inletFunction")
     {
-      readSubDictVector(fileName.c_str(), "inletFunction", "Uref", &(ifPtr->Uref));
-      readSubDictDouble(fileName.c_str(), "inletFunction", "Href", &(ifPtr->Href));
-      readSubDictDouble(fileName.c_str(), "inletFunction", "uPrimeRMS", &(ifPtr->uPrimeRMS));
-    }
+        word           fileName, location, field;
 
-    // log law profile
-    else if (ifPtr->typeU == 2)
-    {
-        readSubDictVector(fileName.c_str(), "inletFunction", "directionU", &(ifPtr->Udir));
-        readSubDictDouble(fileName.c_str(), "inletFunction", "hInversion", &(ifPtr->hInv));
-        readSubDictDouble(fileName.c_str(), "inletFunction", "frictionU",  &(ifPtr->uTau));
-        readSubDictDouble(fileName.c_str(), "inletFunction", "kRough",     &(ifPtr->roughness));
-        mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
-    }
+        PetscPrintf(mesh->MESH_COMM, "Creating U inflow boundary data...");
 
-    // unsteady mapped inflow
-    else if (ifPtr->typeU == 3)
-    {
-      readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &(ifPtr->n1));
-      readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &(ifPtr->n2));
-      readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &(ifPtr->prds1));
-      readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &(ifPtr->prds2));
+        // allocate memory for this patch inlet function data and init types
+        PetscMalloc(sizeof(inletFunctionTypes), &mesh->inletF.kLeft);
+        mesh->inletF.kLeft->typeU   = -1;
+        mesh->inletF.kLeft->typeT   = -1;
+        mesh->inletF.kLeft->typeNut = -1;
+        inletFunctionsAllocated ++;
 
-      // increase n1 and n2 accounting for side ghost cells
-      ifPtr->n1wg = ifPtr->n1 + 2;
-      ifPtr->n2wg = ifPtr->n2 + 2;
+        // set local pointer to this inlet function type
+        inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
 
-      // flags for T and nut
-      ifPtr->mapT = 0;
-      ifPtr->mapNut = 0;
-
-      // print mapping action information
-      printInflowMappingAction(mesh, ifPtr);
-
-      // check also temperature specification for this inlet function
-      if(mesh->access->flags->isTeqnActive)
-      {
-          if(mesh->boundaryT.kLeft == "inletFunction")
-          {
-              field = "T";
-              fileName = location + field;
-              readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeT));
-
-              if(ifPtr->typeT == 3)
-              {
-                  if(ifPtr->typeT != ifPtr->typeU)
-                  {
-                      // throw error
-                     char error[512];
-                      sprintf(error, "unsteadyMappedInflow must be applied to U, T if temperatureTransport is active\n");
-                      fatalErrorInFunction("SetInflowFunctions", error);
-                  }
-                  else
-                  {
-                      ifPtr->mapT = 1;
-
-                      // read parameters and check that are the same as U
-                      PetscInt n1, n2, prds1, prds2;
-                      readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
-                      readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
-                      readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
-                      readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
-                      if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2)
-                      {
-                         char error[512];
-                          sprintf(error, "inletFunction type 3 parameters in boundary/T must match boundary/U");
-                          fatalErrorInFunction("SetInflowFunctions",  error);
-                      }
-                  }
-              }
-          }
-      }
-
-      // check also nut specifiation for this inlet function
-      if(mesh->access->flags->isLesActive)
-      {
-          if(mesh->boundaryNut.kLeft == "inletFunction")
-          {
-              field = "nut";
-              fileName = location + field;
-              readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeNut));
-
-              if(ifPtr->typeNut == 3)
-              {
-                  if(ifPtr->typeNut == ifPtr->typeU)
-                  {
-                      ifPtr->mapNut = 1;
-
-                      // read parameters and check that are the same as U
-                      PetscInt n1, n2, prds1, prds2;
-                      readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
-                      readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
-                      readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
-                      readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
-                      if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2)
-                      {
-                         char error[512];
-                          sprintf(error, "inletFunction type 3 parameters in boundary/nut must match boundary/U");
-                          fatalErrorInFunction("SetInflowFunctions",  error);
-                      }
-                  }
-              }
-          }
-      }
-
-      // initialize inflow data
-      mappedInflowInitialize(ifPtr);
-    }
-
-    // unsteady interpolated inflow
-    else if (ifPtr->typeU == 4)
-    {
-        field = "U";
+        location = "./boundary/" + mesh->meshName + "/";
+        field    = "U";
         fileName = location + field;
 
-        readSubDictInt   (fileName.c_str(), "inletFunction", "n1Inflow",   &(ifPtr->n1));
-        readSubDictInt   (fileName.c_str(), "inletFunction", "n2Inflow",   &(ifPtr->n2));
-        readSubDictInt   (fileName.c_str(), "inletFunction", "n1Periods",  &(ifPtr->prds1));
-        readSubDictInt   (fileName.c_str(), "inletFunction", "n2Periods",  &(ifPtr->prds2));
-        readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &(ifPtr->width1));
-        readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &(ifPtr->width2));
+        readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeU));
 
-        // increase n1 and n2 accounting for side ghost cells
-        ifPtr->n1wg = ifPtr->n1 + 2;
-        ifPtr->n2wg = ifPtr->n2 + 2;
-
-        // flags for T and nut
-        ifPtr->mapT   = 0;
-        ifPtr->mapNut = 0;
-
-        // check also temperature specification for this inlet function
-        if(mesh->access->flags->isTeqnActive)
+        // power law profile
+        if (ifPtr->typeU == 1)
         {
-            if(mesh->boundaryT.kLeft == "inletFunction")
+            readSubDictVector(fileName.c_str(), "inletFunction", "Uref", &(ifPtr->Uref));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "Href", &(ifPtr->Href));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "uPrimeRMS", &(ifPtr->uPrimeRMS));
+        }
+
+        // log law profile
+        else if (ifPtr->typeU == 2)
+        {
+            readSubDictVector(fileName.c_str(), "inletFunction", "directionU", &(ifPtr->Udir));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "hInversion", &(ifPtr->hInv));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "frictionU",  &(ifPtr->uTau));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "kRough",     &(ifPtr->roughness));
+            mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
+        }
+        // unsteady mapped inflow
+        else if (ifPtr->typeU == 3)
+        {
+            readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &(ifPtr->n1));
+            readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &(ifPtr->n2));
+            readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &(ifPtr->prds1));
+            readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &(ifPtr->prds2));
+
+            // increase n1 and n2 accounting for side ghost cells
+            ifPtr->n1wg = ifPtr->n1 + 2;
+            ifPtr->n2wg = ifPtr->n2 + 2;
+
+            // flags for T and nut
+            ifPtr->mapT = 0;
+            ifPtr->mapNut = 0;
+
+            // print mapping action information
+            printInflowMappingAction(mesh, ifPtr);
+
+            // check also temperature specification for this inlet function
+            if(mesh->access->flags->isTeqnActive)
             {
-                field = "T";
-                fileName = location + field;
-
-                readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeT));
-
-                if(ifPtr->typeT == 4)
+                if(mesh->boundaryT.kLeft == "inletFunction")
                 {
-                    // if only T is mapped throw error
-                    if(ifPtr->typeT != ifPtr->typeU)
-                    {
-                        // throw error
-                       char error[512];
-                        sprintf(error, "unsteadyMappedInflow must be applied to U, T if temperatureTransport is active\n");
-                        fatalErrorInFunction("SetInflowFunctions", error);
-                    }
-                    else
-                    {
-                        ifPtr->mapT = 1;
+                    field = "T";
+                    fileName = location + field;
+                    readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeT));
 
-                        // read parameters and check that are the same as U
-                        PetscInt n1, n2, prds1, prds2;
-                        PetscReal width1, width2;
-                        readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
-                        readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
-                        readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
-                        readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
-                        readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &width1);
-                        readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &width2);
-                        if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 || width1!=ifPtr->width1 || width2!=ifPtr->width2)
+                    if(ifPtr->typeT == 3)
+                    {
+                        if(ifPtr->typeT != ifPtr->typeU)
                         {
-                           char error[512];
-                            sprintf(error, "inletFunction type 4 parameters in boundary/T must match boundary/U");
-                            fatalErrorInFunction("SetInflowFunctions",  error);
+                            // throw error
+                            char error[512];
+                            sprintf(error, "unsteadyMappedInflow must be applied to U, T if temperatureTransport is active\n");
+                            fatalErrorInFunction("SetInflowFunctions", error);
+                        }
+                        else
+                        {
+                            ifPtr->mapT = 1;
+
+                            // read parameters and check that are the same as U
+                            PetscInt n1, n2, prds1, prds2;
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
+
+                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2)
+                            {
+                                char error[512];
+                                sprintf(error, "inletFunction type 3 parameters in boundary/T must match boundary/U");
+                                fatalErrorInFunction("SetInflowFunctions",  error);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // check also nut specifiation for this inlet function
-        if(mesh->access->flags->isLesActive)
-        {
-            if(mesh->boundaryNut.kLeft == "inletFunction")
+            // check also nut specifiation for this inlet function
+            if(mesh->access->flags->isLesActive)
             {
-                field = "nut";
-                fileName = location + field;
-
-                readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeNut));
-
-                // if only nut is mapped throw error
-                if(ifPtr->typeNut == 4)
+                if(mesh->boundaryNut.kLeft == "inletFunction")
                 {
-                    if(ifPtr->typeNut == ifPtr->typeU)
-                    {
-                        ifPtr->mapNut = 1;
+                    field = "nut";
+                    fileName = location + field;
+                    readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeNut));
 
-                        // read parameters and check that are the same as U
-                        PetscInt n1, n2, prds1, prds2;
-                        PetscReal width1, width2;
-                        readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
-                        readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
-                        readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
-                        readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
-                        readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &width1);
-                        readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &width2);
-                        if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 || width1!=ifPtr->width1 || width2!=ifPtr->width2)
+                    if(ifPtr->typeNut == 3)
+                    {
+                        if(ifPtr->typeNut == ifPtr->typeU)
                         {
-                           char error[512];
-                            sprintf(error, "inletFunction type 4 parameters in boundary/nut must match boundary/U");
-                            fatalErrorInFunction("SetInflowFunctions",  error);
+                            ifPtr->mapNut = 1;
+
+                            // read parameters and check that are the same as U
+                            PetscInt n1, n2, prds1, prds2;
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
+                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2)
+                            {
+                                char error[512];
+                                sprintf(error, "inletFunction type 3 parameters in boundary/nut must match boundary/U");
+                                fatalErrorInFunction("SetInflowFunctions",  error);
+                            }
                         }
                     }
                 }
             }
+
+            // initialize inflow data
+            mappedInflowInitialize(ifPtr);
         }
 
-        // build interpolation weights and find periodized inflow cells indices
-        SetInflowWeights(mesh, ifPtr);
+        // unsteady interpolated inflow
+        else if (ifPtr->typeU == 4)
+        {
+            field = "U";
+            fileName = location + field;
 
-        // initialize inflow data
-        mappedInflowInitialize(ifPtr);
+            readSubDictInt   (fileName.c_str(), "inletFunction", "n1Inflow",   &(ifPtr->n1));
+            readSubDictInt   (fileName.c_str(), "inletFunction", "n2Inflow",   &(ifPtr->n2));
+            readSubDictInt   (fileName.c_str(), "inletFunction", "n1Periods",  &(ifPtr->prds1));
+            readSubDictInt   (fileName.c_str(), "inletFunction", "n2Periods",  &(ifPtr->prds2));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &(ifPtr->width1));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &(ifPtr->width2));
+
+            // increase n1 and n2 accounting for side ghost cells
+            ifPtr->n1wg = ifPtr->n1 + 2;
+            ifPtr->n2wg = ifPtr->n2 + 2;
+
+            // flags for T and nut
+            ifPtr->mapT   = 0;
+            ifPtr->mapNut = 0;
+
+            // check also temperature specification for this inlet function
+            if(mesh->access->flags->isTeqnActive)
+            {
+                if(mesh->boundaryT.kLeft == "inletFunction")
+                {
+                    field = "T";
+                    fileName = location + field;
+
+                    readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeT));
+
+                    if(ifPtr->typeT == 4)
+                    {
+                        // if only T is mapped throw error
+                        if(ifPtr->typeT != ifPtr->typeU)
+                        {
+                            // throw error
+                           char error[512];
+                            sprintf(error, "unsteadyMappedInflow must be applied to U, T if temperatureTransport is active\n");
+                            fatalErrorInFunction("SetInflowFunctions", error);
+                        }
+                        else
+                        {
+                            ifPtr->mapT = 1;
+
+                            // read parameters and check that are the same as U
+                            PetscInt n1, n2, prds1, prds2;
+                            PetscReal width1, width2;
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
+                            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &width1);
+                            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &width2);
+                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 || width1!=ifPtr->width1 || width2!=ifPtr->width2)
+                            {
+                                char error[512];
+                                sprintf(error, "inletFunction type 4 parameters in boundary/T must match boundary/U");
+                                fatalErrorInFunction("SetInflowFunctions",  error);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // check also nut specifiation for this inlet function
+            if(mesh->access->flags->isLesActive)
+            {
+                if(mesh->boundaryNut.kLeft == "inletFunction")
+                {
+                    field = "nut";
+                    fileName = location + field;
+
+                    readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeNut));
+
+                    // if only nut is mapped throw error
+                    if(ifPtr->typeNut == 4)
+                    {
+                        if(ifPtr->typeNut == ifPtr->typeU)
+                        {
+                            ifPtr->mapNut = 1;
+
+                            // read parameters and check that are the same as U
+                            PetscInt n1, n2, prds1, prds2;
+                            PetscReal width1, width2;
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
+                            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &width1);
+                            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &width2);
+                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 || width1!=ifPtr->width1 || width2!=ifPtr->width2)
+                            {
+                                char error[512];
+                                sprintf(error, "inletFunction type 4 parameters in boundary/nut must match boundary/U");
+                                fatalErrorInFunction("SetInflowFunctions",  error);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // build interpolation weights and find periodized inflow cells indices
+            SetInflowWeights(mesh, ifPtr);
+
+            // initialize inflow data
+            mappedInflowInitialize(ifPtr);
+        }
+        // Nieuwstadt
+        else if (ifPtr->typeU == 5)
+        {
+            readSubDictVector(fileName.c_str(), "inletFunction", "directionU", &(ifPtr->Udir));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "hInversion", &(ifPtr->hInv));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "hReference", &(ifPtr->Href));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "frictionU",  &(ifPtr->uTau));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "kRough",     &(ifPtr->roughness));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "latitude",   &(ifPtr->latitude));
+            mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
+            ifPtr->fc =  2*7.292115e-5*std::sin(ifPtr->latitude * M_PI / 180.0);
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)");
+            fatalErrorInFunction("SetInflowFunctions",  error);
+        }
+
+        PetscPrintf(mesh->MESH_COMM, "done\n\n");
     }
-    else
+
+    // check also temperature specification
+    if(mesh->access->flags->isTeqnActive)
     {
-       char error[512];
-        sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database");
-        fatalErrorInFunction("SetInflowFunctions",  error);
+        if(mesh->boundaryT.kLeft == "inletFunction")
+        {
+            word           fileName, location, field;
+
+            PetscPrintf(mesh->MESH_COMM, "Creating T inflow boundary data...");
+
+            if(!inletFunctionsAllocated)
+            {
+                PetscMalloc(sizeof(inletFunctionTypes), &(mesh->inletF.kLeft));
+                mesh->inletF.kLeft->typeU   = -1;
+                mesh->inletF.kLeft->typeT   = -1;
+                mesh->inletF.kLeft->typeNut = -1;
+                inletFunctionsAllocated++;
+            }
+
+            // set local pointer to this inlet function type
+            inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
+
+            location = "./boundary/" + mesh->meshName + "/";
+            field    = "T";
+            fileName = location + field;
+
+            readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeT));
+
+            // RampanelliZardi stratification model
+            if (ifPtr->typeT == 2)
+            {
+                PetscReal hInv;
+                readSubDictDouble(fileName.c_str(), "inletFunction", "hInv",  &hInv);
+                readSubDictDouble(fileName.c_str(), "inletFunction", "dInv",  &(ifPtr->dInv));
+                readSubDictDouble(fileName.c_str(), "inletFunction", "gInv",  &(ifPtr->gInv));
+                readSubDictDouble(fileName.c_str(), "inletFunction", "tRef",  &(ifPtr->tRef));
+                readSubDictDouble(fileName.c_str(), "inletFunction", "gTop",  &(ifPtr->gTop));
+                readSubDictDouble(fileName.c_str(), "inletFunction", "smearT",&(ifPtr->smear));
+
+                // check input
+                if((ifPtr->typeU == 2 || ifPtr->typeU == 5) && hInv != ifPtr->hInv)
+                {
+                    char error[512];
+                    sprintf(error, "inletFunction type 2 requires the same hInv if active in both U and T");
+                    fatalErrorInFunction("SetInflowFunctions",  error);
+                }
+            }
+
+            PetscPrintf(mesh->MESH_COMM, "done\n\n");
+        }
     }
 
-    PetscPrintf(mesh->MESH_COMM, "done\n\n");
-
-  }
-
-  MPI_Barrier(mesh->MESH_COMM);
-  return(0);
+    MPI_Barrier(mesh->MESH_COMM);
+    return(0);
 }
 
 //***************************************************************************************************************//
@@ -1071,7 +1139,7 @@ PetscErrorCode readInflowT(inletFunctionTypes *ifPtr, clock_ *clock)
 
     if(!fp_1 || !fp_2)
     {
-       char error[512];
+        char error[512];
         sprintf(error, "cannot open files:\n    %s\n    %s\n", fname_1.c_str(), fname_2.c_str());
         fatalErrorInFunction("read_inflow_data",  error);
     }
@@ -1243,4 +1311,91 @@ PetscErrorCode readInflowNut(inletFunctionTypes *ifPtr, clock_ *clock)
     }
 
     return(0);
+}
+
+//***************************************************************************************************************//
+
+Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
+{
+    PetscReal vkConstant = 0.4, C, eta, U, V;
+    complex   alpha, Const, Wg, sigma, deltaW, W;
+
+    C   = ifPtr->fc * ifPtr->hInv / (vkConstant * ifPtr->uTau);
+
+    if(h < ifPtr->hInv)
+    {
+        // evaluate velocity at wanted height
+        eta    = h / ifPtr->hInv;
+        alpha  = 0.5 + 0.5 * std::sqrt(complex(1.0, 4.0*C));
+        Const  = digamma(alpha + 1.0) + digamma(alpha - 1.0) - 2.0 * digamma(1.0);
+        Wg     = 1.0 / vkConstant * (std::log(ifPtr->hInv / ifPtr->roughness) - Const);
+        sigma  = alpha * gamma(alpha)*gamma(alpha) / gamma(2.0*alpha) * pow(1.0 - eta, alpha) * hypergeom(alpha-1.0, alpha, 2.0*alpha, 1.0-eta);
+        deltaW = complex(0.0, -1.0/vkConstant) * alpha * alpha * gamma(alpha) * gamma(alpha) / (C * gamma(2.0*alpha)) * pow(1.0-eta,alpha-1.0)*hypergeom(alpha+1.0, alpha-1.0,2.0*alpha, 1.0-eta);
+        W      = Wg - deltaW;
+
+        PetscReal U_p    = W.real() * ifPtr->uTau,
+                  V_p    = W.imag() * ifPtr->uTau;
+
+        // evaluate velocity at reference height
+        eta    = ifPtr->Href / ifPtr->hInv;
+        alpha  = 0.5 + 0.5 * std::sqrt(complex(1.0, 4.0*C));
+        Const  = digamma(alpha + 1.0) + digamma(alpha - 1.0) - 2.0 * digamma(1.0);
+        Wg     = 1.0 / vkConstant * (std::log(ifPtr->hInv / ifPtr->roughness) - Const);
+        sigma  = alpha * gamma(alpha)*gamma(alpha) / gamma(2.0*alpha) * pow(1.0 - eta, alpha) * hypergeom(alpha-1.0, alpha, 2.0*alpha, 1.0-eta);
+        deltaW = complex(0.0, -1.0/vkConstant) * alpha * alpha * gamma(alpha) * gamma(alpha) / (C * gamma(2.0*alpha)) * pow(1.0-eta,alpha-1.0)*hypergeom(alpha+1.0, alpha-1.0,2.0*alpha, 1.0-eta);
+        W      = Wg - deltaW;
+
+        PetscReal U_r    = W.real() * ifPtr->uTau,
+                  V_r    = W.imag() * ifPtr->uTau;
+
+        // normalize
+        U_r /= sqrt(U_r*U_r + V_r*V_r);
+        V_r /= sqrt(U_r*U_r + V_r*V_r);
+
+        // find rotation angle of the wind profile
+        PetscReal theta = std::acos(ifPtr->Udir.x * U_r + ifPtr->Udir.y * V_r);
+
+        // rotate components
+        U = std::cos(theta) * U_p - std::sin(theta) * V_p;
+        V = std::sin(theta) * U_p + std::cos(theta) * V_p;
+    }
+    else
+    {
+        // evaluate velocity above capping height
+        eta    = 1.0;
+        alpha  = 0.5 + 0.5 * std::sqrt(complex(1.0, 4.0*C));
+        Const  = digamma(alpha + 1.0) + digamma(alpha - 1.0) - 2.0 * digamma(1.0);
+        Wg     = 1.0 / vkConstant * (std::log(ifPtr->hInv / ifPtr->roughness) - Const);
+        sigma  = alpha * gamma(alpha)*gamma(alpha) / gamma(2.0*alpha) * pow(1.0 - eta, alpha) * hypergeom(alpha-1.0, alpha, 2.0*alpha, 1.0-eta);
+        deltaW = complex(0.0, -1.0/vkConstant) * alpha * alpha * gamma(alpha) * gamma(alpha) / (C * gamma(2.0*alpha)) * pow(1.0-eta,alpha-1.0)*hypergeom(alpha+1.0, alpha-1.0,2.0*alpha, 1.0-eta);
+        W      = Wg - deltaW;
+
+        PetscReal U_p    = W.real() * ifPtr->uTau,
+                  V_p    = W.imag() * ifPtr->uTau;
+
+        // evaluate velocity at reference height
+        eta    = ifPtr->Href / ifPtr->hInv;
+        alpha  = 0.5 + 0.5 * std::sqrt(complex(1.0, 4.0*C));
+        Const  = digamma(alpha + 1.0) + digamma(alpha - 1.0) - 2.0 * digamma(1.0);
+        Wg     = 1.0 / vkConstant * (std::log(ifPtr->hInv / ifPtr->roughness) - Const);
+        sigma  = alpha * gamma(alpha)*gamma(alpha) / gamma(2.0*alpha) * pow(1.0 - eta, alpha) * hypergeom(alpha-1.0, alpha, 2.0*alpha, 1.0-eta);
+        deltaW = complex(0.0, -1.0/vkConstant) * alpha * alpha * gamma(alpha) * gamma(alpha) / (C * gamma(2.0*alpha)) * pow(1.0-eta,alpha-1.0)*hypergeom(alpha+1.0, alpha-1.0,2.0*alpha, 1.0-eta);
+        W      = Wg - deltaW;
+
+        PetscReal U_r    = W.real() * ifPtr->uTau,
+                  V_r    = W.imag() * ifPtr->uTau;
+
+        // normalize
+        U_r /= sqrt(U_r*U_r + V_r*V_r);
+        V_r /= sqrt(U_r*U_r + V_r*V_r);
+
+        // find rotation angle of the wind profile
+        PetscReal theta = std::acos(ifPtr->Udir.x * U_r + ifPtr->Udir.y * V_r);
+
+        // rotate components
+        U = std::cos(theta) * U_p - std::sin(theta) * V_p;
+        V = std::sin(theta) * U_p + std::cos(theta) * V_p;
+    }
+
+    return(nSetFromComponents(U,V,0.0));
 }

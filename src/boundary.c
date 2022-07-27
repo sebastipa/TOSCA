@@ -1247,8 +1247,14 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         // set velocity according to log law
                         ucat[k-1][j][i] = nScale(uMag, ifPtr->Udir);
                     }
+                    // Nieuwstadt model
+                    else if (ifPtr->typeU == 5)
+                    {
+                        PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                        ucat[k-1][j][i] = NieuwstadtInflowEvaluate(ifPtr, h);
+                    }
                     // unsteady mapped inflow
-                    else if (ifPtr->typeU == 3)
+                    else if (ifPtr->typeU == 3)      
                     {
                         // periodize inflow according to input
 
@@ -1734,7 +1740,6 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     {
         inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
 
-        // read the inflow data if necessary
         if (ifPtr->typeT == 3 || ifPtr->typeT == 4)
         {
             readInflowT(ifPtr, mesh->access->clock);
@@ -1797,8 +1802,25 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 {
                     inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
 
+                    // read the inflow data if necessary
+                    if(ifPtr->typeT == 2)
+                    {
+                        PetscReal b  = ifPtr->smear * ifPtr->gTop * ifPtr->dInv;
+                        PetscReal a  = ifPtr->gInv - b;
+                        PetscReal h  = cent[k][j][i].z - mesh->bounds.zmin;
+
+                        // non dimensional height eta
+                        PetscReal eta = (h - ifPtr->hInv) / ifPtr->smear / ifPtr->dInv;
+
+                        // non dimensional functions
+                        PetscReal f_eta = (std::tanh(eta) + 1) / 2;
+                        PetscReal g_eta = (std::log(2 * std::cosh(eta)) + eta) / 2;
+
+                        // potential temperature
+                        t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta;
+                    }
                     // periodized mapped inflow
-                    if (ifPtr->typeT == 3)
+                    else if (ifPtr->typeT == 3)
                     {
                         // periodize inflow according to input
 

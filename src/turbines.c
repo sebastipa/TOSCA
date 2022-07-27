@@ -2098,7 +2098,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
             else if((*farm->turbineModels[t]) == "AFM")
             {
                 // this processor velocity
-                Cmpnts lU;
+                Cmpnts lU, gU;
 
                 if(wt->afm.thisPtControlled)
                 {
@@ -2172,7 +2172,20 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                     lU.z = 0.0;
                 }
 
-                MPI_Allreduce(&lU, &(wt->afm.U), 3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+                MPI_Allreduce(&lU, &gU, 3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+
+                // this is an actual sampling so simulate turbine acquisition with filter
+                // signal filtering: 1-pole low pass recursive filter
+                PetscReal a = std::exp(-clock->dt * wt->afm.rtrUFilterFreq);
+
+                if(clock->it == clock->itStart)
+                {
+                    wt->afm.U = nSet(gU);
+                }
+                else
+                {
+                    wt->afm.U = nSum(nScale(a, wt->afm.U), nScale(1.0-a, gU));
+                }
             }
         }
     }
@@ -2840,14 +2853,33 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
-                // compute induction factor
-                PetscReal a_t     = (1.0 - std::sqrt(1.0 - wt->afm.Ct)) / 2.0;
+                PetscReal a_t, Uref, bMag;
 
-                // compute freestream velocity
-                PetscReal Uref  = nMag(wt->afm.U) / (1.0 - 2.0 * a_t);
+                // reference velocity is extrapolated using induction coefficient - Ct relation
+                if(wt->afm.sampleType == "momentumTheory")
+                {
+                    // compute induction factor
+                    a_t     = (1.0 - std::sqrt(1.0 - wt->afm.Ct)) / 2.0;
 
-                // compute body force
-                PetscReal bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * wt->afm.Ct;
+                    // compute freestream velocity
+                    Uref  = nMag(wt->afm.U) / (1.0 - a_t);
+
+                    // compute body force
+                    bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * wt->afm.Ct;
+                }
+                // disk based Ct is used
+                else if(wt->afm.sampleType == "rotorDisk")
+                {
+                    // compute freestream velocity
+                    Uref  = nMag(wt->afm.U);
+
+                    // compute body force
+                    bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * wt->afm.Ct;
+
+                    // compute induction factor (zero so that power is correct bcs Uref is already at disk)
+                    a_t = 0.0;
+                }
+
                 wt->afm.B = nScale(bMag, wt->rtrAxis);
 
                 // aerodynamic thrust
@@ -2920,8 +2952,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
         windTurbine *wt = farm->wt[t];
 
         // projection parameters
-        PetscReal rPrj = wt->eps * wt->prjNSigma,
-                  eps  = wt->eps;
+        PetscReal rPrj = wt->eps * wt->prjNSigma;
 
         // test if this processor controls this turbine
         if(wt->turbineControlled)
@@ -2929,6 +2960,9 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             // actuator disk model
             if((*farm->turbineModels[t]) == "ADM")
             {
+                // projection distance
+                PetscReal eps  = wt->eps;
+
                 // number of points in the AD mesh
                 PetscInt npts_t = wt->adm.nPoints;
 
@@ -3026,6 +3060,9 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             // uniform actuator disk model
             else if((*farm->turbineModels[t]) == "uniformADM")
             {
+                // projection distance
+                PetscReal eps  = wt->eps;
+
                 // number of points in the AD mesh
                 PetscInt npts_t = wt->uadm.nPoints;
 
@@ -3099,6 +3136,9 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
             {
+                // projection distance
+                PetscReal eps  = wt->eps;
+
                 // number of points in the AL mesh
                 PetscInt npts_t = wt->alm.nPoints;
 
@@ -3195,6 +3235,11 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
+                // projection distance
+                PetscReal eps_x  = wt->eps_x,
+                          eps_y  = wt->eps_y,
+                          eps_z  = wt->eps_z;
+
                 // save this point locally for speed
                 Cmpnts point_p    = wt->afm.point;
 
@@ -3209,32 +3254,19 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                     // compute distance from mesh cell to AF point
                     Cmpnts r_c = nSub(point_p, cent[k][j][i]);
 
-                    // compute magnitude
-                    PetscReal r_c_mag = nMag(r_c);
-
                     //if(r_c_mag < 2.0*wt->rTip)
                     {
                         // compute projection factor
                         PetscReal pf
                         =
-                        /*
                         std::exp
                         (
-                            -(r_c_mag *r_c_mag) /
-                             (2.0 * eps * eps)
+                            -r_c.x * r_c.x / (eps_x * eps_x)
+                            -r_c.y * r_c.y / (eps_y * eps_y)
+                            -r_c.z * r_c.z / (eps_z * eps_z)
                         ) /
                         (
-                            pow(eps,    3) *
-                            pow(2.0*M_PI, 1.5)
-                        );
-                        */
-                        std::exp
-                        (
-                            -(r_c_mag / eps)*
-                             (r_c_mag / eps)
-                        ) /
-                        (
-                            pow(eps,    3) *
+                            eps_x * eps_y * eps_z *
                             pow(M_PI, 1.5)
                         );
 
@@ -4697,7 +4729,7 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
     // check that Ct does not make induction complex or negative
     if(wt->uadm.Ct <= 0.0 || wt->uadm.Ct >= 1.0)
     {
-       char error[512];
+        char error[512];
         sprintf(error, "provided thrust coefficient ouside of bounds ([0 1] excluded)");
         fatalErrorInFunction("initUADM",  error);
     }
@@ -5126,6 +5158,32 @@ PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base, const word meshName)
 
     readDictDouble(descrFile.c_str(), "Ct",         &(wt->afm.Ct));
     readDictDouble(descrFile.c_str(), "Uref",       &(wt->afm.Uref));
+    readDictWord(descrFile.c_str(),   "sampleType", &(wt->afm.sampleType));
+
+    // check sample type
+    if
+    (
+        wt->afm.sampleType != "rotorDisk" &&
+        wt->afm.sampleType != "momentumTheory"
+    )
+    {
+        char error[512];
+        sprintf(error, "unknown velocity sampling type. Available types are momentumTheory or rotorDisk");
+        fatalErrorInFunction("initAFM",  error);
+    }
+
+    // check input
+    if(wt->afm.sampleType == "momentumTheory" && wt->afm.Ct > 0.999)
+    {
+        char error[512];
+        sprintf(error, "Ct coefficient must be less than one if sampling is of momentumTheory type");
+        fatalErrorInFunction("initAFM",  error);
+    }
+
+    // read sampling frequency
+    PetscReal windSpeedFilterPrd;
+    readDictDouble(descrFile.c_str(), "windSpeedFilterPrd", &windSpeedFilterPrd);
+    wt->afm.rtrUFilterFreq = 1.0 / windSpeedFilterPrd;
 
     // set tower top point
     Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
@@ -5263,16 +5321,16 @@ PetscErrorCode initControlledCells(farm_ *farm)
         // set flag determining if this proc has cells for this turbine to zero
         hasCells = 0;
 
-        // this tursphere radius
+        // this turbine sphere radius
         PetscReal radius_t;
 
         if((*farm->turbineModels[t]) != "AFM")
         {
-            radius_t = wt->rTip + wt->eps * wt->prjNSigma;
+            radius_t = wt->rTip +  wt->eps * wt->prjNSigma;
         }
         else
         {
-            radius_t = wt->eps * wt->prjNSigma;
+            radius_t = PetscMax(wt->eps_x, PetscMax(wt->eps_y, wt->eps_z)) * wt->prjNSigma;
         }
 
         // this turbine rotor center
@@ -6539,7 +6597,16 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     readDictDouble(dictName, "upTilt",      &(wt->upTilt));
 
     // read and compute plade projection radius
-    readDictDouble(dictName, "epsilon",     &(wt->eps));
+    if(modelName != "AFM")
+    {
+        readDictDouble(dictName, "epsilon",     &(wt->eps));
+    }
+    else
+    {
+        readDictDouble(dictName, "epsilon_x",     &(wt->eps_x));
+        readDictDouble(dictName, "epsilon_y",     &(wt->eps_y));
+        readDictDouble(dictName, "epsilon_z",     &(wt->eps_z));
+    }
 
     // set projection confidence interval as number of standard deviations (harcoded to 2.7)
     wt->prjNSigma = sqrt(std::log(1.0/0.001));

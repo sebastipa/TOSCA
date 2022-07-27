@@ -220,12 +220,22 @@ PetscErrorCode InitializeABL(abl_ *abl)
         // read advection term damping type (0: none, 1: LanzilaoMeyers2022 damping)
         readSubDictInt("ABLProperties.dat", "xDampingProperties", "advectionDampingType", &(abl->advectionDampingType));
 
-        if(abl->advectionDampingType)
+        if(abl->advectionDampingType == 0)
+        {
+            // nothing to do: no advection damping
+        }
+        else if(abl->advectionDampingType == 1)
         {
             readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingStart",            &(abl->advDampingStart));
             readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingEnd",              &(abl->advDampingEnd));
             readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingDeltaStart",       &(abl->advDampingDeltaStart));
             readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingDeltaEnd",         &(abl->advDampingDeltaEnd));
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "unknown advectionDampingType in xDampingLayer, available types are:\n        0 : no advection damping\n        1 : vertical advection damping");
+            fatalErrorInFunction("ABLInitialize",  error);
         }
 
         // read type of fringe region in uBarSelectionType
@@ -235,7 +245,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         readSubDictInt("ABLProperties.dat", "xDampingProperties", "uBarSelectionType", &(abl->xFringeUBarSelectionType));
 
-        if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
+        if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2 || abl->xFringeUBarSelectionType == 4)
         {
             // in x damping the uBar varies in time and it is actually the same as
             // the inflowFunction type 3 and 4, which correspond to uBarSelectionType
@@ -275,6 +285,27 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 readSubDictDouble("ABLProperties.dat", "xDampingProperties", "hInversion", &(ifPtr->hInv));
                 readSubDictDouble("ABLProperties.dat", "xDampingProperties", "frictionU",  &(ifPtr->uTau));
                 readSubDictDouble("ABLProperties.dat", "xDampingProperties", "kRough",     &(ifPtr->roughness));
+                mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
+
+                // temperature properties: already stored in the abl struct
+            }
+            else if(ifPtr->typeU == 4)
+            {
+                // set tBarSelectionType the same as uBarSelectionType
+                ifPtr->typeT  = 4;
+
+                // no need to map inflow
+                ifPtr->mapT   = 0;
+                ifPtr->mapNut = 0;
+
+                // velocity properties
+                readSubDictVector("ABLProperties.dat", "xDampingProperties", "directionU", &(ifPtr->Udir));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "hInversion", &(ifPtr->hInv));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "hReference", &(ifPtr->Href));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "frictionU",  &(ifPtr->uTau));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "kRough",     &(ifPtr->roughness));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "latitude",   &(ifPtr->latitude));
+                ifPtr->fc =  2*7.292115e-5*std::sin(ifPtr->latitude * M_PI / 180.0);
                 mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
 
                 // temperature properties: already stored in the abl struct
@@ -334,7 +365,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             else
             {
                 char error[512];
-                sprintf(error, "unknown uBarSelectionType in xDampingLayer, available types are:\n        1 : unsteady mapped ubar from database\n        2 : unsteady interpolated uBar from database");
+                sprintf(error, "unknown uBarSelectionType in xDampingLayer, available types are:\n        0 : steady mapped ubar from inflow function\n        1 : unsteady mapped ubar from database\n        2 : unsteady interpolated uBar from database");
                 fatalErrorInFunction("ABLInitialize",  error);
             }
 

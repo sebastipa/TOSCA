@@ -25,3 +25,6 @@ PetscErrorCode readInflowT(inletFunctionTypes *ifPtr, clock_ *clock);
 
 //! \brief Reads inflow sgs viscosity from database and stores in inletFunction data
 PetscErrorCode readInflowNut(inletFunctionTypes *ifPtr, clock_ *clock);
+
+//! \brief Nieuwstadt model for velocity inflow type 5
+Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h);

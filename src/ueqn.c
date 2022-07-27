@@ -255,10 +255,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
     abl_          *abl  = ueqn->access->abl;
 
-    PetscReal     relax = abl->relax;
-    PetscReal     alpha = abl->alpha;
-    PetscReal     T     = abl->timeWindow;
-
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
 
@@ -274,6 +270,10 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     // compute source terms using the velocity controller
     if(abl->controllerType=="write")
     {
+        PetscReal     relax = abl->relax;
+        PetscReal     alpha = abl->alpha;
+        PetscReal     T     = abl->timeWindow;
+
         // set the wanted velocity
         uDes.x = abl->uRef;
         uDes.y = 0.0;
@@ -698,7 +698,13 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
     // update uBar for xDampingLayer (read from inflow data)
     if(ueqn->access->flags->isXDampingActive)
     {
-        if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
+        if
+        (
+            abl->xFringeUBarSelectionType == 0 ||
+            abl->xFringeUBarSelectionType == 1 ||
+            abl->xFringeUBarSelectionType == 2 ||
+            abl->xFringeUBarSelectionType == 4
+        )
         {
             // get inflow database info pointer
             inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
@@ -725,7 +731,11 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
             DMDAVecGetArray(fda, mesh->lCent, &cent);
 
-            if(abl->xFringeUBarSelectionType != 0)
+            if
+            (
+                abl->xFringeUBarSelectionType != 0 &&
+                abl->xFringeUBarSelectionType != 4
+            )
             {
                 // read inflow if necessary
                 readInflowU(ifPtr, ueqn->access->clock);
@@ -801,6 +811,12 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         // set velocity according to log law
                         luBarInstX[j][i] = nScale(uMag, ifPtr->Udir);
                     }
+                    // Nieuwstadt model
+                    else if (ifPtr->typeU == 4)
+                    {
+                        PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                        luBarInstX[j][i] = NieuwstadtInflowEvaluate(ifPtr, h);
+                    }
                     // unsteady mapped
                     else if (ifPtr->typeU == 1)
                     {
@@ -875,7 +891,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     if(ueqn->access->flags->isTeqnActive)
                     {
                         // steady prescribed ubar
-                        if (ifPtr->typeT == 0)
+                        if (ifPtr->typeT == 0 || ifPtr->typeT == 4)
                         {
                             PetscReal b  = abl->smear * abl->gTop * abl->dInv;
                             PetscReal a  = abl->gInv - b;
@@ -1491,7 +1507,6 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         );
 
                         // j-fluxes
-                        /*
                         rhs[k][j][i].y
                         +=
                         scale * central(nud_x, nudj_x) *
@@ -1502,7 +1517,6 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                                 (central(uBarInstX.z, uBarInstXj.z) - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
                             )
                         );
-                        */
 
                         // k-fluxes
                         rhs[k][j][i].z
@@ -3543,27 +3557,36 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         DMDAVecGetArray(da, les->lNu_t, &lnu_t);
     }
 
-    // damping viscosity for fringe region exclusion
-    double nudI;
-    double nudJ;
-    double nudK;
+    // damping viscosity for fringe region advection damping
+    PetscReal nuD;
 
     // fringe region parameters (set only if active)
-    double xS;
-    double xE;
-    double xDS;
-    double xDE;
+    PetscReal xS;
+    PetscReal xE;
+    PetscReal xDS;
+    PetscReal xDE;
+
+    PetscInt  advectionDamping = 0;
 
     if(ueqn->access->flags->isXDampingActive)
     {
-        xS     = ueqn->access->abl->advDampingStart;
-        xE     = ueqn->access->abl->advDampingEnd;
-        xDE    = ueqn->access->abl->advDampingDeltaEnd;
-        xDS    = ueqn->access->abl->advDampingDeltaStart;
+        if(ueqn->access->abl->advectionDampingType == 1)
+        {
+            xS     = ueqn->access->abl->advDampingStart;
+            xE     = ueqn->access->abl->advDampingEnd;
+            xDE    = ueqn->access->abl->advDampingDeltaEnd;
+            xDS    = ueqn->access->abl->advDampingDeltaStart;
+
+            advectionDamping = 1;
+        }
+        else
+        {
+            nuD = 1.0;
+        }
     }
     else
     {
-        nudI = nudJ = nudK = 1.0;
+        nuD = 1.0;
     }
 
     // i direction
@@ -3575,20 +3598,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 if(i==mx-1 || j==my-1 || k==mz-1) continue;
                 if(j==0 || k==0) continue;
-
-                if(ueqn->access->flags->isXDampingActive)
-                {
-                    // compute cell center x at i,j,k, i+1,j,k points
-                    double x     = cent[k][j][i].x;
-                    double xi    = cent[k][j][i+1].x;
-
-                    // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    double nud_x   = viscStipaDelta(xS, xE, xDS, xDE, x);
-                    double nudi_x  = viscStipaDelta(xS, xE, xDS, xDE, xi);
-
-                    // interpolate to i faces
-                    nudI           = central(nud_x, nudi_x);
-                }
 
                 // get 1/V at the i-face
                 PetscReal ajc = iaj[k][j][i];
@@ -3755,9 +3764,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     }
                 }
 
-                // damp vertical component if fringe region is active
-                div1[k][j][i].z *= nudI;
-
                 PetscReal nuEff, nu = cst->nu, nut;
 
                 // viscous terms
@@ -3832,20 +3838,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 if(i==mx-1 || j==my-1 || k==mz-1) continue;
                 if(i==0 || k==0) continue;
-
-                if(ueqn->access->flags->isXDampingActive)
-                {
-                    // compute cell center x at i,j,k, i,j+1,k a points
-                    double x     = cent[k][j][i].x;
-                    double xj    = cent[k][j+1][i].x;
-
-                    // compute Stipa viscosity at i,j,k, i,j+1,k points
-                    double nud_x   = viscStipaDelta(xS, xE, xDS, xDE, x);
-                    double nudj_x  = viscStipaDelta(xS, xE, xDS, xDE, xj);
-
-                    // interpolate to j faces
-                    nudJ           = central(nud_x, nudj_x);
-                }
 
                 // get 1/V at the j-face
                 PetscReal ajc = jaj[k][j][i];
@@ -4010,9 +4002,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     }
                 }
 
-                // damp vertical component if fringe region is active
-                div2[k][j][i].z *= nudJ;
-
                 PetscReal nuEff, nu = cst->nu, nut;
 
                 if
@@ -4086,20 +4075,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 if(i==mx-1 || j==my-1 || k==mz-1) continue;
                 if(i==0 || j==0) continue;
-
-                if(ueqn->access->flags->isXDampingActive)
-                {
-                    // compute cell center x at i,j,k, i,j,k+1 points
-                    double x     = cent[k][j][i].x;
-                    double xk    = cent[k+1][j][i].x;
-
-                    // compute Stipa viscosity at i,j,k, i,j,k+1 points
-                    double nud_x   = viscStipaDelta(xS, xE, xDS, xDE, x);
-                    double nudk_x  = viscStipaDelta(xS, xE, xDS, xDE, xk);
-
-                    // interpolate to k faces
-                    nudK           = central(nud_x, nudk_x);
-                }
 
                 // get 1/V at the j-face
                 PetscReal ajc = kaj[k][j][i];
@@ -4265,9 +4240,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         }
                     }
                 }
-
-                // damp vertical component if fringe region is active
-                div3[k][j][i].z *= nudK;
 
                 PetscReal nuEff, nu = cst->nu, nut;
 
@@ -4467,6 +4439,14 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         fp[k+1][j][i].y = fp[k][j][i].y;
                         fp[k+1][j][i].z = fp[k][j][i].z;
                     }
+
+                    // compute Stipa viscosity at i,j,k,  point
+                    if(advectionDamping)
+                    {
+                        nuD = viscStipaDelta(xS, xE, xDS, xDE, cent[k][j][i].x);
+                    }
+
+    				fp[k][j][i].z = nuD * fp[k][j][i].z;
 
                 }
             }

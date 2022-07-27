@@ -38,9 +38,10 @@
 #include "HYPRE_IJ_mv.h"
 
 // typedefs
-typedef std::string                   word;
+typedef std::string                        word;
 typedef std::vector<PetscInt>              labelList;
 typedef std::vector<std::vector<PetscInt>> labelListList;
+typedef std::complex<PetscReal>            complex;
 
 // constants
 #ifndef M_PI

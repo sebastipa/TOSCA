@@ -92,7 +92,7 @@ int main(int argc, char **argv)
                     CorrectSourceTerms(domain[d].ueqn, 1);
                 }
             }
-
+            
             if(flags.isXDampingActive || flags.isZDampingActive)
             {
                 correctDampingSources(domain[d].ueqn);

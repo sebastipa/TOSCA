@@ -76,6 +76,155 @@ inline PetscReal signNonZero(PetscReal a)
 
 }
 
+// ============================================================================================================= //
+
+inline complex gamma(complex x)
+{
+    complex f, z = x;
+
+    PetscReal c[11] =
+    {
+        1.000000000000000174663,
+        5716.400188274341379136,
+        -14815.30426768413909044,
+        14291.49277657478554025,
+        -6348.160217641458813289,
+        1301.608286058321874105,
+        -108.1767053514369634679,
+        2.605696505611755827729,
+       -0.7423452510201416151527e-2,
+        0.5384136432509564062961e-7,
+       -0.4023533141268236372067e-8
+    };
+
+    if(x.real() < 0.0) z = -1.0*z;
+
+    complex   ss, g = complex(9.0,0.0), t = z + g, s = complex(0.0, 0.0);
+
+    for(PetscInt k=10; k>0; k--)
+    {
+        s = s + (complex)c[k] / t;
+        t = t - 1.0;
+    }
+
+    s  = s + (complex)c[0];
+    ss = (z + g - 0.5);
+    s  = std::log(s * std::sqrt(2.0*M_PI)) + (z - 0.5) - ss;
+    f  = std::exp(s);
+
+    // recursive formula
+    if(x.real() < 0.0) f = -1.0 * M_PI / (x * f * std::sin(M_PI*x));
+
+    // negative integers
+    if(std::round(x.real()) == x.real() && x.imag() == 0.0 && x.real() <= 0.0) f = 1e20;
+
+    // exact result for integers arguments
+    if(std::round(x.real()) == x.real() && x.imag() == 0.0 && x.real() > 0.0)
+    {
+        complex pp = complex(1.0, 0.0);
+
+        for(PetscInt m = 1; m<(PetscInt)x.real(); m++)
+        {
+            pp = pp*complex((PetscReal)m,0.0);
+        }
+        f = pp;
+    }
+
+    return(f);
+}
+
+// ============================================================================================================= //
+
+inline complex digamma(complex x)
+{
+    complex f, z = x;
+
+    PetscReal c[15] =
+    {
+        0.99999999999999709182,
+       57.156235665862923517,
+       -59.597960355475491248,
+       14.136097974741747174,
+       -0.49191381609762019978,
+       .33994649984811888699e-4,
+       .46523628927048575665e-4,
+       -.98374475304879564677e-4,
+       .15808870322491248884e-3,
+       -.21026444172410488319e-3,
+       .21743961811521264320e-3,
+       -.16431810653676389022e-3,
+       .84418223983852743293e-4,
+       -.26190838401581408670e-4,
+       .36899182659531622704e-5
+    };
+
+    if(x.real() < 0.5) z = 1.0 - z;
+
+    complex dz, dd, gg, g = complex(607.0/128.0, 0.0), n = complex(0.0,0.0), d = n;
+
+    for(PetscInt k=14; k>0; k--)
+    {
+        dz = 1.0 / (z + PetscReal(k+1) - 2.0);
+        dd = c[k] * dz;
+        d  = d + dd;
+        n  = n - dd * dz;
+    }
+
+    d  = d + c[0];
+    gg = z + g - 0.5;
+
+    f = std::log(gg) + (n/d - g/gg);
+
+    if(x.real() < 0.5) f = f - M_PI * (1.0 / tan(M_PI * x));
+
+    if(std::round(x.real()) == x.real() && x.imag() == 0.0 && x.real() <= 0.0) f = 1e20;
+
+    return(f);
+}
+
+// ============================================================================================================= //
+
+inline complex hypergeom(complex a, complex b, complex c, PetscReal z)
+{
+    PetscReal epsilon = 1e-15;
+    complex   term    = complex(1.0,0.0),
+              result  = complex(1.0,0.0);
+    PetscInt  termination = 0, k;
+
+    for(k=0; k<30000; k++)
+    {
+        term = term * ((a + (PetscReal)k) * (b + (PetscReal)k) * z / ( (c + (PetscReal)k) * ((PetscReal)k + 1.0)));
+
+        if(std::abs(term) < abs(result*epsilon))
+        {
+            termination ++;
+            if(termination >= 3)
+            {
+                return(result);
+            }
+        }
+        else
+        {
+            termination = 0;
+        }
+
+        if(term == 0.0) break;
+
+        result = result + term;
+
+        if(std::isnan(result.real()) || std::isnan(result.imag()))
+        {
+            char warning[256];
+            sprintf(warning, "NaN value detected in hypergeometric function at z = %.5f\n", z);
+            warningInFunction("hypergeom",  warning);
+
+            return(complex(std::nan(""),std::nan("")));
+        }
+    }
+
+    return(result);
+}
+
 // VECTOR ALGEBRA
 // ============================================================================================================= //
 
@@ -3054,27 +3203,15 @@ inline PetscReal viscRayleigh(PetscReal &alpha, PetscReal &hS, PetscReal &hE, Pe
     PetscReal h_hat = (h-hS)/(hE-hS);
     PetscReal viscosity;
 
-    if(h_hat <= 0.5)
-    {
-        viscosity
-        =
-        0.5 * alpha *
+    viscosity
+    =
+    alpha *
+    (
+        1 - std::cos
         (
-            1 - std::cos
-            (
-                M_PI * PetscMax(h_hat, 0.0)
-            )
-        );
-    }
-    else
-    {
-        viscosity
-        =
-        0.5 * alpha *
-        (
-            1 + (h_hat - 0.5)
-        );
-    }
+            M_PI / 2.0 * PetscMax(h_hat, 0.0)
+        )
+    );
 
     return(viscosity);
 }

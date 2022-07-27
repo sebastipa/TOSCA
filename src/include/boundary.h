@@ -53,11 +53,18 @@ struct inletFunctionTypes
     PetscReal     Href;
     PetscReal     uPrimeRMS;
 
-    // type 2: log law + neutral stratification
+    // type 2/5: log law/with veer + neutral stratification
     Cmpnts        Udir;                       //!< velocity direction vector
     PetscReal     roughness;                  //!< equivalent roughness size
     PetscReal     hInv;                       //!< height from bottom patch of inversion layer
     PetscReal     uTau;                       //!< friction velocity used to compute log profile
+    PetscReal     dInv;                       //!< inversion width
+    PetscReal     gInv;                       //!< delta T across inversion layer
+    PetscReal     tRef;                       //!< reference potential temperature
+    PetscReal     gTop;                       //!< temperature gradient above the inversion layer
+    PetscReal     smear;                      //!< Rampanelli Zardi model parameter
+    PetscReal     latitude;                   //!< for Nieuwstadt model
+    PetscReal     fc;                         //!< Coriolis parameter
 
     // type 3/4: unsteady mapped/interpolated inflow (mapped assumes precursor and successor mesh are equal at the inflow location, interpolated assumes only periodicity)
     PetscInt      n1;                         //!< number of inflow cells along the 1st index (ordered as accessed: k,j,i. Eg. for k-normal patch this is n cells along j)

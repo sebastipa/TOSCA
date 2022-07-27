@@ -57,6 +57,9 @@ typedef struct
     PetscReal               Uref;   //!< reference velocity to compute CtInf (only used for data writing)
     PetscReal                 Ct;   //!< imposed thrust coefficient
 
+    word              sampleType;   //!< velocity sampling type ("rotorDisk" or "givenVelocity")
+    PetscReal     rtrUFilterFreq;   //!< frequency of the single-pole low pass filter for the rotor wind velocity (if sampling type is "rotorDisk")
+
     // time-varying variables
     cellIds          closestCell;   //!< indices of the closest cells to this turbine AL points
     Cmpnts                     U;   //!< flow velocity at the AF point
@@ -349,7 +352,10 @@ typedef struct
     // numerical parameters
     cellIds     *controlledCells;   //!< labels of the background mesh cells influenced by this turbine in this processor
     PetscInt         nControlled;   //!< size of controlledCells
-    PetscReal                eps;   //!< spreading width of the gaussian projection function (good is 0.035 * hTower)
+    PetscReal                eps;   //!< spreading width of the gaussian projection function (good is 0.035 * dBlade)
+    PetscReal              eps_x;   //!< x spreading width of the gaussian projection function (for AFM)
+    PetscReal              eps_y;   //!< y spreading width of the gaussian projection function (for AFM)
+    PetscReal              eps_z;   //!< z spreading width of the gaussian projection function (for AFM)
     PetscReal          prjNSigma;   //!< confidence interval as number of std deviations for the projection function (hardcoded to 2.7)
 
     // debug switch
