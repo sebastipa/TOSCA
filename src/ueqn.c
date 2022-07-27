@@ -811,12 +811,6 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         // set velocity according to log law
                         luBarInstX[j][i] = nScale(uMag, ifPtr->Udir);
                     }
-                    // Nieuwstadt model
-                    else if (ifPtr->typeU == 4)
-                    {
-                        PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
-                        luBarInstX[j][i] = NieuwstadtInflowEvaluate(ifPtr, h);
-                    }
                     // unsteady mapped
                     else if (ifPtr->typeU == 1)
                     {
@@ -886,6 +880,12 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
                         ifPtr->inflowWeights[j][i][3] *
                         ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
+                    }
+                    // Nieuwstadt model
+                    else if (ifPtr->typeU == 4)
+                    {
+                        PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                        luBarInstX[j][i] = NieuwstadtInflowEvaluate(ifPtr, h);
                     }
 
                     if(ueqn->access->flags->isTeqnActive)
@@ -994,7 +994,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
             // clear local vectors
             for(j=0; j<my; j++)
             {
-                std::vector<Cmpnts> ().swap(luBarInstX[j]);
+                std::vector<Cmpnts>    ().swap(luBarInstX[j]);
                 std::vector<PetscReal> ().swap(ltBarInstX[j]);
             }
 
@@ -1488,7 +1488,13 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // X DAMPING LAYER
                     // ---------------
 
-                    if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 1 || abl->xFringeUBarSelectionType == 2)
+                    if
+                    (
+                        abl->xFringeUBarSelectionType == 0 ||
+                        abl->xFringeUBarSelectionType == 1 ||
+                        abl->xFringeUBarSelectionType == 2 ||
+                        abl->xFringeUBarSelectionType == 4
+                    )
                     {
                         Cmpnts uBarInstX  = nSet(abl->uBarInstX[j][i]);
                         Cmpnts uBarInstXi = nSet(abl->uBarInstX[j][i+1]);
