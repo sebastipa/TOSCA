@@ -289,6 +289,27 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 // temperature properties: already stored in the abl struct
             }
+            else if(ifPtr->typeU == 4)
+            {
+                // set tBarSelectionType the same as uBarSelectionType
+                ifPtr->typeT  = 4;
+
+                // no need to map inflow
+                ifPtr->mapT   = 0;
+                ifPtr->mapNut = 0;
+
+                // velocity properties
+                readSubDictVector("ABLProperties.dat", "xDampingProperties", "directionU", &(ifPtr->Udir));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "hInversion", &(ifPtr->hInv));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "hReference", &(ifPtr->Href));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "frictionU",  &(ifPtr->uTau));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "kRough",     &(ifPtr->roughness));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "latitude",   &(ifPtr->latitude));
+                ifPtr->fc =  2*7.292115e-5*std::sin(ifPtr->latitude * M_PI / 180.0);
+                mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
+
+                // temperature properties: already stored in the abl struct
+            }
             // unsteady mapped ubar
             else if (ifPtr->typeU == 1)
             {
@@ -340,27 +361,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 // initialize inflow data
                 mappedInflowInitialize(ifPtr);
-            }
-            else if(ifPtr->typeU == 4)
-            {
-                // set tBarSelectionType the same as uBarSelectionType
-                ifPtr->typeT  = 4;
-
-                // no need to map inflow
-                ifPtr->mapT   = 0;
-                ifPtr->mapNut = 0;
-
-                // velocity properties
-                readSubDictVector("ABLProperties.dat", "xDampingProperties", "directionU", &(ifPtr->Udir));
-                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "hInversion", &(ifPtr->hInv));
-                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "hReference", &(ifPtr->Href));
-                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "frictionU",  &(ifPtr->uTau));
-                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "kRough",     &(ifPtr->roughness));
-                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "latitude",   &(ifPtr->latitude));
-                ifPtr->fc =  2*7.292115e-5*std::sin(ifPtr->latitude * M_PI / 180.0);
-                mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
-
-                // temperature properties: already stored in the abl struct
             }
             else
             {

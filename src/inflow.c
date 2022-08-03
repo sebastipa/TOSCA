@@ -1317,8 +1317,8 @@ PetscErrorCode readInflowNut(inletFunctionTypes *ifPtr, clock_ *clock)
 
 Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
 {
-    PetscReal vkConstant = 0.4, C, eta, U, V;
-    complex   alpha, Const, Wg, sigma, deltaW, W;
+    PetscReal vkConstant = 0.4, C, eta, U = 0.0, V = 0.0;
+    complex   alpha, Const, Wg, deltaW, W;
 
     C   = ifPtr->fc * ifPtr->hInv / (vkConstant * ifPtr->uTau);
 
@@ -1329,7 +1329,6 @@ Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
         alpha  = 0.5 + 0.5 * std::sqrt(complex(1.0, 4.0*C));
         Const  = digamma(alpha + 1.0) + digamma(alpha - 1.0) - 2.0 * digamma(1.0);
         Wg     = 1.0 / vkConstant * (std::log(ifPtr->hInv / ifPtr->roughness) - Const);
-        sigma  = alpha * gamma(alpha)*gamma(alpha) / gamma(2.0*alpha) * pow(1.0 - eta, alpha) * hypergeom(alpha-1.0, alpha, 2.0*alpha, 1.0-eta);
         deltaW = complex(0.0, -1.0/vkConstant) * alpha * alpha * gamma(alpha) * gamma(alpha) / (C * gamma(2.0*alpha)) * pow(1.0-eta,alpha-1.0)*hypergeom(alpha+1.0, alpha-1.0,2.0*alpha, 1.0-eta);
         W      = Wg - deltaW;
 
@@ -1341,7 +1340,6 @@ Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
         alpha  = 0.5 + 0.5 * std::sqrt(complex(1.0, 4.0*C));
         Const  = digamma(alpha + 1.0) + digamma(alpha - 1.0) - 2.0 * digamma(1.0);
         Wg     = 1.0 / vkConstant * (std::log(ifPtr->hInv / ifPtr->roughness) - Const);
-        sigma  = alpha * gamma(alpha)*gamma(alpha) / gamma(2.0*alpha) * pow(1.0 - eta, alpha) * hypergeom(alpha-1.0, alpha, 2.0*alpha, 1.0-eta);
         deltaW = complex(0.0, -1.0/vkConstant) * alpha * alpha * gamma(alpha) * gamma(alpha) / (C * gamma(2.0*alpha)) * pow(1.0-eta,alpha-1.0)*hypergeom(alpha+1.0, alpha-1.0,2.0*alpha, 1.0-eta);
         W      = Wg - deltaW;
 
@@ -1349,12 +1347,12 @@ Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
                   V_r    = W.imag() * ifPtr->uTau;
 
         // normalize
-        U_r /= sqrt(U_r*U_r + V_r*V_r);
-        V_r /= sqrt(U_r*U_r + V_r*V_r);
+        U_r = U_r / sqrt(U_r*U_r + V_r*V_r);
+        V_r = V_r / sqrt(U_r*U_r + V_r*V_r);
 
         // find rotation angle of the wind profile
         PetscReal theta = std::acos(ifPtr->Udir.x * U_r + ifPtr->Udir.y * V_r);
-
+		
         // rotate components
         U = std::cos(theta) * U_p - std::sin(theta) * V_p;
         V = std::sin(theta) * U_p + std::cos(theta) * V_p;
@@ -1366,7 +1364,6 @@ Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
         alpha  = 0.5 + 0.5 * std::sqrt(complex(1.0, 4.0*C));
         Const  = digamma(alpha + 1.0) + digamma(alpha - 1.0) - 2.0 * digamma(1.0);
         Wg     = 1.0 / vkConstant * (std::log(ifPtr->hInv / ifPtr->roughness) - Const);
-        sigma  = alpha * gamma(alpha)*gamma(alpha) / gamma(2.0*alpha) * pow(1.0 - eta, alpha) * hypergeom(alpha-1.0, alpha, 2.0*alpha, 1.0-eta);
         deltaW = complex(0.0, -1.0/vkConstant) * alpha * alpha * gamma(alpha) * gamma(alpha) / (C * gamma(2.0*alpha)) * pow(1.0-eta,alpha-1.0)*hypergeom(alpha+1.0, alpha-1.0,2.0*alpha, 1.0-eta);
         W      = Wg - deltaW;
 
@@ -1378,7 +1375,6 @@ Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
         alpha  = 0.5 + 0.5 * std::sqrt(complex(1.0, 4.0*C));
         Const  = digamma(alpha + 1.0) + digamma(alpha - 1.0) - 2.0 * digamma(1.0);
         Wg     = 1.0 / vkConstant * (std::log(ifPtr->hInv / ifPtr->roughness) - Const);
-        sigma  = alpha * gamma(alpha)*gamma(alpha) / gamma(2.0*alpha) * pow(1.0 - eta, alpha) * hypergeom(alpha-1.0, alpha, 2.0*alpha, 1.0-eta);
         deltaW = complex(0.0, -1.0/vkConstant) * alpha * alpha * gamma(alpha) * gamma(alpha) / (C * gamma(2.0*alpha)) * pow(1.0-eta,alpha-1.0)*hypergeom(alpha+1.0, alpha-1.0,2.0*alpha, 1.0-eta);
         W      = Wg - deltaW;
 
@@ -1386,8 +1382,8 @@ Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
                   V_r    = W.imag() * ifPtr->uTau;
 
         // normalize
-        U_r /= sqrt(U_r*U_r + V_r*V_r);
-        V_r /= sqrt(U_r*U_r + V_r*V_r);
+        U_r = U_r / sqrt(U_r*U_r + V_r*V_r);
+        V_r = V_r / sqrt(U_r*U_r + V_r*V_r);
 
         // find rotation angle of the wind profile
         PetscReal theta = std::acos(ifPtr->Udir.x * U_r + ifPtr->Udir.y * V_r);

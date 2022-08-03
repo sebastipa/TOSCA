@@ -733,8 +733,8 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
             if
             (
-                abl->xFringeUBarSelectionType != 0 &&
-                abl->xFringeUBarSelectionType != 4
+                abl->xFringeUBarSelectionType == 1 ||
+                abl->xFringeUBarSelectionType == 2
             )
             {
                 // read inflow if necessary
@@ -884,8 +884,8 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     // Nieuwstadt model
                     else if (ifPtr->typeU == 4)
                     {
-                        PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
-                        luBarInstX[j][i] = NieuwstadtInflowEvaluate(ifPtr, h);
+                        PetscReal h      = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                        luBarInstX[j][i] = nSet(NieuwstadtInflowEvaluate(ifPtr, h));
                     }
 
                     if(ueqn->access->flags->isTeqnActive)
@@ -976,9 +976,9 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
             }
 
             // divide by number of processors in the line
-            for (j=lys; j<lye; j++)
+            for(j=0; j<my; j++)
             {
-                for (i=lxs; i<lxe; i++)
+                for(i=0; i<mx; i++)
                 {
                     abl->uBarInstX[j][i].x /= (PetscReal)abl->nProcsKLine[j][i];
                     abl->uBarInstX[j][i].y /= (PetscReal)abl->nProcsKLine[j][i];
@@ -1493,7 +1493,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         abl->xFringeUBarSelectionType == 0 ||
                         abl->xFringeUBarSelectionType == 1 ||
                         abl->xFringeUBarSelectionType == 2 ||
-                        abl->xFringeUBarSelectionType == 4
+                        abl->xFringeUBarSelectionType == 4     
                     )
                     {
                         Cmpnts uBarInstX  = nSet(abl->uBarInstX[j][i]);

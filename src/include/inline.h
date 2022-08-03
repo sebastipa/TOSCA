@@ -109,7 +109,7 @@ inline complex gamma(complex x)
 
     s  = s + (complex)c[0];
     ss = (z + g - 0.5);
-    s  = std::log(s * std::sqrt(2.0*M_PI)) + (z - 0.5) - ss;
+    s  = std::log(s * std::sqrt(2.0*M_PI)) + (z - 0.5) * std::log(ss) - ss;
     f  = std::exp(s);
 
     // recursive formula
@@ -164,7 +164,7 @@ inline complex digamma(complex x)
 
     for(PetscInt k=14; k>0; k--)
     {
-        dz = 1.0 / (z + PetscReal(k+1) - 2.0);
+        dz = 1.0 / (z + (PetscReal)(k+1) - 2.0);
         dd = c[k] * dz;
         d  = d + dd;
         n  = n - dd * dz;
@@ -186,6 +186,11 @@ inline complex digamma(complex x)
 
 inline complex hypergeom(complex a, complex b, complex c, PetscReal z)
 {
+	if(std::round(c.real()) == c.real() && c.imag() == 0 && c.real() <= 0)
+	{
+		return(complex(1e20,0.0));
+	}
+	
     PetscReal epsilon = 1e-15;
     complex   term    = complex(1.0,0.0),
               result  = complex(1.0,0.0);
