@@ -42,9 +42,12 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
   readDictWord("./IBM/IBMProperties.dat", "InterpolationMethod", &(ibm->IBInterpolationModel));
 
   // read the write settings
-  readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeStart", &(ibm->timeStart));
-  readSubDictWord  ("./IBM/IBMProperties.dat","writeSettings","intervalType", &(ibm->intervalType));
-  readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeInterval", &(ibm->timeInterval));
+  if(ibm->computeForce)
+  {
+      readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeStart", &(ibm->timeStart));
+      readSubDictWord  ("./IBM/IBMProperties.dat","writeSettings","intervalType", &(ibm->intervalType));
+      readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeInterval", &(ibm->timeInterval));
+  }
 
   //counter for number of moving objects
   int movingObject = 0;

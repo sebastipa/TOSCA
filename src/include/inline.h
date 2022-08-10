@@ -474,6 +474,8 @@ inline Cmpnts nTra(Cmpnts point, Cmpnts translation)
 
 inline Cmpnts nUnit(Cmpnts v)
 {
+    PetscReal eps=1.e-12;
+
     PetscReal vMag
     =
     sqrt
@@ -485,9 +487,9 @@ inline Cmpnts nUnit(Cmpnts v)
 
     Cmpnts vUnit;
 
-    vUnit.x = v.x / vMag;
-    vUnit.y = v.y / vMag;
-    vUnit.z = v.z / vMag;
+    vUnit.x = v.x / (vMag + eps);
+    vUnit.y = v.y / (vMag + eps);
+    vUnit.z = v.z / (vMag + eps);
 
     return(vUnit);
 }
@@ -2197,11 +2199,11 @@ inline void Compute_dscalar_center
 
 	if      (i==mx-1) *dkdc = ( K[k][j][i] - K[k][j][i-1] );
 	else if (i==0)    *dkdc = ( K[k][j][i+1] - K[k][j][i] );
-	else if (isIBMCell(k, j, i+1, nvert))
+	else if (isIBMSolidCell(k, j, i+1, nvert))
     {
 		*dkdc = ( K[k][j][i] - K[k][j][i-1] );
 	}
-	else if (isIBMCell(k, j, i-1, nvert))
+	else if (isIBMSolidCell(k, j, i-1, nvert))
     {
 		*dkdc = ( K[k][j][i+1] - K[k][j][i] );
 	}
@@ -2212,11 +2214,11 @@ inline void Compute_dscalar_center
 
 	if      (j==my-1) *dkde = ( K[k][j][i] - K[k][j-1][i] );
 	else if (j==0)    *dkde = ( K[k][j+1][i] - K[k][j][i] );
-	else if (isIBMCell(k, j+1, i, nvert) )
+	else if (isIBMSolidCell(k, j+1, i, nvert) )
     {
 		*dkde = ( K[k][j][i] - K[k][j-1][i] );
 	}
-	else if (isIBMCell(k, j-1, i, nvert) )
+	else if (isIBMSolidCell(k, j-1, i, nvert) )
     {
 		*dkde = ( K[k][j+1][i] - K[k][j][i] );
 	}
@@ -2227,11 +2229,11 @@ inline void Compute_dscalar_center
 
 	if      (k==mz-1) *dkdz = ( K[k][j][i] - K[k-1][j][i] );
 	else if (k==0)    *dkdz = ( K[k+1][j][i] - K[k][j][i] );
-	else if (isIBMCell(k+1, j, i, nvert) )
+	else if (isIBMSolidCell(k+1, j, i, nvert) )
     {
 		*dkdz = ( K[k][j][i] - K[k-1][j][i] );
 	}
-	else if (isIBMCell(k-1, j, i, nvert) )
+	else if (isIBMSolidCell(k-1, j, i, nvert) )
     {
 		*dkdz = ( K[k+1][j][i] - K[k][j][i] );
 	}

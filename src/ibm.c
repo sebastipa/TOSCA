@@ -506,6 +506,24 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kRough",    &(wm->roughness));
                 readSubDictDouble("./IBM/IBMProperties.dat", objectName, "gammaM",    &(wm->gammaM));
             }
+            else if (ibmBody->wallModelU == "PowerLawAPG")
+            {
+                PetscMalloc(sizeof(PowerLawAPG), &(ibmBody->ibmWallmodel->wmPowerLawAPG));
+
+                PowerLawAPG *wm = ibmBody->ibmWallmodel->wmPowerLawAPG;
+
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+            }
+            else if (ibmBody->wallModelU == "LogLawAPG")
+            {
+                PetscMalloc(sizeof(LogLawAPG), &(ibmBody->ibmWallmodel->wmLogLawAPG));
+
+                LogLawAPG *wm = ibmBody->ibmWallmodel->wmLogLawAPG;
+
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+            }
             else
             {
                 char error[512];
@@ -882,7 +900,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
             //write data
             if(ibmrank == 0)
             {
-                writeIBMForceData(ibm, b, gElemPressure, netMoment, ibmPower, gForce[b]);
+                writeIBMForceData(ibm, b, gElemPressure, netMoment, ibmPower, gForce[b], gMoment[b]);
             }
 
             delete[] gElemPressure;
@@ -904,7 +922,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressure, PetscReal netMoment, PetscReal ibmPower, Cmpnts netForce)
+PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressure, PetscReal netMoment, PetscReal ibmPower, Cmpnts netForce, Cmpnts momentVector)
 {
     clock_      *clock = ibm->access->clock;
     io_         *io    = ibm->access->io;
@@ -1006,13 +1024,16 @@ PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressur
             word w5   = "Fx [N]";
             word w6   = "Fy [N]";
             word w7   = "Fz [N]";
+            word w8   = "Mx [Nm]";
+            word w9   = "My [Nm]";
+            word w10   = "Mz [Nm]";
             int width = -20;
 
             if(fp)
             {
                 if(ibmBody->bodyMotion == "rotation")
                 {
-                    fprintf(fp, "%*s %*s %*s %*s %*s %*s %*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(),  width, w5.c_str(),  width, w6.c_str(),  width, w7.c_str());
+                    fprintf(fp, "%*s %*s %*s %*s %*s %*s %*s %*s %*s %*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(),  width, w5.c_str(),  width, w6.c_str(),  width, w7.c_str(), width, w8.c_str(), width, w9.c_str(), width, w10.c_str());
                 }
                 else if (ibmBody->bodyMotion == "static")
                 {
@@ -1144,7 +1165,7 @@ PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressur
 
             if(ibmBody->bodyMotion == "rotation")
             {
-                fprintf(f, "%*.5f %*.5f %*.5f %*.5f %*.5f %*.5f %*.5f\n", width, clock->time, width, netMoment, width, ibmPower, width, ibmBody->ibmRot->angSpeed * 60/(2*M_PI), width, netForce.x,  width, netForce.y,  width, netForce.z);
+                fprintf(f, "%*.5f %*.5f %*.5f %*.5f %*.5f %*.5f %*.5f %*.5f %*.5f %*.5f\n", width, clock->time, width, netMoment, width, ibmPower, width, ibmBody->ibmRot->angSpeed * 60/(2*M_PI), width, netForce.x,  width, netForce.y,  width, netForce.z, width, momentVector.x, width, momentVector.y, width, momentVector.z);
             }
             else if (ibmBody->bodyMotion == "static")
             {
@@ -1618,6 +1639,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     mesh_         *mesh  = ibm->access->mesh;
     ueqn_         *ueqn  = ibm->access->ueqn;
     teqn_         *teqn  = ibm->access->teqn;
+    peqn_         *peqn  = ibm->access->peqn;
     flags_        *flags = ibm->access->flags;
     constants_    *cst   = ibm->access->constants;
 
@@ -1634,8 +1656,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     PetscInt      i, j, k, ii, kk, jj;
     PetscInt      b, c, s;
     cellIds       initCp;
-    Cmpnts        ***ucat, ***lucat, ***cent;
-    PetscReal     ***lt, ***temp, ***aj, ***nvert;
+    Cmpnts        ***ucat, ***lucat, ***cent, ***csi, ***eta, ***zet;
+    PetscReal     ***lt, ***temp, ***aj, ***nvert, ***lp;
     Cmpnts        bPt, bPtInit;
     Cmpnts        bPtVel, ibmPtVel;
     PetscReal     nfMag, cellSize, bPtTemp, ibmPtTemp;
@@ -1645,6 +1667,11 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     DMDAVecGetArray(fda, ueqn->Ucat, &ucat);
     DMDAVecGetArray(da, mesh->lAj, &aj);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, peqn->lP, &lp);
+
+    DMDAVecGetArray(fda, mesh->lCsi,   &csi);
+    DMDAVecGetArray(fda, mesh->lEta,   &eta);
+    DMDAVecGetArray(fda, mesh->lZet,   &zet);
 
     if (flags->isTeqnActive)
     {
@@ -1668,7 +1695,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         PetscInt   cElem = ibF[c].closestElem;
         Cmpnts	   eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
-        PetscReal  roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot->roughness;
+        PetscReal  roughness;
         // background mesh projection point is taken 1 cell distance along the normal directional of the closest ibm mesh element
         cellSize = pow( 1./aj[k][j][i], 1./3.);
         bPt = nScale(cellSize, eNorm);
@@ -1895,19 +1922,77 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          // ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
          // ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
 
-         if (roughness > 1.e-12)
+         if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
          {
-             wallFunctionCabotRoughness(cst->nu, roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
-         }
-         else
-         {
-             wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
-         }
+             roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot->roughness;
 
-         if(nMag(ucat[k][j][i]) > 100.0)
+             if(roughness > 1.0e-12)
+             {
+                 wallFunctionCabotRoughness(cst->nu, roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+             }
+             else
+             {
+                 wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+             }
+         }
+         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
          {
-            mScale(100.0/nMag(ucat[k][j][i]), ucat[k][j][i]);
-            PetscPrintf(PETSC_COMM_SELF, "ibm cell velocity at %ld %ld %ld greater than 100. Interpolated from background point velocity %lf \n", k, j, i, nMag(bPtVel));
+             PetscReal roughness, kappa;
+
+             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG")
+             {
+                 roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmPowerLawAPG->roughness;
+                 kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmPowerLawAPG->kappa;
+             }
+
+             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
+             {
+                 roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmLogLawAPG->roughness;
+                 kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmLogLawAPG->kappa;
+             }
+
+             //find the pressure gradient in the tangential direction
+             PetscReal dpdc, dpde, dpdz;
+             PetscReal dp_dx, dp_dy, dp_dz;
+
+             PetscReal csi0 = csi[k][j][i].x,
+                       csi1 = csi[k][j][i].y,
+                       csi2 = csi[k][j][i].z;
+             PetscReal eta0 = eta[k][j][i].x,
+                       eta1 = eta[k][j][i].y,
+                       eta2 = eta[k][j][i].z;
+             PetscReal zet0 = zet[k][j][i].x,
+                       zet1 = zet[k][j][i].y,
+                       zet2 = zet[k][j][i].z;
+             PetscReal ajc  = aj[k][j][i];
+
+             Compute_dscalar_center
+             (
+                 mesh,
+                 i, j, k, mx, my, mz, lp, nvert, &dpdc, &dpde, &dpdz
+             );
+
+             Compute_dscalar_dxyz
+             (
+                 mesh,
+                 csi0, csi1, csi2, eta0, eta1, eta2,
+                 zet0, zet1, zet2, ajc, dpdc, dpde, dpdz, &dp_dx,
+                 &dp_dy, &dp_dz
+             );
+
+             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG")
+             {
+                 wallFunctionPowerlawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
+                                         bPtVel, &ucat[k][j][i], &ustar, eNorm,
+                                         dp_dx, dp_dy, dp_dz);
+             }
+
+             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
+             {
+                 wallFunctionLogLawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
+                                         bPtVel, &ucat[k][j][i], &ustar, eNorm,
+                                         dp_dx, dp_dy, dp_dz);
+             }
          }
 
          if (flags->isTeqnActive)
@@ -1923,6 +2008,11 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     DMDAVecRestoreArray(fda, ueqn->Ucat, &ucat);
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, peqn->lP, &lp);
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
 
     if (flags->isTeqnActive)
     {
@@ -2232,7 +2322,7 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
         {
             if (nvert_o[k][j][i] > 2.5 && nvert[k][j][i] < 0.5)
             {
-                PetscPrintf(PETSC_COMM_SELF, "phase change for element %ld %ld %ld - nvert_o = %lf, nvert = %lf\n", k, j, i, nvert_o[k][j][i], nvert[k][j][i]);
+                //PetscPrintf(PETSC_COMM_SELF, "phase change for element %ld %ld %ld - nvert_o = %lf, nvert = %lf\n", k, j, i, nvert_o[k][j][i], nvert[k][j][i]);
                 nvert[k][j][i]=2;
             }
         }
@@ -2279,14 +2369,14 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
   {
       PetscInt ctr = 0;
 
-      ip = (i < mx - 1 ? (i + 1) : (i));
-      im = (i > 0 ? (i - 1) : (i));
+      ip = (i < mx - 2 ? (i + 1) : (i));
+      im = (i > 1 ? (i - 1) : (i));
 
-      jp = (j < my - 1 ? (j + 1) : (j));
-      jm = (j > 0 ? (j - 1) : (j));
+      jp = (j < my - 2 ? (j + 1) : (j));
+      jm = (j > 1 ? (j - 1) : (j));
 
-      kp = (k < mz - 1 ? (k + 1) : (k));
-      km = (k > 0 ? (k - 1) : (k));
+      kp = (k < mz - 2 ? (k + 1) : (k));
+      km = (k > 1 ? (k - 1) : (k));
 
       if (isIBMFluidCell(k, j, i, nvert))
       {

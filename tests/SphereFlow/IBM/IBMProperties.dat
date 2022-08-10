@@ -27,10 +27,6 @@ object0
     bodyMotion                      static
     baseLocation                    (0.0 0.0 0.0)
     
-    #procBounds
-    procBoundCenter                 (0.0 0.0 0.0)
-    procBoundSize                   (5.0 5.0 5.0)
-    
     #wall model
     wallModelU			    Cabot
     wallModelUProp		    setHere

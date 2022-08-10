@@ -13,7 +13,13 @@ void      wallFunctionCabot(PetscReal nu, PetscReal sc, PetscReal sb, Cmpnts Ua,
 
 void      wallFunctionCabotRoughness(PetscReal nu, PetscReal ks, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
 
-void      wallFunctionPowerlaw(double nu, double sc, double sb, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
+void      wallFunctionPowerlaw(PetscReal nu, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
+
+void      wallFunctionPowerlawAPG(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal roughness, PetscReal kappa, Cmpnts Ua,
+                                  Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf, PetscReal dpdx, PetscReal dpdy, PetscReal dpdz);
+
+void      wallFunctionLogLawAPG(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal roughness, PetscReal kappa, Cmpnts Ua,
+                                  Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf, PetscReal dpdx, PetscReal dpdy, PetscReal dpdz);
 
 void uStarShumann
 (

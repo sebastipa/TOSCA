@@ -7,6 +7,8 @@ PetscInt     pre_integrate_flag = 0;
 PetscReal    *integration_buffer;
 PetscReal    *integration_buffer_rough;
 
+//***************************************************************************************************************//
+
 void uStarShumann
 (
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
@@ -127,6 +129,8 @@ void uStarShumann
     }
 }
 
+//***************************************************************************************************************//
+
 void qWallShumann
 (
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
@@ -217,17 +221,23 @@ void qWallShumann
     }
 }
 
+//***************************************************************************************************************//
+
 inline PetscReal near_wall_eddy_viscosity(PetscReal yplus)
 {
     PetscReal   kappa = 0.41;
     return kappa * yplus * pow(1. - exp(-yplus / 19.), 2.0);
 }
 
+//***************************************************************************************************************//
+
 inline PetscReal near_wall_eddy_viscosity(PetscReal yplus, PetscReal yp_shift)
 {
     PetscReal   kappa = 0.41;
 	return kappa * (yplus+yp_shift) * pow ( 1. - exp( - (yplus+yp_shift) / 19.0 ) , 2.0 );
 };
+
+//***************************************************************************************************************//
 
 inline void pre_integrate
 (
@@ -296,6 +306,8 @@ inline void pre_integrate
     return;
 }
 
+//***************************************************************************************************************//
+
 inline PetscReal integrate_F(PetscReal nu, PetscReal utau, PetscReal yb)
 {
     PetscReal val = 0;
@@ -358,6 +370,8 @@ inline PetscReal integrate_F(PetscReal nu, PetscReal utau, PetscReal yb)
     return val;
 }
 
+//***************************************************************************************************************//
+
 inline PetscReal integrate_F(PetscReal nu, PetscReal utau, PetscReal yb, PetscReal ks)
 {
 	PetscReal ks_plus = utau * ks / nu;
@@ -402,15 +416,21 @@ inline PetscReal integrate_F(PetscReal nu, PetscReal utau, PetscReal yb, PetscRe
 	return val;
 };
 
+//***************************************************************************************************************//
+
 inline PetscReal f_Cabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau, PetscReal dpdn)
 {
     return (utau * utau * integrate_F(nu, utau, y) - u);
 }
 
+//***************************************************************************************************************//
+
 inline PetscReal f_Cabot_roughness(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau, PetscReal dpdn, PetscReal ks)
 {
 	return utau * utau * integrate_F( nu, utau, y, ks ) - u;
 }
+
+//***************************************************************************************************************//
 
 inline PetscReal df_Cabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau, PetscReal dpdn)
 {
@@ -423,22 +443,29 @@ inline PetscReal df_Cabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau
     ) / (2.0 * eps);
 }
 
+//***************************************************************************************************************//
+
 inline PetscReal df_Cabot_roughness(PetscReal nu, PetscReal u, PetscReal y, PetscReal utau, PetscReal dpdn, PetscReal ks)
 {
 	PetscReal eps=1.e-7;
 	return ( f_Cabot_roughness(nu, u, y, utau+eps, dpdn, ks) - f_Cabot_roughness (nu, u, y, utau-eps, dpdn, ks) ) / ( 2*eps ) ;
 }
 
+//***************************************************************************************************************//
 
 inline PetscReal u_Cabot(PetscReal nu, PetscReal y, PetscReal utau, PetscReal dpdn)
 {
     return utau * utau * integrate_F(nu, utau, y); // + dpdn * integrate_Fy( nu, utau, 0, y );
 }
 
+//***************************************************************************************************************//
+
 inline PetscReal u_Cabot_roughness(PetscReal nu, PetscReal y, PetscReal utau, PetscReal dpdn, PetscReal ks)
 {
   return utau * utau * integrate_F( nu, utau, y, ks );// + dpdn * integrate_Fy( nu, utau, 0, y );
 }
+
+//***************************************************************************************************************//
 
 PetscReal uTauCabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal guess, PetscReal dpdn)
 {
@@ -464,6 +491,8 @@ PetscReal uTauCabot(PetscReal nu, PetscReal u, PetscReal y, PetscReal guess, Pet
     return x;
 }
 
+//***************************************************************************************************************//
+
 PetscReal uTauCabotRoughness(PetscReal nu, PetscReal u, PetscReal y, PetscReal guess, PetscReal dpdn, PetscReal ks)
 {
 	PetscReal x, x0=guess;
@@ -485,6 +514,7 @@ PetscReal uTauCabotRoughness(PetscReal nu, PetscReal u, PetscReal y, PetscReal g
 	return x;
 };
 
+//***************************************************************************************************************//
 
 PetscReal utau_wf(PetscReal nu, PetscReal ks, PetscReal sb, PetscReal Ut_mag)
 {
@@ -503,6 +533,8 @@ PetscReal utau_wf(PetscReal nu, PetscReal ks, PetscReal sb, PetscReal Ut_mag)
 
     }
 }
+
+//***************************************************************************************************************//
 
 void wallFunctionCabot(PetscReal nu, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpnts Uc,
         Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
@@ -541,6 +573,8 @@ void wallFunctionCabot(PetscReal nu, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpn
     return;
 }
 
+//***************************************************************************************************************//
+
 void wallFunctionCabotRoughness(PetscReal nu, PetscReal ks, PetscReal sc, PetscReal sb,
     Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
 {
@@ -571,22 +605,24 @@ void wallFunctionCabotRoughness(PetscReal nu, PetscReal ks, PetscReal sc, PetscR
     return;
 }
 
+//***************************************************************************************************************//
+
 // Wall function based on the power law model
-void wallFunctionPowerlaw(double nu, double sc, double sb, Cmpnts Ua,
+void wallFunctionPowerlaw(PetscReal nu, PetscReal sc, PetscReal sb, Cmpnts Ua,
         Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
 {
-    double u_c = Uc.x - Ua.x, v_c = Uc.y - Ua.y, w_c = Uc.z - Ua.z;
-    double un = u_c * nf.x + v_c * nf.y + w_c * nf.z;
-    double ut = u_c - un * nf.x, vt = v_c - un * nf.y, wt = w_c - un * nf.z;
-    double ut_mag = sqrt(ut * ut + vt * vt + wt * wt);
+    PetscReal u_c = Uc.x - Ua.x, v_c = Uc.y - Ua.y, w_c = Uc.z - Ua.z;
+    PetscReal un = u_c * nf.x + v_c * nf.y + w_c * nf.z;
+    PetscReal ut = u_c - un * nf.x, vt = v_c - un * nf.y, wt = w_c - un * nf.z;
+    PetscReal ut_mag = sqrt(ut * ut + vt * vt + wt * wt);
 
-    double A = 8.3;
-    double B = 1.0 / 7.0;
+    PetscReal A = 8.3;
+    PetscReal B = 1.0 / 7.0;
     *ustar = pow(ut_mag * pow(nu, B) / (A * pow(sc, B)), 1.0 / (1.0 + B));  ///
 
-    double ybp = sb * (*ustar) / nu;
-    double ycp = sc * (*ustar) / nu;
-    double ut_mag_modeled;
+    PetscReal ybp = sb * (*ustar) / nu;
+    PetscReal ycp = sc * (*ustar) / nu;
+    PetscReal ut_mag_modeled;
     if (ybp > 12.0)
     {
         ut_mag_modeled = A * (*ustar) * pow(ybp, B);
@@ -615,6 +651,225 @@ void wallFunctionPowerlaw(double nu, double sc, double sb, Cmpnts Ua,
     (*Ub).x += Ua.x;
     (*Ub).y += Ua.y;
     (*Ub).z += Ua.z;
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+// Wall function - Adverse pressure gradient Power Law (APGPL) - A New Explicit Algebraic Wall Model for LES of Turbulent Flows
+// Under Adverse Pressure Gradient, Sylvia Wilhelm, Pierre Sagaut - 2020
+void wallFunctionPowerlawAPG(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal roughness, PetscReal kappa, Cmpnts Ua,
+        Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf, PetscReal dpdx, PetscReal dpdy, PetscReal dpdz)
+{
+    Cmpnts    u_c = nSub(Uc, Ua);
+    Cmpnts    un  = nScale(nDot(u_c, nf), nf);
+    Cmpnts    ut  = nSub(u_c, un), ut_b;
+    Cmpnts    et  = nUnit(ut);
+
+    PetscReal ut_mag = nMag(ut), ut_magb;
+
+    PetscReal A = 8.3;
+    PetscReal B = 1.0 / 7.0;
+    PetscReal dpds = dpdx*et.x + dpdy*et.y + dpdz*et.z;               //the pressure gradient in the tangential direction to the local body normal
+
+    PetscReal ustarNoslip = sqrt(nu*ut_mag/sc);
+    PetscReal ybp, ycp;
+
+    if(dpds <= 0)       //favourable pressure gradient
+    {
+        if(roughness > 1.e-9)
+        {
+            *ustar = ut_mag * kappa / log(sc/roughness);
+        }
+        else
+        {
+            *ustar = pow(ut_mag * pow(nu, B) / (A * pow(sc, B)), 1.0 / (1.0 + B));
+        }
+
+        ybp = sb * std::max((*ustar), ustarNoslip)/nu;
+    	ycp = sc * std::max((*ustar), ustarNoslip)/nu;
+
+        if(ycp>12.0)
+        {
+            if(roughness > 1.e-9)
+            {
+                ut_magb = (*ustar) * log(sb/roughness)/kappa;
+            }
+            else
+            {
+                ut_magb = A * (*ustar) * pow(ybp, B);
+            }
+        }
+        else
+        {
+            ut_magb = ut_mag * sb/sc;
+            *ustar = ustarNoslip;
+        }
+    }
+    else //adverse pressure gradient
+    {
+        PetscReal D;
+        PetscReal alpha = 7.5789;
+        PetscReal beta  = -1.4489;
+        PetscReal gamma = 191.1799;
+
+        // D determines regions of separation and reattachment
+        D = fabs(ut_mag - alpha * sqrt (sc * dpds) - beta * pow(nu * dpds, 1.0/3.0) * log (gamma * pow(sc, 3.0) * dpds / pow(nu, 2.0) ) );
+
+        ycp = sc * ustarNoslip / nu;
+
+        if (D >= 0) // use Adverse pressure gradient power law
+        {
+            if(ycp>12.0)
+            {
+                *ustar  = pow(A, -1.0 / (1.0 + B)) * pow( (nu/sc), B / (1.0 + B)) * pow(D, 1.0 / (1.0 + B));
+
+                ut_magb = A * pow( (*ustar), B + 1.0) * pow( (sb/nu), B) + (ut_mag-D);
+            }
+            else
+            {
+                ut_magb = ut_mag * sb/sc;;
+                *ustar = ustarNoslip;
+            }
+        }
+        else //separation or reattachment zone - no wall model used
+        {
+            ut_magb = ut_mag * sb/sc;;
+            *ustar = ustarNoslip;
+        }
+    }
+
+    if (ut_magb < 1.e-10)
+    {
+        ut_magb = 0.0;
+    }
+
+    ut_b  = nScale(ut_magb, et);
+
+    (*Ub) = nSum(ut_b, nScale( (sb/sc), un));
+
+    mSum(*Ub, Ua);
+
+    return;
+}
+
+
+//***************************************************************************************************************//
+
+void wallFunctionLogLawAPG(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal roughness, PetscReal kappa, Cmpnts Ua,
+        Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf, PetscReal dpdx, PetscReal dpdy, PetscReal dpdz)
+{
+    Cmpnts    u_c = nSub(Uc, Ua);
+    Cmpnts    un  = nScale(nDot(u_c, nf), nf);
+    Cmpnts    ut  = nSub(u_c, un), ut_b;
+    Cmpnts    et  = nUnit(ut);
+
+    PetscReal ut_mag = nMag(ut), ut_magb;
+
+    PetscReal A = 8.3;
+    PetscReal B = 1.0 / 7.0;
+    PetscReal dpds = dpdx*et.x + dpdy*et.y + dpdz*et.z;               //the pressure gradient in the tangential direction to the local body normal
+
+    PetscReal ustarNoslip = sqrt(nu*ut_mag/sc);
+    PetscReal ybp, ycp;
+
+    if(dpds <= 0)       //favourable pressure gradient
+    {
+        if(roughness > 1.e-9)
+        {
+            *ustar = ut_mag * kappa / log(sc/roughness);
+        }
+        else
+        {
+            *ustar = pow(ut_mag * pow(nu, B) / (A * pow(sc, B)), 1.0 / (1.0 + B));
+        }
+
+        ybp = sb * std::max((*ustar), ustarNoslip)/nu;
+    	ycp = sc * std::max((*ustar), ustarNoslip)/nu;
+
+        if(ycp>12.0)
+        {
+            if(roughness > 1.e-9)
+            {
+                ut_magb = (*ustar) * log(sb/roughness)/kappa;
+            }
+            else
+            {
+                ut_magb = A * (*ustar) * pow(ybp, B);
+            }
+        }
+        else
+        {
+            ut_magb = ut_mag * sb/sc;
+            *ustar = ustarNoslip;
+        }
+    }
+    else //adverse pressure gradient
+    {
+
+        ycp = sc * ustarNoslip / nu;
+        ybp = sb * ustarNoslip / nu;
+
+        if(ycp>12.0)
+        {
+            PetscReal up = pow(nu * dpds, 1.0/3.0);
+            PetscReal lambda = 0.0;
+
+            if(roughness > 1.e-9)
+            {
+                *ustar = uTauCabotRoughness(nu, ut_mag, sc, 0.01, 0, roughness);
+
+                if(*ustar < 1e-5)
+                {
+                    ut_magb = (*ustar) * log(sb/roughness)/kappa;
+                }
+                else
+                {
+                    lambda = pow(up/ (*ustar), 3.0);
+
+                    PetscReal ct = pow(1.0 + lambda * (sb/roughness), 0.5);
+
+                    ut_magb = ((*ustar)/kappa) * (log(sb/roughness) - 2.0 * log((ct+1.0)/2.0) + 2.0 * (ct - 1.0));
+                }
+            }
+            else
+            {
+                *ustar = uTauCabot(nu, ut_mag, sc, 0.01, 0);
+
+                if(*ustar < 1e-5)
+                {
+                    ut_magb = (*ustar) * log(ybp)/kappa;
+                }
+                else
+                {
+                    lambda = pow( up/(*ustar), 3.0);
+
+                    PetscReal ct = pow(1.0 + lambda * ybp, 0.5);
+
+                    ut_magb = ((*ustar)/kappa) * (log(ybp) - 2.0 * log((ct+1.0)/2.0) + 2.0 * (ct - 1.0));
+                }
+            }
+
+        }
+        else
+        {
+            ut_magb = ut_mag * sb/sc;;
+            *ustar = ustarNoslip;
+        }
+
+    }
+
+    if (ut_magb < 1.e-10)
+    {
+        ut_magb = 0.0;
+    }
+
+    ut_b  = nScale(ut_magb, et);
+
+    (*Ub) = nSum(ut_b, nScale( (sb/sc), un));
+
+    mSum(*Ub, Ua);
 
     return;
 }

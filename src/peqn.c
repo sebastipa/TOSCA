@@ -1611,9 +1611,16 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 pCell.j = (PetscInt)pibmcell[Id.k][Id.j][Id.i].y;
                                 pCell.k = (PetscInt)pibmcell[Id.k][Id.j][Id.i].z;
 
+                                //interpolation cell is outside the processor. Cannot interpolate or use the pressure at this cell
                                 if(pCell.i < gxs || pCell.i >= gxe || pCell.j < gys || pCell.j >= gye || pCell.k < gzs || pCell.k >= gze)
                                 {
                                     inProcessor = 0;
+                                }
+
+                                //interpolation cell is inside the processor. But the trilinear interpolation box cell is outside. Use pressure at interpolation cell
+                                if(pCell.i-1 < gxs || pCell.i+1 >= gxe || pCell.j-1 < gys || pCell.j+1 >= gye || pCell.k-1 < gzs || pCell.k+1 >= gze)
+                                {
+                                    inProcessor = 2;
                                 }
 
                                 // interpolation weights of the 8 cells around the point
@@ -1628,7 +1635,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                     PetscPrintf(PETSC_COMM_SELF, "Warning: normal projection cell %ld %ld %ld from IBM cell = %ld %ld %ld contrib. to pressure cell %ld %ld %ld is outside proc. ghosts\n", pCell.k, pCell.j, pCell.i, Id.k, Id.j, Id.i, k, j, i);
                                 }
                                 // interpolation point too far from ibm fluid cell, use nearest-neighbor interpolation
-                                else if(pibmpt[Id.k][Id.j][Id.i].x > 1e9)
+                                else if(pibmpt[Id.k][Id.j][Id.i].x > 1e9 || inProcessor == 2)
                                 {
                                     HYPRE_Int col = matID(pCell.i, pCell.j, pCell.k);
                                     HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);

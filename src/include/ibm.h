@@ -218,7 +218,7 @@ PetscErrorCode UpdateIBM(ibm_ *ibm);
 PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b);
 
 //! \brief writes the IBM force data for element and net force
-PetscErrorCode writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressure, PetscReal netMoment, PetscReal ibmPower, Cmpnts netForce);
+PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressure, PetscReal netMoment, PetscReal ibmPower, Cmpnts netForce, Cmpnts momentVector);
 
 //! \brief find in which processors the ibm body belongs
 PetscErrorCode findIBMControlledProcs(ibm_ *ibm);

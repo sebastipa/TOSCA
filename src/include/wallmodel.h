@@ -27,11 +27,27 @@ struct Cabot
     PetscReal        kappa;                   //!< von karman constant (usually 0.4)
 };
 
+//! \brief structure storing the Shumann wall models information
+struct PowerLawAPG
+{
+    PetscReal        roughness;
+    PetscReal        kappa;                   //!< von karman constant (usually 0.4)
+};
+
+struct LogLawAPG
+{
+    PetscReal        roughness;
+    PetscReal        kappa;                   //!< von karman constant (usually 0.4)
+};
+
 //! \brief wall models container
 struct wallModel
 {
     Shumann          *wmShumann;
     Cabot            *wmCabot;
+    PowerLawAPG      *wmPowerLawAPG;
+    LogLawAPG        *wmLogLawAPG;
+    
     patchVectorField tauWall;
     patchVectorField qWall;
 };
