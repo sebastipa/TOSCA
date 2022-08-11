@@ -1027,6 +1027,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     mesh_         *mesh  = ibm->access->mesh;
     ueqn_         *ueqn  = ibm->access->ueqn;
     teqn_         *teqn  = ibm->access->teqn;
+    ceqn_         *ceqn  = ibm->access->ceqn;
     flags_        *flags = ibm->access->flags;
     constants_    *cst   = ibm->access->constants;
 
@@ -1043,10 +1044,10 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     PetscInt      b, c, s;
     cellIds       initCp;
     Cmpnts        ***ucat, ***lucat, ***cent;
-    PetscReal     ***lt, ***temp, ***aj, ***nvert;
+    PetscReal     ***lt, ***temp, ***lc, ***conc, ***aj, ***nvert;
     Cmpnts        bPt, bPtInit;
     Cmpnts        bPtVel, ibmPtVel;
-    PetscReal     nfMag, cellSize, bPtTemp, ibmPtTemp;
+    PetscReal     nfMag, cellSize, bPtTemp, ibmPtTemp, bPtConc, ibmPtConc;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
     DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
@@ -1058,6 +1059,12 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     {
         DMDAVecGetArray(da, teqn->lTmprt, &lt);
         DMDAVecGetArray(da, teqn->Tmprt, &temp);
+    }
+
+    if (flags->isCeqnActive)
+    {
+        DMDAVecGetArray(da, ceqn->lConc, &lc);
+        DMDAVecGetArray(da, ceqn->Conc, &conc);
     }
 
     //local pointer for ibmFluidCells
@@ -1246,6 +1253,19 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                                 bPtTemp
                         );
                     }
+
+                    if (flags->isCeqnActive)
+                    {
+                        scalarPointLocalVolumeInterpolation
+                        (
+                                mesh,
+                                bPt.x, bPt.y, bPt.z,
+                                ic, jc, kc,
+                                cent,
+                                lc,
+                                bPtConc
+                        );
+                    }
                 }
 
             }
@@ -1259,6 +1279,11 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
             if (flags->isTeqnActive)
             {
                 bPtTemp = lt[initCp.k][initCp.j][initCp.i];
+            }
+
+            if (flags->isCeqnActive)
+            {
+                bPtConc = lc[initCp.k][initCp.j][initCp.i];
             }
 
             bPt = nSet(bPtInit);
@@ -1286,9 +1311,26 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
              else
              {
                  //printf("here ibm 1 ..................");
-                 ibmPtTemp = ibm->access->teqn->tRefNoAbl;
+                 ibmPtTemp = teqn->tRefNoAbl;
              }
 
+         }
+
+         if (flags->isCeqnActive)
+         {
+             if (ibm->ibmBody[ibF[c].bodyID]->ibmFlagCBC)
+             {
+                 if (ibm->ibmBody[ibF[c].bodyID]->ibCBC->ibmCBCType == "fixedValue")
+                 {
+                     ibmPtConc = ibm->ibmBody[ibF[c].bodyID]->ibCBC->ibmCBCValue;
+                 }
+
+                 //if (ibm->ibmBody[ibF[c].bodyID]->ibCBC->ibmCBCType == "fixedGradient")
+             }
+             else
+             {
+                 ibmPtConc = ceqn->cRefNoAbl;
+             }
          }
 
          // cabot wall model to interpolate the velocity at the ibm fluid node
@@ -1312,6 +1354,11 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          {
              temp[k][j][i] = (1.0 - (sb/sc)) * ibmPtTemp + (sb/sc) * bPtTemp;
          }
+
+         if (flags->isCeqnActive)
+         {
+             conc[k][j][i] = (1.0 - (sb/sc)) * ibmPtConc + (sb/sc) * bPtConc;
+         }
     }
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
@@ -1326,6 +1373,15 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         DMDAVecRestoreArray(da, teqn->Tmprt, &temp);
         DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
         DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    }
+
+    if (flags->isCeqnActive)
+    {
+        DMDAVecRestoreArray(da, ceqn->lConc, &lc);
+        DMDAVecRestoreArray(da, ceqn->Conc, &conc);
+        DMGlobalToLocalBegin(da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
+        DMGlobalToLocalEnd(da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
 
     }
 
@@ -1921,6 +1977,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
   // read the interpolation method - MLS or CURVIB
   readDictWord("./IBM/IBMProperties.dat", "InterpolationMethod", &(ibm->IBInterpolationModel));
 
+
   //counter for number of moving objects
   int movingObject = 0;
 
@@ -1944,6 +2001,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     ibm->ibmBody[i]->ibMsh          = NULL;
     ibm->ibmBody[i]->ibmRot         = NULL;
 
+
     // allocate memory for the IBM mesh of the object
     PetscMalloc(sizeof(ibmMesh), &(ibm->ibmBody[i]->ibMsh));
 
@@ -1958,6 +2016,27 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
 
     // read ibm file type
     readSubDictWord("./IBM/IBMProperties.dat", objectName, "fileType", &(ibm->ibmBody[i]->fileType));
+
+    if (ibm->access->flags->isCeqnActive)
+    {
+        // read CBCFlag
+        readSubDictInt("./IBM/IBMProperties.dat", objectName, "ibmFlagCBC", &(ibm->ibmBody[i]->ibmFlagCBC));
+
+        if(ibm->ibmBody[i]->ibmFlagCBC)
+        {
+            ibm->ibmBody[i]->ibCBC         = NULL;
+            PetscMalloc(sizeof(ibmConcBC), &(ibm->ibmBody[i]->ibCBC));
+
+            readSubDictWord("./IBM/IBMProperties.dat", objectName, "ibmCBCType", &(ibm->ibmBody[i]->ibCBC->ibmCBCType));
+
+            if (ibm->ibmBody[i]->ibCBC->ibmCBCType == "fixedValue")
+            {
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "ibmCBCValue", &(ibm->ibmBody[i]->ibCBC->ibmCBCValue));
+            }
+
+        }
+    }
+
 
     if(ibm->ibmBody[i]->fileType == "inp")
     {
@@ -3109,7 +3188,39 @@ PetscErrorCode findBodyBoundingBox(ibm_ *ibm)
   }
   return 0;
 }
+//**************************************************************************************************************//
 
+/*PetscErrorCode findIBMBodyID(PetscInt k, PetscInt j, PetscInt i, ibm_ *ibm)
+
+{
+    {
+        mesh_        *mesh = ibm->access->mesh;
+        DM            da   = mesh->da, fda = mesh->fda;
+        DMDALocalInfo info = mesh->info;
+        Cmpnts        ***cent;
+
+        DMDAVecGetArray(fda, mesh->lCent,  &cent);
+
+      //loop through the IBM bodies and find which bounding box the k, j ,i cells match with. Return BodyID.
+      for (PetscInt q = 0; q < ibm->numBodies; q++)
+      {
+          if (ibm->ibmBody[q]->bound->xmin <= cent[k][j][i].x && ibm->ibmBody[i]->bound->xmax >= cent[k][j][i].x)
+          {
+              if (ibm->ibmBody[q]->bound->ymin <= cent[k][j][i].y && ibm->ibmBody[i]->bound->ymax >= cent[k][j][i].y)
+              {
+                  if (ibm->ibmBody[q]->bound->zmin <= cent[k][j][i].z && ibm->ibmBody[i]->bound->zmax >= cent[k][j][i].z)
+                  {
+                      return q;
+                  }
+              }
+          }
+      }
+
+       DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+       //return;
+    }
+
+}*/
 //***************************************************************************************************************//
 
 PetscErrorCode findFluidSupportNodes(ibm_ *ibm)

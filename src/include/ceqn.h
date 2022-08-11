@@ -39,6 +39,11 @@ struct ceqn_
 
     PetscReal     cRefNoAbl;                    //cRef if no abl
 
+    PetscReal     cOutProc;                    //total # of partiles out of sinle processor over time.
+    PetscReal     cInProc;                    //total # of particles into sinle processor over time.
+
+    PetscReal     cOutTotal;                    //total # of partiles out of domain over time.
+    PetscReal     cInTotal;                    //total # of particles into domain over time.
 };
 
 #endif
@@ -52,14 +57,11 @@ PetscErrorCode SolveCEqn(ceqn_ *ceqn);
 //! \brief SNES evaulation function
 PetscErrorCode CeqnSNES(SNES snes, Vec C, Vec Rhs, void *ptr);
 
-//! \brief Apply fringe region damping. Not used in ceqn currently.
-//PetscErrorCode dampingSourceC(ceqn_ *ceqn, Vec &Rhs, PetscReal scale);
 
 //! \brief RHS of the potential concentration transport equation
 PetscErrorCode FormC(ceqn_ *ceqn, Vec &Rhs, PetscReal scale);
 
-//! \brief solve Teqn using RungeKutta 4
-//PetscErrorCode TeqnRK4(teqn_ *teqn);
+//! \brief sums particle count in different areas of doamin to find filtration efficiency.
+PetscErrorCode concSummary(ceqn_ *ceqn);
 
-//! \brief Computed RHS of concentration equation using current lTmprt (updates Rhs), data put in ueqn->Rhs Not used currently for concentration
-//PetscErrorCode FormExplicitRhsC(ceqn_ *ceqn);
+PetscErrorCode filterConc(ceqn_ *ceqn);

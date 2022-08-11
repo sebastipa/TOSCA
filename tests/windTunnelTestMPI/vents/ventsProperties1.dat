@@ -1,0 +1,607 @@
+
+numberOfVents       21 #includes supply, exhaust, and leaks.
+roomPressure        neg #"pos" for positive pressure
+
+vent0
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    5.75
+    xBound2         6.36
+    yBound1			0.17
+    yBound2			0.779
+
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.05
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent1
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    1.79
+    xBound2         2.4
+    yBound1			0.17
+    yBound2			0.779
+
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.05
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent2
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    0.49
+    xBound2         1.10
+    yBound1			2.705
+    yBound2			3.315
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.05
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent3
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    1.27
+    xBound2         1.9
+    yBound1			5.77
+    yBound2			6.381
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.054
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent4
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    5.2
+    xBound2         5.78
+    yBound1			5.77
+    yBound2			6.381
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.055
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent5
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    7.2
+    xBound2         7.76
+    yBound1			2.725
+    yBound2			3.307
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.049
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent6
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    3.28
+    xBound2         3.89
+    yBound1			2.483
+    yBound2			2.619
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.032
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent7
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    4.42
+    xBound2         5.03
+    yBound1			2.483
+    yBound2			2.619
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.035
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent8
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    3.28
+    xBound2         3.89
+    yBound1			3.4745
+    yBound2			3.5745
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.035
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent9
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    3.28
+    xBound2         3.89
+    yBound1			4.466
+    yBound2			4.566
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.035
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent10
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    4.42
+    xBound2         5.03
+    yBound1			3.47545
+    yBound2			3.5745
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.031
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent11
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    4.42
+    xBound2         5.03
+    yBound1			3.372
+    yBound2			3.471
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.035
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent12
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    4.42
+    xBound2         4.29
+    yBound1			0.209
+    yBound2			1.4
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.04
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent13
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             inlet
+    xBound1		    4.07
+    xBound2         4.18
+    yBound1			5.015
+    yBound2			6.812
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.0 -0.115)
+    ventDesiredFlux    0.039
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   22.0
+}
+
+vent14
+{
+    #ventLocationInfo
+
+    face            kLeft
+    dir             outlet
+    yBound1		    0
+    yBound2         0.3
+    zBound1			0.215
+    zBound2			0.695
+
+    #zBounds needed for i and k faces.
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 1.177 0.0)
+    ventDesiredFlux    0.152
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   zeroGradient
+    #ventTBCVal		   22.0
+}
+
+vent15
+{
+    #ventLocationInfo
+
+    face            iLeft
+    dir             outlet
+    xBound1		    0
+    xBound2         0.3
+    zBound1			0.215
+    zBound2			0.695
+
+    #zBounds needed for i and k faces.
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 1.177 0.0)
+    ventDesiredFlux    0.150
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   zeroGradient
+    #ventTBCVal		   22.0
+}
+
+vent16
+{
+    #ventLocationInfo
+
+    face            iLeft
+    dir             outlet
+    xBound1		    3.753
+    xBound2         4.053
+    zBound1			0.215
+    zBound2			0.695
+
+    #zBounds needed for i and k faces.
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 1.177 0.0)
+    ventDesiredFlux    0.138
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   zeroGradient
+    #ventTBCVal		   22.0
+}
+
+vent17
+{
+    #ventLocationInfo
+
+    face            kRight
+    dir             outlet
+    yBound1		    1.981
+    yBound2         2.281
+    zBound1			0.215
+    zBound2			0.695
+
+    #zBounds needed for i and k faces.
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 1.177 0.0)
+    ventDesiredFlux    0.148
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   zeroGradient
+    #ventTBCVal		   22.0
+}
+
+vent18
+{
+    #ventLocationInfo
+
+    face            iLeft
+    dir             outlet
+    xBound1		    7.63
+    xBound2         7.925.
+    zBound1			0.215
+    zBound2			0.695
+
+    #zBounds needed for i and k faces.
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 1.177 0.0)
+    ventDesiredFlux    0.140
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   zeroGradient
+    #ventTBCVal		   22.0
+}
+
+vent19
+{
+    #ventLocationInfo
+
+    face            kLeft
+    dir             leak
+    yBound1		    2.559
+    yBound2         2.641
+    zBound1			0.0
+    zBound2			2.25
+
+    #zBounds needed for i and k faces.
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.16 0.0)
+    ventDesiredFlux    0.0715
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   zeroGradient
+    #ventTBCVal		   22.0
+}
+
+vent20
+{
+    #ventLocationInfo
+
+    face            kRight
+    dir             leak
+    yBound1		    2.559
+    yBound2         2.641
+    zBound1			0.0
+    zBound2			2.25
+
+    #zBounds needed for i and k faces.
+
+    #U_BC_info
+
+    ventBC			   fixedValue
+    #ventBCVec		   (0.0 0.16 0.0)
+    ventDesiredFlux    0.0715
+
+    #Nut_BC_info
+
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   zeroGradient
+    #ventTBCVal		   22.0
+}

@@ -53,6 +53,10 @@ typedef struct
 
     PetscScalar       ventCBCVal; //value of fixed temp or temp gradient.
 
+    PetscScalar       ventCBCStart; //start and end time of intermittent C boundary condition
+
+    PetscScalar       ventCBCEnd;
+
 }ventObject;
 
 

@@ -120,10 +120,10 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
 
 
     std::vector<word> nutAvailableBC = {"inletFunction", "zeroGradient", "fixedValue",
-                                          "periodic", "oversetInterpolate", "vents"};
+                                          "periodic", "oversetInterpolate"};
 
     std::vector<word> CAvailableBC = {"inletFunction", "zeroGradient", "fixedValue",
-                                         "periodic", "oversetInterpolate", "vents"};
+                                         "periodic", "oversetInterpolate"};
 
     for(PetscInt i = 0; i < UAvailableBC.size(); i++)
     {
@@ -316,7 +316,7 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
-        if(flagT[5] == 0)
+        if(flagC[5] == 0)
         {
            char error[512];
             sprintf(error, "In %s/C, C boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryC.iRight.c_str());
@@ -1001,7 +1001,7 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                 if (mesh->boundaryU.jRight=="zeroGradient" && j==my-2)
                 {
                     if(ucont[k][j][i].y < 0.0) ucont[k][j][i].y = 0.0;
-                    if (k==65 && i == 65) {printf("ucont BC j Right .....................\n");}
+                    //if (k==65 && i == 65) {printf("ucont BC j Right .....................\n");}
                 }
                 if (mesh->boundaryU.kLeft=="zeroGradient" && k==0)
                 {
@@ -2003,7 +2003,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     ucat[k][j+1][i].x = 2*lucat[k][j][i].x - lucat[k][j-1][i].x;
                     ucat[k][j+1][i].y = 2*lucat[k][j][i].y - lucat[k][j-1][i].y;
                     ucat[k][j+1][i].z = 2*lucat[k][j][i].z - lucat[k][j-1][i].z;
-                    if (k==65 && i == 65) {printf("uCart BC j Right .....................\n");}
+                    //if (k==65 && i == 65) {printf("uCart BC j Right .....................\n");}
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j+1][i],0);
                 }
@@ -2369,8 +2369,9 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 }
 
                 // set to zero if solid.
-                if(isIBMCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert))
                 {
+                    //printf("\n here IBM T........................\n");
                     if (teqn->access->abl == NULL)
                     {
                         //printf("here update T BC .......\n");
@@ -2380,6 +2381,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     else
                     {
                         t[k][j][i] = teqn->access->abl->tRef;
+
                     }
                     continue;
                 }
@@ -2674,6 +2676,8 @@ PetscErrorCode UpdateConcentrationBCs(ceqn_ *ceqn)
 {
     mesh_        *mesh = ceqn->access->mesh;
     vents_       *vents = ceqn->access->vents;
+    ibm_         *ibm = ceqn->access->ibm;
+    clock_       *clock = ceqn->access->clock;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -2690,7 +2694,7 @@ PetscErrorCode UpdateConcentrationBCs(ceqn_ *ceqn)
     PetscReal     ***aj;
     Cmpnts        ***csi, ***eta, ***zet, ***cent;
 
-    PetscInt      ***markVent;
+    PetscInt      ***markVent, bodyID;
 
     // variables to recover inletFunction 3 lapse rate
     PetscReal        ldataHeight = 0, gdataHeight = 0;
@@ -2763,6 +2767,79 @@ PetscErrorCode UpdateConcentrationBCs(ceqn_ *ceqn)
                 if (markVent[k][j][i] > 0)
                 {
                     q = markVent[k][j][i] - 1;
+
+                    if (i == 1 && vents->vent[q]->ventCBC == "intermittent")
+                    {
+                        if (clock->time > vents->vent[q]->ventCBCStart && clock->time < vents->vent[q]->ventCBCEnd)
+                        {
+                           c[k][j][i-1] = ((vents->vent[q]->ventCBCVal/(vents->vent[q]->ventCBCEnd - vents->vent[q]->ventCBCStart))/vents->vent[q]->nCellsVent) * clock->dt;
+                        }
+                        else
+                        {
+                           c[k][j][i-1] = 0;
+                        }
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventCBC == "intermittent")
+                    {
+                        if (clock->time > vents->vent[q]->ventCBCStart && clock->time < vents->vent[q]->ventCBCEnd)
+                        {
+                           c[k][j][i+1] = ((vents->vent[q]->ventCBCVal/(vents->vent[q]->ventCBCEnd - vents->vent[q]->ventCBCStart))/vents->vent[q]->nCellsVent) * clock->dt;
+                        }
+                        else
+                        {
+                           c[k][j][i+1] = 0;
+                        }
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventCBC == "intermittent")
+                    {
+                        if (clock->time > vents->vent[q]->ventCBCStart && clock->time < vents->vent[q]->ventCBCEnd)
+                        {
+                           c[k][j-1][i] = ((vents->vent[q]->ventCBCVal/(vents->vent[q]->ventCBCEnd - vents->vent[q]->ventCBCStart))/vents->vent[q]->nCellsVent) * clock->dt;
+                        }
+                        else
+                        {
+                           c[k][j-1][i] = 0;
+                        }
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventCBC == "intermittent")
+                    {
+                        if (clock->time > vents->vent[q]->ventCBCStart && clock->time < vents->vent[q]->ventCBCEnd)
+                        {
+                           c[k][j+1][i] = ((vents->vent[q]->ventCBCVal/(vents->vent[q]->ventCBCEnd - vents->vent[q]->ventCBCStart))/vents->vent[q]->nCellsVent) * clock->dt;
+                        }
+                        else
+                        {
+                           c[k][j+1][i] = 0;
+                        }
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventCBC == "intermittent")
+                    {
+                        if (clock->time > vents->vent[q]->ventCBCStart && clock->time < vents->vent[q]->ventCBCEnd)
+                        {
+                           c[k-1][j][i] = ((vents->vent[q]->ventCBCVal/(vents->vent[q]->ventCBCEnd - vents->vent[q]->ventCBCStart))/vents->vent[q]->nCellsVent) * clock->dt;
+                        }
+                        else
+                        {
+                           c[k-1][j][i] = 0;
+                        }
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventCBC == "intermittent")
+                    {
+                        if (clock->time > vents->vent[q]->ventCBCStart && clock->time < vents->vent[q]->ventCBCEnd)
+                        {
+                           c[k+1][j][i] = ((vents->vent[q]->ventCBCVal/(vents->vent[q]->ventCBCEnd - vents->vent[q]->ventCBCStart))/vents->vent[q]->nCellsVent) * clock->dt;
+                        }
+                        else
+                        {
+                           c[k+1][j][i] = 0;
+                        }
+                    }
+
 
                     if (i == 1 && vents->vent[q]->ventCBC == "fixedValue")
                     {
@@ -2930,21 +3007,60 @@ PetscErrorCode UpdateConcentrationBCs(ceqn_ *ceqn)
                     continue;
                 }
 
+                if (c[k][j][i] < ceqn->cRefNoAbl)
+                {
+                    c[k][j][i] = ceqn->cRefNoAbl;
+                    //printf("here noNeg boundary..................");
+                }
                 // set to zero if solid. Skip this if imb is a source!
                 if(isIBMCell(k, j, i, nvert))
                 {
-                    if (ceqn->access->abl == NULL)
+                    bodyID =  -1;
+
+                    for (PetscInt q = 0; q < ibm->numBodies; q++)
                     {
-                        //printf("here update Cref for ibm .......\n");
-                        c[k][j][i] = ceqn->cRefNoAbl;
-                        //printf("T = %lf\n", t[k][j][i]);
+                        if (ibm->ibmBody[q]->bound->xmin <= cent[k][j][i].x && ibm->ibmBody[q]->bound->xmax >= cent[k][j][i].x)
+                        {
+                            if (ibm->ibmBody[q]->bound->ymin <= cent[k][j][i].y && ibm->ibmBody[q]->bound->ymax >= cent[k][j][i].y)
+                            {
+                                if (ibm->ibmBody[q]->bound->zmin <= cent[k][j][i].z && ibm->ibmBody[q]->bound->zmax >= cent[k][j][i].z)
+                                {
+                                    bodyID = q;
+                                    break;
+                                }
+                            }
+                        }
+
                     }
-                    /*else
-                    {
-                        c[k][j][i] = ceqn->access->abl->cRef;
-                    }
-                    continue;*/
+
+                   if (bodyID >= 0)
+                   {
+                       if (ibm->ibmBody[bodyID]->ibmFlagCBC)
+                       {
+                           if (ibm->ibmBody[bodyID]->ibCBC->ibmCBCType == "fixedValue")
+                           {
+                               c[k][j][i] = ibm->ibmBody[bodyID]->ibCBC->ibmCBCValue;
+                           }
+
+                           //if (ibm->ibmBody[ibF[c].bodyID]->ibCBC->ibmCBCType == "fixedGradient")
+                       }
+                       else if (ceqn->access->abl == NULL)
+                       {
+                           c[k][j][i] = ceqn->cRefNoAbl;
+                       }
+                       /*else
+                       {
+                           c[k][j][i] = ceqn->access->abl->cRef;
+                       }
+                       continue;*/
+
+                   }
+                   /*else
+                   {
+                       error message!!
+                   }*/
                 }
+
 
                 // special boundary condition where inflow is mapped from precursor
                 /*if(mesh->boundaryC.kLeft=="inletFunction" && k==1)

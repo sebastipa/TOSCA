@@ -1,6 +1,6 @@
 
 numberOfVents       11
-roomPressure        pos
+roomPressure        neg
 
 vent0
 {
@@ -18,7 +18,7 @@ vent0
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-    ventDesiredFlux    0.086
+    ventDesiredFlux    0.083
 
     #Nut_BC_info
 
@@ -28,12 +28,13 @@ vent0
     #T_BC_info
 
     ventTBC			   fixedValue
-    ventTBCVal		   24
+    ventTBCVal		   22.0
 
     #C_BC_info
 
-    ventCBC			   fixedValue
-    ventCBCVal		   5.0
+    ventCBC			   zeroGradient
+    ventCBCVal		   22.0
+
 }
 
 vent1
@@ -52,7 +53,7 @@ vent1
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-    ventDesiredFlux    0.086
+    ventDesiredFlux    0.083
 
     #Nut_BC_info
 
@@ -62,12 +63,12 @@ vent1
     #T_BC_info
 
     ventTBC			   fixedValue
-    ventTBCVal		   24
+    ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    #ventCBCVal		   0.
+    ventCBCVal		   22.0
 }
 
 vent2
@@ -85,7 +86,7 @@ vent2
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-    ventDesiredFlux    0.083
+    ventDesiredFlux    0.08
 
     #Nut_BC_info
 
@@ -95,12 +96,12 @@ vent2
     #T_BC_info
 
     ventTBC			   fixedValue
-    ventTBCVal		   24
+    ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    ventCBCVal		   0.
+    ventCBCVal		   22.0
 }
 
 vent3
@@ -118,7 +119,7 @@ vent3
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-    ventDesiredFlux    0.082
+    ventDesiredFlux    0.079
 
     #Nut_BC_info
 
@@ -128,12 +129,12 @@ vent3
     #T_BC_info
 
     ventTBC			   fixedValue
-    ventTBCVal		   24
+    ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    ventCBCVal		   0.
+    ventCBCVal		   22.0
 }
 
 vent4
@@ -151,7 +152,7 @@ vent4
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-    ventDesiredFlux    0.084
+    ventDesiredFlux    0.081
 
     #Nut_BC_info
 
@@ -161,12 +162,12 @@ vent4
     #T_BC_info
 
     ventTBC			   fixedValue
-    ventTBCVal		   24
+    ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    ventCBCVal		   0.
+    ventCBCVal		   22.0
 }
 
 vent5
@@ -184,7 +185,7 @@ vent5
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-    ventDesiredFlux    0.084
+    ventDesiredFlux    0.081
 
     #Nut_BC_info
 
@@ -194,12 +195,12 @@ vent5
     #T_BC_info
 
     ventTBC			   fixedValue
-    ventTBCVal		   24
+    ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    ventCBCVal		   0.
+    ventCBCVal		   22.0
 }
 
 vent6
@@ -217,7 +218,7 @@ vent6
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-    ventDesiredFlux    0.083
+    ventDesiredFlux    0.08
 
     #Nut_BC_info
 
@@ -227,12 +228,12 @@ vent6
     #T_BC_info
 
     ventTBC			   fixedValue
-    ventTBCVal		   24
+    ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    ventCBCVal		   0.
+    ventCBCVal		   22.0
 }
 
 vent7
@@ -250,22 +251,22 @@ vent7
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 0.0 -0.115)
-    ventDesiredFlux    0.084
+    ventDesiredFlux    0.081
 
     #Nut_BC_info
 
     ventBCNut          zeroGradient
-    #ventBCNutReal      0.0
+    ventBCNutReal      0.0
 
     #T_BC_info
 
     ventTBC			   fixedValue
-    ventTBCVal		   24
+    ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    ventCBCVal		   0.
+    ventCBCVal		   22.0
 }
 
 vent8
@@ -285,7 +286,7 @@ vent8
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 1.177 0.0)
-    ventDesiredFlux    0.323
+    ventDesiredFlux    0.335
 
     #Nut_BC_info
 
@@ -295,12 +296,12 @@ vent8
     #T_BC_info
 
     ventTBC			   zeroGradient
-    #ventTBCVal		   24
+    #ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    ventCBCVal		   0.
+    ventCBCVal		   22.0
 }
 
 vent9
@@ -320,7 +321,7 @@ vent9
 
     ventBC			   fixedValue
     #ventBCVec		   (0.0 1.177 0.0)
-    ventDesiredFlux    0.325
+    ventDesiredFlux    0.337
 
     #Nut_BC_info
 
@@ -330,12 +331,12 @@ vent9
     #T_BC_info
 
     ventTBC			   zeroGradient
-    #ventTBCVal		   24
+    #ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    ventCBCVal		   0.
+    ventCBCVal		   22.0
 }
 
 vent10
@@ -365,10 +366,10 @@ vent10
     #T_BC_info
 
     ventTBC			   zeroGradient
-    #ventTBCVal		   24
+    #ventTBCVal		   22.0
 
-    C_BC_info
+    #C_BC_info
 
     ventCBC			   zeroGradient
-    ventCBCVal		   0.
+    ventCBCVal		   22.0
 }

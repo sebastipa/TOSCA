@@ -20,7 +20,7 @@ iRight  	 zeroGradient
 
 jLeft   	 zeroGradient
 
-jRight  	 zeroGradient
+jRight  	 fixedValue 20.0
 
 kLeft   	 zeroGradient
 

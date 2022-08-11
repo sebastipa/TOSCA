@@ -307,13 +307,15 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
 
     VecDuplicate(mesh->Nvert, &(mesh->Nvert_o));
 
-    VecDuplicate(mesh->Nvert, &(mesh->ventMarkers)); //also make local ventmarkers?
+    VecDuplicate(mesh->Nvert, &(mesh->ventMarkers));
+    VecDuplicate(mesh->Nvert, &(mesh->poreMarkers));
 
     VecSet(mesh->Nvert, 0.0);
     VecSet(mesh->lNvert, 0.0);
     VecSet(mesh->Nvert_o, 0.0);
     VecSet(mesh->lNvert_o, 0.0);
-     VecSet(mesh->ventMarkers, 0.0);
+    VecSet(mesh->ventMarkers, 0.0);
+    VecSet(mesh->poreMarkers, 1.0);
 
     return(0);
 }

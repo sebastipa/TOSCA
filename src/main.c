@@ -73,7 +73,7 @@ int main(int argc, char **argv)
                 //UpdateWallModelsC(domain[d].ceqn); no wall model for C at this point.
             }
 
-            if(domain[d].ueqn->centralUpwindDiv || flags.isTeqnActive || flags.isCeqnActive)
+            if(domain[d].ueqn->centralUpwindDiv || flags.isTeqnActive || flags.isCeqnActive || flags.isPoresActive)
             {
                 UpdateFluxLimiter(domain[d].ueqn);
             }
@@ -149,6 +149,11 @@ int main(int argc, char **argv)
             {
                 VecSet(domain[d].ueqn->Rhs_o, 0.0);
                 FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);
+
+                if (flags.isPoresActive)
+                {
+                    Porosity(domain[d].ueqn, domain[d].ueqn->Rhs_o, -1.0);
+                }
             }
 
             if(flags.isTeqnActive)

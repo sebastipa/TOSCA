@@ -597,6 +597,34 @@ inline bool isIBMCell (PetscInt k, PetscInt j, PetscInt i, PetscReal ***nvert)
     return (nvert[k][j][i] > 0.1);
 }
 
+///***************************************************************************************************************//
+/*inline PetscInt findIBMBodyID(PetscInt k, PetscInt j, PetscInt i, ibm_ *ibm)
+{
+    mesh_        *mesh = ibm->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    Cmpnts        ***cent;
+
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+
+  //loop through the IBM bodies and find which bounding box the k, j ,i cells match with. Return BodyID.
+  for (PetscInt q = 0; q < ibm->numBodies; q++)
+  {
+      if (ibm->ibmBody[q]->bound->xmin <= cent[k][j][i].x && ibm->ibmBody[i]->bound->xmax >= cent[k][j][i].x)
+      {
+          if (ibm->ibmBody[q]->bound->ymin <= cent[k][j][i].y && ibm->ibmBody[i]->bound->ymax >= cent[k][j][i].y)
+          {
+              if (ibm->ibmBody[q]->bound->zmin <= cent[k][j][i].z && ibm->ibmBody[i]->bound->zmax >= cent[k][j][i].z)
+              {
+                  return q;
+              }
+          }
+      }
+  }
+
+   DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+   //return;
+}*/
 //***************************************************************************************************************//
 
 //! \brief check if IBM Fluid cell (cell next to IBM body)
@@ -2831,6 +2859,58 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
 
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    return;
+}
+
+// ============================================================================================================= //
+
+inline void resetNoNegativeConc(ceqn_ *ceqn)
+{
+    mesh_             *mesh = ceqn->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k;
+
+    PetscReal     ***conc;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    // We go through all the boundary conditions implying no penetration and set
+    // the wall normal flux to zero in order to exactly enforce mass conservation.
+    // This is done because, especially the non-linear solver, could give fluxes not
+    // exactly zero at the wall.
+
+    DMDAVecGetArray(da, ceqn->Conc, &conc);
+
+    for (k=zs; k<lze; k++)
+    {
+        for (j=ys; j<lye; j++)
+        {
+            for (i=xs; i<lxe; i++)
+            {
+                if (conc[k][j][i] < ceqn->cRefNoAbl)
+                {
+                    conc[k][j][i] = ceqn->cRefNoAbl;
+                    //printf("here noNeg..................");
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray (da, ceqn->Conc, &conc);
+
+    DMGlobalToLocalBegin(da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
+    DMGlobalToLocalEnd  (da, ceqn->Conc, INSERT_VALUES, ceqn->lConc);
 
     return;
 }

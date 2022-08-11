@@ -1866,6 +1866,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 {
     mesh_         *mesh  = ueqn->access->mesh;
     teqn_         *teqn = ueqn->access->teqn;
+    //pores_        *pores = ueqn->access->pores;
     DM            da    = mesh->da, fda = mesh->fda;
     DMDALocalInfo info  = mesh->info;
     PetscInt      xs    = info.xs, xe = info.xs + info.xm;
@@ -1885,6 +1886,8 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                   gravity.y = 0;
                   gravity.z = -9.81;
     PetscReal     tRef;      //= ueqn->access->abl->tRef;
+
+    //PetscReal     ***markPore;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1944,6 +1947,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         gravity.z * kzet[k][j][i].z
                     );
                 }
+
             }
         }
     }
@@ -1952,9 +1956,11 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
 
+
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
     DMDAVecGetArray(da, teqn->lTmprt, &tmprt);
     DMDAVecGetArray(fda, Rhs,  &rhs);
+    //DMDAVecGetArray(da, mesh->poreMarkers,  &markPore);
 
     for (k=lzs; k<lze; k++)
     {
@@ -1962,18 +1968,20 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
+
                 // interpolate at cell faces
                 PetscReal tempI = 0.5*(tmprt[k][j][i] + tmprt[k][j][i+1]);
 
                 if (isFluidIFace(k, j, i, i+1, nvert))
                 {
+
                     rhs[k][j][i].x
                     +=
                     scale *
                     (
-                        gcont[k][j][i].x *
-                        //(2* tRef - tempI) / tRef
-                        (tempI - tRef)/tRef
+                    gcont[k][j][i].x *
+                    //(2* tRef - tempI) / tRef
+                    (tempI - tRef)/tRef
                     );
                 }
 
@@ -2017,11 +2025,123 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(da,  teqn->lTmprt, &tmprt);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
     DMDAVecRestoreArray(fda, ueqn->gCont, &gcont);
+    //DMDAVecRestoreArray(da, mesh->poreMarkers,  &markPore);
 
     return(0);
 }
 
 //***************************************************************************************************************//
+
+PetscErrorCode Porosity(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+{
+    mesh_         *mesh  = ueqn->access->mesh;
+    pores_        *pores  = ueqn->access->pores;
+    constants_    *cst   = ueqn->access->constants;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***rhs;
+
+    PetscReal     lucatNormLi, lucatNorm1i, lucatNormRi;
+    PetscReal     lucatNormLj, lucatNorm1j, lucatNormRj;
+    PetscReal     lucatNormLk, lucatNorm1k, lucatNormRk;
+    PetscReal     lucatNorm;
+
+    PetscInt           i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts           ***lucat, ***ucont;
+    Cmpnts        ***limiter;
+
+    PetscReal     ***markPore;
+    PetscReal    nu = cst->nu;
+
+
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+
+    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
+    DMDAVecGetArray(da, mesh->poreMarkers, &markPore);
+    DMDAVecGetArray(fda, Rhs,  &rhs);
+    DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+
+                if (markPore[k][j][i] < 1) //porous zone cannot be by boundary with current code.
+                {
+
+                    lucatNorm = pow((pow(lucat[k][j][i].x, 2) + pow(lucat[k][j][i].y, 2) + pow(lucat[k][j][i].z, 2)), 0.5);
+
+                    //i direction, lucat magnitude
+                    lucatNormLi = pow((pow(lucat[k][j][i-1].x, 2) + pow(lucat[k][j][i-1].y, 2) + pow(lucat[k][j][i-1].z, 2)), 0.5);
+                    lucatNorm1i = pow((pow(lucat[k][j][i+1].x, 2) + pow(lucat[k][j][i+1].y, 2) + pow(lucat[k][j][i+1].z, 2)), 0.5);
+                    lucatNormRi = pow((pow(lucat[k][j][i+2].x, 2) + pow(lucat[k][j][i+2].y, 2) + pow(lucat[k][j][i+2].z, 2)), 0.5);
+
+                    //j direction, lucat magnitude
+                    lucatNormLj = pow((pow(lucat[k][j-1][i].x, 2) + pow(lucat[k][j-1][i].y, 2) + pow(lucat[k][j-1][i].z, 2)), 0.5);
+                    lucatNorm1j = pow((pow(lucat[k][j+1][i].x, 2) + pow(lucat[k][j+1][i].y, 2) + pow(lucat[k][j+1][i].z, 2)), 0.5);
+                    lucatNormRj = pow((pow(lucat[k][j+2][i].x, 2) + pow(lucat[k][j+2][i].y, 2) + pow(lucat[k][j+2][i].z, 2)), 0.5);
+
+                    //k direction, lucat magnitude
+                    lucatNormLk = pow((pow(lucat[k-1][j][i].x, 2) + pow(lucat[k-1][j][i].y, 2) + pow(lucat[k-1][j][i].z, 2)), 0.5);
+                    lucatNorm1k = pow((pow(lucat[k+1][j][i].x, 2) + pow(lucat[k+1][j][i].y, 2) + pow(lucat[k+1][j][i].z, 2)), 0.5);
+                    lucatNormRk = pow((pow(lucat[k+2][j][i].x, 2) + pow(lucat[k+2][j][i].y, 2) + pow(lucat[k+2][j][i].z, 2)), 0.5);
+
+                    rhs[k][j][i].x
+                    +=
+                    scale *
+                    (
+                        ucont[k][j][i].x *
+                        ((nu/pores->alpha)+0.5*pores->C2*(centralUpwind(lucatNormLi, lucatNorm, lucatNorm1i, lucatNormRi, ucont[k][j][i].x, limiter[k][j][i].x)))
+                    );
+
+                    rhs[k][j][i].y
+                    +=
+                    scale *
+                    (
+                        ucont[k][j][i].y *
+                        ((nu/pores->alpha)+0.5*pores->C2*(centralUpwind(lucatNormLj, lucatNorm, lucatNorm1j, lucatNormRj, ucont[k][j][i].y, limiter[k][j][i].y)))
+                    );
+
+                    rhs[k][j][i].z
+                    +=
+                    scale *
+                    (
+                        ucont[k][j][i].z *
+                        ((nu/pores->alpha)+0.5*pores->C2*(centralUpwind(lucatNormLk, lucatNorm, lucatNorm1k, lucatNormRk, ucont[k][j][i].z, limiter[k][j][i].z)))
+                    );
+
+                }
+
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &lucat);
+    DMDAVecRestoreArray(da, mesh->poreMarkers, &markPore);
+    DMDAVecRestoreArray(fda, Rhs,  &rhs);
+    DMDAVecRestoreArray(fda, mesh->fluxLimiter, &limiter);
+
+    return(0);
+}
+
+
+//***************************************************************************************************************//
+
 
 PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
 {
@@ -6592,6 +6712,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     // add pressure gradient term
     VecAXPY(Rhs, -1.0, ueqn->dP);
 
+
     // add coriolis term
     if(ueqn->access->flags->isAblActive)
     {
@@ -6606,18 +6727,42 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
 
     if(ueqn->access->flags->isTeqnActive)
     {
-        Buoyancy(ueqn, Rhs, 1.0);
+       Buoyancy(ueqn, Rhs, 1.0);
     }
 
-    // add viscous and transport terms
+    // add viscous and transport terms and porosity term if appropriate
     if(clock->it > clock->itStart)
     {
-        VecAXPY(Rhs, 0.5, ueqn->Rhs_o);
-        FormU(ueqn, Rhs, 0.5);
+
+        if(ueqn->access->flags->isPoresActive)
+        {
+            printf("/n here ......./n");
+           VecAXPY(Rhs, 0.5, ueqn->Rhs_o);
+           FormU(ueqn, Rhs, 0.5);
+           Porosity(ueqn, Rhs, -0.5); //add porosity momemtum sink term if active.
+        }
+
+        else
+
+        {
+            VecAXPY(Rhs, 0.5, ueqn->Rhs_o);
+            FormU(ueqn, Rhs, 0.5);
+        }
     }
+
     else
+
     {
-        FormU(ueqn, Rhs, 1.0);
+
+        if(ueqn->access->flags->isPoresActive)
+        {
+           FormU(ueqn, Rhs, 1.0);
+           Porosity(ueqn, Rhs, -1.0);
+        }
+        else
+        {
+           FormU(ueqn, Rhs, 1.0);
+        }
     }
 
     // add wind farm model
@@ -6654,6 +6799,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
 
     VecAXPY(Rhs, -1.0, Ucont);
     VecAXPY(Rhs,  1.0, ueqn->Ucont_o);
+
 
     return(0);
 }
@@ -6701,6 +6847,11 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     if(ueqn->access->flags->isTeqnActive)
     {
         Buoyancy(ueqn, ueqn->Rhs, 1.0);
+    }
+
+    if(ueqn->access->flags->isPoresActive)
+    {
+        Porosity(ueqn, ueqn->Rhs, -1.0);
     }
 
     // add viscous and transport terms

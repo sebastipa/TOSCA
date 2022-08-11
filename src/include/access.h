@@ -6,6 +6,7 @@
 
 #include "ceqn.h"
 
+
 //! \brief access database
 struct access_
 {
@@ -27,6 +28,7 @@ struct access_
     ibm_         *ibm;
     PetscInt     *domainID;
     vents_       *vents;
+    pores_       *pores;
 };
 
 #endif

@@ -105,6 +105,12 @@ PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 //! \brief Compute buoyancy term
 PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
+//! \brief Compute momentum Sink term
+PetscErrorCode Porosity(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
+
+//! \brief multiply RHS by porosity in porous zone
+PetscErrorCode multiplyPorosityVec(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
+
 //! Viscous and divergence terms
 PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 

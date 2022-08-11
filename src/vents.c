@@ -159,6 +159,13 @@ PetscErrorCode readVentsProperties(vents_ *vents)
         {
             readSubDictDouble("./vents/ventsProperties.dat", ventName, "ventCBCVal", &(vents->vent[i]->ventCBCVal));
         }
+
+        if (vents->vent[i]->ventCBC == "intermittent")
+        {
+            readSubDictDouble("./vents/ventsProperties.dat", ventName, "ventCBCVal", &(vents->vent[i]->ventCBCVal));
+            readSubDictDouble("./vents/ventsProperties.dat", ventName, "ventCBCStart", &(vents->vent[i]->ventCBCStart));
+            readSubDictDouble("./vents/ventsProperties.dat", ventName, "ventCBCEnd", &(vents->vent[i]->ventCBCEnd));
+        }
     }
 
   }

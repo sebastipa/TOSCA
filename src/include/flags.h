@@ -20,6 +20,7 @@ struct flags_
     PetscInt isPrecursorSpinUp;
     PetscInt isVentsActive;
     PetscInt isCeqnActive;
+    PetscInt isPoresActive;
 };
 
 #endif

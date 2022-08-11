@@ -69,11 +69,21 @@ typedef struct
 
 typedef struct
 {
+    word            ibmCBCType;
+    PetscReal       ibmCBCValue;
+
+}ibmConcBC;
+
+
+typedef struct
+{
     word          bodyName;
 
     PetscInt      bodyID;
 
     ibmMesh       *ibMsh;
+
+    ibmConcBC     *ibCBC;
 
     word          bodyMotion;
 
@@ -101,6 +111,7 @@ typedef struct
 
     //flags
     PetscInt       ibmControlled;                             //!< flag which tells if this proc controls this IBM body
+    PetscInt       ibmFlagCBC;                                //!< flag which tells if this ibm has a concentration BC other than cref.
 
     // communication color
     MPI_Comm            IBM_COMM;                             //!< communicator for this IBM
@@ -133,6 +144,9 @@ typedef struct
 struct ibm_
 {
     PetscInt           numBodies;                     //!<  number of bodies
+
+    PetscInt           numSources;                    //!<number of sources on ibms
+
     word               IBInterpolationModel;          //!<  interpolation methodology
 
     ibmObject          **ibmBody;                     //!<  array of pointers to ibm objects

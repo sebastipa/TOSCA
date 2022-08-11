@@ -4,7 +4,7 @@
 # Simulation
 # ---------------------------------
 -startTime                 0
--endTime                   300
+-endTime                   20
 -cfl                       0.8
 -adjustTimeStep            1
 -timeStep                  0.08
@@ -12,13 +12,13 @@
 # Write Data
 # ---------------------------------
 -intervalType              adjustableTime
--timeInterval              0.5
+-timeInterval              0.25
 -purgeWrite                0
 
 # Solution
 # ---------------------------------
 #-abl                      0
--potentialT                1
+-potentialT                0
 #-zDampingLayer            0
 #-xDampingLayer            0
 -ibm                       1
@@ -27,6 +27,7 @@
 -poissonIt                 6
 -poissonTol                1e-8
 -ceqn                      1
+-porousZones	           0
 
 # Turbulence Model
 # ---------------------------------

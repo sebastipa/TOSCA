@@ -1,0 +1,22 @@
+
+numberOfPores 1
+
+#momentumSinkInfo
+
+porosity 0.5 #fraction of fluid volume to total volume porous zone.
+alpha   0.000001 #permeability coefficiecnt
+C2	20519 #inertial loss coefficient
+filtrationEfficiency 0.05    #0.78456 #fraction of local concentration trapped in filter per second. must be less than 1.
+
+poreZone0
+{
+    #LocationInfo
+
+    xBound1	    0.0             //bounds labelled with 1 should be the lower absolute value vs. bound 2
+    xBound2         0.1362
+    yBound1         0.20
+    yBound2         0.22
+    zBound1	    0.0
+    zBound2	    0.432
+
+}

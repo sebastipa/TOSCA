@@ -12,6 +12,7 @@
 #include "include/initialization.h"
 #include "include/vents.h"
 
+
 //***************************************************************************************************************//
 
 PetscErrorCode PrintOkWindLogo()
@@ -133,6 +134,8 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
     // initialize vents
     initializeVents(domain);
 
+    // initialize Pores
+    InitializePores(domain);
 
     // Set the initial field
     SetInitialField(domain);
@@ -163,6 +166,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isSideForceActive  = 0;
     flags->isVentsActive      = 0;
     flags->isCeqnActive       = 0;
+    flags->isPoresActive      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",       &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);
@@ -176,6 +180,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-vents",&(flags->isVentsActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-ceqn",&(flags->isCeqnActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-porousZones",&(flags->isPoresActive), PETSC_NULL);
 
     // read acquisition flags
     PetscInt isProbesActive         = 0;
@@ -373,6 +378,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     domain->les         = NULL;
     domain->ibm         = NULL;
     domain->vents       = NULL;
+    domain->pores       = NULL;
     domain->abl         = NULL;
     domain->os          = NULL;
     domain->farm        = NULL;
@@ -392,6 +398,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     if(domain->flags.isAquisitionActive) domain->acquisition = new acquisition_;
     if(domain->flags.isIBMActive)        domain->ibm         = new ibm_;
     if(domain->flags.isVentsActive)      domain->vents       = new vents_;
+    if(domain->flags.isPoresActive)      domain->pores       = new pores_;
 
     return(0);
 }
@@ -492,6 +499,12 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
     {
         domain->access.vents  = domain->vents;
         domain->vents->access = &(domain->access);
+    }
+
+    if(domain->flags.isPoresActive)
+    {
+        domain->access.pores  = domain->pores;
+        domain->pores->access = &(domain->access);
     }
 
     return(0);

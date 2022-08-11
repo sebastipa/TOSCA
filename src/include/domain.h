@@ -7,6 +7,7 @@
 #include "objects.h"
 #include "clock.h"
 #include "vents.h"
+#include "pores.h"
 #include "access.h"
 #include "flags.h"
 #include "mesh.h"
@@ -22,6 +23,7 @@
 #include "precursor.h"
 #include "turbines.h"
 #include "abl.h"
+
 
 //! \brief Domain data structure definition
 struct domain_
@@ -49,6 +51,7 @@ struct domain_
     ibm_          *ibm;              //!< IBM data structure
 
     vents_        *vents;           //!< vents data structure
+    pores_        *pores;           //!< pores data structure
 
     abl_          *abl;              //!< atmospheric boundary layer data structure
 
