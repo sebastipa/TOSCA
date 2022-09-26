@@ -873,3 +873,17 @@ void wallFunctionLogLawAPG(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal r
 
     return;
 }
+
+void slipBC(PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, Cmpnts nf)
+{
+
+    Cmpnts    u_c = nSub(Uc, Ua);
+    Cmpnts    un  = nScale(nDot(u_c, nf), nf);
+    Cmpnts    ut  = nSub(u_c, un);
+
+    *Ub = nSum(ut, nScale(sb/sc, un));
+
+    mSum(*Ub, Ua);
+
+	return;
+}

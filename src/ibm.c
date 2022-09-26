@@ -524,6 +524,14 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
                 readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
             }
+            else if (ibmBody->wallModelU == "Slip")
+            {
+
+            }
+            else if (ibmBody->wallModelU == "NoSlip")
+            {
+
+            }
             else
             {
                 char error[512];
@@ -556,9 +564,9 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     PetscInt      ys   = info.ys, ye = info.ys + info.ym;
     PetscInt      zs   = info.zs, ze = info.zs + info.zm;
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
-    PetscInt           gxs   = info.gxs, gxe = info.gxs + info.gxm;
-    PetscInt           gys   = info.gys, gye = info.gys + info.gym;
-    PetscInt           gzs   = info.gzs, gze = info.gzs + info.gzm;
+    PetscInt      gxs  = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt      gys  = info.gys, gye = info.gys + info.gym;
+    PetscInt      gzs  = info.gzs, gze = info.gzs + info.gzm;
 
     cellIds       initCp;
 
@@ -567,8 +575,10 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     PetscReal     sc, sb, uDot, ustar;
     Cmpnts        ***ucat, ***cent, uDiff, ibmPtVel, bPtVel;
     Cmpnts        eN, eT1, eT2, dI, dF, eC;
+    Cmpnts        ***csi,  ***eta,  ***zet;
     Cmpnts        checkPt, del;                                // point where the pressure or shear stress needs to be interpolated
     PetscReal     refLength, eA;
+    PetscReal    dx, dy, dz, area, diag;                                  // cell size in the x, y and z direction
 
     PetscInt      n1, n2, n3;
     PetscReal     ***lP, ***nvert, ***aj, bPtP;
@@ -578,6 +588,9 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     DMDAVecGetArray(da, peqn->lP, &lP);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
     DMDAVecGetArray(da, mesh->lAj, &aj);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
 
     //local pointer for ibmFluidCells
     ibmFluidCell *ibF = ibm->ibmFCells;
@@ -621,6 +634,9 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                 gElemPressure[e] = 0.0;
                 lElemPressure[e] = 0.0;
 
+                //check that the element is inside the domain, if not then dont calculate force
+                if(!isInsideBoundingBox(ibMsh->eCent[e], mesh->bounds)) continue;
+
                 //this processor controls this ibm element
                 if(ibmBody->thisPtControlled[e])
                 {
@@ -639,6 +655,23 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
                     //reference length - square root of the element area vector magnitude
                     refLength = pow( 1./aj[ck][cj][ci], 1./3.);
+
+                    //find the fluid cell size in each direction
+                    area = nMag(csi[ck][cj][ci]); dy = 1.0/aj[ck][cj][ci]/area;
+                    area = nMag(eta[ck][cj][ci]); dz = 1.0/aj[ck][cj][ci]/area;
+                    area = nMag(zet[ck][cj][ci]); dx = 1.0/aj[ck][cj][ci]/area;
+
+                    // diagonal main diagonal length
+                    diag = pow( dx*dx + dy*dy + dz*dz, 1./2.);
+
+                    //check that the IBM element is indeed close to the closest fluid mesh cell and not some IBM element inside the body (for multi-body overlapped IBM meshes)
+                    PetscReal elemDist = nMag(nSub(cent[ck][cj][ci], eC));
+
+                    if(elemDist > 2.0*diag)
+                    {
+                        PetscPrintf(PETSC_COMM_SELF,"inside IBM element, En = %lf %lf %lf\n", eN.x, eN.y, eN.z);
+                        continue;
+                    }
 
                     //initial point for interpolation
                     checkPt = nSum(nScale(refLength, eN), eC);
@@ -853,15 +886,25 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     utV = nSub(uDiff, unV);
                     ut = nMag(utV);
 
-                    //friction velocity
-                    ustar = uTauCabot(cst->nu, ut, sc, 0.01, 0);
+                    Cmpnts tauWall = nSetZero();
 
-                    //shear force on ibm mesh element
-                    Cmpnts tauWall = nScale(eA * cst->rho * ustar * ustar, nUnit(utV));
+                    if(ibmBody->wallModelU != "Slip")
+                    {
+                        //friction velocity
+                        ustar = uTauCabot(cst->nu, ut, sc, 0.01, 0);
+
+                        //shear force on ibm mesh element
+                        tauWall = nScale(eA * cst->rho * ustar * ustar, nUnit(utV));
+
+                    }
 
                     //sum total pressure and viscous force
                     mSum(lForce[b], ibmBody->ibmPForce[e]);
-                    mSum(lForce[b], tauWall);
+
+                    if(ibmBody->wallModelU != "Slip")
+                    {
+                        mSum(lForce[b], tauWall);
+                    }
 
                     if(ibmBody->bodyMotion == "rotation")
                     {
@@ -870,8 +913,16 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                         //radius vector from the rotation center to the ibm mesh coordinate
                         Cmpnts rvec   = nSub(eC, ibmRot->rotCenter);
 
-                        Cmpnts pressureMoment = nCross(rvec, ibmBody->ibmPForce[e]);
-                        Cmpnts viscousMoment  = nCross(rvec, tauWall);
+                        Cmpnts pressureMoment = nCross(rvec, ibmBody->ibmPForce[e]), viscousMoment;
+
+                        if(ibmBody->wallModelU != "Slip")
+                        {
+                            viscousMoment  = nCross(rvec, tauWall);
+                        }
+                        else
+                        {
+                            viscousMoment  = nSetZero();
+                        }
 
                         //net moment per processor
                         mSum(lMoment[b], nSum(pressureMoment, viscousMoment));
@@ -914,6 +965,9 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
 
     MPI_Barrier(mesh->MESH_COMM);
 
@@ -937,7 +991,7 @@ PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressur
     PetscReal   timeInterval  = ibm->timeInterval;
     word        intervalType     = ibm->intervalType;
 
-    PetscReal   epsilon          = 1e-8;
+    PetscReal   epsilon          = 1e-6;
 
     word        timeName;
     word        elementForcePath, netForcePath;
@@ -1052,11 +1106,11 @@ PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressur
         (intervalType == "adjustableTime") &&
         (clock->time >= timeStart) &&
         (
-            (clock->time - timeStart) / timeInterval -
+            fabs((clock->time - timeStart) / timeInterval -
             std::floor
             (
                 (clock->time - timeStart) / timeInterval + epsilon
-            ) < 1e-10
+            )) < 1e-6
         )
     )
     {
@@ -1068,11 +1122,11 @@ PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressur
         (clock->it > 0) &&
         (intervalType == "timeStep") &&
         (
-            clock->it / timeInterval -
+            fabs(clock->it / timeInterval -
             std::floor
             (
-                clock->it / timeInterval
-            ) < 1e-10
+                clock->it / timeInterval + epsilon
+            )) < 1e-10
         )
     )
     {
@@ -1918,10 +1972,6 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          sb = nDot(nSub(cent[k][j][i], ibF[c].pMin), eNorm);
          sc = nDot(nSub(bPt, ibF[c].pMin), eNorm);
 
-         // ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
-         // ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
-         // ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
-
          if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
          {
              roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot->roughness;
@@ -1993,6 +2043,16 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                                          bPtVel, &ucat[k][j][i], &ustar, eNorm,
                                          dp_dx, dp_dy, dp_dz);
              }
+         }
+         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Slip")
+         {
+             slipBC(sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], eNorm);
+         }
+         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "NoSlip")
+         {
+             ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
+             ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
+             ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
          }
 
          if (flags->isTeqnActive)
@@ -3026,7 +3086,7 @@ PetscErrorCode initElementProjectionProcs(ibm_ *ibm)
                 PetscReal  distMinMag = 1e20;
                 cellIds    closestCell;
 
-                //loop through the ibm fluid cells
+                //loop through all the cells
                 for(c = 0; c < ibm->numIBMFluid; c++)
                 {
                     //cell indices
@@ -3346,7 +3406,7 @@ PetscErrorCode createProcessorBufferZones(ibm_ *ibm)
     PetscInt       mx = info.mx, my = info.my, mz = info.mz;
 
     PetscInt       lxs, lxe, lys, lye, lzs, lze;
-    PetscReal      buffer = 4.0;
+    PetscReal      buffer = 0.0;
     Vec            Coor;
     Cmpnts         ***coor;
 
@@ -3371,12 +3431,12 @@ PetscErrorCode createProcessorBufferZones(ibm_ *ibm)
         if(ibmBody->ibmControlled)
         {
             //set the inner buffer zone - 2 cell widths from the cell boundary
-            eBox->innerZone.xmin = coor[lzs+1 ][lys ][lxs ].x - buffer;
-            eBox->innerZone.xmax = coor[lze-3 ][lye-1 ][lxe-1 ].x + buffer;
-            eBox->innerZone.ymin = coor[lzs ][lys ][lxs+1 ].y - buffer;
-            eBox->innerZone.ymax = coor[lze-1 ][lye-1 ][lxe-3 ].y + buffer;
-            eBox->innerZone.zmin = coor[lzs ][lys+1 ][lxs ].z - buffer;
-            eBox->innerZone.zmax = coor[lze-1 ][lye-3 ][lxe-1 ].z + buffer;
+            eBox->innerZone.xmin = coor[lzs+1 ][lys ][lxs ].x + buffer;
+            eBox->innerZone.xmax = coor[lze-3 ][lye-1 ][lxe-1 ].x - buffer;
+            eBox->innerZone.ymin = coor[lzs ][lys ][lxs+1 ].y + buffer;
+            eBox->innerZone.ymax = coor[lze-1 ][lye-1 ][lxe-3 ].y - buffer;
+            eBox->innerZone.zmin = coor[lzs ][lys+1 ][lxs ].z + buffer;
+            eBox->innerZone.zmax = coor[lze-1 ][lye-3 ][lxe-1 ].z - buffer;
 
             eBox->innerZone.Lx = eBox->innerZone.xmax - eBox->innerZone.xmin;
             eBox->innerZone.Ly = eBox->innerZone.ymax - eBox->innerZone.ymin;
