@@ -1352,7 +1352,7 @@ Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
 
         // find rotation angle of the wind profile
         PetscReal theta = std::acos(ifPtr->Udir.x * U_r + ifPtr->Udir.y * V_r);
-		
+
         // rotate components
         U = std::cos(theta) * U_p - std::sin(theta) * V_p;
         V = std::sin(theta) * U_p + std::cos(theta) * V_p;

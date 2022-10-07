@@ -10,7 +10,7 @@ precone             0.0
 towerDir            (0.0 0.0 1.0)
 rotorDir            (-1.0 0.0 0.0)
 upTilt              0
-includeTower        1
+includeTower        0
 
 # Controllers 
 genControllerType   fiveRegionsNREL

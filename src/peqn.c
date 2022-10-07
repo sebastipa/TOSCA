@@ -1610,12 +1610,21 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 pCell.i = (PetscInt)pibmcell[Id.k][Id.j][Id.i].x;
                                 pCell.j = (PetscInt)pibmcell[Id.k][Id.j][Id.i].y;
                                 pCell.k = (PetscInt)pibmcell[Id.k][Id.j][Id.i].z;
+								
+								//interpolation cell is inside the processor. But the trilinear interpolation box cell is outside. Use pressure at interpolation cell
+                                if(pCell.i-1 < gxs || pCell.i+1 >= gxe || pCell.j-1 < gys || pCell.j+1 >= gye || pCell.k-1 < gzs || pCell.k+1 >= gze)
+                                {
+                                    inProcessor = 2;
+                                }
 
                                 //interpolation cell is outside the processor. Cannot interpolate or use the pressure at this cell
                                 if(pCell.i < gxs || pCell.i >= gxe || pCell.j < gys || pCell.j >= gye || pCell.k < gzs || pCell.k >= gze)
                                 {
                                     inProcessor = 0;
                                 }
+								
+								// note: inProcessor = 0 must be set after inProcessor = 2, because if a cell is outside its box will also be outside, then 
+								// it will give segmentation when looking for the nearest interpolation
 
                                 //interpolation cell is inside the processor. But the trilinear interpolation box cell is outside. Use pressure at interpolation cell
                                 if(pCell.i-1 < gxs || pCell.i+1 >= gxe || pCell.j-1 < gys || pCell.j+1 >= gye || pCell.k-1 < gzs || pCell.k+1 >= gze)

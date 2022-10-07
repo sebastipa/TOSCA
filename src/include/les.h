@@ -8,11 +8,17 @@
 struct les_
 {
     PetscReal     maxCs;
+
     // Dynamic Smagorisnky
     Vec           lSx, lSy, lSz, lS;
     Vec           lLM, lMM;
     Vec           lLM_old, lMM_old;
     Vec           lCs;
+
+    // Scale dependent model
+    Vec           lN;
+    Vec           lCh;
+    Vec           L;                       //!< length scale
 
     // kEquation
 

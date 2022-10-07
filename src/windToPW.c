@@ -178,6 +178,9 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
           averageFieldsInitialize(domain[d].acquisition);
           averageKEBudgetsInitialize(domain[d].acquisition);
           perturbationABLInitialize(domain[d].acquisition);
+
+          // temporary (eliminate for 3LM fields)
+          acquisition->isAverage3LMActive = 0;
       }
 
       PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
@@ -468,6 +471,21 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             "cs",
             domain->les->lCs
         );
+
+        if(domain->flags.isLesActive == 2)
+        {
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "sgsL",
+                domain->les->L
+            );
+        }
     }
 
     if(domain->flags.isTeqnActive)

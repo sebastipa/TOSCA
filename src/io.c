@@ -323,6 +323,16 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         // destroy vectors
         VecDestroy(&Cs);
         VecDestroy(&Nut);
+
+        if(domain->flags.isLesActive == 2)
+        {
+            PetscPrintf(mesh->MESH_COMM, "Reading sgsL...\n");
+            field = "/sgsL";
+            fileName = location + field;
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(les->L, viewer);
+            PetscViewerDestroy(&viewer);
+        }
     }
 
     // scatter fields
@@ -1836,6 +1846,12 @@ PetscErrorCode writeFields(io_ *io)
 
             VecDestroy(&Cs);
             VecDestroy(&Nut);
+
+            if(flags->isLesActive == 2)
+            {
+                fieldName = timeName + "/sgsL";
+                writeBinaryField(mesh->MESH_COMM, les->L, fieldName.c_str());
+            }
 
             MPI_Barrier(mesh->MESH_COMM);
         }

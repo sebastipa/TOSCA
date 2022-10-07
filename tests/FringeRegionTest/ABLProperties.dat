@@ -36,26 +36,36 @@ smearT 0.5
 coriolisActive 1
 controllerActive 1
 
+controllerProperties
+{
+    # Velocity controller type (computed->pressure/geostrphic, given->read/average)
+    controllerType pressure
+
+    # Velocity controller gain factor 
+    relaxPI 0.7
+
+    # Velocity controller proportional over integral contribution ratio
+    alphaPI 0.9
+
+    # Velocity controller time filter
+    timeWindowPI 3600
+
+    # Velocity controller max height of influence 
+    controllerMaxHeight 100000.0
+    
+    # Start time for the given momentum source average (only controller type 'average')
+    controllerAvgStartTime 20010
+    
+    # Geostrophic height
+    hGeo 900
+    
+    # Geostrophic angle
+    alphaGeo 0
+
+}
+
 # Coriolis parameter: 7.272205217e-5 * sin(latitude)
 fCoriolis 5.156303966e-5
-
-# Velocity controller type (computed->write, given->read/average)
-controllerType average
-
-# Start time for the given momentum source average
-controllerAvgStartTime 9000
-
-# Velocity controller gain factor 
-relaxPI 0.7
-
-# Velocity controller proportional over integral contribution ratio
-alphaPI 0.9
-
-# Velocity controller integral part time window
-timeWindowPI 3600
-
-# Velocity controller max height of influence 
-controllerHeight 100000.0
 
 # Fringe layers properties (activate in the control.dat - zDampingLayer = 1, xDampingLayer = 1)
 zDampingProperties

@@ -266,9 +266,10 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
     DMDAVecGetArray(fda, ueqn->sourceU, &source);
+    DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
 
     // compute source terms using the velocity controller
-    if(abl->controllerType=="write")
+    if(abl->controllerType=="pressure")
     {
         PetscReal     relax = abl->relax;
         PetscReal     alpha = abl->alpha;
@@ -279,7 +280,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         uDes.y = 0.0;
         uDes.z = 0.0;
 
-        DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
         DMDAVecGetArray(da, mesh->lAj, &aj);
 
         // find the first two closest levels
@@ -312,7 +312,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             }
         }
 
-        DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
         DMDAVecRestoreArray(da, mesh->lAj, &aj);
 
         MPI_Allreduce(&luMean1, &guMean1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
@@ -406,6 +405,147 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 fclose(fp);
             }
         }
+    }
+    // compute source terms using the velocity controller
+    if(abl->controllerType=="geostrophic")
+    {
+        PetscReal     relax = abl->relax;
+        PetscReal     alpha = abl->alpha;
+        PetscReal     T     = abl->timeWindow;
+
+        DMDAVecGetArray(da, mesh->lAj, &aj);
+
+        // find the first two closest levels
+        PetscReal nLevels = my-2;
+
+        Cmpnts luMean1; luMean1.x = 0.0; luMean1.y = 0.0; luMean1.z = 0.0;
+        Cmpnts luMean2; luMean2.x = 0.0; luMean2.y = 0.0; luMean2.z = 0.0;
+        Cmpnts guMean1; guMean1.x = 0.0; guMean1.y = 0.0; guMean1.z = 0.0;
+        Cmpnts guMean2; guMean2.x = 0.0; guMean2.y = 0.0; guMean2.z = 0.0;
+        Cmpnts luMeanGeo1; luMeanGeo1.x = 0.0; luMeanGeo1.y = 0.0; luMeanGeo1.z = 0.0;
+        Cmpnts luMeanGeo2; luMeanGeo2.x = 0.0; luMeanGeo2.y = 0.0; luMeanGeo2.z = 0.0;
+        Cmpnts guMeanGeo1; guMeanGeo1.x = 0.0; guMeanGeo1.y = 0.0; guMeanGeo1.z = 0.0;
+        Cmpnts guMeanGeo2; guMeanGeo2.x = 0.0; guMeanGeo2.y = 0.0; guMeanGeo2.z = 0.0;
+
+        for (k=zs; k<lze; k++)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    if(j==abl->closestLabels[0])
+                    {
+                        luMean1.x += ucat[k][j][i].x / aj[k][j][i];
+                        luMean1.y += ucat[k][j][i].y / aj[k][j][i];
+                        luMean1.z += ucat[k][j][i].z / aj[k][j][i];
+                    }
+                    else if(j==abl->closestLabels[1])
+                    {
+                        luMean2.x += ucat[k][j][i].x / aj[k][j][i];
+                        luMean2.y += ucat[k][j][i].y / aj[k][j][i];
+                        luMean2.z += ucat[k][j][i].z / aj[k][j][i];
+                    }
+
+                    if(j==abl->closestLabelsGeo[0])
+                    {
+                        luMeanGeo1.x += ucat[k][j][i].x / aj[k][j][i];
+                        luMeanGeo1.y += ucat[k][j][i].y / aj[k][j][i];
+                        luMeanGeo1.z += ucat[k][j][i].z / aj[k][j][i];
+                    }
+                    else if(j==abl->closestLabelsGeo[1])
+                    {
+                        luMeanGeo2.x += ucat[k][j][i].x / aj[k][j][i];
+                        luMeanGeo2.y += ucat[k][j][i].y / aj[k][j][i];
+                        luMeanGeo2.z += ucat[k][j][i].z / aj[k][j][i];
+                    }
+                }
+            }
+        }
+
+        DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+        MPI_Allreduce(&luMean1, &guMean1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+        MPI_Allreduce(&luMean2, &guMean2, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+        MPI_Allreduce(&luMeanGeo1, &guMeanGeo1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+        MPI_Allreduce(&luMeanGeo2, &guMeanGeo2, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+        guMean1.x = guMean1.x / abl->totVolPerLevel[abl->closestLabels[0]-1];
+        guMean1.y = guMean1.y / abl->totVolPerLevel[abl->closestLabels[0]-1];
+        guMean1.z = guMean1.z / abl->totVolPerLevel[abl->closestLabels[0]-1];
+        guMean2.x = guMean2.x / abl->totVolPerLevel[abl->closestLabels[1]-1];
+        guMean2.y = guMean2.y / abl->totVolPerLevel[abl->closestLabels[1]-1];
+        guMean2.z = guMean2.z / abl->totVolPerLevel[abl->closestLabels[1]-1];
+
+        guMeanGeo1.x = guMeanGeo1.x / abl->totVolPerLevel[abl->closestLabelsGeo[0]-1];
+        guMeanGeo1.y = guMeanGeo1.y / abl->totVolPerLevel[abl->closestLabelsGeo[0]-1];
+        guMeanGeo1.z = guMeanGeo1.z / abl->totVolPerLevel[abl->closestLabelsGeo[0]-1];
+        guMeanGeo2.x = guMeanGeo2.x / abl->totVolPerLevel[abl->closestLabelsGeo[1]-1];
+        guMeanGeo2.y = guMeanGeo2.y / abl->totVolPerLevel[abl->closestLabelsGeo[1]-1];
+        guMeanGeo2.z = guMeanGeo2.z / abl->totVolPerLevel[abl->closestLabelsGeo[1]-1];
+
+        Cmpnts uMean, uMeanGeo;
+
+        uMean.x = guMean1.x * abl->levelWeights[0] + guMean2.x * abl->levelWeights[1];
+        uMean.y = guMean1.y * abl->levelWeights[0] + guMean2.y * abl->levelWeights[1];
+        uMean.z = guMean1.z * abl->levelWeights[0] + guMean2.z * abl->levelWeights[1];
+
+        uMeanGeo.x = guMeanGeo1.x * abl->levelWeightsGeo[0] + guMeanGeo2.x * abl->levelWeightsGeo[1];
+        uMeanGeo.y = guMeanGeo1.y * abl->levelWeightsGeo[0] + guMeanGeo2.y * abl->levelWeightsGeo[1];
+        uMeanGeo.z = guMeanGeo1.z * abl->levelWeightsGeo[0] + guMeanGeo2.z * abl->levelWeightsGeo[1];
+
+        if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
+
+        // compute actual angles
+        PetscReal hubAngle    = std::atan(uMean.y/uMean.x);
+        PetscReal geoAngleNew = std::atan(uMeanGeo.y/uMeanGeo.x);
+
+        // compute filtered hub angle
+        abl->hubAngle = (1.0 - clock->dt / T) * abl->hubAngle + (clock->dt / T) * hubAngle;
+
+        // compute filtered geostrophic angle
+        abl->geoAngle = (1.0 - clock->dt / T) * abl->geoAngle + (clock->dt / T) * geoAngleNew;
+
+        // compute the uniform source terms
+        abl->a.x = -abl->fc*nMag(abl->uGeoBar)*sin(abl->geoAngle);
+        abl->a.y =  abl->fc*nMag(abl->uGeoBar)*cos(abl->geoAngle);
+        abl->a.z =  0.0;
+
+        if(!relax)
+        {
+            abl->b.x = 0.0;
+            abl->b.y = 0.0;
+            abl->b.z = 0.0;
+        }
+        else
+        {
+            // compute previous geostrophic angle and delta angle w.r.t actual
+            PetscReal geoAngleOld = std::atan(abl->uGeoBar.y/abl->uGeoBar.x);
+            PetscReal geoDelta    = geoAngleNew - geoAngleOld;
+
+            // compute rotation angle at hub height
+            PetscReal hubDelta = hubAngle;
+            PetscReal omega    = hubDelta / clock->dt;
+
+            // time constant 
+            PetscReal sigma    = clock->dt / 200;
+
+            // compute omega bar
+            abl->omegaBar    = sigma * omega + (1.0 - sigma) * abl->omegaBar;
+
+            // rotate geostrophic speed
+            Cmpnts uGeoBarTmp = nSetZero();
+            uGeoBarTmp.x = std::cos(geoDelta) * abl->uGeoBar.x - std::sin(geoDelta) * abl->uGeoBar.y;
+            uGeoBarTmp.y = std::sin(geoDelta) * abl->uGeoBar.x + std::cos(geoDelta) * abl->uGeoBar.y;
+            mSet(abl->uGeoBar, uGeoBarTmp);
+
+            abl->b.x =   relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
+            abl->b.y = - relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
+            abl->b.z =   0.0;
+        }
+
+        if(print) PetscPrintf(mesh->MESH_COMM, "                         avg mag U at hRef = %lf m/s, hubAngle = %lf deg, geoAngle = %lf deg, omegaFilt = %lf rad/s\n", nMag(uMean), abl->hubAngle*180/M_PI, abl->geoAngle*180/M_PI, abl->omegaBar);
+        if(print) PetscPrintf(mesh->MESH_COMM, "                         U geo: (%.3f %.3f %.3f), U hub: (%.3f %.3f %.3f)\n", abl->uGeoBar.x,abl->uGeoBar.y,abl->uGeoBar.z, uMean.x, uMean.y, uMean.z);
+
     }
     else if(abl->controllerType=="read")
     {
@@ -510,11 +650,20 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         {
             for (i=xs; i<lxe; i++)
             {
-                if(cent[k][j][i].z <= abl->controllerHeight)
+                if(cent[k][j][i].z <= abl->controllerMaxHeight)
                 {
-                    source[k][j][i].x = s.x;
-                    source[k][j][i].y = s.y;
-                    source[k][j][i].z = s.z;
+                    if(abl->controllerType=="geostrophic")
+                    {
+                        source[k][j][i].x = abl->a.x + abl->b.x*ucat[k][j][i].y;
+                        source[k][j][i].y = abl->a.y + abl->b.y*ucat[k][j][i].x;
+                        source[k][j][i].z = 0.0;
+                    }
+                    else
+                    {
+                        source[k][j][i].x = s.x;
+                        source[k][j][i].y = s.y;
+                        source[k][j][i].z = s.z;
+                    }
                 }
                 else
                 {
@@ -528,6 +677,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     DMDAVecRestoreArray(fda, ueqn->sourceU, &source);
+    DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
 
     return(0);
 }
@@ -1085,24 +1235,24 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         for (i=lxs; i<lxe; i++)
                         {
                             // velocity values at fringe start in successor domain (two levels to interpolate)
-                            if(j == abl->closestLabels[0] && k == precursor->map.kStart + 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
+                            if(j == abl->closestLabelsFringe[0] && k == precursor->map.kStart + 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
                             {
                                 lsumStart1 += ucat[k][j][i].y;
                                 lcountStart1 ++;
                             }
-                            else if(j==abl->closestLabels[1] && k == precursor->map.kStart + 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
+                            else if(j==abl->closestLabelsFringe[1] && k == precursor->map.kStart + 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
                             {
                                 lsumStart2 += ucat[k][j][i].y;
                                 lcountStart2 ++;
                             }
 
                             // velocity values at fringe end in successor domain (two levels to interpolate)
-                            else if(j == abl->closestLabels[0] && k == precursor->map.kEnd - 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
+                            else if(j == abl->closestLabelsFringe[0] && k == precursor->map.kEnd - 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
                             {
                                 lsumEnd1 += ucat[k][j][i].y;
                                 lcountEnd1 ++;
                             }
-                            else if(j==abl->closestLabels[1] && k == precursor->map.kEnd - 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
+                            else if(j==abl->closestLabelsFringe[1] && k == precursor->map.kEnd - 1 && cent[k][j][i].y >= abl->xDampingLineSamplingYmin && cent[k][j][i].y <= abl->xDampingLineSamplingYmax)
                             {
                                 lsumEnd2 += ucat[k][j][i].y;
                                 lcountEnd2 ++;
@@ -1112,13 +1262,13 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             if(precursor->thisProcessorInFringe)
                             {
                                 // stay within the precursor processor bounds (boundary procs could have less cells)
-                                if(j == precursor->domain->abl->closestLabels[0] && k >= kStart && k <= kEnd)
+                                if(j == precursor->domain->abl->closestLabelsFringe[0] && k >= kStart && k <= kEnd)
                                 {
                                     lsum1 += ucatP[k-kStart][j][i].y;
                                     lcount1 ++;
                                 }
                                 // stay within the precursor processor bounds (boundary procs could have less cells)
-                                else if(j == precursor->domain->abl->closestLabels[1] && k >= kStart && k <= kEnd)
+                                else if(j == precursor->domain->abl->closestLabelsFringe[1] && k >= kStart && k <= kEnd)
                                 {
                                     lsum2 += ucatP[k-kStart][j][i].y;
                                     lcount2 ++;
@@ -1159,9 +1309,9 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 gsum1      = gsum1      / gcount1;
                 gsum2      = gsum2      / gcount2;
 
-                PetscReal vStart   = gsumStart1 * abl->levelWeights[0] + gsumStart2 * abl->levelWeights[1];
-                PetscReal vEnd     = gsumEnd1   * abl->levelWeights[0] + gsumEnd2   * abl->levelWeights[1];
-                PetscReal vBarPrec = gsum1      * abl->levelWeights[0] + gsum2      * abl->levelWeights[1];
+                PetscReal vStart   = gsumStart1 * abl->levelWeightsFringe[0] + gsumStart2 * abl->levelWeightsFringe[1];
+                PetscReal vEnd     = gsumEnd1   * abl->levelWeightsFringe[0] + gsumEnd2   * abl->levelWeightsFringe[1];
+                PetscReal vBarPrec = gsum1      * abl->levelWeightsFringe[0] + gsum2      * abl->levelWeightsFringe[1];
 
                 // if first iteration initialize abl->vStart and abl->vEnd after computing instantaneous values for the first time
                 if(clock->it == 0)
@@ -1493,7 +1643,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         abl->xFringeUBarSelectionType == 0 ||
                         abl->xFringeUBarSelectionType == 1 ||
                         abl->xFringeUBarSelectionType == 2 ||
-                        abl->xFringeUBarSelectionType == 4     
+                        abl->xFringeUBarSelectionType == 4
                     )
                     {
                         Cmpnts uBarInstX  = nSet(abl->uBarInstX[j][i]);

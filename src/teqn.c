@@ -658,19 +658,21 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     Cmpnts        ***div, ***visc;                                                // divergence and viscous terms
     Cmpnts        ***limiter;                                                     // flux limiter
     PetscReal     ***aj, ***iaj, ***jaj, ***kaj;                                  // cell and face jacobians
-    PetscReal     ***lnu_t;
+    PetscReal     ***lnu_t, ***Sabs, ***lch, ***lcs;
 
     PetscReal     dtdc, dtde, dtdz;                                              // velocity der. w.r.t. curvil. coords
     PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;          // surface area vectors components
     PetscReal     g11, g21, g31;                                                 // metric tensor components
 
+    PetscReal     tRef = teqn->access->abl->tRef;
+
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    DMDAVecGetArray(da,  Rhs,              &rhs);
+    DMDAVecGetArray(da,  Rhs,               &rhs);
     DMDAVecGetArray(da,  teqn->lTmprt,      &tmprt);
-    DMDAVecGetArray(fda, ueqn->lUcont,     &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcont,      &ucont);
 
     DMDAVecGetArray(fda, mesh->lCsi,        &csi);
     DMDAVecGetArray(fda, mesh->lEta,        &eta);
@@ -698,9 +700,18 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, teqn->lDivT, &div);
     DMDAVecGetArray(fda, teqn->lViscT, &visc);
 
-    if(teqn->access->flags->isLesActive)
+    if (teqn->access->flags->isLesActive)
     {
-        DMDAVecGetArray(da, les->lNu_t, &lnu_t);
+        if(teqn->access->flags->isLesActive != 2)
+        {
+            DMDAVecGetArray(da, les->lNu_t, &lnu_t);
+        }
+        else
+        {
+            DMDAVecGetArray(da,  les->lS,  &Sabs);
+            DMDAVecGetArray(da,  les->lCh, &lch);
+            DMDAVecGetArray(da,  les->lCs, &lcs);
+        }
     }
 
     // ---------------------------------------------------------------------- //
@@ -793,34 +804,56 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
-                    if(isIBMCell(k, j, i, nvert))
+                    if(teqn->access->flags->isLesActive != 2)
                     {
-                        nut = lnu_t[k][j][i+1];
-                    }
-                    else if (isIBMCell(k, j, i+1, nvert))
-                    {
-                        nut = lnu_t[k][j][i];
+                        if(isIBMCell(k, j, i, nvert))
+                        {
+                            nut = lnu_t[k][j][i+1];
+                        }
+                        else if (isIBMCell(k, j, i+1, nvert))
+                        {
+                            nut = lnu_t[k][j][i];
+                        }
+                        else
+                        {
+                            nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
+                        }
+
+                        // compute stability dependent turbulent Prandtl number
+                        PetscReal gradTdotG = dtde*(-9.81);
+                        PetscReal l, delta = pow( 1./ajc, 1./3. );
+                        if(gradTdotG < 0.)
+                        {
+                            l = PetscMin(delta, 0.76*std::sqrt(tRef / std::fabs(gradTdotG)));
+                        }
+                        else
+                        {
+                            l = delta;
+                        }
+
+                        PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
+                        kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }
                     else
                     {
-                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
+                        if(isIBMCell(k, j, i, nvert))
+                        {
+                            kappaEff = (nu / cst->Pr) + lch[k][j][i+1] / 0.1 * Sabs[k][j][i+1] * lcs[k][j][i+1] * pow(1.0 / ajc, 1.0/3.0);
+                        }
+                        else if (isIBMCell(k, j, i+1, nvert))
+                        {
+                            kappaEff = (nu / cst->Pr) + lch[k][j][i] / 0.1 * Sabs[k][j][i] * lcs[k][j][i] * pow(1.0 / ajc, 1.0/3.0);
+                        }
+                        else
+                        {
+                            kappaEff = (nu / cst->Pr) + 0.5 *
+                            (
+                                lch[k][j][i+1] / 0.1 * Sabs[k][j][i+1] * lcs[k][j][i+1] +
+                                lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
+                            ) * pow(1.0 / ajc, 1.0/3.0);
+                        }
                     }
-
-                    // compute stability dependent turbulent Prandtl number
-                    PetscReal gradTdotG = dtde*(-9.81);
-                    PetscReal l, delta = pow( 1./ajc, 1./3. );
-                    if(gradTdotG < 0.)
-                    {
-                        l = PetscMin(delta, 0.76*std::sqrt(300 / std::fabs(gradTdotG)));
-                    }
-                    else
-                    {
-                        l = delta;
-                    }
-
-                    PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                    kappaEff = (nu / cst->Pr) + (nut / Prt);
 
                     // wall model i-left/right patch
                     if
@@ -939,34 +972,56 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
-                    if(isIBMCell(k, j, i, nvert))
+                    if(teqn->access->flags->isLesActive != 2)
                     {
-                        nut = lnu_t[k][j+1][i];
-                    }
-                    else if (isIBMCell(k, j+1, i, nvert))
-                    {
-                        nut = lnu_t[k][j][i];
+                        if(isIBMCell(k, j, i, nvert))
+                        {
+                            nut = lnu_t[k][j+1][i];
+                        }
+                        else if (isIBMCell(k, j+1, i, nvert))
+                        {
+                            nut = lnu_t[k][j][i];
+                        }
+                        else
+                        {
+                            nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
+                        }
+
+                        // compute stability depentend turbulent Prandtl number
+                        PetscReal gradTdotG = dtde*(-9.81);
+                        PetscReal l, delta = pow( 1./ajc, 1./3. );
+                        if(gradTdotG < 0.)
+                        {
+                            l = PetscMin(delta, 0.76*std::sqrt(tRef / std::fabs(gradTdotG)));
+                        }
+                        else
+                        {
+                            l = delta;
+                        }
+
+                        PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
+                        kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }
                     else
                     {
-                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
+                        if(isIBMCell(k, j, i, nvert))
+                        {
+                            kappaEff = (nu / cst->Pr) + lch[k][j+1][i] / 0.1 * Sabs[k][j+1][i] * lcs[k][j+1][i] * pow(1.0 / ajc, 1.0/3.0);
+                        }
+                        else if (isIBMCell(k, j+1, i, nvert))
+                        {
+                            kappaEff = (nu / cst->Pr) + lch[k][j][i] / 0.1 * Sabs[k][j][i] * lcs[k][j][i] * pow(1.0 / ajc, 1.0/3.0);
+                        }
+                        else
+                        {
+                            kappaEff = (nu / cst->Pr) + 0.5 *
+                            (
+                                lch[k][j+1][i] / 0.1 * Sabs[k][j+1][i] * lcs[k][j+1][i] +
+                                lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
+                            ) * pow(1.0 / ajc, 1.0/3.0);
+                        }
                     }
-
-                    // compute stability depentend turbulent Prandtl number
-                    PetscReal gradTdotG = dtde*(-9.81);
-                    PetscReal l, delta = pow( 1./ajc, 1./3. );
-                    if(gradTdotG < 0.)
-                    {
-                        l = PetscMin(delta, 0.76*std::sqrt(300 / std::fabs(gradTdotG)));
-                    }
-                    else
-                    {
-                        l = delta;
-                    }
-
-                    PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                    kappaEff = (nu / cst->Pr) + (nut / Prt);
 
                     // wall model j-left patch
                     if
@@ -1086,34 +1141,56 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
-                    if(isIBMCell(k, j, i, nvert))
+                    if(teqn->access->flags->isLesActive != 2)
                     {
-                        nut = lnu_t[k+1][j][i];
-                    }
-                    else if (isIBMCell(k+1, j, i, nvert))
-                    {
-                        nut = lnu_t[k][j][i];
+                        if(isIBMCell(k, j, i, nvert))
+                        {
+                            nut = lnu_t[k+1][j][i];
+                        }
+                        else if (isIBMCell(k+1, j, i, nvert))
+                        {
+                            nut = lnu_t[k][j][i];
+                        }
+                        else
+                        {
+                            nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
+                        }
+
+                        // compute stability depentend turbulent Prandtl number
+                        PetscReal gradTdotG = dtde*(-9.81);
+                        PetscReal l, delta = pow( 1./ajc, 1./3. );
+                        if(gradTdotG < 0.)
+                        {
+                            l = PetscMin(delta, 0.76*std::sqrt(tRef / std::fabs(gradTdotG)));
+                        }
+                        else
+                        {
+                            l = delta;
+                        }
+
+                        PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
+                        kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }
                     else
                     {
-                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
+                        if(isIBMCell(k, j, i, nvert))
+                        {
+                            kappaEff = (nu / cst->Pr) + lch[k+1][j][i] / 0.1 * Sabs[k+1][j][i] * lcs[k+1][j][i] * pow(1.0 / ajc, 1.0/3.0);
+                        }
+                        else if (isIBMCell(k+1, j, i, nvert))
+                        {
+                            kappaEff = (nu / cst->Pr) + lch[k][j][i] / 0.1 * Sabs[k][j][i] * lcs[k][j][i] * pow(1.0 / ajc, 1.0/3.0);
+                        }
+                        else
+                        {
+                            kappaEff = (nu / cst->Pr) + 0.5 *
+                            (
+                                lch[k+1][j][i] / 0.1 * Sabs[k+1][j][i] * lcs[k+1][j][i] +
+                                lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
+                            ) * pow(1.0 / ajc, 1.0/3.0);
+                        }
                     }
-
-                    // compute stability depentend turbulent Prandtl number
-                    PetscReal gradTdotG = dtde*(-9.81);
-                    PetscReal l, delta = pow( 1./ajc, 1./3. );
-                    if(gradTdotG < 0.)
-                    {
-                        l = PetscMin(delta, 0.76*std::sqrt(300 / std::fabs(gradTdotG)));
-                    }
-                    else
-                    {
-                        l = delta;
-                    }
-
-                    PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                    kappaEff = (nu / cst->Pr) + (nut / Prt);
                 }
                 else
                 {
@@ -1175,7 +1252,16 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
     if(teqn->access->flags->isLesActive)
     {
-        DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
+        if(teqn->access->flags->isLesActive != 2)
+        {
+            DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
+        }
+        else
+        {
+            DMDAVecRestoreArray(da,  les->lS,  &Sabs);
+            DMDAVecRestoreArray(da,  les->lCh, &lch);
+            DMDAVecRestoreArray(da,  les->lCs, &lcs);
+        }
     }
 
     DMDAVecRestoreArray(fda, teqn->lDivT,       &div);

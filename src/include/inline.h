@@ -190,7 +190,7 @@ inline complex hypergeom(complex a, complex b, complex c, PetscReal z)
 	{
 		return(complex(1e20,0.0));
 	}
-	
+
     PetscReal epsilon = 1e-15;
     complex   term    = complex(1.0,0.0),
               result  = complex(1.0,0.0);
