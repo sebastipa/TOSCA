@@ -8,6 +8,7 @@ struct abl_
 {
     // flags
     PetscInt     controllerActive;               //!< activate velocity controller
+    PetscInt     controllerActiveT;              //!< activate temperature controller
     PetscInt     coriolisActive;                 //!< activate coriolis force
     // physical quantities
     PetscReal    uTau;                           //!< friction Velocity
@@ -25,6 +26,9 @@ struct abl_
     PetscReal    fc;                             //!< Coriolis parameter (omegaEarth * sin(latitude) = 7.292115e-5 * sin(latitude))
 
     PetscReal   *cellLevels;                     //!< heights of the averaging planes
+
+    // temperature controller
+    PetscReal    *tDes;                          //!< initial temperature to be maintained
 
     // velocity controller (common)
     word         controllerType;                 //!< velocity controller type: write/read (writes in postProcessing/momentumSource, reads from momentumSource)
@@ -93,6 +97,13 @@ struct abl_
     Cmpnts       **uBarInstX;                    //!< array storing the instantaneous velocity field for x damping layer
     PetscReal    **tBarInstX;                    //!< array storing the instantaneous temperature field for x damping layer
     PetscInt     **nProcsKLine;                  //!< number of processors in each k-line, used to average after MPI_Allreduce
+
+    // for spread inflow fringe region
+    Cmpnts       *uBarAvgTopX;                   //!< velocity average from inflow database at top 5 points
+    Cmpnts        uBarTopX;                      //!< average of the above vector
+    PetscReal    *tBarAvgTopX;                   //!< temperature average from inflow database at top 5 points
+    PetscReal    avgTopDelta;                    //!< length of the five top cells
+    PetscReal    avgTopLength;                   //!< height of the inflow slices
 
     // side force for fringe region testing
     PetscReal    xStartSideF, xEndSideF;         //!< x start and ending coordinates of the region where the side force is applied

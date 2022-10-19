@@ -68,6 +68,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
     readDictDouble("ABLProperties.dat", "smearT",           &(abl->smear));
     readDictInt   ("ABLProperties.dat", "coriolisActive",   &(abl->coriolisActive));
     readDictInt   ("ABLProperties.dat", "controllerActive", &(abl->controllerActive));
+    readDictInt   ("ABLProperties.dat", "controllerActiveT",&(abl->controllerActiveT));
 
     if(abl->coriolisActive)
     {
@@ -148,6 +149,19 @@ PetscErrorCode InitializeABL(abl_ *abl)
     if(abl->controllerActive)
     {
         PetscPrintf(mesh->MESH_COMM, "   reading driving controller properties\n");
+
+        if(abl->controllerActiveT)
+        {
+            PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
+
+            for(l=0; l<nLevels; l++)
+            {
+                abl->tDes[l] = 0.0;
+            }
+
+            // read proportional controller relaxation factor (same as the velocity one)
+            readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
+        }
 
         readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerMaxHeight", &(abl->controllerMaxHeight));
         readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerType",   &(abl->controllerType));
@@ -560,7 +574,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // set inflowFunction internal uBarSelectionType
             ifPtr->typeU = abl->xFringeUBarSelectionType;
 
-            // steady prescribed ubar
+            // steady prescribed ubar with no wind veer
             if(ifPtr->typeU == 0)
             {
                 // set tBarSelectionType the same as uBarSelectionType
@@ -579,6 +593,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 // temperature properties: already stored in the abl struct
             }
+            // steady prescribed uBar with wind veer
             else if(ifPtr->typeU == 4)
             {
                 // set tBarSelectionType the same as uBarSelectionType
@@ -603,6 +618,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // unsteady mapped ubar
             else if (ifPtr->typeU == 1)
             {
+                PetscPrintf(mesh->MESH_COMM, "   - damping type 1: averaging inflow at 5 top cells...");
+
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 1;
                 ifPtr->mapT   = 1;
@@ -624,10 +641,113 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 // initialize inflow data
                 mappedInflowInitialize(ifPtr);
+
+                // top average to avoid top oscillations
+                PetscMalloc(5*sizeof(Cmpnts),    &(abl->uBarAvgTopX));
+                PetscMalloc(5*sizeof(PetscReal), &(abl->tBarAvgTopX));
+
+                for(j=0; j<5; j++)
+                {
+                    mSetValue(abl->uBarAvgTopX[j], 0.0);
+                    abl->tBarAvgTopX[j] = 0.0;
+                }
+
+                abl->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
+                abl->avgTopDelta  = 5.0 * ifPtr->width1;
+
+                // variable to store inflow function data
+                std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
+                std::vector<std::vector<PetscReal>> t_plane_tmp(ifPtr->n1wg);
+
+                // set to zero
+                for(j=0; j<ifPtr->n1wg; j++)
+                {
+                    ucat_plane_tmp[j].resize(ifPtr->n2wg);
+                    t_plane_tmp[j].resize(ifPtr->n2wg);
+
+                    for(i=0; i<ifPtr->n2wg; i++)
+                    {
+                        mSetValue(ucat_plane_tmp[j][i], 0.0);
+                        t_plane_tmp[j][i] = 0.0;
+                    }
+                }
+
+                PetscInt ti, nAvg;
+                PetscReal ntimes = std::min(ifPtr->inflowT.nInflowTimes, ifPtr->inflowU.nInflowTimes);
+                word fname_U, fname_T;
+
+                for(ti=0; ti<ntimes; ti++)
+                {
+                    fname_U = "inflowDatabase/U/" + getArbitraryTimeName(abl->access->clock, ifPtr->inflowU.inflowTimes[ti]);
+                    fname_T = "inflowDatabase/T/" + getArbitraryTimeName(abl->access->clock, ifPtr->inflowT.inflowTimes[ti]);
+
+                    // open the two inflow files and read
+                    FILE *fp_U = fopen(fname_U.c_str(), "rb");
+                    FILE *fp_T = fopen(fname_T.c_str(), "rb");
+
+                    if(!fp_U || !fp_T)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open files:\n    %s\n    %s\n", fname_U.c_str(), fname_T.c_str());
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    }
+
+                    for(j=0; j<ifPtr->n1wg; j++)
+                    {
+                        PetscInt err1, err2;
+                        err1 = fread(&(ucat_plane_tmp[j][0]), sizeof(Cmpnts), ifPtr->n2wg, fp_U);
+                        err2 = fread(&(t_plane_tmp[j][0]), sizeof(PetscReal), ifPtr->n2wg, fp_T);
+                    }
+
+                    fclose(fp_U);
+                    fclose(fp_T);
+
+                    // now average the top 5 cells (exclude ghosts)
+                    PetscInt jAvg = 0;
+                    for(j=ifPtr->n1wg-6; j<ifPtr->n1wg-1; j++)
+                    {
+                        for(i=1; i<ifPtr->n2; i++)
+                        {
+                            mSum(abl->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
+                            abl->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                        }
+
+                        jAvg++;
+                    }
+                }
+
+                // number of data summed per level (ntimes times n levels in direction 2)
+                nAvg  = ifPtr->n2 * ntimes;
+
+                PetscPrintf(mesh->MESH_COMM, "done\n");
+
+                // now average the top 5 cells (exclude ghosts)
+                for(j=0; j<5; j++)
+                {
+                    mScale(1.0/nAvg, abl->uBarAvgTopX[j]);
+                    abl->tBarAvgTopX[j] /= nAvg;
+                    PetscPrintf(mesh->MESH_COMM, "   - Uavg[%ld] = (%.2f %.2f %.2f) m/s, thetaAvg = %.2f K\n", j, abl->uBarAvgTopX[j].x, abl->uBarAvgTopX[j].y, abl->uBarAvgTopX[j].z, abl->tBarAvgTopX[j]);
+                }
+
+                // temporary (basically forces zero gradient at the top for velocity)
+                mSet(abl->uBarAvgTopX[4], abl->uBarAvgTopX[3]);
+
+                // average in the vertical direction
+                abl->uBarTopX.x = 1.0 / 5.0 * (abl->uBarAvgTopX[0].x + abl->uBarAvgTopX[1].x + abl->uBarAvgTopX[2].x + abl->uBarAvgTopX[3].x + abl->uBarAvgTopX[4].x);
+                abl->uBarTopX.y = 1.0 / 5.0 * (abl->uBarAvgTopX[0].y + abl->uBarAvgTopX[1].y + abl->uBarAvgTopX[2].y + abl->uBarAvgTopX[3].y + abl->uBarAvgTopX[4].y);
+                abl->uBarTopX.z = 1.0 / 5.0 * (abl->uBarAvgTopX[0].z + abl->uBarAvgTopX[1].z + abl->uBarAvgTopX[2].z + abl->uBarAvgTopX[3].z + abl->uBarAvgTopX[4].z);
+
+                for( j=0; j<ifPtr->n1wg; j++)
+                {
+                    std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
+                    std::vector<PetscReal> ().swap(t_plane_tmp[j]);
+                }
             }
             // unsteady interpolated ubar
             else if (ifPtr->typeU == 2)
             {
+                PetscPrintf(mesh->MESH_COMM, "   - damping type 1: averaging inflow at 5 top cells...");
+
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 2;
                 ifPtr->mapT   = 1;
@@ -651,6 +771,111 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 // initialize inflow data
                 mappedInflowInitialize(ifPtr);
+
+                // top average to avoid top oscillations
+                PetscMalloc(5*sizeof(Cmpnts),    &(abl->uBarAvgTopX));
+                PetscMalloc(5*sizeof(PetscReal), &(abl->tBarAvgTopX));
+
+                for(j=0; j<5; j++)
+                {
+                    mSetValue(abl->uBarAvgTopX[j], 0.0);
+                    abl->tBarAvgTopX[j] = 0.0;
+                }
+
+                // height of the inflow database
+                abl->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
+
+                // width of the merging region
+                abl->avgTopDelta  = 5.0 * ifPtr->width1;
+
+                // variable to store inflow function data
+                std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
+                std::vector<std::vector<PetscReal>> t_plane_tmp(ifPtr->n1wg);
+
+                // set to zero
+                for(j=0; j<ifPtr->n1wg; j++)
+                {
+                    ucat_plane_tmp[j].resize(ifPtr->n2wg);
+                    t_plane_tmp[j].resize(ifPtr->n2wg);
+
+                    for(i=0; i<ifPtr->n2wg; i++)
+                    {
+                        mSetValue(ucat_plane_tmp[j][i], 0.0);
+                        t_plane_tmp[j][i] = 0.0;
+                    }
+                }
+
+                PetscInt ti, nAvg;
+                PetscReal ntimes = std::min(ifPtr->inflowT.nInflowTimes, ifPtr->inflowU.nInflowTimes);
+                word fname_U, fname_T;
+
+                for(ti=0; ti<ntimes; ti++)
+                {
+                    fname_U = "inflowDatabase/U/" + getArbitraryTimeName(abl->access->clock, ifPtr->inflowU.inflowTimes[ti]);
+                    fname_T = "inflowDatabase/T/" + getArbitraryTimeName(abl->access->clock, ifPtr->inflowT.inflowTimes[ti]);
+
+                    // open the two inflow files and read
+                    FILE *fp_U = fopen(fname_U.c_str(), "rb");
+                    FILE *fp_T = fopen(fname_T.c_str(), "rb");
+
+                    if(!fp_U || !fp_T)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open files:\n    %s\n    %s\n", fname_U.c_str(), fname_T.c_str());
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    }
+
+                    for(j=0; j<ifPtr->n1wg; j++)
+                    {
+                        PetscInt err1, err2;
+                        err1 = fread(&(ucat_plane_tmp[j][0]), sizeof(Cmpnts), ifPtr->n2wg, fp_U);
+                        err2 = fread(&(t_plane_tmp[j][0]), sizeof(PetscReal), ifPtr->n2wg, fp_T);
+                    }
+
+                    fclose(fp_U);
+                    fclose(fp_T);
+
+                    // now average the top 5 cells (exclude ghosts)
+                    PetscInt jAvg = 0;
+                    for(j=ifPtr->n1wg-6; j<ifPtr->n1wg-1; j++)
+                    {
+                        for(i=1; i<ifPtr->n2wg-1; i++)
+                        {
+                            mSum(abl->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
+                            abl->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                        }
+
+                        jAvg++;
+                    }
+                }
+
+                // number of data summed per level (ntimes times n levels in direction 2)
+                nAvg  = ifPtr->n2 * ntimes;
+
+                PetscPrintf(mesh->MESH_COMM, "done\n");
+
+                // now average the top 5 cells (exclude ghosts)
+                for(j=0; j<5; j++)
+                {
+                    mScale(1.0/nAvg, abl->uBarAvgTopX[j]);
+                    abl->tBarAvgTopX[j] /= nAvg;
+                    PetscPrintf(mesh->MESH_COMM, "   - Uavg[%ld] = (%.2f %.2f %.2f) m/s, thetaAvg = %.2f K\n", j, abl->uBarAvgTopX[j].x, abl->uBarAvgTopX[j].y, abl->uBarAvgTopX[j].z, abl->tBarAvgTopX[j]);
+                }
+
+                // temporary (basically forces zero gradient at the top for velocity)
+                mSet(abl->uBarAvgTopX[4], abl->uBarAvgTopX[3]);
+
+                // average in the vertical direction
+                abl->uBarTopX.x = 1.0 / 5.0 * (abl->uBarAvgTopX[0].x + abl->uBarAvgTopX[1].x + abl->uBarAvgTopX[2].x + abl->uBarAvgTopX[3].x + abl->uBarAvgTopX[4].x);
+                abl->uBarTopX.y = 1.0 / 5.0 * (abl->uBarAvgTopX[0].y + abl->uBarAvgTopX[1].y + abl->uBarAvgTopX[2].y + abl->uBarAvgTopX[3].y + abl->uBarAvgTopX[4].y);
+                abl->uBarTopX.z = 1.0 / 5.0 * (abl->uBarAvgTopX[0].z + abl->uBarAvgTopX[1].z + abl->uBarAvgTopX[2].z + abl->uBarAvgTopX[3].z + abl->uBarAvgTopX[4].z);
+
+
+                for( j=0; j<ifPtr->n1wg; j++)
+                {
+                    std::vector<Cmpnts>  ().swap(ucat_plane_tmp[j]);
+                    std::vector<PetscReal> ().swap(t_plane_tmp[j]);
+                }
             }
             else
             {

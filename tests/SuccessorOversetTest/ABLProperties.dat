@@ -35,6 +35,7 @@ smearT 0.5
 # Activation flags 
 coriolisActive 1
 controllerActive 1
+controllerActiveT 0
 
 controllerProperties
 {

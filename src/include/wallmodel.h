@@ -47,7 +47,11 @@ struct wallModel
     Cabot            *wmCabot;
     PowerLawAPG      *wmPowerLawAPG;
     LogLawAPG        *wmLogLawAPG;
-    
+
     patchVectorField tauWall;
     patchVectorField qWall;
+    patchVectorField uFilt;
+
+    PetscReal        **uMeanMag;                //!< average velocity to compute filtering time scale
+    PetscInt         uFiltSet;                  //!< filtered velocity has been initialized
 };

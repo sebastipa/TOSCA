@@ -19,6 +19,7 @@ struct teqn_
     Vec           Tmprt, lTmprt,
                   Tmprt_o, lTmprt_o;
     Vec           lDivT, lViscT;              //!< viscous and divergence temperature equation fluxes
+    Vec           sourceT;                    //!< temperature sources
 
     Vec           lRhoK;                      //!< rhok / rho0 field
     Vec           ghGradRhok;                 //!< buoyancy term for momentum equation
@@ -59,8 +60,14 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr);
 //! \brief Computes g*h times gradient of rho_k / rho_0
 PetscErrorCode ghGradRhoK(teqn_ *teqn);
 
+//! \brief Compute temperature control source term
+PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print);
+
 //! \brief Apply fringe region damping
 PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
+
+//! \brief Apply temperature control
+PetscErrorCode sourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
 
 //! \brief RHS of the potential temperature transport equation
 PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale);

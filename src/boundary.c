@@ -1254,7 +1254,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         ucat[k-1][j][i] = NieuwstadtInflowEvaluate(ifPtr, h);
                     }
                     // unsteady mapped inflow
-                    else if (ifPtr->typeU == 3)      
+                    else if (ifPtr->typeU == 3)
                     {
                         // periodize inflow according to input
 
@@ -2495,6 +2495,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
 {
     mesh_         *mesh  = ueqn->access->mesh;
     flags_        *flags = ueqn->access->flags;
+    clock_        *clock = ueqn->access->clock;
     teqn_         *teqn;
     DM            da    = mesh->da, fda = mesh->fda;
     DMDALocalInfo info  = mesh->info;
@@ -2525,6 +2526,11 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
     {
         teqn = ueqn->access->teqn;
     }
+
+    // compute averaging weights
+    PetscReal aN = (PetscReal)(ueqn->access->clock->it);
+    PetscReal m1 = aN  / (aN + 1.0);
+    PetscReal m2 = 1.0 / (aN + 1.0);
 
     // this function applies boundary conditions for those cases in which
     // the wall shear stress tensor is specified.
@@ -2588,7 +2594,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                     {
                         for (i=lxs; i<lxe; i++)
                         {
-                            lqWall += teqn->jLWM->qWall.z[k][i];
+                            lqWall += teqn->jLWM->qWall.z[k-zs][i-xs];
                         }
                     }
                 }
@@ -2661,6 +2667,46 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
             // PetscPrintf(mesh->MESH_COMM, "ShumannGrotzbach U: uStar = %lf, <U_||> = %lf, L = %lf, phiM = %lf, qWall = %lf\n", frictionVel, UParallelMeanMag, L, phiM,qWall);
         }
 
+        // initialize filtered velocity
+        if(!ueqn->jLWM->uFiltSet)
+        {
+            if(ys==0)
+            {
+                j=1;
+
+                for (k=lzs; k<lze; k++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        // get the cell area
+                        PetscReal area = nMag(eta[k][j][i]);
+
+                        // get cell normals
+                        PetscReal ni[3], nj[3], nk[3];
+                        calculateNormal(csi[k][j][i], eta[k][j][i], zet[k][j][i], ni, nj, nk);
+
+                        // get j normal
+                        Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
+
+                        // velocity at point b
+                        Cmpnts Ucell = nSet(ucat[k][j][i]);
+
+                        // compute wall-normal velocity
+                        Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
+
+                        // compute wall-parallel velocity
+                        Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
+
+                        ueqn->jLWM->uFilt.x[k-zs][i-xs] = UcellParallel.x;
+                        ueqn->jLWM->uFilt.y[k-zs][i-xs] = UcellParallel.y;
+                        ueqn->jLWM->uFilt.z[k-zs][i-xs] = UcellParallel.z;
+                    }
+                }
+            }
+
+            ueqn->jLWM->uFiltSet = 1;
+        }
+
         // compute the wall shear stress
 
         // select processors next to the j-left patch
@@ -2691,19 +2737,32 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                     // compute wall-parallel velocity
                     Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                    // compute qWall (otherwise neutral wallfunction is used)
-                    if(computeqWall)
-                    {
-                        qWall = teqn->jLWM->qWall.y[k][i];
-                    }
+                    PetscInt k_wm = k - zs;
+                    PetscInt i_wm = i - xs;
+                    // average velocity
+                    ueqn->jLWM->uMeanMag[k_wm][i_wm] = m1 * ueqn->jLWM->uMeanMag[k_wm][i_wm]  + m2 * nMag(UcellParallel);
+
+                    // compute filter scale
+                    Cmpnts        l = nSetFromComponents(1.0 / aj[k][j][i] / nMag(zet[k][j][i]), 1.0 / aj[k][j][i] / nMag(csi[k][j][i]), 0.0);
+                    PetscReal     T = std::max(nMag(l) / ueqn->jLWM->uMeanMag[k_wm][i_wm], clock->dt);
+
+                    // filter velocity
+                    ueqn->jLWM->uFilt.x[k_wm][i_wm] = (1.0 - clock->dt/T) * ueqn->jLWM->uFilt.x[k_wm][i_wm] + (clock->dt/T) * UcellParallel.x;
+                    ueqn->jLWM->uFilt.y[k_wm][i_wm] = (1.0 - clock->dt/T) * ueqn->jLWM->uFilt.y[k_wm][i_wm] + (clock->dt/T) * UcellParallel.y;
 
                     // compute local friction velocity
                     if(wm->wfEvalType=="localized")
                     {
+                        // compute qWall (otherwise neutral wallfunction is used)
+                        if(computeqWall)
+                        {
+                            qWall = teqn->jLWM->qWall.y[k-zs][i-xs];
+                        }
+
                         // distance from wall and velocity at point b
                         PetscReal s = 0.5/aj[k][j][i]/area;
 
-                        UParallelMeanMag = nMag(UcellParallel);
+                        UParallelMeanMag = nMag(nSetFromComponents(ueqn->jLWM->uFilt.x[k_wm][i_wm], ueqn->jLWM->uFilt.y[k_wm][i_wm], 0.0));
 
                         uStarShumann
                         (
@@ -2713,14 +2772,18 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         );
                     }
 
-                    PetscReal TauXZ = - frictionVel*frictionVel * (UcellParallel.x / PetscMax(UParallelMeanMag, 1e-5));
-                    PetscReal TauYZ = - frictionVel*frictionVel * (UcellParallel.y / PetscMax(UParallelMeanMag, 1e-5));
-
                     if (isFluidCell(k, j, i, nvert))
                     {
-                        ueqn->jLWM->tauWall.x[k][i] = jeta[k][j-1][i].z * TauXZ;
-                        ueqn->jLWM->tauWall.y[k][i] = jeta[k][j-1][i].z * TauYZ;
-                        ueqn->jLWM->tauWall.z[k][i] = jeta[k][j-1][i].x * TauXZ + jeta[k][j-1][i].y * TauYZ;
+                        //printf("uFilt.x = %f, u.x = %f\n", ueqn->jLWM->uFilt.x[k_wm][i_wm], UcellParallel.x);
+
+                        // wall shear stress in cartesian coords
+                        PetscReal TauXZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.x[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
+                        PetscReal TauYZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.y[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
+
+                        // transform to contravariant coords
+                        ueqn->jLWM->tauWall.x[k_wm][i_wm] = jeta[k][j-1][i].z * TauXZ;
+                        ueqn->jLWM->tauWall.y[k_wm][i_wm] = jeta[k][j-1][i].z * TauYZ;
+                        ueqn->jLWM->tauWall.z[k_wm][i_wm] = jeta[k][j-1][i].x * TauXZ + jeta[k][j-1][i].y * TauYZ;
                     }
                 }
             }
@@ -2769,7 +2832,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                     {
                         for (i=lxs; i<lxe; i++)
                         {
-                            lqWall += teqn->jRWM->qWall.z[k][i];
+                            lqWall += teqn->jRWM->qWall.z[k-zs][i-xs];
                         }
                     }
                 }
@@ -2842,6 +2905,46 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
             // PetscPrintf(PETSC_COMM_WORLD, "ShumannGrotzbach: uStar = %lf, <U_||> = %lf\n", frictionVel, UParallelMeanMag);
         }
 
+        // initialize filtered velocity
+        if(!ueqn->jRWM->uFiltSet)
+        {
+            if(ys==mx)
+            {
+                j=my-2;
+
+                for (k=lzs; k<lze; k++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        // get the cell area
+                        PetscReal area = nMag(eta[k][j][i]);
+
+                        // get cell normals
+                        PetscReal ni[3], nj[3], nk[3];
+                        calculateNormal(csi[k][j][i], eta[k][j][i], zet[k][j][i], ni, nj, nk);
+
+                        // get j normal
+                        Cmpnts n = nSetFromComponents(nj[0], nj[1], nj[2]);
+
+                        // velocity at point b
+                        Cmpnts Ucell = nSet(ucat[k][j][i]);
+
+                        // compute wall-normal velocity
+                        Cmpnts UcellNormal = nScale(nDot(Ucell, n), n);
+
+                        // compute wall-parallel velocity
+                        Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
+
+                        ueqn->jRWM->uFilt.x[k-zs][i-xs] = UcellParallel.x;
+                        ueqn->jRWM->uFilt.y[k-zs][i-xs] = UcellParallel.y;
+                        ueqn->jRWM->uFilt.z[k-zs][i-xs] = UcellParallel.z;
+                    }
+                }
+            }
+
+            ueqn->jRWM->uFiltSet = 1;
+        }
+
         // compute the wall shear stress
 
         // select processors next to the j-left patch
@@ -2872,19 +2975,33 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                     // compute wall-parallel velocity
                     Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                    // compute qWall (otherwise neutral wallfunction is used)
-                    if(computeqWall)
-                    {
-                        qWall = teqn->jRWM->qWall.y[k][i];
-                    }
+                    PetscInt k_wm = k - zs;
+                    PetscInt i_wm = i - xs;
+
+                    // average velocity
+                    ueqn->jRWM->uMeanMag[k_wm][i_wm] = m1 * ueqn->jRWM->uMeanMag[k_wm][i_wm]  + m2 * nMag(UcellParallel);
+
+                    // compute filter scale
+                    Cmpnts        l = nSetFromComponents(1.0 / aj[k][j][i] / nMag(zet[k][j][i]), 1.0 / aj[k][j][i] / nMag(csi[k][j][i]), 0.0);
+                    PetscReal     T = nMag(l) / ueqn->jRWM->uMeanMag[k_wm][i_wm];
+
+                    // filter velocity
+                    ueqn->jRWM->uFilt.x[k_wm][i_wm] = (1.0 - clock->dt/T) * ueqn->jRWM->uFilt.x[k_wm][i_wm] + (clock->dt/T) * UcellParallel.x;
+                    ueqn->jRWM->uFilt.y[k_wm][i_wm] = (1.0 - clock->dt/T) * ueqn->jRWM->uFilt.y[k_wm][i_wm] + (clock->dt/T) * UcellParallel.y;
 
                     // compute local friction velocity
                     if(wm->wfEvalType=="localized")
                     {
+                        // compute qWall (otherwise neutral wallfunction is used)
+                        if(computeqWall)
+                        {
+                            qWall = teqn->jRWM->qWall.y[k-zs][i-xs];
+                        }
+                        
                         // distance from wall and velocity at point b
                         PetscReal s = 0.5/aj[k][j][i]/area;
 
-                        UParallelMeanMag = nMag(UcellParallel);
+                        UParallelMeanMag = nMag(nSetFromComponents(ueqn->jRWM->uFilt.x[k_wm][i_wm], ueqn->jRWM->uFilt.y[k_wm][i_wm], 0.0));
 
                         uStarShumann
                         (
@@ -2894,14 +3011,16 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         );
                     }
 
-                    PetscReal TauXZ = - frictionVel*frictionVel * (UcellParallel.x / PetscMax(UParallelMeanMag, 1e-5));
-                    PetscReal TauYZ = - frictionVel*frictionVel * (UcellParallel.y / PetscMax(UParallelMeanMag, 1e-5));
-
                     if (isFluidCell(k, j, i, nvert))
                     {
-                        ueqn->jRWM->tauWall.x[k][i] = jeta[k][j][i].z * TauXZ;
-                        ueqn->jRWM->tauWall.y[k][i] = jeta[k][j][i].z * TauYZ;
-                        ueqn->jRWM->tauWall.z[k][i] = jeta[k][j][i].x * TauXZ + jeta[k][j][i].y * TauYZ;
+                        // wall shear stress in cartesian coords
+                        PetscReal TauXZ = - frictionVel*frictionVel * (ueqn->jRWM->uFilt.x[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
+                        PetscReal TauYZ = - frictionVel*frictionVel * (ueqn->jRWM->uFilt.y[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
+
+                        // wall shear stress in curvilinear coords
+                        ueqn->jRWM->tauWall.x[k_wm][i_wm] = jeta[k][j][i].z * TauXZ;
+                        ueqn->jRWM->tauWall.y[k_wm][i_wm] = jeta[k][j][i].z * TauYZ;
+                        ueqn->jRWM->tauWall.z[k_wm][i_wm] = jeta[k][j][i].x * TauXZ + jeta[k][j][i].y * TauYZ;
                     }
                 }
             }
@@ -2942,6 +3061,10 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
+
+    PetscInt      mx_wm = xe-xs;
+    PetscInt      my_wm = ye-ys;
+    PetscInt      mz_wm = ze-zs;
 
     PetscScalar   ***aj, ***nvert, ***t;
     Cmpnts        ***csi, ***eta, ***zet;
@@ -2985,17 +3108,17 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
             {
                 j=1;
 
-                PetscMalloc(sizeof(PetscReal*)*mz, &(wm->surfaceTheta));
+                PetscMalloc(sizeof(PetscReal*)*mz_wm, &(wm->surfaceTheta));
 
                 for (k=lzs; k<lze; k++)
                 {
-                    PetscMalloc(sizeof(PetscReal)*mx, &(wm->surfaceTheta[k]));
+                    PetscMalloc(sizeof(PetscReal)*mx_wm, &(wm->surfaceTheta[k-zs]));
 
                     for (i=lxs; i<lxe; i++)
                     {
-                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j-1][i]);
-                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j-1][i]);
-                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j-1][i]);
+                        wm->surfaceTheta[k-zs][i-xs] = 0.5*(t[k][j][i] + t[k][j-1][i]);
+                        wm->surfaceTheta[k-zs][i-xs] = 0.5*(t[k][j][i] + t[k][j-1][i]);
+                        wm->surfaceTheta[k-zs][i-xs] = 0.5*(t[k][j][i] + t[k][j-1][i]);
                     }
 
                 }
@@ -3031,6 +3154,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                 {
                     for (i=lxs; i<lxe; i++)
                     {
+                        PetscInt k_wm = k - zs;
+                        PetscInt i_wm = i - xs;
+
                         // get the cell area
                         PetscReal area = nMag(eta[k][j][i]);
 
@@ -3058,9 +3184,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         if (isFluidCell(k, j, i, nvert))
                         {
                             // update surface temperature
-                            if(updateTemp) wm->surfaceTheta[k][i] += wm->heatingRate * clock->dt;
+                            if(updateTemp) wm->surfaceTheta[k_wm][i_wm] += wm->heatingRate * clock->dt;
 
-                            ldeltaTheta += (cellTheta - wm->surfaceTheta[k][i]);
+                            ldeltaTheta += (cellTheta - wm->surfaceTheta[k_wm][i_wm]);
 
                             // increment velocity
                             lUParallelMeanMag += nMag(UcellParallel);
@@ -3107,6 +3233,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
+                    PetscInt k_wm = k - zs;
+                    PetscInt i_wm = i - xs;
+
                     // get the cell area
                     PetscReal area = nMag(eta[k][j][i]);
 
@@ -3136,9 +3265,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         PetscReal s = 0.5/aj[k][j][i]/area;
 
                         // update surface temperature
-                        if(updateTemp) wm->surfaceTheta[k][i] += wm->heatingRate * clock->dt;
+                        if(updateTemp) wm->surfaceTheta[k_wm][i_wm] += wm->heatingRate * clock->dt;
 
-                        deltaTheta = (cellTheta - wm->surfaceTheta[k][i]);
+                        deltaTheta = (cellTheta - wm->surfaceTheta[k_wm][i_wm]);
 
                         UParallelMeanMag = nMag(UcellParallel);
 
@@ -3153,9 +3282,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
 
                     if (isFluidCell(k, j, i, nvert))
                     {
-                        teqn->jLWM->qWall.x[k][i] = 0.0;
-                        teqn->jLWM->qWall.y[k][i] = 0.0;
-                        teqn->jLWM->qWall.z[k][i] = qWall;
+                        teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
+                        teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
+                        teqn->jLWM->qWall.z[k_wm][i_wm] = qWall;
                     }
                 }
             }
@@ -3181,17 +3310,17 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
             {
                 j=my-2;
 
-                PetscMalloc(sizeof(PetscReal*)*mz, &(wm->surfaceTheta));
+                PetscMalloc(sizeof(PetscReal*)*mz_wm, &(wm->surfaceTheta));
 
                 for (k=lzs; k<lze; k++)
                 {
-                    PetscMalloc(sizeof(PetscReal)*mx, &(wm->surfaceTheta[k]));
+                    PetscMalloc(sizeof(PetscReal)*mx_wm, &(wm->surfaceTheta[k-zs]));
 
                     for (i=lxs; i<lxe; i++)
                     {
-                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j+1][i]);
-                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j+1][i]);
-                        wm->surfaceTheta[k][i] = 0.5*(t[k][j][i] + t[k][j+1][i]);
+                        wm->surfaceTheta[k-zs][i-xs] = 0.5*(t[k][j][i] + t[k][j+1][i]);
+                        wm->surfaceTheta[k-zs][i-xs] = 0.5*(t[k][j][i] + t[k][j+1][i]);
+                        wm->surfaceTheta[k-zs][i-xs] = 0.5*(t[k][j][i] + t[k][j+1][i]);
                     }
 
                 }
@@ -3227,6 +3356,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                 {
                     for (i=lxs; i<lxe; i++)
                     {
+                        PetscInt k_wm = k - zs;
+                        PetscInt i_wm = i - xs;
+
                         // get the cell area
                         PetscReal area = nMag(eta[k][j][i]);
 
@@ -3255,9 +3387,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         if (isFluidCell(k, j, i, nvert))
                         {
                             // update surface temperature
-                            if(updateTemp) wm->surfaceTheta[k][i] += wm->heatingRate * clock->dt;
+                            if(updateTemp) wm->surfaceTheta[k_wm][i_wm] += wm->heatingRate * clock->dt;
 
-                            ldeltaTheta += (cellTheta - wm->surfaceTheta[k][i]);
+                            ldeltaTheta += (cellTheta - wm->surfaceTheta[k_wm][i_wm]);
 
                             // increment velocity
                             lUParallelMeanMag += nMag(UcellParallel);
@@ -3304,6 +3436,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
+                    PetscInt k_wm = k - zs;
+                    PetscInt i_wm = i - xs;
+
                     // get the cell area
                     PetscReal area = nMag(eta[k][j][i]);
 
@@ -3333,9 +3468,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         PetscReal s = 0.5/aj[k][j][i]/area;
 
                         // update surface temperature
-                        if(updateTemp) wm->surfaceTheta[k][i] += wm->heatingRate * clock->dt;
+                        if(updateTemp) wm->surfaceTheta[k_wm][i_wm] += wm->heatingRate * clock->dt;
 
-                        deltaTheta = (cellTheta - wm->surfaceTheta[k][i]);
+                        deltaTheta = (cellTheta - wm->surfaceTheta[k_wm][i_wm]);
 
                         UParallelMeanMag = nMag(UcellParallel);
 
@@ -3350,9 +3485,9 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
 
                     if (isFluidCell(k, j, i, nvert))
                     {
-                        teqn->jLWM->qWall.x[k][i] = 0.0;
-                        teqn->jLWM->qWall.y[k][i] = 0.0;
-                        teqn->jLWM->qWall.z[k][i] = qWall;
+                        teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
+                        teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
+                        teqn->jLWM->qWall.z[k_wm][i_wm] = qWall;
                     }
                 }
             }
@@ -3496,6 +3631,10 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
 
     PetscInt      i, j, k;
 
+    PetscInt      mx_wm = xe-xs;
+    PetscInt      my_wm = ye-ys;
+    PetscInt      mz_wm = ze-zs;
+
     // set dictionaries
     word          fileNameU = "./boundary/" + mesh->meshName + "/U";
     word          fileNameT = "./boundary/" + mesh->meshName + "/T";
@@ -3514,25 +3653,39 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
             // allocate memory and connect pointers
             PetscMalloc(sizeof(wallModel), &(ueqn->iLWM));
 
+            // set to zero the filtered velocity initialization flag
+            ueqn->iLWM->uFiltSet = 0;
+
             // initialize the patch field for Visc term at the wall in the momentum eqn.
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iLWM->tauWall.x));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iLWM->tauWall.y));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iLWM->tauWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iLWM->tauWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iLWM->tauWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iLWM->tauWall.z));
 
-            for (k = 0; k < mz; k++)
-            {
-                PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iLWM->tauWall.x[k]));
-                PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iLWM->tauWall.y[k]));
-                PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iLWM->tauWall.z[k]));
-            }
+            // initialize velocity average for wall model filtering LLM correction
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iLWM->uMeanMag));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iLWM->uFilt.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iLWM->uFilt.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iLWM->uFilt.z));
 
-            for (k = 0; k < mz; k++)
+            for (k = 0; k < mz_wm; k++)
             {
-                for (j = 0; j < my; j++)
+                PetscMalloc(sizeof(PetscReal) *my_wm, &(ueqn->iLWM->tauWall.x[k]));
+                PetscMalloc(sizeof(PetscReal) *my_wm, &(ueqn->iLWM->tauWall.y[k]));
+                PetscMalloc(sizeof(PetscReal) *my_wm, &(ueqn->iLWM->tauWall.z[k]));
+                PetscMalloc(sizeof(PetscReal) *mz_wm, &(ueqn->iLWM->uMeanMag[k]));
+                PetscMalloc(sizeof(PetscReal) *my_wm, &(ueqn->iLWM->uFilt.x[k]));
+                PetscMalloc(sizeof(PetscReal) *my_wm, &(ueqn->iLWM->uFilt.y[k]));
+                PetscMalloc(sizeof(PetscReal) *my_wm, &(ueqn->iLWM->uFilt.z[k]));
+
+                for (j = 0; j < my_wm; j++)
                 {
                     ueqn->iLWM->tauWall.x[k][j] = 0.0;
                     ueqn->iLWM->tauWall.y[k][j] = 0.0;
                     ueqn->iLWM->tauWall.z[k][j] = 0.0;
+                    ueqn->iLWM->uFilt.x  [k][j] = 0.0;
+                    ueqn->iLWM->uFilt.y  [k][j] = 0.0;
+                    ueqn->iLWM->uFilt.z  [k][j] = 0.0;
+                    ueqn->iLWM->uMeanMag [k][j] = 0.0;
                 }
             }
 
@@ -3575,25 +3728,37 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
 
             PetscMalloc(sizeof(wallModel), &(ueqn->iRWM));
 
+            // set to zero the filtered velocity initialization flag
+            ueqn->iRWM->uFiltSet = 0;
+
             // initialize the patch field for Visc term at the wall in the momentum eqn.
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iRWM->tauWall.x));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iRWM->tauWall.y));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->iRWM->tauWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iRWM->tauWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iRWM->tauWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iRWM->tauWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iRWM->uMeanMag));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iRWM->uFilt.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iRWM->uFilt.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->iRWM->uFilt.z));
 
-            for (k = 0; k < mz; k++)
+            for (k = 0; k < mz_wm; k++)
             {
-                PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iRWM->tauWall.x[k]));
-                PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iRWM->tauWall.y[k]));
-                PetscMalloc(sizeof(PetscReal)*my, &(ueqn->iRWM->tauWall.z[k]));
-            }
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(ueqn->iRWM->tauWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(ueqn->iRWM->tauWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(ueqn->iRWM->tauWall.z[k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(ueqn->iRWM->uMeanMag [k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(ueqn->iRWM->uFilt.x[k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(ueqn->iRWM->uFilt.y[k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(ueqn->iRWM->uFilt.z[k]));
 
-            for (k = 0; k < mz; k++)
-            {
-                for (j = 0; j < my; j++)
+                for (j = 0; j < my_wm; j++)
                 {
                     ueqn->iRWM->tauWall.x[k][j] =
                     ueqn->iRWM->tauWall.y[k][j] =
                     ueqn->iRWM->tauWall.z[k][j] =
+                    ueqn->iRWM->uMeanMag [k][j] =
+                    ueqn->iRWM->uFilt.x  [k][j] =
+                    ueqn->iRWM->uFilt.y  [k][j] =
+                    ueqn->iRWM->uFilt.z  [k][j] =
                     0.0;
                 }
             }
@@ -3636,25 +3801,37 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
 
             PetscMalloc(sizeof(wallModel), &(ueqn->jLWM));
 
+            // set to zero the filtered velocity initialization flag
+            ueqn->jLWM->uFiltSet = 0;
+
             // initialize the patch field for Visc term at the wall in the momentum eqn.
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jLWM->tauWall.x));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jLWM->tauWall.y));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jLWM->tauWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jLWM->tauWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jLWM->tauWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jLWM->tauWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jLWM->uMeanMag));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jLWM->uFilt.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jLWM->uFilt.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jLWM->uFilt.z));
 
-            for (k = 0; k < mz; k++)
+            for (k = 0; k < mz_wm; k++)
             {
-                PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jLWM->tauWall.x[k]));
-                PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jLWM->tauWall.y[k]));
-                PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jLWM->tauWall.z[k]));
-            }
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jLWM->tauWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jLWM->tauWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jLWM->tauWall.z[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jLWM->uMeanMag [k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jLWM->uFilt.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jLWM->uFilt.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jLWM->uFilt.z[k]));
 
-            for (k = 0; k < mz; k++)
-            {
-                for (i = 0; i < mx; i++)
+                for (i = 0; i < mx_wm; i++)
                 {
                     ueqn->jLWM->tauWall.x[k][i] = 0.0;
                     ueqn->jLWM->tauWall.y[k][i] = 0.0;
                     ueqn->jLWM->tauWall.z[k][i] = 0.0;
+                    ueqn->jLWM->uMeanMag [k][i] = 0.0;
+                    ueqn->jLWM->uFilt.x  [k][i] = 0.0;
+                    ueqn->jLWM->uFilt.y  [k][i] = 0.0;
+                    ueqn->jLWM->uFilt.z  [k][i] = 0.0;
                 }
             }
 
@@ -3698,25 +3875,37 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
 
             PetscMalloc(sizeof(wallModel), &(ueqn->jRWM));
 
+            // set to zero the filtered velocity initialization flag
+            ueqn->jRWM->uFiltSet = 0;
+
             // initialize the patch field for Visc term at the wall in the momentum eqn.
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->tauWall.x));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->tauWall.y));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(ueqn->jRWM->tauWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jRWM->tauWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jRWM->tauWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jRWM->tauWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jRWM->uMeanMag));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jRWM->uFilt.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jRWM->uFilt.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(ueqn->jRWM->uFilt.z));
 
-            for (k = 0; k < mz; k++)
+            for (k = 0; k < mz_wm; k++)
             {
-                PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->tauWall.x[k]));
-                PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->tauWall.y[k]));
-                PetscMalloc(sizeof(PetscReal)*mx, &(ueqn->jRWM->tauWall.z[k]));
-            }
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jRWM->tauWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jRWM->tauWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jRWM->tauWall.z[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jRWM->uMeanMag [k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jRWM->uFilt.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jRWM->uFilt.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(ueqn->jRWM->uFilt.z[k]));
 
-            for (k = 0; k < mz; k++)
-            {
-                for (i = 0; i < mx; i++)
+                for (i = 0; i < mx_wm; i++)
                 {
                     ueqn->jRWM->tauWall.x[k][i] = 0.0;
                     ueqn->jRWM->tauWall.y[k][i] = 0.0;
                     ueqn->jRWM->tauWall.z[k][i] = 0.0;
+                    ueqn->jRWM->uMeanMag [k][i] = 0.0;
+                    ueqn->jRWM->uFilt.x  [k][i] = 0.0;
+                    ueqn->jRWM->uFilt.y  [k][i] = 0.0;
+                    ueqn->jRWM->uFilt.z  [k][i] = 0.0;
                 }
             }
 
@@ -3767,20 +3956,17 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
             PetscMalloc(sizeof(wallModel), &(teqn->iLWM));
 
             // initialize the patch field for Visc term at the wall in the temperature eqn.
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iLWM->qWall.x));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iLWM->qWall.y));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iLWM->qWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->iLWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->iLWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->iLWM->qWall.z));
 
-            for (k = 0; k < mz; k++)
+            for (k = 0; k < mz_wm; k++)
             {
-                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iLWM->qWall.x[k]));
-                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iLWM->qWall.y[k]));
-                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iLWM->qWall.z[k]));
-            }
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(teqn->iLWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(teqn->iLWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(teqn->iLWM->qWall.z[k]));
 
-            for (k = 0; k < mz; k++)
-            {
-                for (j = 0; j < my; j++)
+                for (j = 0; j < my_wm; j++)
                 {
                     teqn->iLWM->qWall.x[k][j] = 0.0;
                     teqn->iLWM->qWall.y[k][j] = 0.0;
@@ -3825,20 +4011,17 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
             PetscMalloc(sizeof(wallModel), &(teqn->iRWM));
 
             // initialize the patch field for Visc term at the wall in the momentum eqn.
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iRWM->qWall.x));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iRWM->qWall.y));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->iRWM->qWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->iRWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->iRWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->iRWM->qWall.z));
 
-            for (k = 0; k < mz; k++)
+            for (k = 0; k < mz_wm; k++)
             {
-                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iRWM->qWall.x[k]));
-                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iRWM->qWall.y[k]));
-                PetscMalloc(sizeof(PetscReal)*my, &(teqn->iRWM->qWall.z[k]));
-            }
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(teqn->iRWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(teqn->iRWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*my_wm, &(teqn->iRWM->qWall.z[k]));
 
-            for (k = 0; k < mz; k++)
-            {
-                for (j = 0; j < my; j++)
+                for (j = 0; j < my_wm; j++)
                 {
                     teqn->iRWM->qWall.x[k][j] = 0.0;
                     teqn->iRWM->qWall.y[k][j] = 0.0;
@@ -3883,20 +4066,17 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
             PetscMalloc(sizeof(wallModel), &(teqn->jLWM));
 
             // initialize the patch field for Visc term at the wall in the momentum eqn.
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jLWM->qWall.x));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jLWM->qWall.y));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jLWM->qWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->jLWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->jLWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->jLWM->qWall.z));
 
-            for (k = 0; k < mz; k++)
+            for (k = 0; k < mz_wm; k++)
             {
-                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jLWM->qWall.x[k]));
-                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jLWM->qWall.y[k]));
-                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jLWM->qWall.z[k]));
-            }
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(teqn->jLWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(teqn->jLWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(teqn->jLWM->qWall.z[k]));
 
-            for (k = 0; k < mz; k++)
-            {
-                for (i = 0; i < mx; i++)
+                for (i = 0; i < mx_wm; i++)
                 {
                     teqn->jLWM->qWall.x[k][i] = 0.0;
                     teqn->jLWM->qWall.y[k][i] = 0.0;
@@ -3947,20 +4127,17 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
             PetscMalloc(sizeof(wallModel), &(teqn->jRWM));
 
             // initialize the patch field for Visc term at the wall in the momentum eqn.
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jRWM->qWall.x));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jRWM->qWall.y));
-            PetscMalloc(sizeof(PetscReal*)*mz, &(teqn->jRWM->qWall.z));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->jRWM->qWall.x));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->jRWM->qWall.y));
+            PetscMalloc(sizeof(PetscReal*)*mz_wm, &(teqn->jRWM->qWall.z));
 
-            for (k = 0; k < mz; k++)
+            for (k = 0; k < mz_wm; k++)
             {
-                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jRWM->qWall.x[k]));
-                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jRWM->qWall.y[k]));
-                PetscMalloc(sizeof(PetscReal)*mx, &(teqn->jRWM->qWall.z[k]));
-            }
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(teqn->jRWM->qWall.x[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(teqn->jRWM->qWall.y[k]));
+                PetscMalloc(sizeof(PetscReal)*mx_wm, &(teqn->jRWM->qWall.z[k]));
 
-            for (k = 0; k < mz; k++)
-            {
-                for (i = 0; i < mx; i++)
+                for (i = 0; i < mx_wm; i++)
                 {
                     teqn->jRWM->qWall.x[k][i] = 0.0;
                     teqn->jRWM->qWall.y[k][i] = 0.0;

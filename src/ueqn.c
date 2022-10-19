@@ -526,7 +526,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             PetscReal hubDelta = hubAngle;
             PetscReal omega    = hubDelta / clock->dt;
 
-            // time constant 
+            // time constant
             PetscReal sigma    = clock->dt / 200;
 
             // compute omega bar
@@ -977,59 +977,117 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             i<=ifPtr->n2*ifPtr->prds2
                         )
                         {
-                            luBarInstX[j][i].x = ifPtr->ucat_plane[jif][iif].x;
-                            luBarInstX[j][i].y = ifPtr->ucat_plane[jif][iif].y;
-                            luBarInstX[j][i].z = ifPtr->ucat_plane[jif][iif].z;
+                            PetscReal height = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                            PetscInt  IDs[2];
+                            PetscReal Wg [2];
+
+                            fringeGetTopWeights(height, ifPtr->width1, abl->avgTopLength, Wg, IDs);
+
+                            luBarInstX[j][i].x = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 ifPtr->ucat_plane[jif][iif].x +
+                                                 fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 (
+                                                     abl->uBarAvgTopX[IDs[0]].x * Wg[0] +
+                                                     abl->uBarAvgTopX[IDs[1]].x * Wg[1]
+                                                 );
+
+                            luBarInstX[j][i].y = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 ifPtr->ucat_plane[jif][iif].y +
+                                                 fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 (
+                                                     abl->uBarAvgTopX[IDs[0]].y * Wg[0] +
+                                                     abl->uBarAvgTopX[IDs[1]].y * Wg[1]
+                                                 );
+
+                            luBarInstX[j][i].z = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 ifPtr->ucat_plane[jif][iif].z +
+                                                 fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 (
+                                                     abl->uBarAvgTopX[IDs[0]].z * Wg[0] +
+                                                     abl->uBarAvgTopX[IDs[1]].z * Wg[1]
+                                                 );
                         }
                         // index is more than nPrds times inflow points: extrapolate
                         else
                         {
                             // extrapolate along j
-                            if(j>ifPtr->n1*ifPtr->prds1) jif = ifPtr->n1;
+                            //if(j>ifPtr->n1*ifPtr->prds1) jif = ifPtr->n1;
 
                             // extrapolate along i
-                            if(i>ifPtr->n2*ifPtr->prds2) iif = ifPtr->n2;
+                            //if(i>ifPtr->n2*ifPtr->prds2) iif = ifPtr->n2;
 
-                            luBarInstX[j][i].x = ifPtr->ucat_plane[jif][iif].x;
-                            luBarInstX[j][i].y = ifPtr->ucat_plane[jif][iif].y;
-                            luBarInstX[j][i].z = ifPtr->ucat_plane[jif][iif].z;
+                            luBarInstX[j][i].x = abl->uBarAvgTopX[4].x;
+                            luBarInstX[j][i].y = abl->uBarAvgTopX[4].y;
+                            luBarInstX[j][i].z = abl->uBarAvgTopX[4].z;
                         }
                     }
                     // unsteady mapped interpolated
                     else if (ifPtr->typeU == 2)
                     {
+                        PetscReal height = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                        PetscInt  IDs[2];
+                        PetscReal Wg [2];
+
+                        fringeGetTopWeights(height, ifPtr->width1, abl->avgTopLength, Wg, IDs);
+
                         luBarInstX[j][i].x
                         =
-                        ifPtr->inflowWeights[j][i][0] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
-                        ifPtr->inflowWeights[j][i][1] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
-                        ifPtr->inflowWeights[j][i][2] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
-                        ifPtr->inflowWeights[j][i][3] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x;
+                        fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                        (
+                            ifPtr->inflowWeights[j][i][0] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
+                            ifPtr->inflowWeights[j][i][1] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
+                            ifPtr->inflowWeights[j][i][2] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
+                            ifPtr->inflowWeights[j][i][3] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x
+                        ) +
+                        fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                        (
+                            abl->uBarAvgTopX[IDs[0]].x * Wg[0] +
+                            abl->uBarAvgTopX[IDs[1]].x * Wg[1]
+                        );
+
+
 
                         luBarInstX[j][i].y
                         =
-                        ifPtr->inflowWeights[j][i][0] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
-                        ifPtr->inflowWeights[j][i][1] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
-                        ifPtr->inflowWeights[j][i][2] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
-                        ifPtr->inflowWeights[j][i][3] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y;
+                        fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                        (
+                            ifPtr->inflowWeights[j][i][0] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
+                            ifPtr->inflowWeights[j][i][1] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
+                            ifPtr->inflowWeights[j][i][2] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
+                            ifPtr->inflowWeights[j][i][3] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y
+                        ) +
+                        fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                        (
+                            abl->uBarAvgTopX[IDs[0]].y * Wg[0] +
+                            abl->uBarAvgTopX[IDs[1]].y * Wg[1]
+                        );
 
                         luBarInstX[j][i].z
                         =
-                        ifPtr->inflowWeights[j][i][0] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
-                        ifPtr->inflowWeights[j][i][1] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
-                        ifPtr->inflowWeights[j][i][2] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
-                        ifPtr->inflowWeights[j][i][3] *
-                        ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
+                        fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                        (
+                            ifPtr->inflowWeights[j][i][0] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
+                            ifPtr->inflowWeights[j][i][1] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
+                            ifPtr->inflowWeights[j][i][2] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
+                            ifPtr->inflowWeights[j][i][3] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z
+                        ) +
+                        fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                        (
+                            abl->uBarAvgTopX[IDs[0]].z * Wg[0] +
+                            abl->uBarAvgTopX[IDs[1]].z * Wg[1]
+                        );
                     }
                     // Nieuwstadt model
                     else if (ifPtr->typeU == 4)
@@ -1073,41 +1131,63 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                                 i<=ifPtr->n2*ifPtr->prds2
                             )
                             {
-                                ltBarInstX[j][i] = ifPtr->t_plane[jif][iif];
+                                PetscReal height = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                                PetscInt  IDs[2];
+                                PetscReal Wg [2];
+
+                                fringeGetTopWeights(height, ifPtr->width1, abl->avgTopLength, Wg, IDs);
+
+
+                                ltBarInstX[j][i] = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                   ifPtr->t_plane[jif][iif] +
+                                                   fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                   (
+                                                       abl->tBarAvgTopX[IDs[0]] * Wg[0] +
+                                                       abl->tBarAvgTopX[IDs[1]] * Wg[1]
+                                                   );
                             }
                             // index is more than nPrds times inflow points: apply lapse rate
                             else
                             {
-                                PetscReal delta = 0;
+                                PetscReal delta;
 
-                                // extrapolate along j
+                                // compute distance for gradient addition due to height
                                 if(j>ifPtr->n1*ifPtr->prds1)
                                 {
-                                    jif   = ifPtr->n1;
                                     delta = cent[k_idx][j][i].z - gdataHeight;
                                 }
 
-                                // extrapolate along i
-                                if(i>ifPtr->n2*ifPtr->prds2) iif = ifPtr->n2;
-
-                                ltBarInstX[j][i] = ifPtr->t_plane[jif][iif] + delta * abl->gTop;
+                                ltBarInstX[j][i] = abl->tBarAvgTopX[4] + delta * abl->gTop;
                             }
                         }
                         // interpolated periodized mapped inflow
                         else if (ifPtr->typeT == 2)
                         {
-                            PetscReal delta = PetscMax(0.0, cent[k_idx][j][i].z - gdataHeight);
+                            PetscReal delta  = PetscMax(0.0, cent[k_idx][j][i].z - gdataHeight);
+                            PetscReal height = cent[k_idx][j][i].z - mesh->bounds.zmin;
+
+                            PetscInt  IDs[2];
+                            PetscReal Wg [2];
+                            fringeGetTopWeights(height, ifPtr->width1, abl->avgTopLength, Wg, IDs);
 
                             ltBarInstX[j][i]
                             =
-                            ifPtr->inflowWeights[j][i][0] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
-                            ifPtr->inflowWeights[j][i][1] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
-                            ifPtr->inflowWeights[j][i][2] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
-                            ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i] +
+                            fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                            (
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i]
+                            ) +
+                            fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                            (
+                                abl->tBarAvgTopX[IDs[0]] * Wg[0] +
+                                abl->tBarAvgTopX[IDs[1]] * Wg[1]
+                            ) +
                             delta * abl->gTop;
                         }
                     }
@@ -3948,12 +4028,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             (mesh->boundaryU.iRight=="velocityWallFunction" && i==mx-2)
                     )
                     {
-                        PetscReal signTau =  1.0;
-                        if(i==0)  signTau = -1.0;
-
-                        visc1[k][j][i].x = signTau * ueqn->iLWM->tauWall.x[k][j];
-                        visc1[k][j][i].y = signTau * ueqn->iLWM->tauWall.y[k][j];
-                        visc1[k][j][i].z = signTau * ueqn->iLWM->tauWall.z[k][j];
+                        visc1[k][j][i].x = - ueqn->iLWM->tauWall.x[k-zs][j-ys];
+                        visc1[k][j][i].y = - ueqn->iLWM->tauWall.y[k-zs][j-ys];
+                        visc1[k][j][i].z = - ueqn->iLWM->tauWall.z[k-zs][j-ys];
 
                         nut = 0.0;
                     }
@@ -4185,12 +4262,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             (mesh->boundaryU.jRight=="velocityWallFunction" && j==my-2)
                     )
                     {
-                        PetscReal signTau =  1.0;
-                        if(j==0)  signTau = -1.0;
-
-                        visc2[k][j][i].x = signTau * ueqn->jLWM->tauWall.x[k][i];
-                        visc2[k][j][i].y = signTau * ueqn->jLWM->tauWall.y[k][i];
-                        visc2[k][j][i].z = signTau * ueqn->jLWM->tauWall.z[k][i];
+                        visc2[k][j][i].x = - ueqn->jLWM->tauWall.x[k-zs][i-xs];
+                        visc2[k][j][i].y = - ueqn->jLWM->tauWall.y[k-zs][i-xs];
+                        visc2[k][j][i].z = - ueqn->jLWM->tauWall.z[k-zs][i-xs];
 
                         nut = 0.0;
                     }
@@ -4823,9 +4897,6 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
-    // update wall model (optional)
-    UpdateWallModelsU(ueqn);
-
     // initialize the rhs vector
     VecSet(Rhs, 0.0);
 
@@ -4932,9 +5003,6 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
-
-    // update wall model (optional)
-    UpdateWallModelsU(ueqn);
 
     // initialize the rhs vector
     VecSet(ueqn->Rhs, 0.0);

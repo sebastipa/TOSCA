@@ -3202,7 +3202,7 @@ inline void resetCellPeriodicFluxes(mesh_ *mesh, Vec &V, Vec &lV, const char *ty
     return;
 }
 
-// DAMPING VISCOSITY
+// DAMPING VISCOSITY & FRINGE REGION RELATED
 // ============================================================================================================= //
 
 inline PetscReal viscRayleigh(PetscReal &alpha, PetscReal &hS, PetscReal &hE, PetscReal &h)
@@ -3365,6 +3365,88 @@ inline double viscStipaDelta(double &hS, double &hE, double &deltaS, double &del
 
     return(viscosity);
 }
+
+// ============================================================================================================= //
+
+inline void fringeGetTopWeights(PetscReal h, PetscReal delta, PetscReal H, PetscReal *weights, PetscInt *ids)
+{
+    // bottom and top cell center heights of the merging region
+    PetscReal ib = floor(((H - 4.5*delta) + 1e-5) / delta), it = floor((H - 0.5*delta) / delta);
+    PetscReal ir = h / delta;
+
+    // last cell
+    if      (ir < ib)
+    {
+        ids[0]     = 0;
+        ids[1]     = 0;
+        weights[0] = 0.5;
+        weights[1] = 0.5;
+
+        return;
+    }
+    else if (ir > it)
+    {
+        ids[0]     = 4;
+        ids[1]     = 4;
+        weights[0] = 0.5;
+        weights[1] = 0.5;
+
+        return;
+    }
+    else
+    {
+        PetscReal in = ir - ib;
+
+        ids[0] = floor(in + 1e-5);
+        ids[1] = ceil (in - 1e-5);
+
+        // we are at a cell center
+        if(ids[0] == ids[1])
+        {
+            weights[0] = 0.5;
+            weights[1] = 0.5;
+
+            return;
+        }
+        // we are in between: compute weights 
+        else
+        {
+            weights[0]  = ids[1] - in;
+            weights[1]  = in - ids[0];
+
+            return;
+        }
+    }
+}
+
+// ============================================================================================================= //
+
+inline PetscReal fringeTopWeightBottom(PetscReal h, PetscReal H, PetscReal delta)
+{
+    PetscReal psi = h/H, psiM = 1 - 0.5 * delta / H;
+    return
+    (
+        0.5 *
+        (
+            1.0 - std::tanh((psi - psiM) * 2.0 * H / delta)
+        )
+    );
+}
+
+// ============================================================================================================= //
+
+inline PetscReal fringeTopWeightTop(PetscReal h, PetscReal H, PetscReal delta)
+{
+    PetscReal psi = h/H, psiM = 1 - 0.5 * delta / H;
+    return
+    (
+        0.5 *
+        (
+            1.0 + std::tanh((psi - psiM) * 2.0 * H / delta)
+        )
+    );
+}
+
 
 // FLUID QUANTITIES
 // ============================================================================================================= //

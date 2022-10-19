@@ -44,6 +44,7 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
 
         VecDuplicate(mesh->lCent, &(teqn->lDivT));       VecSet(teqn->lDivT,    0.0);
         VecDuplicate(mesh->lCent, &(teqn->lViscT));      VecSet(teqn->lViscT,   0.0);
+        VecDuplicate(mesh->Nvert, &(teqn->sourceT));     VecSet(teqn->sourceT,  0.0);
 
         if(teqn->pTildeFormulation)
         {
@@ -127,6 +128,177 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
             fatalErrorInFunction("InitializeTEqn", error);
         }
     }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
+{
+    mesh_         *mesh = teqn->access->mesh;
+    clock_        *clock= teqn->access->clock;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***t,  ***source;
+    PetscReal     ***nvert, ***aj;
+    Cmpnts        ***cent;
+
+    abl_          *abl  = teqn->access->abl;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l;
+
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, teqn->sourceT, &source);
+    DMDAVecGetArray(da, teqn->lTmprt,  &t);
+
+    // find the first two closest levels
+    PetscReal nLevels = my-2;
+
+    std::vector<PetscReal> ltMean(nLevels);
+    std::vector<PetscReal> gtMean(nLevels);
+
+    for(j=0; j<nLevels; j++)
+    {
+        ltMean[j] = 0.0;
+        gtMean[j] = 0.0;
+    }
+
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+
+    for(j=lys; j<lye; j++)
+    {
+        for(k=zs; k<lze; k++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                ltMean[j-1] += t[k][j][i] / aj[k][j][i];
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+    MPI_Allreduce(&ltMean[0], &gtMean[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    for(j=0; j<nLevels; j++)
+    {
+        gtMean[j] = gtMean[j] / abl->totVolPerLevel[j];
+    }
+
+    // save initial temperature
+    if(clock->it == clock->itStart)
+    {
+        for(j=0; j<nLevels; j++)
+        {
+            abl->tDes[j] = gtMean[j];
+        }
+    }
+
+    // compute level-wise source
+    std::vector<PetscReal> lsource(lye-lys);
+    for(j=lys; j<lye; j++)
+    {
+        lsource[j-lys] = abl->relax*(abl->tDes[j-1] - gtMean[j-1]);
+    }
+
+    // apply source and compute error
+    PetscReal lrelError = 0.0, grelError = 0.0;
+
+    for(j=lys; j<lye; j++)
+    {
+        for(k=zs; k<lze; k++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                source[k][j][i]  = lsource[j-lys];
+                lrelError += lsource[j-lys] / abl->tDes[j-1];
+            }
+        }
+    }
+
+    MPI_Allreduce(&lrelError, &grelError, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    DMDAVecRestoreArray(da, teqn->sourceT, &source);
+    DMDAVecRestoreArray(da, teqn->lTmprt,  &t);
+
+    if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: global error on theta = %.2f percent\n", grelError*100);
+
+    // write source terms to file (radiative fluxes)
+    // write the uniform source term
+    if(!rank)
+    {
+        if(clock->it == clock->itStart)
+        {
+            errno = 0;
+            PetscInt dirRes = mkdir("./postProcessing", 0777);
+            if(dirRes != 0 && errno != EEXIST)
+            {
+                char error[512];
+                sprintf(error, "could not create postProcessing directory\n");
+                fatalErrorInFunction("correctSourceTermT",  error);
+            }
+            else
+            {
+                unlink("postProcessing/temperatureSource");
+            }
+        }
+
+        FILE *fp = fopen("postProcessing/temperatureSource", "a");
+        if(!fp)
+        {
+            char error[512];
+            sprintf(error, "cannot open file postProcessing/temperatureSource\n");
+            fatalErrorInFunction("correctSourceTermT",  error);
+        }
+        else
+        {
+            PetscInt width = -15;
+
+            if(clock->it == clock->itStart)
+            {
+                word w1 = "levels";
+
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*s\t:", width, w1.c_str());
+
+                for(j=0; j<nLevels; j++)
+                {
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, abl->cellLevels[j]);
+                }
+
+                PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+            }
+
+            word w2 = "time";
+
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*s\t: %*.5f\t", width, w2.c_str(), width, clock->time);
+
+            for(j=0; j<nLevels; j++)
+            {
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e\t", width, abl->tDes[j] - gtMean[j]);
+            }
+
+            PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+            fclose(fp);
+        }
+    }
+
+    std::vector<PetscReal> ().swap(ltMean);
+    std::vector<PetscReal> ().swap(gtMean);
+    std::vector<PetscReal> ().swap(lsource);
 
     return(0);
 }
@@ -625,6 +797,50 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
 //***************************************************************************************************************//
 
+
+PetscErrorCode sourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
+{
+    mesh_         *mesh = teqn->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    PetscReal     ***source, ***rhs;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da,  teqn->sourceT, &source);
+    DMDAVecGetArray(da,  Rhs,  &rhs);
+
+    // loop over internal cell faces
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                rhs[k][j][i] += scale * source[k][j][i];
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da,  teqn->sourceT, &source);
+    DMDAVecRestoreArray(da,  Rhs,  &rhs);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+
 PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 {
     // In this function the viscous + divergence term of the temperature equation are
@@ -869,9 +1085,9 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                         =
                         signQ *
                         (
-                            teqn->iRWM->qWall.x[k][j] * icsi[k][j][i].x +
-                            teqn->iRWM->qWall.y[k][j] * icsi[k][j][i].y +
-                            teqn->iRWM->qWall.z[k][j] * icsi[k][j][i].z
+                            teqn->iRWM->qWall.x[k-zs][j-ys] * icsi[k][j][i].x +
+                            teqn->iRWM->qWall.y[k-zs][j-ys] * icsi[k][j][i].y +
+                            teqn->iRWM->qWall.z[k-zs][j-ys] * icsi[k][j][i].z
                         );
 
                         kappaEff = 0.0;
@@ -1037,9 +1253,9 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                         =
                         signQ *
                         (
-                            teqn->jLWM->qWall.x[k][i] * jeta[k][j][i].x +
-                            teqn->jLWM->qWall.y[k][i] * jeta[k][j][i].y +
-                            teqn->jLWM->qWall.z[k][i] * jeta[k][j][i].z
+                            teqn->jLWM->qWall.x[k-zs][i-xs] * jeta[k][j][i].x +
+                            teqn->jLWM->qWall.y[k-zs][i-xs] * jeta[k][j][i].y +
+                            teqn->jLWM->qWall.z[k-zs][i-xs] * jeta[k][j][i].z
                         );
 
                         kappaEff = 0.0;
@@ -1339,6 +1555,15 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     // multiply for dt
     VecScale(Rhs, dt);
 
+    // add driving source terms after as it is not scaled by 1/dt
+    if(teqn->access->flags->isAblActive)
+    {
+        if(teqn->access->abl->controllerActiveT)
+        {
+            sourceT(teqn, Rhs, 1.0);
+        }
+    }
+
     // set to zero at non-resolved cell faces
     resetNonResolvedCellCentersScalar(mesh, Rhs);
 
@@ -1370,6 +1595,15 @@ PetscErrorCode FormExplicitRhsT(teqn_ *teqn)
     {
         // this is causing spurious oscillation: deactivate
         dampingSourceT(teqn, teqn->Rhs, 1.0);
+    }
+
+    // add driving source terms after as it is not scaled by 1/dt
+    if(teqn->access->flags->isAblActive)
+    {
+        if(teqn->access->abl->controllerActiveT)
+        {
+            sourceT(teqn, teqn->Rhs, 1.0 / teqn->access->clock->dt);
+        }
     }
 
     // set to zero at non-resolved cell faces

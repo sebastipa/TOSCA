@@ -65,7 +65,6 @@ int main(int argc, char **argv)
             if(flags.isTeqnActive)
             {
                 VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
-                UpdateWallModelsT(domain[d].teqn);
 
                 if(domain[d].teqn->pTildeFormulation)
                 {
@@ -82,7 +81,6 @@ int main(int argc, char **argv)
             {
                 UpdateCs (domain[d].les);
                 UpdateNut(domain[d].les);
-                UpdateWallModelsU(domain[d].ueqn);
             }
 
             if(flags.isAblActive)
@@ -91,8 +89,12 @@ int main(int argc, char **argv)
                 {
                     CorrectSourceTerms(domain[d].ueqn, 1);
                 }
+                if(domain[d].abl->controllerActiveT)
+                {
+                    CorrectSourceTermsT(domain[d].teqn, 1);
+                }
             }
-            
+
             if(flags.isXDampingActive || flags.isZDampingActive)
             {
                 correctDampingSources(domain[d].ueqn);
@@ -119,14 +121,16 @@ int main(int argc, char **argv)
             // temperature step
             if(flags.isTeqnActive)
             {
-                SolveTEqn(domain[d].teqn);
+                UpdateWallModelsT(domain[d].teqn);
 
-                // save temperature equation right hand side
+                // save temperature equation right hand side (TEqn will use U_n and T_o for Rhs_o)
                 if(domain[d].teqn->ddtScheme=="backwardEuler")
                 {
                     VecSet(domain[d].teqn->Rhs_o, 0.0);
                     FormT (domain[d].teqn, domain[d].teqn->Rhs_o, 1.0);
                 }
+
+                SolveTEqn(domain[d].teqn);
             }
 
             MPI_Barrier(domain[d].mesh->MESH_COMM);
@@ -136,6 +140,11 @@ int main(int argc, char **argv)
 
             // print time step continuity errors (optimized)
             ContinuityErrorsOptimized(domain[d].peqn);
+
+            if(flags.isLesActive)
+            {
+                UpdateWallModelsU(domain[d].ueqn);
+            }
 
             // save momentum right hand side
             if(domain[d].ueqn->ddtScheme=="backwardEuler")
