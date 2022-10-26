@@ -1536,15 +1536,7 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     const PetscReal dt = clock->dt;
 
     // add viscous and transport terms
-    if(clock->it > clock->itStart)
-    {
-        VecAXPY(Rhs, 0.5, teqn->Rhs_o);
-        FormT(teqn, Rhs, 0.5);
-    }
-    else
-    {
-        FormT(teqn, Rhs, 1.0);
-    }
+    FormT(teqn, Rhs, 1.0);
 
     if(teqn->access->flags->isXDampingActive)
     {

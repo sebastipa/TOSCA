@@ -10,6 +10,7 @@ struct abl_
     PetscInt     controllerActive;               //!< activate velocity controller
     PetscInt     controllerActiveT;              //!< activate temperature controller
     PetscInt     coriolisActive;                 //!< activate coriolis force
+
     // physical quantities
     PetscReal    uTau;                           //!< friction Velocity
     PetscReal    hRough;                         //!< equivalent roughness length
@@ -40,6 +41,13 @@ struct abl_
     PetscInt     *closestLabels;                 //!< closest heights w.r.t. controller height
     PetscReal    *levelWeights;                  //!< weights for variables interpolated at closest heights w.r.t. controller height
     PetscReal    controllerMaxHeight;            //!< max height of influence of the velocity controller
+
+    // geostrophic damping for pressure controller
+    PetscInt     geostrophicDampingActive;       //!< geosptrophic oscillation damper
+    PetscInt     applyGeostrophicDamping;        //!< apply damping action
+    PetscReal    lastAvgPStart;                  //!< start time of last averaging
+    PetscInt     nAverages;                      //!< number of averages performed
+	Cmpnts       *gDes;                          //!< filtered geostrophic velocity
 
     // geostrophic controller
     PetscInt     *closestLabelsGeo;              //!< closest heights w.r.t. controller height

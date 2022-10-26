@@ -351,10 +351,12 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             if(clock->it>clock->itStart) clock->cfl =  clock->dt / dxByU_min;
 
             // added by Arjun for fixed time step as a last control
-            if(clock->cfl > 1.0)
+            /*
+			if(clock->cfl > 1.0)
             {
                 clock->dt = clock->dt/2.0;
             }
+			*/
         }
     }
 

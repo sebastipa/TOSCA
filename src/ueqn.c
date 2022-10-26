@@ -58,7 +58,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     VecDuplicate(mesh->Cent, &(ueqn->Ucont_o));   VecSet(ueqn->Ucont_o, 0.0);
     VecDuplicate(mesh->Cent, &(ueqn->Ucat));      VecSet(ueqn->Ucat,    0.0);
     VecDuplicate(mesh->Cent, &(ueqn->dP));        VecSet(ueqn->dP,      0.0);
-    VecDuplicate(mesh->Cent, &(ueqn->sourceU));   VecSet(ueqn->sourceU, 0.0);
     VecDuplicate(mesh->Cent, &(ueqn->gCont));     VecSet(ueqn->gCont,   0.0);
 
     VecDuplicate(mesh->lCent, &(ueqn->lUcont));   VecSet(ueqn->lUcont,  0.0);
@@ -71,6 +70,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     VecDuplicate(mesh->lCent, &(ueqn->lVisc1));   VecSet(ueqn->lVisc1,  0.0);
     VecDuplicate(mesh->lCent, &(ueqn->lVisc2));   VecSet(ueqn->lVisc2,  0.0);
     VecDuplicate(mesh->lCent, &(ueqn->lVisc3));   VecSet(ueqn->lVisc3,  0.0);
+	VecDuplicate(mesh->lCent, &(ueqn->sourceU));  VecSet(ueqn->sourceU, 0.0);
 
     VecDuplicate(mesh->lAj, &(ueqn->lUstar));     VecSet(ueqn->lUstar,  0.0);
 
@@ -351,14 +351,100 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         if(print) PetscPrintf(mesh->MESH_COMM, "                         U error in perc. of desired: (%.3f %.3f %.3f)\n", relError.x*100,relError.y*100, relError.z*100);
 
         // cumulate the error (integral part of the controller)
-        abl->cumulatedSource.x = std::exp(-clock->dt / T) * abl->cumulatedSource.x + (clock->dt / T) * error.x;
-        abl->cumulatedSource.y = std::exp(-clock->dt / T) * abl->cumulatedSource.y + (clock->dt / T) * error.y;
+        abl->cumulatedSource.x = (1.0 - clock->dt / T) * abl->cumulatedSource.x + (clock->dt / T) * error.x;
+        abl->cumulatedSource.y = (1.0 - clock->dt / T) * abl->cumulatedSource.y + (clock->dt / T) * error.y;
         abl->cumulatedSource.z = 0.0;
 
         // compute the uniform source terms (PI controller with adjustable gains)
         s.x = relax * (alpha * error.x + (1.0-alpha) * abl->cumulatedSource.x) ;
         s.y = relax * (alpha * error.y + (1.0-alpha) * abl->cumulatedSource.y) ;
         s.z = 0.0;
+
+        if(abl->geostrophicDampingActive)
+        {
+			// spatially average velocity
+			std::vector<Cmpnts>    lgDes(nLevels);
+			std::vector<Cmpnts>    ggDes(nLevels);
+			
+			// set to zero
+			for(j=0; j<nLevels; j++) 
+			{
+				lgDes[j] = nSetZero();
+				ggDes[j] = nSetZero();
+			}
+			
+			DMDAVecGetArray(da, mesh->lAj, &aj);
+			
+			// loop over i-face centers
+			for(j=lys; j<lye; j++)
+			{
+				for(k=lzs; k<lze; k++)
+				{
+					for(i=lxs; i<lxe; i++)
+					{
+						mSum
+						(
+							lgDes[j-1], 
+							nScale(1.0/aj[k][j][i], ucat[k][j][i])
+						);
+					}
+				}
+			}
+			
+			DMDAVecRestoreArray(da, mesh->lAj, &aj);
+			
+			MPI_Allreduce(&lgDes[0], &ggDes[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+			// divide by total volume per level
+			for(j=0; j<nLevels; j++)
+			{
+				mScale(1.0/abl->totVolPerLevel[j], ggDes[j]);
+			}
+
+			// compute time delta to decide action
+            PetscReal timeDelta = clock->time - abl->lastAvgPStart;
+
+            // filter spatial average in time for t = T
+            if(timeDelta <= abl->timeWindow)
+            {
+				PetscReal aN = (PetscReal)abl->nAverages;
+                PetscReal m1 = aN  / (aN + 1.0);
+                PetscReal m2 = 1.0 / (aN + 1.0);
+
+                for(j=0; j<nLevels; j++)
+				{
+					abl->gDes[j] = nSum
+					(
+						nScale(m1,  abl->gDes[j]),
+						nScale(m2,  ggDes[j])
+					);
+				}
+				
+				abl->nAverages++;
+
+                if(print) PetscPrintf(mesh->MESH_COMM, "                         Geo damping action: averaging\n");
+            }
+            // apply geostrophic correction for 5 min
+            else if(timeDelta > abl->timeWindow && timeDelta < abl->timeWindow + 300)
+            {
+                abl->applyGeostrophicDamping = 1;
+                
+                if(print) PetscPrintf(mesh->MESH_COMM, "                         Geo damping action: damping\n");
+            }
+            // reset
+            else
+            {
+                abl->lastAvgPStart           = clock->time;
+				abl->nAverages               = 0;
+                abl->applyGeostrophicDamping = 0;
+				
+				if(print) PetscPrintf(mesh->MESH_COMM, "                         Geo damping action: reset\n");
+            }
+			
+			// clean memory
+			std::vector<Cmpnts>    ().swap(lgDes);
+			std::vector<Cmpnts>    ().swap(ggDes);
+        }
 
         // write the uniform source term
         if(!rank)
@@ -506,8 +592,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         abl->geoAngle = (1.0 - clock->dt / T) * abl->geoAngle + (clock->dt / T) * geoAngleNew;
 
         // compute the uniform source terms
-        abl->a.x = -abl->fc*nMag(abl->uGeoBar)*sin(abl->geoAngle);
-        abl->a.y =  abl->fc*nMag(abl->uGeoBar)*cos(abl->geoAngle);
+        abl->a.x = -2.0*abl->fc*nMag(abl->uGeoBar)*sin(abl->geoAngle);
+        abl->a.y =  2.0*abl->fc*nMag(abl->uGeoBar)*cos(abl->geoAngle);
         abl->a.z =  0.0;
 
         if(!relax)
@@ -644,11 +730,11 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     // update the source term
-    for (k=zs; k<lze; k++)
+    for (k=lzs; k<lze; k++)
     {
-        for (j=ys; j<lye; j++)
+        for (j=lys; j<lye; j++)
         {
-            for (i=xs; i<lxe; i++)
+            for (i=lxs; i<lxe; i++)
             {
                 if(cent[k][j][i].z <= abl->controllerMaxHeight)
                 {
@@ -658,11 +744,42 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                         source[k][j][i].y = abl->a.y + abl->b.y*ucat[k][j][i].x;
                         source[k][j][i].z = 0.0;
                     }
+                    else if(abl->controllerType=="pressure")
+                    {
+                        if(abl->geostrophicDampingActive)
+                        {
+                            if(abl->applyGeostrophicDamping)
+                            {
+                                Cmpnts    sG      = nScale(abl->relax, nSub(abl->gDes[j-1], ucat[k][j][i]));
+								PetscReal height  = cent[k][j][i].z - mesh->bounds.zmin;
+								
+								source[k][j][i].x = fringeTopWeightBottom(height, abl->hInv + abl->dInv, abl->dInv) * s.x +
+                                                    fringeTopWeightTop   (height, abl->hInv + abl->dInv, abl->dInv) * sG.x;
+								source[k][j][i].y = fringeTopWeightBottom(height, abl->hInv + abl->dInv, abl->dInv) * s.y +
+                                                    fringeTopWeightTop   (height, abl->hInv + abl->dInv, abl->dInv) * sG.y;
+								source[k][j][i].z = 0.0;
+                            }
+							else 
+							{
+								source[k][j][i].x = s.x;
+								source[k][j][i].y = s.y;
+								source[k][j][i].z = 0.0;
+							}
+
+                            
+                        }
+                        else
+                        {
+                            source[k][j][i].x = s.x;
+                            source[k][j][i].y = s.y;
+                            source[k][j][i].z = 0.0;
+                        }
+                    }
                     else
                     {
                         source[k][j][i].x = s.x;
                         source[k][j][i].y = s.y;
-                        source[k][j][i].z = s.z;
+                        source[k][j][i].z = 0.0;
                     }
                 }
                 else
@@ -674,10 +791,41 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             }
         }
     }
+	
+	// apply zero-gradient boundary conditions
+	for (k=zs; k<ze; k++)
+	{
+		for (j=ys; j<ye; j++)
+		{
+			for (i=xs; i<xe; i++)
+			{
+				PetscInt flag=0, a=i, b=j, c=k;
+
+				if(i==0)         a=1,    flag=1;
+				else if(i==mx-1) a=mx-2, flag=1;
+
+				if(j==0)         b=1,    flag=1;
+				else if(j==my-1) b=my-2, flag=1;
+  
+				if(k==0)         c=1,    flag=1;
+				else if(k==mz-1) c=mz-2, flag=1;
+
+				if(flag)
+				{
+					source[k][j][i] = nSet(source[c][b][a]);
+				}
+			}
+		}
+	}
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     DMDAVecRestoreArray(fda, ueqn->sourceU, &source);
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+	
+	DMLocalToLocalBegin(fda, ueqn->sourceU, INSERT_VALUES, ueqn->sourceU);
+    DMLocalToLocalEnd  (fda, ueqn->sourceU, INSERT_VALUES, ueqn->sourceU);
+	
+	resetCellPeriodicFluxes(mesh, ueqn->sourceU, ueqn->sourceU, "vector", "localToLocal");
 
     return(0);
 }
@@ -770,9 +918,9 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     +=
                     scale * nudI *
                     (
-                          source[k][j][i].x * icsi[k][j][i].x +
-                          source[k][j][i].y * icsi[k][j][i].y +
-                          source[k][j][i].z * icsi[k][j][i].z
+                          central(source[k][j][i].x, source[k][j][i+1].x) * icsi[k][j][i].x +
+                          central(source[k][j][i].y, source[k][j][i+1].y) * icsi[k][j][i].y +
+                          central(source[k][j][i].z, source[k][j][i+1].z) * icsi[k][j][i].z
                     );
                 }
 
@@ -785,9 +933,9 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     +=
                     scale * nudJ *
                     (
-                          source[k][j][i].x * jeta[k][j][i].x +
-                          source[k][j][i].y * jeta[k][j][i].y +
-                          source[k][j][i].z * jeta[k][j][i].z
+                          central(source[k][j][i].x, source[k][j+1][i].x) * jeta[k][j][i].x +
+                          central(source[k][j][i].y, source[k][j+1][i].y) * jeta[k][j][i].y +
+                          central(source[k][j][i].z, source[k][j+1][i].z) * jeta[k][j][i].z
                     );
                 }
 
@@ -800,9 +948,9 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     +=
                     scale * nudK *
                     (
-                          source[k][j][i].x * kzet[k][j][i].x +
-                          source[k][j][i].y * kzet[k][j][i].y +
-                          source[k][j][i].z * kzet[k][j][i].z
+                          central(source[k][j][i].x, source[k+1][j][i].x) * kzet[k][j][i].x +
+                          central(source[k][j][i].y, source[k+1][j][i].y) * kzet[k][j][i].y +
+                          central(source[k][j][i].z, source[k+1][j][i].z) * kzet[k][j][i].z
                     );
                 }
             }
@@ -1908,6 +2056,8 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 {
     mesh_         *mesh = ueqn->access->mesh;
+    abl_          *abl  = ueqn->access->abl;
+    clock_        *clock = ueqn->access->clock;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -1922,7 +2072,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
 
-    PetscReal     fc      = ueqn->access->abl->fc; // coriolis parameter
+    PetscReal     fc = abl->fc; // coriolis parameter / 2
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1935,24 +2085,37 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     // zero since eta face area vectors have zero component in x and y cartesian directions.
 
     // damping viscosity for fringe region exclusion
-    double nudI;
-    double nudJ;
-    double nudK;
+    PetscReal nudI = 1.0;
+    PetscReal nudJ = 1.0;
+    PetscReal nudK = 1.0;
+
+    // geostrophic damping for pressure controller
+    PetscReal nugI = 1.0;
+    PetscReal nugJ = 1.0;
+    PetscReal nugK = 1.0;
+    PetscInt  geoDamping = 0;
+
+    if(abl->controllerActive)
+    {
+        if(abl->controllerType=="pressure")
+        {
+            if(abl->geostrophicDampingActive)
+            {
+				if(abl->applyGeostrophicDamping) geoDamping = 1;
+            }
+        }
+    }
 
     // fringe region parameters (set only if active)
-    double xS;
-    double xE;
-    double xD;
+    PetscReal xS;
+    PetscReal xE;
+    PetscReal xD;
 
     if(ueqn->access->flags->isXDampingActive)
     {
         xS     = ueqn->access->abl->xDampingStart;
         xE     = ueqn->access->abl->xDampingEnd;
         xD     = ueqn->access->abl->xDampingDelta;
-    }
-    else
-    {
-        nudI = nudJ = nudK = 1.0;
     }
 
     DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
@@ -1970,19 +2133,20 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
+
                 if(ueqn->access->flags->isXDampingActive)
                 {
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    double x     = cent[k][j][i].x;
-                    double xi    = cent[k][j][i+1].x;
-                    double xj    = cent[k][j+1][i].x;
-                    double xk    = cent[k+1][j][i].x;
+                    PetscReal x     = cent[k][j][i].x;
+                    PetscReal xi    = cent[k][j][i+1].x;
+                    PetscReal xj    = cent[k][j+1][i].x;
+                    PetscReal xk    = cent[k+1][j][i].x;
 
                     // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    double nud_x   = viscStipa(xS, xE, xD, x);
-                    double nudi_x  = viscStipa(xS, xE, xD, xi);
-                    double nudj_x  = viscStipa(xS, xE, xD, xj);
-                    double nudk_x  = viscStipa(xS, xE, xD, xk);
+                    PetscReal nud_x   = viscStipa(xS, xE, xD, x);
+                    PetscReal nudi_x  = viscStipa(xS, xE, xD, xi);
+                    PetscReal nudj_x  = viscStipa(xS, xE, xD, xj);
+                    PetscReal nudk_x  = viscStipa(xS, xE, xD, xk);
 
                     // interpolate to faces
                     nudI           = central(nud_x, nudi_x);
@@ -1990,11 +2154,30 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     nudK           = central(nud_x, nudk_x);
                 }
 
+                if(geoDamping)
+                {
+                    PetscReal h   = cent[k][j][i  ].z - mesh->bounds.zmin;
+                    PetscReal hi  = cent[k][j][i+1].z - mesh->bounds.zmin;
+                    PetscReal hj  = cent[k][j+1][i].z - mesh->bounds.zmin;
+                    PetscReal hk  = cent[k+1][j][i].z - mesh->bounds.zmin;
+
+                    // compute coriolis scaling at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    PetscReal nug   = fringeTopWeightBottom(h,  abl->hInv + abl->dInv, abl->dInv);
+                    PetscReal nugi  = fringeTopWeightBottom(hi, abl->hInv + abl->dInv, abl->dInv);
+                    PetscReal nugj  = fringeTopWeightBottom(hj, abl->hInv + abl->dInv, abl->dInv);
+                    PetscReal nugk  = fringeTopWeightBottom(hk, abl->hInv + abl->dInv, abl->dInv);
+
+                    // interpolate to faces
+                    nugI           = central(nug, nugi);
+                    nugJ           = central(nug, nugj);
+                    nugK           = central(nug, nugk);
+                }
+
                 if(isFluidIFace(k, j, i, i+1, nvert))
                 {
                     rhs[k][j][i].x
                     +=
-                    scale * nudI *
+                    scale * nudI * nugI *
                     (
                         -2.0 *
                         (
@@ -2008,7 +2191,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].y
                     +=
-                    scale * nudJ *
+                    scale * nudJ * nugJ *
                     (
                         -2.0 *
                         (
@@ -2022,7 +2205,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].z
                     +=
-                    scale * nudK *
+                    scale * nudK * nugK *
                     (
                         -2.0 *
                         (

@@ -227,6 +227,29 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 PetscPrintf(mesh->MESH_COMM, "   -> sum of weights = %lf, w1 = %lf, w2 = %lf\n", abl->levelWeights[0]+abl->levelWeights[1], abl->levelWeights[0], abl->levelWeights[1]);
 
                 std::vector<PetscReal> ().swap(absLevelDelta);
+
+                // pressure controller specific objects
+                if(abl->controllerType == "pressure")
+                {
+                    readSubDictInt("ABLProperties.dat", "controllerProperties", "geostrophicDamping", &(abl->geostrophicDampingActive));
+
+                    if(abl->geostrophicDampingActive)
+                    {
+						// set number of performed averages to zero
+						abl->nAverages = 0;
+
+						// set action to average
+						abl->applyGeostrophicDamping = 0;
+
+                        // allocate memory for filtered geostrophic velocity
+                        PetscMalloc(sizeof(Cmpnts)*nLevels, &(abl->gDes));
+
+						for(j=0; j<nLevels; j++)
+						{
+							abl->gDes[j] = nSetZero();
+						}
+                    }
+                }
             }
 
             // calculating geostrophic wind and interpolation weight at geostrophic wind
@@ -618,7 +641,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // unsteady mapped ubar
             else if (ifPtr->typeU == 1)
             {
-                PetscPrintf(mesh->MESH_COMM, "   - damping type 1: averaging inflow at 5 top cells...");
+                PetscPrintf(mesh->MESH_COMM, "   -> damping type 1: averaging inflow at 5 top cells...");
 
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 1;
@@ -746,7 +769,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // unsteady interpolated ubar
             else if (ifPtr->typeU == 2)
             {
-                PetscPrintf(mesh->MESH_COMM, "   - damping type 1: averaging inflow at 5 top cells...");
+                PetscPrintf(mesh->MESH_COMM, "   -> damping type 2: averaging inflow at 5 top cells...");
 
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 2;
@@ -759,8 +782,25 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Inflow",   &(ifPtr->n2));
                 readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Periods",  &(ifPtr->prds1));
                 readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Periods",  &(ifPtr->prds2));
-                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
-                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
+
+                // read if source mesh is uniform or grading
+                readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
+
+                if(ifPtr->sourceType == "uniform")
+                {
+                    readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
+                    readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
+                }
+                else if(ifPtr->sourceType == "grading")
+                {
+                    // do nothing
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "unknown sourceType in uBarSelectionType type 4, available types are\n    1: uniform\n    2: grading\n");
+                    fatalErrorInFunction("ABLInitialize",  error);
+                }
 
                 // increase n1 and n2 accounting for side ghost cells
                 ifPtr->n1wg = ifPtr->n1 + 2;

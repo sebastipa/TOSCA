@@ -44,7 +44,6 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictDouble(fileName.c_str(), "inletFunction", "Href", &(ifPtr->Href));
             readSubDictDouble(fileName.c_str(), "inletFunction", "uPrimeRMS", &(ifPtr->uPrimeRMS));
         }
-
         // log law profile
         else if (ifPtr->typeU == 2)
         {
@@ -155,12 +154,30 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             field = "U";
             fileName = location + field;
 
+            // read if source mesh is uniform or grading
+            readSubDictWord(fileName.c_str(), "inletFunction", "sourceType",  &(ifPtr->sourceType));
+
+            // read number of cells and periods
             readSubDictInt   (fileName.c_str(), "inletFunction", "n1Inflow",   &(ifPtr->n1));
             readSubDictInt   (fileName.c_str(), "inletFunction", "n2Inflow",   &(ifPtr->n2));
             readSubDictInt   (fileName.c_str(), "inletFunction", "n1Periods",  &(ifPtr->prds1));
             readSubDictInt   (fileName.c_str(), "inletFunction", "n2Periods",  &(ifPtr->prds2));
-            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &(ifPtr->width1));
-            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &(ifPtr->width2));
+
+            if(ifPtr->sourceType == "uniform")
+            {
+                readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &(ifPtr->width1));
+                readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &(ifPtr->width2));
+            }
+            else if(ifPtr->sourceType == "grading")
+            {
+                // do nothing
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "unknown sourceType in inletFunction type 4, available types are\n    1: uniform\n    2: grading\n");
+                fatalErrorInFunction("SetInflowFunctions",  error);
+            }
 
             // increase n1 and n2 accounting for side ghost cells
             ifPtr->n1wg = ifPtr->n1 + 2;
@@ -182,34 +199,35 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
 
                     if(ifPtr->typeT == 4)
                     {
-                        // if only T is mapped throw error
-                        if(ifPtr->typeT != ifPtr->typeU)
-                        {
-                            // throw error
-                           char error[512];
-                            sprintf(error, "unsteadyMappedInflow must be applied to U, T if temperatureTransport is active\n");
-                            fatalErrorInFunction("SetInflowFunctions", error);
-                        }
-                        else
-                        {
-                            ifPtr->mapT = 1;
+                        ifPtr->mapT = 1;
 
-                            // read parameters and check that are the same as U
-                            PetscInt n1, n2, prds1, prds2;
-                            PetscReal width1, width2;
-                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
-                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
-                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
-                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
-                            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &width1);
-                            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &width2);
-                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 || width1!=ifPtr->width1 || width2!=ifPtr->width2)
-                            {
-                                char error[512];
-                                sprintf(error, "inletFunction type 4 parameters in boundary/T must match boundary/U");
-                                fatalErrorInFunction("SetInflowFunctions",  error);
-                            }
+                        // read parameters and check that are the same as U
+                        PetscInt  n1, n2, prds1, prds2;
+                        PetscReal width1, width2;
+                        word      sourceTypeT;
+                        readSubDictWord(fileName.c_str(),   "inletFunction", "sourceType", &sourceTypeT);
+                        readSubDictInt(fileName.c_str(),    "inletFunction", "n1Inflow",   &n1);
+                        readSubDictInt(fileName.c_str(),    "inletFunction", "n2Inflow",   &n2);
+                        readSubDictInt(fileName.c_str(),    "inletFunction", "n1Periods",  &prds1);
+                        readSubDictInt(fileName.c_str(),    "inletFunction", "n2Periods",  &prds2);
+                        if
+                        (
+                            n1!=ifPtr->n1 || n2 != ifPtr->n2 ||
+                            prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 ||
+                            sourceTypeT!=ifPtr->sourceType
+                        )
+                        {
+                            char error[512];
+                            sprintf(error, "inletFunction type 4 parameters in boundary/T must match boundary/U");
+                            fatalErrorInFunction("SetInflowFunctions",  error);
                         }
+                    }
+                    else
+                    {
+                        // throw error
+                        char error[512];
+                        sprintf(error, "unsteadyMappedInflow must be applied to U, T if temperatureTransport is active\n");
+                        fatalErrorInFunction("SetInflowFunctions", error);
                     }
                 }
             }
@@ -234,19 +252,31 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                             // read parameters and check that are the same as U
                             PetscInt n1, n2, prds1, prds2;
                             PetscReal width1, width2;
-                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
-                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
-                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
-                            readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
-                            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &width1);
-                            readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &width2);
-                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 || width1!=ifPtr->width1 || width2!=ifPtr->width2)
+                            word      sourceTypeNut;
+                            readSubDictWord(fileName.c_str(),   "inletFunction", "sourceType", &sourceTypeNut);
+                            readSubDictInt(fileName.c_str(),    "inletFunction", "n1Inflow",   &n1);
+                            readSubDictInt(fileName.c_str(),    "inletFunction", "n2Inflow",   &n2);
+                            readSubDictInt(fileName.c_str(),    "inletFunction", "n1Periods",  &prds1);
+                            readSubDictInt(fileName.c_str(),    "inletFunction", "n2Periods",  &prds2);
+                            if
+                            (
+                                n1!=ifPtr->n1 || n2 != ifPtr->n2 ||
+                                prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 ||
+                                sourceTypeNut!=ifPtr->sourceType
+                            )
                             {
                                 char error[512];
                                 sprintf(error, "inletFunction type 4 parameters in boundary/nut must match boundary/U");
                                 fatalErrorInFunction("SetInflowFunctions",  error);
                             }
                         }
+                    }
+                    else
+                    {
+                        // throw error
+                        char error[512];
+                        sprintf(error, "unsteadyMappedInflow must be applied also on nut\n");
+                        fatalErrorInFunction("SetInflowFunctions", error);
                     }
                 }
             }
@@ -386,23 +416,114 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
     // j = z direction
     // k = x direction (useles for kLeftPatch)
 
-    // add one point because cell indexing starts from 1, ghost cells are
-    // unnecessary, we only need the first for indexing the loops
-    PetscInt jN = std::floor(mesh->bounds.Lz / ifPtr->width1)+1;
-    PetscInt iN = std::floor(mesh->bounds.Ly / ifPtr->width2)+1;
+    PetscInt jN;
+    PetscInt iN;
 
     // create fictitious inflow plane (it has the same size of the actual mesh inflow)
-    std::vector<std::vector<Cmpnts>> inflowCellCenters(jN);
+    std::vector<std::vector<Cmpnts>> inflowCellCenters;
 
-    for(PetscInt jif=1; jif<jN; jif++)
+    // uniform mesh: just fill the plane using provided widths
+    if(ifPtr->sourceType == "uniform")
     {
-        inflowCellCenters[jif].resize(iN);
+        // add one point because cell indexing starts from 1, ghost cells are
+        // unnecessary, we only need the first for indexing the loops
+        jN = std::floor(mesh->bounds.Lz / ifPtr->width1)+1;
+        iN = std::floor(mesh->bounds.Ly / ifPtr->width2)+1;
 
-        for(PetscInt iif=1; iif<iN; iif++)
+        inflowCellCenters.resize(jN);
+
+        for(PetscInt jif=1; jif<jN; jif++)
         {
-            inflowCellCenters[jif][iif].x = 0.0;
-            inflowCellCenters[jif][iif].y = mesh->bounds.ymin + 0.5 * ifPtr->width2 + (iif-1) * ifPtr->width2;
-            inflowCellCenters[jif][iif].z = mesh->bounds.zmin + 0.5 * ifPtr->width1 + (jif-1) * ifPtr->width1;
+            inflowCellCenters[jif].resize(iN);
+
+            for(PetscInt iif=1; iif<iN; iif++)
+            {
+                inflowCellCenters[jif][iif].x = 0.0;
+                inflowCellCenters[jif][iif].y = mesh->bounds.ymin + 0.5 * ifPtr->width2 + (iif-1) * ifPtr->width2;
+                inflowCellCenters[jif][iif].z = mesh->bounds.zmin + 0.5 * ifPtr->width1 + (jif-1) * ifPtr->width1;
+            }
+        }
+    }
+    else if(ifPtr->sourceType == "grading")
+    {
+        // we have to actually read the points, numbering goes on as TOSCA indexing
+        // so 1 = j, 2 = i for k-normal slices.
+
+        std::vector<PetscReal>  Ycart, Zcart;
+        std::vector<PetscReal>  points1(ifPtr->n1), points2(ifPtr->n2);
+
+        word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
+        FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
+
+        PetscPrintf(mesh->MESH_COMM, "\n");
+        PetscPrintf(mesh->MESH_COMM, "   -> reading source mesh %s\n",pointsFileName.c_str());
+
+        if(!meshFileID)
+        {
+            char error[512];
+            sprintf(error, "cannot open inflow points file %s\n", pointsFileName.c_str());
+            fatalErrorInFunction("SetInflowWeights", error);
+        }
+        else
+        {
+            // read the source mesh file in .xyz format
+            PetscReal bufferDouble;
+            PetscInt  npx, npy, npz;
+            PetscInt  error = fscanf(meshFileID, "%ld %ld %ld\n", &npx, &npy, &npz);
+
+            if(ifPtr->n1 != npz - 1 || ifPtr->n2 != npy - 1)
+            {
+                char error[512];
+                sprintf(error, "source mesh given in %s and expected number of cells do not match\n", pointsFileName.c_str());
+                fatalErrorInFunction("SetInflowWeights", error);
+            }
+
+            Ycart.resize(npy);
+            Zcart.resize(npz);
+
+            for (k = 0; k < npx; k++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+            for (i = 0; i < npy; i++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble,  &Ycart[i], &bufferDouble);
+            for (j = 0; j < npz; j++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble,  &Zcart[j]);
+
+            fclose(meshFileID);
+
+            // compute cell centers
+            for (j = 0; j < ifPtr->n1; j++) points1[j] = 0.5*(Zcart[j+1] + Zcart[j]);
+            for (i = 0; i < ifPtr->n2; i++) points2[i] = 0.5*(Ycart[i+1] + Ycart[i]);
+
+            // now compute fictitious mesh
+            PetscReal Lyf, Lzf;
+            PetscInt nTimes1 = 0, nTimes2 = 0;
+
+            do{nTimes2++; Lyf = nTimes2*Ycart[npy-1];} while(Lyf < mesh->bounds.Ly);
+            do{nTimes1++; Lzf = nTimes1*Zcart[npz-1];} while(Lzf < mesh->bounds.Lz);
+
+            PetscPrintf(mesh->MESH_COMM, "   -> source mesh multipliers dir1 = %ld, dir2 = %ld\n",nTimes1, nTimes2);
+
+            jN = nTimes1 * ifPtr->n1 + 1;
+            iN = nTimes2 * ifPtr->n2 + 1;
+
+            inflowCellCenters.resize(jN);
+
+            for(PetscInt jif=1; jif<jN; jif++)
+            {
+                inflowCellCenters[jif].resize(iN);
+
+                for(PetscInt iif=1; iif<iN; iif++)
+                {
+                    PetscInt sourceI = (iif-1) % ifPtr->n2,
+                             sourceJ = (jif-1) % ifPtr->n1;
+                    inflowCellCenters[jif][iif].x = 0.0;
+                    inflowCellCenters[jif][iif].y = points2[sourceI] + std::floor((iif-1) / ifPtr->n2)*Ycart[npy-1];
+                    inflowCellCenters[jif][iif].z = points1[sourceJ] + std::floor((jif-1) / ifPtr->n1)*Zcart[npz-1];
+                }
+            }
+
+            // wipe vectors
+            std::vector<PetscReal> ().swap(Ycart);
+            std::vector<PetscReal> ().swap(Zcart);
+            std::vector<PetscReal> ().swap(points2);
+            std::vector<PetscReal> ().swap(points1);
         }
     }
 

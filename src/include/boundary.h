@@ -79,6 +79,7 @@ struct inletFunctionTypes
 
     PetscReal     ***inflowWeights;           //!< array of 4 weights for each cell center (ordered as a 2D plane array)
     cellIds       ***closestCells;            //!< array of 4 closest cells for each cell center
+    word          sourceType;                 //!< source mesh type (uniform or grading)
     PetscReal     width1;                     //!< inflow cell width in the 1st direction
     PetscReal     width2;                     //!< inflow cell width in the 2nd direction
 

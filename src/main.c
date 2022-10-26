@@ -123,13 +123,6 @@ int main(int argc, char **argv)
             {
                 UpdateWallModelsT(domain[d].teqn);
 
-                // save temperature equation right hand side (TEqn will use U_n and T_o for Rhs_o)
-                if(domain[d].teqn->ddtScheme=="backwardEuler")
-                {
-                    VecSet(domain[d].teqn->Rhs_o, 0.0);
-                    FormT (domain[d].teqn, domain[d].teqn->Rhs_o, 1.0);
-                }
-
                 SolveTEqn(domain[d].teqn);
             }
 

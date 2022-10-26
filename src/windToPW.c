@@ -186,7 +186,7 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
   }
 
-  averaging3LMInitialize(domain);
+  //averaging3LMInitialize(domain);
 
   return(0);
 }
