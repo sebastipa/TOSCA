@@ -10,6 +10,12 @@
 // DYNAMIC TIME STEPPING
 // ============================================================================================================= //
 
+inline PetscReal currentDistanceToWriteTime(clock_ *clock, PetscReal timeStart, PetscReal timeInterval)
+{
+    PetscReal currentAcquistionPeriodFraction = ((clock->time - timeStart) / timeInterval - std::floor((clock->time - timeStart) / timeInterval + 1e-10));
+    return((1.0-currentAcquistionPeriodFraction)*timeInterval);
+}
+
 inline void timeStepSet(clock_ *clock, PetscReal timeStart, PetscReal timeInterval, PetscReal dByU, PetscInt &flag, PetscReal &cfl)
 {
     PetscReal initialTimeStep  = clock->dt;
@@ -74,6 +80,33 @@ inline PetscReal signNonZero(PetscReal a)
     else if (a < 0) return -1.0;
     else            return  1.0;
 
+}
+
+// ============================================================================================================= //
+
+inline PetscReal gcd(PetscReal a, PetscReal b)
+{
+    if (a < b) return gcd(b, a);
+
+    // base case
+    if (fabs(b) < 1e-8) return a;
+
+    else return (gcd(b, a - floor(a / b) * b));
+
+}
+
+// ============================================================================================================= //
+
+inline PetscReal gcdN(PetscReal *v, PetscInt n)
+{
+    PetscReal result = v[0];
+
+    for (PetscInt i = 1; i < n; i++)
+    {
+        result = gcd(v[i], result);
+    }
+
+    return result;
 }
 
 // ============================================================================================================= //
@@ -3366,57 +3399,102 @@ inline double viscStipaDelta(double &hS, double &hE, double &deltaS, double &del
     return(viscosity);
 }
 
-// ============================================================================================================= //
+//***************************************************************************************************************//
 
-inline void fringeGetTopWeights(PetscReal h, PetscReal delta, PetscReal H, PetscReal *weights, PetscInt *ids)
+inline void findInterpolationWeigths(PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)
 {
-    // bottom and top cell center heights of the merging region
-    PetscReal ib = floor(((H - 4.5*delta) + 1e-5) / delta), it = floor((H - 0.5*delta) / delta);
-    PetscReal ir = h / delta;
+    // equality tolerance: if equal data points up to re-tol = 1e-5 are found,
+    // that interpolation point is skipped because it does not provide information
+    // and would result in a division by zero when computing the weights.
+    PetscReal tol1, tol2, eqTol = 1e-5;
 
-    // last cell
-    if      (ir < ib)
+    // check that extrapolation is not necessary
+    // (up to a minimum tol of (pEnd-pStart) / npts that it is small enough not to have extrapolation errors)
+    PetscReal eps = (pvec[npts-1] - pvec[0]) / npts;
+    if(pval > pvec[npts-1]+eps || pval < pvec[0]-eps)
     {
-        ids[0]     = 0;
-        ids[1]     = 0;
-        weights[0] = 0.5;
-        weights[1] = 0.5;
-
-        return;
+       char error[512];
+        sprintf(error, "query point %lf outside of bounds [%lf - %lf]... was told not to extrapolate\n", pval, pvec[0]-eps, pvec[npts-1]+eps);
+        fatalErrorInFunction("findInterpolationWeigths",  error);
     }
-    else if (ir > it)
+
+    PetscReal diff[npts];
+    PetscInt    idx_1 = 0,
+           idx_2 = 1;
+
+    // find the difference
+    for(PetscInt i=0; i<npts; i++)
     {
-        ids[0]     = 4;
-        ids[1]     = 4;
+        diff[i] = fabs(pvec[i]-pval);
+    }
+
+    // find the two closest labels
+    for(PetscInt i=0; i<npts; i++)
+    {
+        tol1 = fabs(diff[i] - diff[idx_2]) / diff[i];
+
+        if(diff[i] < diff[idx_1] && tol1 > eqTol)
+        {
+            idx_2 = idx_1;
+            idx_1 = i;
+        }
+
+        tol2 = fabs(diff[i] - diff[idx_1]) / diff[i];
+
+        if(diff[i] < diff[idx_2] && i != idx_1 && tol2 > eqTol)
+        {
+            idx_2 = i;
+        }
+    }
+
+    // always put the lower value at idx_1 and higher at idx_2
+    if(pvec[idx_2] < pvec[idx_1])
+    {
+        PetscInt idx_tmp = idx_2;
+        idx_2 = idx_1;
+        idx_1 = idx_tmp;
+    }
+
+    // store the labels
+    labels[0] = idx_1;
+    labels[1] = idx_2;
+
+    // should never divide by zero (increase equality tolerance if it happens)
+    PetscReal idx = (idx_2 - idx_1) / (pvec[idx_2] - pvec[idx_1]) * (pval - pvec[idx_1]) + idx_1;
+
+    // store the weights
+    weights[0] = (idx_2 - idx) / (idx_2 - idx_1);
+    weights[1] = (idx - idx_1) / (idx_2 - idx_1);
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+inline void findInterpolationWeigthsWithExtrap(PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)
+{
+    if(pval > pvec[npts-1])
+    {
         weights[0] = 0.5;
         weights[1] = 0.5;
 
-        return;
+        labels[0]  = npts-1;
+        labels[1]  = npts-1;
+    }
+    else if (pval < pvec[0])
+    {
+        weights[0] = 0.5;
+        weights[1] = 0.5;
+
+        labels[0]  = 0;
+        labels[1]  = 0;
     }
     else
     {
-        PetscReal in = ir - ib;
-
-        ids[0] = floor(in + 1e-5);
-        ids[1] = ceil (in - 1e-5);
-
-        // we are at a cell center
-        if(ids[0] == ids[1])
-        {
-            weights[0] = 0.5;
-            weights[1] = 0.5;
-
-            return;
-        }
-        // we are in between: compute weights 
-        else
-        {
-            weights[0]  = ids[1] - in;
-            weights[1]  = in - ids[0];
-
-            return;
-        }
+        findInterpolationWeigths(weights, labels, pvec, npts, pval);
     }
+
+    return;
 }
 
 // ============================================================================================================= //

@@ -108,8 +108,8 @@ struct abl_
 
     // for spread inflow fringe region
     Cmpnts       *uBarAvgTopX;                   //!< velocity average from inflow database at top 5 points
-    Cmpnts        uBarTopX;                      //!< average of the above vector
     PetscReal    *tBarAvgTopX;                   //!< temperature average from inflow database at top 5 points
+    PetscReal    *avgTopPointCoords;             //!< z coordinates of the 5 average top points
     PetscReal    avgTopDelta;                    //!< length of the five top cells
     PetscReal    avgTopLength;                   //!< height of the inflow slices
 

@@ -82,6 +82,7 @@ struct inletFunctionTypes
     word          sourceType;                 //!< source mesh type (uniform or grading)
     PetscReal     width1;                     //!< inflow cell width in the 1st direction
     PetscReal     width2;                     //!< inflow cell width in the 2nd direction
+    PetscReal     inflowHeigth;               //!< inflow height for gradient extrapolation aloft
 
     Cmpnts        **ucat_plane;               //!< cartesian velocity inflow data
     PetscReal     **t_plane;                  //!< temperature inflow data

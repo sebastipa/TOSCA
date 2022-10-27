@@ -167,10 +167,50 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             {
                 readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth1", &(ifPtr->width1));
                 readSubDictDouble(fileName.c_str(), "inletFunction", "cellWidth2", &(ifPtr->width2));
+
+                ifPtr->inflowHeigth = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
             }
             else if(ifPtr->sourceType == "grading")
             {
-                // do nothing
+                std::vector<PetscReal>  Zcart;
+
+                word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
+                FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
+
+                if(!meshFileID)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open inflow points file %s\n", pointsFileName.c_str());
+                    fatalErrorInFunction("SetInflowWeights", error);
+                }
+                else
+                {
+                    // read the source mesh file in .xyz format
+                    PetscReal bufferDouble;
+                    PetscInt  npx, npy, npz;
+                    PetscInt  error = fscanf(meshFileID, "%ld %ld %ld\n", &npx, &npy, &npz);
+
+                    if(ifPtr->n1 != npz - 1 || ifPtr->n2 != npy - 1)
+                    {
+                        char error[512];
+                        sprintf(error, "source mesh given in %s and expected number of cells do not match\n", pointsFileName.c_str());
+                        fatalErrorInFunction("SetInflowWeights", error);
+                    }
+
+                    Zcart.resize(npz);
+
+                    for (PetscInt k = 0; k < npx; k++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+                    for (PetscInt i = 0; i < npy; i++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+                    for (PetscInt j = 0; j < npz; j++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &Zcart[j]);
+
+                    fclose(meshFileID);
+
+                    // height of the inflow database
+                    ifPtr->inflowHeigth = Zcart[npz-1] - Zcart[0];
+
+                    // wipe vectors
+                    std::vector<PetscReal> ().swap(Zcart);
+                }
             }
             else
             {
@@ -455,7 +495,6 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
         word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
         FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
 
-        PetscPrintf(mesh->MESH_COMM, "\n");
         PetscPrintf(mesh->MESH_COMM, "   -> reading source mesh %s\n",pointsFileName.c_str());
 
         if(!meshFileID)
@@ -487,16 +526,19 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
 
             fclose(meshFileID);
 
-            // compute cell centers
-            for (j = 0; j < ifPtr->n1; j++) points1[j] = 0.5*(Zcart[j+1] + Zcart[j]);
-            for (i = 0; i < ifPtr->n2; i++) points2[i] = 0.5*(Ycart[i+1] + Ycart[i]);
+            // compute cell centers recentered so that the slice has one corner at zero
+            for (j = 0; j < ifPtr->n1; j++) points1[j] = 0.5*(Zcart[j+1] + Zcart[j]) - Zcart[0];
+            for (i = 0; i < ifPtr->n2; i++) points2[i] = 0.5*(Ycart[i+1] + Ycart[i]) - Ycart[0];
 
             // now compute fictitious mesh
-            PetscReal Lyf, Lzf;
-            PetscInt nTimes1 = 0, nTimes2 = 0;
+            PetscReal Lyf,
+                      Lzf;
+            PetscReal Ly_inflow = Ycart[npy-1] - Ycart[0],
+                      Lz_inflow = Zcart[npz-1] - Zcart[0];
+            PetscInt  nTimes1 = 0, nTimes2 = 0;
 
-            do{nTimes2++; Lyf = nTimes2*Ycart[npy-1];} while(Lyf < mesh->bounds.Ly);
-            do{nTimes1++; Lzf = nTimes1*Zcart[npz-1];} while(Lzf < mesh->bounds.Lz);
+            do{nTimes2++; Lyf = nTimes2*Ly_inflow;} while(Lyf < mesh->bounds.Ly);
+            do{nTimes1++; Lzf = nTimes1*Lz_inflow;} while(Lzf < mesh->bounds.Lz);
 
             PetscPrintf(mesh->MESH_COMM, "   -> source mesh multipliers dir1 = %ld, dir2 = %ld\n",nTimes1, nTimes2);
 
@@ -514,8 +556,8 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
                     PetscInt sourceI = (iif-1) % ifPtr->n2,
                              sourceJ = (jif-1) % ifPtr->n1;
                     inflowCellCenters[jif][iif].x = 0.0;
-                    inflowCellCenters[jif][iif].y = points2[sourceI] + std::floor((iif-1) / ifPtr->n2)*Ycart[npy-1];
-                    inflowCellCenters[jif][iif].z = points1[sourceJ] + std::floor((jif-1) / ifPtr->n1)*Zcart[npz-1];
+                    inflowCellCenters[jif][iif].y = mesh->bounds.ymin + points2[sourceI] + std::floor((iif-1) / ifPtr->n2)*Ly_inflow;
+                    inflowCellCenters[jif][iif].z = mesh->bounds.zmin + points1[sourceJ] + std::floor((jif-1) / ifPtr->n1)*Lz_inflow;
                 }
             }
 
@@ -527,6 +569,7 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
         }
     }
 
+    PetscPrintf(mesh->MESH_COMM, "   -> calculating inflow bilinear interpolation weigths...");
     // now do the search and, for each cell center on the kLeftPatch, find its
     // 4 closest cell centers belonging to the fictitious inflow plane
 
@@ -637,7 +680,13 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
             ifPtr->inflowWeights[j][i][2]  = (cent[lzs][j][i].y - y1) * (z2 - cent[lzs][j][i].z) / coeff;
             ifPtr->inflowWeights[j][i][3]  = (cent[lzs][j][i].y - y1) * (cent[lzs][j][i].z - z1) / coeff;
 
-            //PetscPrintf(mesh->MESH_COMM, "W1 = %lf, W2 = %lf, W3 = %lf, W4 = %lf, SUM = %lf\n", ifPtr->inflowWeights[j][i][0], ifPtr->inflowWeights[j][i][1], ifPtr->inflowWeights[j][i][2], ifPtr->inflowWeights[j][i][3],  ifPtr->inflowWeights[j][i][0]+ifPtr->inflowWeights[j][i][1]+ifPtr->inflowWeights[j][i][2]+ifPtr->inflowWeights[j][i][3]);
+            /*
+            if(ifPtr->inflowWeights[j][i][0]+ifPtr->inflowWeights[j][i][1]+ifPtr->inflowWeights[j][i][2]+ifPtr->inflowWeights[j][i][3] != 1.0)
+            {
+                PetscPrintf(mesh->MESH_COMM, " --> Warning in function: non-normal weights at P = (0.0, %lf, %lf)\n", cent[lzs][j][i].y, cent[lzs][j][i].z);
+                PetscPrintf(mesh->MESH_COMM, "W1 = %lf, W2 = %lf, W3 = %lf, W4 = %lf, SUM = %lf\n", ifPtr->inflowWeights[j][i][0], ifPtr->inflowWeights[j][i][1], ifPtr->inflowWeights[j][i][2], ifPtr->inflowWeights[j][i][3],  ifPtr->inflowWeights[j][i][0]+ifPtr->inflowWeights[j][i][1]+ifPtr->inflowWeights[j][i][2]+ifPtr->inflowWeights[j][i][3]);
+            }
+            */
 
             // compute indices with periodicization
 
@@ -696,6 +745,8 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
         std::vector<Cmpnts> ().swap(inflowCellCenters[jif]);
     }
 
+    PetscPrintf(mesh->MESH_COMM, "done\n");
+
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
     return(0);
@@ -751,7 +802,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
     }
     else
     {
-       char error[512];
+        char error[512];
         sprintf(error, "could not access ./inflowDatabase/U directory\n");
         fatalErrorInFunction("mappedInflowInitialize", error);
     }

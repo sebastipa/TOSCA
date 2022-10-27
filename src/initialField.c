@@ -1152,9 +1152,10 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn)
 
     // Rampanelli and Zardi model parameters
     PetscReal smearing = abl->smear;
-    PetscReal b  = smearing * gamma * deltaInv;
-    PetscReal a  = gradInv - b;
-    PetscReal h0 = hInv - deltaInv/2;
+    PetscReal b      = smearing * gamma * deltaInv;
+    PetscReal a      = gradInv - b;
+    PetscReal h0     = hInv - deltaInv/2;
+    PetscReal etaLim = hInv / smearing / deltaInv;
 
     for(k=lzs; k<lze; k++)
     {
@@ -1167,12 +1168,22 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn)
                 // non dimensional height eta
                 PetscReal eta = (h - hInv) / smearing / deltaInv;
 
-                // non dimensional functions
-                PetscReal f_eta = (std::tanh(eta) + 1) / 2;
-                PetscReal g_eta = (std::log(2 * std::cosh(eta)) + eta) / 2;
+                // below BL and capping
+                if(eta < etaLim)
+                {
+                    // non dimensional functions
+                    PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
+                    PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
 
-                // potential temperature
-                tmprt[k][j][i] = thetaRef + a * f_eta + b * g_eta;
+                    // potential temperature
+                    tmprt[k][j][i] = thetaRef + a * f_eta + b * g_eta;
+                }
+                // asymptotic behavior
+                else
+                {
+                    // potential temperature
+                    tmprt[k][j][i] = thetaRef + a  + b * eta;
+                }
             }
         }
     }

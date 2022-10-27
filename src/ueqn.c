@@ -365,16 +365,16 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 			// spatially average velocity
 			std::vector<Cmpnts>    lgDes(nLevels);
 			std::vector<Cmpnts>    ggDes(nLevels);
-			
+
 			// set to zero
-			for(j=0; j<nLevels; j++) 
+			for(j=0; j<nLevels; j++)
 			{
 				lgDes[j] = nSetZero();
 				ggDes[j] = nSetZero();
 			}
-			
+
 			DMDAVecGetArray(da, mesh->lAj, &aj);
-			
+
 			// loop over i-face centers
 			for(j=lys; j<lye; j++)
 			{
@@ -384,15 +384,15 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 					{
 						mSum
 						(
-							lgDes[j-1], 
+							lgDes[j-1],
 							nScale(1.0/aj[k][j][i], ucat[k][j][i])
 						);
 					}
 				}
 			}
-			
+
 			DMDAVecRestoreArray(da, mesh->lAj, &aj);
-			
+
 			MPI_Allreduce(&lgDes[0], &ggDes[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
 			// divide by total volume per level
@@ -419,7 +419,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 						nScale(m2,  ggDes[j])
 					);
 				}
-				
+
 				abl->nAverages++;
 
                 if(print) PetscPrintf(mesh->MESH_COMM, "                         Geo damping action: averaging\n");
@@ -428,7 +428,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             else if(timeDelta > abl->timeWindow && timeDelta < abl->timeWindow + 300)
             {
                 abl->applyGeostrophicDamping = 1;
-                
+
                 if(print) PetscPrintf(mesh->MESH_COMM, "                         Geo damping action: damping\n");
             }
             // reset
@@ -437,10 +437,10 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 abl->lastAvgPStart           = clock->time;
 				abl->nAverages               = 0;
                 abl->applyGeostrophicDamping = 0;
-				
+
 				if(print) PetscPrintf(mesh->MESH_COMM, "                         Geo damping action: reset\n");
             }
-			
+
 			// clean memory
 			std::vector<Cmpnts>    ().swap(lgDes);
 			std::vector<Cmpnts>    ().swap(ggDes);
@@ -752,21 +752,21 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                             {
                                 Cmpnts    sG      = nScale(abl->relax, nSub(abl->gDes[j-1], ucat[k][j][i]));
 								PetscReal height  = cent[k][j][i].z - mesh->bounds.zmin;
-								
+
 								source[k][j][i].x = fringeTopWeightBottom(height, abl->hInv + abl->dInv, abl->dInv) * s.x +
                                                     fringeTopWeightTop   (height, abl->hInv + abl->dInv, abl->dInv) * sG.x;
 								source[k][j][i].y = fringeTopWeightBottom(height, abl->hInv + abl->dInv, abl->dInv) * s.y +
                                                     fringeTopWeightTop   (height, abl->hInv + abl->dInv, abl->dInv) * sG.y;
 								source[k][j][i].z = 0.0;
                             }
-							else 
+							else
 							{
 								source[k][j][i].x = s.x;
 								source[k][j][i].y = s.y;
 								source[k][j][i].z = 0.0;
 							}
 
-                            
+
                         }
                         else
                         {
@@ -791,7 +791,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             }
         }
     }
-	
+
 	// apply zero-gradient boundary conditions
 	for (k=zs; k<ze; k++)
 	{
@@ -806,7 +806,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
 				if(j==0)         b=1,    flag=1;
 				else if(j==my-1) b=my-2, flag=1;
-  
+
 				if(k==0)         c=1,    flag=1;
 				else if(k==mz-1) c=mz-2, flag=1;
 
@@ -821,10 +821,10 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     DMDAVecRestoreArray(fda, ueqn->sourceU, &source);
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
-	
+
 	DMLocalToLocalBegin(fda, ueqn->sourceU, INSERT_VALUES, ueqn->sourceU);
     DMLocalToLocalEnd  (fda, ueqn->sourceU, INSERT_VALUES, ueqn->sourceU);
-	
+
 	resetCellPeriodicFluxes(mesh, ueqn->sourceU, ueqn->sourceU, "vector", "localToLocal");
 
     return(0);
@@ -1068,7 +1068,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     // type 2: inflow and actual meshes are different, use inflow width
                     else if (ifPtr->typeT == 2)
                     {
-                        gdataHeight = ifPtr->n1 * ifPtr->prds1 * ifPtr->width1;
+                        gdataHeight = abl->avgTopLength;
                     }
                 }
             }
@@ -1129,7 +1129,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             PetscInt  IDs[2];
                             PetscReal Wg [2];
 
-                            fringeGetTopWeights(height, ifPtr->width1, abl->avgTopLength, Wg, IDs);
+                            findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
 
                             luBarInstX[j][i].x = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
                                                  ifPtr->ucat_plane[jif][iif].x +
@@ -1176,7 +1176,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         PetscInt  IDs[2];
                         PetscReal Wg [2];
 
-                        fringeGetTopWeights(height, ifPtr->width1, abl->avgTopLength, Wg, IDs);
+                        findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
 
                         luBarInstX[j][i].x
                         =
@@ -1283,7 +1283,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                                 PetscInt  IDs[2];
                                 PetscReal Wg [2];
 
-                                fringeGetTopWeights(height, ifPtr->width1, abl->avgTopLength, Wg, IDs);
+                                findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
 
 
                                 ltBarInstX[j][i] = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
@@ -1316,7 +1316,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                             PetscInt  IDs[2];
                             PetscReal Wg [2];
-                            fringeGetTopWeights(height, ifPtr->width1, abl->avgTopLength, Wg, IDs);
+                            findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
 
                             ltBarInstX[j][i]
                             =

@@ -1770,7 +1770,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
             // type 4: inflow and actual meshes are different, use inflow width info
             else if (ifPtr->typeT == 4)
             {
-                gdataHeight = ifPtr->n1 * ifPtr->prds1 * ifPtr->width1;
+                gdataHeight = ifPtr->inflowHeigth;
             }
         }
     }
@@ -2997,7 +2997,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         {
                             qWall = teqn->jRWM->qWall.y[k-zs][i-xs];
                         }
-                        
+
                         // distance from wall and velocity at point b
                         PetscReal s = 0.5/aj[k][j][i]/area;
 

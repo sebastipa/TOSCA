@@ -1610,6 +1610,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
 
     Cmpnts           ***cent;   // local vector (no ambiguity in this context)
     Cmpnts           ***ucat;   // local vector (no ambiguity in this context)
+    PetscReal        ***aj;
 
     lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
     lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
@@ -1617,6 +1618,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
     DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+    DMDAVecGetArray(da,  mesh->lAj,   &aj);
 
     // loop over each wind turbine
     for(t=0; t<farm->size; t++)
@@ -2098,93 +2100,142 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
             else if((*farm->turbineModels[t]) == "AFM")
             {
                 // this processor velocity
-                Cmpnts lU, gU;
+                Cmpnts lU = nSetZero(), gU = nSetZero();
 
-                if(wt->afm.thisPtControlled)
+                if
+                (
+                    wt->afm.sampleType == "momentumTheory" ||
+                    wt->afm.sampleType == "rotorDisk"
+                )
                 {
-                    // save this point locally for speed
-                    Cmpnts point_p = wt->afm.point;
-
-                    // get the closest cell center
-                    PetscInt i = wt->afm.closestCell.i,
-                             j = wt->afm.closestCell.j,
-                             k = wt->afm.closestCell.k;
-
-                    // get velocity at that point
-                    Cmpnts uc_p = nSet(ucat[k][j][i]);
-
-                    // now we have to sample the velocity from the background mesh,
-                    // uc_p could also be behind the rotor so the estimation
-                    // would be unstable. We use the velocity info to go back along
-                    // the local streamline at a distance equal to uc_p*dt from the rotor,
-                    // and use that as an estimate. This is supported by the fact
-                    // that upon exiting this time iteration, the particle being at a distance
-                    // from the rotor of uc_p*dt will likely be at this AF mesh point.
-
-                    // reverse sign to the velocity (we go backward along streamline)
-                    mScale(-1.0, uc_p);
-
-                    // find the point at which velocity must be sampled
-                    Cmpnts sample = nScale(clock->dt, uc_p);
-                                    mSum(sample, point_p);
-
-                    // find the closest cell indices to the sample point,
-                    // allow for max 2 delta cells to stay in this processor
-                    PetscReal  r_c_minMag = 1e20;
-                    cellIds    closestCell;
-                    PetscInt   k1, j1, i1;
-
-                    for (k1=k-2; k1<k+3; k1++)
-                    for (j1=j-2; j1<j+3; j1++)
-                    for (i1=i-2; i1<i+3; i1++)
+                    if(wt->afm.thisPtControlled)
                     {
-                        // compute distance from mesh cell to AF point
-                        Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
+                        // save this point locally for speed
+                        Cmpnts point_p = wt->afm.point;
 
-                        // compute magnitude
-                        PetscReal r_c_mag = nMag(r_c);
+                        // get the closest cell center
+                        PetscInt i = wt->afm.closestCell.i,
+                                 j = wt->afm.closestCell.j,
+                                 k = wt->afm.closestCell.k;
 
-                        if(r_c_mag < r_c_minMag)
+                        // get velocity at that point
+                        Cmpnts uc_p = nSet(ucat[k][j][i]);
+
+                        // now we have to sample the velocity from the background mesh,
+                        // uc_p could also be behind the rotor so the estimation
+                        // would be unstable. We use the velocity info to go back along
+                        // the local streamline at a distance equal to uc_p*dt from the rotor,
+                        // and use that as an estimate. This is supported by the fact
+                        // that upon exiting this time iteration, the particle being at a distance
+                        // from the rotor of uc_p*dt will likely be at this AF mesh point.
+
+                        // reverse sign to the velocity (we go backward along streamline)
+                        mScale(-1.0, uc_p);
+
+                        // find the point at which velocity must be sampled
+                        Cmpnts sample = nScale(clock->dt, uc_p);
+                                        mSum(sample, point_p);
+
+                        // find the closest cell indices to the sample point,
+                        // allow for max 2 delta cells to stay in this processor
+                        PetscReal  r_c_minMag = 1e20;
+                        cellIds    closestCell;
+                        PetscInt   k1, j1, i1;
+
+                        for (k1=k-2; k1<k+3; k1++)
+                        for (j1=j-2; j1<j+3; j1++)
+                        for (i1=i-2; i1<i+3; i1++)
                         {
-                            r_c_minMag = r_c_mag;
-                            closestCell.i = i1;
-                            closestCell.j = j1;
-                            closestCell.k = k1;
+                            // compute distance from mesh cell to AF point
+                            Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
+
+                            // compute magnitude
+                            PetscReal r_c_mag = nMag(r_c);
+
+                            if(r_c_mag < r_c_minMag)
+                            {
+                                r_c_minMag = r_c_mag;
+                                closestCell.i = i1;
+                                closestCell.j = j1;
+                                closestCell.k = k1;
+                            }
                         }
+
+                        // trilinear interpolate
+                        vectorPointLocalVolumeInterpolation
+                        (
+                            mesh,
+                            sample.x, sample.y, sample.z,
+                            closestCell.i, closestCell.j, closestCell.k,
+                            cent, ucat, uc_p
+                        );
+
+                        // compute the inflow at the AF point
+                        lU = nSet(uc_p);
+                    }
+                    else
+                    {
+                        lU.x = 0.0;
+                        lU.y = 0.0;
+                        lU.z = 0.0;
                     }
 
-                    // trilinear interpolate
-                    vectorPointLocalVolumeInterpolation
-                    (
-                        mesh,
-                        sample.x, sample.y, sample.z,
-                        closestCell.i, closestCell.j, closestCell.k,
-                        cent, ucat, uc_p
-                    );
+                    MPI_Allreduce(&lU, &gU, 3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
 
-                    // compute the inflow at the AF point
-                    lU = nSet(uc_p);
+                    // this is an actual sampling so simulate turbine acquisition with filter
+                    // signal filtering: 1-pole low pass recursive filter
+                    PetscReal a = std::exp(-clock->dt * wt->afm.rtrUFilterFreq);
+
+                    if(clock->it == clock->itStart)
+                    {
+                        wt->afm.U = nSet(gU);
+                    }
+                    else
+                    {
+                        wt->afm.U = nSum(nScale(a, wt->afm.U), nScale(1.0-a, gU));
+                    }
                 }
-                else
+                else if (wt->afm.sampleType == "integral")
                 {
-                    lU.x = 0.0;
-                    lU.y = 0.0;
-                    lU.z = 0.0;
-                }
+                    // projection distance
+                    PetscReal eps_x  = wt->eps_x,
+                              eps_y  = wt->eps_y,
+                              eps_z  = wt->eps_z;
 
-                MPI_Allreduce(&lU, &gU, 3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+                    // save this point locally for speed
+                    Cmpnts point_p    = wt->afm.point;
 
-                // this is an actual sampling so simulate turbine acquisition with filter
-                // signal filtering: 1-pole low pass recursive filter
-                PetscReal a = std::exp(-clock->dt * wt->afm.rtrUFilterFreq);
+                    // loop in sphere points
+                    for(c=0; c<wt->nControlled; c++)
+                    {
+                        // cell indices
+                        PetscInt i = wt->controlledCells[c].i,
+                                 j = wt->controlledCells[c].j,
+                                 k = wt->controlledCells[c].k;
 
-                if(clock->it == clock->itStart)
-                {
+                        // compute distance from mesh cell to AF point
+                        Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                        // compute projection factor
+                        PetscReal pf
+                        =
+                        std::exp
+                        (
+                            -r_c.x * r_c.x / (eps_x * eps_x)
+                            -r_c.y * r_c.y / (eps_y * eps_y)
+                            -r_c.z * r_c.z / (eps_z * eps_z)
+                        ) /
+                        (
+                            eps_x * eps_y * eps_z *
+                            pow(M_PI, 1.5)
+                        );
+
+                        mSum(lU, nScale(pf/aj[k][j][i], ucat[k][j][i]));
+                    }
+
+                    MPI_Allreduce(&lU, &gU, 3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+
                     wt->afm.U = nSet(gU);
-                }
-                else
-                {
-                    wt->afm.U = nSum(nScale(a, wt->afm.U), nScale(1.0-a, gU));
                 }
             }
         }
@@ -2192,6 +2243,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
 
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(da,  mesh->lAj,   &aj);
 
     return(0);
 }
@@ -2868,7 +2920,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                     bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * wt->afm.Ct;
                 }
                 // disk based Ct is used
-                else if(wt->afm.sampleType == "rotorDisk")
+                else if(wt->afm.sampleType == "rotorDisk" || wt->afm.sampleType == "integral")
                 {
                     // compute freestream velocity
                     Uref  = nMag(wt->afm.U);
@@ -5164,11 +5216,12 @@ PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base, const word meshName)
     if
     (
         wt->afm.sampleType != "rotorDisk" &&
-        wt->afm.sampleType != "momentumTheory"
+        wt->afm.sampleType != "momentumTheory" &&
+        wt->afm.sampleType != "integral"
     )
     {
         char error[512];
-        sprintf(error, "unknown velocity sampling type. Available types are momentumTheory or rotorDisk");
+        sprintf(error, "unknown velocity sampling type. Available types are momentumTheory, rotorDisk or integral");
         fatalErrorInFunction("initAFM",  error);
     }
 
@@ -7442,76 +7495,6 @@ PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName
     }
 
     return(0);
-}
-
-//***************************************************************************************************************//
-
-inline void findInterpolationWeigths(PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)
-{
-    // equality tolerance: if equal data points up to re-tol = 1e-5 are found,
-    // that interpolation point is skipped because it does not provide information
-    // and would result in a division by zero when computing the weights.
-    PetscReal tol1, tol2, eqTol = 1e-5;
-
-    // check that extrapolation is not necessary
-    // (up to a minimum tol of (pEnd-pStart) / npts that it is small enough not to have extrapolation errors)
-    PetscReal eps = (pvec[npts-1] - pvec[0]) / npts;
-    if(pval > pvec[npts-1]+eps || pval < pvec[0]-eps)
-    {
-       char error[512];
-        sprintf(error, "query point %lf outside of bounds [%lf - %lf]... was told not to extrapolate\n", pval, pvec[0]-eps, pvec[npts-1]+eps);
-        fatalErrorInFunction("findInterpolationWeigths",  error);
-    }
-
-    PetscReal diff[npts];
-    PetscInt    idx_1 = 0,
-           idx_2 = 1;
-
-    // find the difference
-    for(PetscInt i=0; i<npts; i++)
-    {
-        diff[i] = fabs(pvec[i]-pval);
-    }
-
-    // find the two closest labels
-    for(PetscInt i=0; i<npts; i++)
-    {
-        tol1 = fabs(diff[i] - diff[idx_2]) / diff[i];
-
-        if(diff[i] < diff[idx_1] && tol1 > eqTol)
-        {
-            idx_2 = idx_1;
-            idx_1 = i;
-        }
-
-        tol2 = fabs(diff[i] - diff[idx_1]) / diff[i];
-
-        if(diff[i] < diff[idx_2] && i != idx_1 && tol2 > eqTol)
-        {
-            idx_2 = i;
-        }
-    }
-
-    // always put the lower value at idx_1 and higher at idx_2
-    if(pvec[idx_2] < pvec[idx_1])
-    {
-        PetscInt idx_tmp = idx_2;
-        idx_2 = idx_1;
-        idx_1 = idx_tmp;
-    }
-
-    // store the labels
-    labels[0] = idx_1;
-    labels[1] = idx_2;
-
-    // should never divide by zero (increase equality tolerance if it happens)
-    PetscReal idx = (idx_2 - idx_1) / (pvec[idx_2] - pvec[idx_1]) * (pval - pvec[idx_1]) + idx_1;
-
-    // store the weights
-    weights[0] = (idx_2 - idx) / (idx_2 - idx_1);
-    weights[1] = (idx - idx_1) / (idx_2 - idx_1);
-
-    return;
 }
 
 //***************************************************************************************************************//

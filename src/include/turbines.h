@@ -545,9 +545,3 @@ PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictNa
 
 //! \brief Reads nacelle yaw controller parameters
 PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
-
-// Mathematical operations
-// -----------------------------------------------------------------------------
-
-// \brief Returns interpolation weights of the two closest values to pval and their indices in pvec
-void findInterpolationWeigths(PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval);

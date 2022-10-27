@@ -600,6 +600,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // steady prescribed ubar with no wind veer
             if(ifPtr->typeU == 0)
             {
+                PetscPrintf(mesh->MESH_COMM, "   -> damping type 0: prescribing constant uBar using log law\n");
+
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 0;
 
@@ -619,6 +621,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // steady prescribed uBar with wind veer
             else if(ifPtr->typeU == 4)
             {
+                PetscPrintf(mesh->MESH_COMM, "   -> damping type 4: prescribing constant uBar with wind veer\n");
+
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 4;
 
@@ -641,7 +645,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // unsteady mapped ubar
             else if (ifPtr->typeU == 1)
             {
-                PetscPrintf(mesh->MESH_COMM, "   -> damping type 1: averaging inflow at 5 top cells...");
+                PetscPrintf(mesh->MESH_COMM, "   -> damping type 1: unsteady uBar using one-to-one inflow mapping from database\n");
 
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 1;
@@ -665,6 +669,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // initialize inflow data
                 mappedInflowInitialize(ifPtr);
 
+                PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 5 top cells...");
+
                 // top average to avoid top oscillations
                 PetscMalloc(5*sizeof(Cmpnts),    &(abl->uBarAvgTopX));
                 PetscMalloc(5*sizeof(PetscReal), &(abl->tBarAvgTopX));
@@ -675,8 +681,19 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     abl->tBarAvgTopX[j] = 0.0;
                 }
 
+                // height of the inflow database
                 abl->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
+
+                // width of the merging region
                 abl->avgTopDelta  = 5.0 * ifPtr->width1;
+
+                // 5 top points coordinates
+                PetscMalloc(5*sizeof(PetscReal), &(abl->avgTopPointCoords));
+
+                for (i=0; i<5; i++)
+                {
+                    abl->avgTopPointCoords[i] = abl->avgTopLength - (5-i)*ifPtr->width1 + 0.5*ifPtr->width1;
+                }
 
                 // variable to store inflow function data
                 std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
@@ -755,11 +772,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // temporary (basically forces zero gradient at the top for velocity)
                 mSet(abl->uBarAvgTopX[4], abl->uBarAvgTopX[3]);
 
-                // average in the vertical direction
-                abl->uBarTopX.x = 1.0 / 5.0 * (abl->uBarAvgTopX[0].x + abl->uBarAvgTopX[1].x + abl->uBarAvgTopX[2].x + abl->uBarAvgTopX[3].x + abl->uBarAvgTopX[4].x);
-                abl->uBarTopX.y = 1.0 / 5.0 * (abl->uBarAvgTopX[0].y + abl->uBarAvgTopX[1].y + abl->uBarAvgTopX[2].y + abl->uBarAvgTopX[3].y + abl->uBarAvgTopX[4].y);
-                abl->uBarTopX.z = 1.0 / 5.0 * (abl->uBarAvgTopX[0].z + abl->uBarAvgTopX[1].z + abl->uBarAvgTopX[2].z + abl->uBarAvgTopX[3].z + abl->uBarAvgTopX[4].z);
-
                 for( j=0; j<ifPtr->n1wg; j++)
                 {
                     std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
@@ -769,7 +781,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             // unsteady interpolated ubar
             else if (ifPtr->typeU == 2)
             {
-                PetscPrintf(mesh->MESH_COMM, "   -> damping type 2: averaging inflow at 5 top cells...");
+                PetscPrintf(mesh->MESH_COMM, "   -> damping type 2: unsteady uBar using bilinear inflow mapping from database\n");
 
                 // set tBarSelectionType the same as uBarSelectionType
                 ifPtr->typeT  = 2;
@@ -788,12 +800,80 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 if(ifPtr->sourceType == "uniform")
                 {
+                    PetscPrintf(mesh->MESH_COMM, "   -> using uniform source mesh type\n");
+
                     readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
                     readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
+
+                    // height of the inflow database
+                    abl->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
+
+                    // width of the merging region
+                    abl->avgTopDelta  = 5.0 * ifPtr->width1;
+
+                    // 5 top points coordinates
+                    PetscMalloc(5*sizeof(PetscReal), &(abl->avgTopPointCoords));
+
+                    for (i=0; i<5; i++)
+                    {
+                        abl->avgTopPointCoords[i] = abl->avgTopLength - (5-i)*ifPtr->width1 + 0.5*ifPtr->width1;
+                    }
+
                 }
                 else if(ifPtr->sourceType == "grading")
                 {
-                    // do nothing
+                    PetscPrintf(mesh->MESH_COMM, "   -> using grading source mesh type\n");
+
+                    std::vector<PetscReal>  Zcart;
+
+                    word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
+                    FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
+
+                    if(!meshFileID)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open inflow points file %s\n", pointsFileName.c_str());
+                        fatalErrorInFunction("SetInflowWeights", error);
+                    }
+                    else
+                    {
+                        // read the source mesh file in .xyz format
+                        PetscReal bufferDouble;
+                        PetscInt  npx, npy, npz;
+                        PetscInt  error = fscanf(meshFileID, "%ld %ld %ld\n", &npx, &npy, &npz);
+
+                        if(ifPtr->n1 != npz - 1 || ifPtr->n2 != npy - 1)
+                        {
+                            char error[512];
+                            sprintf(error, "source mesh given in %s and expected number of cells do not match\n", pointsFileName.c_str());
+                            fatalErrorInFunction("SetInflowWeights", error);
+                        }
+
+                        Zcart.resize(npz);
+
+                        for (k = 0; k < npx; k++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+                        for (i = 0; i < npy; i++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+                        for (j = 0; j < npz; j++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &Zcart[j]);
+
+                        fclose(meshFileID);
+
+                        // height of the inflow database
+                        abl->avgTopLength = Zcart[npz-1] - Zcart[0];
+
+                        // width of the merging region
+                        abl->avgTopDelta  = Zcart[npz-1] - Zcart[npz-6];
+
+                        // 5 top points coordinates
+                        PetscMalloc(5*sizeof(PetscReal), &(abl->avgTopPointCoords));
+
+                        for (i=0; i<5; i++)
+                        {
+                            abl->avgTopPointCoords[i] = 0.5 * (Zcart[npz - 6 + i] + Zcart[npz - 6 + i + 1]);
+                        }
+
+                        // wipe vectors
+                        std::vector<PetscReal> ().swap(Zcart);
+                    }
                 }
                 else
                 {
@@ -812,6 +892,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // initialize inflow data
                 mappedInflowInitialize(ifPtr);
 
+                PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 5 top cells...");
+
                 // top average to avoid top oscillations
                 PetscMalloc(5*sizeof(Cmpnts),    &(abl->uBarAvgTopX));
                 PetscMalloc(5*sizeof(PetscReal), &(abl->tBarAvgTopX));
@@ -821,12 +903,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     mSetValue(abl->uBarAvgTopX[j], 0.0);
                     abl->tBarAvgTopX[j] = 0.0;
                 }
-
-                // height of the inflow database
-                abl->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
-
-                // width of the merging region
-                abl->avgTopDelta  = 5.0 * ifPtr->width1;
 
                 // variable to store inflow function data
                 std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
@@ -905,15 +981,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // temporary (basically forces zero gradient at the top for velocity)
                 mSet(abl->uBarAvgTopX[4], abl->uBarAvgTopX[3]);
 
-                // average in the vertical direction
-                abl->uBarTopX.x = 1.0 / 5.0 * (abl->uBarAvgTopX[0].x + abl->uBarAvgTopX[1].x + abl->uBarAvgTopX[2].x + abl->uBarAvgTopX[3].x + abl->uBarAvgTopX[4].x);
-                abl->uBarTopX.y = 1.0 / 5.0 * (abl->uBarAvgTopX[0].y + abl->uBarAvgTopX[1].y + abl->uBarAvgTopX[2].y + abl->uBarAvgTopX[3].y + abl->uBarAvgTopX[4].y);
-                abl->uBarTopX.z = 1.0 / 5.0 * (abl->uBarAvgTopX[0].z + abl->uBarAvgTopX[1].z + abl->uBarAvgTopX[2].z + abl->uBarAvgTopX[3].z + abl->uBarAvgTopX[4].z);
-
-
                 for( j=0; j<ifPtr->n1wg; j++)
                 {
-                    std::vector<Cmpnts>  ().swap(ucat_plane_tmp[j]);
+                    std::vector<Cmpnts>    ().swap(ucat_plane_tmp[j]);
                     std::vector<PetscReal> ().swap(t_plane_tmp[j]);
                 }
             }

@@ -17,6 +17,7 @@ struct clock_
     PetscReal        dtOld;                     //!< old time step
     PetscReal        cfl;                       //!< cfl number
     PetscReal        dxMin;                     //!< min cell side size
+    PetscReal        acquisitionDt;             //!< uniform dt due to acquistion if applied from the start
 
     PetscInt         it;                        //!< current iteration value
     PetscInt         itStart;                   //!< start iteration value (zero)

@@ -164,7 +164,6 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
     DMDAVecGetArray(da, teqn->sourceT, &source);
     DMDAVecGetArray(da, teqn->lTmprt,  &t);
 
-    // find the first two closest levels
     PetscReal nLevels = my-2;
 
     std::vector<PetscReal> ltMean(nLevels);

@@ -147,11 +147,14 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         DMDAVecRestoreArray(da,  mesh->lAj, &aj);
         DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
 
+        // try to guess a uniform predicted time step for the acquisition
+        PetscReal predictedDt;
+
         // output fields
         if(flags->isAdjustableTime)
         {
             // 2. takes the local ratio
-            clock->dt = clock->cfl * dxByU_min;
+            clock->dt   = clock->cfl * dxByU_min;
 
             PetscReal timeStart;
             PetscReal timeInterval;
@@ -160,6 +163,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             timeInterval = domain[d].io->timeInterval;
 
             timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+            predictedDt  = currentDistanceToWriteTime(clock, timeStart, timeInterval);
 
             // averaged fields
             if(domain[d].io->averaging)
@@ -168,6 +172,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 timeInterval = domain[d].io->avgPrd;
 
                 timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
             }
 
             // phase averaged fields
@@ -177,6 +182,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 timeInterval = domain[d].io->phAvgPrd;
 
                 timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
             }
 
             // ke budgets
@@ -186,6 +192,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 timeInterval = acquisition->keBudFields->avgPrd;
 
                 timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
             }
 
             if(flags->isIBMActive)
@@ -198,6 +205,19 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     timeInterval = ibm->timeInterval;
 
                     timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                    predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
+                }
+            }
+
+            if(flags->isWindFarmActive)
+            {
+                if(domain[d].farm->intervalType == "adjustableTime")
+                {
+                    timeStart    = domain[d].farm->timeStart;
+                    timeInterval = domain[d].farm->timeInterval;
+
+                    timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                    predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                 }
             }
 
@@ -210,6 +230,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     timeInterval = domain[0].acquisition->LM3->avgPrd;
 
                     timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                    predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                 }
 
                 // ABL perturbations
@@ -219,6 +240,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     timeInterval = domain[0].acquisition->perturbABL->avgPrd;
 
                     timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                    predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                 }
 
                 // ABL averaging for background domain only
@@ -228,6 +250,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     timeInterval = domain[0].acquisition->statisticsABL->avgPrd;
 
                     timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                    predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                 }
 
                 if(acquisition->isProbesActive)
@@ -238,6 +261,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                         timeInterval = acquisition->probes->rakes[r].timeInterval;
 
                         timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                        predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                     }
                 }
 
@@ -252,6 +276,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                             timeInterval = acquisition->iSections->timeInterval;
 
                             timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                            predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                         }
                     }
 
@@ -264,6 +289,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                             timeInterval = acquisition->jSections->timeInterval;
 
                             timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                            predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                         }
                     }
 
@@ -276,20 +302,22 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                             timeInterval = acquisition->kSections->timeInterval;
 
                             timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                            predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                         }
                     }
                 }
+            }
 
-                if(flags->isWindFarmActive)
+            if(clock->it == 0)
+            {
+                // scale max uniform dt due to acquisition so that it complies the CFL
+                while(predictedDt / dxByU_min > clock->cfl)
                 {
-                    if(domain[d].farm->intervalType == "adjustableTime")
-                    {
-                        timeStart    = domain[d].farm->timeStart;
-                        timeInterval = domain[d].farm->timeInterval;
-
-                        timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
-                    }
+                    predictedDt /= 2.0;
                 }
+
+                // save
+                clock->acquisitionDt = predictedDt;
             }
 
             // check if must limit dt due to ALM rotation
@@ -316,7 +344,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
 
                     PetscReal dtFarm = clock->dxMin / farm->maxTipSpeed;
 
-                    clock->dt = std::min(clock->dt, dtFarm);
+                    clock->dt    = std::min(clock->dt, dtFarm);
                 }
             }
 
@@ -339,12 +367,11 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
 
                             PetscReal dtIBM      = dxByU_min*maxU / maxSpeed;
 
-                            clock->dt = std::min(clock->dt, dtIBM);
+                            clock->dt    = std::min(clock->dt, dtIBM);
                         }
                     }
                 }
             }
-
         }
         else
         {
@@ -365,7 +392,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     {
         if(clock->dt > 1.5 * clock->dtOld)
         {
-            clock->dt = 1.5 * clock->dtOld;
+            clock->dt    = 1.5 * clock->dtOld;
         }
     }
 
@@ -373,6 +400,17 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     if (clock->dt < 1e-10)
     {
         clock->dt = clock->startDt;
+    }
+
+    // discard all previous changes if time step is fixed as acquistion gcd
+    if(flags->isAdjustableTime == 2)
+    {
+        if(clock->acquisitionDt / dxByU_min > 1.0)
+        {
+            clock->acquisitionDt /= 2.0;
+        }
+
+        clock->dt = clock->acquisitionDt;
     }
 
     // make sure to hit last time
