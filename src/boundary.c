@@ -1805,19 +1805,30 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     // read the inflow data if necessary
                     if(ifPtr->typeT == 2)
                     {
-                        PetscReal b  = ifPtr->smear * ifPtr->gTop * ifPtr->dInv;
-                        PetscReal a  = ifPtr->gInv - b;
-                        PetscReal h  = cent[k][j][i].z - mesh->bounds.zmin;
+                        PetscReal b      = ifPtr->smear * ifPtr->gTop * ifPtr->dInv;
+                        PetscReal a      = ifPtr->gInv - b;
+                        PetscReal h      = cent[k][j][i].z - mesh->bounds.zmin;
+                        PetscReal etaLim = ifPtr->hInv / ifPtr->smear / ifPtr->dInv;
 
                         // non dimensional height eta
                         PetscReal eta = (h - ifPtr->hInv) / ifPtr->smear / ifPtr->dInv;
 
-                        // non dimensional functions
-                        PetscReal f_eta = (std::tanh(eta) + 1) / 2;
-                        PetscReal g_eta = (std::log(2 * std::cosh(eta)) + eta) / 2;
+                        // below BL and capping
+                        if(eta < etaLim)
+                        {
+                            // non dimensional functions
+                            PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
+                            PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
 
-                        // potential temperature
-                        t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta;
+                            // potential temperature
+                            t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta;
+                        }
+                        // asymptotic behavior
+                        else
+                        {
+                            // potential temperature
+                            t[k-1][j][i] = ifPtr->tRef + a + b * eta;
+                        }
                     }
                     // periodized mapped inflow
                     else if (ifPtr->typeT == 3)

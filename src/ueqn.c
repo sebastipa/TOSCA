@@ -1249,19 +1249,30 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         // steady prescribed ubar
                         if (ifPtr->typeT == 0 || ifPtr->typeT == 4)
                         {
-                            PetscReal b  = abl->smear * abl->gTop * abl->dInv;
-                            PetscReal a  = abl->gInv - b;
-                            PetscReal h  = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                            PetscReal b      = abl->smear * abl->gTop * abl->dInv;
+                            PetscReal a      = abl->gInv - b;
+                            PetscReal h      = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                            PetscReal etaLim = abl->hInv / abl->smear / abl->dInv;
 
                             // non dimensional height eta
                             PetscReal eta = (h - abl->hInv) / abl->smear / abl->dInv;
 
-                            // non dimensional functions
-                            PetscReal f_eta = (std::tanh(eta) + 1) / 2;
-                            PetscReal g_eta = (std::log(2 * std::cosh(eta)) + eta) / 2;
+                            // below BL and capping
+                            if(eta < etaLim)
+                            {
+                                // non dimensional functions
+                                PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
+                                PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
 
-                            // potential temperature
-                            ltBarInstX[j][i] = abl->tRef + a * f_eta + b * g_eta;
+                                // potential temperature
+                                ltBarInstX[j][i] = abl->tRef + a * f_eta + b * g_eta;
+                            }
+                            // asymptotic behavior
+                            else
+                            {
+                                // potential temperature
+                                ltBarInstX[j][i] = abl->tRef + a + b * eta;
+                            }
                         }
                         // periodized mapped inflow
                         else if (ifPtr->typeT == 1)
