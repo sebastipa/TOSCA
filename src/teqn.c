@@ -96,7 +96,7 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
             // 4th arg: convergene tolerance in terms of the norm of the change in the solution |deltaU| / |U| < tol
             // 5th arg: maximum number of iterations
             // 6th arg: maximum function evaluations
-            SNESSetTolerances(teqn->snesT, teqn->absExitTol, 1e-30, 1e-30, 20, 1000);
+            SNESSetTolerances(teqn->snesT, teqn->absExitTol, teqn->relExitTol, 1e-30, 20, 1000);
 
             SNESGetKSP(teqn->snesT, &(teqn->ksp));
             KSPGetPC(teqn->ksp,&(teqn->pc));
