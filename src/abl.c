@@ -228,26 +228,59 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 std::vector<PetscReal> ().swap(absLevelDelta);
 
-                // pressure controller specific objects
                 if(abl->controllerType == "pressure")
                 {
+                    // read if geostrophic damping is active
                     readSubDictInt("ABLProperties.dat", "controllerProperties", "geostrophicDamping", &(abl->geostrophicDampingActive));
 
                     if(abl->geostrophicDampingActive)
                     {
-						// set number of performed averages to zero
-						abl->nAverages = 0;
+                        if(!abl->coriolisActive)
+                        {
+                            readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
+                        }
 
-						// set action to average
-						abl->applyGeostrophicDamping = 0;
+                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingAlpha",      &(abl->geoDampAlpha));
+                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingStartTime",  &(abl->geoDampStart));
+                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingTimeWindow", &(abl->geoDampWindow));
 
-                        // allocate memory for filtered geostrophic velocity
-                        PetscMalloc(sizeof(Cmpnts)*nLevels, &(abl->gDes));
+                        abl->geoDampH     = abl->hInv + 0.5 * abl->dInv;
+                        abl->geoDampDelta = abl->dInv;
+                        abl->geoDampC     = 2.0*(2.0*abl->fc);
+                        abl->geoDampUBar  = nSetZero();
+
+						// allocate memory for filtered geostrophic velocity
+                        PetscMalloc(sizeof(Cmpnts)*nLevels, &(abl->geoDampU));
 
 						for(j=0; j<nLevels; j++)
 						{
-							abl->gDes[j] = nSetZero();
+							abl->geoDampU[j] = nSetZero();
 						}
+
+                        // see if must read the average
+                        std::stringstream stream;
+                        stream << std::fixed << std::setprecision(mesh->access->clock->timePrecision) << mesh->access->clock->startTime;
+                        word location = "./fields/" + mesh->meshName + "/" + stream.str();
+                        word fileName = location + "/geostrophicDampingInfo";
+
+                        FILE *fp=fopen(fileName.c_str(), "r");
+
+                        if(fp==NULL)
+                        {
+                            // if start time > 0 should find the file
+                            if(mesh->access->clock->startTime != 0.0)
+                            {
+                                char error[512];
+                                sprintf(error, "cannot open file %s\n", fileName.c_str());
+                                fatalErrorInFunction("ABLInitialize",  error);
+                            }
+                        }
+                        else
+                        {
+                            fclose(fp);
+                            readDictVector(fileName.c_str(), "filteredGeoWind", &(abl->geoDampUBar));
+                            PetscPrintf(mesh->MESH_COMM, "   -> reading filtered geostrophic wind: Ug = (%.3lf, %.3lf, 0.000)",abl->geoDampUBar.x, abl->geoDampUBar.y);
+                        }
                     }
                 }
             }

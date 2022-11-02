@@ -3499,28 +3499,28 @@ inline void findInterpolationWeigthsWithExtrap(PetscReal *weights, PetscInt *lab
 
 // ============================================================================================================= //
 
-inline PetscReal fringeTopWeightBottom(PetscReal h, PetscReal H, PetscReal delta)
+inline PetscReal scaleHyperTangBot(PetscReal h, PetscReal H, PetscReal delta)
 {
-    PetscReal psi = h/H, psiM = 1 - 0.5 * delta / H;
+    PetscReal H0 = 2.0*H, psi = h/H0;
     return
     (
         0.5 *
         (
-            1.0 - std::tanh((psi - psiM) * 2.0 * H / delta)
+            1.0 - std::tanh((psi - 0.5) * 2.0 * H0 / delta)
         )
     );
 }
 
 // ============================================================================================================= //
 
-inline PetscReal fringeTopWeightTop(PetscReal h, PetscReal H, PetscReal delta)
+inline PetscReal scaleHyperTangTop(PetscReal h, PetscReal H, PetscReal delta)
 {
-    PetscReal psi = h/H, psiM = 1 - 0.5 * delta / H;
+    PetscReal H0 = 2.0*H, psi = h/H0;
     return
     (
         0.5 *
         (
-            1.0 + std::tanh((psi - psiM) * 2.0 * H / delta)
+            1.0 + std::tanh((psi - 0.5) * 2.0 * H0 / delta)
         )
     );
 }

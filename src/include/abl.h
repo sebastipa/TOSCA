@@ -43,11 +43,15 @@ struct abl_
     PetscReal    controllerMaxHeight;            //!< max height of influence of the velocity controller
 
     // geostrophic damping for pressure controller
-    PetscInt     geostrophicDampingActive;       //!< geosptrophic oscillation damper
-    PetscInt     applyGeostrophicDamping;        //!< apply damping action
-    PetscReal    lastAvgPStart;                  //!< start time of last averaging
-    PetscInt     nAverages;                      //!< number of averages performed
-	Cmpnts       *gDes;                          //!< filtered geostrophic velocity
+    PetscInt     geostrophicDampingActive;       //!< geosptrophic oscillation damping
+	Cmpnts       geoDampUBar;                    //!< expected geostrophic velocity
+	Cmpnts       *geoDampU;                      //!< average horizontal velocity at current iteration
+    PetscReal    geoDampAlpha;                   //!< alpha = 1 critical damping (>1 over-damped, <1 under-damped)
+    PetscReal    geoDampH;                       //!< H at which damping begins to be applied
+    PetscReal    geoDampDelta;                   //!< rising distance for the application function
+    PetscReal    geoDampC;                       //!< critical damping coefficient
+    PetscReal    geoDampStart;                   //!< starting time of geostrophic damping
+    PetscReal    geoDampWindow;                  //!< averaging window for the geostrophic velocity 
 
     // geostrophic controller
     PetscInt     *closestLabelsGeo;              //!< closest heights w.r.t. controller height

@@ -250,8 +250,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     Cmpnts        uDes;
     Cmpnts        s;
 
-    PetscReal     meanCellVolume = 0, sumVolume = 0;
-    PetscReal     rASum = 0, rAMean = 0;
+    PetscInt      applyGeoDamping = 0;
 
     abl_          *abl  = ueqn->access->abl;
 
@@ -360,22 +359,16 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         s.y = relax * (alpha * error.y + (1.0-alpha) * abl->cumulatedSource.y) ;
         s.z = 0.0;
 
-        if(abl->geostrophicDampingActive)
+		if(abl->geostrophicDampingActive)
         {
 			// spatially average velocity
 			std::vector<Cmpnts>    lgDes(nLevels);
-			std::vector<Cmpnts>    ggDes(nLevels);
 
 			// set to zero
-			for(j=0; j<nLevels; j++)
-			{
-				lgDes[j] = nSetZero();
-				ggDes[j] = nSetZero();
-			}
+			for(j=0; j<nLevels; j++) lgDes[j] = nSetZero();
 
 			DMDAVecGetArray(da, mesh->lAj, &aj);
 
-			// loop over i-face centers
 			for(j=lys; j<lye; j++)
 			{
 				for(k=lzs; k<lze; k++)
@@ -393,58 +386,51 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
 			DMDAVecRestoreArray(da, mesh->lAj, &aj);
 
-			MPI_Allreduce(&lgDes[0], &ggDes[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+			MPI_Allreduce(&lgDes[0], &(abl->geoDampU[0]), 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
 			// divide by total volume per level
 			for(j=0; j<nLevels; j++)
 			{
-				mScale(1.0/abl->totVolPerLevel[j], ggDes[j]);
+				mScale(1.0/abl->totVolPerLevel[j], abl->geoDampU[j]);
 			}
 
-			// compute time delta to decide action
-            PetscReal timeDelta = clock->time - abl->lastAvgPStart;
+            // filter geostrophic wind
+            Cmpnts    Ug_t = nSetFromComponents(s.y / (2.0 * abl->fc), -1.0 * s.x / (2.0 * abl->fc), 0.0);
+            PetscReal m1   = (1.0 - clock->dt/abl->geoDampWindow),
+                      m2   = clock->dt/abl->geoDampWindow;
+            abl->geoDampUBar = nSum(nScale(m1, abl->geoDampUBar), nScale(m2, Ug_t));
 
-            // filter spatial average in time for t = T
-            if(timeDelta <= abl->timeWindow)
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         Filtered geostrophi wind Ug = (%.3lf, %.3lf, 0.00)\n", abl->geoDampUBar.x, abl->geoDampUBar.y);
+
+            // set damping flag
+            if(clock->time > abl->geoDampStart)
             {
-				PetscReal aN = (PetscReal)abl->nAverages;
-                PetscReal m1 = aN  / (aN + 1.0);
-                PetscReal m2 = 1.0 / (aN + 1.0);
-
-                for(j=0; j<nLevels; j++)
-				{
-					abl->gDes[j] = nSum
-					(
-						nScale(m1,  abl->gDes[j]),
-						nScale(m2,  ggDes[j])
-					);
-				}
-
-				abl->nAverages++;
-
-                if(print) PetscPrintf(mesh->MESH_COMM, "                         Geo damping action: averaging\n");
-            }
-            // apply geostrophic correction for 5 min
-            else if(timeDelta > abl->timeWindow && timeDelta < abl->timeWindow + 300)
-            {
-                abl->applyGeostrophicDamping = 1;
-
-                if(print) PetscPrintf(mesh->MESH_COMM, "                         Geo damping action: damping\n");
-            }
-            // reset
-            else
-            {
-                abl->lastAvgPStart           = clock->time;
-				abl->nAverages               = 0;
-                abl->applyGeostrophicDamping = 0;
-
-				if(print) PetscPrintf(mesh->MESH_COMM, "                         Geo damping action: reset\n");
+                applyGeoDamping = 1;
             }
 
-			// clean memory
-			std::vector<Cmpnts>    ().swap(lgDes);
-			std::vector<Cmpnts>    ().swap(ggDes);
-        }
+            if(mesh->access->io->runTimeWrite)
+            {
+                if(!rank)
+                {
+                    word location = "./fields/" + mesh->meshName + "/" + getTimeName(clock);
+                    word fileName = location + "/geostrophicDampingInfo";
+
+                    FILE *fp=fopen(fileName.c_str(), "w");
+
+                    if(fp==NULL)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName.c_str());
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    }
+                    else
+                    {
+                        fprintf(fp, "filteredGeoWind\t\t(%.3lf %.3lf 0.000)\n", abl->geoDampUBar.x, abl->geoDampUBar.y);
+                        fclose(fp);
+                    }
+                }
+            }
+		}
 
         // write the uniform source term
         if(!rank)
@@ -455,21 +441,19 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 PetscInt dirRes = mkdir("./postProcessing", 0777);
                 if(dirRes != 0 && errno != EEXIST)
                 {
-                   char error[512];
+                    char error[512];
                     sprintf(error, "could not create postProcessing directory\n");
                     fatalErrorInFunction("correctSourceTerm",  error);
                 }
-                else
-                {
-                    unlink("postProcessing/momentumSource");
-                }
             }
 
-            FILE *fp = fopen("postProcessing/momentumSource", "a");
+            word fileName = "postProcessing/momentumSource_" + getStartTimeName(clock);
+            FILE *fp = fopen(fileName.c_str(), "a");
+
             if(!fp)
             {
-               char error[512];
-                sprintf(error, "cannot open file postProcessing/momentumSource\n");
+                char error[512];
+                sprintf(error, "cannot open file %s\n", fileName.c_str());
                 fatalErrorInFunction("correctSourceTerm",  error);
             }
             else
@@ -486,7 +470,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     PetscFPrintf(mesh->MESH_COMM, fp, "%*s\t%*s\t%*s\t%*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str());
                 }
 
-                PetscFPrintf(mesh->MESH_COMM, fp, "%*.2f\t%*.5e\t%*.5e%*.5e\t\n", width, clock->time, width, s.x, width, s.y, width, s.z);
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*.6f\t%*.5e\t%*.5e%*.5e\t\n", width, clock->time, width, s.x, width, s.y, width, s.z);
 
                 fclose(fp);
             }
@@ -628,10 +612,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             abl->b.y = - relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
             abl->b.z =   0.0;
         }
-
-        if(print) PetscPrintf(mesh->MESH_COMM, "                         avg mag U at hRef = %lf m/s, hubAngle = %lf deg, geoAngle = %lf deg, omegaFilt = %lf rad/s\n", nMag(uMean), abl->hubAngle*180/M_PI, abl->geoAngle*180/M_PI, abl->omegaBar);
-        if(print) PetscPrintf(mesh->MESH_COMM, "                         U geo: (%.3f %.3f %.3f), U hub: (%.3f %.3f %.3f)\n", abl->uGeoBar.x,abl->uGeoBar.y,abl->uGeoBar.z, uMean.x, uMean.y, uMean.z);
-
     }
     else if(abl->controllerType=="read")
     {
@@ -746,27 +726,16 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     }
                     else if(abl->controllerType=="pressure")
                     {
-                        if(abl->geostrophicDampingActive)
+                        if(applyGeoDamping)
                         {
-                            if(abl->applyGeostrophicDamping)
-                            {
-                                Cmpnts    sG      = nScale(abl->relax, nSub(abl->gDes[j-1], ucat[k][j][i]));
-								PetscReal height  = cent[k][j][i].z - mesh->bounds.zmin;
-
-								source[k][j][i].x = fringeTopWeightBottom(height, abl->hInv + abl->dInv, abl->dInv) * s.x +
-                                                    fringeTopWeightTop   (height, abl->hInv + abl->dInv, abl->dInv) * sG.x;
-								source[k][j][i].y = fringeTopWeightBottom(height, abl->hInv + abl->dInv, abl->dInv) * s.y +
-                                                    fringeTopWeightTop   (height, abl->hInv + abl->dInv, abl->dInv) * sG.y;
-								source[k][j][i].z = 0.0;
-                            }
-							else
-							{
-								source[k][j][i].x = s.x;
-								source[k][j][i].y = s.y;
-								source[k][j][i].z = 0.0;
-							}
-
-
+                            PetscReal  height = cent[k][j][i].z - mesh->bounds.zmin;
+                            source[k][j][i].x = s.x +
+                                                scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
+                                                abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x);
+                            source[k][j][i].y = s.y +
+                                                scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
+                                                abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y);
+                            source[k][j][i].z = 0.0;
                         }
                         else
                         {
@@ -1131,25 +1100,25 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                             findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
 
-                            luBarInstX[j][i].x = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                            luBarInstX[j][i].x = scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
                                                  ifPtr->ucat_plane[jif][iif].x +
-                                                 fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
                                                  (
                                                      abl->uBarAvgTopX[IDs[0]].x * Wg[0] +
                                                      abl->uBarAvgTopX[IDs[1]].x * Wg[1]
                                                  );
 
-                            luBarInstX[j][i].y = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                            luBarInstX[j][i].y = scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
                                                  ifPtr->ucat_plane[jif][iif].y +
-                                                 fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
                                                  (
                                                      abl->uBarAvgTopX[IDs[0]].y * Wg[0] +
                                                      abl->uBarAvgTopX[IDs[1]].y * Wg[1]
                                                  );
 
-                            luBarInstX[j][i].z = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                            luBarInstX[j][i].z = scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
                                                  ifPtr->ucat_plane[jif][iif].z +
-                                                 fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
                                                  (
                                                      abl->uBarAvgTopX[IDs[0]].z * Wg[0] +
                                                      abl->uBarAvgTopX[IDs[1]].z * Wg[1]
@@ -1180,7 +1149,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                         luBarInstX[j][i].x
                         =
-                        fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
                         (
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
@@ -1191,7 +1160,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             ifPtr->inflowWeights[j][i][3] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x
                         ) +
-                        fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
                         (
                             abl->uBarAvgTopX[IDs[0]].x * Wg[0] +
                             abl->uBarAvgTopX[IDs[1]].x * Wg[1]
@@ -1201,7 +1170,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                         luBarInstX[j][i].y
                         =
-                        fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
                         (
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
@@ -1212,7 +1181,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             ifPtr->inflowWeights[j][i][3] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y
                         ) +
-                        fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
                         (
                             abl->uBarAvgTopX[IDs[0]].y * Wg[0] +
                             abl->uBarAvgTopX[IDs[1]].y * Wg[1]
@@ -1220,7 +1189,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                         luBarInstX[j][i].z
                         =
-                        fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
                         (
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
@@ -1231,7 +1200,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             ifPtr->inflowWeights[j][i][3] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z
                         ) +
-                        fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
                         (
                             abl->uBarAvgTopX[IDs[0]].z * Wg[0] +
                             abl->uBarAvgTopX[IDs[1]].z * Wg[1]
@@ -1297,9 +1266,9 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                                 findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
 
 
-                                ltBarInstX[j][i] = fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                                ltBarInstX[j][i] = scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
                                                    ifPtr->t_plane[jif][iif] +
-                                                   fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                   scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
                                                    (
                                                        abl->tBarAvgTopX[IDs[0]] * Wg[0] +
                                                        abl->tBarAvgTopX[IDs[1]] * Wg[1]
@@ -1331,7 +1300,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                             ltBarInstX[j][i]
                             =
-                            fringeTopWeightBottom(height, abl->avgTopLength, abl->avgTopDelta) *
+                            scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
                             (
                                 ifPtr->inflowWeights[j][i][0] *
                                 ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
@@ -1342,7 +1311,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                                 ifPtr->inflowWeights[j][i][3] *
                                 ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i]
                             ) +
-                            fringeTopWeightTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                            scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
                             (
                                 abl->tBarAvgTopX[IDs[0]] * Wg[0] +
                                 abl->tBarAvgTopX[IDs[1]] * Wg[1]
@@ -2100,23 +2069,6 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal nudJ = 1.0;
     PetscReal nudK = 1.0;
 
-    // geostrophic damping for pressure controller
-    PetscReal nugI = 1.0;
-    PetscReal nugJ = 1.0;
-    PetscReal nugK = 1.0;
-    PetscInt  geoDamping = 0;
-
-    if(abl->controllerActive)
-    {
-        if(abl->controllerType=="pressure")
-        {
-            if(abl->geostrophicDampingActive)
-            {
-				if(abl->applyGeostrophicDamping) geoDamping = 1;
-            }
-        }
-    }
-
     // fringe region parameters (set only if active)
     PetscReal xS;
     PetscReal xE;
@@ -2165,30 +2117,11 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     nudK           = central(nud_x, nudk_x);
                 }
 
-                if(geoDamping)
-                {
-                    PetscReal h   = cent[k][j][i  ].z - mesh->bounds.zmin;
-                    PetscReal hi  = cent[k][j][i+1].z - mesh->bounds.zmin;
-                    PetscReal hj  = cent[k][j+1][i].z - mesh->bounds.zmin;
-                    PetscReal hk  = cent[k+1][j][i].z - mesh->bounds.zmin;
-
-                    // compute coriolis scaling at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    PetscReal nug   = fringeTopWeightBottom(h,  abl->hInv + abl->dInv, abl->dInv);
-                    PetscReal nugi  = fringeTopWeightBottom(hi, abl->hInv + abl->dInv, abl->dInv);
-                    PetscReal nugj  = fringeTopWeightBottom(hj, abl->hInv + abl->dInv, abl->dInv);
-                    PetscReal nugk  = fringeTopWeightBottom(hk, abl->hInv + abl->dInv, abl->dInv);
-
-                    // interpolate to faces
-                    nugI           = central(nug, nugi);
-                    nugJ           = central(nug, nugj);
-                    nugK           = central(nug, nugk);
-                }
-
                 if(isFluidIFace(k, j, i, i+1, nvert))
                 {
                     rhs[k][j][i].x
                     +=
-                    scale * nudI * nugI *
+                    scale * nudI *
                     (
                         -2.0 *
                         (
@@ -2202,7 +2135,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].y
                     +=
-                    scale * nudJ * nugJ *
+                    scale * nudJ *
                     (
                         -2.0 *
                         (
@@ -2216,7 +2149,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].z
                     +=
-                    scale * nudK * nugK *
+                    scale * nudK *
                     (
                         -2.0 *
                         (

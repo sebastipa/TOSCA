@@ -50,6 +50,9 @@ controllerProperties
 
     # Velocity controller time filter
     timeWindowPI 3600
+    
+    # Perform geostrophic damping (only pressure controller)
+    geostrophicDamping 0
 
     # Velocity controller max height of influence 
     controllerMaxHeight 100000.0

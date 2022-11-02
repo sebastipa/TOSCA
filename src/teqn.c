@@ -249,13 +249,11 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
                 sprintf(error, "could not create postProcessing directory\n");
                 fatalErrorInFunction("correctSourceTermT",  error);
             }
-            else
-            {
-                unlink("postProcessing/temperatureSource");
-            }
         }
 
-        FILE *fp = fopen("postProcessing/temperatureSource", "a");
+        word fileName = "postProcessing/temperatureSource_" + getStartTimeName(clock);
+        FILE *fp = fopen(fileName.c_str(), "a");
+
         if(!fp)
         {
             char error[512];
@@ -269,8 +267,7 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             if(clock->it == clock->itStart)
             {
                 word w1 = "levels";
-
-                PetscFPrintf(mesh->MESH_COMM, fp, "%*s\t:", width, w1.c_str());
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w1.c_str());
 
                 for(j=0; j<nLevels; j++)
                 {
@@ -278,11 +275,12 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
                 }
 
                 PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                word w2 = "time";
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
             }
 
-            word w2 = "time";
-
-            PetscFPrintf(mesh->MESH_COMM, fp, "%*s\t: %*.5f\t", width, w2.c_str(), width, clock->time);
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
 
             for(j=0; j<nLevels; j++)
             {
@@ -1039,7 +1037,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                         PetscReal l, delta = pow( 1./ajc, 1./3. );
                         if(gradTdotG < 0.)
                         {
-                            l = PetscMin(delta, 0.76*std::sqrt(tRef / std::fabs(gradTdotG)));
+                            l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
                         }
                         else
                         {
@@ -1207,7 +1205,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                         PetscReal l, delta = pow( 1./ajc, 1./3. );
                         if(gradTdotG < 0.)
                         {
-                            l = PetscMin(delta, 0.76*std::sqrt(tRef / std::fabs(gradTdotG)));
+                            l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
                         }
                         else
                         {
@@ -1376,7 +1374,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                         PetscReal l, delta = pow( 1./ajc, 1./3. );
                         if(gradTdotG < 0.)
                         {
-                            l = PetscMin(delta, 0.76*std::sqrt(tRef / std::fabs(gradTdotG)));
+                            l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
                         }
                         else
                         {
