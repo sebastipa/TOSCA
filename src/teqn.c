@@ -1450,12 +1450,12 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     =
                     scale *
                     (
-                         div[k][j][i].x  - div[k  ][j  ][i-1].x +
-                         div[k][j][i].y  - div[k  ][j-1][i  ].y +
-                         div[k][j][i].z  - div[k-1][j  ][i  ].z +
-                        visc[k][j][i].x - visc[k  ][j  ][i-1].x +
-                        visc[k][j][i].y - visc[k  ][j-1][i  ].y +
-                        visc[k][j][i].z - visc[k-1][j  ][i  ].z
+                         div[k][j][i].x  - div[k  ][j  ][i-1].x       +
+                         div[k][j][i].y  - div[k  ][j-1][i  ].y       +
+                         div[k][j][i].z  - div[k-1][j  ][i  ].z       +
+                         visc[k][j][i].x - visc[k  ][j  ][i-1].x      +
+                         visc[k][j][i].y - visc[k  ][j-1][i  ].y      +
+                         visc[k][j][i].z - visc[k-1][j  ][i  ].z
                     ) * aj[k][j][i];
                 }
 

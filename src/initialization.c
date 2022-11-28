@@ -166,6 +166,24 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer", &(flags->isXDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sideForce",     &(flags->isSideForceActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
+	
+	// do some checks 
+	if(flags->isZDampingActive || flags->isXDampingActive)
+	{
+		if(!flags->isAblActive)
+		{
+			char error[512];
+			sprintf(error, "abl flag is required for zDampingLayer and xDampingLayer");
+			fatalErrorInFunction("SetSimulationFlags", error);
+		}
+		
+		if(!flags->isTeqnActive)
+		{
+			char error[512];
+			sprintf(error, "potentialT flag is required for zDampingLayer and xDampingLayer");
+			fatalErrorInFunction("SetSimulationFlags", error);
+		}
+	}
 
     // read acquisition flags
     PetscInt isProbesActive         = 0;

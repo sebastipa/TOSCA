@@ -44,6 +44,8 @@ struct abl_
 
     // geostrophic damping for pressure controller
     PetscInt     geostrophicDampingActive;       //!< geosptrophic oscillation damping
+	PetscReal    geoDampAvgDT;                   //!< average time step from simulation start
+	Cmpnts       geoDampAvgS;                    //!< expected geostrophic velocity
 	Cmpnts       geoDampUBar;                    //!< expected geostrophic velocity
 	Cmpnts       *geoDampU;                      //!< average horizontal velocity at current iteration
     PetscReal    geoDampAlpha;                   //!< alpha = 1 critical damping (>1 over-damped, <1 under-damped)
@@ -51,7 +53,7 @@ struct abl_
     PetscReal    geoDampDelta;                   //!< rising distance for the application function
     PetscReal    geoDampC;                       //!< critical damping coefficient
     PetscReal    geoDampStart;                   //!< starting time of geostrophic damping
-    PetscReal    geoDampWindow;                  //!< averaging window for the geostrophic velocity 
+    PetscReal    geoDampWindow;                  //!< averaging window for the geostrophic velocity
 
     // geostrophic controller
     PetscInt     *closestLabelsGeo;              //!< closest heights w.r.t. controller height

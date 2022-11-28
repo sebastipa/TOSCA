@@ -31,6 +31,7 @@ struct io_
     PetscInt  l2Crit;
     PetscInt  windFarmForce;
     PetscInt  sources;
+    PetscInt  buoyancy;
 
     // runtime modifiable
     word      lastModification;

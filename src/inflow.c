@@ -194,7 +194,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     {
                         char error[512];
                         sprintf(error, "source mesh given in %s and expected number of cells do not match\n", pointsFileName.c_str());
-                        fatalErrorInFunction("SetInflowWeights", error);
+                        fatalErrorInFunction("SetInflowFunctions", error);
                     }
 
                     Zcart.resize(npz);
@@ -495,7 +495,7 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
         word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
         FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
 
-        PetscPrintf(mesh->MESH_COMM, "   -> reading source mesh %s\n",pointsFileName.c_str());
+        PetscPrintf(mesh->MESH_COMM, "\n   -> reading source mesh %s\n",pointsFileName.c_str());
 
         if(!meshFileID)
         {

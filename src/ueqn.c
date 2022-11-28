@@ -74,6 +74,11 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     VecDuplicate(mesh->lAj, &(ueqn->lUstar));     VecSet(ueqn->lUstar,  0.0);
 
+    if(ueqn->access->flags->isTeqnActive)
+    {
+        VecDuplicate(mesh->Cent, &(ueqn->bTheta)); VecSet(ueqn->bTheta,    0.0);
+    }
+
     if(ueqn->ddtScheme == "backwardEuler")
     {
         ueqn->relExitTol        = 1e-30;
@@ -395,10 +400,12 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 			}
 
             // filter geostrophic wind
-            Cmpnts    Ug_t = nSetFromComponents(s.y / (2.0 * abl->fc), -1.0 * s.x / (2.0 * abl->fc), 0.0);
-            PetscReal m1   = (1.0 - clock->dt/abl->geoDampWindow),
-                      m2   = clock->dt/abl->geoDampWindow;
-            abl->geoDampUBar = nSum(nScale(m1, abl->geoDampUBar), nScale(m2, Ug_t));
+            Cmpnts    Sc      = nSetFromComponents(s.x, s.y, 0.0);
+            PetscReal m1      = (1.0 - clock->dt/abl->geoDampWindow),
+                      m2      = clock->dt/abl->geoDampWindow;
+	        abl->geoDampAvgDT = m1 * abl->geoDampAvgDT + m2 * clock->dt;
+			abl->geoDampAvgS  = nSum(nScale(m1, abl->geoDampAvgS), nScale(m2, Sc));
+            abl->geoDampUBar  = nSetFromComponents(abl->geoDampAvgS.y / (2.0 * abl->fc * abl->geoDampAvgDT), -1.0 * abl->geoDampAvgS.x / (2.0 * abl->fc * abl->geoDampAvgDT), 0.0);
 
             if(print) PetscPrintf(mesh->MESH_COMM, "                         Filtered geostrophi wind Ug = (%.3lf, %.3lf, 0.00)\n", abl->geoDampUBar.x, abl->geoDampUBar.y);
 
@@ -425,7 +432,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     }
                     else
                     {
-                        fprintf(fp, "filteredGeoWind\t\t(%.3lf %.3lf 0.000)\n", abl->geoDampUBar.x, abl->geoDampUBar.y);
+                        fprintf(fp, "filteredS \t\t(%.6e %.6e %.6e)\n", abl->geoDampAvgS.x, abl->geoDampAvgS.y, 0.0);
+						fprintf(fp, "filteredDT\t\t %.5lf\n", abl->geoDampAvgDT);
                         fclose(fp);
                     }
                 }
@@ -731,10 +739,10 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                             PetscReal  height = cent[k][j][i].z - mesh->bounds.zmin;
                             source[k][j][i].x = s.x +
                                                 scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
-                                                abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x);
+                                                abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x) * clock->dt;
                             source[k][j][i].y = s.y +
                                                 scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
-                                                abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y);
+                                                abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y) * clock->dt;
                             source[k][j][i].z = 0.0;
                         }
                         else
@@ -822,27 +830,6 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    // damping viscosity for fringe region exclusion
-    double nudI;
-    double nudJ;
-    double nudK;
-
-    // fringe region parameters (set only if active)
-    double xS;
-    double xE;
-    double xD;
-
-    if(ueqn->access->flags->isXDampingActive)
-    {
-        xS     = ueqn->access->abl->xDampingStart;
-        xE     = ueqn->access->abl->xDampingEnd;
-        xD     = ueqn->access->abl->xDampingDelta;
-    }
-    else
-    {
-        nudI = nudJ = nudK = 1.0;
-    }
-
     DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
@@ -864,28 +851,9 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     isFluidIFace(k, j, i, i+1, nvert)
                 )
                 {
-                    if(ueqn->access->flags->isXDampingActive)
-                    {
-                        // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                        double x     = cent[k][j][i].x;
-                        double xi    = cent[k][j][i+1].x;
-                        double xj    = cent[k][j+1][i].x;
-                        double xk    = cent[k+1][j][i].x;
-
-                        // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                        double nud_x   = viscStipa(xS, xE, xD, x);
-                        double nudi_x  = viscStipa(xS, xE, xD, xi);
-                        double nudj_x  = viscStipa(xS, xE, xD, xj);
-                        double nudk_x  = viscStipa(xS, xE, xD, xk);
-
-                        nudI           = central(nud_x, nudi_x);
-                        nudJ           = central(nud_x, nudj_x);
-                        nudK           = central(nud_x, nudk_x);
-                    }
-
                     rhs[k][j][i].x
                     +=
-                    scale * nudI *
+                    scale *
                     (
                           central(source[k][j][i].x, source[k][j][i+1].x) * icsi[k][j][i].x +
                           central(source[k][j][i].y, source[k][j][i+1].y) * icsi[k][j][i].y +
@@ -900,7 +868,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].y
                     +=
-                    scale * nudJ *
+                    scale *
                     (
                           central(source[k][j][i].x, source[k][j+1][i].x) * jeta[k][j][i].x +
                           central(source[k][j][i].y, source[k][j+1][i].y) * jeta[k][j][i].y +
@@ -915,7 +883,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].z
                     +=
-                    scale * nudK *
+                    scale *
                     (
                           central(source[k][j][i].x, source[k+1][j][i].x) * kzet[k][j][i].x +
                           central(source[k][j][i].y, source[k+1][j][i].y) * kzet[k][j][i].y +
@@ -965,6 +933,8 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
     // update uBar for xDampingLayer (read from inflow data)
     if(ueqn->access->flags->isXDampingActive)
     {
+		DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+
         if
         (
             abl->xFringeUBarSelectionType == 0 ||
@@ -980,7 +950,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
             PetscReal ldataHeight = 0, gdataHeight = 0;
 
             // define local uBar and tBar vectors
-            std::vector<std::vector<Cmpnts>> luBarInstX(my);
+            std::vector<std::vector<Cmpnts>>    luBarInstX(my);
             std::vector<std::vector<PetscReal>> ltBarInstX(my);
 
             // set it to zero
@@ -1075,8 +1045,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             (ifPtr->uTau/0.4)*std::log(ifPtr->hInv/ifPtr->roughness);
                         }
 
-                        // set velocity according to log law
-                        luBarInstX[j][i] = nScale(uMag, ifPtr->Udir);
+						luBarInstX[j][i] =  nScale(uMag, ifPtr->Udir);
                     }
                     // unsteady mapped
                     else if (ifPtr->typeU == 1)
@@ -1209,7 +1178,9 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     // Nieuwstadt model
                     else if (ifPtr->typeU == 4)
                     {
+						// get cell height
                         PetscReal h      = cent[k_idx][j][i].z - mesh->bounds.zmin;
+
                         luBarInstX[j][i] = nSet(NieuwstadtInflowEvaluate(ifPtr, h));
                     }
 
@@ -1433,7 +1404,6 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     kEnd   = precursor->map.kEnd;
                 }
 
-                DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
                 DMDAVecGetArray(fda, mesh->lCent, &cent);
 
                 for (k=zs; k<lze; k++)
@@ -1507,7 +1477,6 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     DMDAVecRestoreArray(fda_p, precursor->domain->ueqn->lUcat, &ucatP);
                 }
 
-                DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
                 DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
                 gsumStart1 = gsumStart1 / gcountStart1;
@@ -1615,6 +1584,8 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
             PetscPrintf(mesh->MESH_COMM, "Solving successor:\n");
         }
+
+		DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
     }
 
     // update uBar for zDampingLayer (average at kLeft patch)
@@ -1751,6 +1722,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     precursor_    *precursor;
     domain_       *pdomain;
     PetscInt      kStart, kEnd;
+	PetscReal     advDampH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1810,6 +1782,20 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal nudJ = 1.0;
     PetscReal nudK = 1.0;
 
+	// see if the inflow is of spread type
+	PetscInt isInflowSpreadType = 0;
+
+	if
+	(
+		abl->xFringeUBarSelectionType == 0 ||
+		abl->xFringeUBarSelectionType == 1 ||
+		abl->xFringeUBarSelectionType == 2 ||
+		abl->xFringeUBarSelectionType == 4
+	)
+	{
+		isInflowSpreadType = 1;
+	}
+
     // loop over internal cell faces - include right boundary faces which will be periodic
     // at the beginning. Then they will be zeroed if applicable when building the SNES rhs.
     for (k=lzs; k<lze; k++)
@@ -1826,6 +1812,12 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     xj    = cent[k][j+1][i].x;
                     xk    = cent[k+1][j][i].x;
 
+					// compute cell center z at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+					z     = cent[k][j][i].z   - mesh->bounds.zmin;
+                    zi    = cent[k][j][i+1].z - mesh->bounds.zmin;
+                    zj    = cent[k][j+1][i].z - mesh->bounds.zmin;
+                    zk    = cent[k+1][j][i].z - mesh->bounds.zmin;
+
                     // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
                     nudi_x  = viscNordstrom(alphaX, xS, xE, xD, xi);
@@ -1833,10 +1825,10 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     nudk_x  = viscNordstrom(alphaX, xS, xE, xD, xk);
 
                     // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    nud_x_s    = viscStipa(xS, xE, xD, x);
-                    nudi_x_s   = viscStipa(xS, xE, xD, xi);
-                    nudj_x_s   = viscStipa(xS, xE, xD, xj);
-                    nudk_x_s   = viscStipa(xS, xE, xD, xk);
+                    nud_x_s    = viscStipa(xS, xE, xD, x,  z , advDampH);
+                    nudi_x_s   = viscStipa(xS, xE, xD, xi, zi, advDampH);
+                    nudj_x_s   = viscStipa(xS, xE, xD, xj, zj, advDampH);
+                    nudk_x_s   = viscStipa(xS, xE, xD, xk, zk, advDampH);
 
                     // interpolate Stipa viscosity at cell faces
                     nudI       = central(nud_x_s, nudi_x_s);
@@ -1846,13 +1838,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // X DAMPING LAYER
                     // ---------------
 
-                    if
-                    (
-                        abl->xFringeUBarSelectionType == 0 ||
-                        abl->xFringeUBarSelectionType == 1 ||
-                        abl->xFringeUBarSelectionType == 2 ||
-                        abl->xFringeUBarSelectionType == 4
-                    )
+                    if(isInflowSpreadType)
                     {
                         Cmpnts uBarInstX  = nSet(abl->uBarInstX[j][i]);
                         Cmpnts uBarInstXi = nSet(abl->uBarInstX[j][i+1]);
@@ -1894,7 +1880,8 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             )
                         );
                     }
-                    else if(abl->xFringeUBarSelectionType == 3)
+					// concurrent precursor
+                    else
                     {
                         PetscReal uBarContK;
                         PetscReal uBarContJ;
@@ -2064,22 +2051,6 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     // if the eta axis is aligned with the z cartesian direction, the dotting will output
     // zero since eta face area vectors have zero component in x and y cartesian directions.
 
-    // damping viscosity for fringe region exclusion
-    PetscReal nudI = 1.0;
-    PetscReal nudJ = 1.0;
-    PetscReal nudK = 1.0;
-
-    // fringe region parameters (set only if active)
-    PetscReal xS;
-    PetscReal xE;
-    PetscReal xD;
-
-    if(ueqn->access->flags->isXDampingActive)
-    {
-        xS     = ueqn->access->abl->xDampingStart;
-        xE     = ueqn->access->abl->xDampingEnd;
-        xD     = ueqn->access->abl->xDampingDelta;
-    }
 
     DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
@@ -2096,32 +2067,11 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
-
-                if(ueqn->access->flags->isXDampingActive)
-                {
-                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    PetscReal x     = cent[k][j][i].x;
-                    PetscReal xi    = cent[k][j][i+1].x;
-                    PetscReal xj    = cent[k][j+1][i].x;
-                    PetscReal xk    = cent[k+1][j][i].x;
-
-                    // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    PetscReal nud_x   = viscStipa(xS, xE, xD, x);
-                    PetscReal nudi_x  = viscStipa(xS, xE, xD, xi);
-                    PetscReal nudj_x  = viscStipa(xS, xE, xD, xj);
-                    PetscReal nudk_x  = viscStipa(xS, xE, xD, xk);
-
-                    // interpolate to faces
-                    nudI           = central(nud_x, nudi_x);
-                    nudJ           = central(nud_x, nudj_x);
-                    nudK           = central(nud_x, nudk_x);
-                }
-
                 if(isFluidIFace(k, j, i, i+1, nvert))
                 {
                     rhs[k][j][i].x
                     +=
-                    scale * nudI *
+                    scale *
                     (
                         -2.0 *
                         (
@@ -2135,7 +2085,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].y
                     +=
-                    scale * nudJ *
+                    scale *
                     (
                         -2.0 *
                         (
@@ -2149,7 +2099,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     rhs[k][j][i].z
                     +=
-                    scale * nudK *
+                    scale *
                     (
                         -2.0 *
                         (
@@ -2287,7 +2237,7 @@ PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
 //***************************************************************************************************************//
 
-PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
 {
     mesh_         *mesh  = ueqn->access->mesh;
     teqn_         *teqn = ueqn->access->teqn;
@@ -2298,7 +2248,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt      zs    = info.zs, ze = info.zs + info.zm;
     PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
 
-    Cmpnts        ***rhs, ***gcont;
+    Cmpnts        ***btheta, ***gcont;
     Cmpnts        ***icsi, ***jeta, ***kzet, ***cent;
     PetscReal     ***nvert, ***tmprt, ***aj;
 
@@ -2321,41 +2271,10 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
     DMDAVecGetArray(da,  mesh->lAj,    &aj);
     DMDAVecGetArray(da,  teqn->lTmprt, &tmprt);
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
-    /*
-    // compute the planar averaged state as a function of height
-    std::vector<PetscReal> lavgT(my);
-    std::vector<PetscReal> gavgT(my);
-    std::vector<PetscReal> lavgV(my);
-    std::vector<PetscReal> gavgV(my);
-
-    for(j=0; j<my; j++)
-    {
-        lavgT[j] = gavgT[j] = lavgV[j] = gavgV[j] = 0.0;
-    }
-
-    // loop over i-face centers
-    for(k=lzs; k<lze; k++)
-    {
-        for(j=lys; j<lye; j++)
-        {
-            for(i=lxs; i<lxe; i++)
-            {
-                lavgT[j] += tmprt[k][j][i] / aj[k][j][i];
-                lavgV[j] += 1.0 / aj[k][j][i];
-            }
-        }
-    }
-
-    MPI_Allreduce(&lavgT[0], &gavgT[0], my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&lavgV[0], &gavgV[0], my, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    // divide by total volume per level
-    for(j=1; j<my-1; j++)
-    {
-        gavgT[j] /= gavgV[j];
-    }
-    */
+    VecSet(ueqn->bTheta, 0.0);
+    DMDAVecGetArray(fda, ueqn->bTheta,  &btheta);
 
     // loop over i-face centers
     for(k=zs; k<lze; k++)
@@ -2406,8 +2325,6 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
 
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
-    DMDAVecGetArray(fda, mesh->lCent,  &cent);
-    DMDAVecGetArray(fda, Rhs,  &rhs);
 
     for (k=lzs; k<lze; k++)
     {
@@ -2415,13 +2332,14 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
-                // interpolate at cell faces
-                PetscReal tempI    = 0.5*(tmprt[k][j][i] + tmprt[k][j][i+1]);
-                //PetscReal tempRefI = gavgT[j];
+                // interpolate temperature at cell faces
+                PetscReal tempI    =  0.5*(tmprt[k][j][i] + tmprt[k][j][i+1]);
+                PetscReal tempJ    =  0.5*(tmprt[k][j][i] + tmprt[k][j+1][i]);
+                PetscReal tempK    =  0.5*(tmprt[k][j][i] + tmprt[k+1][j][i]);
 
                 if(isFluidIFace(k, j, i, i+1, nvert))
                 {
-                    rhs[k][j][i].x
+                    btheta[k][j][i].x
                     +=
                     scale *
                     (
@@ -2432,14 +2350,9 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
-
-                // interpolate at cell faces
-                PetscReal tempJ    =  0.5*(tmprt[k][j][i] + tmprt[k][j+1][i]);
-                //PetscReal tempRefJ =  0.5*(gavgT[j] + gavgT[j+1]);
-
                 if(isFluidJFace(k, j, i, j+1, nvert))
                 {
-                    rhs[k][j][i].y
+                    btheta[k][j][i].y
                     +=
                     scale *
                     (
@@ -2450,14 +2363,9 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
-
-                // interpolate at cell faces
-                PetscReal tempK    =  0.5*(tmprt[k][j][i] + tmprt[k+1][j][i]);
-                //PetscReal tempRefK =  gavgT[j];
-
                 if(isFluidKFace(k, j, i, k+1, nvert))
                 {
-                    rhs[k][j][i].z
+                    btheta[k][j][i].z
                     +=
                     scale *
                     (
@@ -2467,24 +2375,15 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         //(2* tRef - tempK) / tRef
                     );
                 }
-
             }
         }
     }
 
-    DMDAVecRestoreArray(fda, Rhs,  &rhs);
-    DMDAVecRestoreArray(da,  teqn->lTmprt, &tmprt);
-    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
-    DMDAVecRestoreArray(fda, ueqn->gCont, &gcont);
-    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
-
-    // clean memory
-    /*
-    std::vector<PetscReal> ().swap(lavgT);
-    std::vector<PetscReal> ().swap(gavgT);
-    std::vector<PetscReal> ().swap(lavgV);
-    std::vector<PetscReal> ().swap(gavgV);
-    */
+    DMDAVecRestoreArray(fda, ueqn->bTheta,  &btheta);
+    DMDAVecRestoreArray(da,  teqn->lTmprt,  &tmprt);
+    DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
+    DMDAVecRestoreArray(fda, ueqn->gCont,   &gcont);
+    DMDAVecRestoreArray(fda, mesh->lCent,   &cent);
 
     return(0);
 }
@@ -3930,6 +3829,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal xDE;
 
     PetscInt  advectionDamping = 0;
+	PetscReal advDampH = 0;
 
     if(ueqn->access->flags->isXDampingActive)
     {
@@ -3941,6 +3841,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             xDS    = ueqn->access->abl->advDampingDeltaStart;
 
             advectionDamping = 1;
+
+			advDampH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
         }
         else
         {
@@ -4724,6 +4626,14 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     div3[k][j][i].z - div3[k-1][j][i].z
                 );
 
+				// compute Stipa viscosity at i,j,k,  point
+				if(advectionDamping)
+				{
+					PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
+					nuD              = viscStipaDelta(xS, xE, xDS, xDE, cent[k][j][i].x, height, advDampH);
+					fp[k][j][i].z    = nuD * fp[k][j][i].z;
+				}
+
                 // viscous contribution
                 if(ueqn->inviscid)
                 {
@@ -4796,15 +4706,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         fp[k+1][j][i].y = fp[k][j][i].y;
                         fp[k+1][j][i].z = fp[k][j][i].z;
                     }
-
-                    // compute Stipa viscosity at i,j,k,  point
-                    if(advectionDamping)
-                    {
-                        nuD = viscStipaDelta(xS, xE, xDS, xDE, cent[k][j][i].x);
-                    }
-
-    				fp[k][j][i].z = nuD * fp[k][j][i].z;
-
                 }
             }
         }
@@ -5059,7 +4960,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         }
         else
         {
-            Buoyancy(ueqn, Rhs, 1.0);
+            VecAXPY(Rhs,  1.0, ueqn->bTheta);
         }
     }
 
@@ -5163,7 +5064,7 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         }
         else
         {
-            Buoyancy(ueqn, ueqn->Rhs, 1.0);
+            VecAXPY(ueqn->Rhs,  1.0, ueqn->bTheta);
         }
     }
 

@@ -248,6 +248,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
                         abl->geoDampDelta = abl->dInv;
                         abl->geoDampC     = 2.0*(2.0*abl->fc);
                         abl->geoDampUBar  = nSetZero();
+						abl->geoDampAvgS  = nSetZero();
+						abl->geoDampAvgDT = mesh->access->clock->dt;
 
 						// allocate memory for filtered geostrophic velocity
                         PetscMalloc(sizeof(Cmpnts)*nLevels, &(abl->geoDampU));
@@ -278,8 +280,10 @@ PetscErrorCode InitializeABL(abl_ *abl)
                         else
                         {
                             fclose(fp);
-                            readDictVector(fileName.c_str(), "filteredGeoWind", &(abl->geoDampUBar));
-                            PetscPrintf(mesh->MESH_COMM, "   -> reading filtered geostrophic wind: Ug = (%.3lf, %.3lf, 0.000)",abl->geoDampUBar.x, abl->geoDampUBar.y);
+                            readDictVector(fileName.c_str(), "filteredS",   &(abl->geoDampAvgS));
+							readDictDouble(fileName.c_str(), "filteredDT",  &(abl->geoDampAvgDT));
+							abl->geoDampUBar = nScale(1.0 / (2.0 * abl->fc * abl->geoDampAvgDT), nSetFromComponents(abl->geoDampAvgS.y, abl->geoDampAvgS.x, 0.0));
+                            PetscPrintf(mesh->MESH_COMM, "   -> reading filtered geostrophic wind: Ug = (%.3lf, %.3lf, 0.000)\n",abl->geoDampUBar.x, abl->geoDampUBar.y);
                         }
                     }
                 }
@@ -1091,9 +1095,15 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 std::vector<PetscInt> ().swap(lnProcsKLine[j]);
             }
         }
-        if(abl->xFringeUBarSelectionType == 3)
+        else if(abl->xFringeUBarSelectionType == 3)
         {
             concurrentPrecursorInitialize(abl);
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "unknown xFringeUBarSelectionType %ld, available types are:\n\t0: log law\n\t1: unsteadyMappedPeriodizedUniform\n\t2: unsteadyInterpPeriodizedUniform\n\t3: concurrentPrecursor\n\t4: Nieuwstadt model\n", abl->xFringeUBarSelectionType);
+            fatalErrorInFunction("ABLInitialize",  error);
         }
     }
 

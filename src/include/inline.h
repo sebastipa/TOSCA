@@ -3306,7 +3306,7 @@ inline PetscReal viscNordstrom(PetscReal &alpha, PetscReal &hS, PetscReal &hE, P
 
 //***************************************************************************************************************//
 
-inline double viscStipa(double &hS, double &hE, double &delta, double &h)
+inline double viscStipa(double &hS, double &hE, double &delta, double &h, double &z, double &H)
 {
     // make sure delta is positive and strictly greater than zero
     delta = std::max(fabs(delta), 1e-5);
@@ -3346,14 +3346,21 @@ inline double viscStipa(double &hS, double &hE, double &delta, double &h)
         s2 = 1.0 / (1.0 + std::exp(1.0/(h2_hat - 1.0) + 1.0 / h2_hat));
     }
 
-    viscosity = 1.0 - (s1 - s2);
+	if(z >= H)
+	{
+		viscosity = 1.0 - (s1 - s2);
+	}
+	else
+	{
+		viscosity = 1.0;
+	}
 
     return(viscosity);
 }
 
 //***************************************************************************************************************//
 
-inline double viscStipaDelta(double &hS, double &hE, double &deltaS, double &deltaE, double &h)
+inline double viscStipaDelta(double &hS, double &hE, double &deltaS, double &deltaE, double &h, double &z, double &H)
 {
     // make sure delta is positive and strictly greater than zero
     deltaS = std::max(fabs(deltaS), 1e-5);
@@ -3394,7 +3401,14 @@ inline double viscStipaDelta(double &hS, double &hE, double &deltaS, double &del
         s2 = 1.0 / (1.0 + std::exp(1.0/(h2_hat - 1.0) + 1.0 / h2_hat));
     }
 
-    viscosity = 1.0 - (s1 - s2);
+    if(z >= H)
+	{
+		viscosity = 1.0 - (s1 - s2);
+	}
+	else
+	{
+		viscosity = 1.0;
+	}
 
     return(viscosity);
 }

@@ -61,10 +61,16 @@ int main(int argc, char **argv)
   if (!rank) createDir(PETSC_COMM_WORLD, "./XMF");
 
   // initialize post processing
-  postProcessInitialize(&domain, &clock, &info, &flags);
+  if(pp.postProcessFields || pp.writeRaster || pp.samplingSections)
+  {
+      postProcessInitialize(&domain, &clock, &info, &flags);
+  }
 
   // write 3D fields into XMF
-  binary3DToXMF(domain, &pp);
+  if(pp.postProcessFields || pp.writeRaster)
+  {
+      binary3DToXMF(domain, &pp);
+  }
 
   // initialize precursor post processing
   if(pp.postProcessPrecursor)
@@ -204,14 +210,14 @@ PetscErrorCode postProcessInitializePrecursor(postProcess *pp, clock_ *clock)
     PetscMalloc(sizeof(domain_), &(precursor->domain));
     domain_ *domain = precursor->domain;
 
-    // read physical constants
-    ReadPhysicalConstants(domain);
-
     // set solution flags
     SetSolutionFlagsPrecursor(domain);
 
     // set simulation info
     SetSimulationInfo(&(domain->info));
+	
+	// read physical constants
+    ReadPhysicalConstants(domain);
 
     // allocate domain memory
     SetDomainMemory(domain);
@@ -309,16 +315,10 @@ PetscErrorCode binary3DToXMF(domain_ *domain, postProcess *pp)
           PetscPrintf(PETSC_COMM_WORLD, "\n\nTime: %lf\n\n", timeSeries[ti]);
 
           // read fields inside time folder
-          if(pp->postProcessFields || pp->writeRaster)
-          {
-            readFields(&domain[d], timeSeries[ti]);
+          readFields(&domain[d], timeSeries[ti]);
 
-            if(pp->postProcessFields)
-            {
-              // write fields inside XMF folder
-              writeFieldsToXMF(&domain[d], fieldsFileName.c_str(), timeSeries[ti]);
-            }
-          }
+          // write fields inside XMF folder
+          writeFieldsToXMF(&domain[d], fieldsFileName.c_str(), timeSeries[ti]);
       }
 
       if(!rank)
@@ -581,6 +581,21 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             time,
             "SideForce",
             acquisition->fields->SideForce
+        );
+    }
+
+    if(io->buoyancy)
+    {
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "buoyancy",
+            domain->ueqn->bTheta
         );
     }
 

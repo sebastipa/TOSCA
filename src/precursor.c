@@ -718,6 +718,8 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
             {
                 ghGradRhoK(domain->teqn);
             }
+			
+			Buoyancy(domain->ueqn, 1.0);
         }
 
         if(domain->ueqn->centralUpwindDiv || domain->flags.isTeqnActive)
@@ -734,7 +736,14 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
 
         if(domain->flags.isAblActive)
         {
-            CorrectSourceTerms(domain->ueqn, 1);
+			if(domain->abl->controllerActive)
+			{
+				CorrectSourceTerms(domain->ueqn, 1);
+			}
+			if(domain->abl->controllerActiveT)
+			{
+				CorrectSourceTermsT(domain->teqn, 1);
+			}
         }
 
         if(domain->flags.isXDampingActive || domain->flags.isZDampingActive)
@@ -757,14 +766,9 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         // temperature step
         if(domain->flags.isTeqnActive)
         {
+			UpdateWallModelsT(domain->teqn);
+			
             SolveTEqn(domain->teqn);
-
-            // save temperature equation right hand side
-            if(domain->teqn->ddtScheme=="backwardEuler")
-            {
-                VecSet(domain->teqn->Rhs_o, 0.0);
-                FormT (domain->teqn, domain->teqn->Rhs_o, 1.0);
-            }
         }
 
         MPI_Barrier(domain->mesh->MESH_COMM);
@@ -892,8 +896,67 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
         readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Inflow",   &(ifPtr->n2));
         readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Periods",  &(ifPtr->prds1));
         readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Periods",  &(ifPtr->prds2));
-        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
-        readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
+        
+		// read if source mesh is uniform or grading
+        readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
+		
+		if(ifPtr->sourceType == "uniform")
+		{
+			PetscPrintf(mesh->MESH_COMM, "   -> using uniform source mesh type\n");
+
+			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
+			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
+		}
+		else if(ifPtr->sourceType == "grading")
+		{
+			PetscPrintf(mesh->MESH_COMM, "   -> using grading source mesh type\n");
+			
+			std::vector<PetscReal>  Zcart;
+
+			word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
+			FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
+
+			if(!meshFileID)
+			{
+				char error[512];
+				sprintf(error, "cannot open inflow points file %s\n", pointsFileName.c_str());
+				fatalErrorInFunction("SetInflowWeights", error);
+			}
+			else
+			{
+				// read the source mesh file in .xyz format
+				PetscReal bufferDouble;
+				PetscInt  npx, npy, npz;
+				PetscInt  error = fscanf(meshFileID, "%ld %ld %ld\n", &npx, &npy, &npz);
+
+				if(ifPtr->n1 != npz - 1 || ifPtr->n2 != npy - 1)
+				{
+					char error[512];
+					sprintf(error, "source mesh given in %s and expected number of cells do not match\n", pointsFileName.c_str());
+					fatalErrorInFunction("SetInflowFunctionsPrecursor", error);
+				}
+
+				Zcart.resize(npz);
+
+				for (PetscInt k = 0; k < npx; k++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+				for (PetscInt i = 0; i < npy; i++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+				for (PetscInt j = 0; j < npz; j++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &Zcart[j]);
+
+				fclose(meshFileID);
+
+				// height of the inflow database
+				ifPtr->inflowHeigth = Zcart[npz-1] - Zcart[0];
+
+				// wipe vectors
+				std::vector<PetscReal> ().swap(Zcart);
+			}
+		}
+		else
+		{
+			char error[512];
+			sprintf(error, "unknown sourceType in inletFunction type 4, available types are\n    1: uniform\n    2: grading\n");
+			fatalErrorInFunction("SetInflowFunctions",  error);
+		}
 
         // increase n1 and n2 accounting for side ghost cells
         ifPtr->n1wg = ifPtr->n1 + 2;
@@ -1101,18 +1164,19 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         abl_ *abl =  domain->abl;
 
-        readDictDouble("ABLProperties.dat", "hRough",           &(abl->hRough));
-        readDictDouble("ABLProperties.dat", "uRef",             &(abl->uRef));
-        readDictDouble("ABLProperties.dat", "hRef",             &(abl->hRef));
-        readDictDouble("ABLProperties.dat", "hInv",             &(abl->hInv));
-        readDictDouble("ABLProperties.dat", "dInv",             &(abl->dInv));
-        readDictDouble("ABLProperties.dat", "gInv",             &(abl->gInv));
-        readDictDouble("ABLProperties.dat", "tRef",             &(abl->tRef));
-        readDictDouble("ABLProperties.dat", "gTop",             &(abl->gTop));
-        readDictDouble("ABLProperties.dat", "vkConst",          &(abl->vkConst));
-        readDictDouble("ABLProperties.dat", "smearT",           &(abl->smear));
-        readDictInt   ("ABLProperties.dat", "coriolisActive",   &(abl->coriolisActive));
-        readDictInt   ("ABLProperties.dat", "controllerActive", &(abl->controllerActive));
+        readDictDouble("ABLProperties.dat", "hRough",                    &(abl->hRough));
+        readDictDouble("ABLProperties.dat", "uRef",                      &(abl->uRef));
+        readDictDouble("ABLProperties.dat", "hRef",                      &(abl->hRef));
+        readDictDouble("ABLProperties.dat", "hInv",                      &(abl->hInv));
+        readDictDouble("ABLProperties.dat", "dInv",                      &(abl->dInv));
+        readDictDouble("ABLProperties.dat", "gInv",                      &(abl->gInv));
+        readDictDouble("ABLProperties.dat", "tRef",                      &(abl->tRef));
+        readDictDouble("ABLProperties.dat", "gTop",                      &(abl->gTop));
+        readDictDouble("ABLProperties.dat", "vkConst",                   &(abl->vkConst));
+        readDictDouble("ABLProperties.dat", "smearT",                    &(abl->smear));
+        readDictInt   ("ABLProperties.dat", "coriolisActive",            &(abl->coriolisActive));
+        readDictInt   ("ABLProperties.dat", "controllerActive",          &(abl->controllerActive));
+		readDictInt   ("ABLProperties.dat", "controllerActivePrecursorT",&(abl->controllerActiveT));
 
         // find friction velocity based on neutral log law
         abl->uTau = abl->uRef * abl->vkConst / std::log(abl->hRef / abl->hRough);
@@ -1121,12 +1185,19 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
         {
             readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
         }
-
-        // overwrite controller type if precursor is periodic, use same as successor otherwise
-        if(!flags->isPrecursorSpinUp)
-        {
-            abl->controllerType = "geostrophic";
-        }
+		
+		if(abl->controllerActive)
+		{
+			readDictWord  ("ABLProperties.dat", "controllerType",   &(abl->controllerType));
+			
+			// overwrite controller type if precursor is periodic, use same as successor otherwise
+			if(!flags->isPrecursorSpinUp)
+			{
+				// use the same as successor (average) because this may introduce 
+				// streamwise oscillations in the successor from the fringe
+				// abl->controllerType = "pressure";
+			}
+		}
 
         // initialize some useful parameters used in fringe and velocity controller 'write'
         {
@@ -1197,8 +1268,20 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         if(abl->controllerActive)
         {
+			if(abl->controllerActiveT)
+			{
+				PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
+
+				for(l=0; l<nLevels; l++)
+				{
+					abl->tDes[l] = 0.0;
+				}
+
+				// read proportional controller relaxation factor (same as the velocity one)
+				readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
+			}
+			
             readDictDouble("ABLProperties.dat", "controllerMaxHeight", &(abl->controllerMaxHeight));
-            readDictWord  ("ABLProperties.dat", "controllerType",   &(abl->controllerType));
 
             // set cumulated sources to zero. They are needed for the integral part of the
             // controller if controllerType is set to 'write' or to store the average
@@ -1255,6 +1338,66 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     abl->levelWeights[1] = (abl->hRef-abl->cellLevels[abl->closestLabels[0]-1]) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
 
                     std::vector<PetscReal> ().swap(absLevelDelta);
+					
+					if(abl->controllerType == "pressure")
+					{
+						// read if geostrophic damping is active
+						readSubDictInt("ABLProperties.dat", "controllerProperties", "geostrophicDamping", &(abl->geostrophicDampingActive));
+
+						if(abl->geostrophicDampingActive)
+						{
+							if(!abl->coriolisActive)
+							{
+								readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
+							}
+
+							readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingAlpha",      &(abl->geoDampAlpha));
+							readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingStartTime",  &(abl->geoDampStart));
+							readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingTimeWindow", &(abl->geoDampWindow));
+
+							abl->geoDampH     = abl->hInv + 0.5 * abl->dInv;
+							abl->geoDampDelta = abl->dInv;
+							abl->geoDampC     = 2.0*(2.0*abl->fc);
+							abl->geoDampUBar  = nSetZero();
+							abl->geoDampAvgS  = nSetZero();
+							abl->geoDampAvgDT = mesh->access->clock->dt;
+
+							// allocate memory for filtered geostrophic velocity
+							PetscMalloc(sizeof(Cmpnts)*nLevels, &(abl->geoDampU));
+
+							for(j=0; j<nLevels; j++)
+							{
+								abl->geoDampU[j] = nSetZero();
+							}
+
+							// see if must read the average
+							std::stringstream stream;
+							stream << std::fixed << std::setprecision(mesh->access->clock->timePrecision) << mesh->access->clock->startTime;
+							word location = "./fields/" + mesh->meshName + "/" + stream.str();
+							word fileName = location + "/geostrophicDampingInfo";
+
+							FILE *fp=fopen(fileName.c_str(), "r");
+
+							if(fp==NULL)
+							{
+								// if start time > 0 should find the file
+								if(mesh->access->clock->startTime != 0.0)
+								{
+									char error[512];
+									sprintf(error, "cannot open file %s\n", fileName.c_str());
+									fatalErrorInFunction("ABLInitialize",  error);
+								}
+							}
+							else
+							{
+								fclose(fp);
+								readDictVector(fileName.c_str(), "filteredS",   &(abl->geoDampAvgS));
+								readDictDouble(fileName.c_str(), "filteredDT",  &(abl->geoDampAvgDT));
+								abl->geoDampUBar = nScale(1.0 / (2.0 * abl->fc * abl->geoDampAvgDT), nSetFromComponents(abl->geoDampAvgS.y, abl->geoDampAvgS.x, 0.0));
+								PetscPrintf(mesh->MESH_COMM, "   -> reading filtered geostrophic wind: Ug = (%.3lf, %.3lf, 0.000)\n",abl->geoDampUBar.x, abl->geoDampUBar.y);
+							}
+						}
+					}
                 }
 
                 // calculating geostrophic wind and interpolation weight at geostrophic wind
@@ -1262,6 +1405,24 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                 {
                     // read geosptrophic height
                     readSubDictDouble("ABLProperties.dat", "controllerProperties", "hGeo", &(abl->hGeo));
+					readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaGeo", &(abl->geoAngle));
+
+					// initial parameters (should be correct at ABL convergence)
+					abl->geoAngle = abl->geoAngle*M_PI/180;
+					abl->hubAngle = 0.0;
+					abl->omegaBar = 0.0;
+
+					// compute geostrophic speed
+					abl->uGeoBar  = nSetFromComponents(NieuwstadtGeostrophicWind(abl), 0.0, 0.0);
+
+					// rotate according to initial angle
+					Cmpnts uGeoBarTmp = nSetZero();
+					uGeoBarTmp.x = std::cos(abl->geoAngle) * abl->uGeoBar.x - std::sin(abl->geoAngle) * abl->uGeoBar.y;
+					uGeoBarTmp.y = std::sin(abl->geoAngle) * abl->uGeoBar.x + std::cos(abl->geoAngle) * abl->uGeoBar.y;
+					mSet(abl->uGeoBar, uGeoBarTmp);
+
+					// printf information
+					PetscPrintf(mesh->MESH_COMM, "   -> Ug = (%f, %f, %f) m/s, UgMag = %f m/s\n", abl->uGeoBar.x, abl->uGeoBar.y, abl->uGeoBar.z, nMag(abl->uGeoBar));
 
                     PetscMalloc(sizeof(PetscInt)  * 2,       &(abl->closestLabelsGeo));
                     PetscMalloc(sizeof(PetscReal) * 2,       &(abl->levelWeightsGeo));

@@ -70,6 +70,8 @@ int main(int argc, char **argv)
                 {
                     ghGradRhoK(domain[d].teqn);
                 }
+
+                Buoyancy(domain[d].ueqn, 1.0);
             }
 
             if(domain[d].ueqn->centralUpwindDiv || flags.isTeqnActive)
@@ -81,6 +83,7 @@ int main(int argc, char **argv)
             {
                 UpdateCs (domain[d].les);
                 UpdateNut(domain[d].les);
+				UpdateWallModelsU(domain[d].ueqn);
             }
 
             if(flags.isAblActive)
@@ -133,11 +136,6 @@ int main(int argc, char **argv)
 
             // print time step continuity errors (optimized)
             ContinuityErrorsOptimized(domain[d].peqn);
-
-            if(flags.isLesActive)
-            {
-                UpdateWallModelsU(domain[d].ueqn);
-            }
 
             // save momentum right hand side
             if(domain[d].ueqn->ddtScheme=="backwardEuler")

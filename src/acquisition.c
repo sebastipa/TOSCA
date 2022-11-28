@@ -6217,32 +6217,13 @@ PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
     Cmpnts        ***csi, ***eta, ***zet;
     PetscReal     ***nvert;
 
-    PetscReal     fc = ueqn->access->abl->fc; // coriolis parameter
+    PetscReal     fc = ueqn->access->abl->fc; // coriolis parameter / 2
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
     VecSet(acquisition->fields->Coriolis, 0.);
-
-    // damping viscosity for fringe region exclusion
-    double nu_fringe;
-
-    // fringe region parameters (set only if active)
-    double xS;
-    double xE;
-    double xD;
-
-    if(ueqn->access->flags->isXDampingActive)
-    {
-        xS     = ueqn->access->abl->xDampingStart;
-        xE     = ueqn->access->abl->xDampingEnd;
-        xD     = ueqn->access->abl->xDampingDelta;
-    }
-    else
-    {
-        nu_fringe = 1.0;
-    }
 
     DMDAVecGetArray(fda, mesh->lCsi,  &csi);
     DMDAVecGetArray(fda, mesh->lEta,  &eta);
@@ -6259,16 +6240,6 @@ PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if(ueqn->access->flags->isXDampingActive)
-                {
-                    // compute cell center x at i,j,k
-                    double x = (cent[k][j][i].x   - mesh->bounds.xmin);
-
-                    // compute Stipa viscosity at i,j,k,
-                    nu_fringe = viscStipa(xS, xE, xD, x);
-                }
-                // might need an else to reset x_fringe to 1 at each iteration
-
                 if
                 (
                     isFluidCell(k, j, i, nvert)
@@ -6276,7 +6247,6 @@ PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
                 {
                     source[k][j][i].x
                     +=
-                    nu_fringe *
                     (
                         -2.0 *
                         (
@@ -6287,7 +6257,6 @@ PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
 
                     source[k][j][i].y
                     +=
-                    nu_fringe *
                     (
                         -2.0 *
                         (
@@ -6298,7 +6267,6 @@ PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
 
                     source[k][j][i].z
                     +=
-                    nu_fringe *
                     (
                         -2.0 *
                         (
@@ -6349,25 +6317,6 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
 
     VecSet(acquisition->fields->Driving, 0.);
 
-    // damping viscosity for fringe region exclusion
-    double nu_fringe;
-
-    // fringe region parameters (set only if active)
-    double xS;
-    double xE;
-    double xD;
-
-    if(ueqn->access->flags->isXDampingActive)
-    {
-        xS     = ueqn->access->abl->xDampingStart;
-        xE     = ueqn->access->abl->xDampingEnd;
-        xD     = ueqn->access->abl->xDampingDelta;
-    }
-    else
-    {
-        nu_fringe = 1.0;
-    }
-
     DMDAVecGetArray(fda, mesh->lCsi,  &csi);
     DMDAVecGetArray(fda, mesh->lEta,  &eta);
     DMDAVecGetArray(fda, mesh->lZet,  &zet);
@@ -6384,16 +6333,6 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if(ueqn->access->flags->isXDampingActive)
-                {
-                    // compute cell center x at i,j,k
-                    double x = (cent[k][j][i].x   - mesh->bounds.xmin);
-
-                    // compute Stipa viscosity at i,j,k,
-                    nu_fringe = viscStipa(xS, xE, xD, x);
-                }
-                // might need an else to reset x_fringe to 1 at each iteration
-
                 if
                 (
                     isFluidCell(k, j, i, nvert)
@@ -6401,7 +6340,6 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
                 {
                     source[k][j][i].x
                     +=
-                    nu_fringe *
                     (
                         sourceu[k][j][i].x * csi[k][j][i].x +
                         sourceu[k][j][i].y * csi[k][j][i].y +
@@ -6411,7 +6349,6 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
 
                     source[k][j][i].y
                     +=
-                    nu_fringe *
                     (
                         sourceu[k][j][i].x * eta[k][j][i].x +
                         sourceu[k][j][i].y * eta[k][j][i].y +
@@ -6421,7 +6358,6 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
 
                     source[k][j][i].z
                     +=
-                    nu_fringe *
                     (
                         sourceu[k][j][i].x * zet[k][j][i].x +
                         sourceu[k][j][i].y * zet[k][j][i].y +

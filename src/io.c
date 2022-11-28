@@ -63,6 +63,9 @@ PetscErrorCode InitializeIO(io_ *io)
     io->sources         = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeSources", &(io->sources), PETSC_NULL);
 
+    io->buoyancy        = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeBuoyancy", &(io->buoyancy), PETSC_NULL);
+
     // allocate memory and initialize averaged fields
     if(io->averaging)
     {
@@ -480,6 +483,29 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             }
             MPI_Barrier(mesh->MESH_COMM);
         }
+    }
+
+    if(io->buoyancy && flags->isAblActive)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // coriolis force
+        field = "/buoyancy";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading buoyancy...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(ueqn->bTheta,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+        
+        MPI_Barrier(mesh->MESH_COMM);
     }
 
     // read averaged fields
@@ -1491,96 +1517,99 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             VecDestroy(&VpPpG);
         }
     }
+	
+	if(flags->isAquisitionActive)
+	{
+		if(acquisition->isAverage3LMActive)
+		{
+			FILE *fp;
 
-    if(acquisition->isAverage3LMActive)
-    {
-        FILE *fp;
+			field = "/Um3LM";
+			fileName = location + field;
+			fp=fopen(fileName.c_str(), "r");
 
-        field = "/Um3LM";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
+			if(fp!=NULL)
+			{
+				fclose(fp);
 
-        if(fp!=NULL)
-        {
-            fclose(fp);
+				PetscPrintf(mesh->MESH_COMM, "Um3LM...\n");
+				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+				VecLoad(acquisition->LM3->avgU,viewer);
+				PetscViewerDestroy(&viewer);
+				lm3Available++;
+			}
+			MPI_Barrier(mesh->MESH_COMM);
 
-            PetscPrintf(mesh->MESH_COMM, "Um3LM...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(acquisition->LM3->avgU,viewer);
-            PetscViewerDestroy(&viewer);
-            lm3Available++;
-        }
-        MPI_Barrier(mesh->MESH_COMM);
+			field = "/dTdz3LM";
+			fileName = location + field;
+			fp=fopen(fileName.c_str(), "r");
 
-        field = "/dTdz3LM";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
+			if(fp!=NULL)
+			{
+				fclose(fp);
 
-        if(fp!=NULL)
-        {
-            fclose(fp);
+				PetscPrintf(mesh->MESH_COMM, "dTdz3LM...\n");
+				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+				VecLoad(acquisition->LM3->avgdTdz,viewer);
+				PetscViewerDestroy(&viewer);
+				lm3Available++;
+			}
+			MPI_Barrier(mesh->MESH_COMM);
+		}
 
-            PetscPrintf(mesh->MESH_COMM, "dTdz3LM...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(acquisition->LM3->avgdTdz,viewer);
-            PetscViewerDestroy(&viewer);
-            lm3Available++;
-        }
-        MPI_Barrier(mesh->MESH_COMM);
-    }
+		if(acquisition->isPerturbABLActive)
+		{
+			FILE *fp;
 
-    if(acquisition->isPerturbABLActive)
-    {
-        FILE *fp;
+			field = "/UpABL";
+			fileName = location + field;
+			fp=fopen(fileName.c_str(), "r");
 
-        field = "/UpABL";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
+			if(fp!=NULL)
+			{
+				fclose(fp);
 
-        if(fp!=NULL)
-        {
-            fclose(fp);
+				PetscPrintf(mesh->MESH_COMM, "UpABL...\n");
+				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+				VecLoad(acquisition->perturbABL->pertU,viewer);
+				PetscViewerDestroy(&viewer);
+				perturbABLAvailable++;
+			}
+			MPI_Barrier(mesh->MESH_COMM);
 
-            PetscPrintf(mesh->MESH_COMM, "UpABL...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(acquisition->perturbABL->pertU,viewer);
-            PetscViewerDestroy(&viewer);
-            perturbABLAvailable++;
-        }
-        MPI_Barrier(mesh->MESH_COMM);
+			field = "/PpABL";
+			fileName = location + field;
+			fp=fopen(fileName.c_str(), "r");
 
-        field = "/PpABL";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
+			if(fp!=NULL)
+			{
+				fclose(fp);
 
-        if(fp!=NULL)
-        {
-            fclose(fp);
+				PetscPrintf(mesh->MESH_COMM, "PpABL...\n");
+				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+				VecLoad(acquisition->perturbABL->pertP,viewer);
+				PetscViewerDestroy(&viewer);
+				perturbABLAvailable++;
+			}
+			MPI_Barrier(mesh->MESH_COMM);
 
-            PetscPrintf(mesh->MESH_COMM, "PpABL...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(acquisition->perturbABL->pertP,viewer);
-            PetscViewerDestroy(&viewer);
-            perturbABLAvailable++;
-        }
-        MPI_Barrier(mesh->MESH_COMM);
+			field = "/TpABL";
+			fileName = location + field;
+			fp=fopen(fileName.c_str(), "r");
 
-        field = "/TpABL";
-        fileName = location + field;
-        fp=fopen(fileName.c_str(), "r");
+			if(fp!=NULL)
+			{
+				fclose(fp);
 
-        if(fp!=NULL)
-        {
-            fclose(fp);
-
-            PetscPrintf(mesh->MESH_COMM, "TpABL...\n");
-            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-            VecLoad(acquisition->perturbABL->pertT,viewer);
-            PetscViewerDestroy(&viewer);
-            perturbABLAvailable++;
-        }
-        MPI_Barrier(mesh->MESH_COMM);
-    }
+				PetscPrintf(mesh->MESH_COMM, "TpABL...\n");
+				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+				VecLoad(acquisition->perturbABL->pertT,viewer);
+				PetscViewerDestroy(&viewer);
+				perturbABLAvailable++;
+			}
+			MPI_Barrier(mesh->MESH_COMM);
+		}
+	}
 
     // read average, phase and ke budget average weights
     if(avgAvailable)
@@ -1922,6 +1951,14 @@ PetscErrorCode writeFields(io_ *io)
                 writeBinaryField(mesh->MESH_COMM, acquisition->fields->SideForce, fieldName.c_str());
                 MPI_Barrier(mesh->MESH_COMM);
             }
+        }
+
+        // write buoyancy
+        if(io->buoyancy && flags->isAblActive)
+        {
+            fieldName = timeName + "/buoyancy";
+            writeBinaryField(mesh->MESH_COMM, ueqn->bTheta, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
         }
 
         if(io->averaging)
@@ -4726,7 +4763,19 @@ bool isNumber(const word& str)
 
     if (str.find(keyboard[i]) != std::string::npos)
     {
-        return false;
+		// exponentials (e-, e+ are accepted)
+		if
+		(
+			str.find("e+") != std::string::npos ||
+			str.find("e-") != std::string::npos
+		)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
     }
 
     return true;

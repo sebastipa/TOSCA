@@ -24,6 +24,7 @@ struct ueqn_
     Vec           dP;                         //!< pressure term of the momentum equation
     Vec           sourceU;                    //!< source term to drive Uref at Zref with periodic BCs
     Vec           gCont;                      //!< gravity vector in cuvilinear coordinates
+    Vec           bTheta;                     //!< buoyancy field
     Vec           Ucont, lUcont;              //!< contravariant fluxes (contravariant velocity / J)
     Vec           Ucat, lUcat;                //!< cartesian velocity
     Vec           Ucont_o;                    //!< contravariant fluxes at the previous time step
@@ -99,7 +100,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
 //! \brief Compute buoyancy term
-PetscErrorCode Buoyancy(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
+PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale);
 
 //! Viscous and divergence terms
 PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
