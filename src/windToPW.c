@@ -78,6 +78,23 @@ int main(int argc, char **argv)
       postProcessInitializePrecursor(&pp, &clock);
 
       binary3DToXMF(pp.precursor->domain, &pp);
+
+      // read sections
+      sectionsReadAndAllocate(pp.precursor->domain);
+
+      // write k-sections into XMF
+      binaryKSectionsToXMF(pp.precursor->domain);
+
+      // write j-sections into XMF
+      binaryJSectionsToXMF(pp.precursor->domain, &pp);
+
+      // write i-sections into XMF
+      binaryISectionsToXMF(pp.precursor->domain);
+
+      // write perturbation data
+      binaryKSectionsPerturbToXMF(pp.precursor->domain);
+      binaryJSectionsPerturbToXMF(pp.precursor->domain, &pp);
+      binaryISectionsPerturbToXMF(pp.precursor->domain);
   }
 
   if(pp.samplingSections)
@@ -215,7 +232,7 @@ PetscErrorCode postProcessInitializePrecursor(postProcess *pp, clock_ *clock)
 
     // set simulation info
     SetSimulationInfo(&(domain->info));
-	
+
 	// read physical constants
     ReadPhysicalConstants(domain);
 

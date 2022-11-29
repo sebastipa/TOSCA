@@ -1440,13 +1440,13 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             if(precursor->thisProcessorInFringe)
                             {
                                 // stay within the precursor processor bounds (boundary procs could have less cells)
-                                if(j == precursor->domain->abl->closestLabelsFringe[0] && k >= kStart && k <= kEnd)
+                                if(j == abl->closestLabelsFringe[0] && k >= kStart && k <= kEnd)
                                 {
                                     lsum1 += ucatP[k-kStart][j][i].y;
                                     lcount1 ++;
                                 }
                                 // stay within the precursor processor bounds (boundary procs could have less cells)
-                                else if(j == precursor->domain->abl->closestLabelsFringe[1] && k >= kStart && k <= kEnd)
+                                else if(j == abl->closestLabelsFringe[1] && k >= kStart && k <= kEnd)
                                 {
                                     lsum2 += ucatP[k-kStart][j][i].y;
                                     lcount2 ++;

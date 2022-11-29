@@ -197,62 +197,6 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
         }
     }
 
-    // lid at ghost cell is equal to the value at the first internal cells.
-    // This way we can use central differencing at the boundaries too.
-
-    for (k=zs; k<ze; k++)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
-            {
-                PetscInt flag=0, a=i, b=j, c=k;
-
-                if(i==0)
-                {
-                    if(mesh->i_periodic)       a=mx-2, flag=1;
-                    else if(mesh->ii_periodic) a=-2, flag=1;
-                    else                      a=1, flag=1;
-                }
-                if(i==mx-1)
-                {
-                    if(mesh->i_periodic)       a=1, flag=1;
-                    else if(mesh->ii_periodic) a=mx+1, flag=1;
-                    else                      a=mx-2, flag=1;
-                }
-                if(j==0)
-                {
-                    if(mesh->j_periodic)       b=my-2, flag=1;
-                    else if(mesh->jj_periodic) b=-2, flag=1;
-                    else                      b=1, flag=1;
-                }
-                if(j==my-1)
-                {
-                    if(mesh->j_periodic)       b=1, flag=1;
-                    else if(mesh->jj_periodic) b=my+1, flag=1;
-                    else                      b=my-2, flag=1;
-                }
-                if(k==0)
-                {
-                    if(mesh->k_periodic)       c=mz-2, flag=1;
-                    else if(mesh->kk_periodic) c=-2, flag=1;
-                    else                      c=1, flag=1;
-                }
-                if(k==mz-1)
-                {
-                    if(mesh->k_periodic)       c=1, flag=1;
-                    else if(mesh->kk_periodic) c=mz+1, flag=1;
-                    else                      c=mz-2, flag=1;
-                }
-
-                if(flag)
-                {
-                    lid[k][j][i] = lid[c][b][a];
-                }
-            }
-        }
-    }
-
     // scatter the number of dofs for each process into ndof_node
     MPI_Allreduce(&lndof[0], &gndof[0], size, MPIU_INT, MPI_MAX, mesh->MESH_COMM);
 
@@ -303,13 +247,6 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
         VecDestroy(&peqn->phi);
     }
 
-    // create Phi2 of current iteration
-    VecCreateMPI(mesh->MESH_COMM, gndof[rank], PETSC_DETERMINE, &peqn->phi);
-
-    // free memeory
-    std::vector<PetscInt> ().swap(lndof);
-    std::vector<PetscInt> ().swap(gndof);
-
     // restore the arrays
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
     DMDAVecRestoreArray(da, peqn->lGid, &gid);
@@ -321,6 +258,13 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
 
     // reset cartesian periodic cells if the flow is periodic
     resetCellPeriodicFluxes(mesh, peqn->lGid, peqn->lGid, "scalar", "localToLocal");
+
+    // create Phi2 of current iteration
+    VecCreateMPI(mesh->MESH_COMM, gndof[rank], PETSC_DETERMINE, &peqn->phi);
+
+    // free memeory
+    std::vector<PetscInt> ().swap(lndof);
+    std::vector<PetscInt> ().swap(gndof);
 
     return(0);
 }
@@ -919,12 +863,12 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
         				HYPRE_Int nrows = 1, ncols = 1;
 
         				HYPRE_Int col = row;
-        				HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &one);
+        				HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &one);
                     }
                     else if(peqn->solverType == "PETSc")
                     {
                         PetscInt rowId = (PetscInt)row;
-                        MatSetValues(peqn->petscA, 1, &rowId, 1, &rowId, &one, INSERT_VALUES);
+                        MatSetValues(peqn->petscA, 1, &rowId, 1, &rowId, &one, ADD_VALUES);
                     }
                 }
                 // i,j,k is a fluid point
@@ -1583,13 +1527,13 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 // the global column index to be set
                                 HYPRE_Int col = idx[m];
 
-                                HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
+                                HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
                             }
                             else if(peqn->solverType == "PETSc")
                             {
                                 PetscInt rowId = (PetscInt)row;
                                 PetscInt col   = (PetscInt)idx[m];
-                                MatSetValues(peqn->petscA, 1, &rowId, 1, &col, &vol[m], INSERT_VALUES);
+                                MatSetValues(peqn->petscA, 1, &rowId, 1, &col, &vol[m], ADD_VALUES);
                             }
                         }
 
@@ -1610,7 +1554,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 pCell.i = (PetscInt)pibmcell[Id.k][Id.j][Id.i].x;
                                 pCell.j = (PetscInt)pibmcell[Id.k][Id.j][Id.i].y;
                                 pCell.k = (PetscInt)pibmcell[Id.k][Id.j][Id.i].z;
-								
+
 								//interpolation cell is inside the processor. But the trilinear interpolation box cell is outside. Use pressure at interpolation cell
                                 if(pCell.i-1 < gxs || pCell.i+1 >= gxe || pCell.j-1 < gys || pCell.j+1 >= gye || pCell.k-1 < gzs || pCell.k+1 >= gze)
                                 {
@@ -1622,8 +1566,8 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 {
                                     inProcessor = 0;
                                 }
-								
-								// note: inProcessor = 0 must be set after inProcessor = 2, because if a cell is outside its box will also be outside, then 
+
+								// note: inProcessor = 0 must be set after inProcessor = 2, because if a cell is outside its box will also be outside, then
 								// it will give segmentation when looking for the nearest interpolation
 
                                 //interpolation cell is inside the processor. But the trilinear interpolation box cell is outside. Use pressure at interpolation cell

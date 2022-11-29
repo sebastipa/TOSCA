@@ -156,7 +156,7 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
             PetscInt dirRes = mkdir("./postProcessing", 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create postProcessing directory\n");
                 fatalErrorInFunction("InitializeAcquisition",  error);
             }
@@ -173,6 +173,8 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
             acquisition->isAverageABLActive = 1;
             acquisition->isAverage3LMActive = 0;
             acquisition->isPerturbABLActive = 0;
+
+            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &(acquisition->isSectionsActive),   PETSC_NULL);
         }
 
         // create precursor folders
@@ -3606,6 +3608,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
     PetscInt           mx = info.mx, my = info.my, mz = info.mz;
 
     Cmpnts        ***cent;
+    PetscReal     ***aj;
 
     PetscInt           i, j, k;
     PetscInt           lxs, lxe, lys, lye, lzs, lze;
@@ -3636,6 +3639,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
         PetscPrintf(mesh->MESH_COMM, "Reading surfaces in sampling/surfaces/...");
 
         DMDAVecGetArray(mesh->fda, mesh->lCent, &cent);
+        DMDAVecGetArray(mesh->da,  mesh->lAj, &aj);
 
         PetscInt iskavail = 0, isjavail = 0, isiavail = 0;
 
@@ -3774,6 +3778,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 if(lminDist == gminDist)
                 {
                     lclosestK = closestIds.k;
+
+                    // exclude section if coordinate is greater than 5*cellWidth
+                    PetscReal cellWidth = 5.0*pow(1.0/aj[closestIds.k][(PetscInt)(std::floor(0.5*(lys+lye)))][(PetscInt)(std::floor(0.5*(lxs+lxe)))], 1.0/3.0);
+
+                    if(gminDist > cellWidth)
+                    {
+                        lclosestK = -1;
+                    }
                 }
 
                 MPI_Allreduce(&lclosestK, &(kSections->indices[s]), 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
@@ -3787,7 +3799,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
             PetscInt dirRes = mkdir(kslicesFolder.c_str(), 0777);
             if (dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create %s directory", kslicesFolder.c_str());
                 fatalErrorInFunction("sectionsInitialize", error);
             }
@@ -3796,166 +3808,170 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 // each k-slice directory
                 for(PetscInt s=0; s<kSections->nSections; s++)
                 {
-                    char ksliceName[256];
-                    sprintf(ksliceName, "%s/%ld", kslicesFolder.c_str(), kSections->indices[s]);
-
-                    errno = 0;
-                    PetscInt dirRes = mkdir(ksliceName, 0777);
-                    if (dirRes != 0 && errno != EEXIST)
+                    // slice is in bounds
+                    if(kSections->indices[s] > -1)
                     {
-                       char error[512];
-                        sprintf(error, "could not create %s directory\n", ksliceName);
-                        fatalErrorInFunction("sectionsInitialize", error);
-                    }
-                    else
-                    {
-                        // create U directory in which time snapshots are saved
-                        PetscInt dirRes;
-                        char ksliceNameU[260];
-                        sprintf(ksliceNameU, "%s/U", ksliceName);
+                        char ksliceName[256];
+                        sprintf(ksliceName, "%s/%ld", kslicesFolder.c_str(), kSections->indices[s]);
 
                         errno = 0;
-                        dirRes = mkdir(ksliceNameU, 0777);
+                        PetscInt dirRes = mkdir(ksliceName, 0777);
                         if (dirRes != 0 && errno != EEXIST)
                         {
-                           char error[512];
-                            sprintf(error, "could not create %s directory\n", ksliceNameU);
+                            char error[512];
+                            sprintf(error, "could not create %s directory\n", ksliceName);
                             fatalErrorInFunction("sectionsInitialize", error);
                         }
                         else
                         {
-                            //remove_subdirs(mesh->MESH_COMM, ksliceNameU);
-                            atLeastOneVector++;
-                        }
-
-                        char ksliceNameP[260];
-                        sprintf(ksliceNameP, "%s/p", ksliceName);
-
-                        errno = 0;
-                        dirRes = mkdir(ksliceNameP, 0777);
-                        if (dirRes != 0 && errno != EEXIST)
-                        {
-                           char error[512];
-                            sprintf(error, "could not create %s directory\n", ksliceNameP);
-                            fatalErrorInFunction("sectionsInitialize", error);
-                        }
-                        else
-                        {
-                            //remove_subdirs(mesh->MESH_COMM, ksliceNameP);
-                            atLeastOneScalar++;
-                        }
-
-                        // create T directory in which time snapshots are saved
-                        if(flags->isTeqnActive)
-                        {
-                            char ksliceNameT[260];
-                            sprintf(ksliceNameT, "%s/T", ksliceName);
+                            // create U directory in which time snapshots are saved
+                            PetscInt dirRes;
+                            char ksliceNameU[260];
+                            sprintf(ksliceNameU, "%s/U", ksliceName);
 
                             errno = 0;
-                            dirRes = mkdir(ksliceNameT, 0777);
+                            dirRes = mkdir(ksliceNameU, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
                                char error[512];
-                                sprintf(error, "could not create %s directory\n", ksliceNameT);
+                                sprintf(error, "could not create %s directory\n", ksliceNameU);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
                             else
                             {
-                                //remove_subdirs(mesh->MESH_COMM, ksliceNameT);
-                                atLeastOneScalar++;
-                            }
-                        }
-
-                        // create nut directory in which time snapshots are saved
-                        if(flags->isLesActive)
-                        {
-                            char ksliceNameNut[260];
-                            sprintf(ksliceNameNut, "%s/nut", ksliceName);
-
-                            errno = 0;
-                            dirRes = mkdir(ksliceNameNut, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
-                            {
-                                char error[512];
-                                sprintf(error, "could not create %s directory\n", ksliceNameNut);
-                                fatalErrorInFunction("sectionsInitialize", error);
-                            }
-                            else
-                            {
-                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
-                                atLeastOneScalar++;
-                            }
-                        }
-
-                        // create nv directory in which time snapshots are saved
-                        if(flags->isIBMActive)
-                        {
-                            char ksliceNameNv[260];
-                            sprintf(ksliceNameNv, "%s/nv", ksliceName);
-
-                            errno = 0;
-                            dirRes = mkdir(ksliceNameNv, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
-                            {
-                                char error[512];
-                                sprintf(error, "could not create %s directory\n", ksliceNameNv);
-                                fatalErrorInFunction("sectionsInitialize", error);
-                            }
-                            else
-                            {
-                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
-                                atLeastOneScalar++;
-                            }
-                        }
-
-                        if(acquisition->isPerturbABLActive)
-                        {
-                            char ksliceNameUpABL[512];
-                            char ksliceNamePpABL[512];
-                            char ksliceNameTpABL[512];
-
-                            sprintf(ksliceNameUpABL, "%s/UpABL", ksliceName);
-                            sprintf(ksliceNamePpABL, "%s/PpABL", ksliceName);
-                            sprintf(ksliceNameTpABL, "%s/TpABL", ksliceName);
-
-                            errno = 0;
-                            dirRes = mkdir(ksliceNameUpABL, 0777);
-
-                            if (dirRes != 0 && errno != EEXIST)
-                            {
-                                char error[600];
-                                sprintf(error, "could not create %s directory\n", ksliceNameUpABL);
-                                fatalErrorInFunction("sectionsInitialize", error);
-                            }
-                            else
-                            {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameU);
                                 atLeastOneVector++;
                             }
 
+                            char ksliceNameP[260];
+                            sprintf(ksliceNameP, "%s/p", ksliceName);
+
                             errno = 0;
-                            dirRes = mkdir(ksliceNamePpABL, 0777);
+                            dirRes = mkdir(ksliceNameP, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[600];
-                                sprintf(error, "could not create %s directory\n", ksliceNamePpABL);
+                               char error[512];
+                                sprintf(error, "could not create %s directory\n", ksliceNameP);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
                             else
                             {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameP);
                                 atLeastOneScalar++;
                             }
 
-                            errno = 0;
-                            dirRes = mkdir(ksliceNameTpABL, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
+                            // create T directory in which time snapshots are saved
+                            if(flags->isTeqnActive)
                             {
-                                char error[600];
-                                sprintf(error, "could not create %s directory\n", ksliceNameTpABL);
-                                fatalErrorInFunction("sectionsInitialize", error);
+                                char ksliceNameT[260];
+                                sprintf(ksliceNameT, "%s/T", ksliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(ksliceNameT, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                   char error[512];
+                                    sprintf(error, "could not create %s directory\n", ksliceNameT);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, ksliceNameT);
+                                    atLeastOneScalar++;
+                                }
                             }
-                            else
+
+                            // create nut directory in which time snapshots are saved
+                            if(flags->isLesActive)
                             {
-                                atLeastOneScalar++;
+                                char ksliceNameNut[260];
+                                sprintf(ksliceNameNut, "%s/nut", ksliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(ksliceNameNut, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[512];
+                                    sprintf(error, "could not create %s directory\n", ksliceNameNut);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                    atLeastOneScalar++;
+                                }
+                            }
+
+                            // create nv directory in which time snapshots are saved
+                            if(flags->isIBMActive)
+                            {
+                                char ksliceNameNv[260];
+                                sprintf(ksliceNameNv, "%s/nv", ksliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(ksliceNameNv, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[512];
+                                    sprintf(error, "could not create %s directory\n", ksliceNameNv);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                    atLeastOneScalar++;
+                                }
+                            }
+
+                            if(acquisition->isPerturbABLActive)
+                            {
+                                char ksliceNameUpABL[512];
+                                char ksliceNamePpABL[512];
+                                char ksliceNameTpABL[512];
+
+                                sprintf(ksliceNameUpABL, "%s/UpABL", ksliceName);
+                                sprintf(ksliceNamePpABL, "%s/PpABL", ksliceName);
+                                sprintf(ksliceNameTpABL, "%s/TpABL", ksliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(ksliceNameUpABL, 0777);
+
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[600];
+                                    sprintf(error, "could not create %s directory\n", ksliceNameUpABL);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    atLeastOneVector++;
+                                }
+
+                                errno = 0;
+                                dirRes = mkdir(ksliceNamePpABL, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[600];
+                                    sprintf(error, "could not create %s directory\n", ksliceNamePpABL);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    atLeastOneScalar++;
+                                }
+
+                                errno = 0;
+                                dirRes = mkdir(ksliceNameTpABL, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[600];
+                                    sprintf(error, "could not create %s directory\n", ksliceNameTpABL);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    atLeastOneScalar++;
+                                }
                             }
                         }
                     }
@@ -4095,6 +4111,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 if(lminDist == gminDist)
                 {
                     lclosestJ = closestIds.j;
+
+                    // exclude section if coordinate is greater than 5*cellWidth
+                    PetscReal cellWidth = 5.0*pow(1.0/aj[(PetscInt)(std::floor(0.5*(lzs+lze)))][closestIds.j][(PetscInt)(std::floor(0.5*(lxs+lxe)))], 1.0/3.0);
+
+                    if(gminDist > cellWidth)
+                    {
+                        lclosestJ = -1;
+                    }
                 }
 
                 MPI_Allreduce(&lclosestJ, &(jSections->indices[s]), 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
@@ -4118,167 +4142,171 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 // each k-slice directory
                 for(PetscInt s=0; s<jSections->nSections; s++)
                 {
-                    char jsliceName[256];
-                    sprintf(jsliceName, "%s/%ld", jslicesFolder.c_str(), jSections->indices[s]);
-
-                    errno = 0;
-                    PetscInt dirRes = mkdir(jsliceName, 0777);
-                    if (dirRes != 0 && errno != EEXIST)
+                    // slice is in bounds
+                    if(jSections->indices[s] > -1)
                     {
-                       char error[512];
-                        sprintf(error, "could not create %s directory\n", jsliceName);
-                        fatalErrorInFunction("sectionsInitialize", error);
-                    }
-                    else
-                    {
-                        // create U directory in which time snapshots are saved
-                        PetscInt dirRes;
-                        char jsliceNameU[260];
-                        sprintf(jsliceNameU, "%s/U", jsliceName);
+                        char jsliceName[256];
+                        sprintf(jsliceName, "%s/%ld", jslicesFolder.c_str(), jSections->indices[s]);
 
                         errno = 0;
-                        dirRes = mkdir(jsliceNameU, 0777);
+                        PetscInt dirRes = mkdir(jsliceName, 0777);
                         if (dirRes != 0 && errno != EEXIST)
                         {
                            char error[512];
-                            sprintf(error, "could not create %s directory\n", jsliceNameU);
+                            sprintf(error, "could not create %s directory\n", jsliceName);
                             fatalErrorInFunction("sectionsInitialize", error);
                         }
                         else
                         {
-                            //remove_subdirs(mesh->MESH_COMM, jsliceNameU);
-                            atLeastOneVector++;
-                        }
-
-                        char jsliceNameP[260];
-                        sprintf(jsliceNameP, "%s/p", jsliceName);
-
-                        errno = 0;
-                        dirRes = mkdir(jsliceNameP, 0777);
-                        if (dirRes != 0 && errno != EEXIST)
-                        {
-                           char error[512];
-                            sprintf(error, "could not create %s directory\n", jsliceNameP);
-                            fatalErrorInFunction("sectionsInitialize", error);
-                        }
-                        else
-                        {
-                            //remove_subdirs(mesh->MESH_COMM, jsliceNameP);
-                            atLeastOneScalar++;
-                        }
-
-                        // create T directory in which time snapshots are saved
-                        if(flags->isTeqnActive)
-                        {
-                            char jsliceNameT[260];
-                            sprintf(jsliceNameT, "%s/T", jsliceName);
+                            // create U directory in which time snapshots are saved
+                            PetscInt dirRes;
+                            char jsliceNameU[260];
+                            sprintf(jsliceNameU, "%s/U", jsliceName);
 
                             errno = 0;
-                            dirRes = mkdir(jsliceNameT, 0777);
+                            dirRes = mkdir(jsliceNameU, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
                                char error[512];
-                                sprintf(error, "could not create %s directory\n", jsliceNameT);
+                                sprintf(error, "could not create %s directory\n", jsliceNameU);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
                             else
                             {
-                                //remove_subdirs(mesh->MESH_COMM, jsliceNameT);
-                                atLeastOneScalar++;
-                            }
-                        }
-
-                        // create nut directory in which time snapshots are saved
-                        if(flags->isLesActive)
-                        {
-                            char jsliceNameNut[260];
-                            sprintf(jsliceNameNut, "%s/nut", jsliceName);
-
-                            errno = 0;
-                            dirRes = mkdir(jsliceNameNut, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
-                            {
-                               char error[512];
-                                sprintf(error, "could not create %s directory\n", jsliceNameNut);
-                                fatalErrorInFunction("sectionsInitialize", error);
-                            }
-                            else
-                            {
-                                //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
-                                atLeastOneScalar++;
-                            }
-                        }
-
-                        // create nv directory in which time snapshots are saved
-                        if(flags->isIBMActive)
-                        {
-                            char jsliceNameNv[260];
-                            sprintf(jsliceNameNv, "%s/nv", jsliceName);
-
-                            errno = 0;
-                            dirRes = mkdir(jsliceNameNv, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
-                            {
-                                char error[512];
-                                sprintf(error, "could not create %s directory\n", jsliceNameNv);
-                                fatalErrorInFunction("sectionsInitialize", error);
-                            }
-                            else
-                            {
-                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
-                                atLeastOneScalar++;
-                            }
-                        }
-
-                        if(acquisition->isPerturbABLActive)
-                        {
-                            char jsliceNameUpABL[512];
-                            char jsliceNamePpABL[512];
-                            char jsliceNameTpABL[512];
-                            sprintf(jsliceNameUpABL, "%s/UpABL", jsliceName);
-                            sprintf(jsliceNamePpABL, "%s/PpABL", jsliceName);
-                            sprintf(jsliceNameTpABL, "%s/TpABL", jsliceName);
-
-                            errno = 0;
-                            dirRes = mkdir(jsliceNameUpABL, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
-                            {
-                                char error[600];
-                                sprintf(error, "could not create %s directory\n", jsliceNameUpABL);
-                                fatalErrorInFunction("sectionsInitialize", error);
-                            }
-                            else
-                            {
-                                //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                //remove_subdirs(mesh->MESH_COMM, jsliceNameU);
                                 atLeastOneVector++;
                             }
 
+                            char jsliceNameP[260];
+                            sprintf(jsliceNameP, "%s/p", jsliceName);
+
                             errno = 0;
-                            dirRes = mkdir(jsliceNamePpABL, 0777);
+                            dirRes = mkdir(jsliceNameP, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[600];
-                                sprintf(error, "could not create %s directory\n", jsliceNamePpABL);
+                               char error[512];
+                                sprintf(error, "could not create %s directory\n", jsliceNameP);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
                             else
                             {
-                                //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                //remove_subdirs(mesh->MESH_COMM, jsliceNameP);
                                 atLeastOneScalar++;
                             }
 
-                            errno = 0;
-                            dirRes = mkdir(jsliceNameTpABL, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
+                            // create T directory in which time snapshots are saved
+                            if(flags->isTeqnActive)
                             {
-                                char error[600];
-                                sprintf(error, "could not create %s directory\n", jsliceNameTpABL);
-                                fatalErrorInFunction("sectionsInitialize", error);
+                                char jsliceNameT[260];
+                                sprintf(jsliceNameT, "%s/T", jsliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(jsliceNameT, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                   char error[512];
+                                    sprintf(error, "could not create %s directory\n", jsliceNameT);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, jsliceNameT);
+                                    atLeastOneScalar++;
+                                }
                             }
-                            else
+
+                            // create nut directory in which time snapshots are saved
+                            if(flags->isLesActive)
                             {
-                                //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
-                                atLeastOneScalar++;
+                                char jsliceNameNut[260];
+                                sprintf(jsliceNameNut, "%s/nut", jsliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(jsliceNameNut, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                   char error[512];
+                                    sprintf(error, "could not create %s directory\n", jsliceNameNut);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                    atLeastOneScalar++;
+                                }
+                            }
+
+                            // create nv directory in which time snapshots are saved
+                            if(flags->isIBMActive)
+                            {
+                                char jsliceNameNv[260];
+                                sprintf(jsliceNameNv, "%s/nv", jsliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(jsliceNameNv, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[512];
+                                    sprintf(error, "could not create %s directory\n", jsliceNameNv);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                    atLeastOneScalar++;
+                                }
+                            }
+
+                            if(acquisition->isPerturbABLActive)
+                            {
+                                char jsliceNameUpABL[512];
+                                char jsliceNamePpABL[512];
+                                char jsliceNameTpABL[512];
+                                sprintf(jsliceNameUpABL, "%s/UpABL", jsliceName);
+                                sprintf(jsliceNamePpABL, "%s/PpABL", jsliceName);
+                                sprintf(jsliceNameTpABL, "%s/TpABL", jsliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(jsliceNameUpABL, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[600];
+                                    sprintf(error, "could not create %s directory\n", jsliceNameUpABL);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                    atLeastOneVector++;
+                                }
+
+                                errno = 0;
+                                dirRes = mkdir(jsliceNamePpABL, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[600];
+                                    sprintf(error, "could not create %s directory\n", jsliceNamePpABL);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                    atLeastOneScalar++;
+                                }
+
+                                errno = 0;
+                                dirRes = mkdir(jsliceNameTpABL, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[600];
+                                    sprintf(error, "could not create %s directory\n", jsliceNameTpABL);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                    atLeastOneScalar++;
+                                }
                             }
                         }
                     }
@@ -4418,6 +4446,14 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 if(lminDist == gminDist)
                 {
                     lclosestI = closestIds.i;
+
+                    // exclude section if coordinate is greater than 5*cellWidth
+                    PetscReal cellWidth = 5.0*pow(1.0/aj[(PetscInt)(std::floor(0.5*(lzs+lze)))][(PetscInt)(std::floor(0.5*(lys+lye)))][closestIds.i], 1.0/3.0);
+
+                    if(gminDist > cellWidth)
+                    {
+                        lclosestI = -1;
+                    }
                 }
 
                 MPI_Allreduce(&lclosestI, &(iSections->indices[s]), 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
@@ -4440,164 +4476,168 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 // each k-slice directory
                 for(PetscInt s=0; s<iSections->nSections; s++)
                 {
-                    char isliceName[256];
-                    sprintf(isliceName, "%s/%ld", islicesFolder.c_str(), iSections->indices[s]);
-
-                    errno = 0;
-                    PetscInt dirRes = mkdir(isliceName, 0777);
-                    if (dirRes != 0 && errno != EEXIST)
+                    // slice is in bounds
+                    if(iSections->indices[s] > -1)
                     {
-                       char error[512];
-                        sprintf(error, "could not create %s directory\n", isliceName);
-                        fatalErrorInFunction("sectionsInitialize", error);
-                    }
-                    else
-                    {
-                        // create U directory in which time snapshots are saved
-                        PetscInt dirRes;
-                        char isliceNameU[260];
-                        sprintf(isliceNameU, "%s/U", isliceName);
+                        char isliceName[256];
+                        sprintf(isliceName, "%s/%ld", islicesFolder.c_str(), iSections->indices[s]);
 
                         errno = 0;
-                        dirRes = mkdir(isliceNameU, 0777);
+                        PetscInt dirRes = mkdir(isliceName, 0777);
                         if (dirRes != 0 && errno != EEXIST)
                         {
                            char error[512];
-                            sprintf(error, "could not create %s directory\n", isliceNameU);
+                            sprintf(error, "could not create %s directory\n", isliceName);
                             fatalErrorInFunction("sectionsInitialize", error);
                         }
                         else
                         {
-                            //remove_subdirs(mesh->MESH_COMM, isliceNameU);
-                            atLeastOneVector++;
-                        }
-
-                        char isliceNameP[260];
-                        sprintf(isliceNameP, "%s/p", isliceName);
-
-                        errno = 0;
-                        dirRes = mkdir(isliceNameP, 0777);
-                        if (dirRes != 0 && errno != EEXIST)
-                        {
-                           char error[512];
-                            sprintf(error, "could not create %s directory\n", isliceNameP);
-                            fatalErrorInFunction("sectionsInitialize", error);
-                        }
-                        else
-                        {
-                            //remove_subdirs(mesh->MESH_COMM, isliceNameP);
-                            atLeastOneScalar++;
-                        }
-
-                        // create T directory in which time snapshots are saved
-                        if(flags->isTeqnActive)
-                        {
-                            char isliceNameT[260];
-                            sprintf(isliceNameT, "%s/T", isliceName);
+                            // create U directory in which time snapshots are saved
+                            PetscInt dirRes;
+                            char isliceNameU[260];
+                            sprintf(isliceNameU, "%s/U", isliceName);
 
                             errno = 0;
-                            dirRes = mkdir(isliceNameT, 0777);
+                            dirRes = mkdir(isliceNameU, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
                                char error[512];
-                                sprintf(error, "could not create %s directory\n", isliceNameT);
+                                sprintf(error, "could not create %s directory\n", isliceNameU);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
                             else
                             {
-                                //remove_subdirs(mesh->MESH_COMM, isliceNameT);
-                                atLeastOneScalar++;
-                            }
-                        }
-
-                        // create nut directory in which time snapshots are saved
-                        if(flags->isLesActive)
-                        {
-                            char isliceNameNut[260];
-                            sprintf(isliceNameNut, "%s/nut", isliceName);
-
-                            errno = 0;
-                            dirRes = mkdir(isliceNameNut, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
-                            {
-                               char error[512];
-                                sprintf(error, "could not create %s directory\n", isliceNameNut);
-                                fatalErrorInFunction("sectionsInitialize", error);
-                            }
-                            else
-                            {
-                                //remove_subdirs(mesh->MESH_COMM, isliceNameNut);
-                                atLeastOneScalar++;
-                            }
-                        }
-
-                        // create nv directory in which time snapshots are saved
-                        if(flags->isIBMActive)
-                        {
-                            char isliceNameNv[260];
-                            sprintf(isliceNameNv, "%s/nv", isliceName);
-
-                            errno = 0;
-                            dirRes = mkdir(isliceNameNv, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
-                            {
-                                char error[512];
-                                sprintf(error, "could not create %s directory\n", isliceNameNv);
-                                fatalErrorInFunction("sectionsInitialize", error);
-                            }
-                            else
-                            {
-                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
-                                atLeastOneScalar++;
-                            }
-                        }
-
-                        if(acquisition->isPerturbABLActive)
-                        {
-                            char isliceNameUpABL[512];
-                            char isliceNamePpABL[512];
-                            char isliceNameTpABL[512];
-                            sprintf(isliceNameUpABL, "%s/UpABL", isliceName);
-                            sprintf(isliceNamePpABL, "%s/PpABL", isliceName);
-                            sprintf(isliceNameTpABL, "%s/TpABL", isliceName);
-
-                            errno = 0;
-                            dirRes = mkdir(isliceNameUpABL, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
-                            {
-                                char error[600];
-                                sprintf(error, "could not create %s directory\n", isliceNameUpABL);
-                                fatalErrorInFunction("sectionsInitialize", error);
-                            }
-                            else
-                            {
+                                //remove_subdirs(mesh->MESH_COMM, isliceNameU);
                                 atLeastOneVector++;
                             }
 
+                            char isliceNameP[260];
+                            sprintf(isliceNameP, "%s/p", isliceName);
+
                             errno = 0;
-                            dirRes = mkdir(isliceNamePpABL, 0777);
+                            dirRes = mkdir(isliceNameP, 0777);
                             if (dirRes != 0 && errno != EEXIST)
                             {
-                                char error[600];
-                                sprintf(error, "could not create %s directory\n", isliceNamePpABL);
+                               char error[512];
+                                sprintf(error, "could not create %s directory\n", isliceNameP);
                                 fatalErrorInFunction("sectionsInitialize", error);
                             }
                             else
                             {
+                                //remove_subdirs(mesh->MESH_COMM, isliceNameP);
                                 atLeastOneScalar++;
                             }
 
-                            errno = 0;
-                            dirRes = mkdir(isliceNameTpABL, 0777);
-                            if (dirRes != 0 && errno != EEXIST)
+                            // create T directory in which time snapshots are saved
+                            if(flags->isTeqnActive)
                             {
-                                char error[600];
-                                sprintf(error, "could not create %s directory\n", isliceNameTpABL);
-                                fatalErrorInFunction("sectionsInitialize", error);
+                                char isliceNameT[260];
+                                sprintf(isliceNameT, "%s/T", isliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(isliceNameT, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                   char error[512];
+                                    sprintf(error, "could not create %s directory\n", isliceNameT);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, isliceNameT);
+                                    atLeastOneScalar++;
+                                }
                             }
-                            else
+
+                            // create nut directory in which time snapshots are saved
+                            if(flags->isLesActive)
                             {
-                                atLeastOneScalar++;
+                                char isliceNameNut[260];
+                                sprintf(isliceNameNut, "%s/nut", isliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(isliceNameNut, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                   char error[512];
+                                    sprintf(error, "could not create %s directory\n", isliceNameNut);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, isliceNameNut);
+                                    atLeastOneScalar++;
+                                }
+                            }
+
+                            // create nv directory in which time snapshots are saved
+                            if(flags->isIBMActive)
+                            {
+                                char isliceNameNv[260];
+                                sprintf(isliceNameNv, "%s/nv", isliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(isliceNameNv, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[512];
+                                    sprintf(error, "could not create %s directory\n", isliceNameNv);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                    atLeastOneScalar++;
+                                }
+                            }
+
+                            if(acquisition->isPerturbABLActive)
+                            {
+                                char isliceNameUpABL[512];
+                                char isliceNamePpABL[512];
+                                char isliceNameTpABL[512];
+                                sprintf(isliceNameUpABL, "%s/UpABL", isliceName);
+                                sprintf(isliceNamePpABL, "%s/PpABL", isliceName);
+                                sprintf(isliceNameTpABL, "%s/TpABL", isliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(isliceNameUpABL, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[600];
+                                    sprintf(error, "could not create %s directory\n", isliceNameUpABL);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    atLeastOneVector++;
+                                }
+
+                                errno = 0;
+                                dirRes = mkdir(isliceNamePpABL, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[600];
+                                    sprintf(error, "could not create %s directory\n", isliceNamePpABL);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    atLeastOneScalar++;
+                                }
+
+                                errno = 0;
+                                dirRes = mkdir(isliceNameTpABL, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[600];
+                                    sprintf(error, "could not create %s directory\n", isliceNameTpABL);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    atLeastOneScalar++;
+                                }
                             }
                         }
                     }
@@ -4635,6 +4675,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
         }
 
         DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
+        DMDAVecRestoreArray(mesh->da,  mesh->lAj, &aj);
 
         PetscPrintf(mesh->MESH_COMM, "done\n\n");
     }
@@ -6596,7 +6637,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
 
                         if(precursor->thisProcessorInFringe)
                         {
-                            uBar = nSet(ucatP[k+kStart][j][i]);
+                            uBar = nSet(ucatP[k-kStart][j][i]);
                         }
                         else
                         {
