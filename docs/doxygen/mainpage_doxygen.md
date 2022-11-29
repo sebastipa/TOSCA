@@ -34,6 +34,14 @@ Toolbox fOr Stratified Convective Atmospheres
 
     - UADM : base actuator disk model with imposed Ct and yaw controller
     - ADM  : advanced actuator disk model with rotor dynamics and yaw/pitch/rotation controllers
+    - UADM : base actuator disk model with uniform disk loading and yaw controller
+    - AFM  : anisotropic actuator farm model for coarser meshes, integral/point sampling available
+
+## IBM Method
+
+    TOSCA uses a sharp-interface IBM method with ghost cells applied on the flow side of the body. This allows for more flexibility with
+    thin bodies but complicated wall modeling. New wall models have been recently added, validated with both hi-Re terrains (Shumann) or small objects (Cabot).
+    Moving IBM is also possible, we are currently validating the latter capability.
 
 ## Acquisition System
 
@@ -42,10 +50,14 @@ Toolbox fOr Stratified Convective Atmospheres
     - domain sections
     - probes with advanced parallel I/O writing
     - turbine data with advanced parallel I/O writing
+    - ABL perturbations w.r.t. reference state
+    - layer averaged fields (three layers available - 3LM)
+    - mechanical energy budgets within user-defined boxes (the code is not energy-conservative so MKE eq. is not fullfilled)
 
 ## Future Implementations:
 
-    - IBM pressure and viscous forces computation
+    - Overset with fringe interpolation
+    - IBM smooth normals and thin-body augmented search
 
 ## Notes:
 
@@ -59,43 +71,48 @@ In order to be installed, TOSCA requires a working C/C++ compiler, PETSc (versio
 HYPRE (needed by PETSs in order to build some of the matrix solvers we use). TOSCA has been tested with the above version combinations,
 it could work with other combinations or versions but it has not been tested (especially older versions).
 We recommend the following versions of the above libraries:
- - gcc      : 9.2.0  (https://gcc.gnu.org/)
- - PETSc    : 3.15.5 (https://ftp.mcs.anl.gov/pub/petsc/)
- - Open MPI : 4.1.2  (https://www.open-mpi.org/software/ompi/v4.1/)
- - HYPRE    : 2.20.0 (https://github.com/hypre-space/hypre/tree/hypre_petsc) (check version in /src/CMakeLists.txt)
- - HDF5     : 1.12.1 (https://www.hdfgroup.org/downloads/hdf5/)
-We suggest to create a folder named 'software', where the PETSc, HYPRE and TOSCA folders will be located.
+ * gcc      : 9.2.0  (https://gcc.gnu.org/).
+ * PETSc    : 3.15.5 (https://ftp.mcs.anl.gov/pub/petsc/).
+ * Open MPI : 4.1.2  (https://www.open-mpi.org/software/ompi/v4.1/).
+ * HYPRE    : 2.20.0 (https://github.com/hypre-space/hypre/tree/hypre_petsc) (check version in /src/CMakeLists.txt).
+ * HDF5     : 1.12.1 (https://www.hdfgroup.org/downloads/hdf5/).
 
-Prior to install TOSCA, we suggest creating a folder named `Software` inside $HOME, where all the following steps will be performed.
+Prior to install TOSCA, we suggest to create a folder named `Software` inside `$HOME`, where the PETSc, HYPRE and TOSCA folders will be located.
 In order to compile TOSCA on your system, please follow these steps:
 
-    0. Check your compiler version with `gcc --version`
+* Check your compiler version with `gcc --version`
 
-    1. Download PETSc into `$HOME/Software/`
+* Download PETSc into `$HOME/Software/`
 
-    2. Download HYPRE `$HOME/Software/`
+* Download HYPRE `$HOME/Software/`
 
-    3. Download Open MPI: you can download the binaries or compile from source (the latter is recommended if use `environment-modules`).
-       If you have only one version of Open MPI installed on your system in the `/usr` directory (using sudo for example), you can omit the
-       `--with-mpi-dir='your--path--to--mpicc'` at point 4: Open MPI will be found by the 'ld' library locator.
+* Download Open MPI: you can download the binaries or compile from source (the latter is recommended if use `environment-modules`).
+  If you have only one version of Open MPI installed on your system in the `/usr` directory (using sudo for example), you can omit the
+  `--with-mpi-dir='your--path--to--mpicc'` at point 4: Open MPI will be found by the 'ld' library locator.
 
-    4. Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:
-       `./configure --with-fc=0 --download-f2cblaslapack --with-mpi-dir='your--path--to--mpicc' --download-hypre='your--path--to--hypre \
-       --with-64-bit-indices=1 --with-debugging=0`
+* Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:
+  `./configure --with-fc=0 --download-f2cblaslapack --with-mpi-dir='your--path--to--mpicc' --download-hypre='your--path--to--hypre \
+  --with-64-bit-indices=1 --with-debugging=0`
 
-    5. Make PETSc with `make all`
+* Make PETSc with `make all`
 
-    6. Test PETSc with `make check`
+* Test PETSc with `make check`
 
-    7. Save an alias that will tell TOSCA where PETSc is installed in your .bashrc:
-       `echo "export PETSC_DIR=$HOME/your--path--to--petsh" >> $HOME/.bashrc`
+* Save an environment variable that will tell TOSCA where PETSc is installed in your .bashrc:
+  `echo "export PETSC_DIR=$HOME/your--path--to--petsc" >> $HOME/.bashrc`
 
-    8. Reload the environment with `source $HOME/.bashrc`
+* Save an environment variable that will tell TOSCA which PETSc architecture is required in your .bashrc. Note: this is the folder within $PETSC_DIR with a name beginning with "arch-". In a typical installation, it will be "arch-linux-c-opt":
+  `echo "export PETSC_ARCH=arch-linux-c-opt" >> $HOME/.bashrc`
 
-    9. Go inside TOSCA/src directory and compile the executables with `make tosca` and `make windToPW`
+* Add the PETSc shared libraries to your library path environment variable in your .bashrc:
+  `echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PETSC_DIR/$PETSC_ARCH/lib" >> $HOME/.bashrc`
 
-    10. Test the installation by copying `tosca` and `windToPW` in one of the example cases and run the simulation
-        and the post-processing with `./tosca` and `./windToPW` respectively. To run in parallel you have to use
-        `mpirun -np 'your-number-of-processors' ./tosca`
+* Reload the environment with `source $HOME/.bashrc`
+
+* Go inside TOSCA/src directory and compile the executables with `make tosca` and `make windToPW`
+
+* Test the installation by copying `tosca` and `windToPW` in one of the example cases and run the simulation
+  and the post-processing with `./tosca` and `./windToPW` respectively. To run in parallel you have to use
+  `mpirun -np 'your-number-of-processors' ./tosca`
 
 Credits and Copyright: Sebastiano Stipa - Arjun Ajay - Mohammad Hadi - The University of British Columbia
