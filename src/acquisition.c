@@ -422,6 +422,9 @@ PetscErrorCode averageKEBudgetsInitialize(acquisition_ *acquisition)
             VecDuplicate(mesh->lCent,  &(ke->lDpm));         VecSet(ke->lDpm,0.);
             VecDuplicate(mesh->lCent,  &(ke->lDpp));         VecSet(ke->lDpp,0.);
             DMCreateLocalVector(mesh->sda, &(ke->lVpVp   )); VecSet(ke->lVpVp   ,0.);
+
+            VecDuplicate(mesh->lNvert, &(ke->lPturb));       VecSet(ke->lPturb,0.);
+            VecDuplicate(mesh->lNvert, &(ke->lPsgs));        VecSet(ke->lPsgs,0.);
         }
         else
         {
@@ -1621,7 +1624,7 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
 
     PetscMPIInt rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
-    // create/initialize turbines directory (at simulation start only)
+    // create/initialize keBoxes directory (at simulation start only)
     if
     (
         clock->it == clock->itStart && !rank
@@ -1671,7 +1674,7 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
 
         Cmpnts         ***kef, ***kedum, ***kedup,  ***kedpm, ***kedpp, ***vmpmg, ***vpppg;
 
-        PetscReal      ***pinf, ***pf, ***ptheta, ***keeps, ***em, ***error, ***aj;
+        PetscReal      ***pinf, ***pf, ***ptheta, ***keeps, ***em, ***error, ***aj, ***pturb, ***psgs;
 
         // indices for internal cells
         lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
@@ -1690,6 +1693,8 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
         {
             DMDAVecGetArray(fda, ke->lDpm,    &kedpm);
             DMDAVecGetArray(fda, ke->lDpp,    &kedpp);
+            DMDAVecGetArray(da,  ke->lPturb,  &pturb);
+            DMDAVecGetArray(da,  ke->lPsgs,   &psgs);
         }
         else
         {
@@ -1716,17 +1721,27 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
         {
             keBox *box = ke->box[b];
 
-            PetscReal lavgDum    = 0.0,
-                      lavgDup    = 0.0,
-                      lavgDpm    = 0.0,
-                      lavgDpp    = 0.0,
-                      lavgFI     = 0.0,
-                      lavgFJ     = 0.0,
+            PetscReal lavgDumK   = 0.0,
+                      lavgDupK   = 0.0,
+                      lavgDpmK   = 0.0,
+                      lavgDppK   = 0.0,
+                      lavgDumJ   = 0.0,
+                      lavgDupJ   = 0.0,
+                      lavgDpmJ   = 0.0,
+                      lavgDppJ   = 0.0,
+                      lavgDumI   = 0.0,
+                      lavgDupI   = 0.0,
+                      lavgDpmI   = 0.0,
+                      lavgDppI   = 0.0,
                       lavgFK     = 0.0,
+                      lavgFJ     = 0.0,
+                      lavgFI     = 0.0,
                       lavgEps    = 0.0,
                       lavgPf     = 0.0,
                       lavgPtheta = 0.0,
-                      lavgPinf   = 0.0;
+                      lavgPinf   = 0.0,
+                      lavgPturb  = 0.0,
+                      lavgPsgs   = 0.0;
 
             // this processor has cells inside the box
             if(box->thisBoxControlled)
@@ -1748,35 +1763,35 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
                                 // kmax box face
                                 if(k==box->maxKFace)
                                 {
-                                    lavgDum += kedum[k][j][i].z;
-                                    lavgDup += kedup[k][j][i].z;
+                                    lavgDumK += kedum[k][j][i].z;
+                                    lavgDupK += kedup[k][j][i].z;
                                     if(ke->cartesian)
                                     {
-                                        lavgDpm += kedpm[k][j][i].z;
-                                        lavgDpp += kedpp[k][j][i].z;
+                                        lavgDpmK += kedpm[k][j][i].z;
+                                        lavgDppK += kedpp[k][j][i].z;
                                     }
                                     else
                                     {
-                                        lavgDpm += vmpmg[k][j][i].z;
-                                        lavgDpp += vpppg[k][j][i].z;
+                                        lavgDpmK += vmpmg[k][j][i].z;
+                                        lavgDppK += vpppg[k][j][i].z;
                                     }
-                                    lavgFK += kef[k][j][i].z;
+                                    lavgFK   += kef[k][j][i].z;
                                 }
 
                                 // kmin box face
                                 if(k-1==box->minKFace)
                                 {
-                                    lavgDum -= kedum[k][j][i].z;
-                                    lavgDup -= kedup[k][j][i].z;
+                                    lavgDumK -= kedum[k][j][i].z;
+                                    lavgDupK -= kedup[k][j][i].z;
                                     if(ke->cartesian)
                                     {
-                                        lavgDpm -= kedpm[k][j][i].z;
-                                        lavgDpp -= kedpp[k][j][i].z;
+                                        lavgDpmK -= kedpm[k][j][i].z;
+                                        lavgDppK -= kedpp[k][j][i].z;
                                     }
                                     else
                                     {
-                                        lavgDpm -= vmpmg[k][j][i].z;
-                                        lavgDpp -= vpppg[k][j][i].z;
+                                        lavgDpmK -= vmpmg[k][j][i].z;
+                                        lavgDppK -= vpppg[k][j][i].z;
                                     }
                                     lavgFK -= kef[k][j][i].z;
                                 }
@@ -1784,17 +1799,17 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
                                 // jmax box face
                                 if(j==box->maxJFace)
                                 {
-                                    lavgDum += kedum[k][j][i].y;
-                                    lavgDup += kedup[k][j][i].y;
+                                    lavgDumJ += kedum[k][j][i].y;
+                                    lavgDupJ += kedup[k][j][i].y;
                                     if(ke->cartesian)
                                     {
-                                        lavgDpm += kedpm[k][j][i].y;
-                                        lavgDpp += kedpp[k][j][i].y;
+                                        lavgDpmJ += kedpm[k][j][i].y;
+                                        lavgDppJ += kedpp[k][j][i].y;
                                     }
                                     else
                                     {
-                                        lavgDpm += vmpmg[k][j][i].y;
-                                        lavgDpp += vpppg[k][j][i].y;
+                                        lavgDpmJ += vmpmg[k][j][i].y;
+                                        lavgDppJ += vpppg[k][j][i].y;
                                     }
                                     lavgFJ += kef[k][j][i].y;
                                 }
@@ -1802,17 +1817,17 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
                                 // jmin box face
                                 if(j-1==box->minJFace)
                                 {
-                                    lavgDum -= kedum[k][j][i].y;
-                                    lavgDup -= kedup[k][j][i].y;
+                                    lavgDumJ -= kedum[k][j][i].y;
+                                    lavgDupJ -= kedup[k][j][i].y;
                                     if(ke->cartesian)
                                     {
-                                        lavgDpm -= kedpm[k][j][i].y;
-                                        lavgDpp -= kedpp[k][j][i].y;
+                                        lavgDpmJ -= kedpm[k][j][i].y;
+                                        lavgDppJ -= kedpp[k][j][i].y;
                                     }
                                     else
                                     {
-                                        lavgDpm -= vmpmg[k][j][i].y;
-                                        lavgDpp -= vpppg[k][j][i].y;
+                                        lavgDpmJ -= vmpmg[k][j][i].y;
+                                        lavgDppJ -= vpppg[k][j][i].y;
                                     }
                                     lavgFJ -= kef[k][j][i].y;
                                 }
@@ -1820,17 +1835,17 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
                                 // imax box face
                                 if(i==box->maxIFace)
                                 {
-                                    lavgDum += kedum[k][j][i].x;
-                                    lavgDup += kedup[k][j][i].x;
+                                    lavgDumI += kedum[k][j][i].x;
+                                    lavgDupI += kedup[k][j][i].x;
                                     if(ke->cartesian)
                                     {
-                                        lavgDpm += kedpm[k][j][i].x;
-                                        lavgDpp += kedpp[k][j][i].x;
+                                        lavgDpmI += kedpm[k][j][i].x;
+                                        lavgDppI += kedpp[k][j][i].x;
                                     }
                                     else
                                     {
-                                        lavgDpm += vmpmg[k][j][i].x;
-                                        lavgDpp += vpppg[k][j][i].x;
+                                        lavgDpmI += vmpmg[k][j][i].x;
+                                        lavgDppI += vpppg[k][j][i].x;
                                     }
                                     lavgFI += kef[k][j][i].x;
                                 }
@@ -1838,17 +1853,17 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
                                 // imin box face
                                 if(i-1==box->minIFace)
                                 {
-                                    lavgDum -= kedum[k][j][i].x;
-                                    lavgDup -= kedup[k][j][i].x;
+                                    lavgDumI -= kedum[k][j][i].x;
+                                    lavgDupI -= kedup[k][j][i].x;
                                     if(ke->cartesian)
                                     {
-                                        lavgDpm -= kedpm[k][j][i].x;
-                                        lavgDpp -= kedpp[k][j][i].x;
+                                        lavgDpmI -= kedpm[k][j][i].x;
+                                        lavgDppI -= kedpp[k][j][i].x;
                                     }
                                     else
                                     {
-                                        lavgDpm -= vmpmg[k][j][i].x;
-                                        lavgDpp -= vpppg[k][j][i].x;
+                                        lavgDpmI -= vmpmg[k][j][i].x;
+                                        lavgDppI -= vpppg[k][j][i].x;
                                     }
                                     lavgFI -= kef[k][j][i].x;
                                 }
@@ -1857,6 +1872,13 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
                                 PetscReal cellVolume = 1.0 / aj[k][j][i];
 
                                 lavgEps    += keeps[k][j][i] * cellVolume;
+
+                                // turbulence production terms
+                                if(ke->cartesian)
+                                {
+                                    lavgPturb  += pturb[k][j][i] * cellVolume;
+                                    lavgPsgs   += psgs[k][j][i]  * cellVolume;
+                                }
 
                                 if(flags->isWindFarmActive)
                                 {
@@ -1876,16 +1898,30 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
                     }
                 }
 
-                MPI_Reduce(&lavgDum, &(box->avgDum), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
-                MPI_Reduce(&lavgDup, &(box->avgDup), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
-                MPI_Reduce(&lavgDpm, &(box->avgDpm), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
-                MPI_Reduce(&lavgDpp, &(box->avgDpp), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDumK, &(box->avgDumK), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDupK, &(box->avgDupK), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDpmK, &(box->avgDpmK), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDppK, &(box->avgDppK), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDumJ, &(box->avgDumJ), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDupJ, &(box->avgDupJ), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDpmJ, &(box->avgDpmJ), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDppJ, &(box->avgDppJ), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDumI, &(box->avgDumI), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDupI, &(box->avgDupI), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDpmI, &(box->avgDpmI), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgDppI, &(box->avgDppI), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
                 MPI_Reduce(&lavgFI,  &(box->avgFI),  1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
                 MPI_Reduce(&lavgFJ,  &(box->avgFJ),  1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
                 MPI_Reduce(&lavgFK,  &(box->avgFK),  1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
                 MPI_Reduce(&lavgEps, &(box->avgEps), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
 
-                box->avgErr = box->avgDum + box->avgDup + box->avgDpm + box->avgDpp + box->avgFI + box->avgFJ + box->avgFK + box->avgEps;
+                MPI_Reduce(&lavgPturb, &(box->avgPturb), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+                MPI_Reduce(&lavgPsgs,  &(box->avgPsgs ), 1, MPIU_REAL, MPIU_SUM, 0, box->KEBOX_COMM);
+
+                box->avgErr = box->avgDumK + box->avgDupK + box->avgDpmK + box->avgDppK +
+                              box->avgDumJ + box->avgDupJ + box->avgDpmJ + box->avgDppJ +
+                              box->avgDumI + box->avgDupI + box->avgDpmI + box->avgDppI +
+                              box->avgFI + box->avgFJ + box->avgFK + box->avgEps;
 
                 if(flags->isWindFarmActive)
                 {
@@ -1913,10 +1949,22 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
                     fprintf(f, "name        %s\n",                 (*box->name).c_str());
                     fprintf(f, "center      (%.4f %.4f %.4f)\n",   box->center.x,box->center.y,box->center.z);
                     fprintf(f, "size        (%.4f %.4f %.4f)\n",   box->sizeX,box->sizeY,box->sizeZ);
-                    fprintf(f, "Dum         %.10f\n",              box->avgDum);
-                    fprintf(f, "Dup         %.10f\n",              box->avgDup);
-                    fprintf(f, "Dpm         %.10f\n",              box->avgDpm);
-                    fprintf(f, "Dpp         %.10f\n",              box->avgDpp);
+                    fprintf(f, "Dum         %.10f\n",              box->avgDumK+box->avgDumJ+box->avgDumI);
+                    fprintf(f, "Dup         %.10f\n",              box->avgDupK+box->avgDupJ+box->avgDupI);
+                    fprintf(f, "Dpm         %.10f\n",              box->avgDpmK+box->avgDpmJ+box->avgDpmI);
+                    fprintf(f, "Dpp         %.10f\n",              box->avgDppK+box->avgDppJ+box->avgDppI);
+                    fprintf(f, "Dumx        %.10f\n",              box->avgDumK);
+                    fprintf(f, "Dupx        %.10f\n",              box->avgDupK);
+                    fprintf(f, "Dpmx        %.10f\n",              box->avgDpmK);
+                    fprintf(f, "Dppx        %.10f\n",              box->avgDppK);
+                    fprintf(f, "Dumy        %.10f\n",              box->avgDumI);
+                    fprintf(f, "Dupy        %.10f\n",              box->avgDupI);
+                    fprintf(f, "Dpmy        %.10f\n",              box->avgDpmI);
+                    fprintf(f, "Dppy        %.10f\n",              box->avgDppI);
+                    fprintf(f, "Dumz        %.10f\n",              box->avgDumJ);
+                    fprintf(f, "Dupz        %.10f\n",              box->avgDupJ);
+                    fprintf(f, "Dpmz        %.10f\n",              box->avgDpmJ);
+                    fprintf(f, "Dppz        %.10f\n",              box->avgDppJ);
                     fprintf(f, "Fx          %.10f\n",              box->avgFK);
                     fprintf(f, "Fy          %.10f\n",              box->avgFI);
                     fprintf(f, "Fz          %.10f\n",              box->avgFJ);
@@ -1938,6 +1986,13 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
                     }
 
                     fprintf(f, "err         %.10f\n",              box->avgErr);
+
+                    if(ke->cartesian)
+                    {
+                        fprintf(f, "Pturb       %.10f\n",              box->avgPturb);
+                        fprintf(f, "Psgs        %.10f\n",              box->avgPsgs);
+                    }
+
                     fclose(f);
                 }
             }
@@ -1955,6 +2010,8 @@ PetscErrorCode boxCumulateKEBudgets(acquisition_ *acquisition)
         {
             DMDAVecRestoreArray(fda, ke->lDpm,    &kedpm);
             DMDAVecRestoreArray(fda, ke->lDpp,    &kedpp);
+            DMDAVecRestoreArray(da,  ke->lPturb,  &pturb);
+            DMDAVecRestoreArray(da,  ke->lPsgs,   &psgs);
         }
         else
         {
@@ -2039,6 +2096,7 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
                            ***um,  ***vm,    ***upupup, ***umtau, ***sources;
 
             PetscReal      ***pinf, ***pf, ***ptheta, ***keeps, ***pm, ***em, ***error, ***kedc, ***kefc;
+            PetscReal      ***pturb, ***psgs;
             symmTensor     ***upup;
 
             PetscReal      ts, te;
@@ -2140,6 +2198,8 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
             DMDAVecGetArray(sda, ke->lVpVp,     &upup);
             DMDAVecGetArray(fda, ke->lVpVpVp,   &upupup);
             DMDAVecGetArray(fda, ke->lVmTauSGS, &umtau);
+            DMDAVecGetArray(da,  ke->lPturb,    &pturb);
+            DMDAVecGetArray(da,  ke->lPsgs,     &psgs);
 
             // compute averaging weights
             aN = (PetscReal)io->keAvgWeight;
@@ -2241,6 +2301,26 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
                         umtau[k][j][i].y = m1 * umtau[k][j][i].y + m2 * (U*tau12_SGS + V*tau22_SGS + W*tau32_SGS);
                         umtau[k][j][i].z = m1 * umtau[k][j][i].z + m2 * (U*tau13_SGS + V*tau23_SGS + W*tau33_SGS);
 
+                        // resolved production term
+                        PetscReal upupGradij =
+                        (
+                            Uprime*Uprime*du_dx + Uprime*Vprime*du_dy + Uprime*Wprime*du_dz  +
+                            Vprime*Uprime*dv_dx + Vprime*Vprime*dv_dy + Vprime*Wprime*dv_dz +
+                            Wprime*Uprime*dw_dx + Wprime*Vprime*dw_dy + Wprime*Wprime*dw_dz
+                        );
+
+                        pturb[k][j][i] = m1 * pturb[k][j][i] + m2 * upupGradij;
+
+                        // sgs production term
+                        PetscReal TauijGradij =
+                        (
+                            tau11_SGS*du_dx + tau12_SGS*du_dy + tau13_SGS*du_dz  +
+                            tau21_SGS*dv_dx + tau22_SGS*dv_dy + tau23_SGS*dv_dz +
+                            tau31_SGS*dw_dx + tau32_SGS*dw_dy + tau33_SGS*dw_dz
+                        );
+
+                        psgs[k][j][i] = m1 * psgs[k][j][i] + m2 * TauijGradij;
+
                         // dissipation average
                         PetscReal TauijSij  = 0.5 *
                         (
@@ -2281,6 +2361,8 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
             DMDAVecRestoreArray(sda, ke->lVpVp,     &upup);
             DMDAVecRestoreArray(fda, ke->lVpVpVp,   &upupup);
             DMDAVecRestoreArray(fda, ke->lVmTauSGS, &umtau);
+            DMDAVecRestoreArray(da,  ke->lPturb,    &pturb);
+            DMDAVecRestoreArray(da,  ke->lPsgs,     &psgs);
 
             // scatter local to local for subsequent interpolations
             DMLocalToLocalBegin (da,  ke->lPm, INSERT_VALUES, ke->lPm);
@@ -2293,6 +2375,10 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
             DMLocalToLocalEnd   (fda, ke->lVpVpVp, INSERT_VALUES, ke->lVpVpVp);
             DMLocalToLocalBegin (fda, ke->lVmTauSGS, INSERT_VALUES, ke->lVmTauSGS);
             DMLocalToLocalEnd   (fda, ke->lVmTauSGS, INSERT_VALUES, ke->lVmTauSGS);
+            DMLocalToLocalBegin (da, ke->lPturb, INSERT_VALUES, ke->lPturb);
+            DMLocalToLocalEnd   (da, ke->lPturb, INSERT_VALUES, ke->lPturb);
+            DMLocalToLocalBegin (da, ke->lPsgs, INSERT_VALUES, ke->lPsgs);
+            DMLocalToLocalEnd   (da, ke->lPsgs, INSERT_VALUES, ke->lPsgs);
 
             DMDAVecGetArray(da,  ke->lPm,       &pm);
             DMDAVecGetArray(fda, ke->lUm,       &um);
@@ -3455,7 +3541,6 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
                 DMDAVecRestoreArray(da, les->lCs,   &cs);
             }
 
-            // get working arrays
             if(flags->isWindFarmActive)
             {
                 DMDAVecRestoreArray(da, ke->Pf,  &pf);

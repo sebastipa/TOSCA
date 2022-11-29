@@ -17,9 +17,12 @@ struct keBox
                   minJFace, maxJFace,
                   minIFace, maxIFace;
 
-    PetscReal     avgDum, avgDup, avgDpm, avgDpp,
-                  avgFI, avgFJ, avgFK, avgEps, avgPf,
-                  avgPtheta, avgPinf, avgErr;
+    PetscReal     avgDumK, avgDupK, avgDpmK, avgDppK,
+                  avgDumJ, avgDupJ, avgDpmJ, avgDppJ,
+                  avgDumI, avgDupI, avgDpmI, avgDppI,
+                  avgFK, avgFJ, avgFI, avgEps, avgPf,
+                  avgPtheta, avgPinf, avgErr,
+                  avgPturb, avgPsgs;
 
     // communication color
     PetscInt      thisBoxControlled;   //!< this processor controls this box
@@ -55,6 +58,10 @@ struct keFields
     Vec           lDum;            //!< mean kinetic energy advection
     Vec           lDup;            //!< turbulent kinetic energy advection
     Vec           lF;              //!< turbulent fluxes
+
+    // fields which are not in the MKE but are useful for turbulence (only available for cartesian)
+    Vec           lPturb;          //!< resolved turbulent production
+    Vec           lPsgs;           //!< sgs turbulent production
 
     // working fields
     Vec           lVmTauSGS;        //!< advection of residual stresses
