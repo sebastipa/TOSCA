@@ -4,7 +4,7 @@
 # Simulation
 # ---------------------------------
 -startFrom                 startTime
--startTime                 8990.00
+-startTime                 6000.00
 -endTime                   9000
 -cfl                       0.9
 -adjustTimeStep            1

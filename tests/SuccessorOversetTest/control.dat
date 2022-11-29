@@ -4,7 +4,7 @@
 # Simulation
 # ---------------------------------
 -startFrom                 startTime
--startTime                 9000.00
+-startTime                 6000
 -endTime                   9500
 -cfl                       0.7
 -adjustTimeStep            1
@@ -21,7 +21,6 @@
 -potentialT                1
 -abl                       1
 -zDampingLayer             1
--xDampingLayer             0
 -ibm                       0
 -overset                   1
 -absTolU                   1e-6

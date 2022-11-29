@@ -4,7 +4,7 @@
 # Simulation
 # ---------------------------------
 -startFrom                 startTime
--startTime                 5750
+-startTime                 0
 -endTime                   10000
 -cfl                       0.9
 -adjustTimeStep            1
@@ -20,8 +20,6 @@
 # ---------------------------------
 -potentialT                1
 -abl                       1
--zDampingLayer             0
--xDampingLayer             0
 
 -absTolU                   1e-5
 -poissonIt                 20

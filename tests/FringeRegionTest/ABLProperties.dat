@@ -36,11 +36,12 @@ smearT 0.5
 coriolisActive 1
 controllerActive 1
 controllerActiveT 0
+controllerActivePrecursorT 0
 
 controllerProperties
 {
     # Velocity controller type (computed->pressure/geostrphic, given->read/average)
-    controllerType pressure
+    controllerType average
 
     # Velocity controller gain factor 
     relaxPI 0.7
@@ -55,7 +56,7 @@ controllerProperties
     controllerMaxHeight 100000.0
     
     # Start time for the given momentum source average (only controller type 'average')
-    controllerAvgStartTime 20010
+    controllerAvgStartTime 9000.0
     
     # Geostrophic height
     hGeo 900
@@ -106,14 +107,3 @@ sideForceProperties
     zStartSideF   0
     zEndSideF     500
 }
-    
-# Percentage of domain height (zMax) where peak in perturbation magnitude occurs.
-zPeak 0.015
-
-# Maximum perturbation of streamwise/spanwise flow near surface.
-deltaU 0.25
-deltaV 0.25
-
-# Total periods of perturbations in streamwise/spanwise in the domain.
-Uperiods 12.0
-Vperiods 12.0

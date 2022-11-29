@@ -19,6 +19,7 @@ Mesh0
     name           background
     parentMesh 	   (-1)
     childMesh 	   (1)
+    windplant      0
 }
 
 Mesh1
@@ -26,6 +27,7 @@ Mesh1
     name           overset
     parentMesh 	   (0)
     childMesh 	   (-1)
+    windplant      1
 }
 
 

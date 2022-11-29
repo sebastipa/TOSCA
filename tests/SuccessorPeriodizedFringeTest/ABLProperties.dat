@@ -8,9 +8,6 @@ hRef 90.0
 # Reference potential temperature. 
 tRef 300.0
 
-# Initial friction velocity. 
-uTau 0.31
-
 # Equivalent Roughness length. 
 hRough 0.003
 
@@ -36,6 +33,7 @@ smearT 0.5
 coriolisActive 1
 controllerActive 1
 controllerActiveT 0
+controllerActivePrecursorT 0
 
 controllerProperties
 {
@@ -95,14 +93,3 @@ xDampingProperties
     cellWidth1 20
     cellWidth2 20
 }
-    
-# Percentage of domain height (zMax) where peak in perturbation magnitude occurs.
-zPeak 0.015
-
-# Maximum perturbation of streamwise/spanwise flow near surface.
-deltaU 0.25
-deltaV 0.25
-
-# Total periods of perturbations in streamwise/spanwise in the domain.
-Uperiods 12.0
-Vperiods 12.0

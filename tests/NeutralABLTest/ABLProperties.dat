@@ -8,9 +8,6 @@ hRef 90.0
 # Reference potential temperature. 
 tRef 300.0
 
-# Initial friction velocity. 
-uTau 0.31
-
 # Equivalent Roughness length. 
 hRough 0.003
 
@@ -35,7 +32,7 @@ smearT 0.5
 # Activation flags
 coriolisActive 1
 controllerActive 1
-controllerActiveT 0
+controllerActiveT 1
 
 controllerProperties
 {
@@ -52,7 +49,11 @@ controllerProperties
     timeWindowPI 3600
     
     # Perform geostrophic damping (only pressure controller)
-    geostrophicDamping 0
+    geostrophicDamping 1
+    
+    geoDampingAlpha      1.0
+    geoDampingStartTime  5000
+    geoDampingTimeWindow 4500
 
     # Velocity controller max height of influence 
     controllerMaxHeight 100000.0
@@ -71,40 +72,3 @@ controllerProperties
 # Coriolis parameter: 7.272205217e-5 * sin(latitude)
 fCoriolis 5.156303966e-5
 
-# Fringe layers properties (activate in the control.dat - zDampingLayer = 1, xDampingLayer = 1)
-zDampingProperties
-{
-    zDampingStart   1000
-    zDampingEnd     4675.48
-    zDampingAlpha   0.01
-    zDampingAlsoXY  0 
-}    
-
-xDampingProperties
-{
-    xDampingStart   0
-    xDampingEnd     400
-    xDampingDelta   100
-    xDampingAlpha   0.1
-    xDampingAlphaControlType alphaFixed
-    advectionDampingType     0
-    
-    uBarSelectionType 2
-    n1Inflow 50 
-    n2Inflow 50 
-    n1Periods 1
-    n2Periods 2 
-    cellWidth1 20
-    cellWidth2 20
-}
-    
-# Percentage of domain height (zMax) where peak in perturbation magnitude occurs.
-zPeak 0.015
-
-# Maximum perturbation of streamwise/spanwise flow near surface.
-deltaU 0.25
-deltaV 0.25
-
-# Total periods of perturbations in streamwise/spanwise in the domain.
-Uperiods 12.0
-Vperiods 12.0
