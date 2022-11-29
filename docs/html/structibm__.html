@@ -84,24 +84,10 @@ PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 word&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibm__.html#ad5158afcc83cf8937946f45da9fd15e1">IBInterpolationModel</a></td></tr>
 <tr class="memdesc:ad5158afcc83cf8937946f45da9fd15e1"><td class="mdescLeft">&#160;</td><td class="mdescRight">interpolation methodology <br /></td></tr>
 <tr class="separator:ad5158afcc83cf8937946f45da9fd15e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa15d40e1af8d8e4a93ca205fd99e49d9"><td class="memItemLeft" align="right" valign="top"><a id="aa15d40e1af8d8e4a93ca205fd99e49d9"></a>
-PetscInt&#160;</td><td class="memItemRight" valign="bottom"><b>dbg</b></td></tr>
-<tr class="separator:aa15d40e1af8d8e4a93ca205fd99e49d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad66f32ad5a20909e084f19309fbc2889"><td class="memItemLeft" align="right" valign="top"><a id="ad66f32ad5a20909e084f19309fbc2889"></a>
-PetscInt&#160;</td><td class="memItemRight" valign="bottom"><b>dynamic</b></td></tr>
-<tr class="separator:ad66f32ad5a20909e084f19309fbc2889"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9db4c0691b8ea8e82a2adcd4d1a0126f"><td class="memItemLeft" align="right" valign="top"><a id="a9db4c0691b8ea8e82a2adcd4d1a0126f"></a>
 <a class="el" href="structibmObject.html">ibmObject</a> **&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibm__.html#a9db4c0691b8ea8e82a2adcd4d1a0126f">ibmBody</a></td></tr>
 <tr class="memdesc:a9db4c0691b8ea8e82a2adcd4d1a0126f"><td class="mdescLeft">&#160;</td><td class="mdescRight">array of pointers to ibm objects <br /></td></tr>
 <tr class="separator:a9db4c0691b8ea8e82a2adcd4d1a0126f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9af9ae532bcc101759de61573b2683f2"><td class="memItemLeft" align="right" valign="top"><a id="a9af9ae532bcc101759de61573b2683f2"></a>
-PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibm__.html#a9af9ae532bcc101759de61573b2683f2">ibmDomain</a></td></tr>
-<tr class="memdesc:a9af9ae532bcc101759de61573b2683f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">array of pointers to the ibm object controlled by each user. domain 0 has access to all IBM bodies <br /></td></tr>
-<tr class="separator:a9af9ae532bcc101759de61573b2683f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7afc62636e02d8bc44f58b234d9a7eb6"><td class="memItemLeft" align="right" valign="top"><a id="a7afc62636e02d8bc44f58b234d9a7eb6"></a>
-PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibm__.html#a7afc62636e02d8bc44f58b234d9a7eb6">ibmControlled</a></td></tr>
-<tr class="memdesc:a7afc62636e02d8bc44f58b234d9a7eb6"><td class="mdescLeft">&#160;</td><td class="mdescRight">flag indicating that this domain controls atleast one ibm object <br /></td></tr>
-<tr class="separator:a7afc62636e02d8bc44f58b234d9a7eb6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac02bdee327b6634904d5cde6c50a79da"><td class="memItemLeft" align="right" valign="top"><a id="ac02bdee327b6634904d5cde6c50a79da"></a>
 <a class="el" href="structsearchBox.html">searchBox</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibm__.html#ac02bdee327b6634904d5cde6c50a79da">sBox</a></td></tr>
 <tr class="memdesc:ac02bdee327b6634904d5cde6c50a79da"><td class="mdescLeft">&#160;</td><td class="mdescRight">array of <a class="el" href="structsearchBox.html">searchBox</a> with number of search cells and their size for each ibm object <br /></td></tr>
@@ -117,6 +103,33 @@ PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 <tr class="memitem:a83728ff65459fc6479450b68e9383a43"><td class="memItemLeft" align="right" valign="top"><a id="a83728ff65459fc6479450b68e9383a43"></a>
 <a class="el" href="structaccess__.html">access_</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>access</b></td></tr>
 <tr class="separator:a83728ff65459fc6479450b68e9383a43"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa15d40e1af8d8e4a93ca205fd99e49d9"><td class="memItemLeft" align="right" valign="top"><a id="aa15d40e1af8d8e4a93ca205fd99e49d9"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><b>dbg</b></td></tr>
+<tr class="separator:aa15d40e1af8d8e4a93ca205fd99e49d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad66f32ad5a20909e084f19309fbc2889"><td class="memItemLeft" align="right" valign="top"><a id="ad66f32ad5a20909e084f19309fbc2889"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><b>dynamic</b></td></tr>
+<tr class="separator:ad66f32ad5a20909e084f19309fbc2889"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3649b5690ed9993fcf4b62dfbacd96ed"><td class="memItemLeft" align="right" valign="top"><a id="a3649b5690ed9993fcf4b62dfbacd96ed"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><b>computeForce</b></td></tr>
+<tr class="separator:a3649b5690ed9993fcf4b62dfbacd96ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7052beef29707061c3fe0e3b1b5b9c68"><td class="memItemLeft" align="right" valign="top"><a id="a7052beef29707061c3fe0e3b1b5b9c68"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><b>checkNormal</b></td></tr>
+<tr class="separator:a7052beef29707061c3fe0e3b1b5b9c68"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad47bea8e035a5f72f37344c130caaee1"><td class="memItemLeft" align="right" valign="top"><a id="ad47bea8e035a5f72f37344c130caaee1"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><b>writeSTL</b></td></tr>
+<tr class="separator:ad47bea8e035a5f72f37344c130caaee1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0ac57fca8c0b7cd2f96f033487cd1945"><td class="memItemLeft" align="right" valign="top"><a id="a0ac57fca8c0b7cd2f96f033487cd1945"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibm__.html#a0ac57fca8c0b7cd2f96f033487cd1945">timeStart</a></td></tr>
+<tr class="memdesc:a0ac57fca8c0b7cd2f96f033487cd1945"><td class="mdescLeft">&#160;</td><td class="mdescRight">start time of acquisition system <br /></td></tr>
+<tr class="separator:a0ac57fca8c0b7cd2f96f033487cd1945"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aef112e538ebf303d7e9b1b2820d89e1d"><td class="memItemLeft" align="right" valign="top"><a id="aef112e538ebf303d7e9b1b2820d89e1d"></a>
+word&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibm__.html#aef112e538ebf303d7e9b1b2820d89e1d">intervalType</a></td></tr>
+<tr class="memdesc:aef112e538ebf303d7e9b1b2820d89e1d"><td class="mdescLeft">&#160;</td><td class="mdescRight">timeStep: sample at every (timeInterval) iter, adjustableTime sample at every (timeInterval) seconds <br /></td></tr>
+<tr class="separator:aef112e538ebf303d7e9b1b2820d89e1d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af609a1063678cb597285b156636981f9"><td class="memItemLeft" align="right" valign="top"><a id="af609a1063678cb597285b156636981f9"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibm__.html#af609a1063678cb597285b156636981f9">timeInterval</a></td></tr>
+<tr class="memdesc:af609a1063678cb597285b156636981f9"><td class="mdescLeft">&#160;</td><td class="mdescRight">acquisition time interval (overrides simulation time step if smaller and adjustableTime active) <br /></td></tr>
+<tr class="separator:af609a1063678cb597285b156636981f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>struct storing IBM model </p>

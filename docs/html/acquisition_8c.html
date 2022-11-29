@@ -97,10 +97,38 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#a9c4b85d8d544d0ab775023c06ed46a6a">averageFieldsInitialize</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
 <tr class="memdesc:a9c4b85d8d544d0ab775023c06ed46a6a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize average fields acquisition. <br /></td></tr>
 <tr class="separator:a9c4b85d8d544d0ab775023c06ed46a6a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa8cf6ae86918befbb855d560f588e82e"><td class="memItemLeft" align="right" valign="top"><a id="aa8cf6ae86918befbb855d560f588e82e"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#aa8cf6ae86918befbb855d560f588e82e">averageKEBudgetsInitialize</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
+<tr class="memdesc:aa8cf6ae86918befbb855d560f588e82e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes ke budgets fields acquisition. <br /></td></tr>
+<tr class="separator:aa8cf6ae86918befbb855d560f588e82e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acd02c40d09da28818552278198fadf56"><td class="memItemLeft" align="right" valign="top"><a id="acd02c40d09da28818552278198fadf56"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#acd02c40d09da28818552278198fadf56">setKeBoundsAndComms</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, keFields *ke)</td></tr>
+<tr class="memdesc:acd02c40d09da28818552278198fadf56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Search box bounds and define communicators. <br /></td></tr>
+<tr class="separator:acd02c40d09da28818552278198fadf56"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a91263a1ae1e35445bf58a52ded8148fb"><td class="memItemLeft" align="right" valign="top"><a id="a91263a1ae1e35445bf58a52ded8148fb"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#a91263a1ae1e35445bf58a52ded8148fb">readKeBoxArray</a> (keFields *ke)</td></tr>
+<tr class="memdesc:a91263a1ae1e35445bf58a52ded8148fb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read box array. <br /></td></tr>
+<tr class="separator:a91263a1ae1e35445bf58a52ded8148fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af1609d0f861e9b03292a2b76eb210bff"><td class="memItemLeft" align="right" valign="top"><a id="af1609d0f861e9b03292a2b76eb210bff"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#af1609d0f861e9b03292a2b76eb210bff">averageFields</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
 <tr class="memdesc:af1609d0f861e9b03292a2b76eb210bff"><td class="mdescLeft">&#160;</td><td class="mdescRight">Average fields. <br /></td></tr>
 <tr class="separator:af1609d0f861e9b03292a2b76eb210bff"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a436c3f2bd5f2ea810fd077a4f3a237ab"><td class="memItemLeft" align="right" valign="top"><a id="a436c3f2bd5f2ea810fd077a4f3a237ab"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#a436c3f2bd5f2ea810fd077a4f3a237ab">averageKEBudgets</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
+<tr class="memdesc:a436c3f2bd5f2ea810fd077a4f3a237ab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute MKE budgets. <br /></td></tr>
+<tr class="separator:a436c3f2bd5f2ea810fd077a4f3a237ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0172b61753d6c7748cf1419e9bec15be"><td class="memItemLeft" align="right" valign="top"><a id="a0172b61753d6c7748cf1419e9bec15be"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#a0172b61753d6c7748cf1419e9bec15be">boxCumulateKEBudgets</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
+<tr class="memdesc:a0172b61753d6c7748cf1419e9bec15be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Do box cumulation for mesh. energy budgets. <br /></td></tr>
+<tr class="separator:a0172b61753d6c7748cf1419e9bec15be"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae02373b441e6bfa89628f1235cc6a3da"><td class="memItemLeft" align="right" valign="top"><a id="ae02373b441e6bfa89628f1235cc6a3da"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#ae02373b441e6bfa89628f1235cc6a3da">averageKEBudgetsCat</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
+<tr class="memdesc:ae02373b441e6bfa89628f1235cc6a3da"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute MKE budgets in cartesian form. <br /></td></tr>
+<tr class="separator:ae02373b441e6bfa89628f1235cc6a3da"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afadf3be10e557e575a6f61eae686f9f0"><td class="memItemLeft" align="right" valign="top"><a id="afadf3be10e557e575a6f61eae686f9f0"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#afadf3be10e557e575a6f61eae686f9f0">averageKEBudgetsCont</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
+<tr class="memdesc:afadf3be10e557e575a6f61eae686f9f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute MKE budgets in generalized curvilinaer form w/o mesh stretching. <br /></td></tr>
+<tr class="separator:afadf3be10e557e575a6f61eae686f9f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5cd8f27f6d845cf27497ddfd33437987"><td class="memItemLeft" align="right" valign="top"><a id="a5cd8f27f6d845cf27497ddfd33437987"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#a5cd8f27f6d845cf27497ddfd33437987">sectionsInitialize</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
 <tr class="memdesc:a5cd8f27f6d845cf27497ddfd33437987"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes sections. <br /></td></tr>
@@ -165,10 +193,21 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#a930b4f48e5194f288d96b5491403a545">computeSideForceIO</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
 <tr class="memdesc:a930b4f48e5194f288d96b5491403a545"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute side force for I/O in cartesian form. <br /></td></tr>
 <tr class="separator:a930b4f48e5194f288d96b5491403a545"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acd62ba8f4bba5afd7a13b0cf9fee1f6b"><td class="memItemLeft" align="right" valign="top"><a id="acd62ba8f4bba5afd7a13b0cf9fee1f6b"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#acd62ba8f4bba5afd7a13b0cf9fee1f6b">perturbationABLInitialize</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
+<tr class="memdesc:acd62ba8f4bba5afd7a13b0cf9fee1f6b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes ABL perturbation fields w.r.t. given reference. <br /></td></tr>
+<tr class="separator:acd62ba8f4bba5afd7a13b0cf9fee1f6b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adbc208ab680704fc45def4eba8420fe9"><td class="memItemLeft" align="right" valign="top"><a id="adbc208ab680704fc45def4eba8420fe9"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#adbc208ab680704fc45def4eba8420fe9">averagePerturbationABL</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
+<tr class="memdesc:adbc208ab680704fc45def4eba8420fe9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Performs perturbation averaging and writes to memory. <br /></td></tr>
+<tr class="separator:adbc208ab680704fc45def4eba8420fe9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:accc174c4786680d5a09079d3bc44048d"><td class="memItemLeft" align="right" valign="top"><a id="accc174c4786680d5a09079d3bc44048d"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#accc174c4786680d5a09079d3bc44048d">averaging3LMInitialize</a> (<a class="el" href="structdomain__.html">domain_</a> *domain)</td></tr>
 <tr class="memdesc:accc174c4786680d5a09079d3bc44048d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize 3LM data structure. <br /></td></tr>
 <tr class="separator:accc174c4786680d5a09079d3bc44048d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a00c464783e9635019173be9dd467b84c"><td class="memItemLeft" align="right" valign="top">PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#a00c464783e9635019173be9dd467b84c">read3LMFields</a> (<a class="el" href="structacquisition__.html">acquisition_</a> *acquisition)</td></tr>
+<tr class="memdesc:a00c464783e9635019173be9dd467b84c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads velocity and pressure averages (they don't use auxiliary fields like TBL, LBL, IBL)  <a href="acquisition_8c.html#a00c464783e9635019173be9dd467b84c">More...</a><br /></td></tr>
+<tr class="separator:a00c464783e9635019173be9dd467b84c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1ae264dbb2d37aa89db2a8c1daa14b2a"><td class="memItemLeft" align="right" valign="top"><a id="a1ae264dbb2d37aa89db2a8c1daa14b2a"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="acquisition_8c.html#a1ae264dbb2d37aa89db2a8c1daa14b2a">writeAveraging3LM</a> (<a class="el" href="structdomain__.html">domain_</a> *domain)</td></tr>
 <tr class="memdesc:a1ae264dbb2d37aa89db2a8c1daa14b2a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Performs 3LM average and write 3LM fields. <br /></td></tr>
@@ -196,7 +235,29 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Acquisition functions definition. </p>
-</div></div><!-- contents -->
+</div><h2 class="groupheader">Function Documentation</h2>
+<a id="a00c464783e9635019173be9dd467b84c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a00c464783e9635019173be9dd467b84c">&#9670;&nbsp;</a></span>read3LMFields()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">PetscErrorCode read3LMFields </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structacquisition__.html">acquisition_</a> *&#160;</td>
+          <td class="paramname"><em>acquisition</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Reads velocity and pressure averages (they don't use auxiliary fields like TBL, LBL, IBL) </p>
+<p>read field</p>
+
+</div>
+</div>
+</div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
 Generated by &#160;<a href="http://www.doxygen.org/index.html">

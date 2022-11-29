@@ -98,6 +98,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8
 word&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#ae57bcde696d8ccf1bd34ecc100b07fba">thisCaseName</a> ()</td></tr>
 <tr class="memdesc:ae57bcde696d8ccf1bd34ecc100b07fba"><td class="mdescLeft">&#160;</td><td class="mdescRight">Retrieves this case name. <br /></td></tr>
 <tr class="separator:ae57bcde696d8ccf1bd34ecc100b07fba"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa8386d069befb8e442596f0829dd54d9"><td class="memItemLeft" align="right" valign="top"><a id="aa8386d069befb8e442596f0829dd54d9"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#aa8386d069befb8e442596f0829dd54d9">getTimeList</a> (const char *dataLoc, std::vector&lt; PetscReal &gt; &amp;timeSeries, PetscInt &amp;ntimes)</td></tr>
+<tr class="memdesc:aa8386d069befb8e442596f0829dd54d9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the time list (from folder names) and size contained in a folder. <br /></td></tr>
+<tr class="separator:aa8386d069befb8e442596f0829dd54d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a66788a88f4cf4b5e1736f22145f5c5f7"><td class="memItemLeft" align="right" valign="top"><a id="a66788a88f4cf4b5e1736f22145f5c5f7"></a>
 PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#a66788a88f4cf4b5e1736f22145f5c5f7">foundInString</a> (const char *str, word keyword)</td></tr>
 <tr class="memdesc:a66788a88f4cf4b5e1736f22145f5c5f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finds a word inside a string. <br /></td></tr>
@@ -138,6 +142,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#ac52f5887f76318a2318d4721802f3403">remove_subdirs_except3</a> (MPI_Comm comm, const char *path2dir, const word name1, const word name2, const word name3)</td></tr>
 <tr class="memdesc:ac52f5887f76318a2318d4721802f3403"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes all subdirectory of a given directory except the 3 names provided. <br /></td></tr>
 <tr class="separator:ac52f5887f76318a2318d4721802f3403"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a53dac50624de3ed052ba33311ccc3c0a"><td class="memItemLeft" align="right" valign="top"><a id="a53dac50624de3ed052ba33311ccc3c0a"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#a53dac50624de3ed052ba33311ccc3c0a">remove_subdirs_except4</a> (MPI_Comm comm, const char *path2dir, const word name1, const word name2, const word name3, const word name4)</td></tr>
+<tr class="memdesc:a53dac50624de3ed052ba33311ccc3c0a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes all subdirectory of a given directory except the 3 names provided. <br /></td></tr>
+<tr class="separator:a53dac50624de3ed052ba33311ccc3c0a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aea57de8784231311b501c1f92e27a1af"><td class="memItemLeft" align="right" valign="top"><a id="aea57de8784231311b501c1f92e27a1af"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#aea57de8784231311b501c1f92e27a1af">SetWriteDir</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, const word str)</td></tr>
 <tr class="memdesc:aea57de8784231311b501c1f92e27a1af"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set write directory for a given mesh. <br /></td></tr>
@@ -150,6 +158,14 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#a24f88a2dc2894813377d8c3c8ebd92a7">InitializeIO</a> (<a class="el" href="structio__.html">io_</a> *io)</td></tr>
 <tr class="memdesc:a24f88a2dc2894813377d8c3c8ebd92a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes io data structure. <br /></td></tr>
 <tr class="separator:a24f88a2dc2894813377d8c3c8ebd92a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac928bac288d47df64ad361765ce346d0"><td class="memItemLeft" align="right" valign="top"><a id="ac928bac288d47df64ad361765ce346d0"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#ac928bac288d47df64ad361765ce346d0">RereadIO</a> (<a class="el" href="structdomain__.html">domain_</a> *domain)</td></tr>
+<tr class="memdesc:ac928bac288d47df64ad361765ce346d0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Re-read IO write parameters. <br /></td></tr>
+<tr class="separator:ac928bac288d47df64ad361765ce346d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abc05c134a7d7cd8450beb5d68cef7a6f"><td class="memItemLeft" align="right" valign="top"><a id="abc05c134a7d7cd8450beb5d68cef7a6f"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#abc05c134a7d7cd8450beb5d68cef7a6f">UpdateInput</a> (<a class="el" href="structio__.html">io_</a> *io, word &amp;modified)</td></tr>
+<tr class="memdesc:abc05c134a7d7cd8450beb5d68cef7a6f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called by RereadIO, triggers updates in each domain. <br /></td></tr>
+<tr class="separator:abc05c134a7d7cd8450beb5d68cef7a6f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a12060383ddd0234f9bdce3763bc218d5"><td class="memItemLeft" align="right" valign="top"><a id="a12060383ddd0234f9bdce3763bc218d5"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#a12060383ddd0234f9bdce3763bc218d5">readFields</a> (<a class="el" href="structdomain__.html">domain_</a> *domain, PetscReal timeValue)</td></tr>
 <tr class="memdesc:a12060383ddd0234f9bdce3763bc218d5"><td class="mdescLeft">&#160;</td><td class="mdescRight">read and save the different fields stored in the fields/meshName/time folder <br /></td></tr>
@@ -218,6 +234,9 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#a63cd3b8f9f5efa4ce05adad15cf2a39d">readSubDictIntArray</a> (const char *dictName, const char *subdict, const char *keyword, labelList &amp;value)</td></tr>
 <tr class="memdesc:a63cd3b8f9f5efa4ce05adad15cf2a39d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read mandatory array of PetscInt from sub-dictionary. <br /></td></tr>
 <tr class="separator:a63cd3b8f9f5efa4ce05adad15cf2a39d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afd200a1b6f88a14afb3e7c9be4ca7b19"><td class="memItemLeft" align="right" valign="top"><a id="afd200a1b6f88a14afb3e7c9be4ca7b19"></a>
+std::string *&#160;</td><td class="memItemRight" valign="bottom"><b>readSubDictWordArray</b> (const char *dictName, const char *subdict, const char *keyword, PetscInt numW)</td></tr>
+<tr class="separator:afd200a1b6f88a14afb3e7c9be4ca7b19"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab73941600644a5529434bf0e0749e160"><td class="memItemLeft" align="right" valign="top"><a id="ab73941600644a5529434bf0e0749e160"></a>
 word&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="io_8h.html#ab73941600644a5529434bf0e0749e160">trim</a> (const word &amp;str)</td></tr>
 <tr class="memdesc:ab73941600644a5529434bf0e0749e160"><td class="mdescLeft">&#160;</td><td class="mdescRight">Trims a string removing pre and trail spaces. <br /></td></tr>

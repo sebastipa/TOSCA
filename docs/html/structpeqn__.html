@@ -101,6 +101,13 @@ Vec&#160;</td><td class="memItemRight" valign="bottom"><b>lLid</b></td></tr>
 Vec&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#a436bdf22d65e240fbeb6c8132d8496fe">lGid</a></td></tr>
 <tr class="memdesc:a436bdf22d65e240fbeb6c8132d8496fe"><td class="mdescLeft">&#160;</td><td class="mdescRight">matrixFree - matrixBased connectivity (used to build the poisson coeff. matrix) <br /></td></tr>
 <tr class="separator:a436bdf22d65e240fbeb6c8132d8496fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae7a5d1a63a6ed3ef919202707f4f8b47"><td class="memItemLeft" align="right" valign="top"><a id="ae7a5d1a63a6ed3ef919202707f4f8b47"></a>
+Vec&#160;</td><td class="memItemRight" valign="bottom"><b>pIBMPt</b></td></tr>
+<tr class="separator:ae7a5d1a63a6ed3ef919202707f4f8b47"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac4b3b6104e6254db5895fc198d11fca1"><td class="memItemLeft" align="right" valign="top"><a id="ac4b3b6104e6254db5895fc198d11fca1"></a>
+Vec&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#ac4b3b6104e6254db5895fc198d11fca1">pIBMCell</a></td></tr>
+<tr class="memdesc:ac4b3b6104e6254db5895fc198d11fca1"><td class="mdescLeft">&#160;</td><td class="mdescRight">point where the ibm pressure is interpolated and its closest cell id <br /></td></tr>
+<tr class="separator:ac4b3b6104e6254db5895fc198d11fca1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abe37423a45dd3b55533fa5535fabf3cf"><td class="memItemLeft" align="right" valign="top"><a id="abe37423a45dd3b55533fa5535fabf3cf"></a>
 HYPRE_Int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#abe37423a45dd3b55533fa5535fabf3cf">thisRankSize</a></td></tr>
 <tr class="memdesc:abe37423a45dd3b55533fa5535fabf3cf"><td class="mdescLeft">&#160;</td><td class="mdescRight">number of cells owned by this processore (used to build the poisson coeff. matrix) <br /></td></tr>
@@ -151,14 +158,18 @@ PetscInt&#160;</td><td class="memItemRight" valign="bottom"><b>amgCoarsenType</b
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#ae4976c76128ace97e66e27b08e9d00c4">amgThresh</a></td></tr>
 <tr class="memdesc:ae4976c76128ace97e66e27b08e9d00c4"><td class="mdescLeft">&#160;</td><td class="mdescRight">threshold value - 0.5 : Cartesian, 0.6 : Distorted <br /></td></tr>
 <tr class="separator:ae4976c76128ace97e66e27b08e9d00c4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a61cbba57805d35bd4c8f24b3250c68b2"><td class="memItemLeft" align="right" valign="top"><a id="a61cbba57805d35bd4c8f24b3250c68b2"></a>
+word&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#a61cbba57805d35bd4c8f24b3250c68b2">solverType</a></td></tr>
+<tr class="memdesc:a61cbba57805d35bd4c8f24b3250c68b2"><td class="mdescLeft">&#160;</td><td class="mdescRight">HYPRE or PETSc. <br /></td></tr>
+<tr class="separator:a61cbba57805d35bd4c8f24b3250c68b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aebb38c0ddc4039f9d48fe9465003659a"><td class="memItemLeft" align="right" valign="top"><a id="aebb38c0ddc4039f9d48fe9465003659a"></a>
 HYPRE_Solver&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#aebb38c0ddc4039f9d48fe9465003659a">hypreSlvr</a></td></tr>
 <tr class="memdesc:aebb38c0ddc4039f9d48fe9465003659a"><td class="mdescLeft">&#160;</td><td class="mdescRight">solver <br /></td></tr>
 <tr class="separator:aebb38c0ddc4039f9d48fe9465003659a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0366eaa89b291a549cf3454d9e3e83db"><td class="memItemLeft" align="right" valign="top"><a id="a0366eaa89b291a549cf3454d9e3e83db"></a>
-HYPRE_Solver&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#a0366eaa89b291a549cf3454d9e3e83db">PC</a></td></tr>
-<tr class="memdesc:a0366eaa89b291a549cf3454d9e3e83db"><td class="mdescLeft">&#160;</td><td class="mdescRight">preconditioner <br /></td></tr>
-<tr class="separator:a0366eaa89b291a549cf3454d9e3e83db"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a360d4f174d7301372853ce06df01cf10"><td class="memItemLeft" align="right" valign="top"><a id="a360d4f174d7301372853ce06df01cf10"></a>
+HYPRE_Solver&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#a360d4f174d7301372853ce06df01cf10">hyprePC</a></td></tr>
+<tr class="memdesc:a360d4f174d7301372853ce06df01cf10"><td class="mdescLeft">&#160;</td><td class="mdescRight">preconditioner <br /></td></tr>
+<tr class="separator:a360d4f174d7301372853ce06df01cf10"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af9c73b7c6d5eff1fd3ef3ea2250608b5"><td class="memItemLeft" align="right" valign="top"><a id="af9c73b7c6d5eff1fd3ef3ea2250608b5"></a>
 HYPRE_IJMatrix&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#af9c73b7c6d5eff1fd3ef3ea2250608b5">hypreA</a></td></tr>
 <tr class="memdesc:af9c73b7c6d5eff1fd3ef3ea2250608b5"><td class="mdescLeft">&#160;</td><td class="mdescRight">coefficient matrix <br /></td></tr>
@@ -181,15 +192,40 @@ HYPRE_ParVector&#160;</td><td class="memItemRight" valign="bottom"><b>hypreParP<
 HYPRE_ParVector&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#a024231cde6b2227e5ffee8555bc2f949">hypreParRhs</a></td></tr>
 <tr class="memdesc:a024231cde6b2227e5ffee8555bc2f949"><td class="mdescLeft">&#160;</td><td class="mdescRight">unknown and RHS <br /></td></tr>
 <tr class="separator:a024231cde6b2227e5ffee8555bc2f949"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac7013e14356e7d0d43cb48fe2847b772"><td class="memItemLeft" align="right" valign="top"><a id="ac7013e14356e7d0d43cb48fe2847b772"></a>
-<a class="el" href="structaccess__.html">access_</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#ac7013e14356e7d0d43cb48fe2847b772">access</a></td></tr>
-<tr class="memdesc:ac7013e14356e7d0d43cb48fe2847b772"><td class="mdescLeft">&#160;</td><td class="mdescRight">access database <br /></td></tr>
-<tr class="separator:ac7013e14356e7d0d43cb48fe2847b772"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad5f704a3d486ca74bd285804621a0362"><td class="memItemLeft" align="right" valign="top"><a id="ad5f704a3d486ca74bd285804621a0362"></a>
+Mat&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#ad5f704a3d486ca74bd285804621a0362">petscA</a></td></tr>
+<tr class="memdesc:ad5f704a3d486ca74bd285804621a0362"><td class="mdescLeft">&#160;</td><td class="mdescRight">coefficient matrix <br /></td></tr>
+<tr class="separator:ad5f704a3d486ca74bd285804621a0362"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acc224d3ee73cec58f0ed33d925a53198"><td class="memItemLeft" align="right" valign="top"><a id="acc224d3ee73cec58f0ed33d925a53198"></a>
+KSP&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#acc224d3ee73cec58f0ed33d925a53198">ksp</a></td></tr>
+<tr class="memdesc:acc224d3ee73cec58f0ed33d925a53198"><td class="mdescLeft">&#160;</td><td class="mdescRight">linear krylov-subspace context <br /></td></tr>
+<tr class="separator:acc224d3ee73cec58f0ed33d925a53198"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a958161c2c97937e35710ceaf2fd16e09"><td class="memItemLeft" align="right" valign="top"><a id="a958161c2c97937e35710ceaf2fd16e09"></a>
+<a class="el" href="structpeqn__.html#a0366eaa89b291a549cf3454d9e3e83db">PC</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#a958161c2c97937e35710ceaf2fd16e09">petscPC</a></td></tr>
+<tr class="memdesc:a958161c2c97937e35710ceaf2fd16e09"><td class="mdescLeft">&#160;</td><td class="mdescRight">preconditioner <br /></td></tr>
+<tr class="separator:a958161c2c97937e35710ceaf2fd16e09"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a41ae31eb0c0814c24b80b37b808ef5d4"><td class="memItemLeft" align="right" valign="top"><a id="a41ae31eb0c0814c24b80b37b808ef5d4"></a>
+Vec&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#a41ae31eb0c0814c24b80b37b808ef5d4">petscRhs</a></td></tr>
+<tr class="memdesc:a41ae31eb0c0814c24b80b37b808ef5d4"><td class="mdescLeft">&#160;</td><td class="mdescRight">right hand side <br /></td></tr>
+<tr class="separator:a41ae31eb0c0814c24b80b37b808ef5d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a659dc19cc4062d3d67d6f50232d6910e"><td class="memItemLeft" align="right" valign="top"><a id="a659dc19cc4062d3d67d6f50232d6910e"></a>
+MatNullSpace&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#a659dc19cc4062d3d67d6f50232d6910e">petscNs</a></td></tr>
+<tr class="memdesc:a659dc19cc4062d3d67d6f50232d6910e"><td class="mdescLeft">&#160;</td><td class="mdescRight">null space <br /></td></tr>
+<tr class="separator:a659dc19cc4062d3d67d6f50232d6910e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac52c111e450a66a5c69bfb62d0c82fb4"><td class="memItemLeft" align="right" valign="top"><a id="ac52c111e450a66a5c69bfb62d0c82fb4"></a>
+<a class="el" href="structaccess__.html">access_</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#ac52c111e450a66a5c69bfb62d0c82fb4">access</a></td></tr>
+<tr class="memdesc:ac52c111e450a66a5c69bfb62d0c82fb4"><td class="mdescLeft">&#160;</td><td class="mdescRight">access database <br /></td></tr>
+<tr class="separator:ac52c111e450a66a5c69bfb62d0c82fb4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0366eaa89b291a549cf3454d9e3e83db"><td class="memItemLeft" align="right" valign="top"><a id="a0366eaa89b291a549cf3454d9e3e83db"></a>
+HYPRE_Solver&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structpeqn__.html#a0366eaa89b291a549cf3454d9e3e83db">PC</a></td></tr>
+<tr class="memdesc:a0366eaa89b291a549cf3454d9e3e83db"><td class="mdescLeft">&#160;</td><td class="mdescRight">preconditioner <br /></td></tr>
+<tr class="separator:a0366eaa89b291a549cf3454d9e3e83db"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>struct storing pressure equation </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
+</div><hr/>The documentation for this struct was generated from the following files:<ul>
 <li>src/include/<a class="el" href="peqn_8h_source.html">peqn.h</a></li>
+<li>src/include/<a class="el" href="peqnOriginal_8h_source.html">peqnOriginal.h</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->

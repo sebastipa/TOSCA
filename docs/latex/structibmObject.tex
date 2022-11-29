@@ -6,17 +6,38 @@
 \mbox{\Hypertarget{structibmObject_aa35432da7c851b9b772ce0d4dddb6e8e}\label{structibmObject_aa35432da7c851b9b772ce0d4dddb6e8e}} 
 word {\bfseries body\+Name}
 \item 
+\mbox{\Hypertarget{structibmObject_a009cbe69a2f78124f6072cd9bd55b54d}\label{structibmObject_a009cbe69a2f78124f6072cd9bd55b54d}} 
+word {\bfseries body\+Type}
+\item 
+\mbox{\Hypertarget{structibmObject_a4e146658f63bac4b58aebad19a7ca442}\label{structibmObject_a4e146658f63bac4b58aebad19a7ca442}} 
+Petsc\+Int {\bfseries num\+Surfaces}
+\item 
 \mbox{\Hypertarget{structibmObject_a2abbe554d717fbc767926ec8a6af815d}\label{structibmObject_a2abbe554d717fbc767926ec8a6af815d}} 
 Petsc\+Int {\bfseries body\+ID}
 \item 
+\mbox{\Hypertarget{structibmObject_a557e08112be4bd8d50b61fb76ec049c3}\label{structibmObject_a557e08112be4bd8d50b61fb76ec049c3}} 
+word {\bfseries element\+Set}
+\item 
 \mbox{\Hypertarget{structibmObject_a8eaf910fd45dc4278bc23d5a17a666e4}\label{structibmObject_a8eaf910fd45dc4278bc23d5a17a666e4}} 
 \mbox{\hyperlink{structibmMesh}{ibm\+Mesh}} $\ast$ {\bfseries ib\+Msh}
+\item 
+\mbox{\Hypertarget{structibmObject_ad2a37f855ed22d36ad516170ee696ec6}\label{structibmObject_ad2a37f855ed22d36ad516170ee696ec6}} 
+\mbox{\hyperlink{structsurface}{surface}} $\ast$$\ast$ {\bfseries ibm\+Surface}
 \item 
 \mbox{\Hypertarget{structibmObject_a3a7af5aca913a29e8e9e5aac15106229}\label{structibmObject_a3a7af5aca913a29e8e9e5aac15106229}} 
 word {\bfseries body\+Motion}
 \item 
 \mbox{\Hypertarget{structibmObject_a335d1a6a81d60beaadaad1d8e8fdc6a8}\label{structibmObject_a335d1a6a81d60beaadaad1d8e8fdc6a8}} 
 word {\bfseries file\+Type}
+\item 
+\mbox{\Hypertarget{structibmObject_a00ab0851ec7bd1b2ada641c93549ff3c}\label{structibmObject_a00ab0851ec7bd1b2ada641c93549ff3c}} 
+word {\bfseries wall\+ModelU}
+\item 
+\mbox{\Hypertarget{structibmObject_a605451d9da6eedab808b26f1dabaeb3a}\label{structibmObject_a605451d9da6eedab808b26f1dabaeb3a}} 
+word {\bfseries wall\+Model\+U\+Prop}
+\item 
+\mbox{\Hypertarget{structibmObject_ab2b747187441e20fda63cd314b9c8911}\label{structibmObject_ab2b747187441e20fda63cd314b9c8911}} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ {\bfseries ibm\+Wallmodel}
 \item 
 \mbox{\Hypertarget{structibmObject_ab6b087329d6434706158722bbb5c1019}\label{structibmObject_ab6b087329d6434706158722bbb5c1019}} 
 \mbox{\hyperlink{structCmpnts}{Cmpnts}} {\bfseries base\+Location}
@@ -30,11 +51,38 @@ Petsc\+Real {\bfseries search\+Cell\+Ratio}
 \mbox{\Hypertarget{structibmObject_a6bfce40a5f6829ed1bfda8e2c137a852}\label{structibmObject_a6bfce40a5f6829ed1bfda8e2c137a852}} 
 \mbox{\hyperlink{structboundingBox}{bounding\+Box}} $\ast$ {\bfseries bound}
 \item 
-\mbox{\Hypertarget{structibmObject_a81f76e1b95c59db7f52a4831989cefa4}\label{structibmObject_a81f76e1b95c59db7f52a4831989cefa4}} 
-Petsc\+Int {\bfseries attached\+Domain}
-\item 
 \mbox{\Hypertarget{structibmObject_a9571bdf7d97bfa0675f1c127434f9b0d}\label{structibmObject_a9571bdf7d97bfa0675f1c127434f9b0d}} 
 \mbox{\hyperlink{structlist}{list}} $\ast$ {\bfseries search\+Cell\+List}
+\item 
+\mbox{\Hypertarget{structibmObject_abe672af67c2c1487495a82c0e39895b0}\label{structibmObject_abe672af67c2c1487495a82c0e39895b0}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structibmObject_abe672af67c2c1487495a82c0e39895b0}{ibm\+P\+Force}}
+\begin{DoxyCompactList}\small\item\em pressure force acting on each ibm element \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibmObject_a4dbd2401e332b12e89b5ad2711f71481}\label{structibmObject_a4dbd2401e332b12e89b5ad2711f71481}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structibmObject_a4dbd2401e332b12e89b5ad2711f71481}{proc\+Bound\+Center}}
+\begin{DoxyCompactList}\small\item\em center of the processor bounding box for the ibm body \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibmObject_aa53968261ebcc320c7cb1cafa4862644}\label{structibmObject_aa53968261ebcc320c7cb1cafa4862644}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structibmObject_aa53968261ebcc320c7cb1cafa4862644}{proc\+Bound\+Size}}
+\begin{DoxyCompactList}\small\item\em size of the processor bounding box in the x, y and z direction \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibmObject_aac8f510f18c95cd64bc82212c87decf9}\label{structibmObject_aac8f510f18c95cd64bc82212c87decf9}} 
+Petsc\+Int $\ast$ \mbox{\hyperlink{structibmObject_aac8f510f18c95cd64bc82212c87decf9}{this\+Pt\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flag telling if a ibm mesh point is controlled by this processor based on normal projection \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibmObject_a71df2b23ebfaf1668cee5e74cd63f69d}\label{structibmObject_a71df2b23ebfaf1668cee5e74cd63f69d}} 
+Petsc\+Int $\ast$ \mbox{\hyperlink{structibmObject_a71df2b23ebfaf1668cee5e74cd63f69d}{this\+Pt\+Control\+Transfer}}
+\begin{DoxyCompactList}\small\item\em flag telling that the control of this point is being transferred to another processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibmObject_a8c1aa02d5f5ad97f800f050da9c293e9}\label{structibmObject_a8c1aa02d5f5ad97f800f050da9c293e9}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$ \mbox{\hyperlink{structibmObject_a8c1aa02d5f5ad97f800f050da9c293e9}{closest\+Cells}}
+\begin{DoxyCompactList}\small\item\em closest cell id to the outward normal projection from the ibm mesh element \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibmObject_a2bbcd3133f938e46166ffbc9796a87ad}\label{structibmObject_a2bbcd3133f938e46166ffbc9796a87ad}} 
+Petsc\+Int \mbox{\hyperlink{structibmObject_a2bbcd3133f938e46166ffbc9796a87ad}{ibm\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flag which tells if this proc controls this I\+BM body \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibmObject_a90f21b1e75e913fccb72b53a4b15dffa}\label{structibmObject_a90f21b1e75e913fccb72b53a4b15dffa}} 
+M\+P\+I\+\_\+\+Comm \mbox{\hyperlink{structibmObject_a90f21b1e75e913fccb72b53a4b15dffa}{I\+B\+M\+\_\+\+C\+O\+MM}}
+\begin{DoxyCompactList}\small\item\em communicator for this I\+BM \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibmObject_a2a4d1c130d51f722de6806441963335e}\label{structibmObject_a2a4d1c130d51f722de6806441963335e}} 
+Petsc\+Int $\ast$ {\bfseries element\+Mapping}
+\item 
+\mbox{\Hypertarget{structibmObject_a3acb675862f200d17b282940c8a22cef}\label{structibmObject_a3acb675862f200d17b282940c8a22cef}} 
+\mbox{\hyperlink{structelementBox}{element\+Box}} $\ast$ {\bfseries e\+Box}
 \end{DoxyCompactItemize}
 
 

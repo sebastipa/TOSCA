@@ -74,7 +74,7 @@ $(function() {
 </div><!--header-->
 <div class="contents">
 
-<p>LES model header file.  
+<p>IBM model header file.  
 <a href="#details">More...</a></p>
 
 <p><a href="ibm_8h_source.html">Go to the source code of this file.</a></p>
@@ -97,6 +97,10 @@ Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html">ibmMesh</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmRotation.html">ibmRotation</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsurface.html">surface</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structelementBox.html">elementBox</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmObject.html">ibmObject</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -126,37 +130,46 @@ typedef struct <a class="el" href="structcellList.html">cellList</a>&#160;</td><
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:a03e0aaeeb4652d6a3f72eacacf92b0ce"><td class="memItemLeft" align="right" valign="top"><a id="a03e0aaeeb4652d6a3f72eacacf92b0ce"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a03e0aaeeb4652d6a3f72eacacf92b0ce">InitializeIBM</a> (<a class="el" href="structdomain__.html">domain_</a> *domain)</td></tr>
-<tr class="memdesc:a03e0aaeeb4652d6a3f72eacacf92b0ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">initialize ibm: top level function <br /></td></tr>
-<tr class="separator:a03e0aaeeb4652d6a3f72eacacf92b0ce"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a272ff58378995854bd79a450e7c0d3b0"><td class="memItemLeft" align="right" valign="top"><a id="a272ff58378995854bd79a450e7c0d3b0"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a272ff58378995854bd79a450e7c0d3b0">ibmUpdate</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
-<tr class="memdesc:a272ff58378995854bd79a450e7c0d3b0"><td class="mdescLeft">&#160;</td><td class="mdescRight">update imb: top level function <br /></td></tr>
-<tr class="separator:a272ff58378995854bd79a450e7c0d3b0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3b21c4ed35147e201cb3b4aec4f07c6f"><td class="memItemLeft" align="right" valign="top"><a id="a3b21c4ed35147e201cb3b4aec4f07c6f"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a3b21c4ed35147e201cb3b4aec4f07c6f">writeAngularPosition</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm, PetscInt b)</td></tr>
-<tr class="memdesc:a3b21c4ed35147e201cb3b4aec4f07c6f"><td class="mdescLeft">&#160;</td><td class="mdescRight">writes the angular position when the body is rotating <br /></td></tr>
-<tr class="separator:a3b21c4ed35147e201cb3b4aec4f07c6f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4d0a60456cf8c581c6dce0d839fcc13c"><td class="memItemLeft" align="right" valign="top"><a id="a4d0a60456cf8c581c6dce0d839fcc13c"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a4d0a60456cf8c581c6dce0d839fcc13c">readIBMProperties</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
-<tr class="memdesc:a4d0a60456cf8c581c6dce0d839fcc13c"><td class="mdescLeft">&#160;</td><td class="mdescRight">read the IBMProperties.dat file , IBM mesh files and allocate memory for the objects <br /></td></tr>
-<tr class="separator:a4d0a60456cf8c581c6dce0d839fcc13c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac480fdaab958713a36034cc7cd212d88"><td class="memItemLeft" align="right" valign="top"><a id="ac480fdaab958713a36034cc7cd212d88"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><b>readIBMObjectMesh</b> (<a class="el" href="structibm__.html">ibm_</a> *ibm, PetscInt b)</td></tr>
-<tr class="separator:ac480fdaab958713a36034cc7cd212d88"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:affef927c3178c3d4eef72b2e48f0180a"><td class="memItemLeft" align="right" valign="top"><a id="affef927c3178c3d4eef72b2e48f0180a"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#affef927c3178c3d4eef72b2e48f0180a">readIBMFileASCIIRaster</a> (<a class="el" href="structibmObject.html">ibmObject</a> *ibmBody)</td></tr>
-<tr class="memdesc:affef927c3178c3d4eef72b2e48f0180a"><td class="mdescLeft">&#160;</td><td class="mdescRight">read the ibm mesh in ASCII format <br /></td></tr>
-<tr class="separator:affef927c3178c3d4eef72b2e48f0180a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae6f950340c1cd9de898a06a317ed2f0e"><td class="memItemLeft" align="right" valign="top"><a id="ae6f950340c1cd9de898a06a317ed2f0e"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#ae6f950340c1cd9de898a06a317ed2f0e">readIBMFileUCD</a> (<a class="el" href="structibmObject.html">ibmObject</a> *ibmBody)</td></tr>
-<tr class="memdesc:ae6f950340c1cd9de898a06a317ed2f0e"><td class="mdescLeft">&#160;</td><td class="mdescRight">read the ibm mesh in ucd format <br /></td></tr>
-<tr class="separator:ae6f950340c1cd9de898a06a317ed2f0e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acad7883ddebbe61a885530b6c4b8d641"><td class="memItemLeft" align="right" valign="top"><a id="acad7883ddebbe61a885530b6c4b8d641"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#acad7883ddebbe61a885530b6c4b8d641">writeSTLFile</a> (<a class="el" href="structibmObject.html">ibmObject</a> *ibmBody)</td></tr>
-<tr class="memdesc:acad7883ddebbe61a885530b6c4b8d641"><td class="mdescLeft">&#160;</td><td class="mdescRight">write the STL mesh <br /></td></tr>
-<tr class="separator:acad7883ddebbe61a885530b6c4b8d641"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a27dffc4d2f498f7dae7d9bd34594b2fd"><td class="memItemLeft" align="right" valign="top"><a id="a27dffc4d2f498f7dae7d9bd34594b2fd"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a27dffc4d2f498f7dae7d9bd34594b2fd">InitializeIBM</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="memdesc:a27dffc4d2f498f7dae7d9bd34594b2fd"><td class="mdescLeft">&#160;</td><td class="mdescRight">initialize ibm: top level function <br /></td></tr>
+<tr class="separator:a27dffc4d2f498f7dae7d9bd34594b2fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a980ea403eaa390bd1d60a702c55e63fb"><td class="memItemLeft" align="right" valign="top"><a id="a980ea403eaa390bd1d60a702c55e63fb"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a980ea403eaa390bd1d60a702c55e63fb">UpdateIBM</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="memdesc:a980ea403eaa390bd1d60a702c55e63fb"><td class="mdescLeft">&#160;</td><td class="mdescRight">update imb: top level function <br /></td></tr>
+<tr class="separator:a980ea403eaa390bd1d60a702c55e63fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0a2a67029381cb8ac4691c1c5202db02"><td class="memItemLeft" align="right" valign="top"><a id="a0a2a67029381cb8ac4691c1c5202db02"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a0a2a67029381cb8ac4691c1c5202db02">writeIBMData</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm, PetscInt b)</td></tr>
+<tr class="memdesc:a0a2a67029381cb8ac4691c1c5202db02"><td class="mdescLeft">&#160;</td><td class="mdescRight">writes the angular position when the body is rotating <br /></td></tr>
+<tr class="separator:a0a2a67029381cb8ac4691c1c5202db02"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6141154e9079ac1a4bf959f4be6b24ca"><td class="memItemLeft" align="right" valign="top"><a id="a6141154e9079ac1a4bf959f4be6b24ca"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a6141154e9079ac1a4bf959f4be6b24ca">writeIBMForceData</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm, PetscInt b, PetscReal *gElemPressure, PetscReal netMoment, PetscReal ibmPower, <a class="el" href="structCmpnts.html">Cmpnts</a> netForce, <a class="el" href="structCmpnts.html">Cmpnts</a> momentVector)</td></tr>
+<tr class="memdesc:a6141154e9079ac1a4bf959f4be6b24ca"><td class="mdescLeft">&#160;</td><td class="mdescRight">writes the IBM force data for element and net force <br /></td></tr>
+<tr class="separator:a6141154e9079ac1a4bf959f4be6b24ca"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9c978ae9d3e0e7fd31ca9be4b6503151"><td class="memItemLeft" align="right" valign="top"><a id="a9c978ae9d3e0e7fd31ca9be4b6503151"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a9c978ae9d3e0e7fd31ca9be4b6503151">findIBMControlledProcs</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="memdesc:a9c978ae9d3e0e7fd31ca9be4b6503151"><td class="mdescLeft">&#160;</td><td class="mdescRight">find in which processors the ibm body belongs <br /></td></tr>
+<tr class="separator:a9c978ae9d3e0e7fd31ca9be4b6503151"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3f671cb828aba8285c6e49b205ad2d21"><td class="memItemLeft" align="right" valign="top"><a id="a3f671cb828aba8285c6e49b205ad2d21"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a3f671cb828aba8285c6e49b205ad2d21">initElementProjectionProcs</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="memdesc:a3f671cb828aba8285c6e49b205ad2d21"><td class="mdescLeft">&#160;</td><td class="mdescRight">create list of ibm element processors and their closest ibm fluid cell to the ibm element normal projection <br /></td></tr>
+<tr class="separator:a3f671cb828aba8285c6e49b205ad2d21"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab5aee507680c3a7c2654d33a96830fdc"><td class="memItemLeft" align="right" valign="top"><a id="ab5aee507680c3a7c2654d33a96830fdc"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#ab5aee507680c3a7c2654d33a96830fdc">IBMProjectionProcessorTransfer</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="memdesc:ab5aee507680c3a7c2654d33a96830fdc"><td class="mdescLeft">&#160;</td><td class="mdescRight">transfer ibm mesh element across processors based on their movement - for dynamic case <br /></td></tr>
+<tr class="separator:ab5aee507680c3a7c2654d33a96830fdc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5b30173a04c821ef5d59917a8939976e"><td class="memItemLeft" align="right" valign="top"><a id="a5b30173a04c821ef5d59917a8939976e"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a5b30173a04c821ef5d59917a8939976e">createProcessorBufferZones</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="memdesc:a5b30173a04c821ef5d59917a8939976e"><td class="mdescLeft">&#160;</td><td class="mdescRight">create inner and outer buffer zones for ibm mesh element parallelization <br /></td></tr>
+<tr class="separator:a5b30173a04c821ef5d59917a8939976e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a147ef292bbfee4ed4c8bc36bddee7e5c"><td class="memItemLeft" align="right" valign="top"><a id="a147ef292bbfee4ed4c8bc36bddee7e5c"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a147ef292bbfee4ed4c8bc36bddee7e5c">initElementProcs</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="memdesc:a147ef292bbfee4ed4c8bc36bddee7e5c"><td class="mdescLeft">&#160;</td><td class="mdescRight">create list of ibm element processors and their closest ibm fluid cell to the ibm element <br /></td></tr>
+<tr class="separator:a147ef292bbfee4ed4c8bc36bddee7e5c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7bd12895748628f618047701a1545621"><td class="memItemLeft" align="right" valign="top"><a id="a7bd12895748628f618047701a1545621"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a7bd12895748628f618047701a1545621">IBMElementProcessorTransfer</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="memdesc:a7bd12895748628f618047701a1545621"><td class="mdescLeft">&#160;</td><td class="mdescRight">transfer ibm mesh element across processors based on their movement - for dynamic case <br /></td></tr>
+<tr class="separator:a7bd12895748628f618047701a1545621"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aef4d1a87a909b82473aeb921ab050402"><td class="memItemLeft" align="right" valign="top"><a id="aef4d1a87a909b82473aeb921ab050402"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#aef4d1a87a909b82473aeb921ab050402">UpdateIBMesh</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
 <tr class="memdesc:aef4d1a87a909b82473aeb921ab050402"><td class="mdescLeft">&#160;</td><td class="mdescRight">update the ibm mesh when the ibm body is moving <br /></td></tr>
@@ -165,14 +178,14 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#adbe8008b3b8d8e7ed3ab8053368a7752">rotateIBMesh</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm, PetscInt b)</td></tr>
 <tr class="memdesc:adbe8008b3b8d8e7ed3ab8053368a7752"><td class="mdescLeft">&#160;</td><td class="mdescRight">rotate the ibm mesh based on the angular speed input <br /></td></tr>
 <tr class="separator:adbe8008b3b8d8e7ed3ab8053368a7752"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1f82afe6598ab4c9e337ace22dc64d03"><td class="memItemLeft" align="right" valign="top"><a id="a1f82afe6598ab4c9e337ace22dc64d03"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a1f82afe6598ab4c9e337ace22dc64d03">setIBMWallModels</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="memdesc:a1f82afe6598ab4c9e337ace22dc64d03"><td class="mdescLeft">&#160;</td><td class="mdescRight">set IBM wall model type and properties <br /></td></tr>
+<tr class="separator:a1f82afe6598ab4c9e337ace22dc64d03"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b72f5a5ac4a157bbdc8393525100e4b"><td class="memItemLeft" align="right" valign="top"><a id="a7b72f5a5ac4a157bbdc8393525100e4b"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a7b72f5a5ac4a157bbdc8393525100e4b">findBodyBoundingBox</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
 <tr class="memdesc:a7b72f5a5ac4a157bbdc8393525100e4b"><td class="mdescLeft">&#160;</td><td class="mdescRight">find the bounding box around an ibm body <br /></td></tr>
 <tr class="separator:a7b72f5a5ac4a157bbdc8393525100e4b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a310fca86dc41785e137d197553b928a4"><td class="memItemLeft" align="right" valign="top"><a id="a310fca86dc41785e137d197553b928a4"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a310fca86dc41785e137d197553b928a4">setDomainIBMObjectInteraction</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm, PetscInt domainId)</td></tr>
-<tr class="memdesc:a310fca86dc41785e137d197553b928a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">set the domain ibm object connectivity matrix <br /></td></tr>
-<tr class="separator:a310fca86dc41785e137d197553b928a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7e7ffc1d9aadd2e8d20f621cdbd12219"><td class="memItemLeft" align="right" valign="top"><a id="a7e7ffc1d9aadd2e8d20f621cdbd12219"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a7e7ffc1d9aadd2e8d20f621cdbd12219">findSearchCellDim</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
 <tr class="memdesc:a7e7ffc1d9aadd2e8d20f621cdbd12219"><td class="mdescLeft">&#160;</td><td class="mdescRight">find the search cell (coarser mesh around the ibm) dimension <br /></td></tr>
@@ -205,6 +218,13 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a48ccba69df886b4d75ad9ab3c5c76545">CurvibInterpolation</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
 <tr class="memdesc:a48ccba69df886b4d75ad9ab3c5c76545"><td class="mdescLeft">&#160;</td><td class="mdescRight">CURVIB normal projection interpolation algorithm. <br /></td></tr>
 <tr class="separator:a48ccba69df886b4d75ad9ab3c5c76545"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8b8405586e772390b404a0ecac7bdd47"><td class="memItemLeft" align="right" valign="top"><a id="a8b8405586e772390b404a0ecac7bdd47"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><b>ComputeForceMoment</b> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="separator:a8b8405586e772390b404a0ecac7bdd47"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a218f1b4ef4e4a25a56d8225a90d893cb"><td class="memItemLeft" align="right" valign="top"><a id="a218f1b4ef4e4a25a56d8225a90d893cb"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a218f1b4ef4e4a25a56d8225a90d893cb">findIBMWallShear</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm, PetscInt c, PetscReal ustar)</td></tr>
+<tr class="memdesc:a218f1b4ef4e4a25a56d8225a90d893cb"><td class="mdescLeft">&#160;</td><td class="mdescRight">compute shear stress at faces close to the IBM <br /></td></tr>
+<tr class="separator:a218f1b4ef4e4a25a56d8225a90d893cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a43e167a5b5b3d08f5ed3a50f4daaf25b"><td class="memItemLeft" align="right" valign="top"><a id="a43e167a5b5b3d08f5ed3a50f4daaf25b"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><b>checkIBMexists</b> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
 <tr class="separator:a43e167a5b5b3d08f5ed3a50f4daaf25b"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -216,14 +236,21 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#ad9f008b01686202b1c82c4c3dd65ef69">destroyLists</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
 <tr class="memdesc:ad9f008b01686202b1c82c4c3dd65ef69"><td class="mdescLeft">&#160;</td><td class="mdescRight">destroy the ibm search cell list <br /></td></tr>
 <tr class="separator:ad9f008b01686202b1c82c4c3dd65ef69"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afc2703ea43352d8178d04365f27b95b0"><td class="memItemLeft" align="right" valign="top"><a id="afc2703ea43352d8178d04365f27b95b0"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><b>computeIBMElementNormal</b> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
+<tr class="separator:afc2703ea43352d8178d04365f27b95b0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a64ba5e5bb1b5b7eedebdb8563de81bb7"><td class="memItemLeft" align="right" valign="top"><a id="a64ba5e5bb1b5b7eedebdb8563de81bb7"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a64ba5e5bb1b5b7eedebdb8563de81bb7">rayCastingTest</a> (<a class="el" href="structCmpnts.html">Cmpnts</a> p, <a class="el" href="structibmMesh.html">ibmMesh</a> *ibmMsh, <a class="el" href="structcellIds.html">cellIds</a> sCell, <a class="el" href="structsearchBox.html">searchBox</a> *sBox, <a class="el" href="structboundingBox.html">boundingBox</a> *ibBox, <a class="el" href="structlist.html">list</a> *searchCellList)</td></tr>
-<tr class="memdesc:a64ba5e5bb1b5b7eedebdb8563de81bb7"><td class="mdescLeft">&#160;</td><td class="mdescRight">ray tracing algorithm <br /></td></tr>
+<tr class="memdesc:a64ba5e5bb1b5b7eedebdb8563de81bb7"><td class="mdescLeft">&#160;</td><td class="mdescRight">ray casting algorithm <br /></td></tr>
 <tr class="separator:a64ba5e5bb1b5b7eedebdb8563de81bb7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5f2017ce030c0015ea4760b1c7d04b97"><td class="memItemLeft" align="right" valign="top"><a id="a5f2017ce030c0015ea4760b1c7d04b97"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a5f2017ce030c0015ea4760b1c7d04b97">elementBoundingSphere</a> (<a class="el" href="structibmMesh.html">ibmMesh</a> *ibMesh)</td></tr>
-<tr class="memdesc:a5f2017ce030c0015ea4760b1c7d04b97"><td class="mdescLeft">&#160;</td><td class="mdescRight">find element bounding sphere <br /></td></tr>
-<tr class="separator:a5f2017ce030c0015ea4760b1c7d04b97"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad5498c3f877d30b55e996929a281daa3"><td class="memItemLeft" align="right" valign="top"><a id="ad5498c3f877d30b55e996929a281daa3"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#ad5498c3f877d30b55e996929a281daa3">rayCastLocal</a> (<a class="el" href="structCmpnts.html">Cmpnts</a> p, <a class="el" href="structCmpnts.html">Cmpnts</a> p1, <a class="el" href="structCmpnts.html">Cmpnts</a> p2, <a class="el" href="structCmpnts.html">Cmpnts</a> p3, <a class="el" href="structCmpnts.html">Cmpnts</a> p4, <a class="el" href="structibmMesh.html">ibmMesh</a> *ibMsh, <a class="el" href="structcellIds.html">cellIds</a> sCell, <a class="el" href="structsearchBox.html">searchBox</a> *sBox, <a class="el" href="structboundingBox.html">boundingBox</a> *ibBox, <a class="el" href="structlist.html">list</a> *searchCellList, PetscInt &amp;intersect)</td></tr>
+<tr class="memdesc:ad5498c3f877d30b55e996929a281daa3"><td class="mdescLeft">&#160;</td><td class="mdescRight">ray casting algorithm in local positive cell neighbourhood <br /></td></tr>
+<tr class="separator:ad5498c3f877d30b55e996929a281daa3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:accba6ab47e789e78f8c65a3acfd8785a"><td class="memItemLeft" align="right" valign="top"><a id="accba6ab47e789e78f8c65a3acfd8785a"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#accba6ab47e789e78f8c65a3acfd8785a">elementBoundingSphere</a> (<a class="el" href="structibmObject.html">ibmObject</a> *ibmBody)</td></tr>
+<tr class="memdesc:accba6ab47e789e78f8c65a3acfd8785a"><td class="mdescLeft">&#160;</td><td class="mdescRight">find element bounding sphere <br /></td></tr>
+<tr class="separator:accba6ab47e789e78f8c65a3acfd8785a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1efbf48eda7859feed3fc0ac3d1a05ef"><td class="memItemLeft" align="right" valign="top"><a id="a1efbf48eda7859feed3fc0ac3d1a05ef"></a>
 <a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a1efbf48eda7859feed3fc0ac3d1a05ef">randomdirection</a> (<a class="el" href="structCmpnts.html">Cmpnts</a> p, <a class="el" href="structcellIds.html">cellIds</a> sCell, <a class="el" href="structboundingBox.html">boundingBox</a> *ibBox, <a class="el" href="structsearchBox.html">searchBox</a> *sBox, PetscInt seed)</td></tr>
 <tr class="memdesc:a1efbf48eda7859feed3fc0ac3d1a05ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">inline function to generate a random direction along the z index of the search cell for the ray casting algorithm <br /></td></tr>
@@ -232,6 +259,10 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a225ea650c1f5e0a6e89fbe1e5b9c9ca6">intsectElement</a> (<a class="el" href="structCmpnts.html">Cmpnts</a> p, <a class="el" href="structCmpnts.html">Cmpnts</a> dir, <a class="el" href="structCmpnts.html">Cmpnts</a> node1, <a class="el" href="structCmpnts.html">Cmpnts</a> node2, <a class="el" href="structCmpnts.html">Cmpnts</a> node3, PetscReal *t, PetscReal *u, PetscReal *v)</td></tr>
 <tr class="memdesc:a225ea650c1f5e0a6e89fbe1e5b9c9ca6"><td class="mdescLeft">&#160;</td><td class="mdescRight">inline function to check if the ray intersects an ibm element <br /></td></tr>
 <tr class="separator:a225ea650c1f5e0a6e89fbe1e5b9c9ca6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4163457cd2faa612b882432264758b98"><td class="memItemLeft" align="right" valign="top"><a id="a4163457cd2faa612b882432264758b98"></a>
+PetscBool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a4163457cd2faa612b882432264758b98">isLineTriangleInt</a> (<a class="el" href="structCmpnts.html">Cmpnts</a> p1, <a class="el" href="structCmpnts.html">Cmpnts</a> p2, <a class="el" href="structibmMesh.html">ibmMesh</a> *ibMsh, PetscInt e)</td></tr>
+<tr class="memdesc:a4163457cd2faa612b882432264758b98"><td class="mdescLeft">&#160;</td><td class="mdescRight">inline function to check if the line intersects an ibm element <br /></td></tr>
+<tr class="separator:a4163457cd2faa612b882432264758b98"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa665ba7f2d24a676e56ba9f026ac9cfd"><td class="memItemLeft" align="right" valign="top"><a id="aa665ba7f2d24a676e56ba9f026ac9cfd"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#aa665ba7f2d24a676e56ba9f026ac9cfd">isSearchCellSupport</a> (PetscReal rad, <a class="el" href="structCmpnts.html">Cmpnts</a> pt, <a class="el" href="structcellIds.html">cellIds</a> cID, <a class="el" href="structboundingBox.html">boundingBox</a> *ibBox, <a class="el" href="structsearchBox.html">searchBox</a> *sBox)</td></tr>
 <tr class="memdesc:aa665ba7f2d24a676e56ba9f026ac9cfd"><td class="mdescLeft">&#160;</td><td class="mdescRight">inline function to check if a search cell is a support to an ibm fluid node <br /></td></tr>
@@ -260,13 +291,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#ac82c224251e6d94f1bc3d415db2ad928">triangleIntp</a> (<a class="el" href="structCpt2D.html">Cpt2D</a> p, <a class="el" href="structCpt2D.html">Cpt2D</a> p1, <a class="el" href="structCpt2D.html">Cpt2D</a> p2, <a class="el" href="structCpt2D.html">Cpt2D</a> p3, <a class="el" href="structibmFluidCell.html">ibmFluidCell</a> *ibF)</td></tr>
 <tr class="memdesc:ac82c224251e6d94f1bc3d415db2ad928"><td class="mdescLeft">&#160;</td><td class="mdescRight">find the interpolation weights of a point inside a triangle from its nodes <br /></td></tr>
 <tr class="separator:ac82c224251e6d94f1bc3d415db2ad928"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a68617d9f6e874c9039b9f38d2001452c"><td class="memItemLeft" align="right" valign="top"><a id="a68617d9f6e874c9039b9f38d2001452c"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ibm_8h.html#a68617d9f6e874c9039b9f38d2001452c">printstuff</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
-<tr class="memdesc:a68617d9f6e874c9039b9f38d2001452c"><td class="mdescLeft">&#160;</td><td class="mdescRight">used for debugging <br /></td></tr>
-<tr class="separator:a68617d9f6e874c9039b9f38d2001452c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>LES model header file. </p>
+<div class="textblock"><p>IBM model header file. </p>
+<p>IBM input header file.</p>
 </div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

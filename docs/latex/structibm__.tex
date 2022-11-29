@@ -18,21 +18,9 @@ Petsc\+Int \mbox{\hyperlink{structibm___a7e5b2d18ede0c77edefbe2c1a11b85bc}{num\+
 \mbox{\Hypertarget{structibm___ad5158afcc83cf8937946f45da9fd15e1}\label{structibm___ad5158afcc83cf8937946f45da9fd15e1}} 
 word \mbox{\hyperlink{structibm___ad5158afcc83cf8937946f45da9fd15e1}{I\+B\+Interpolation\+Model}}
 \begin{DoxyCompactList}\small\item\em interpolation methodology \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{structibm___aa15d40e1af8d8e4a93ca205fd99e49d9}\label{structibm___aa15d40e1af8d8e4a93ca205fd99e49d9}} 
-Petsc\+Int {\bfseries dbg}
-\item 
-\mbox{\Hypertarget{structibm___ad66f32ad5a20909e084f19309fbc2889}\label{structibm___ad66f32ad5a20909e084f19309fbc2889}} 
-Petsc\+Int {\bfseries dynamic}
-\item 
 \mbox{\Hypertarget{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}\label{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}} 
 \mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$$\ast$ \mbox{\hyperlink{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}{ibm\+Body}}
 \begin{DoxyCompactList}\small\item\em array of pointers to ibm objects \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{structibm___a9af9ae532bcc101759de61573b2683f2}\label{structibm___a9af9ae532bcc101759de61573b2683f2}} 
-Petsc\+Int $\ast$ \mbox{\hyperlink{structibm___a9af9ae532bcc101759de61573b2683f2}{ibm\+Domain}}
-\begin{DoxyCompactList}\small\item\em array of pointers to the ibm object controlled by each user. domain 0 has access to all I\+BM bodies \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{structibm___a7afc62636e02d8bc44f58b234d9a7eb6}\label{structibm___a7afc62636e02d8bc44f58b234d9a7eb6}} 
-Petsc\+Int \mbox{\hyperlink{structibm___a7afc62636e02d8bc44f58b234d9a7eb6}{ibm\+Controlled}}
-\begin{DoxyCompactList}\small\item\em flag indicating that this domain controls atleast one ibm object \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structibm___ac02bdee327b6634904d5cde6c50a79da}\label{structibm___ac02bdee327b6634904d5cde6c50a79da}} 
 \mbox{\hyperlink{structsearchBox}{search\+Box}} $\ast$ \mbox{\hyperlink{structibm___ac02bdee327b6634904d5cde6c50a79da}{s\+Box}}
 \begin{DoxyCompactList}\small\item\em array of \mbox{\hyperlink{structsearchBox}{search\+Box}} with number of search cells and their size for each ibm object \end{DoxyCompactList}\item 
@@ -44,7 +32,31 @@ Petsc\+Int \mbox{\hyperlink{structibm___ab98888e4019f88a3366d87d5ffb42f7b}{num\+
 \begin{DoxyCompactList}\small\item\em number of ibm fluid cells within each processor \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structibm___a83728ff65459fc6479450b68e9383a43}\label{structibm___a83728ff65459fc6479450b68e9383a43}} 
 \mbox{\hyperlink{structaccess__}{access\+\_\+}} $\ast$ {\bfseries access}
-\end{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structibm___aa15d40e1af8d8e4a93ca205fd99e49d9}\label{structibm___aa15d40e1af8d8e4a93ca205fd99e49d9}} 
+Petsc\+Int {\bfseries dbg}
+\item 
+\mbox{\Hypertarget{structibm___ad66f32ad5a20909e084f19309fbc2889}\label{structibm___ad66f32ad5a20909e084f19309fbc2889}} 
+Petsc\+Int {\bfseries dynamic}
+\item 
+\mbox{\Hypertarget{structibm___a3649b5690ed9993fcf4b62dfbacd96ed}\label{structibm___a3649b5690ed9993fcf4b62dfbacd96ed}} 
+Petsc\+Int {\bfseries compute\+Force}
+\item 
+\mbox{\Hypertarget{structibm___a7052beef29707061c3fe0e3b1b5b9c68}\label{structibm___a7052beef29707061c3fe0e3b1b5b9c68}} 
+Petsc\+Int {\bfseries check\+Normal}
+\item 
+\mbox{\Hypertarget{structibm___ad47bea8e035a5f72f37344c130caaee1}\label{structibm___ad47bea8e035a5f72f37344c130caaee1}} 
+Petsc\+Int {\bfseries write\+S\+TL}
+\item 
+\mbox{\Hypertarget{structibm___a0ac57fca8c0b7cd2f96f033487cd1945}\label{structibm___a0ac57fca8c0b7cd2f96f033487cd1945}} 
+Petsc\+Real \mbox{\hyperlink{structibm___a0ac57fca8c0b7cd2f96f033487cd1945}{time\+Start}}
+\begin{DoxyCompactList}\small\item\em start time of acquisition system \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___aef112e538ebf303d7e9b1b2820d89e1d}\label{structibm___aef112e538ebf303d7e9b1b2820d89e1d}} 
+word \mbox{\hyperlink{structibm___aef112e538ebf303d7e9b1b2820d89e1d}{interval\+Type}}
+\begin{DoxyCompactList}\small\item\em time\+Step\+: sample at every (time\+Interval) iter, adjustable\+Time sample at every (time\+Interval) seconds \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___af609a1063678cb597285b156636981f9}\label{structibm___af609a1063678cb597285b156636981f9}} 
+Petsc\+Real \mbox{\hyperlink{structibm___af609a1063678cb597285b156636981f9}{time\+Interval}}
+\begin{DoxyCompactList}\small\item\em acquisition time interval (overrides simulation time step if smaller and adjustable\+Time active) \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
 \doxysubsection{Detailed Description}

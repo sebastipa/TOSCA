@@ -88,6 +88,12 @@ $(function() {
 : <a class="el" href="acquisition_8c.html#a81c13b493ebba5c0122e0aa1ad2f76e2">acquisition.c</a>
 , <a class="el" href="acquisition_8h.html#a81c13b493ebba5c0122e0aa1ad2f76e2">acquisition.h</a>
 </li>
+<li>computeEm()
+: <a class="el" href="inline_8h.html#a8b072c023c0f8485160519e4ee031737">inline.h</a>
+</li>
+<li>computeEmTilde()
+: <a class="el" href="inline_8h.html#ae2e959492e7e7742a87e910fc7ceef0d">inline.h</a>
+</li>
 <li>computeMaxTipSpeed()
 : <a class="el" href="turbines_8c.html#ad3bafc165bf13b4052a6f1d545d9d630">turbines.c</a>
 </li>
@@ -99,8 +105,8 @@ $(function() {
 : <a class="el" href="turbines_8c.html#a2ce4bbf94f65a2b4398759cb640cc37d">turbines.c</a>
 </li>
 <li>computeSideForceIO()
-: <a class="el" href="acquisition_8h.html#a930b4f48e5194f288d96b5491403a545">acquisition.h</a>
-, <a class="el" href="acquisition_8c.html#a930b4f48e5194f288d96b5491403a545">acquisition.c</a>
+: <a class="el" href="acquisition_8c.html#a930b4f48e5194f288d96b5491403a545">acquisition.c</a>
+, <a class="el" href="acquisition_8h.html#a930b4f48e5194f288d96b5491403a545">acquisition.h</a>
 </li>
 <li>computeWindVectorsRotor()
 : <a class="el" href="turbines_8c.html#abd044abacd42186c69ea38511265d6b3">turbines.c</a>
@@ -127,9 +133,17 @@ $(function() {
 : <a class="el" href="peqn_8c.html#a9d397554e586163d7f6df8d76d1efe5e">peqn.c</a>
 , <a class="el" href="peqn_8h.html#a9d397554e586163d7f6df8d76d1efe5e">peqn.h</a>
 </li>
+<li>ContinuityErrorsOptimized()
+: <a class="el" href="peqn_8c.html#a6d6e47782ac1420eec4354c28f140f8b">peqn.c</a>
+, <a class="el" href="peqn_8h.html#a6d6e47782ac1420eec4354c28f140f8b">peqn.h</a>
+</li>
 <li>contravariantToCartesian()
 : <a class="el" href="ueqn_8c.html#a7154a615d9bb63a6610e9cdefc796289">ueqn.c</a>
 , <a class="el" href="ueqn_8h.html#a7154a615d9bb63a6610e9cdefc796289">ueqn.h</a>
+</li>
+<li>contravariantToCartesianGeneric()
+: <a class="el" href="ueqn_8c.html#a1c7112929b5c30416f8ff876f34584cd">ueqn.c</a>
+, <a class="el" href="ueqn_8h.html#a1c7112929b5c30416f8ff876f34584cd">ueqn.h</a>
 </li>
 <li>ContravariantToCartesianPoint()
 : <a class="el" href="inline_8h.html#aa2616d1fcc7b5d9e5cb87b09e7ddb5b5">inline.h</a>
@@ -152,16 +166,20 @@ $(function() {
 , <a class="el" href="ueqn_8h.html#af46215ee42470ac079bd47a60f156e75">ueqn.h</a>
 </li>
 <li>CorrectSourceTerms()
-: <a class="el" href="ueqn_8h.html#ae416d011e237cbe48cf47ed3e6bdd330">ueqn.h</a>
-, <a class="el" href="ueqn_8c.html#ae416d011e237cbe48cf47ed3e6bdd330">ueqn.c</a>
+: <a class="el" href="ueqn_8c.html#ae416d011e237cbe48cf47ed3e6bdd330">ueqn.c</a>
+, <a class="el" href="ueqn_8h.html#ae416d011e237cbe48cf47ed3e6bdd330">ueqn.h</a>
+</li>
+<li>CorrectSourceTermsT()
+: <a class="el" href="teqn_8c.html#a36c1be93bd8fe2fb0426d28071ff6d7c">teqn.c</a>
+, <a class="el" href="teqn_8h.html#a36c1be93bd8fe2fb0426d28071ff6d7c">teqn.h</a>
 </li>
 <li>count_files()
 : <a class="el" href="io_8c.html#a9286943b493f9ad1888637d9af54d01a">io.c</a>
 , <a class="el" href="io_8h.html#a9286943b493f9ad1888637d9af54d01a">io.h</a>
 </li>
 <li>createAcceptorCell()
-: <a class="el" href="overset_8c.html#ae0140714e44521b497b69fee6494f78a">overset.c</a>
-, <a class="el" href="overset_8h.html#ae0140714e44521b497b69fee6494f78a">overset.h</a>
+: <a class="el" href="overset_8h.html#ae0140714e44521b497b69fee6494f78a">overset.h</a>
+, <a class="el" href="overset_8c.html#ae0140714e44521b497b69fee6494f78a">overset.c</a>
 </li>
 <li>createDir()
 : <a class="el" href="io_8c.html#aff1d2ad6bef5bf436bf02e48adfef35c">io.c</a>
@@ -172,16 +190,32 @@ $(function() {
 , <a class="el" href="peqn_8c.html#ad9fa6dfb07b806bdc343704f04083eff">peqn.c</a>
 </li>
 <li>CreateHypreSolver()
-: <a class="el" href="peqn_8c.html#af2c443594a2304edf96ff8e4e7db4c66">peqn.c</a>
-, <a class="el" href="peqn_8h.html#af2c443594a2304edf96ff8e4e7db4c66">peqn.h</a>
+: <a class="el" href="peqn_8h.html#af2c443594a2304edf96ff8e4e7db4c66">peqn.h</a>
+, <a class="el" href="peqn_8c.html#af2c443594a2304edf96ff8e4e7db4c66">peqn.c</a>
 </li>
 <li>CreateHypreVector()
 : <a class="el" href="peqn_8c.html#adda9d62eee9605356dc72fef0a33edb8">peqn.c</a>
 , <a class="el" href="peqn_8h.html#adda9d62eee9605356dc72fef0a33edb8">peqn.h</a>
 </li>
+<li>CreatePETScMatrix()
+: <a class="el" href="peqn_8h.html#a9b80e75909222e5cbf70669ee5855ac2">peqn.h</a>
+, <a class="el" href="peqn_8c.html#a9b80e75909222e5cbf70669ee5855ac2">peqn.c</a>
+</li>
+<li>CreatePETScSolver()
+: <a class="el" href="peqn_8c.html#a3b7b44d6eb7ed52d6759ce0e88e32753">peqn.c</a>
+, <a class="el" href="peqn_8h.html#a3b7b44d6eb7ed52d6759ce0e88e32753">peqn.h</a>
+</li>
+<li>CreatePETScVector()
+: <a class="el" href="peqn_8h.html#adf12103284db07a2ec2b7cbaa5801665">peqn.h</a>
+, <a class="el" href="peqn_8c.html#adf12103284db07a2ec2b7cbaa5801665">peqn.c</a>
+</li>
+<li>createProcessorBufferZones()
+: <a class="el" href="ibm_8h.html#a5b30173a04c821ef5d59917a8939976e">ibm.h</a>
+, <a class="el" href="ibm_8c.html#a5b30173a04c821ef5d59917a8939976e">ibm.c</a>
+</li>
 <li>createSearchCellList()
-: <a class="el" href="ibm_8c.html#a89d7ff186ba17634484885a512f28d37">ibm.c</a>
-, <a class="el" href="ibm_8h.html#a89d7ff186ba17634484885a512f28d37">ibm.h</a>
+: <a class="el" href="ibm_8h.html#a89d7ff186ba17634484885a512f28d37">ibm.h</a>
+, <a class="el" href="ibm_8c.html#a89d7ff186ba17634484885a512f28d37">ibm.c</a>
 </li>
 <li>CurvibInterpolation()
 : <a class="el" href="ibm_8c.html#a48ccba69df886b4d75ad9ab3c5c76545">ibm.c</a>

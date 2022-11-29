@@ -33,6 +33,14 @@ Toolbox fOr Stratified Convective Atmospheres
 
     - UADM : base actuator disk model with imposed Ct and yaw controller
     - ADM  : advanced actuator disk model with rotor dynamics and yaw/pitch/rotation controllers
+    - UADM : base actuator disk model with uniform disk loading and yaw controller
+    - AFM  : anisotropic actuator farm model for coarser meshes, integral/point sampling available
+
+## IBM Method
+   
+    TOSCA uses a sharp-interface IBM method with ghost cells applied on the flow side of the body. This allows for more flexibility with 
+    thin bodies but complicated wall modeling. New wall models have been recently added, validated with both hi-Re terrains (Shumann) or small objects (Cabot).
+    Moving IBM is also possible, we are currently validating the latter capability.
 
 ## Acquisition System
 
@@ -41,10 +49,14 @@ Toolbox fOr Stratified Convective Atmospheres
     - domain sections
     - probes with advanced parallel I/O writing
     - turbine data with advanced parallel I/O writing
+    - ABL perturbations w.r.t. reference state 
+    - layer averaged fields (three layers available - 3LM)
+    - mechanical energy budgets within user-defined boxes (the code is not energy-conservative so MKE eq. is not fullfilled)
 
 ## Future Implementations:
 
-    - IBM pressure and viscous forces computation
+    - Overset with fringe interpolation
+    - IBM smooth normals and thin-body augmented search
 
 ## Notes:
 

@@ -81,69 +81,108 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:a781ed544e8f13d0f3709f1b1fbbda2ef"><td class="memItemLeft" align="right" valign="top"><a id="a781ed544e8f13d0f3709f1b1fbbda2ef"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>timeStepSet</b> (<a class="el" href="structclock__.html">clock_</a> *clock, PetscReal timeStart, PetscReal timeInterval, PetscReal minD, PetscReal maxU, PetscInt &amp;flag, PetscReal &amp;cfl)</td></tr>
-<tr class="separator:a781ed544e8f13d0f3709f1b1fbbda2ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a416e67c1dd17a14fac152befd5159d13"><td class="memItemLeft" align="right" valign="top"><a id="a416e67c1dd17a14fac152befd5159d13"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>currentDistanceToWriteTime</b> (<a class="el" href="structclock__.html">clock_</a> *clock, PetscReal timeStart, PetscReal timeInterval)</td></tr>
+<tr class="separator:a416e67c1dd17a14fac152befd5159d13"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4119d79ac7e950f58028152c535eb8be"><td class="memItemLeft" align="right" valign="top"><a id="a4119d79ac7e950f58028152c535eb8be"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>timeStepSet</b> (<a class="el" href="structclock__.html">clock_</a> *clock, PetscReal timeStart, PetscReal timeInterval, PetscReal dByU, PetscInt &amp;flag, PetscReal &amp;cfl)</td></tr>
+<tr class="separator:a4119d79ac7e950f58028152c535eb8be"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af386b87bd3a301828a9ae6736a4c8097"><td class="memItemLeft" align="right" valign="top"><a id="af386b87bd3a301828a9ae6736a4c8097"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><b>mustWrite</b> (PetscReal time, PetscReal startTime, PetscReal timeInterval)</td></tr>
+<tr class="separator:af386b87bd3a301828a9ae6736a4c8097"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a06b7a2449417239327e428d6b2fbcce0"><td class="memItemLeft" align="right" valign="top"><a id="a06b7a2449417239327e428d6b2fbcce0"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>sign</b> (PetscReal a)</td></tr>
 <tr class="separator:a06b7a2449417239327e428d6b2fbcce0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a77d77f57dc0208ece9b3657b2c453a27"><td class="memItemLeft" align="right" valign="top"><a id="a77d77f57dc0208ece9b3657b2c453a27"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>signNonZero</b> (PetscReal a)</td></tr>
 <tr class="separator:a77d77f57dc0208ece9b3657b2c453a27"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa14335d807b73627657d97f8ba8796dd"><td class="memItemLeft" align="right" valign="top"><a id="aa14335d807b73627657d97f8ba8796dd"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nScale</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v)</td></tr>
-<tr class="separator:aa14335d807b73627657d97f8ba8796dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6d7df7739d49a8c6ccab4ca867abd009"><td class="memItemLeft" align="right" valign="top"><a id="a6d7df7739d49a8c6ccab4ca867abd009"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nScaleX</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v)</td></tr>
-<tr class="separator:a6d7df7739d49a8c6ccab4ca867abd009"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1c8b5dd659972ed16c67061a543262dc"><td class="memItemLeft" align="right" valign="top"><a id="a1c8b5dd659972ed16c67061a543262dc"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nScaleY</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v)</td></tr>
-<tr class="separator:a1c8b5dd659972ed16c67061a543262dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad52b2e0ee83e9438fcec667d2fff58f7"><td class="memItemLeft" align="right" valign="top"><a id="ad52b2e0ee83e9438fcec667d2fff58f7"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nScaleZ</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v)</td></tr>
-<tr class="separator:ad52b2e0ee83e9438fcec667d2fff58f7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a273f292177be2ad7e663cfc37c197743"><td class="memItemLeft" align="right" valign="top"><a id="a273f292177be2ad7e663cfc37c197743"></a>
-PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>nDot</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v1, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v2)</td></tr>
-<tr class="separator:a273f292177be2ad7e663cfc37c197743"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a88fe1a8b62ed343e580c2464cb7dcfcb"><td class="memItemLeft" align="right" valign="top"><a id="a88fe1a8b62ed343e580c2464cb7dcfcb"></a>
-PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>nMag</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v)</td></tr>
-<tr class="separator:a88fe1a8b62ed343e580c2464cb7dcfcb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aef8a9141397f3bd1cbf183892c26cb51"><td class="memItemLeft" align="right" valign="top"><a id="aef8a9141397f3bd1cbf183892c26cb51"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nCross</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v1, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v2)</td></tr>
-<tr class="separator:aef8a9141397f3bd1cbf183892c26cb51"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a99472b6aa6c22da75ea9050d548e8a96"><td class="memItemLeft" align="right" valign="top"><a id="a99472b6aa6c22da75ea9050d548e8a96"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nRot</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;axis, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;vStart, PetscReal theta)</td></tr>
-<tr class="separator:a99472b6aa6c22da75ea9050d548e8a96"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7af78a50ac0005105d17a080fce83554"><td class="memItemLeft" align="right" valign="top"><a id="a7af78a50ac0005105d17a080fce83554"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nTra</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;point, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;translation)</td></tr>
-<tr class="separator:a7af78a50ac0005105d17a080fce83554"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6f4962265648c371be1ac7a976afc864"><td class="memItemLeft" align="right" valign="top"><a id="a6f4962265648c371be1ac7a976afc864"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nUnit</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v)</td></tr>
-<tr class="separator:a6f4962265648c371be1ac7a976afc864"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a18a059d15eb7b440b5bd8408ca6f9a9c"><td class="memItemLeft" align="right" valign="top"><a id="a18a059d15eb7b440b5bd8408ca6f9a9c"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nSum</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v1, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v2)</td></tr>
-<tr class="separator:a18a059d15eb7b440b5bd8408ca6f9a9c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae7ebb0040b7b75f8ddc4348c72b23db3"><td class="memItemLeft" align="right" valign="top"><a id="ae7ebb0040b7b75f8ddc4348c72b23db3"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nSub</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v1, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v2)</td></tr>
-<tr class="separator:ae7ebb0040b7b75f8ddc4348c72b23db3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5512e38d9f5bb0d6b1d2edef61b7b90d"><td class="memItemLeft" align="right" valign="top"><a id="a5512e38d9f5bb0d6b1d2edef61b7b90d"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nSet</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;value)</td></tr>
-<tr class="separator:a5512e38d9f5bb0d6b1d2edef61b7b90d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8148c9337b04c7176fd4198ee2b4bc4f"><td class="memItemLeft" align="right" valign="top"><a id="a8148c9337b04c7176fd4198ee2b4bc4f"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nSetFromComponents</b> (PetscReal &amp;vx, PetscReal &amp;vy, PetscReal &amp;vz)</td></tr>
-<tr class="separator:a8148c9337b04c7176fd4198ee2b4bc4f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afc2c88f0d37d8b2fdf0a3045633c1236"><td class="memItemLeft" align="right" valign="top"><a id="afc2c88f0d37d8b2fdf0a3045633c1236"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>gcd</b> (PetscReal a, PetscReal b)</td></tr>
+<tr class="separator:afc2c88f0d37d8b2fdf0a3045633c1236"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a217c7c3d02f8ff9b61149649aa8b4280"><td class="memItemLeft" align="right" valign="top"><a id="a217c7c3d02f8ff9b61149649aa8b4280"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>gcdN</b> (PetscReal *v, PetscInt n)</td></tr>
+<tr class="separator:a217c7c3d02f8ff9b61149649aa8b4280"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0f2a66ef7d5fa9ab004058ec989d2b80"><td class="memItemLeft" align="right" valign="top"><a id="a0f2a66ef7d5fa9ab004058ec989d2b80"></a>
+complex&#160;</td><td class="memItemRight" valign="bottom"><b>gamma</b> (complex x)</td></tr>
+<tr class="separator:a0f2a66ef7d5fa9ab004058ec989d2b80"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a676d08c3f7caf34f66b1fd3ff4d75cf6"><td class="memItemLeft" align="right" valign="top"><a id="a676d08c3f7caf34f66b1fd3ff4d75cf6"></a>
+complex&#160;</td><td class="memItemRight" valign="bottom"><b>digamma</b> (complex x)</td></tr>
+<tr class="separator:a676d08c3f7caf34f66b1fd3ff4d75cf6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a065237d8e5be9a5059ebae20a9ed467f"><td class="memItemLeft" align="right" valign="top"><a id="a065237d8e5be9a5059ebae20a9ed467f"></a>
+complex&#160;</td><td class="memItemRight" valign="bottom"><b>hypergeom</b> (complex a, complex b, complex c, PetscReal z)</td></tr>
+<tr class="separator:a065237d8e5be9a5059ebae20a9ed467f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abb470ef2e74b3d0c76c8a1b693e2af8f"><td class="memItemLeft" align="right" valign="top"><a id="abb470ef2e74b3d0c76c8a1b693e2af8f"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nMax</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v, PetscReal c)</td></tr>
+<tr class="separator:abb470ef2e74b3d0c76c8a1b693e2af8f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7c11b92fe29f81288acd80b597ed6f53"><td class="memItemLeft" align="right" valign="top"><a id="a7c11b92fe29f81288acd80b597ed6f53"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nAbs</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v)</td></tr>
+<tr class="separator:a7c11b92fe29f81288acd80b597ed6f53"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad7be8480687c064d109977b1d88422a1"><td class="memItemLeft" align="right" valign="top"><a id="ad7be8480687c064d109977b1d88422a1"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nInv</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v)</td></tr>
+<tr class="separator:ad7be8480687c064d109977b1d88422a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7307275d6e3c6f899cba00f2535a9069"><td class="memItemLeft" align="right" valign="top"><a id="a7307275d6e3c6f899cba00f2535a9069"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nPow</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v, PetscReal c)</td></tr>
+<tr class="separator:a7307275d6e3c6f899cba00f2535a9069"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a29b0864f619c60ae28fc88238d745743"><td class="memItemLeft" align="right" valign="top"><a id="a29b0864f619c60ae28fc88238d745743"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nScale</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> v)</td></tr>
+<tr class="separator:a29b0864f619c60ae28fc88238d745743"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8dd205cba8ff76b84ac70c7bafd45009"><td class="memItemLeft" align="right" valign="top"><a id="a8dd205cba8ff76b84ac70c7bafd45009"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nMultElWise</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v1, <a class="el" href="structCmpnts.html">Cmpnts</a> v2)</td></tr>
+<tr class="separator:a8dd205cba8ff76b84ac70c7bafd45009"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae2cac3ce52b73c8ccb00bb512b3396d1"><td class="memItemLeft" align="right" valign="top"><a id="ae2cac3ce52b73c8ccb00bb512b3396d1"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nDivElWise</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v1, <a class="el" href="structCmpnts.html">Cmpnts</a> v2)</td></tr>
+<tr class="separator:ae2cac3ce52b73c8ccb00bb512b3396d1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a10b2628c812adda8e2b07a76810dd0e0"><td class="memItemLeft" align="right" valign="top"><a id="a10b2628c812adda8e2b07a76810dd0e0"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nScaleX</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> v)</td></tr>
+<tr class="separator:a10b2628c812adda8e2b07a76810dd0e0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9d043b4e36c89391f9c3b5db681b3fb4"><td class="memItemLeft" align="right" valign="top"><a id="a9d043b4e36c89391f9c3b5db681b3fb4"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nScaleY</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> v)</td></tr>
+<tr class="separator:a9d043b4e36c89391f9c3b5db681b3fb4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af82f0b3f2742f6df28e48aa69bf5274a"><td class="memItemLeft" align="right" valign="top"><a id="af82f0b3f2742f6df28e48aa69bf5274a"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nScaleZ</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> v)</td></tr>
+<tr class="separator:af82f0b3f2742f6df28e48aa69bf5274a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3c81176ec0169d143ca7ff5af6f6334e"><td class="memItemLeft" align="right" valign="top"><a id="a3c81176ec0169d143ca7ff5af6f6334e"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>nDot</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v1, <a class="el" href="structCmpnts.html">Cmpnts</a> v2)</td></tr>
+<tr class="separator:a3c81176ec0169d143ca7ff5af6f6334e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3eb8b9066921e9d64f3148041d27718b"><td class="memItemLeft" align="right" valign="top"><a id="a3eb8b9066921e9d64f3148041d27718b"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>nMag</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v)</td></tr>
+<tr class="separator:a3eb8b9066921e9d64f3148041d27718b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af029a2de4609136bb35c0c6d6639a973"><td class="memItemLeft" align="right" valign="top"><a id="af029a2de4609136bb35c0c6d6639a973"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nCross</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v1, <a class="el" href="structCmpnts.html">Cmpnts</a> v2)</td></tr>
+<tr class="separator:af029a2de4609136bb35c0c6d6639a973"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac39a76f6bb3831e0ccc3bf336106b29d"><td class="memItemLeft" align="right" valign="top"><a id="ac39a76f6bb3831e0ccc3bf336106b29d"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nRot</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> axis, <a class="el" href="structCmpnts.html">Cmpnts</a> vStart, PetscReal theta)</td></tr>
+<tr class="separator:ac39a76f6bb3831e0ccc3bf336106b29d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2f0120d3525fba8c194f3d62ffc9e914"><td class="memItemLeft" align="right" valign="top"><a id="a2f0120d3525fba8c194f3d62ffc9e914"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nTra</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> point, <a class="el" href="structCmpnts.html">Cmpnts</a> translation)</td></tr>
+<tr class="separator:a2f0120d3525fba8c194f3d62ffc9e914"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae564e014dd523bf672f2548e9ce4d3dc"><td class="memItemLeft" align="right" valign="top"><a id="ae564e014dd523bf672f2548e9ce4d3dc"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nUnit</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v)</td></tr>
+<tr class="separator:ae564e014dd523bf672f2548e9ce4d3dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acd246074dbc8e2bfd171e7bd02e65eb6"><td class="memItemLeft" align="right" valign="top"><a id="acd246074dbc8e2bfd171e7bd02e65eb6"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nSum</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v1, <a class="el" href="structCmpnts.html">Cmpnts</a> v2)</td></tr>
+<tr class="separator:acd246074dbc8e2bfd171e7bd02e65eb6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae8c300afafc93551524fc2d82a1160e2"><td class="memItemLeft" align="right" valign="top"><a id="ae8c300afafc93551524fc2d82a1160e2"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nSub</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> v1, <a class="el" href="structCmpnts.html">Cmpnts</a> v2)</td></tr>
+<tr class="separator:ae8c300afafc93551524fc2d82a1160e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaaa5d1f85cbb3a305206268228b53a85"><td class="memItemLeft" align="right" valign="top"><a id="aaaa5d1f85cbb3a305206268228b53a85"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nSet</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> value)</td></tr>
+<tr class="separator:aaaa5d1f85cbb3a305206268228b53a85"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3058382170809f29e44c496aab75f5a2"><td class="memItemLeft" align="right" valign="top"><a id="a3058382170809f29e44c496aab75f5a2"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nSetFromComponents</b> (PetscReal vx, PetscReal vy, PetscReal vz)</td></tr>
+<tr class="separator:a3058382170809f29e44c496aab75f5a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a762f76e063255fda8fac034d90707b4d"><td class="memItemLeft" align="right" valign="top"><a id="a762f76e063255fda8fac034d90707b4d"></a>
 <a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>nSetZero</b> ()</td></tr>
 <tr class="separator:a762f76e063255fda8fac034d90707b4d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa7dc64a328a549cb44a9104b6be8cd97"><td class="memItemLeft" align="right" valign="top"><a id="aa7dc64a328a549cb44a9104b6be8cd97"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>mUnit</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;base)</td></tr>
 <tr class="separator:aa7dc64a328a549cb44a9104b6be8cd97"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a48f60db57d126f86b73599b0df6d828f"><td class="memItemLeft" align="right" valign="top"><a id="a48f60db57d126f86b73599b0df6d828f"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>mSum</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;base, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;add)</td></tr>
-<tr class="separator:a48f60db57d126f86b73599b0df6d828f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2ce6e19112af36a92c75cebc5e4d3652"><td class="memItemLeft" align="right" valign="top"><a id="a2ce6e19112af36a92c75cebc5e4d3652"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>mSub</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;base, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;sub)</td></tr>
-<tr class="separator:a2ce6e19112af36a92c75cebc5e4d3652"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad59c09e068d268a5b6acaaf90f24202d"><td class="memItemLeft" align="right" valign="top"><a id="ad59c09e068d268a5b6acaaf90f24202d"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>mSum</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;base, <a class="el" href="structCmpnts.html">Cmpnts</a> add)</td></tr>
+<tr class="separator:ad59c09e068d268a5b6acaaf90f24202d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab3adc3ddda456d21b07d08d99e85382a"><td class="memItemLeft" align="right" valign="top"><a id="ab3adc3ddda456d21b07d08d99e85382a"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>mSub</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;base, <a class="el" href="structCmpnts.html">Cmpnts</a> sub)</td></tr>
+<tr class="separator:ab3adc3ddda456d21b07d08d99e85382a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3a08f865d70fc73119c9978f1f37b285"><td class="memItemLeft" align="right" valign="top"><a id="a3a08f865d70fc73119c9978f1f37b285"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>mScale</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v)</td></tr>
 <tr class="separator:a3a08f865d70fc73119c9978f1f37b285"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -156,18 +195,18 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>mScaleY</b> (PetscRea
 <tr class="memitem:a1301883017857555e7419adb8e5e3af6"><td class="memItemLeft" align="right" valign="top"><a id="a1301883017857555e7419adb8e5e3af6"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>mScaleZ</b> (PetscReal c, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v)</td></tr>
 <tr class="separator:a1301883017857555e7419adb8e5e3af6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a033c67c5b02be8b29d26909a35974a21"><td class="memItemLeft" align="right" valign="top"><a id="a033c67c5b02be8b29d26909a35974a21"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>mSetScale</b> (PetscReal scale, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;a, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;b)</td></tr>
-<tr class="separator:a033c67c5b02be8b29d26909a35974a21"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad4028543bfcbf8c27b7ab8680a83452f"><td class="memItemLeft" align="right" valign="top"><a id="ad4028543bfcbf8c27b7ab8680a83452f"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>mRot</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;axis, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v, PetscReal theta)</td></tr>
-<tr class="separator:ad4028543bfcbf8c27b7ab8680a83452f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab95ec203e100b0dcbf876f066165d330"><td class="memItemLeft" align="right" valign="top"><a id="ab95ec203e100b0dcbf876f066165d330"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>mTra</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;point, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;translation)</td></tr>
-<tr class="separator:ab95ec203e100b0dcbf876f066165d330"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a472a0affc895840fa4913579f73c9082"><td class="memItemLeft" align="right" valign="top"><a id="a472a0affc895840fa4913579f73c9082"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>mSet</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;base, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;value)</td></tr>
-<tr class="separator:a472a0affc895840fa4913579f73c9082"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa8b4aaff0a5e1beca0a98d0063d62dd8"><td class="memItemLeft" align="right" valign="top"><a id="aa8b4aaff0a5e1beca0a98d0063d62dd8"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>mSetScale</b> (PetscReal scale, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;a, <a class="el" href="structCmpnts.html">Cmpnts</a> b)</td></tr>
+<tr class="separator:aa8b4aaff0a5e1beca0a98d0063d62dd8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad3b40f03e115a14bcd2bd508e7c41aae"><td class="memItemLeft" align="right" valign="top"><a id="ad3b40f03e115a14bcd2bd508e7c41aae"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>mRot</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> axis, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;v, PetscReal theta)</td></tr>
+<tr class="separator:ad3b40f03e115a14bcd2bd508e7c41aae"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0f443a0f38c1ef08d2a78ab1605a5235"><td class="memItemLeft" align="right" valign="top"><a id="a0f443a0f38c1ef08d2a78ab1605a5235"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>mTra</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;point, <a class="el" href="structCmpnts.html">Cmpnts</a> translation)</td></tr>
+<tr class="separator:a0f443a0f38c1ef08d2a78ab1605a5235"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abb178167718888784c1ba23b412d3b0c"><td class="memItemLeft" align="right" valign="top"><a id="abb178167718888784c1ba23b412d3b0c"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>mSet</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;base, <a class="el" href="structCmpnts.html">Cmpnts</a> value)</td></tr>
+<tr class="separator:abb178167718888784c1ba23b412d3b0c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acb1dffca87632f5a22f90401307a562a"><td class="memItemLeft" align="right" valign="top"><a id="acb1dffca87632f5a22f90401307a562a"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>mSetValue</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;base, PetscReal value)</td></tr>
 <tr class="separator:acb1dffca87632f5a22f90401307a562a"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -175,16 +214,15 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>mSetValue</b> (<a cla
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a14bda1f81343ce9a1c5c46fbc94c30d8">AxByC</a> (PetscReal a, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;X, PetscReal b, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;Y, <a class="el" href="structCmpnts.html">Cmpnts</a> *C)</td></tr>
 <tr class="memdesc:a14bda1f81343ce9a1c5c46fbc94c30d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">C=aX+bY. <br /></td></tr>
 <tr class="separator:a14bda1f81343ce9a1c5c46fbc94c30d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6767a362ad97b4ee4ffb4f1caa27e0f7"><td class="memItemLeft" align="right" valign="top"><a id="a6767a362ad97b4ee4ffb4f1caa27e0f7"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>isInsideBoundingBox</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> pt, const <a class="el" href="structboundingBox.html">boundingBox</a> &amp;simBox)</td></tr>
+<tr class="separator:a6767a362ad97b4ee4ffb4f1caa27e0f7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac2a9c11b596c0887e46131cd3e8aafa5"><td class="memItemLeft" align="right" valign="top"><a id="ac2a9c11b596c0887e46131cd3e8aafa5"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>Calculate_Covariant_metrics</b> (PetscReal g[3][3], PetscReal G[3][3])</td></tr>
 <tr class="separator:ac2a9c11b596c0887e46131cd3e8aafa5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1fe6e9f57be54168c176a70c985e2100"><td class="memItemLeft" align="right" valign="top"><a id="a1fe6e9f57be54168c176a70c985e2100"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>calculateNormal</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;csi, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;eta, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;zet, PetscReal ni[3], PetscReal nj[3], PetscReal nk[3])</td></tr>
 <tr class="separator:a1fe6e9f57be54168c176a70c985e2100"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad10e5362880055e43624cc8080668c7d"><td class="memItemLeft" align="right" valign="top"><a id="ad10e5362880055e43624cc8080668c7d"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#ad10e5362880055e43624cc8080668c7d">atleastOneIBM</a> (<a class="el" href="structibm__.html">ibm_</a> *ibm)</td></tr>
-<tr class="memdesc:ad10e5362880055e43624cc8080668c7d"><td class="mdescLeft">&#160;</td><td class="mdescRight">check if atleast one ibm body in the domain <br /></td></tr>
-<tr class="separator:ad10e5362880055e43624cc8080668c7d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aff739e6040b746a759be5187644dd685"><td class="memItemLeft" align="right" valign="top"><a id="aff739e6040b746a759be5187644dd685"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#aff739e6040b746a759be5187644dd685">isBoxIBMCell</a> (int k, int j, int i, PetscReal ***nvert)</td></tr>
 <tr class="memdesc:aff739e6040b746a759be5187644dd685"><td class="mdescLeft">&#160;</td><td class="mdescRight">check if ibm cell within the neighbouring box of i,j,k <br /></td></tr>
@@ -269,6 +307,30 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>isOnNonResolvedCellCe
 <tr class="memitem:ab83c410aa9607e7f6f0b19cb3056fb51"><td class="memItemLeft" align="right" valign="top"><a id="ab83c410aa9607e7f6f0b19cb3056fb51"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>isOnCornerCellCenters</b> (PetscInt i, PetscInt j, PetscInt k, DMDALocalInfo info)</td></tr>
 <tr class="separator:ab83c410aa9607e7f6f0b19cb3056fb51"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a07cdce03af9a52bf86930affeed1e910"><td class="memItemLeft" align="right" valign="top"><a id="a07cdce03af9a52bf86930affeed1e910"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a07cdce03af9a52bf86930affeed1e910">getCell2Cell3StencilCsiNoGhost</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscInt i, PetscInt mx, PetscInt *iL, PetscInt *iR)</td></tr>
+<tr class="memdesc:a07cdce03af9a52bf86930affeed1e910"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get cell's idxs of a 3 cell-sencil in csi direction given the cell idx. NEVER USE GHOSTS. <br /></td></tr>
+<tr class="separator:a07cdce03af9a52bf86930affeed1e910"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1040f08e032c7785e5e9bf49cf8ac180"><td class="memItemLeft" align="right" valign="top"><a id="a1040f08e032c7785e5e9bf49cf8ac180"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a1040f08e032c7785e5e9bf49cf8ac180">getCell2Cell3StencilEtaNoGhost</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscInt j, PetscInt my, PetscInt *jL, PetscInt *jR)</td></tr>
+<tr class="memdesc:a1040f08e032c7785e5e9bf49cf8ac180"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get cell's idxs of a 3 cell-sencil in eta direction given the cell idx. NEVER USE GHOSTS. <br /></td></tr>
+<tr class="separator:a1040f08e032c7785e5e9bf49cf8ac180"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a454a3fe8fe018a84c1944524cdf8396b"><td class="memItemLeft" align="right" valign="top"><a id="a454a3fe8fe018a84c1944524cdf8396b"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a454a3fe8fe018a84c1944524cdf8396b">getCell2Cell3StencilZetNoGhost</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscInt k, PetscInt mz, PetscInt *kL, PetscInt *kR)</td></tr>
+<tr class="memdesc:a454a3fe8fe018a84c1944524cdf8396b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get cell's idxs of a 3 cell-sencil in zet direction given the cell idx. NEVER USE GHOSTS. <br /></td></tr>
+<tr class="separator:a454a3fe8fe018a84c1944524cdf8396b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac7458ab75ca131ab5586dcae68950168"><td class="memItemLeft" align="right" valign="top"><a id="ac7458ab75ca131ab5586dcae68950168"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#ac7458ab75ca131ab5586dcae68950168">getCell2Cell3StencilCsi</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscInt i, PetscInt mx, PetscInt *iL, PetscInt *iR)</td></tr>
+<tr class="memdesc:ac7458ab75ca131ab5586dcae68950168"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get cell's idxs of a 3 cell-sencil in csi direction given the cell idx. <br /></td></tr>
+<tr class="separator:ac7458ab75ca131ab5586dcae68950168"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3b3a74350aac92aff7bb0d9c9801591a"><td class="memItemLeft" align="right" valign="top"><a id="a3b3a74350aac92aff7bb0d9c9801591a"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a3b3a74350aac92aff7bb0d9c9801591a">getCell2Cell3StencilEta</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscInt j, PetscInt my, PetscInt *jL, PetscInt *jR)</td></tr>
+<tr class="memdesc:a3b3a74350aac92aff7bb0d9c9801591a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get cell's idxs of a 3 cell-sencil in eta direction given the cell idx. <br /></td></tr>
+<tr class="separator:a3b3a74350aac92aff7bb0d9c9801591a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa8165791ede71e412550a3a9298b1309"><td class="memItemLeft" align="right" valign="top"><a id="aa8165791ede71e412550a3a9298b1309"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#aa8165791ede71e412550a3a9298b1309">getCell2Cell3StencilZet</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscInt k, PetscInt mz, PetscInt *kL, PetscInt *kR)</td></tr>
+<tr class="memdesc:aa8165791ede71e412550a3a9298b1309"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get cell's idxs of a 3 cell-sencil in zet direction given the cell idx. <br /></td></tr>
+<tr class="separator:aa8165791ede71e412550a3a9298b1309"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7758a25077bd4e9353c9a167d5ed6562"><td class="memItemLeft" align="right" valign="top"><a id="a7758a25077bd4e9353c9a167d5ed6562"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a7758a25077bd4e9353c9a167d5ed6562">getFace2Cell4StencilCsi</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscInt i, PetscInt mx, PetscInt *iL, PetscInt *iR, PetscReal *denom)</td></tr>
 <tr class="memdesc:a7758a25077bd4e9353c9a167d5ed6562"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get outmost cell's idxs of a 4 cell-sencil in csi direction given the face idx. <br /></td></tr>
@@ -335,30 +397,54 @@ PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>vanLeer</b> (Pet
 <tr class="memitem:a1e6664714f9ad75532011e1e620b0e4f"><td class="memItemLeft" align="right" valign="top"><a id="a1e6664714f9ad75532011e1e620b0e4f"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>central</b> (PetscReal f0, PetscReal f1)</td></tr>
 <tr class="separator:a1e6664714f9ad75532011e1e620b0e4f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6a385a7c9cdd1595b554910d617d3311"><td class="memItemLeft" align="right" valign="top"><a id="a6a385a7c9cdd1595b554910d617d3311"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>centralVec</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> f0, <a class="el" href="structCmpnts.html">Cmpnts</a> f1)</td></tr>
+<tr class="separator:a6a385a7c9cdd1595b554910d617d3311"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8f0740912060e6fde395d9ea2af4c7e9"><td class="memItemLeft" align="right" valign="top"><a id="a8f0740912060e6fde395d9ea2af4c7e9"></a>
+<a class="el" href="structsymmTensor.html">symmTensor</a>&#160;</td><td class="memItemRight" valign="bottom"><b>centralSymmT</b> (<a class="el" href="structsymmTensor.html">symmTensor</a> f0, <a class="el" href="structsymmTensor.html">symmTensor</a> f1)</td></tr>
+<tr class="separator:a8f0740912060e6fde395d9ea2af4c7e9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0753a9571ed832c3588d165ea4dab4ea"><td class="memItemLeft" align="right" valign="top"><a id="a0753a9571ed832c3588d165ea4dab4ea"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>wCentral</b> (PetscReal f0, PetscReal f1, PetscReal d0, PetscReal d1)</td></tr>
 <tr class="separator:a0753a9571ed832c3588d165ea4dab4ea"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3cac6f1c8ec7568484f07cc911128555"><td class="memItemLeft" align="right" valign="top"><a id="a3cac6f1c8ec7568484f07cc911128555"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>wCentralVec</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> f0, <a class="el" href="structCmpnts.html">Cmpnts</a> f1, PetscReal d0, PetscReal d1)</td></tr>
+<tr class="separator:a3cac6f1c8ec7568484f07cc911128555"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a68184e05a77958c75702ef08e52b7d1a"><td class="memItemLeft" align="right" valign="top"><a id="a68184e05a77958c75702ef08e52b7d1a"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>central4</b> (PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3)</td></tr>
 <tr class="separator:a68184e05a77958c75702ef08e52b7d1a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a047d84a621c347f0f9c855392603980c"><td class="memItemLeft" align="right" valign="top"><a id="a047d84a621c347f0f9c855392603980c"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>centralUpwind</b> (PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal wavespeed)</td></tr>
 <tr class="separator:a047d84a621c347f0f9c855392603980c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0f1ed07ed6742757f3520b43e41b4b05"><td class="memItemLeft" align="right" valign="top"><a id="a0f1ed07ed6742757f3520b43e41b4b05"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>centralUpwindVec</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> f0, <a class="el" href="structCmpnts.html">Cmpnts</a> f1, <a class="el" href="structCmpnts.html">Cmpnts</a> f2, <a class="el" href="structCmpnts.html">Cmpnts</a> f3, PetscReal wavespeed)</td></tr>
+<tr class="separator:a0f1ed07ed6742757f3520b43e41b4b05"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acd3a1b9562d470cb4a80212c072d7820"><td class="memItemLeft" align="right" valign="top"><a id="acd3a1b9562d470cb4a80212c072d7820"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>centralUpwind</b> (PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal wavespeed, PetscReal limiter)</td></tr>
 <tr class="separator:acd3a1b9562d470cb4a80212c072d7820"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af6de37eee9879a346c074c6bb01388de"><td class="memItemLeft" align="right" valign="top"><a id="af6de37eee9879a346c074c6bb01388de"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>centralUpwindVec</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> f0, <a class="el" href="structCmpnts.html">Cmpnts</a> f1, <a class="el" href="structCmpnts.html">Cmpnts</a> f2, <a class="el" href="structCmpnts.html">Cmpnts</a> f3, PetscReal wavespeed, PetscReal limiter)</td></tr>
+<tr class="separator:af6de37eee9879a346c074c6bb01388de"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa41695c90ee0369fd1cd41470990b4b9"><td class="memItemLeft" align="right" valign="top"><a id="aa41695c90ee0369fd1cd41470990b4b9"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>wCentralUpwind</b> (PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal d0, PetscReal d1, PetscReal d2, PetscReal d3, PetscReal wavespeed, PetscReal limiter)</td></tr>
 <tr class="separator:aa41695c90ee0369fd1cd41470990b4b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5059d159eff84baa0513ce32842e18fb"><td class="memItemLeft" align="right" valign="top"><a id="a5059d159eff84baa0513ce32842e18fb"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>wCentralUpwindVec</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> f0, <a class="el" href="structCmpnts.html">Cmpnts</a> f1, <a class="el" href="structCmpnts.html">Cmpnts</a> f2, <a class="el" href="structCmpnts.html">Cmpnts</a> f3, PetscReal d0, PetscReal d1, PetscReal d2, PetscReal d3, PetscReal wavespeed, PetscReal limiter)</td></tr>
+<tr class="separator:a5059d159eff84baa0513ce32842e18fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac57bdd2451854a3d25170a72a94f5c3f"><td class="memItemLeft" align="right" valign="top"><a id="ac57bdd2451854a3d25170a72a94f5c3f"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>quadraticUpwind</b> (PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal wavespeed)</td></tr>
 <tr class="separator:ac57bdd2451854a3d25170a72a94f5c3f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5f6b1fc1f1a6d0b732ac802e8f480c5e"><td class="memItemLeft" align="right" valign="top"><a id="a5f6b1fc1f1a6d0b732ac802e8f480c5e"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>quadraticUpwindVec</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> f0, <a class="el" href="structCmpnts.html">Cmpnts</a> f1, <a class="el" href="structCmpnts.html">Cmpnts</a> f2, <a class="el" href="structCmpnts.html">Cmpnts</a> f3, PetscReal wavespeed)</td></tr>
+<tr class="separator:a5f6b1fc1f1a6d0b732ac802e8f480c5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa70216b7f3c72c58b94ea912144ed4a5"><td class="memItemLeft" align="right" valign="top"><a id="aa70216b7f3c72c58b94ea912144ed4a5"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>wQuadraticUpwind</b> (PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal d0, PetscReal d1, PetscReal d2, PetscReal d3, PetscReal wavespeed)</td></tr>
 <tr class="separator:aa70216b7f3c72c58b94ea912144ed4a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5fe380a6626d96572f588b5f97351483"><td class="memItemLeft" align="right" valign="top"><a id="a5fe380a6626d96572f588b5f97351483"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>weno3</b> (PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal wavespeed)</td></tr>
 <tr class="separator:a5fe380a6626d96572f588b5f97351483"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a237f139a003f8e18ac1fb63eef46d241"><td class="memItemLeft" align="right" valign="top"><a id="a237f139a003f8e18ac1fb63eef46d241"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>weno3Vec</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> f0, <a class="el" href="structCmpnts.html">Cmpnts</a> f1, <a class="el" href="structCmpnts.html">Cmpnts</a> f2, <a class="el" href="structCmpnts.html">Cmpnts</a> f3, PetscReal wavespeed)</td></tr>
+<tr class="separator:a237f139a003f8e18ac1fb63eef46d241"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a17f4d38ba83a31e2eab7d872046f538b"><td class="memItemLeft" align="right" valign="top"><a id="a17f4d38ba83a31e2eab7d872046f538b"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>weno5</b> (PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal f4, PetscReal f5, PetscReal wavespeed)</td></tr>
 <tr class="separator:a17f4d38ba83a31e2eab7d872046f538b"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -378,13 +464,49 @@ PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>viscRayleigh</b>
 <tr class="memitem:a6896d982cb1066a7199099686a591e98"><td class="memItemLeft" align="right" valign="top"><a id="a6896d982cb1066a7199099686a591e98"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>viscNordstrom</b> (PetscReal &amp;alpha, PetscReal &amp;hS, PetscReal &amp;hE, PetscReal &amp;delta, PetscReal &amp;h)</td></tr>
 <tr class="separator:a6896d982cb1066a7199099686a591e98"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ada1de26f24830a5c8e2b99e2f2e3a53b"><td class="memItemLeft" align="right" valign="top"><a id="ada1de26f24830a5c8e2b99e2f2e3a53b"></a>
-double&#160;</td><td class="memItemRight" valign="bottom"><b>viscStipa</b> (double &amp;hS, double &amp;hE, double &amp;delta, double &amp;h)</td></tr>
-<tr class="separator:ada1de26f24830a5c8e2b99e2f2e3a53b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a52ed7cc8d1b374a36265a479cb815733"><td class="memItemLeft" align="right" valign="top"><a id="a52ed7cc8d1b374a36265a479cb815733"></a>
+double&#160;</td><td class="memItemRight" valign="bottom"><b>viscStipa</b> (double &amp;hS, double &amp;hE, double &amp;delta, double &amp;h, double &amp;z, double &amp;H)</td></tr>
+<tr class="separator:a52ed7cc8d1b374a36265a479cb815733"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2ad635b7b592d6fd234ce021fd612750"><td class="memItemLeft" align="right" valign="top"><a id="a2ad635b7b592d6fd234ce021fd612750"></a>
+double&#160;</td><td class="memItemRight" valign="bottom"><b>viscStipaDelta</b> (double &amp;hS, double &amp;hE, double &amp;deltaS, double &amp;deltaE, double &amp;h, double &amp;z, double &amp;H)</td></tr>
+<tr class="separator:a2ad635b7b592d6fd234ce021fd612750"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac4830425b7b2c6ac92a66c5a19bbdad0"><td class="memItemLeft" align="right" valign="top"><a id="ac4830425b7b2c6ac92a66c5a19bbdad0"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>findInterpolationWeigths</b> (PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)</td></tr>
+<tr class="separator:ac4830425b7b2c6ac92a66c5a19bbdad0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4dc1b78d920cd9f1481916e59f5336ab"><td class="memItemLeft" align="right" valign="top"><a id="a4dc1b78d920cd9f1481916e59f5336ab"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>findInterpolationWeigthsWithExtrap</b> (PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)</td></tr>
+<tr class="separator:a4dc1b78d920cd9f1481916e59f5336ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a967ef5df6b09a61f755c59935262240d"><td class="memItemLeft" align="right" valign="top"><a id="a967ef5df6b09a61f755c59935262240d"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>scaleHyperTangBot</b> (PetscReal h, PetscReal H, PetscReal delta)</td></tr>
+<tr class="separator:a967ef5df6b09a61f755c59935262240d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac726dba47f9a260ec4c4c70857418329"><td class="memItemLeft" align="right" valign="top"><a id="ac726dba47f9a260ec4c4c70857418329"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>scaleHyperTangTop</b> (PetscReal h, PetscReal H, PetscReal delta)</td></tr>
+<tr class="separator:ac726dba47f9a260ec4c4c70857418329"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8b072c023c0f8485160519e4ee031737"><td class="memItemLeft" align="right" valign="top">PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a8b072c023c0f8485160519e4ee031737">computeEm</a> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;avgU, <a class="el" href="structsymmTensor.html">symmTensor</a> &amp;avgUprimeUprime, PetscReal avgP)</td></tr>
+<tr class="memdesc:a8b072c023c0f8485160519e4ee031737"><td class="mdescLeft">&#160;</td><td class="mdescRight">Computes mechanical energy (Em = <u><u> + &lt;v&gt;&lt;v&gt; + &lt;w&gt;&lt;w&gt; + &lt;u'u'&gt; + &lt;v'v'&gt; + &lt;w'w'&gt; +. </u></u> <a href="inline_8h.html#a8b072c023c0f8485160519e4ee031737">More...</a><br /></td></tr>
+<tr class="separator:a8b072c023c0f8485160519e4ee031737"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae2e959492e7e7742a87e910fc7ceef0d"><td class="memItemLeft" align="right" valign="top"><a id="ae2e959492e7e7742a87e910fc7ceef0d"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#ae2e959492e7e7742a87e910fc7ceef0d">computeEmTilde</a> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;avgU, <a class="el" href="structsymmTensor.html">symmTensor</a> &amp;avgUprimeUprime)</td></tr>
+<tr class="memdesc:ae2e959492e7e7742a87e910fc7ceef0d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Computes modified mechanical energy (Em = <u><u> + &lt;V&gt;&lt;V&gt; + &lt;W&gt;&lt;W&gt; + &lt;U'U'&gt; + &lt;V'V'&gt; + &lt;W'W'&gt;) using contrav. fluxes. </u></u><br /></td></tr>
+<tr class="separator:ae2e959492e7e7742a87e910fc7ceef0d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afe91bbbd122c20a2d7fbfeb411e9a65d"><td class="memItemLeft" align="right" valign="top"><a id="afe91bbbd122c20a2d7fbfeb411e9a65d"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>computeMKE</b> (<a class="el" href="structCmpnts.html">Cmpnts</a> &amp;avgU)</td></tr>
+<tr class="separator:afe91bbbd122c20a2d7fbfeb411e9a65d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acfff7db550298ac6bb2701b3ddb0bdf7"><td class="memItemLeft" align="right" valign="top"><a id="acfff7db550298ac6bb2701b3ddb0bdf7"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>computeTKE</b> (<a class="el" href="structsymmTensor.html">symmTensor</a> &amp;avgUprimeUprime)</td></tr>
+<tr class="separator:acfff7db550298ac6bb2701b3ddb0bdf7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a99330e6596469ce3a7598c1e6b6dddc0"><td class="memItemLeft" align="right" valign="top"><a id="a99330e6596469ce3a7598c1e6b6dddc0"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a99330e6596469ce3a7598c1e6b6dddc0">scalarPointLocalVolumeInterpolation</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscReal px, PetscReal py, PetscReal pz, PetscInt ic, PetscInt jc, PetscInt kc, <a class="el" href="structCmpnts.html">Cmpnts</a> ***cent, PetscReal ***v, PetscReal &amp;result)</td></tr>
 <tr class="memdesc:a99330e6596469ce3a7598c1e6b6dddc0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Trilinear volume interpolation function for scalars. <br /></td></tr>
 <tr class="separator:a99330e6596469ce3a7598c1e6b6dddc0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a757738ffb6590e2ef9ba0a6f346b1afb"><td class="memItemLeft" align="right" valign="top"><a id="a757738ffb6590e2ef9ba0a6f346b1afb"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a757738ffb6590e2ef9ba0a6f346b1afb">PointInterpolationWeights</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscReal px, PetscReal py, PetscReal pz, PetscInt ic, PetscInt jc, PetscInt kc, <a class="el" href="structCmpnts.html">Cmpnts</a> ***cent, PetscReal *intWts, PetscInt *intId)</td></tr>
+<tr class="memdesc:a757738ffb6590e2ef9ba0a6f346b1afb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Trilinear volume interpolation function for scalars to return interpolation Weights. <br /></td></tr>
+<tr class="separator:a757738ffb6590e2ef9ba0a6f346b1afb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a423604633bbb09db93f4dfe0e1ac8ab9"><td class="memItemLeft" align="right" valign="top"><a id="a423604633bbb09db93f4dfe0e1ac8ab9"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a423604633bbb09db93f4dfe0e1ac8ab9">PointInterpolationCells</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscReal px, PetscReal py, PetscReal pz, PetscInt ic, PetscInt jc, PetscInt kc, <a class="el" href="structCmpnts.html">Cmpnts</a> ***cent, PetscInt *intId)</td></tr>
+<tr class="memdesc:a423604633bbb09db93f4dfe0e1ac8ab9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Trilinear volume interpolation function for scalars to return interpolation cells. <br /></td></tr>
+<tr class="separator:a423604633bbb09db93f4dfe0e1ac8ab9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7a051afeea31c3498c7a2ef0c4670d1b"><td class="memItemLeft" align="right" valign="top"><a id="a7a051afeea31c3498c7a2ef0c4670d1b"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="inline_8h.html#a7a051afeea31c3498c7a2ef0c4670d1b">vectorPointLocalVolumeInterpolation</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, PetscReal px, PetscReal py, PetscReal pz, PetscInt ic, PetscInt jc, PetscInt kc, <a class="el" href="structCmpnts.html">Cmpnts</a> ***cent, <a class="el" href="structCmpnts.html">Cmpnts</a> ***v, <a class="el" href="structCmpnts.html">Cmpnts</a> &amp;result)</td></tr>
 <tr class="memdesc:a7a051afeea31c3498c7a2ef0c4670d1b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Trilinear volume interpolation function for vectors. <br /></td></tr>
@@ -440,7 +562,53 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>mult_mats3_lin</b> (P
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Inline functions. </p>
-</div></div><!-- contents -->
+</div><h2 class="groupheader">Function Documentation</h2>
+<a id="a8b072c023c0f8485160519e4ee031737"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8b072c023c0f8485160519e4ee031737">&#9670;&nbsp;</a></span>computeEm()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">PetscReal computeEm </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structCmpnts.html">Cmpnts</a> &amp;&#160;</td>
+          <td class="paramname"><em>avgU</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structsymmTensor.html">symmTensor</a> &amp;&#160;</td>
+          <td class="paramname"><em>avgUprimeUprime</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">PetscReal&#160;</td>
+          <td class="paramname"><em>avgP</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Computes mechanical energy (Em = <u><u> + &lt;v&gt;&lt;v&gt; + &lt;w&gt;&lt;w&gt; + &lt;u'u'&gt; + &lt;v'v'&gt; + &lt;w'w'&gt; +. </u></u></p>
+<p>/rho) </p>
+
+</div>
+</div>
+</div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
 Generated by &#160;<a href="http://www.doxygen.org/index.html">

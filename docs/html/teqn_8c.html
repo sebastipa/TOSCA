@@ -88,10 +88,22 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><b>SNESMonitor
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="teqn_8c.html#ac5c60b468ea82539afc98853f47d0b01">InitializeTEqn</a> (<a class="el" href="structteqn__.html">teqn_</a> *teqn)</td></tr>
 <tr class="memdesc:ac5c60b468ea82539afc98853f47d0b01"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes Teqn environment. <br /></td></tr>
 <tr class="separator:ac5c60b468ea82539afc98853f47d0b01"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a36c1be93bd8fe2fb0426d28071ff6d7c"><td class="memItemLeft" align="right" valign="top"><a id="a36c1be93bd8fe2fb0426d28071ff6d7c"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="teqn_8c.html#a36c1be93bd8fe2fb0426d28071ff6d7c">CorrectSourceTermsT</a> (<a class="el" href="structteqn__.html">teqn_</a> *teqn, PetscInt print)</td></tr>
+<tr class="memdesc:a36c1be93bd8fe2fb0426d28071ff6d7c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute temperature control source term. <br /></td></tr>
+<tr class="separator:a36c1be93bd8fe2fb0426d28071ff6d7c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aeabc45c90afc8e23687e0d961058bc2c"><td class="memItemLeft" align="right" valign="top"><a id="aeabc45c90afc8e23687e0d961058bc2c"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="teqn_8c.html#aeabc45c90afc8e23687e0d961058bc2c">ghGradRhoK</a> (<a class="el" href="structteqn__.html">teqn_</a> *teqn)</td></tr>
+<tr class="memdesc:aeabc45c90afc8e23687e0d961058bc2c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Computes g*h times gradient of rho_k / rho_0. <br /></td></tr>
+<tr class="separator:aeabc45c90afc8e23687e0d961058bc2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a394520ec560831e3ac38a196d8473c42"><td class="memItemLeft" align="right" valign="top"><a id="a394520ec560831e3ac38a196d8473c42"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="teqn_8c.html#a394520ec560831e3ac38a196d8473c42">dampingSourceT</a> (<a class="el" href="structteqn__.html">teqn_</a> *teqn, Vec &amp;Rhs, PetscReal scale)</td></tr>
 <tr class="memdesc:a394520ec560831e3ac38a196d8473c42"><td class="mdescLeft">&#160;</td><td class="mdescRight">Apply fringe region damping. <br /></td></tr>
 <tr class="separator:a394520ec560831e3ac38a196d8473c42"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adef8d7a66575d954d004d2ccc8dd2cbf"><td class="memItemLeft" align="right" valign="top"><a id="adef8d7a66575d954d004d2ccc8dd2cbf"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="teqn_8c.html#adef8d7a66575d954d004d2ccc8dd2cbf">sourceT</a> (<a class="el" href="structteqn__.html">teqn_</a> *teqn, Vec &amp;Rhs, PetscReal scale)</td></tr>
+<tr class="memdesc:adef8d7a66575d954d004d2ccc8dd2cbf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Apply temperature control. <br /></td></tr>
+<tr class="separator:adef8d7a66575d954d004d2ccc8dd2cbf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acc7cc98bd8a66a83b31d2e49df596661"><td class="memItemLeft" align="right" valign="top"><a id="acc7cc98bd8a66a83b31d2e49df596661"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="teqn_8c.html#acc7cc98bd8a66a83b31d2e49df596661">FormT</a> (<a class="el" href="structteqn__.html">teqn_</a> *teqn, Vec &amp;Rhs, PetscReal scale)</td></tr>
 <tr class="memdesc:acc7cc98bd8a66a83b31d2e49df596661"><td class="mdescLeft">&#160;</td><td class="mdescRight">RHS of the potential temperature transport equation. <br /></td></tr>

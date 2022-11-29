@@ -117,20 +117,25 @@ PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ueqn_8c.html#ad5c38a6a3e84cb62940792e43614ed6f">SideForce</a> (<a class="el" href="structueqn__.html">ueqn_</a> *ueqn, Vec &amp;Rhs, PetscReal scale)</td></tr>
 <tr class="memdesc:ad5c38a6a3e84cb62940792e43614ed6f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute Side Force source term. <br /></td></tr>
 <tr class="separator:ad5c38a6a3e84cb62940792e43614ed6f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abf360de20aefbc88b23662c88568a37d"><td class="memItemLeft" align="right" valign="top"><a id="abf360de20aefbc88b23662c88568a37d"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ueqn_8c.html#abf360de20aefbc88b23662c88568a37d">Buoyancy</a> (<a class="el" href="structueqn__.html">ueqn_</a> *ueqn, Vec &amp;Rhs, PetscReal scale)</td></tr>
-<tr class="memdesc:abf360de20aefbc88b23662c88568a37d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute buoyancy term. <br /></td></tr>
-<tr class="separator:abf360de20aefbc88b23662c88568a37d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac49109fe1b8de64f40d9c1a42219ef15"><td class="memItemLeft" align="right" valign="top"><a id="ac49109fe1b8de64f40d9c1a42219ef15"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ueqn_8c.html#ac49109fe1b8de64f40d9c1a42219ef15">Buoyancy</a> (<a class="el" href="structueqn__.html">ueqn_</a> *ueqn, PetscReal scale)</td></tr>
+<tr class="memdesc:ac49109fe1b8de64f40d9c1a42219ef15"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute buoyancy term. <br /></td></tr>
+<tr class="separator:ac49109fe1b8de64f40d9c1a42219ef15"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7154a615d9bb63a6610e9cdefc796289"><td class="memItemLeft" align="right" valign="top"><a id="a7154a615d9bb63a6610e9cdefc796289"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ueqn_8c.html#a7154a615d9bb63a6610e9cdefc796289">contravariantToCartesian</a> (<a class="el" href="structueqn__.html">ueqn_</a> *ueqn)</td></tr>
-<tr class="memdesc:a7154a615d9bb63a6610e9cdefc796289"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transform contravariant to cartesian. <br /></td></tr>
+<tr class="memdesc:a7154a615d9bb63a6610e9cdefc796289"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transform velocity from contravariant to cartesian. <br /></td></tr>
 <tr class="separator:a7154a615d9bb63a6610e9cdefc796289"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1c7112929b5c30416f8ff876f34584cd"><td class="memItemLeft" align="right" valign="top"><a id="a1c7112929b5c30416f8ff876f34584cd"></a>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ueqn_8c.html#a1c7112929b5c30416f8ff876f34584cd">contravariantToCartesianGeneric</a> (<a class="el" href="structmesh__.html">mesh_</a> *mesh, Vec &amp;lCont, Vec &amp;lCat)</td></tr>
+<tr class="memdesc:a1c7112929b5c30416f8ff876f34584cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transform generic local vector from contravariant to cartesian. <br /></td></tr>
+<tr class="separator:a1c7112929b5c30416f8ff876f34584cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a00215441efd96534fd17eac97a6a72c6"><td class="memItemLeft" align="right" valign="top"><a id="a00215441efd96534fd17eac97a6a72c6"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ueqn_8c.html#a00215441efd96534fd17eac97a6a72c6">adjustFluxes</a> (<a class="el" href="structueqn__.html">ueqn_</a> *ueqn)</td></tr>
 <tr class="memdesc:a00215441efd96534fd17eac97a6a72c6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adjust fluxes to obey mass conservation. <br /></td></tr>
 <tr class="separator:a00215441efd96534fd17eac97a6a72c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad6116e1e9efff5550781c57645eec757"><td class="memItemLeft" align="right" valign="top"><a id="ad6116e1e9efff5550781c57645eec757"></a>
-PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><b>adjustFluxesOverset</b> (<a class="el" href="structueqn__.html">ueqn_</a> *ueqn)</td></tr>
+PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ueqn_8c.html#ad6116e1e9efff5550781c57645eec757">adjustFluxesOverset</a> (<a class="el" href="structueqn__.html">ueqn_</a> *ueqn)</td></tr>
+<tr class="memdesc:ad6116e1e9efff5550781c57645eec757"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adjust fluxes to obey mass conservation in the overset domain. <br /></td></tr>
 <tr class="separator:ad6116e1e9efff5550781c57645eec757"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0272610b386154883cceaf07234773d1"><td class="memItemLeft" align="right" valign="top"><a id="a0272610b386154883cceaf07234773d1"></a>
 PetscErrorCode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ueqn_8c.html#a0272610b386154883cceaf07234773d1">FormU</a> (<a class="el" href="structueqn__.html">ueqn_</a> *ueqn, Vec &amp;Rhs, PetscReal scale)</td></tr>

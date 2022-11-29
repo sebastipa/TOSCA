@@ -107,71 +107,76 @@ $(function() {
 <div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;<span class="preprocessor">#include &quot;HYPRE_IJ_mv.h&quot;</span></div>
 <div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160; </div>
 <div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;<span class="comment">// typedefs</span></div>
-<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;<span class="keyword">typedef</span> std::string                   word;</div>
+<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;<span class="keyword">typedef</span> std::string                        word;</div>
 <div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;<span class="keyword">typedef</span> std::vector&lt;PetscInt&gt;              labelList;</div>
 <div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;<span class="keyword">typedef</span> std::vector&lt;std::vector&lt;PetscInt&gt;&gt; labelListList;</div>
-<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160; </div>
-<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;<span class="comment">// constants</span></div>
-<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;<span class="preprocessor">#ifndef M_PI</span></div>
-<div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160;<span class="preprocessor">    #define M_PI 3.141592653589793238462643</span></div>
-<div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;<span class="preprocessor">#endif</span></div>
-<div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160; </div>
-<div class="line"><a name="l00050"></a><span class="lineno"><a class="line" href="structsimInfo__.html">   50</a></span>&#160;<span class="keyword">struct </span><a class="code" href="structsimInfo__.html">simInfo_</a></div>
-<div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;{</div>
-<div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;    PetscInt nDomains;</div>
-<div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;    PetscInt periodic;</div>
-<div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;};</div>
-<div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160; </div>
-<div class="line"><a name="l00056"></a><span class="lineno"><a class="line" href="structconstants__.html">   56</a></span>&#160;<span class="keyword">struct </span><a class="code" href="structconstants__.html">constants_</a></div>
-<div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;{</div>
-<div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;    <span class="comment">// dimensionless numbers</span></div>
-<div class="line"><a name="l00059"></a><span class="lineno"><a class="line" href="structconstants__.html#a4fcac7b9efdaf07dcd94ffe13d431794">   59</a></span>&#160;    PetscReal        <a class="code" href="structconstants__.html#a4fcac7b9efdaf07dcd94ffe13d431794">Pr</a>;                         </div>
-<div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160; </div>
-<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;    <span class="comment">// physical constants</span></div>
-<div class="line"><a name="l00062"></a><span class="lineno"><a class="line" href="structconstants__.html#a5795db2fdff366a0e8b0e01c27f86461">   62</a></span>&#160;    PetscReal        <a class="code" href="structconstants__.html#a5795db2fdff366a0e8b0e01c27f86461">nu</a>;                         </div>
-<div class="line"><a name="l00063"></a><span class="lineno"><a class="line" href="structconstants__.html#ae97f7348c6309ca2e60733bb9226e459">   63</a></span>&#160;    PetscReal        <a class="code" href="structconstants__.html#ae97f7348c6309ca2e60733bb9226e459">rho</a>;                        </div>
-<div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160; </div>
-<div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;};</div>
-<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160; </div>
-<div class="line"><a name="l00068"></a><span class="lineno"><a class="line" href="structcellIds.html">   68</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
-<div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;{</div>
-<div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;   PetscInt i,j,k;</div>
-<div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;} <a class="code" href="structcellIds.html">cellIds</a>;</div>
-<div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160; </div>
-<div class="line"><a name="l00074"></a><span class="lineno"><a class="line" href="structCmpnts.html">   74</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
-<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;{</div>
-<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;    PetscScalar x, y, z;</div>
-<div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;} <a class="code" href="structCmpnts.html">Cmpnts</a>;</div>
-<div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160; </div>
-<div class="line"><a name="l00080"></a><span class="lineno"><a class="line" href="structCpt2D.html">   80</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
-<div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;{</div>
-<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;    PetscReal x, y;</div>
-<div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;} <a class="code" href="structCpt2D.html">Cpt2D</a>;</div>
-<div class="line"><a name="l00084"></a><span class="lineno">   84</span>&#160; </div>
-<div class="line"><a name="l00086"></a><span class="lineno"><a class="line" href="structsymmTensor.html">   86</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
-<div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;{</div>
-<div class="line"><a name="l00088"></a><span class="lineno">   88</span>&#160;    PetscScalar xx, xy, xz, yy, yz, zz;</div>
-<div class="line"><a name="l00089"></a><span class="lineno">   89</span>&#160;} <a class="code" href="structsymmTensor.html">symmTensor</a>;</div>
-<div class="line"><a name="l00090"></a><span class="lineno">   90</span>&#160; </div>
-<div class="line"><a name="l00092"></a><span class="lineno"><a class="line" href="structpatchVectorField.html">   92</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
-<div class="line"><a name="l00093"></a><span class="lineno">   93</span>&#160;{</div>
-<div class="line"><a name="l00094"></a><span class="lineno">   94</span>&#160;    PetscReal **x;</div>
-<div class="line"><a name="l00095"></a><span class="lineno">   95</span>&#160;    PetscReal **y;</div>
-<div class="line"><a name="l00096"></a><span class="lineno">   96</span>&#160;    PetscReal **z;</div>
-<div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;} <a class="code" href="structpatchVectorField.html">patchVectorField</a>;</div>
-<div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160; </div>
-<div class="line"><a name="l00099"></a><span class="lineno">   99</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;<span class="keyword">typedef</span> std::complex&lt;PetscReal&gt;            complex;</div>
+<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160; </div>
+<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;<span class="comment">// constants</span></div>
+<div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160;<span class="preprocessor">#ifndef M_PI</span></div>
+<div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;<span class="preprocessor">    #define M_PI 3.141592653589793238462643</span></div>
+<div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160; </div>
+<div class="line"><a name="l00051"></a><span class="lineno"><a class="line" href="structsimInfo__.html">   51</a></span>&#160;<span class="keyword">struct </span><a class="code" href="structsimInfo__.html">simInfo_</a></div>
+<div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;{</div>
+<div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;    PetscInt nDomains;</div>
+<div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;    PetscInt periodic;</div>
+<div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;};</div>
+<div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160; </div>
+<div class="line"><a name="l00057"></a><span class="lineno"><a class="line" href="structconstants__.html">   57</a></span>&#160;<span class="keyword">struct </span><a class="code" href="structconstants__.html">constants_</a></div>
+<div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;{</div>
+<div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;    <span class="comment">// dimensionless numbers</span></div>
+<div class="line"><a name="l00060"></a><span class="lineno"><a class="line" href="structconstants__.html#a4fcac7b9efdaf07dcd94ffe13d431794">   60</a></span>&#160;    PetscReal        <a class="code" href="structconstants__.html#a4fcac7b9efdaf07dcd94ffe13d431794">Pr</a>;                         </div>
+<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160; </div>
+<div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;    <span class="comment">// physical constants</span></div>
+<div class="line"><a name="l00063"></a><span class="lineno"><a class="line" href="structconstants__.html#a5795db2fdff366a0e8b0e01c27f86461">   63</a></span>&#160;    PetscReal        <a class="code" href="structconstants__.html#a5795db2fdff366a0e8b0e01c27f86461">nu</a>;                         </div>
+<div class="line"><a name="l00064"></a><span class="lineno"><a class="line" href="structconstants__.html#ae97f7348c6309ca2e60733bb9226e459">   64</a></span>&#160;    PetscReal        <a class="code" href="structconstants__.html#ae97f7348c6309ca2e60733bb9226e459">rho</a>;                        </div>
+<div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160; </div>
+<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;    <span class="comment">// reference temperature</span></div>
+<div class="line"><a name="l00067"></a><span class="lineno"><a class="line" href="structconstants__.html#a035ec54041d9495ee0ebf974a17d72c4">   67</a></span>&#160;    PetscReal        <a class="code" href="structconstants__.html#a035ec54041d9495ee0ebf974a17d72c4">tRef</a>;                       </div>
+<div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160; </div>
+<div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;};</div>
+<div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160; </div>
+<div class="line"><a name="l00072"></a><span class="lineno"><a class="line" href="structcellIds.html">   72</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
+<div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;{</div>
+<div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;   PetscInt i,j,k;</div>
+<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;} <a class="code" href="structcellIds.html">cellIds</a>;</div>
+<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160; </div>
+<div class="line"><a name="l00078"></a><span class="lineno"><a class="line" href="structCmpnts.html">   78</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
+<div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;{</div>
+<div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;    PetscScalar x, y, z;</div>
+<div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;} <a class="code" href="structCmpnts.html">Cmpnts</a>;</div>
+<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160; </div>
+<div class="line"><a name="l00084"></a><span class="lineno"><a class="line" href="structCpt2D.html">   84</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
+<div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;{</div>
+<div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160;    PetscReal x, y;</div>
+<div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;} <a class="code" href="structCpt2D.html">Cpt2D</a>;</div>
+<div class="line"><a name="l00088"></a><span class="lineno">   88</span>&#160; </div>
+<div class="line"><a name="l00090"></a><span class="lineno"><a class="line" href="structsymmTensor.html">   90</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
+<div class="line"><a name="l00091"></a><span class="lineno">   91</span>&#160;{</div>
+<div class="line"><a name="l00092"></a><span class="lineno">   92</span>&#160;    PetscScalar xx, xy, xz, yy, yz, zz;</div>
+<div class="line"><a name="l00093"></a><span class="lineno">   93</span>&#160;} <a class="code" href="structsymmTensor.html">symmTensor</a>;</div>
+<div class="line"><a name="l00094"></a><span class="lineno">   94</span>&#160; </div>
+<div class="line"><a name="l00096"></a><span class="lineno"><a class="line" href="structpatchVectorField.html">   96</a></span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct</span></div>
+<div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;{</div>
+<div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;    PetscReal **x;</div>
+<div class="line"><a name="l00099"></a><span class="lineno">   99</span>&#160;    PetscReal **y;</div>
+<div class="line"><a name="l00100"></a><span class="lineno">  100</span>&#160;    PetscReal **z;</div>
+<div class="line"><a name="l00101"></a><span class="lineno">  101</span>&#160;} <a class="code" href="structpatchVectorField.html">patchVectorField</a>;</div>
+<div class="line"><a name="l00102"></a><span class="lineno">  102</span>&#160; </div>
+<div class="line"><a name="l00103"></a><span class="lineno">  103</span>&#160;<span class="preprocessor">#endif</span></div>
 </div><!-- fragment --></div><!-- contents -->
-<div class="ttc" id="astructsimInfo___html"><div class="ttname"><a href="structsimInfo__.html">simInfo_</a></div><div class="ttdef"><b>Definition:</b> base.h:50</div></div>
-<div class="ttc" id="astructCmpnts_html"><div class="ttname"><a href="structCmpnts.html">Cmpnts</a></div><div class="ttdoc">Defines the x, y, z components of a vector.</div><div class="ttdef"><b>Definition:</b> base.h:74</div></div>
-<div class="ttc" id="astructconstants___html_a4fcac7b9efdaf07dcd94ffe13d431794"><div class="ttname"><a href="structconstants__.html#a4fcac7b9efdaf07dcd94ffe13d431794">constants_::Pr</a></div><div class="ttdeci">PetscReal Pr</div><div class="ttdoc">Prantl number.</div><div class="ttdef"><b>Definition:</b> base.h:59</div></div>
-<div class="ttc" id="astructconstants___html"><div class="ttname"><a href="structconstants__.html">constants_</a></div><div class="ttdef"><b>Definition:</b> base.h:56</div></div>
-<div class="ttc" id="astructsymmTensor_html"><div class="ttname"><a href="structsymmTensor.html">symmTensor</a></div><div class="ttdoc">Defines the components of a symmetric tensor.</div><div class="ttdef"><b>Definition:</b> base.h:86</div></div>
-<div class="ttc" id="astructpatchVectorField_html"><div class="ttname"><a href="structpatchVectorField.html">patchVectorField</a></div><div class="ttdoc">Vector field on the patch (used to store wall models fields)</div><div class="ttdef"><b>Definition:</b> base.h:92</div></div>
-<div class="ttc" id="astructconstants___html_ae97f7348c6309ca2e60733bb9226e459"><div class="ttname"><a href="structconstants__.html#ae97f7348c6309ca2e60733bb9226e459">constants_::rho</a></div><div class="ttdeci">PetscReal rho</div><div class="ttdoc">flow density [Kg/m3]</div><div class="ttdef"><b>Definition:</b> base.h:63</div></div>
-<div class="ttc" id="astructcellIds_html"><div class="ttname"><a href="structcellIds.html">cellIds</a></div><div class="ttdoc">Cell indices.</div><div class="ttdef"><b>Definition:</b> base.h:68</div></div>
-<div class="ttc" id="astructconstants___html_a5795db2fdff366a0e8b0e01c27f86461"><div class="ttname"><a href="structconstants__.html#a5795db2fdff366a0e8b0e01c27f86461">constants_::nu</a></div><div class="ttdeci">PetscReal nu</div><div class="ttdoc">kinematic viscosity</div><div class="ttdef"><b>Definition:</b> base.h:62</div></div>
-<div class="ttc" id="astructCpt2D_html"><div class="ttname"><a href="structCpt2D.html">Cpt2D</a></div><div class="ttdoc">Structure for defining the x, y components of a 2D vector.</div><div class="ttdef"><b>Definition:</b> base.h:80</div></div>
+<div class="ttc" id="astructsimInfo___html"><div class="ttname"><a href="structsimInfo__.html">simInfo_</a></div><div class="ttdef"><b>Definition:</b> base.h:51</div></div>
+<div class="ttc" id="astructconstants___html_a035ec54041d9495ee0ebf974a17d72c4"><div class="ttname"><a href="structconstants__.html#a035ec54041d9495ee0ebf974a17d72c4">constants_::tRef</a></div><div class="ttdeci">PetscReal tRef</div><div class="ttdoc">reference T, required when ABL is not active</div><div class="ttdef"><b>Definition:</b> base.h:67</div></div>
+<div class="ttc" id="astructCmpnts_html"><div class="ttname"><a href="structCmpnts.html">Cmpnts</a></div><div class="ttdoc">Defines the x, y, z components of a vector.</div><div class="ttdef"><b>Definition:</b> base.h:78</div></div>
+<div class="ttc" id="astructconstants___html_a4fcac7b9efdaf07dcd94ffe13d431794"><div class="ttname"><a href="structconstants__.html#a4fcac7b9efdaf07dcd94ffe13d431794">constants_::Pr</a></div><div class="ttdeci">PetscReal Pr</div><div class="ttdoc">Prantl number.</div><div class="ttdef"><b>Definition:</b> base.h:60</div></div>
+<div class="ttc" id="astructconstants___html"><div class="ttname"><a href="structconstants__.html">constants_</a></div><div class="ttdef"><b>Definition:</b> base.h:57</div></div>
+<div class="ttc" id="astructsymmTensor_html"><div class="ttname"><a href="structsymmTensor.html">symmTensor</a></div><div class="ttdoc">Defines the components of a symmetric tensor.</div><div class="ttdef"><b>Definition:</b> base.h:90</div></div>
+<div class="ttc" id="astructpatchVectorField_html"><div class="ttname"><a href="structpatchVectorField.html">patchVectorField</a></div><div class="ttdoc">Vector field on the patch (used to store wall models fields)</div><div class="ttdef"><b>Definition:</b> base.h:96</div></div>
+<div class="ttc" id="astructconstants___html_ae97f7348c6309ca2e60733bb9226e459"><div class="ttname"><a href="structconstants__.html#ae97f7348c6309ca2e60733bb9226e459">constants_::rho</a></div><div class="ttdeci">PetscReal rho</div><div class="ttdoc">flow density [Kg/m3]</div><div class="ttdef"><b>Definition:</b> base.h:64</div></div>
+<div class="ttc" id="astructcellIds_html"><div class="ttname"><a href="structcellIds.html">cellIds</a></div><div class="ttdoc">Cell indices.</div><div class="ttdef"><b>Definition:</b> base.h:72</div></div>
+<div class="ttc" id="astructconstants___html_a5795db2fdff366a0e8b0e01c27f86461"><div class="ttname"><a href="structconstants__.html#a5795db2fdff366a0e8b0e01c27f86461">constants_::nu</a></div><div class="ttdeci">PetscReal nu</div><div class="ttdoc">kinematic viscosity</div><div class="ttdef"><b>Definition:</b> base.h:63</div></div>
+<div class="ttc" id="astructCpt2D_html"><div class="ttname"><a href="structCpt2D.html">Cpt2D</a></div><div class="ttdoc">Structure for defining the x, y components of a 2D vector.</div><div class="ttdef"><b>Definition:</b> base.h:84</div></div>
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
 Generated by &#160;<a href="http://www.doxygen.org/index.html">

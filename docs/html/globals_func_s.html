@@ -106,10 +106,6 @@ $(function() {
 : <a class="el" href="mesh_8c.html#a204921bb082c6d2b90822b90cefb5e78">mesh.c</a>
 , <a class="el" href="mesh_8h.html#a204921bb082c6d2b90822b90cefb5e78">mesh.h</a>
 </li>
-<li>setDomainIBMObjectInteraction()
-: <a class="el" href="ibm_8c.html#a310fca86dc41785e137d197553b928a4">ibm.c</a>
-, <a class="el" href="ibm_8h.html#a310fca86dc41785e137d197553b928a4">ibm.h</a>
-</li>
 <li>SetDomainMemory()
 : <a class="el" href="initialization_8c.html#a436bfefb533fdf0952250458b89f2dc7">initialization.c</a>
 , <a class="el" href="initialization_8h.html#a436bfefb533fdf0952250458b89f2dc7">initialization.h</a>
@@ -117,6 +113,10 @@ $(function() {
 <li>SetDomainsAndAllocate()
 : <a class="el" href="initialization_8c.html#a9147679bf260f621ef50f6368cd3ca55">initialization.c</a>
 , <a class="el" href="initialization_8h.html#a7783eb50588674776740103f0efe1c78">initialization.h</a>
+</li>
+<li>setIBMWallModels()
+: <a class="el" href="ibm_8c.html#a1f82afe6598ab4c9e337ace22dc64d03">ibm.c</a>
+, <a class="el" href="ibm_8h.html#a1f82afe6598ab4c9e337ace22dc64d03">ibm.h</a>
 </li>
 <li>SetInflowFunctions()
 : <a class="el" href="inflow_8h.html#ad893429a3f221b07240528b6d7bd23ee">inflow.h</a>
@@ -141,6 +141,10 @@ $(function() {
 : <a class="el" href="initialField_8c.html#ace385b7c8659af23806f469c0097b353">initialField.c</a>
 , <a class="el" href="initialField_8h.html#ace385b7c8659af23806f469c0097b353">initialField.h</a>
 </li>
+<li>SetInitialFieldPrecursor()
+: <a class="el" href="initialField_8c.html#a68bf64626ad6c4b9be20167319921a06">initialField.c</a>
+, <a class="el" href="initialField_8h.html#a68bf64626ad6c4b9be20167319921a06">initialField.h</a>
+</li>
 <li>SetInitialFieldT()
 : <a class="el" href="initialField_8c.html#a459d38c4068f65fae251879c89f20b8c">initialField.c</a>
 , <a class="el" href="initialField_8h.html#a459d38c4068f65fae251879c89f20b8c">initialField.h</a>
@@ -148,6 +152,10 @@ $(function() {
 <li>SetInitialFieldU()
 : <a class="el" href="initialField_8c.html#a66818d46dcefaf7be5b51afb089ba3ad">initialField.c</a>
 , <a class="el" href="initialField_8h.html#a66818d46dcefaf7be5b51afb089ba3ad">initialField.h</a>
+</li>
+<li>setKeBoundsAndComms()
+: <a class="el" href="acquisition_8c.html#acd02c40d09da28818552278198fadf56">acquisition.c</a>
+, <a class="el" href="acquisition_8h.html#acd02c40d09da28818552278198fadf56">acquisition.h</a>
 </li>
 <li>SetMeshMetrics()
 : <a class="el" href="mesh_8c.html#ac162deedb22611ecfd37ed856e76a81f">mesh.c</a>
@@ -158,36 +166,48 @@ $(function() {
 , <a class="el" href="boundary_8h.html#aecfd83090107acdddf1ba9b05b8c7c9f">boundary.h</a>
 </li>
 <li>SetPoissonConnectivity()
-: <a class="el" href="peqn_8h.html#a9231ed77659514a09ab5f246e8b35af7">peqn.h</a>
-, <a class="el" href="peqn_8c.html#a9231ed77659514a09ab5f246e8b35af7">peqn.c</a>
+: <a class="el" href="peqn_8c.html#a9231ed77659514a09ab5f246e8b35af7">peqn.c</a>
+, <a class="el" href="peqn_8h.html#a9231ed77659514a09ab5f246e8b35af7">peqn.h</a>
+</li>
+<li>SetPressureReference()
+: <a class="el" href="peqn_8c.html#af5bf345a51d99fa844f6f4104491eb1e">peqn.c</a>
+, <a class="el" href="peqn_8h.html#af5bf345a51d99fa844f6f4104491eb1e">peqn.h</a>
 </li>
 <li>SetRHS()
-: <a class="el" href="peqn_8c.html#a47ceea848fc387454697a64956cc467a">peqn.c</a>
-, <a class="el" href="peqn_8h.html#a47ceea848fc387454697a64956cc467a">peqn.h</a>
+: <a class="el" href="peqn_8h.html#a47ceea848fc387454697a64956cc467a">peqn.h</a>
+, <a class="el" href="peqn_8c.html#a47ceea848fc387454697a64956cc467a">peqn.c</a>
 </li>
 <li>setRunTimeWrite()
 : <a class="el" href="io_8c.html#ab1c2034549386da53eb15c67c7fa703d">io.c</a>
 , <a class="el" href="io_8h.html#ab1c2034549386da53eb15c67c7fa703d">io.h</a>
 </li>
 <li>SetSimulationFlags()
-: <a class="el" href="initialization_8c.html#aaaa30fe0016ff2262f15e20528d65fab">initialization.c</a>
-, <a class="el" href="initialization_8h.html#aaaa30fe0016ff2262f15e20528d65fab">initialization.h</a>
+: <a class="el" href="initialization_8h.html#aaaa30fe0016ff2262f15e20528d65fab">initialization.h</a>
+, <a class="el" href="initialization_8c.html#aaaa30fe0016ff2262f15e20528d65fab">initialization.c</a>
 </li>
 <li>SetSimulationInfo()
-: <a class="el" href="initialization_8h.html#abd4982bdbc9502b986d5c8a60d12f8f6">initialization.h</a>
-, <a class="el" href="initialization_8c.html#abd4982bdbc9502b986d5c8a60d12f8f6">initialization.c</a>
+: <a class="el" href="initialization_8c.html#abd4982bdbc9502b986d5c8a60d12f8f6">initialization.c</a>
+, <a class="el" href="initialization_8h.html#abd4982bdbc9502b986d5c8a60d12f8f6">initialization.h</a>
 </li>
 <li>SetSolutionFlagsPrecursor()
-: <a class="el" href="precursor_8c.html#aa859f9bac2360b2293979f0f8359e6e0">precursor.c</a>
-, <a class="el" href="precursor_8h.html#aa859f9bac2360b2293979f0f8359e6e0">precursor.h</a>
+: <a class="el" href="precursor_8h.html#aa859f9bac2360b2293979f0f8359e6e0">precursor.h</a>
+, <a class="el" href="precursor_8c.html#aa859f9bac2360b2293979f0f8359e6e0">precursor.c</a>
+</li>
+<li>SetStartTime()
+: <a class="el" href="initialization_8c.html#ab0a74b985a96a426190993d9d5fffe90">initialization.c</a>
+, <a class="el" href="initialization_8h.html#ab0a74b985a96a426190993d9d5fffe90">initialization.h</a>
+</li>
+<li>SetStartTimePrecursor()
+: <a class="el" href="precursor_8c.html#aa14bc7fa71c3a5bceed8af466732974e">precursor.c</a>
+, <a class="el" href="precursor_8h.html#aa14bc7fa71c3a5bceed8af466732974e">precursor.h</a>
 </li>
 <li>SetUniformFieldT()
-: <a class="el" href="initialField_8c.html#a79f1d14865c6ca9abb0267094094af28">initialField.c</a>
-, <a class="el" href="initialField_8h.html#a79f1d14865c6ca9abb0267094094af28">initialField.h</a>
+: <a class="el" href="initialField_8h.html#a79f1d14865c6ca9abb0267094094af28">initialField.h</a>
+, <a class="el" href="initialField_8c.html#a79f1d14865c6ca9abb0267094094af28">initialField.c</a>
 </li>
 <li>SetUniformFieldU()
-: <a class="el" href="initialField_8h.html#a7406487b650c7e382e8f775c5299bd22">initialField.h</a>
-, <a class="el" href="initialField_8c.html#a7406487b650c7e382e8f775c5299bd22">initialField.c</a>
+: <a class="el" href="initialField_8c.html#a7406487b650c7e382e8f775c5299bd22">initialField.c</a>
+, <a class="el" href="initialField_8h.html#a7406487b650c7e382e8f775c5299bd22">initialField.h</a>
 </li>
 <li>SetWallModels()
 : <a class="el" href="boundary_8c.html#a3c7962a5d7cd59a698ac24d917c1cf68">boundary.c</a>
@@ -197,44 +217,52 @@ $(function() {
 : <a class="el" href="io_8h.html#aea57de8784231311b501c1f92e27a1af">io.h</a>
 </li>
 <li>SideForce()
-: <a class="el" href="ueqn_8c.html#ad5c38a6a3e84cb62940792e43614ed6f">ueqn.c</a>
-, <a class="el" href="ueqn_8h.html#ad5c38a6a3e84cb62940792e43614ed6f">ueqn.h</a>
+: <a class="el" href="ueqn_8h.html#ad5c38a6a3e84cb62940792e43614ed6f">ueqn.h</a>
+, <a class="el" href="ueqn_8c.html#ad5c38a6a3e84cb62940792e43614ed6f">ueqn.c</a>
 </li>
 <li>simulationInitialize()
-: <a class="el" href="initialization_8c.html#aaa6b507000df0106653daedfbf461f63">initialization.c</a>
-, <a class="el" href="initialization_8h.html#aaa6b507000df0106653daedfbf461f63">initialization.h</a>
+: <a class="el" href="initialization_8h.html#aaa6b507000df0106653daedfbf461f63">initialization.h</a>
+, <a class="el" href="initialization_8c.html#aaa6b507000df0106653daedfbf461f63">initialization.c</a>
 </li>
 <li>SolvePEqn()
 : <a class="el" href="peqn_8c.html#a653e735ef518ba7324fad4c577eddb37">peqn.c</a>
 , <a class="el" href="peqn_8h.html#a653e735ef518ba7324fad4c577eddb37">peqn.h</a>
 </li>
 <li>SolveTEqn()
-: <a class="el" href="teqn_8c.html#a7739b85e467cfde1fd5607597fe2c6db">teqn.c</a>
-, <a class="el" href="teqn_8h.html#a7739b85e467cfde1fd5607597fe2c6db">teqn.h</a>
+: <a class="el" href="teqn_8h.html#a7739b85e467cfde1fd5607597fe2c6db">teqn.h</a>
+, <a class="el" href="teqn_8c.html#a7739b85e467cfde1fd5607597fe2c6db">teqn.c</a>
 </li>
 <li>SolveUEqn()
 : <a class="el" href="ueqn_8h.html#a099aeb5f236533b79b5f3ba4dba897db">ueqn.h</a>
 , <a class="el" href="ueqn_8c.html#a099aeb5f236533b79b5f3ba4dba897db">ueqn.c</a>
+</li>
+<li>sourceT()
+: <a class="el" href="teqn_8c.html#adef8d7a66575d954d004d2ccc8dd2cbf">teqn.c</a>
+, <a class="el" href="teqn_8h.html#adef8d7a66575d954d004d2ccc8dd2cbf">teqn.h</a>
 </li>
 <li>sourceU()
 : <a class="el" href="ueqn_8h.html#a2bae16b8422cdba7aaaf537a7bc7f5d6">ueqn.h</a>
 , <a class="el" href="ueqn_8c.html#a2bae16b8422cdba7aaaf537a7bc7f5d6">ueqn.c</a>
 </li>
 <li>SpreadInletFlowU()
-: <a class="el" href="initialField_8h.html#a1edeb123bbbac8fbe38bfddc84e19d99">initialField.h</a>
-, <a class="el" href="initialField_8c.html#a1edeb123bbbac8fbe38bfddc84e19d99">initialField.c</a>
+: <a class="el" href="initialField_8c.html#a1edeb123bbbac8fbe38bfddc84e19d99">initialField.c</a>
+, <a class="el" href="initialField_8h.html#a1edeb123bbbac8fbe38bfddc84e19d99">initialField.h</a>
 </li>
-<li>SubtractAverage()
-: <a class="el" href="peqn_8h.html#abeea8cb5145898128043685604fce837">peqn.h</a>
-, <a class="el" href="peqn_8c.html#abeea8cb5145898128043685604fce837">peqn.c</a>
+<li>SubtractAverageHypre()
+: <a class="el" href="peqn_8c.html#afb43101b11e04a4a9a2ef81e057d521f">peqn.c</a>
+, <a class="el" href="peqn_8h.html#afb43101b11e04a4a9a2ef81e057d521f">peqn.h</a>
+</li>
+<li>SubtractAveragePETSc()
+: <a class="el" href="peqn_8c.html#a9d5a40e9824682720a1696eb9cc1a9d2">peqn.c</a>
+, <a class="el" href="peqn_8h.html#a9d5a40e9824682720a1696eb9cc1a9d2">peqn.h</a>
 </li>
 <li>successorPrecursorMapScalarField()
-: <a class="el" href="precursor_8h.html#abf2b1a5812e59b837220336a4516e817">precursor.h</a>
-, <a class="el" href="precursor_8c.html#abf2b1a5812e59b837220336a4516e817">precursor.c</a>
+: <a class="el" href="precursor_8c.html#abf2b1a5812e59b837220336a4516e817">precursor.c</a>
+, <a class="el" href="precursor_8h.html#abf2b1a5812e59b837220336a4516e817">precursor.h</a>
 </li>
 <li>successorPrecursorMapVectorField()
-: <a class="el" href="precursor_8h.html#af6212df0bb2c422e40700fa08b37fc13">precursor.h</a>
-, <a class="el" href="precursor_8c.html#af6212df0bb2c422e40700fa08b37fc13">precursor.c</a>
+: <a class="el" href="precursor_8c.html#af6212df0bb2c422e40700fa08b37fc13">precursor.c</a>
+, <a class="el" href="precursor_8h.html#af6212df0bb2c422e40700fa08b37fc13">precursor.h</a>
 </li>
 </ul>
 </div><!-- contents -->

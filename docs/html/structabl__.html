@@ -71,6 +71,18 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
+<tr class="memitem:a590aa24c22eb83f069f7ae3be60842b7"><td class="memItemLeft" align="right" valign="top"><a id="a590aa24c22eb83f069f7ae3be60842b7"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a590aa24c22eb83f069f7ae3be60842b7">controllerActive</a></td></tr>
+<tr class="memdesc:a590aa24c22eb83f069f7ae3be60842b7"><td class="mdescLeft">&#160;</td><td class="mdescRight">activate velocity controller <br /></td></tr>
+<tr class="separator:a590aa24c22eb83f069f7ae3be60842b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a27d11cb892b9c0b354e70d07f5a908fc"><td class="memItemLeft" align="right" valign="top"><a id="a27d11cb892b9c0b354e70d07f5a908fc"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a27d11cb892b9c0b354e70d07f5a908fc">controllerActiveT</a></td></tr>
+<tr class="memdesc:a27d11cb892b9c0b354e70d07f5a908fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">activate temperature controller <br /></td></tr>
+<tr class="separator:a27d11cb892b9c0b354e70d07f5a908fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6e57fd97a0d1cc0949cf15a7b2f33edc"><td class="memItemLeft" align="right" valign="top"><a id="a6e57fd97a0d1cc0949cf15a7b2f33edc"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a6e57fd97a0d1cc0949cf15a7b2f33edc">coriolisActive</a></td></tr>
+<tr class="memdesc:a6e57fd97a0d1cc0949cf15a7b2f33edc"><td class="mdescLeft">&#160;</td><td class="mdescRight">activate coriolis force <br /></td></tr>
+<tr class="separator:a6e57fd97a0d1cc0949cf15a7b2f33edc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a747f03126b89bb449d66337367b428eb"><td class="memItemLeft" align="right" valign="top"><a id="a747f03126b89bb449d66337367b428eb"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a747f03126b89bb449d66337367b428eb">uTau</a></td></tr>
 <tr class="memdesc:a747f03126b89bb449d66337367b428eb"><td class="mdescLeft">&#160;</td><td class="mdescRight">friction Velocity <br /></td></tr>
@@ -87,6 +99,10 @@ PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href=
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a147c7d2a19ccf252146136859c1ee72e">hRef</a></td></tr>
 <tr class="memdesc:a147c7d2a19ccf252146136859c1ee72e"><td class="mdescLeft">&#160;</td><td class="mdescRight">reference height <br /></td></tr>
 <tr class="separator:a147c7d2a19ccf252146136859c1ee72e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7be0cf4ad79d0d5b435de8794bc59feb"><td class="memItemLeft" align="right" valign="top"><a id="a7be0cf4ad79d0d5b435de8794bc59feb"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a7be0cf4ad79d0d5b435de8794bc59feb">hGeo</a></td></tr>
+<tr class="memdesc:a7be0cf4ad79d0d5b435de8794bc59feb"><td class="mdescLeft">&#160;</td><td class="mdescRight">geostrophic height (required for geostrophic controller) <br /></td></tr>
+<tr class="separator:a7be0cf4ad79d0d5b435de8794bc59feb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a27a8d67536f774070fea8a11ceeec673"><td class="memItemLeft" align="right" valign="top"><a id="a27a8d67536f774070fea8a11ceeec673"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a27a8d67536f774070fea8a11ceeec673">hInv</a></td></tr>
 <tr class="memdesc:a27a8d67536f774070fea8a11ceeec673"><td class="mdescLeft">&#160;</td><td class="mdescRight">inversion height <br /></td></tr>
@@ -123,14 +139,14 @@ PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href=
 PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a38d711ba7c73a6d3e06bf609f3700ee5">cellLevels</a></td></tr>
 <tr class="memdesc:a38d711ba7c73a6d3e06bf609f3700ee5"><td class="mdescLeft">&#160;</td><td class="mdescRight">heights of the averaging planes <br /></td></tr>
 <tr class="separator:a38d711ba7c73a6d3e06bf609f3700ee5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a089f9bb6e42ac7a1cef419fedb51e7c3"><td class="memItemLeft" align="right" valign="top"><a id="a089f9bb6e42ac7a1cef419fedb51e7c3"></a>
-PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a089f9bb6e42ac7a1cef419fedb51e7c3">closestLabels</a></td></tr>
-<tr class="memdesc:a089f9bb6e42ac7a1cef419fedb51e7c3"><td class="mdescLeft">&#160;</td><td class="mdescRight">closest height w.r.t. reference height <br /></td></tr>
-<tr class="separator:a089f9bb6e42ac7a1cef419fedb51e7c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad8d15ba01c8309d2ffa8951aa1b251ab"><td class="memItemLeft" align="right" valign="top"><a id="ad8d15ba01c8309d2ffa8951aa1b251ab"></a>
-PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ad8d15ba01c8309d2ffa8951aa1b251ab">levelWeights</a></td></tr>
-<tr class="memdesc:ad8d15ba01c8309d2ffa8951aa1b251ab"><td class="mdescLeft">&#160;</td><td class="mdescRight">weights for variables interpolated at closest heights w.r.t. reference height <br /></td></tr>
-<tr class="separator:ad8d15ba01c8309d2ffa8951aa1b251ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a865be189a7511ce1560c24af04e12abd"><td class="memItemLeft" align="right" valign="top"><a id="a865be189a7511ce1560c24af04e12abd"></a>
+PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a865be189a7511ce1560c24af04e12abd">tDes</a></td></tr>
+<tr class="memdesc:a865be189a7511ce1560c24af04e12abd"><td class="mdescLeft">&#160;</td><td class="mdescRight">initial temperature to be maintained <br /></td></tr>
+<tr class="separator:a865be189a7511ce1560c24af04e12abd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abcd085afbab9635d1b6c409874eaff38"><td class="memItemLeft" align="right" valign="top"><a id="abcd085afbab9635d1b6c409874eaff38"></a>
+word&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#abcd085afbab9635d1b6c409874eaff38">controllerType</a></td></tr>
+<tr class="memdesc:abcd085afbab9635d1b6c409874eaff38"><td class="mdescLeft">&#160;</td><td class="mdescRight">velocity controller type: write/read (writes in postProcessing/momentumSource, reads from momentumSource) <br /></td></tr>
+<tr class="separator:abcd085afbab9635d1b6c409874eaff38"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa7a759b82d05659158dfe2645cf68bf4"><td class="memItemLeft" align="right" valign="top"><a id="aa7a759b82d05659158dfe2645cf68bf4"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#aa7a759b82d05659158dfe2645cf68bf4">relax</a></td></tr>
 <tr class="memdesc:aa7a759b82d05659158dfe2645cf68bf4"><td class="mdescLeft">&#160;</td><td class="mdescRight">source term relaxation factor <br /></td></tr>
@@ -143,14 +159,105 @@ PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href=
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a5dc295936b63613fee1f1eccd6ac8371">timeWindow</a></td></tr>
 <tr class="memdesc:a5dc295936b63613fee1f1eccd6ac8371"><td class="mdescLeft">&#160;</td><td class="mdescRight">time window of the integral part <br /></td></tr>
 <tr class="separator:a5dc295936b63613fee1f1eccd6ac8371"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abcd085afbab9635d1b6c409874eaff38"><td class="memItemLeft" align="right" valign="top"><a id="abcd085afbab9635d1b6c409874eaff38"></a>
-word&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#abcd085afbab9635d1b6c409874eaff38">controllerType</a></td></tr>
-<tr class="memdesc:abcd085afbab9635d1b6c409874eaff38"><td class="mdescLeft">&#160;</td><td class="mdescRight">velocity controller type: write/read (writes in postProcessing/momentumSource, reads from momentumSource) <br /></td></tr>
-<tr class="separator:abcd085afbab9635d1b6c409874eaff38"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a788f53f2cf221c29512d2308a50d1fd4"><td class="memItemLeft" align="right" valign="top"><a id="a788f53f2cf221c29512d2308a50d1fd4"></a>
-PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a788f53f2cf221c29512d2308a50d1fd4">controllerHeight</a></td></tr>
-<tr class="memdesc:a788f53f2cf221c29512d2308a50d1fd4"><td class="mdescLeft">&#160;</td><td class="mdescRight">max height of influence of the velocity controller <br /></td></tr>
-<tr class="separator:a788f53f2cf221c29512d2308a50d1fd4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2383f45c333625e0eb38db603598e5f0"><td class="memItemLeft" align="right" valign="top"><a id="a2383f45c333625e0eb38db603598e5f0"></a>
+PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a2383f45c333625e0eb38db603598e5f0">totVolPerLevel</a></td></tr>
+<tr class="memdesc:a2383f45c333625e0eb38db603598e5f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">total volume at each cell level <br /></td></tr>
+<tr class="separator:a2383f45c333625e0eb38db603598e5f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac9434a6f32f0b2c55cf73c53ce4f7950"><td class="memItemLeft" align="right" valign="top"><a id="ac9434a6f32f0b2c55cf73c53ce4f7950"></a>
+PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ac9434a6f32f0b2c55cf73c53ce4f7950">totCelPerLevel</a></td></tr>
+<tr class="memdesc:ac9434a6f32f0b2c55cf73c53ce4f7950"><td class="mdescLeft">&#160;</td><td class="mdescRight">total number of cells per level <br /></td></tr>
+<tr class="separator:ac9434a6f32f0b2c55cf73c53ce4f7950"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a089f9bb6e42ac7a1cef419fedb51e7c3"><td class="memItemLeft" align="right" valign="top"><a id="a089f9bb6e42ac7a1cef419fedb51e7c3"></a>
+PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a089f9bb6e42ac7a1cef419fedb51e7c3">closestLabels</a></td></tr>
+<tr class="memdesc:a089f9bb6e42ac7a1cef419fedb51e7c3"><td class="mdescLeft">&#160;</td><td class="mdescRight">closest heights w.r.t. controller height <br /></td></tr>
+<tr class="separator:a089f9bb6e42ac7a1cef419fedb51e7c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad8d15ba01c8309d2ffa8951aa1b251ab"><td class="memItemLeft" align="right" valign="top"><a id="ad8d15ba01c8309d2ffa8951aa1b251ab"></a>
+PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ad8d15ba01c8309d2ffa8951aa1b251ab">levelWeights</a></td></tr>
+<tr class="memdesc:ad8d15ba01c8309d2ffa8951aa1b251ab"><td class="mdescLeft">&#160;</td><td class="mdescRight">weights for variables interpolated at closest heights w.r.t. controller height <br /></td></tr>
+<tr class="separator:ad8d15ba01c8309d2ffa8951aa1b251ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a00b4c0db26925cbf1f523d07105b600b"><td class="memItemLeft" align="right" valign="top"><a id="a00b4c0db26925cbf1f523d07105b600b"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a00b4c0db26925cbf1f523d07105b600b">controllerMaxHeight</a></td></tr>
+<tr class="memdesc:a00b4c0db26925cbf1f523d07105b600b"><td class="mdescLeft">&#160;</td><td class="mdescRight">max height of influence of the velocity controller <br /></td></tr>
+<tr class="separator:a00b4c0db26925cbf1f523d07105b600b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad8339d5dbf1d15142c6dca69e748ff75"><td class="memItemLeft" align="right" valign="top"><a id="ad8339d5dbf1d15142c6dca69e748ff75"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ad8339d5dbf1d15142c6dca69e748ff75">geostrophicDampingActive</a></td></tr>
+<tr class="memdesc:ad8339d5dbf1d15142c6dca69e748ff75"><td class="mdescLeft">&#160;</td><td class="mdescRight">geosptrophic oscillation damping <br /></td></tr>
+<tr class="separator:ad8339d5dbf1d15142c6dca69e748ff75"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2f6043c1b920d783434ce04d81a41931"><td class="memItemLeft" align="right" valign="top"><a id="a2f6043c1b920d783434ce04d81a41931"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a2f6043c1b920d783434ce04d81a41931">geoDampAvgDT</a></td></tr>
+<tr class="memdesc:a2f6043c1b920d783434ce04d81a41931"><td class="mdescLeft">&#160;</td><td class="mdescRight">average time step from simulation start <br /></td></tr>
+<tr class="separator:a2f6043c1b920d783434ce04d81a41931"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aef71917e0bc59ca9801c2c0a49688322"><td class="memItemLeft" align="right" valign="top"><a id="aef71917e0bc59ca9801c2c0a49688322"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#aef71917e0bc59ca9801c2c0a49688322">geoDampAvgS</a></td></tr>
+<tr class="memdesc:aef71917e0bc59ca9801c2c0a49688322"><td class="mdescLeft">&#160;</td><td class="mdescRight">expected geostrophic velocity <br /></td></tr>
+<tr class="separator:aef71917e0bc59ca9801c2c0a49688322"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae475acdbe4f0334c61dd30ae1028143d"><td class="memItemLeft" align="right" valign="top"><a id="ae475acdbe4f0334c61dd30ae1028143d"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ae475acdbe4f0334c61dd30ae1028143d">geoDampUBar</a></td></tr>
+<tr class="memdesc:ae475acdbe4f0334c61dd30ae1028143d"><td class="mdescLeft">&#160;</td><td class="mdescRight">expected geostrophic velocity <br /></td></tr>
+<tr class="separator:ae475acdbe4f0334c61dd30ae1028143d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0d7bdd021a394a4ad940990992865e77"><td class="memItemLeft" align="right" valign="top"><a id="a0d7bdd021a394a4ad940990992865e77"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a0d7bdd021a394a4ad940990992865e77">geoDampU</a></td></tr>
+<tr class="memdesc:a0d7bdd021a394a4ad940990992865e77"><td class="mdescLeft">&#160;</td><td class="mdescRight">average horizontal velocity at current iteration <br /></td></tr>
+<tr class="separator:a0d7bdd021a394a4ad940990992865e77"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1911a7fd2c3d57ad3d2eedc3b1a51e6c"><td class="memItemLeft" align="right" valign="top"><a id="a1911a7fd2c3d57ad3d2eedc3b1a51e6c"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a1911a7fd2c3d57ad3d2eedc3b1a51e6c">geoDampAlpha</a></td></tr>
+<tr class="memdesc:a1911a7fd2c3d57ad3d2eedc3b1a51e6c"><td class="mdescLeft">&#160;</td><td class="mdescRight">alpha = 1 critical damping (&gt;1 over-damped, &lt;1 under-damped) <br /></td></tr>
+<tr class="separator:a1911a7fd2c3d57ad3d2eedc3b1a51e6c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afbb7a24629124b7094898be74e262724"><td class="memItemLeft" align="right" valign="top"><a id="afbb7a24629124b7094898be74e262724"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#afbb7a24629124b7094898be74e262724">geoDampH</a></td></tr>
+<tr class="memdesc:afbb7a24629124b7094898be74e262724"><td class="mdescLeft">&#160;</td><td class="mdescRight">H at which damping begins to be applied. <br /></td></tr>
+<tr class="separator:afbb7a24629124b7094898be74e262724"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a773b82cc6eaf60b5952e89c981dab0ce"><td class="memItemLeft" align="right" valign="top"><a id="a773b82cc6eaf60b5952e89c981dab0ce"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a773b82cc6eaf60b5952e89c981dab0ce">geoDampDelta</a></td></tr>
+<tr class="memdesc:a773b82cc6eaf60b5952e89c981dab0ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">rising distance for the application function <br /></td></tr>
+<tr class="separator:a773b82cc6eaf60b5952e89c981dab0ce"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac0de339fceb030d08d3bb742055d7774"><td class="memItemLeft" align="right" valign="top"><a id="ac0de339fceb030d08d3bb742055d7774"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ac0de339fceb030d08d3bb742055d7774">geoDampC</a></td></tr>
+<tr class="memdesc:ac0de339fceb030d08d3bb742055d7774"><td class="mdescLeft">&#160;</td><td class="mdescRight">critical damping coefficient <br /></td></tr>
+<tr class="separator:ac0de339fceb030d08d3bb742055d7774"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5f4e5d464397a8617d3731c04b2614d6"><td class="memItemLeft" align="right" valign="top"><a id="a5f4e5d464397a8617d3731c04b2614d6"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a5f4e5d464397a8617d3731c04b2614d6">geoDampStart</a></td></tr>
+<tr class="memdesc:a5f4e5d464397a8617d3731c04b2614d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">starting time of geostrophic damping <br /></td></tr>
+<tr class="separator:a5f4e5d464397a8617d3731c04b2614d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a68bf1741a834f3d65e81446c357144ab"><td class="memItemLeft" align="right" valign="top"><a id="a68bf1741a834f3d65e81446c357144ab"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a68bf1741a834f3d65e81446c357144ab">geoDampWindow</a></td></tr>
+<tr class="memdesc:a68bf1741a834f3d65e81446c357144ab"><td class="mdescLeft">&#160;</td><td class="mdescRight">averaging window for the geostrophic velocity <br /></td></tr>
+<tr class="separator:a68bf1741a834f3d65e81446c357144ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9cf7e5294be637ef6189c4e48aa57a96"><td class="memItemLeft" align="right" valign="top"><a id="a9cf7e5294be637ef6189c4e48aa57a96"></a>
+PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a9cf7e5294be637ef6189c4e48aa57a96">closestLabelsGeo</a></td></tr>
+<tr class="memdesc:a9cf7e5294be637ef6189c4e48aa57a96"><td class="mdescLeft">&#160;</td><td class="mdescRight">closest heights w.r.t. controller height <br /></td></tr>
+<tr class="separator:a9cf7e5294be637ef6189c4e48aa57a96"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a72c3beae1348e149e4fc3ba381a79d69"><td class="memItemLeft" align="right" valign="top"><a id="a72c3beae1348e149e4fc3ba381a79d69"></a>
+PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a72c3beae1348e149e4fc3ba381a79d69">levelWeightsGeo</a></td></tr>
+<tr class="memdesc:a72c3beae1348e149e4fc3ba381a79d69"><td class="mdescLeft">&#160;</td><td class="mdescRight">weights for variables interpolated at closest heights w.r.t. controller height <br /></td></tr>
+<tr class="separator:a72c3beae1348e149e4fc3ba381a79d69"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0df4e5a1132afab0a6b3569498d442a0"><td class="memItemLeft" align="right" valign="top"><a id="a0df4e5a1132afab0a6b3569498d442a0"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a0df4e5a1132afab0a6b3569498d442a0">uGeoBar</a></td></tr>
+<tr class="memdesc:a0df4e5a1132afab0a6b3569498d442a0"><td class="mdescLeft">&#160;</td><td class="mdescRight">desired geostrophic wind speed magnitude <br /></td></tr>
+<tr class="separator:a0df4e5a1132afab0a6b3569498d442a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a386e617d169575278cb799598e88e5f9"><td class="memItemLeft" align="right" valign="top"><a id="a386e617d169575278cb799598e88e5f9"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a386e617d169575278cb799598e88e5f9">omegaBar</a></td></tr>
+<tr class="memdesc:a386e617d169575278cb799598e88e5f9"><td class="mdescLeft">&#160;</td><td class="mdescRight">rotation velocity <br /></td></tr>
+<tr class="separator:a386e617d169575278cb799598e88e5f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acd3e11521caa8c434addd649ad243820"><td class="memItemLeft" align="right" valign="top"><a id="acd3e11521caa8c434addd649ad243820"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#acd3e11521caa8c434addd649ad243820">hubAngle</a></td></tr>
+<tr class="memdesc:acd3e11521caa8c434addd649ad243820"><td class="mdescLeft">&#160;</td><td class="mdescRight">filtered angle at hub height <br /></td></tr>
+<tr class="separator:acd3e11521caa8c434addd649ad243820"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad8c45c847f3a64af978ecc48f9c6ff5e"><td class="memItemLeft" align="right" valign="top"><a id="ad8c45c847f3a64af978ecc48f9c6ff5e"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ad8c45c847f3a64af978ecc48f9c6ff5e">geoAngle</a></td></tr>
+<tr class="memdesc:ad8c45c847f3a64af978ecc48f9c6ff5e"><td class="mdescLeft">&#160;</td><td class="mdescRight">cumulated wind angle given by the sum of all rotations and filtered <br /></td></tr>
+<tr class="separator:ad8c45c847f3a64af978ecc48f9c6ff5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a25258c889ffef21cbe743106a3de0fef"><td class="memItemLeft" align="right" valign="top"><a id="a25258c889ffef21cbe743106a3de0fef"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><b>a</b></td></tr>
+<tr class="separator:a25258c889ffef21cbe743106a3de0fef"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5df5832fba85dc4c5104e271424d6dbd"><td class="memItemLeft" align="right" valign="top"><a id="a5df5832fba85dc4c5104e271424d6dbd"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a5df5832fba85dc4c5104e271424d6dbd">b</a></td></tr>
+<tr class="memdesc:a5df5832fba85dc4c5104e271424d6dbd"><td class="mdescLeft">&#160;</td><td class="mdescRight">the two constant parts of the controller (a = geo forcing, b = wind angle controller) <br /></td></tr>
+<tr class="separator:a5df5832fba85dc4c5104e271424d6dbd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a28ff2b56d0d1e1447e664f9387002c27"><td class="memItemLeft" align="right" valign="top"><a id="a28ff2b56d0d1e1447e664f9387002c27"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a28ff2b56d0d1e1447e664f9387002c27">currentCloseIdx</a></td></tr>
+<tr class="memdesc:a28ff2b56d0d1e1447e664f9387002c27"><td class="mdescLeft">&#160;</td><td class="mdescRight">save the current closest index at each iteration to speed up the interpolation search <br /></td></tr>
+<tr class="separator:a28ff2b56d0d1e1447e664f9387002c27"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2a5a12f7497094ceb8761af6f40c751b"><td class="memItemLeft" align="right" valign="top"><a id="a2a5a12f7497094ceb8761af6f40c751b"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a2a5a12f7497094ceb8761af6f40c751b">sourceAvgStartTime</a></td></tr>
 <tr class="memdesc:a2a5a12f7497094ceb8761af6f40c751b"><td class="mdescLeft">&#160;</td><td class="mdescRight">if controllerType is 'average', average sources from this time value <br /></td></tr>
@@ -163,18 +270,6 @@ PetscReal **&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ad1acc36e1df5602ee77ec593c90f84b7">nSourceTimes</a></td></tr>
 <tr class="memdesc:ad1acc36e1df5602ee77ec593c90f84b7"><td class="mdescLeft">&#160;</td><td class="mdescRight">number of times in the pre-computed sources <br /></td></tr>
 <tr class="separator:ad1acc36e1df5602ee77ec593c90f84b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a28ff2b56d0d1e1447e664f9387002c27"><td class="memItemLeft" align="right" valign="top"><a id="a28ff2b56d0d1e1447e664f9387002c27"></a>
-PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a28ff2b56d0d1e1447e664f9387002c27">currentCloseIdx</a></td></tr>
-<tr class="memdesc:a28ff2b56d0d1e1447e664f9387002c27"><td class="mdescLeft">&#160;</td><td class="mdescRight">save the current closest index at each iteration to speed up the interpolation search <br /></td></tr>
-<tr class="separator:a28ff2b56d0d1e1447e664f9387002c27"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2383f45c333625e0eb38db603598e5f0"><td class="memItemLeft" align="right" valign="top"><a id="a2383f45c333625e0eb38db603598e5f0"></a>
-PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a2383f45c333625e0eb38db603598e5f0">totVolPerLevel</a></td></tr>
-<tr class="memdesc:a2383f45c333625e0eb38db603598e5f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">total volume at each cell level <br /></td></tr>
-<tr class="separator:a2383f45c333625e0eb38db603598e5f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac9434a6f32f0b2c55cf73c53ce4f7950"><td class="memItemLeft" align="right" valign="top"><a id="ac9434a6f32f0b2c55cf73c53ce4f7950"></a>
-PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ac9434a6f32f0b2c55cf73c53ce4f7950">totCelPerLevel</a></td></tr>
-<tr class="memdesc:ac9434a6f32f0b2c55cf73c53ce4f7950"><td class="mdescLeft">&#160;</td><td class="mdescRight">total number of cells per level <br /></td></tr>
-<tr class="separator:ac9434a6f32f0b2c55cf73c53ce4f7950"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af2526caf4d5521bafd0d2315acac11f1"><td class="memItemLeft" align="right" valign="top"><a id="af2526caf4d5521bafd0d2315acac11f1"></a>
 <a class="el" href="structCmpnts.html">Cmpnts</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#af2526caf4d5521bafd0d2315acac11f1">cumulatedSource</a></td></tr>
 <tr class="memdesc:af2526caf4d5521bafd0d2315acac11f1"><td class="mdescLeft">&#160;</td><td class="mdescRight">cumulated error of the velocity controller (equalt to gradP at steady state) <br /></td></tr>
@@ -230,6 +325,26 @@ PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href=
 word&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#aac5ab23151e356bb1d52bea7d3280967">xDampingControlType</a></td></tr>
 <tr class="memdesc:aac5ab23151e356bb1d52bea7d3280967"><td class="mdescLeft">&#160;</td><td class="mdescRight">type of controller: alphaFixed or alphaOptimized <br /></td></tr>
 <tr class="separator:aac5ab23151e356bb1d52bea7d3280967"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab777af4a33d4f89dd678d02fdfe4a2fa"><td class="memItemLeft" align="right" valign="top"><a id="ab777af4a33d4f89dd678d02fdfe4a2fa"></a>
+PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ab777af4a33d4f89dd678d02fdfe4a2fa">advectionDampingType</a></td></tr>
+<tr class="memdesc:ab777af4a33d4f89dd678d02fdfe4a2fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">type of advection damping (0: none, 1: LanzilaoMeyers2022) <br /></td></tr>
+<tr class="separator:ab777af4a33d4f89dd678d02fdfe4a2fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad40d271bee7fbf09b7d8e1bb930709cd"><td class="memItemLeft" align="right" valign="top"><a id="ad40d271bee7fbf09b7d8e1bb930709cd"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ad40d271bee7fbf09b7d8e1bb930709cd">advDampingStart</a></td></tr>
+<tr class="memdesc:ad40d271bee7fbf09b7d8e1bb930709cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">starting x of the adv damping layer <br /></td></tr>
+<tr class="separator:ad40d271bee7fbf09b7d8e1bb930709cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a81f92f51b7115639cd55ebe900a2dad8"><td class="memItemLeft" align="right" valign="top"><a id="a81f92f51b7115639cd55ebe900a2dad8"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a81f92f51b7115639cd55ebe900a2dad8">advDampingEnd</a></td></tr>
+<tr class="memdesc:a81f92f51b7115639cd55ebe900a2dad8"><td class="mdescLeft">&#160;</td><td class="mdescRight">ending x of the adv damping layer <br /></td></tr>
+<tr class="separator:a81f92f51b7115639cd55ebe900a2dad8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a621147c852a41b99bb79492a783788a2"><td class="memItemLeft" align="right" valign="top"><a id="a621147c852a41b99bb79492a783788a2"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a621147c852a41b99bb79492a783788a2">advDampingDeltaStart</a></td></tr>
+<tr class="memdesc:a621147c852a41b99bb79492a783788a2"><td class="mdescLeft">&#160;</td><td class="mdescRight">damping raise/decay distance <br /></td></tr>
+<tr class="separator:a621147c852a41b99bb79492a783788a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a72f1f504b6289b3bfe81ebc4ba15ebe7"><td class="memItemLeft" align="right" valign="top"><a id="a72f1f504b6289b3bfe81ebc4ba15ebe7"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a72f1f504b6289b3bfe81ebc4ba15ebe7">advDampingDeltaEnd</a></td></tr>
+<tr class="memdesc:a72f1f504b6289b3bfe81ebc4ba15ebe7"><td class="mdescLeft">&#160;</td><td class="mdescRight">damping raise/decay distance <br /></td></tr>
+<tr class="separator:a72f1f504b6289b3bfe81ebc4ba15ebe7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9be88226aab5ee082c5743165fcaee00"><td class="memItemLeft" align="right" valign="top"><a id="a9be88226aab5ee082c5743165fcaee00"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a9be88226aab5ee082c5743165fcaee00">xDampingTimeWindow</a></td></tr>
 <tr class="memdesc:a9be88226aab5ee082c5743165fcaee00"><td class="mdescLeft">&#160;</td><td class="mdescRight">time constant for velocity filtering <br /></td></tr>
@@ -269,6 +384,14 @@ PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href=
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ad188482c237a149da2e62ffb4ae3e82e">xDampingCoeff</a></td></tr>
 <tr class="memdesc:ad188482c237a149da2e62ffb4ae3e82e"><td class="mdescLeft">&#160;</td><td class="mdescRight">coeff = |Vend - Vstart| / alpha <br /></td></tr>
 <tr class="separator:ad188482c237a149da2e62ffb4ae3e82e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9c5a72c4791076dc2f1785f5142cd5f5"><td class="memItemLeft" align="right" valign="top"><a id="a9c5a72c4791076dc2f1785f5142cd5f5"></a>
+PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a9c5a72c4791076dc2f1785f5142cd5f5">closestLabelsFringe</a></td></tr>
+<tr class="memdesc:a9c5a72c4791076dc2f1785f5142cd5f5"><td class="mdescLeft">&#160;</td><td class="mdescRight">closest height w.r.t. fringe controller height <br /></td></tr>
+<tr class="separator:a9c5a72c4791076dc2f1785f5142cd5f5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a32bae85c92330ec6761b999a2af791b0"><td class="memItemLeft" align="right" valign="top"><a id="a32bae85c92330ec6761b999a2af791b0"></a>
+PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a32bae85c92330ec6761b999a2af791b0">levelWeightsFringe</a></td></tr>
+<tr class="memdesc:a32bae85c92330ec6761b999a2af791b0"><td class="mdescLeft">&#160;</td><td class="mdescRight">weights for variables interpolated at closest heights w.r.t. fringe controller height <br /></td></tr>
+<tr class="separator:a32bae85c92330ec6761b999a2af791b0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a989768efc95117b2064ba49bc5e5c4c6"><td class="memItemLeft" align="right" valign="top"><a id="a989768efc95117b2064ba49bc5e5c4c6"></a>
 PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a989768efc95117b2064ba49bc5e5c4c6">xFringeUBarSelectionType</a></td></tr>
 <tr class="memdesc:a989768efc95117b2064ba49bc5e5c4c6"><td class="mdescLeft">&#160;</td><td class="mdescRight">read type of fringe region in uBarSelectionType <br /></td></tr>
@@ -285,6 +408,26 @@ PetscReal **&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 PetscInt **&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a7253b6009191c2202b7cf2ef790dc763">nProcsKLine</a></td></tr>
 <tr class="memdesc:a7253b6009191c2202b7cf2ef790dc763"><td class="mdescLeft">&#160;</td><td class="mdescRight">number of processors in each k-line, used to average after MPI_Allreduce <br /></td></tr>
 <tr class="separator:a7253b6009191c2202b7cf2ef790dc763"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa2820301925d3955806746f16b3ad90c"><td class="memItemLeft" align="right" valign="top"><a id="aa2820301925d3955806746f16b3ad90c"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#aa2820301925d3955806746f16b3ad90c">uBarAvgTopX</a></td></tr>
+<tr class="memdesc:aa2820301925d3955806746f16b3ad90c"><td class="mdescLeft">&#160;</td><td class="mdescRight">velocity average from inflow database at top 5 points <br /></td></tr>
+<tr class="separator:aa2820301925d3955806746f16b3ad90c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a119d4a2ec27edef1f379200e0a7348ff"><td class="memItemLeft" align="right" valign="top"><a id="a119d4a2ec27edef1f379200e0a7348ff"></a>
+PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a119d4a2ec27edef1f379200e0a7348ff">tBarAvgTopX</a></td></tr>
+<tr class="memdesc:a119d4a2ec27edef1f379200e0a7348ff"><td class="mdescLeft">&#160;</td><td class="mdescRight">temperature average from inflow database at top 5 points <br /></td></tr>
+<tr class="separator:a119d4a2ec27edef1f379200e0a7348ff"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae5f522a36c487f96fd2ca35104f8a273"><td class="memItemLeft" align="right" valign="top"><a id="ae5f522a36c487f96fd2ca35104f8a273"></a>
+PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#ae5f522a36c487f96fd2ca35104f8a273">avgTopPointCoords</a></td></tr>
+<tr class="memdesc:ae5f522a36c487f96fd2ca35104f8a273"><td class="mdescLeft">&#160;</td><td class="mdescRight">z coordinates of the 5 average top points <br /></td></tr>
+<tr class="separator:ae5f522a36c487f96fd2ca35104f8a273"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a989cb16c60a0eb4892322cc8374dfeef"><td class="memItemLeft" align="right" valign="top"><a id="a989cb16c60a0eb4892322cc8374dfeef"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a989cb16c60a0eb4892322cc8374dfeef">avgTopDelta</a></td></tr>
+<tr class="memdesc:a989cb16c60a0eb4892322cc8374dfeef"><td class="mdescLeft">&#160;</td><td class="mdescRight">length of the five top cells <br /></td></tr>
+<tr class="separator:a989cb16c60a0eb4892322cc8374dfeef"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a95653229cd652ae0845aee62050009f6"><td class="memItemLeft" align="right" valign="top"><a id="a95653229cd652ae0845aee62050009f6"></a>
+PetscReal&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structabl__.html#a95653229cd652ae0845aee62050009f6">avgTopLength</a></td></tr>
+<tr class="memdesc:a95653229cd652ae0845aee62050009f6"><td class="mdescLeft">&#160;</td><td class="mdescRight">height of the inflow slices <br /></td></tr>
+<tr class="separator:a95653229cd652ae0845aee62050009f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad56cef112f122d7e2e22cf29c9c27c9b"><td class="memItemLeft" align="right" valign="top"><a id="ad56cef112f122d7e2e22cf29c9c27c9b"></a>
 PetscReal&#160;</td><td class="memItemRight" valign="bottom"><b>xStartSideF</b></td></tr>
 <tr class="separator:ad56cef112f122d7e2e22cf29c9c27c9b"><td class="memSeparator" colspan="2">&#160;</td></tr>

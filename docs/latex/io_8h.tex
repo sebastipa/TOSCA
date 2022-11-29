@@ -22,6 +22,9 @@ void \mbox{\hyperlink{io_8h_ad22a6eea8f275f40823f32355beb2bbc}{warning\+In\+Func
 \mbox{\Hypertarget{io_8h_ae57bcde696d8ccf1bd34ecc100b07fba}\label{io_8h_ae57bcde696d8ccf1bd34ecc100b07fba}} 
 word \mbox{\hyperlink{io_8h_ae57bcde696d8ccf1bd34ecc100b07fba}{this\+Case\+Name}} ()
 \begin{DoxyCompactList}\small\item\em Retrieves this case name. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{io_8h_aa8386d069befb8e442596f0829dd54d9}\label{io_8h_aa8386d069befb8e442596f0829dd54d9}} 
+Petsc\+Error\+Code \mbox{\hyperlink{io_8h_aa8386d069befb8e442596f0829dd54d9}{get\+Time\+List}} (const char $\ast$data\+Loc, std\+::vector$<$ Petsc\+Real $>$ \&time\+Series, Petsc\+Int \&ntimes)
+\begin{DoxyCompactList}\small\item\em Returns the time list (from folder names) and size contained in a folder. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_a66788a88f4cf4b5e1736f22145f5c5f7}\label{io_8h_a66788a88f4cf4b5e1736f22145f5c5f7}} 
 Petsc\+Int \mbox{\hyperlink{io_8h_a66788a88f4cf4b5e1736f22145f5c5f7}{found\+In\+String}} (const char $\ast$str, word keyword)
 \begin{DoxyCompactList}\small\item\em Finds a word inside a string. \end{DoxyCompactList}\item 
@@ -52,6 +55,9 @@ void \mbox{\hyperlink{io_8h_a7fc6972aaa70be99c519498611701db6}{remove\+\_\+subdi
 \mbox{\Hypertarget{io_8h_ac52f5887f76318a2318d4721802f3403}\label{io_8h_ac52f5887f76318a2318d4721802f3403}} 
 void \mbox{\hyperlink{io_8h_ac52f5887f76318a2318d4721802f3403}{remove\+\_\+subdirs\+\_\+except3}} (M\+P\+I\+\_\+\+Comm comm, const char $\ast$path2dir, const word name1, const word name2, const word name3)
 \begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the 3 names provided. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{io_8h_a53dac50624de3ed052ba33311ccc3c0a}\label{io_8h_a53dac50624de3ed052ba33311ccc3c0a}} 
+void \mbox{\hyperlink{io_8h_a53dac50624de3ed052ba33311ccc3c0a}{remove\+\_\+subdirs\+\_\+except4}} (M\+P\+I\+\_\+\+Comm comm, const char $\ast$path2dir, const word name1, const word name2, const word name3, const word name4)
+\begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the 3 names provided. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_aea57de8784231311b501c1f92e27a1af}\label{io_8h_aea57de8784231311b501c1f92e27a1af}} 
 void \mbox{\hyperlink{io_8h_aea57de8784231311b501c1f92e27a1af}{Set\+Write\+Dir}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, const word str)
 \begin{DoxyCompactList}\small\item\em Set write directory for a given mesh. \end{DoxyCompactList}\item 
@@ -61,6 +67,12 @@ void \mbox{\hyperlink{io_8h_aeed0361e411c0bff8d5bfc970ddda539}{write\+Binary\+Fi
 \mbox{\Hypertarget{io_8h_a24f88a2dc2894813377d8c3c8ebd92a7}\label{io_8h_a24f88a2dc2894813377d8c3c8ebd92a7}} 
 Petsc\+Error\+Code \mbox{\hyperlink{io_8h_a24f88a2dc2894813377d8c3c8ebd92a7}{Initialize\+IO}} (\mbox{\hyperlink{structio__}{io\+\_\+}} $\ast$io)
 \begin{DoxyCompactList}\small\item\em Initializes io data structure. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{io_8h_ac928bac288d47df64ad361765ce346d0}\label{io_8h_ac928bac288d47df64ad361765ce346d0}} 
+Petsc\+Error\+Code \mbox{\hyperlink{io_8h_ac928bac288d47df64ad361765ce346d0}{Reread\+IO}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
+\begin{DoxyCompactList}\small\item\em Re-\/read IO write parameters. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{io_8h_abc05c134a7d7cd8450beb5d68cef7a6f}\label{io_8h_abc05c134a7d7cd8450beb5d68cef7a6f}} 
+Petsc\+Error\+Code \mbox{\hyperlink{io_8h_abc05c134a7d7cd8450beb5d68cef7a6f}{Update\+Input}} (\mbox{\hyperlink{structio__}{io\+\_\+}} $\ast$io, word \&modified)
+\begin{DoxyCompactList}\small\item\em Called by Reread\+IO, triggers updates in each domain. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_a12060383ddd0234f9bdce3763bc218d5}\label{io_8h_a12060383ddd0234f9bdce3763bc218d5}} 
 Petsc\+Error\+Code \mbox{\hyperlink{io_8h_a12060383ddd0234f9bdce3763bc218d5}{read\+Fields}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain, Petsc\+Real time\+Value)
 \begin{DoxyCompactList}\small\item\em read and save the different fields stored in the fields/mesh\+Name/time folder \end{DoxyCompactList}\item 
@@ -112,6 +124,9 @@ Petsc\+Error\+Code \mbox{\hyperlink{io_8h_a7e2d89b88bea0471c1b6775e37e3ac16}{rea
 \mbox{\Hypertarget{io_8h_a63cd3b8f9f5efa4ce05adad15cf2a39d}\label{io_8h_a63cd3b8f9f5efa4ce05adad15cf2a39d}} 
 Petsc\+Error\+Code \mbox{\hyperlink{io_8h_a63cd3b8f9f5efa4ce05adad15cf2a39d}{read\+Sub\+Dict\+Int\+Array}} (const char $\ast$dict\+Name, const char $\ast$subdict, const char $\ast$keyword, label\+List \&value)
 \begin{DoxyCompactList}\small\item\em Read mandatory array of Petsc\+Int from sub-\/dictionary. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{io_8h_afd200a1b6f88a14afb3e7c9be4ca7b19}\label{io_8h_afd200a1b6f88a14afb3e7c9be4ca7b19}} 
+std\+::string $\ast$ {\bfseries read\+Sub\+Dict\+Word\+Array} (const char $\ast$dict\+Name, const char $\ast$subdict, const char $\ast$keyword, Petsc\+Int numW)
+\item 
 \mbox{\Hypertarget{io_8h_ab73941600644a5529434bf0e0749e160}\label{io_8h_ab73941600644a5529434bf0e0749e160}} 
 word \mbox{\hyperlink{io_8h_ab73941600644a5529434bf0e0749e160}{trim}} (const word \&str)
 \begin{DoxyCompactList}\small\item\em Trims a string removing pre and trail spaces. \end{DoxyCompactList}\item 

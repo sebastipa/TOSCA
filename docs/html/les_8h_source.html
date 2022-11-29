@@ -76,40 +76,47 @@ $(function() {
 <div class="line"><a name="l00008"></a><span class="lineno"><a class="line" href="structles__.html">    8</a></span>&#160;<span class="keyword">struct </span><a class="code" href="structles__.html">les_</a></div>
 <div class="line"><a name="l00009"></a><span class="lineno">    9</span>&#160;{</div>
 <div class="line"><a name="l00010"></a><span class="lineno">   10</span>&#160;    PetscReal     maxCs;</div>
-<div class="line"><a name="l00011"></a><span class="lineno">   11</span>&#160;    <span class="comment">// Dynamic Smagorisnky</span></div>
-<div class="line"><a name="l00012"></a><span class="lineno">   12</span>&#160;    Vec           lSx, lSy, lSz, lS;</div>
-<div class="line"><a name="l00013"></a><span class="lineno">   13</span>&#160;    Vec           lLM, lMM;</div>
-<div class="line"><a name="l00014"></a><span class="lineno">   14</span>&#160;    Vec           lLM_old, lMM_old;</div>
-<div class="line"><a name="l00015"></a><span class="lineno">   15</span>&#160;    Vec           lCs;</div>
-<div class="line"><a name="l00016"></a><span class="lineno">   16</span>&#160; </div>
-<div class="line"><a name="l00017"></a><span class="lineno">   17</span>&#160;    <span class="comment">// kEquation</span></div>
-<div class="line"><a name="l00018"></a><span class="lineno">   18</span>&#160; </div>
-<div class="line"><a name="l00019"></a><span class="lineno">   19</span>&#160;    <span class="comment">// general</span></div>
-<div class="line"><a name="l00020"></a><span class="lineno"><a class="line" href="structles__.html#a0a937980990eb1481b5b4c261d81727b">   20</a></span>&#160;    Vec           <a class="code" href="structles__.html#a0a937980990eb1481b5b4c261d81727b">lNu_t</a>;                   </div>
-<div class="line"><a name="l00021"></a><span class="lineno">   21</span>&#160; </div>
-<div class="line"><a name="l00022"></a><span class="lineno">   22</span>&#160;    <span class="comment">// initial nut field</span></div>
-<div class="line"><a name="l00023"></a><span class="lineno">   23</span>&#160;    word          initFieldType;</div>
+<div class="line"><a name="l00011"></a><span class="lineno">   11</span>&#160; </div>
+<div class="line"><a name="l00012"></a><span class="lineno">   12</span>&#160;    <span class="comment">// Dynamic Smagorisnky</span></div>
+<div class="line"><a name="l00013"></a><span class="lineno">   13</span>&#160;    Vec           lSx, lSy, lSz, lS;</div>
+<div class="line"><a name="l00014"></a><span class="lineno">   14</span>&#160;    Vec           lLM, lMM;</div>
+<div class="line"><a name="l00015"></a><span class="lineno">   15</span>&#160;    Vec           lLM_old, lMM_old;</div>
+<div class="line"><a name="l00016"></a><span class="lineno">   16</span>&#160;    Vec           lCs;</div>
+<div class="line"><a name="l00017"></a><span class="lineno">   17</span>&#160; </div>
+<div class="line"><a name="l00018"></a><span class="lineno">   18</span>&#160;    <span class="comment">// Scale dependent model</span></div>
+<div class="line"><a name="l00019"></a><span class="lineno">   19</span>&#160;    Vec           lN;</div>
+<div class="line"><a name="l00020"></a><span class="lineno">   20</span>&#160;    Vec           lCh;</div>
+<div class="line"><a name="l00021"></a><span class="lineno"><a class="line" href="structles__.html#a172371b945cbac53e3d7def7e3f70cd8">   21</a></span>&#160;    Vec           <a class="code" href="structles__.html#a172371b945cbac53e3d7def7e3f70cd8">L</a>;                       </div>
+<div class="line"><a name="l00022"></a><span class="lineno">   22</span>&#160; </div>
+<div class="line"><a name="l00023"></a><span class="lineno">   23</span>&#160;    <span class="comment">// kEquation</span></div>
 <div class="line"><a name="l00024"></a><span class="lineno">   24</span>&#160; </div>
-<div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;    <span class="comment">// access</span></div>
-<div class="line"><a name="l00026"></a><span class="lineno"><a class="line" href="structles__.html#ad57bc6baf4656454223f761bcdd51634">   26</a></span>&#160;    <a class="code" href="structaccess__.html">access_</a>       *<a class="code" href="structles__.html#ad57bc6baf4656454223f761bcdd51634">access</a>;                 </div>
+<div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;    <span class="comment">// general</span></div>
+<div class="line"><a name="l00026"></a><span class="lineno"><a class="line" href="structles__.html#a0a937980990eb1481b5b4c261d81727b">   26</a></span>&#160;    Vec           <a class="code" href="structles__.html#a0a937980990eb1481b5b4c261d81727b">lNu_t</a>;                   </div>
 <div class="line"><a name="l00027"></a><span class="lineno">   27</span>&#160; </div>
-<div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160;};</div>
-<div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160; </div>
-<div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160;<span class="preprocessor">#endif</span></div>
-<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160; </div>
-<div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;PetscErrorCode <a class="code" href="les_8c.html#a7d8d2256b27e86881382283286e0dd10">InitializeLES</a>(<a class="code" href="structles__.html">les_</a> *les);</div>
-<div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160; </div>
-<div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160;PetscErrorCode <a class="code" href="les_8c.html#a1f55153a70198bd6249c073123f68826">UpdateCs</a>(<a class="code" href="structles__.html">les_</a> *les);</div>
+<div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160;    <span class="comment">// initial nut field</span></div>
+<div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160;    word          initFieldType;</div>
+<div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160; </div>
+<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;    <span class="comment">// access</span></div>
+<div class="line"><a name="l00032"></a><span class="lineno"><a class="line" href="structles__.html#ad57bc6baf4656454223f761bcdd51634">   32</a></span>&#160;    <a class="code" href="structaccess__.html">access_</a>       *<a class="code" href="structles__.html#ad57bc6baf4656454223f761bcdd51634">access</a>;                 </div>
+<div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160; </div>
+<div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160;};</div>
+<div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160; </div>
+<div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160;<span class="preprocessor">#endif</span></div>
 <div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160; </div>
-<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;PetscErrorCode <a class="code" href="les_8c.html#a62462508ef5908d87643827b362af7fc">UpdateNut</a>(<a class="code" href="structles__.html">les_</a> *les);</div>
+<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;PetscErrorCode <a class="code" href="les_8c.html#a7d8d2256b27e86881382283286e0dd10">InitializeLES</a>(<a class="code" href="structles__.html">les_</a> *les);</div>
+<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160; </div>
+<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;PetscErrorCode <a class="code" href="les_8c.html#a1f55153a70198bd6249c073123f68826">UpdateCs</a>(<a class="code" href="structles__.html">les_</a> *les);</div>
+<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160; </div>
+<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;PetscErrorCode <a class="code" href="les_8c.html#a62462508ef5908d87643827b362af7fc">UpdateNut</a>(<a class="code" href="structles__.html">les_</a> *les);</div>
 </div><!-- fragment --></div><!-- contents -->
-<div class="ttc" id="ales_8c_html_a62462508ef5908d87643827b362af7fc"><div class="ttname"><a href="les_8c.html#a62462508ef5908d87643827b362af7fc">UpdateNut</a></div><div class="ttdeci">PetscErrorCode UpdateNut(les_ *les)</div><div class="ttdoc">Update effective viscosity.</div><div class="ttdef"><b>Definition:</b> les.c:1072</div></div>
-<div class="ttc" id="ales_8c_html_a1f55153a70198bd6249c073123f68826"><div class="ttname"><a href="les_8c.html#a1f55153a70198bd6249c073123f68826">UpdateCs</a></div><div class="ttdeci">PetscErrorCode UpdateCs(les_ *les)</div><div class="ttdoc">Update Cs Smagorinky coefficient.</div><div class="ttdef"><b>Definition:</b> les.c:57</div></div>
+<div class="ttc" id="ales_8c_html_a62462508ef5908d87643827b362af7fc"><div class="ttname"><a href="les_8c.html#a62462508ef5908d87643827b362af7fc">UpdateNut</a></div><div class="ttdeci">PetscErrorCode UpdateNut(les_ *les)</div><div class="ttdoc">Update effective viscosity.</div><div class="ttdef"><b>Definition:</b> les.c:1175</div></div>
+<div class="ttc" id="ales_8c_html_a1f55153a70198bd6249c073123f68826"><div class="ttname"><a href="les_8c.html#a1f55153a70198bd6249c073123f68826">UpdateCs</a></div><div class="ttdeci">PetscErrorCode UpdateCs(les_ *les)</div><div class="ttdoc">Update Cs Smagorinky coefficient.</div><div class="ttdef"><b>Definition:</b> les.c:73</div></div>
 <div class="ttc" id="astructaccess___html"><div class="ttname"><a href="structaccess__.html">access_</a></div><div class="ttdoc">access database</div><div class="ttdef"><b>Definition:</b> access.h:8</div></div>
 <div class="ttc" id="astructles___html"><div class="ttname"><a href="structles__.html">les_</a></div><div class="ttdoc">struct storing LES model</div><div class="ttdef"><b>Definition:</b> les.h:8</div></div>
 <div class="ttc" id="ales_8c_html_a7d8d2256b27e86881382283286e0dd10"><div class="ttname"><a href="les_8c.html#a7d8d2256b27e86881382283286e0dd10">InitializeLES</a></div><div class="ttdeci">PetscErrorCode InitializeLES(les_ *les)</div><div class="ttdoc">Initializes LES environment.</div><div class="ttdef"><b>Definition:</b> les.c:14</div></div>
-<div class="ttc" id="astructles___html_ad57bc6baf4656454223f761bcdd51634"><div class="ttname"><a href="structles__.html#ad57bc6baf4656454223f761bcdd51634">les_::access</a></div><div class="ttdeci">access_ * access</div><div class="ttdoc">access database</div><div class="ttdef"><b>Definition:</b> les.h:26</div></div>
-<div class="ttc" id="astructles___html_a0a937980990eb1481b5b4c261d81727b"><div class="ttname"><a href="structles__.html#a0a937980990eb1481b5b4c261d81727b">les_::lNu_t</a></div><div class="ttdeci">Vec lNu_t</div><div class="ttdoc">eddy viscosity</div><div class="ttdef"><b>Definition:</b> les.h:20</div></div>
+<div class="ttc" id="astructles___html_ad57bc6baf4656454223f761bcdd51634"><div class="ttname"><a href="structles__.html#ad57bc6baf4656454223f761bcdd51634">les_::access</a></div><div class="ttdeci">access_ * access</div><div class="ttdoc">access database</div><div class="ttdef"><b>Definition:</b> les.h:32</div></div>
+<div class="ttc" id="astructles___html_a0a937980990eb1481b5b4c261d81727b"><div class="ttname"><a href="structles__.html#a0a937980990eb1481b5b4c261d81727b">les_::lNu_t</a></div><div class="ttdeci">Vec lNu_t</div><div class="ttdoc">eddy viscosity</div><div class="ttdef"><b>Definition:</b> les.h:26</div></div>
+<div class="ttc" id="astructles___html_a172371b945cbac53e3d7def7e3f70cd8"><div class="ttname"><a href="structles__.html#a172371b945cbac53e3d7def7e3f70cd8">les_::L</a></div><div class="ttdeci">Vec L</div><div class="ttdoc">length scale</div><div class="ttdef"><b>Definition:</b> les.h:21</div></div>
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
 Generated by &#160;<a href="http://www.doxygen.org/index.html">

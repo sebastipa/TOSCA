@@ -24,9 +24,30 @@ Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_a29596ec0b3e883f5b468c9da0c5a
 \mbox{\Hypertarget{acquisition_8c_a9c4b85d8d544d0ab775023c06ed46a6a}\label{acquisition_8c_a9c4b85d8d544d0ab775023c06ed46a6a}} 
 Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_a9c4b85d8d544d0ab775023c06ed46a6a}{average\+Fields\+Initialize}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
 \begin{DoxyCompactList}\small\item\em Initialize average fields acquisition. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8c_aa8cf6ae86918befbb855d560f588e82e}\label{acquisition_8c_aa8cf6ae86918befbb855d560f588e82e}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_aa8cf6ae86918befbb855d560f588e82e}{average\+K\+E\+Budgets\+Initialize}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Initializes ke budgets fields acquisition. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8c_acd02c40d09da28818552278198fadf56}\label{acquisition_8c_acd02c40d09da28818552278198fadf56}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_acd02c40d09da28818552278198fadf56}{set\+Ke\+Bounds\+And\+Comms}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, ke\+Fields $\ast$ke)
+\begin{DoxyCompactList}\small\item\em Search box bounds and define communicators. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8c_a91263a1ae1e35445bf58a52ded8148fb}\label{acquisition_8c_a91263a1ae1e35445bf58a52ded8148fb}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_a91263a1ae1e35445bf58a52ded8148fb}{read\+Ke\+Box\+Array}} (ke\+Fields $\ast$ke)
+\begin{DoxyCompactList}\small\item\em Read box array. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{acquisition_8c_af1609d0f861e9b03292a2b76eb210bff}\label{acquisition_8c_af1609d0f861e9b03292a2b76eb210bff}} 
 Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_af1609d0f861e9b03292a2b76eb210bff}{average\+Fields}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
 \begin{DoxyCompactList}\small\item\em Average fields. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8c_a436c3f2bd5f2ea810fd077a4f3a237ab}\label{acquisition_8c_a436c3f2bd5f2ea810fd077a4f3a237ab}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_a436c3f2bd5f2ea810fd077a4f3a237ab}{average\+K\+E\+Budgets}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Compute M\+KE budgets. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8c_a0172b61753d6c7748cf1419e9bec15be}\label{acquisition_8c_a0172b61753d6c7748cf1419e9bec15be}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_a0172b61753d6c7748cf1419e9bec15be}{box\+Cumulate\+K\+E\+Budgets}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Do box cumulation for mesh. energy budgets. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8c_ae02373b441e6bfa89628f1235cc6a3da}\label{acquisition_8c_ae02373b441e6bfa89628f1235cc6a3da}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_ae02373b441e6bfa89628f1235cc6a3da}{average\+K\+E\+Budgets\+Cat}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Compute M\+KE budgets in cartesian form. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8c_afadf3be10e557e575a6f61eae686f9f0}\label{acquisition_8c_afadf3be10e557e575a6f61eae686f9f0}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_afadf3be10e557e575a6f61eae686f9f0}{average\+K\+E\+Budgets\+Cont}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Compute M\+KE budgets in generalized curvilinaer form w/o mesh stretching. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{acquisition_8c_a5cd8f27f6d845cf27497ddfd33437987}\label{acquisition_8c_a5cd8f27f6d845cf27497ddfd33437987}} 
 Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_a5cd8f27f6d845cf27497ddfd33437987}{sections\+Initialize}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
 \begin{DoxyCompactList}\small\item\em Initializes sections. \end{DoxyCompactList}\item 
@@ -75,9 +96,17 @@ Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_ac3331f906452e7079651f9b5cb71
 \mbox{\Hypertarget{acquisition_8c_a930b4f48e5194f288d96b5491403a545}\label{acquisition_8c_a930b4f48e5194f288d96b5491403a545}} 
 Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_a930b4f48e5194f288d96b5491403a545}{compute\+Side\+Force\+IO}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
 \begin{DoxyCompactList}\small\item\em Compute side force for I/O in cartesian form. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8c_acd62ba8f4bba5afd7a13b0cf9fee1f6b}\label{acquisition_8c_acd62ba8f4bba5afd7a13b0cf9fee1f6b}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_acd62ba8f4bba5afd7a13b0cf9fee1f6b}{perturbation\+A\+B\+L\+Initialize}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Initializes A\+BL perturbation fields w.\+r.\+t. given reference. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{acquisition_8c_adbc208ab680704fc45def4eba8420fe9}\label{acquisition_8c_adbc208ab680704fc45def4eba8420fe9}} 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_adbc208ab680704fc45def4eba8420fe9}{average\+Perturbation\+A\+BL}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Performs perturbation averaging and writes to memory. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{acquisition_8c_accc174c4786680d5a09079d3bc44048d}\label{acquisition_8c_accc174c4786680d5a09079d3bc44048d}} 
 Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_accc174c4786680d5a09079d3bc44048d}{averaging3\+L\+M\+Initialize}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
 \begin{DoxyCompactList}\small\item\em Initialize 3LM data structure. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_a00c464783e9635019173be9dd467b84c}{read3\+L\+M\+Fields}} (\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$acquisition)
+\begin{DoxyCompactList}\small\item\em Reads velocity and pressure averages (they don\textquotesingle{}t use auxiliary fields like T\+BL, L\+BL, I\+BL) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{acquisition_8c_a1ae264dbb2d37aa89db2a8c1daa14b2a}\label{acquisition_8c_a1ae264dbb2d37aa89db2a8c1daa14b2a}} 
 Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_a1ae264dbb2d37aa89db2a8c1daa14b2a}{write\+Averaging3\+LM}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} $\ast$domain)
 \begin{DoxyCompactList}\small\item\em Performs 3LM average and write 3LM fields. \end{DoxyCompactList}\item 
@@ -101,3 +130,17 @@ Petsc\+Error\+Code \mbox{\hyperlink{acquisition_8c_ae74d4f1acfed798435103a6921a0
 \doxysubsection{Detailed Description}
 Acquisition functions definition. 
 
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{acquisition_8c_a00c464783e9635019173be9dd467b84c}\label{acquisition_8c_a00c464783e9635019173be9dd467b84c}} 
+\index{acquisition.c@{acquisition.c}!read3LMFields@{read3LMFields}}
+\index{read3LMFields@{read3LMFields}!acquisition.c@{acquisition.c}}
+\doxysubsubsection{\texorpdfstring{read3LMFields()}{read3LMFields()}}
+{\footnotesize\ttfamily Petsc\+Error\+Code read3\+L\+M\+Fields (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structacquisition__}{acquisition\+\_\+}} $\ast$}]{acquisition }\end{DoxyParamCaption})}
+
+
+
+Reads velocity and pressure averages (they don\textquotesingle{}t use auxiliary fields like T\+BL, L\+BL, I\+BL) 
+
+read field

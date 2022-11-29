@@ -79,6 +79,9 @@ PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="
 PetscInt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html#a147ef6723f196e400e096a396a1318d2">elems</a></td></tr>
 <tr class="memdesc:a147ef6723f196e400e096a396a1318d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">number of elements in the IBM body <br /></td></tr>
 <tr class="separator:a147ef6723f196e400e096a396a1318d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a91c79aa447b1e9a1fcd54cfd74054ba5"><td class="memItemLeft" align="right" valign="top"><a id="a91c79aa447b1e9a1fcd54cfd74054ba5"></a>
+PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><b>flipNormal</b></td></tr>
+<tr class="separator:a91c79aa447b1e9a1fcd54cfd74054ba5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a454f42bc713ceea12285aad13f860668"><td class="memItemLeft" align="right" valign="top"><a id="a454f42bc713ceea12285aad13f860668"></a>
 <a class="el" href="structCmpnts.html">Cmpnts</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html#a454f42bc713ceea12285aad13f860668">nCoor</a></td></tr>
 <tr class="memdesc:a454f42bc713ceea12285aad13f860668"><td class="mdescLeft">&#160;</td><td class="mdescRight">pointer to the co-ordinates of the nodes <br /></td></tr>
@@ -97,6 +100,18 @@ PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href
 <a class="el" href="structCmpnts.html">Cmpnts</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html#a4947f66bbfba33ff51eb358bf7957112">eN</a></td></tr>
 <tr class="memdesc:a4947f66bbfba33ff51eb358bf7957112"><td class="mdescLeft">&#160;</td><td class="mdescRight">pointers to the component of face normal in x, y and z direction of element <br /></td></tr>
 <tr class="separator:a4947f66bbfba33ff51eb358bf7957112"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaa613aee38f21f829357ed5522008349"><td class="memItemLeft" align="right" valign="top"><a id="aaa613aee38f21f829357ed5522008349"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html#aaa613aee38f21f829357ed5522008349">eT1</a></td></tr>
+<tr class="memdesc:aaa613aee38f21f829357ed5522008349"><td class="mdescLeft">&#160;</td><td class="mdescRight">pointers to the component of face tangential1 (eT1 = eN x k, where k is unit normal along z, which is taken as a generic direction) <br /></td></tr>
+<tr class="separator:aaa613aee38f21f829357ed5522008349"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5e96053806f47d7af2a9bb06b0e5b699"><td class="memItemLeft" align="right" valign="top"><a id="a5e96053806f47d7af2a9bb06b0e5b699"></a>
+<a class="el" href="structCmpnts.html">Cmpnts</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html#a5e96053806f47d7af2a9bb06b0e5b699">eT2</a></td></tr>
+<tr class="memdesc:a5e96053806f47d7af2a9bb06b0e5b699"><td class="mdescLeft">&#160;</td><td class="mdescRight">pointers to the component of face tangential2 (eT2 = eN x eT1) <br /></td></tr>
+<tr class="separator:a5e96053806f47d7af2a9bb06b0e5b699"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7f3e0eb8d8a29b409bc41144ea0613fd"><td class="memItemLeft" align="right" valign="top"><a id="a7f3e0eb8d8a29b409bc41144ea0613fd"></a>
+PetscInt *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html#a7f3e0eb8d8a29b409bc41144ea0613fd">eSurface</a></td></tr>
+<tr class="memdesc:a7f3e0eb8d8a29b409bc41144ea0613fd"><td class="mdescLeft">&#160;</td><td class="mdescRight">pointer to the surfaceBody that this element belongs to <br /></td></tr>
+<tr class="separator:a7f3e0eb8d8a29b409bc41144ea0613fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4a9ce4283b55c18fd7fb22835910c97a"><td class="memItemLeft" align="right" valign="top"><a id="a4a9ce4283b55c18fd7fb22835910c97a"></a>
 PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html#a4a9ce4283b55c18fd7fb22835910c97a">eA</a></td></tr>
 <tr class="memdesc:a4a9ce4283b55c18fd7fb22835910c97a"><td class="mdescLeft">&#160;</td><td class="mdescRight">area of the element <br /></td></tr>
@@ -110,10 +125,12 @@ PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hre
 <tr class="memdesc:a13b530a7735a43b30075266fd59baca7"><td class="mdescLeft">&#160;</td><td class="mdescRight">velocity of the nodes <br /></td></tr>
 <tr class="separator:a13b530a7735a43b30075266fd59baca7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aabc91bb79fa5700b5a0b1378c42d26c9"><td class="memItemLeft" align="right" valign="top"><a id="aabc91bb79fa5700b5a0b1378c42d26c9"></a>
-<a class="el" href="structCmpnts.html">Cmpnts</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>eQVec</b></td></tr>
+<a class="el" href="structCmpnts.html">Cmpnts</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html#aabc91bb79fa5700b5a0b1378c42d26c9">eQVec</a></td></tr>
+<tr class="memdesc:aabc91bb79fa5700b5a0b1378c42d26c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">center of the smallest bounding sphere of an ibm element <br /></td></tr>
 <tr class="separator:aabc91bb79fa5700b5a0b1378c42d26c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1e02c1284833e1caaec47d1b46a067f9"><td class="memItemLeft" align="right" valign="top"><a id="a1e02c1284833e1caaec47d1b46a067f9"></a>
-PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><b>eRVec</b></td></tr>
+PetscReal *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structibmMesh.html#a1e02c1284833e1caaec47d1b46a067f9">eRVec</a></td></tr>
+<tr class="memdesc:a1e02c1284833e1caaec47d1b46a067f9"><td class="mdescLeft">&#160;</td><td class="mdescRight">radius of the smallest bounding sphere of an ibm element <br /></td></tr>
 <tr class="separator:a1e02c1284833e1caaec47d1b46a067f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <hr/>The documentation for this struct was generated from the following file:<ul>
