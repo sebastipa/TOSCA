@@ -145,16 +145,17 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     // read from control file
     PetscOptionsInsertFile(PETSC_COMM_WORLD, PETSC_NULL, "control.dat", PETSC_TRUE);
 
-    flags->isOversetActive    = 0;
-    flags->isLesActive        = 1;
-    flags->isTeqnActive       = 0;
-    flags->isWindFarmActive   = 0;
-    flags->isAquisitionActive = 0;
-    flags->isAblActive        = 0;
-    flags->isIBMActive        = 0;
-    flags->isZDampingActive   = 0;
-    flags->isXDampingActive   = 0;
-    flags->isSideForceActive  = 0;
+    flags->isOversetActive             = 0;
+    flags->isLesActive                 = 1;
+    flags->isTeqnActive                = 0;
+    flags->isWindFarmActive            = 0;
+    flags->isAquisitionActive          = 0;
+    flags->isAblActive                 = 0;
+    flags->isIBMActive                 = 0;
+    flags->isZDampingActive            = 0;
+    flags->isXDampingActive            = 0;
+    flags->isSideForceActive           = 0;
+    flags->isConcurrentPrecursorActive = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",       &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);
@@ -166,8 +167,8 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer", &(flags->isXDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sideForce",     &(flags->isSideForceActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
-	
-	// do some checks 
+
+	// do some checks
 	if(flags->isZDampingActive || flags->isXDampingActive)
 	{
 		if(!flags->isAblActive)
@@ -176,7 +177,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
 			sprintf(error, "abl flag is required for zDampingLayer and xDampingLayer");
 			fatalErrorInFunction("SetSimulationFlags", error);
 		}
-		
+
 		if(!flags->isTeqnActive)
 		{
 			char error[512];

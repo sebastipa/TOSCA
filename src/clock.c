@@ -15,10 +15,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     PetscReal cfl        = 1e10;
     PetscReal maxU       = 0.0;
     PetscReal dxByU_min  = 1e10;
-
-    cellIds   lmaxUCell, maxUCell;
-
-    lmaxUCell.i = 0; lmaxUCell.j = 0; lmaxUCell.k = 0;
+    cellIds   maxUCell;
 
     clock_        *clock = domain[0].clock;
 
@@ -27,125 +24,19 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
 
     for(PetscInt d=0; d<nDomains; d++)
     {
-        flags_        *flags = domain[d].access.flags;
-        acquisition_  *acquisition = domain[d].acquisition;
-        mesh_         *mesh  = domain[d].mesh;
-        ueqn_         *ueqn  = domain[d].ueqn;
-        DM            da = mesh->da, fda = mesh->fda;
-        DMDALocalInfo info = mesh->info;
-        PetscInt      xs = info.xs, xe = info.xs + info.xm;
-        PetscInt      ys = info.ys, ye = info.ys + info.ym;
-        PetscInt      zs = info.zs, ze = info.zs + info.zm;
-        PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+        acquisition_  *acquisition = domain->acquisition;
 
-        Cmpnts        ***ucat, ***ucont;
-        Cmpnts        ***csi, ***eta, ***zet;
-        PetscReal     ***nvert, ***aj;
-
-        PetscInt           i, j, k;
-        PetscInt           lxs, lxe, lys, lye, lzs, lze;
-
-        lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
-        lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
-        lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
-
-        PetscReal lmaxU      = 0.0;
-        PetscReal ldx        = 1e10;
-        PetscReal ldi_min    = 1e10, ldj_min = 1e10, ldk_min = 1e10;
-        PetscReal ldxByU_min = 1e10;
-
+        // set cfl
         cfl = PetscMin(cfl, clock->cfl);
 
-        DMDAVecGetArray(fda, ueqn->Ucat,   &ucat);
-        DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
-        DMDAVecGetArray(fda, mesh->lCsi,   &csi);
-        DMDAVecGetArray(fda, mesh->lEta,   &eta);
-        DMDAVecGetArray(fda, mesh->lZet,   &zet);
-        DMDAVecGetArray(da,  mesh->lAj,    &aj);
-        DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+        // time step imposed by the flow on this domain
+        timeStepInfo(&domain[d], clock, dxByU_min, maxU, maxUCell);
 
-        // time step due to flow restrictions
-        for (k=lzs; k<lze; k++)
+        // time step imposed by the precursor on this domain
+        if(domain[d].flags.isConcurrentPrecursorActive)
         {
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cartesian velocity magnitude
-                    PetscReal Umag = nMag(ucat[k][j][i]);
-
-                    // maximum overall velocity in this proc
-                    if(Umag > lmaxU)
-                    {
-                        lmaxU = Umag;
-                        lmaxUCell.i = i;
-                        lmaxUCell.j = j;
-                        lmaxUCell.k = k;
-                    }
-
-                    // compute cell sizes
-                    PetscReal ldi = 1./aj[k][j][i]/nMag(csi[k][j][i]);
-                    PetscReal ldj = 1./aj[k][j][i]/nMag(eta[k][j][i]);
-                    PetscReal ldk = 1./aj[k][j][i]/nMag(zet[k][j][i]);
-
-                    // minimum overall GCC sizes in this proc
-                    if(clock->it == clock->itStart)
-                    {
-                        ldi_min = PetscMin(ldi_min, ldi);
-                        ldj_min = PetscMin(ldj_min, ldj);
-                        ldk_min = PetscMin(ldk_min, ldk);
-                    }
-
-                    // compute directional velocity in curvilinear coordinates
-                    PetscReal Vi = fabs(0.5 * (ucont[k][j][i].x + ucont[k][j][i-1].x) / nMag(csi[k][j][i])),
-                              Vj = fabs(0.5 * (ucont[k][j][i].y + ucont[k][j-1][i].y) / nMag(eta[k][j][i])),
-                              Vk = fabs(0.5 * (ucont[k][j][i].z + ucont[k-1][j][i].z) / nMag(zet[k][j][i]));
-
-                    // compute dxByU
-                    PetscReal ldxByU = PetscMin(ldi/Vi, PetscMin(ldj/Vj, ldk/Vk));
-
-                    if(isFluidCell(k, j, i, nvert))
-                    {
-                        // min overall cell size
-                        if(clock->it == clock->itStart)
-                        {
-                            ldx = PetscMin(ldi_min, PetscMin(ldj_min, ldk_min));
-                        }
-
-                        // min overall dxByU
-                        ldxByU_min = PetscMin(ldxByU_min, ldxByU);
-                    }
-                }
-            }
+            timeStepInfo(domain[d].abl->precursor->domain, clock, dxByU_min, maxU, maxUCell);
         }
-
-        if(clock->it == clock->itStart)
-        {
-            ldx = PetscMin(ldx, clock->dxMin);
-            MPI_Allreduce(&ldx, &clock->dxMin, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
-        }
-
-        lmaxU      = PetscMax(lmaxU, maxU);
-        ldxByU_min = PetscMin(ldxByU_min, dxByU_min);
-
-        MPI_Allreduce(&lmaxU,        &maxU,      1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
-        MPI_Allreduce(&ldxByU_min,   &dxByU_min, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
-
-        // check if maxU is in this processor and print where it is
-        if(lmaxU != maxU)
-        {
-            lmaxUCell.i = 0; lmaxUCell.j = 0; lmaxUCell.k = 0;
-        }
-
-        MPI_Allreduce(&lmaxUCell, &maxUCell, 3, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
-
-        DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
-        DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
-        DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
-        DMDAVecRestoreArray(fda, mesh->lEta, &eta);
-        DMDAVecRestoreArray(fda, mesh->lZet, &zet);
-        DMDAVecRestoreArray(da,  mesh->lAj, &aj);
-        DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
 
         // try to guess a uniform predicted time step for the acquisition
         PetscReal predictedDt;
@@ -257,11 +148,16 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 {
                     for(PetscInt r=0; r<acquisition->probes->nRakes; r++)
                     {
-                        timeStart    = acquisition->probes->rakes[r].timeStart;
-                        timeInterval = acquisition->probes->rakes[r].timeInterval;
+                        if(acquisition->probes->rakes[r].intervalType == "adjustableTime")
+                        {
+                            timeStart    = acquisition->probes->rakes[r].timeStart;
+                            timeInterval = acquisition->probes->rakes[r].timeInterval;
 
-                        timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
-                        predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
+                            timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                            predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
+
+                            if(acquisition->probes->allSameIO) break;
+                        }
                     }
                 }
 
@@ -308,6 +204,23 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 }
             }
 
+            // concurrent precursor
+            if(domain[d].flags.isConcurrentPrecursorActive)
+            {
+                if(domain[d].abl->precursor->domain->flags.isAquisitionActive)
+                {
+                    if(domain[d].abl->precursor->domain->acquisition->isAverageABLActive)
+                    {
+                        timeStart    = domain[d].abl->precursor->domain->acquisition->statisticsABL->avgStartTime;
+                        timeInterval = domain[d].abl->precursor->domain->acquisition->statisticsABL->avgPrd;
+
+                        timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                        predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
+                    }
+                }
+            }
+
+            // set time step as the gcd of all constraints
             if(clock->it == 0)
             {
                 // scale max uniform dt due to acquisition so that it complies the CFL
@@ -433,6 +346,141 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     {
         PetscPrintf(PETSC_COMM_WORLD, "Iteration = %ld, CFL = %lf, uMax = %.6f (i,j,k = %ld, %ld, %ld), dt = %.6f, dtMaxCFL = %.6f, adjust due to write flag: %ld\n", clock->it, cfl, maxU, maxUCell.i, maxUCell.j, maxUCell.k, clock->dt, dxByU_min, flag);
     }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode timeStepInfo(domain_ *domain, clock_ *clock, PetscReal &dxByU_min, PetscReal &maxU, cellIds &maxUCell)
+{
+    flags_        *flags = domain->access.flags;
+    mesh_         *mesh  = domain->mesh;
+    ueqn_         *ueqn  = domain->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***ucat, ***ucont;
+    Cmpnts        ***csi, ***eta, ***zet;
+    PetscReal     ***nvert, ***aj;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    PetscReal lmaxU      = 0.0,  gmaxU      = 0.0;
+    PetscReal ldx        = 1e10;
+    PetscReal ldi_min    = 1e10, ldj_min    = 1e10, ldk_min = 1e10;
+    PetscReal ldxByU_min = 1e10, gdxByU_min = 1e10;
+    cellIds   lmaxUCell; lmaxUCell.i = 0; lmaxUCell.j = 0; lmaxUCell.k = 0;
+    cellIds   gmaxUCell; gmaxUCell.i = 0; gmaxUCell.j = 0; gmaxUCell.k = 0;
+
+    DMDAVecGetArray(fda, ueqn->Ucat,   &ucat);
+    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecGetArray(fda, mesh->lCsi,   &csi);
+    DMDAVecGetArray(fda, mesh->lEta,   &eta);
+    DMDAVecGetArray(fda, mesh->lZet,   &zet);
+    DMDAVecGetArray(da,  mesh->lAj,    &aj);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+
+    // time step due to flow restrictions
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                // cartesian velocity magnitude
+                PetscReal Umag = nMag(ucat[k][j][i]);
+
+                // maximum overall velocity in this proc
+                if(Umag > lmaxU)
+                {
+                    lmaxU = Umag;
+                    lmaxUCell.i = i;
+                    lmaxUCell.j = j;
+                    lmaxUCell.k = k;
+                }
+
+                // compute cell sizes
+                PetscReal ldi = 1./aj[k][j][i]/nMag(csi[k][j][i]);
+                PetscReal ldj = 1./aj[k][j][i]/nMag(eta[k][j][i]);
+                PetscReal ldk = 1./aj[k][j][i]/nMag(zet[k][j][i]);
+
+                // minimum overall GCC sizes in this proc
+                if(clock->it == clock->itStart)
+                {
+                    ldi_min = PetscMin(ldi_min, ldi);
+                    ldj_min = PetscMin(ldj_min, ldj);
+                    ldk_min = PetscMin(ldk_min, ldk);
+                }
+
+                // compute directional velocity in curvilinear coordinates
+                PetscReal Vi = fabs(0.5 * (ucont[k][j][i].x + ucont[k][j][i-1].x) / nMag(csi[k][j][i])),
+                          Vj = fabs(0.5 * (ucont[k][j][i].y + ucont[k][j-1][i].y) / nMag(eta[k][j][i])),
+                          Vk = fabs(0.5 * (ucont[k][j][i].z + ucont[k-1][j][i].z) / nMag(zet[k][j][i]));
+
+                // compute dxByU
+                PetscReal ldxByU = PetscMin(ldi/Vi, PetscMin(ldj/Vj, ldk/Vk));
+
+                if(isFluidCell(k, j, i, nvert))
+                {
+                    // min overall cell size
+                    if(clock->it == clock->itStart)
+                    {
+                        ldx = PetscMin(ldi_min, PetscMin(ldj_min, ldk_min));
+                    }
+
+                    // min overall dxByU
+                    ldxByU_min = PetscMin(ldxByU_min, ldxByU);
+                }
+            }
+        }
+    }
+
+    if(clock->it == clock->itStart)
+    {
+        ldx = PetscMin(ldx, clock->dxMin);
+        MPI_Allreduce(&ldx, &clock->dxMin, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+    }
+
+    // max in this domain
+    MPI_Allreduce(&lmaxU,        &gmaxU,      1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
+    MPI_Allreduce(&ldxByU_min,   &gdxByU_min, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+    // check if maxU is in this processor and print where it is
+    if(lmaxU != gmaxU)
+    {
+        lmaxUCell.i = 0; lmaxUCell.j = 0; lmaxUCell.k = 0;
+    }
+
+    MPI_Allreduce(&lmaxUCell, &gmaxUCell, 3, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
+
+    // max in all domains and save ids
+    if(gmaxU > maxU)
+    {
+        maxU     = gmaxU;
+        maxUCell = gmaxUCell;
+    }
+    if(gdxByU_min < dxByU_min)
+    {
+        dxByU_min = gdxByU_min;
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
 
     return(0);
 }

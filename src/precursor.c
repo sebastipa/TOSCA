@@ -67,6 +67,9 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
 {
     PetscPrintf(abl->access->mesh->MESH_COMM, "Initializing concurrent precursor:\n");
 
+    // activate precursor flag
+    abl->access->flags->isConcurrentPrecursorActive = 1;
+
     // allocate memory
     abl->precursor = new precursor_;
     precursor_ *precursor = abl->precursor;
@@ -718,7 +721,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
             {
                 ghGradRhoK(domain->teqn);
             }
-			
+
 			Buoyancy(domain->ueqn, 1.0);
         }
 
@@ -767,7 +770,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         if(domain->flags.isTeqnActive)
         {
 			UpdateWallModelsT(domain->teqn);
-			
+
             SolveTEqn(domain->teqn);
         }
 
@@ -876,6 +879,23 @@ PetscErrorCode SetBoundaryConditionsPrecursor(mesh_ *mesh)
 
 PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
 {
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k, l;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***cent;
+    PetscReal     ***aj;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
     if(mesh->boundaryU.kLeft == "inletFunction")
     {
         // allocate memory for this patch inlet function data
@@ -892,25 +912,42 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
         if(mesh->access->flags->isLesActive)  ifPtr->mapNut = 1;
         if(mesh->access->flags->isTeqnActive) ifPtr->mapT   = 1;
 
+        // read if source mesh is uniform or grading
+        readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
+
         readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Inflow",   &(ifPtr->n1));
         readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Inflow",   &(ifPtr->n2));
         readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Periods",  &(ifPtr->prds1));
         readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Periods",  &(ifPtr->prds2));
-        
-		// read if source mesh is uniform or grading
-        readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
-		
+
 		if(ifPtr->sourceType == "uniform")
 		{
 			PetscPrintf(mesh->MESH_COMM, "   -> using uniform source mesh type\n");
 
 			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
 			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
-		}
+
+            // height of the inflow database (it is duplicate consider removing)
+            ifPtr->inflowHeigth = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
+
+            // height of the inflow database
+            ifPtr->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
+
+            // width of the merging region
+            ifPtr->avgTopDelta  = 10.0 * ifPtr->width1;
+
+            // 5 top points coordinates
+            PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
+
+            for (i=0; i<10; i++)
+            {
+                ifPtr->avgTopPointCoords[i] = ifPtr->avgTopLength - (10-i)*ifPtr->width1 + 0.5*ifPtr->width1;
+            }
+        }
 		else if(ifPtr->sourceType == "grading")
 		{
 			PetscPrintf(mesh->MESH_COMM, "   -> using grading source mesh type\n");
-			
+
 			std::vector<PetscReal>  Zcart;
 
 			word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
@@ -947,6 +984,20 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
 				// height of the inflow database
 				ifPtr->inflowHeigth = Zcart[npz-1] - Zcart[0];
 
+                // height of the inflow database
+                ifPtr->avgTopLength = Zcart[npz-1] - Zcart[0];
+
+                // width of the merging region
+                ifPtr->avgTopDelta  = Zcart[npz-1] - Zcart[npz-11];
+
+                // 5 top points coordinates
+                PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
+
+                for (i=0; i<10; i++)
+                {
+                    ifPtr->avgTopPointCoords[i] = 0.5 * (Zcart[npz - 11 + i] + Zcart[npz - 11 + i + 1]);
+                }
+
 				// wipe vectors
 				std::vector<PetscReal> ().swap(Zcart);
 			}
@@ -967,6 +1018,158 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
 
         // initialize inflow data
         mappedInflowInitialize(ifPtr);
+
+        PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
+
+        // top average to avoid top oscillations
+        PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
+
+        for(j=0; j<10; j++)
+        {
+            mSetValue(ifPtr->uBarAvgTopX[j], 0.0);
+        }
+
+        if(mesh->access->flags->isTeqnActive)
+        {
+            PetscMalloc(10*sizeof(PetscReal), &(ifPtr->tBarAvgTopX));
+
+            for(j=0; j<10; j++)
+            {
+                ifPtr->tBarAvgTopX[j] = 0.0;
+            }
+        }
+
+        // variable to store inflow function data
+        std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
+        std::vector<std::vector<PetscReal>> t_plane_tmp(ifPtr->n1wg);
+
+        // set to zero
+        for(j=0; j<ifPtr->n1wg; j++)
+        {
+            ucat_plane_tmp[j].resize(ifPtr->n2wg);
+            t_plane_tmp[j].resize(ifPtr->n2wg);
+
+            for(i=0; i<ifPtr->n2wg; i++)
+            {
+                mSetValue(ucat_plane_tmp[j][i], 0.0);
+                t_plane_tmp[j][i] = 0.0;
+            }
+        }
+
+        PetscInt  ti, nAvg;
+        PetscReal ntimes;
+
+        if(ifPtr->mapT)
+        {
+             ntimes = std::min(ifPtr->inflowT.nInflowTimes, ifPtr->inflowU.nInflowTimes);
+        }
+        else
+        {
+            ntimes = ifPtr->inflowU.nInflowTimes;
+        }
+
+        word      fname_U, fname_T;
+        FILE      *fp_U, *fp_T;
+
+        for(ti=0; ti<ntimes; ti++)
+        {
+            fname_U = "inflowDatabase/U/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowU.inflowTimes[ti]);
+
+            // open the inflow files and read
+            fp_U = fopen(fname_U.c_str(), "rb");
+
+            if(!fp_U)
+            {
+                char error[512];
+                sprintf(error, "cannot open file:\n    %s\n", fname_U.c_str());
+                fatalErrorInFunction("SetInflowFunctions",  error);
+            }
+
+            for(j=0; j<ifPtr->n1wg; j++)
+            {
+                PetscInt err1;
+                err1 = fread(&(ucat_plane_tmp[j][0]), sizeof(Cmpnts), ifPtr->n2wg, fp_U);
+            }
+
+            fclose(fp_U);
+
+            // now average the top 10 cells (exclude ghosts)
+            PetscInt jAvg = 0;
+            for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
+            {
+                for(i=1; i<ifPtr->n2; i++)
+                {
+                    mSum(ifPtr->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
+                }
+
+                jAvg++;
+            }
+
+            // do the same with temperature
+            if(mesh->access->flags->isTeqnActive)
+            {
+                fname_T = "inflowDatabase/T/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowT.inflowTimes[ti]);
+                fp_T = fopen(fname_T.c_str(), "rb");
+
+                if(!fp_T)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file:\n    %s\n", fname_T.c_str());
+                    fatalErrorInFunction("SetInflowFunctions",  error);
+                }
+
+                for(j=0; j<ifPtr->n1wg; j++)
+                {
+                    PetscInt err2;
+                    err2 = fread(&(t_plane_tmp[j][0]), sizeof(PetscReal), ifPtr->n2wg, fp_T);
+                }
+
+                fclose(fp_T);
+
+                // now average the top 10 cells (exclude ghosts)
+                PetscInt jAvg = 0;
+                for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
+                {
+                    for(i=1; i<ifPtr->n2; i++)
+                    {
+                        ifPtr->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                    }
+
+                    jAvg++;
+                }
+            }
+        }
+
+        // number of data summed per level (ntimes times n levels in direction 2)
+        nAvg  = (ifPtr->n2-1) * ntimes;
+
+        PetscPrintf(mesh->MESH_COMM, "done\n");
+
+        // now average the top 10 cells (exclude ghosts)
+        for(j=0; j<10; j++)
+        {
+            mScale(1.0/nAvg, ifPtr->uBarAvgTopX[j]);
+            PetscPrintf(mesh->MESH_COMM, "   - Uavg at %.2f m = (%.2f %.2f %.2f) m/s", ifPtr->avgTopPointCoords[j], ifPtr->uBarAvgTopX[j].x, ifPtr->uBarAvgTopX[j].y, ifPtr->uBarAvgTopX[j].z);
+
+            if(mesh->access->flags->isTeqnActive)
+            {
+                ifPtr->tBarAvgTopX[j] /= nAvg;
+                PetscPrintf(mesh->MESH_COMM, ", thetaAvg = %.2f K", ifPtr->tBarAvgTopX[j]);
+            }
+
+            PetscPrintf(mesh->MESH_COMM, "\n");
+
+        }
+
+        // temporary (basically forces zero gradient at the top for velocity)
+        mSet(ifPtr->uBarAvgTopX[9], ifPtr->uBarAvgTopX[8]);
+
+        // wipe vectors
+        for( j=0; j<ifPtr->n1wg; j++)
+        {
+            std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
+            std::vector<PetscReal> ().swap(t_plane_tmp[j]);
+        }
     }
 
     return(0);
@@ -1185,15 +1388,15 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
         {
             readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
         }
-		
+
 		if(abl->controllerActive)
 		{
 			readDictWord  ("ABLProperties.dat", "controllerType",   &(abl->controllerType));
-			
+
 			// overwrite controller type if precursor is periodic, use same as successor otherwise
 			if(!flags->isPrecursorSpinUp)
 			{
-				// use the same as successor (average) because this may introduce 
+				// use the same as successor (average) because this may introduce
 				// streamwise oscillations in the successor from the fringe
 				// abl->controllerType = "pressure";
 			}
@@ -1280,7 +1483,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 				// read proportional controller relaxation factor (same as the velocity one)
 				readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
 			}
-			
+
             readDictDouble("ABLProperties.dat", "controllerMaxHeight", &(abl->controllerMaxHeight));
 
             // set cumulated sources to zero. They are needed for the integral part of the
@@ -1338,7 +1541,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     abl->levelWeights[1] = (abl->hRef-abl->cellLevels[abl->closestLabels[0]-1]) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
 
                     std::vector<PetscReal> ().swap(absLevelDelta);
-					
+
 					if(abl->controllerType == "pressure")
 					{
 						// read if geostrophic damping is active

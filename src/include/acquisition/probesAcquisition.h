@@ -10,6 +10,7 @@ struct probeRake
     word          rakeName;                   //!< name of the probes rake
     word          timeName;                   //!< name of the time directory where rake data are written
     PetscInt      probesNumber;               //!< number of probes in this rake
+    word          intervalType;               //!< can be timeStep or adjustableTime
     PetscReal     timeStart;                  //!< start time of acquisition system
     PetscReal     timeInterval;               //!< acquisition time interval (overrides simulation time step if smaller)
     PetscInt      Uflag;                      //!< flag telling if velocity field must be acquired
@@ -30,6 +31,8 @@ struct rakes
 {
     PetscInt      nRakes;                     //!< number of probe rakes
     probeRake     *rakes;                     //!< array storing all probe rakes in the domain
+    PetscInt      allSameIO;                  //!< accelerates the time-step check if all probes have the same IO settings (automatic)
+    PetscInt      verbose;                    //!< prints probe information
 };
 
 #endif

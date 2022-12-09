@@ -5505,8 +5505,15 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
         nRakes = count_files(dataLoc);
 
         // allocate top level data
-        probes->rakes  = new probeRake[nRakes];
-        probes->nRakes = nRakes;
+        probes->rakes      = new probeRake[nRakes];
+        probes->nRakes     = nRakes;
+        probes->allSameIO  = 0;
+        probes->verbose    = 1;
+
+        // read optional inputs
+        PetscOptionsInsertFile(domain[0].mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
+        PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probesVerbose", &(probes->verbose),  PETSC_NULL);
+        PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probesSameIO",  &(probes->allSameIO), PETSC_NULL);
 
         // initialize rake counter to zero
         nRakes = 0;
@@ -5565,6 +5572,23 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                     // get timeStart
                     readError = fscanf(f, "%s %lf\n", tmp, &(probes->rakes[nRakes].timeStart));
 
+                    // get intervalType
+                    char intervalType[256];
+                    readError = fscanf(f, "%s %s\n", tmp, intervalType);
+                    probes->rakes[nRakes].intervalType = intervalType;
+
+                    // validate
+                    if
+                    (
+                        probes->rakes[nRakes].intervalType != "adjustableTime" &&
+                        probes->rakes[nRakes].intervalType != "timeStep"
+                    )
+                    {
+                        char error[512];
+                        sprintf(error, "probe rake %s has unknown intervalType %s", probes->rakes[nRakes].rakeName.c_str(), probes->rakes[nRakes].intervalType.c_str());
+                        fatalErrorInFunction("ProbesInitialize",  error);
+                    }
+
                     // get timeInterval
                     readError = fscanf(f, "%s %lf\n", tmp, &(probes->rakes[nRakes].timeInterval));
 
@@ -5581,8 +5605,8 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                     readError = fscanf(f, "%s\n", tmp);
                     if(strcmp(tmp, "locations") != 0)
                     {
-                       char error[512];
-                        sprintf(error, "probe rake %s has an incorrect file format, the correct format is\n\nprobesNumber 2\nrakeName     A1\ntimeStart    10.0\ntimeInterval 20.0\nfields       U,T\n\nlocations\n\n20.0 20.0 20.0\n23.1 45.1 45.9\n\n", probes->rakes[nRakes].rakeName.c_str());
+                        char error[512];
+                        sprintf(error, "probe rake %s has an incorrect file format, the correct format is\n\nprobesNumber 2\nrakeName     A1\ntimeStart    10.0\nintervalType adjustableTime/timeStep\ntimeInterval 20.0\nfields       U,T\n\nlocations\n\n20.0 20.0 20.0\n23.1 45.1 45.9\n\n", probes->rakes[nRakes].rakeName.c_str());
                         fatalErrorInFunction("ProbesInitialize",  error);
                     }
                     readError = fscanf(f, "\n");
@@ -5864,40 +5888,44 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                 }
 
                 // print acquisition system information
-                PetscPrintf(probes->rakes[r].RAKE_COMM, "   SAMPLING RAKE %ld\n",r);
-                PetscPrintf(probes->rakes[r].RAKE_COMM, "   number of probes                     : %ld\n", probes->rakes[r].probesNumber);
-                PetscPrintf(probes->rakes[r].RAKE_COMM, "   rake identification name             : %s\n", probes->rakes[r].rakeName.c_str());
-                PetscPrintf(probes->rakes[r].RAKE_COMM, "   path to rake data                    : %s\n", probes->rakes[r].timeName.c_str());
-                PetscPrintf(probes->rakes[r].RAKE_COMM, "   acq. starting time for this rake (s) : %lf\n", probes->rakes[r].timeStart);
-                PetscPrintf(probes->rakes[r].RAKE_COMM, "   acq. time interval for this rake (s) : %lf\n", probes->rakes[r].timeInterval);
-                if(probes->rakes[r].Uflag)
+                if(probes->verbose)
                 {
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   get U                                : yes\n");
-                }
-                else
-                {
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   get U                                : no\n");
-                }
-                if(probes->rakes[r].Tflag)
-                {
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   get T                                : yes\n");
-                }
-                else
-                {
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   get T                                : no\n");
-                }
-                if(probes->rakes[r].Pflag)
-                {
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   get p                                : yes\n");
-                }
-                else
-                {
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   get p                                : no\n");
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   SAMPLING RAKE %ld\n",r);
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   number of probes                     : %ld\n", probes->rakes[r].probesNumber);
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   rake identification name             : %s\n", probes->rakes[r].rakeName.c_str());
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   path to rake data                    : %s\n", probes->rakes[r].timeName.c_str());
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   acq. interval type for this rake     : %s\n", probes->rakes[r].intervalType.c_str());
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   acq. starting time for this rake (s) : %lf\n", probes->rakes[r].timeStart);
+                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   acq. time interval for this rake (s) : %lf\n", probes->rakes[r].timeInterval);
+                    if(probes->rakes[r].Uflag)
+                    {
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   get U                                : yes\n");
+                    }
+                    else
+                    {
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   get U                                : no\n");
+                    }
+                    if(probes->rakes[r].Tflag)
+                    {
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   get T                                : yes\n");
+                    }
+                    else
+                    {
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   get T                                : no\n");
+                    }
+                    if(probes->rakes[r].Pflag)
+                    {
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   get p                                : yes\n");
+                    }
+                    else
+                    {
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   get p                                : no\n");
+                    }
                 }
 
                 for(p=0; p<probes->rakes[r].probesNumber; p++)
                 {
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld location                     : (%.2lf %.2lf %.2lf)\n", p, probes->rakes[r].locations[p][0], probes->rakes[r].locations[p][1], probes->rakes[r].locations[p][2]);
+                    if(probes->verbose) PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld location                     : (%.2lf %.2lf %.2lf)\n", p, probes->rakes[r].locations[p][0], probes->rakes[r].locations[p][1], probes->rakes[r].locations[p][2]);
                     if(probes->rakes[r].domainID[p] != -1)
                     {
                         Cmpnts        ***cent;
@@ -5920,14 +5948,17 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
 
                         MPI_Allreduce(&lc[0], &gc[0], 3, MPIU_REAL, MPIU_SUM, probes->rakes[r].RAKE_COMM);
 
-                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld closest cell center location : (%.2lf\t%.2lf\t%.2lf)\n", p, gc[0], gc[1], gc[2]);
+                        if(probes->verbose) PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld closest cell center location : (%.2lf\t%.2lf\t%.2lf)\n", p, gc[0], gc[1], gc[2]);
 
                         DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
                     }
 
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld closest cell center indices  : (%ld\t%ld\t%ld)\n", p, probes->rakes[r].cells[p][0], probes->rakes[r].cells[p][1], probes->rakes[r].cells[p][2]);
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld is owned by processor        : %ld\n", p, probes->rakes[r].owner[p]);
-                    PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld is contained by domain       : %ld\n", p, probes->rakes[r].domainID[p]);
+                    if(probes->verbose)
+                    {
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld closest cell center indices  : (%ld\t%ld\t%ld)\n", p, probes->rakes[r].cells[p][0], probes->rakes[r].cells[p][1], probes->rakes[r].cells[p][2]);
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld is owned by processor        : %ld\n", p, probes->rakes[r].owner[p]);
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   probe %ld is contained by domain       : %ld\n", p, probes->rakes[r].domainID[p]);
+                    }
                 }
 
                 PetscPrintf(probes->rakes[r].RAKE_COMM, "\n");
@@ -6007,11 +6038,28 @@ PetscErrorCode writeProbes(domain_ *domain)
 
             if(rake->thisRakeControlled)
             {
-                double timeStart    = rake->timeStart;
-                double timeInterval = rake->timeInterval;
+                PetscReal timeStart    = rake->timeStart;
+                PetscReal timeInterval = rake->timeInterval;
+                PetscReal epsilon      = 1e-8;
 
                 // check the time and see if must write
-                if(mustWrite(clock->time, timeStart, timeInterval))
+                if
+                (
+                    clock->time >= timeStart && // write only if past acquisition start
+                    (
+                        // adjustableTime: write only if clock->time is multiple of time interval
+                        (
+                            rake->intervalType == "adjustableTime" &&
+                            mustWrite(clock->time, timeStart, timeInterval)
+                        ) ||
+                        // timeStep: write every timeInterval iterations
+                        (
+                            rake->intervalType == "timeStep" &&
+                            (clock->it / timeInterval - std::floor(clock->it / timeInterval + epsilon) < 1e-10)
+                        )
+                    )
+
+                )
                 {
                     // initialize local vectors
                     std::vector<Cmpnts> lprobeValuesU;

@@ -28,3 +28,5 @@ struct clock_
 #endif
 
 PetscErrorCode adjustTimeStep(domain_ *domain);
+
+PetscErrorCode timeStepInfo(domain_ *domain, clock_ *clock, PetscReal &dxByU_min, PetscReal &maxU, cellIds &maxUCell);
