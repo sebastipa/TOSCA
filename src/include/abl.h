@@ -112,13 +112,6 @@ struct abl_
     PetscReal    **tBarInstX;                    //!< array storing the instantaneous temperature field for x damping layer
     PetscInt     **nProcsKLine;                  //!< number of processors in each k-line, used to average after MPI_Allreduce
 
-    // for spread inflow fringe region
-    Cmpnts       *uBarAvgTopX;                   //!< velocity average from inflow database at top 5 points
-    PetscReal    *tBarAvgTopX;                   //!< temperature average from inflow database at top 5 points
-    PetscReal    *avgTopPointCoords;             //!< z coordinates of the 5 average top points
-    PetscReal    avgTopDelta;                    //!< length of the five top cells
-    PetscReal    avgTopLength;                   //!< height of the inflow slices
-
     // side force for fringe region testing
     PetscReal    xStartSideF, xEndSideF;         //!< x start and ending coordinates of the region where the side force is applied
     PetscReal    zStartSideF, zEndSideF;         //!< z start and ending coordinates of the region where the side force is applied

@@ -47,6 +47,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
     MPI_Comm_size(PETSC_COMM_WORLD, &nProcs);
 
+    DMGetCoordinatesLocal(mesh->da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
+
     if(mesh->meshFileType != "cartesian")
     {
         char error[512];
@@ -706,30 +709,34 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // initialize inflow data
                 mappedInflowInitialize(ifPtr);
 
-                PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 5 top cells...");
+                PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
 
                 // top average to avoid top oscillations
-                PetscMalloc(5*sizeof(Cmpnts),    &(abl->uBarAvgTopX));
-                PetscMalloc(5*sizeof(PetscReal), &(abl->tBarAvgTopX));
+                PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
+                PetscMalloc(10*sizeof(PetscReal), &(ifPtr->tBarAvgTopX));
 
-                for(j=0; j<5; j++)
+                for(j=0; j<10; j++)
                 {
-                    mSetValue(abl->uBarAvgTopX[j], 0.0);
-                    abl->tBarAvgTopX[j] = 0.0;
+                    mSetValue(ifPtr->uBarAvgTopX[j], 0.0);
+                    ifPtr->tBarAvgTopX[j] = 0.0;
                 }
 
+                PetscReal heightTop = 0.5 * (abl->cellLevels[ifPtr->n1*ifPtr->prds1-1] + abl->cellLevels[ifPtr->n1*ifPtr->prds1]);
+                PetscReal heightBot = 0.5 * (abl->cellLevels[ifPtr->n1*ifPtr->prds1-11] + abl->cellLevels[ifPtr->n1*ifPtr->prds1-10]);
+
                 // height of the inflow database
-                abl->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
+                ifPtr->avgTopLength = heightTop;
 
                 // width of the merging region
-                abl->avgTopDelta  = 5.0 * ifPtr->width1;
+                ifPtr->avgTopDelta  = heightTop - heightBot;
 
                 // 5 top points coordinates
-                PetscMalloc(5*sizeof(PetscReal), &(abl->avgTopPointCoords));
-
-                for (i=0; i<5; i++)
+                PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
+                i = 0;
+                for (PetscInt ii=ifPtr->n1*ifPtr->prds1-11; ii<ifPtr->n1*ifPtr->prds1-1; ii++)
                 {
-                    abl->avgTopPointCoords[i] = abl->avgTopLength - (5-i)*ifPtr->width1 + 0.5*ifPtr->width1;
+                    ifPtr->avgTopPointCoords[i] = abl->cellLevels[ii];
+                    i++;
                 }
 
                 // variable to store inflow function data
@@ -779,14 +786,14 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     fclose(fp_U);
                     fclose(fp_T);
 
-                    // now average the top 5 cells (exclude ghosts)
+                    // now average the top 10 cells (exclude ghosts)
                     PetscInt jAvg = 0;
-                    for(j=ifPtr->n1wg-6; j<ifPtr->n1wg-1; j++)
+                    for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
                     {
                         for(i=1; i<ifPtr->n2; i++)
                         {
-                            mSum(abl->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
-                            abl->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                            mSum(ifPtr->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
+                            ifPtr->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
                         }
 
                         jAvg++;
@@ -794,20 +801,20 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 }
 
                 // number of data summed per level (ntimes times n levels in direction 2)
-                nAvg  = ifPtr->n2 * ntimes;
+                nAvg  = (ifPtr->n2-1) * ntimes;
 
                 PetscPrintf(mesh->MESH_COMM, "done\n");
 
-                // now average the top 5 cells (exclude ghosts)
-                for(j=0; j<5; j++)
+                // now average the top 10 cells (exclude ghosts)
+                for(j=0; j<10; j++)
                 {
-                    mScale(1.0/nAvg, abl->uBarAvgTopX[j]);
-                    abl->tBarAvgTopX[j] /= nAvg;
-                    PetscPrintf(mesh->MESH_COMM, "   - Uavg[%ld] = (%.2f %.2f %.2f) m/s, thetaAvg = %.2f K\n", j, abl->uBarAvgTopX[j].x, abl->uBarAvgTopX[j].y, abl->uBarAvgTopX[j].z, abl->tBarAvgTopX[j]);
+                    mScale(1.0/nAvg, ifPtr->uBarAvgTopX[j]);
+                    ifPtr->tBarAvgTopX[j] /= nAvg;
+                    PetscPrintf(mesh->MESH_COMM, "   - Uavg[%ld] = (%.2f %.2f %.2f) m/s, thetaAvg = %.2f K\n", j, ifPtr->uBarAvgTopX[j].x, ifPtr->uBarAvgTopX[j].y, ifPtr->uBarAvgTopX[j].z, ifPtr->tBarAvgTopX[j]);
                 }
 
                 // temporary (basically forces zero gradient at the top for velocity)
-                mSet(abl->uBarAvgTopX[4], abl->uBarAvgTopX[3]);
+                mSet(ifPtr->uBarAvgTopX[9], ifPtr->uBarAvgTopX[8]);
 
                 for( j=0; j<ifPtr->n1wg; j++)
                 {
@@ -843,17 +850,17 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
 
                     // height of the inflow database
-                    abl->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
+                    ifPtr->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
 
                     // width of the merging region
-                    abl->avgTopDelta  = 5.0 * ifPtr->width1;
+                    ifPtr->avgTopDelta  = 10.0 * ifPtr->width1;
 
                     // 5 top points coordinates
-                    PetscMalloc(5*sizeof(PetscReal), &(abl->avgTopPointCoords));
+                    PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
 
-                    for (i=0; i<5; i++)
+                    for (i=0; i<10; i++)
                     {
-                        abl->avgTopPointCoords[i] = abl->avgTopLength - (5-i)*ifPtr->width1 + 0.5*ifPtr->width1;
+                        ifPtr->avgTopPointCoords[i] = ifPtr->avgTopLength - (10-i)*ifPtr->width1 + 0.5*ifPtr->width1;
                     }
 
                 }
@@ -895,17 +902,17 @@ PetscErrorCode InitializeABL(abl_ *abl)
                         fclose(meshFileID);
 
                         // height of the inflow database
-                        abl->avgTopLength = Zcart[npz-1] - Zcart[0];
+                        ifPtr->avgTopLength = Zcart[npz-1] - Zcart[0];
 
                         // width of the merging region
-                        abl->avgTopDelta  = Zcart[npz-1] - Zcart[npz-6];
+                        ifPtr->avgTopDelta  = Zcart[npz-1] - Zcart[npz-11];
 
                         // 5 top points coordinates
-                        PetscMalloc(5*sizeof(PetscReal), &(abl->avgTopPointCoords));
+                        PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
 
-                        for (i=0; i<5; i++)
+                        for (i=0; i<10; i++)
                         {
-                            abl->avgTopPointCoords[i] = 0.5 * (Zcart[npz - 6 + i] + Zcart[npz - 6 + i + 1]);
+                            ifPtr->avgTopPointCoords[i] = 0.5 * (Zcart[npz - 11 + i] + Zcart[npz - 11 + i + 1]);
                         }
 
                         // wipe vectors
@@ -929,16 +936,16 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // initialize inflow data
                 mappedInflowInitialize(ifPtr);
 
-                PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 5 top cells...");
+                PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
 
                 // top average to avoid top oscillations
-                PetscMalloc(5*sizeof(Cmpnts),    &(abl->uBarAvgTopX));
-                PetscMalloc(5*sizeof(PetscReal), &(abl->tBarAvgTopX));
+                PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
+                PetscMalloc(10*sizeof(PetscReal), &(ifPtr->tBarAvgTopX));
 
-                for(j=0; j<5; j++)
+                for(j=0; j<10; j++)
                 {
-                    mSetValue(abl->uBarAvgTopX[j], 0.0);
-                    abl->tBarAvgTopX[j] = 0.0;
+                    mSetValue(ifPtr->uBarAvgTopX[j], 0.0);
+                    ifPtr->tBarAvgTopX[j] = 0.0;
                 }
 
                 // variable to store inflow function data
@@ -988,14 +995,14 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     fclose(fp_U);
                     fclose(fp_T);
 
-                    // now average the top 5 cells (exclude ghosts)
+                    // now average the top 10 cells (exclude ghosts)
                     PetscInt jAvg = 0;
-                    for(j=ifPtr->n1wg-6; j<ifPtr->n1wg-1; j++)
+                    for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
                     {
-                        for(i=1; i<ifPtr->n2wg-1; i++)
+                        for(i=1; i<ifPtr->n2; i++)
                         {
-                            mSum(abl->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
-                            abl->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                            mSum(ifPtr->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
+                            ifPtr->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
                         }
 
                         jAvg++;
@@ -1003,20 +1010,20 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 }
 
                 // number of data summed per level (ntimes times n levels in direction 2)
-                nAvg  = ifPtr->n2 * ntimes;
+                nAvg  = (ifPtr->n2-1) * ntimes;
 
                 PetscPrintf(mesh->MESH_COMM, "done\n");
 
                 // now average the top 5 cells (exclude ghosts)
-                for(j=0; j<5; j++)
+                for(j=0; j<10; j++)
                 {
-                    mScale(1.0/nAvg, abl->uBarAvgTopX[j]);
-                    abl->tBarAvgTopX[j] /= nAvg;
-                    PetscPrintf(mesh->MESH_COMM, "   - Uavg[%ld] = (%.2f %.2f %.2f) m/s, thetaAvg = %.2f K\n", j, abl->uBarAvgTopX[j].x, abl->uBarAvgTopX[j].y, abl->uBarAvgTopX[j].z, abl->tBarAvgTopX[j]);
+                    mScale(1.0/nAvg, ifPtr->uBarAvgTopX[j]);
+                    ifPtr->tBarAvgTopX[j] /= nAvg;
+                    PetscPrintf(mesh->MESH_COMM, "   - Uavg at %.2f m = (%.2f %.2f %.2f) m/s, thetaAvg = %.2f K\n", ifPtr->avgTopPointCoords[j], ifPtr->uBarAvgTopX[j].x, ifPtr->uBarAvgTopX[j].y, ifPtr->uBarAvgTopX[j].z, ifPtr->tBarAvgTopX[j]);
                 }
 
                 // temporary (basically forces zero gradient at the top for velocity)
-                mSet(abl->uBarAvgTopX[4], abl->uBarAvgTopX[3]);
+                mSet(ifPtr->uBarAvgTopX[9], ifPtr->uBarAvgTopX[8]);
 
                 for( j=0; j<ifPtr->n1wg; j++)
                 {
@@ -1173,6 +1180,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
         readSubDictDouble("ABLProperties.dat", "sideForceProperties", "zStartSideF",   &(abl->zStartSideF));
         readSubDictDouble("ABLProperties.dat", "sideForceProperties", "zEndSideF",     &(abl->zEndSideF));
     }
+
+    DMDAVecRestoreArray(fda, Coor, &coor);
 
     PetscPrintf(mesh->MESH_COMM, "done\n\n");
 

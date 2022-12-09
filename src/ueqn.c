@@ -1007,7 +1007,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     // type 2: inflow and actual meshes are different, use inflow width
                     else if (ifPtr->typeT == 2)
                     {
-                        gdataHeight = abl->avgTopLength;
+                        gdataHeight = ifPtr->avgTopLength;
                     }
                 }
             }
@@ -1067,30 +1067,30 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             PetscInt  IDs[2];
                             PetscReal Wg [2];
 
-                            findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
+                            findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
-                            luBarInstX[j][i].x = scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
+                            luBarInstX[j][i].x = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                                                  ifPtr->ucat_plane[jif][iif].x +
-                                                 scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                                                  (
-                                                     abl->uBarAvgTopX[IDs[0]].x * Wg[0] +
-                                                     abl->uBarAvgTopX[IDs[1]].x * Wg[1]
+                                                     ifPtr->uBarAvgTopX[IDs[0]].x * Wg[0] +
+                                                     ifPtr->uBarAvgTopX[IDs[1]].x * Wg[1]
                                                  );
 
-                            luBarInstX[j][i].y = scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
+                            luBarInstX[j][i].y = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                                                  ifPtr->ucat_plane[jif][iif].y +
-                                                 scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                                                  (
-                                                     abl->uBarAvgTopX[IDs[0]].y * Wg[0] +
-                                                     abl->uBarAvgTopX[IDs[1]].y * Wg[1]
+                                                     ifPtr->uBarAvgTopX[IDs[0]].y * Wg[0] +
+                                                     ifPtr->uBarAvgTopX[IDs[1]].y * Wg[1]
                                                  );
 
-                            luBarInstX[j][i].z = scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
+                            luBarInstX[j][i].z = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                                                  ifPtr->ucat_plane[jif][iif].z +
-                                                 scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                 scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                                                  (
-                                                     abl->uBarAvgTopX[IDs[0]].z * Wg[0] +
-                                                     abl->uBarAvgTopX[IDs[1]].z * Wg[1]
+                                                     ifPtr->uBarAvgTopX[IDs[0]].z * Wg[0] +
+                                                     ifPtr->uBarAvgTopX[IDs[1]].z * Wg[1]
                                                  );
                         }
                         // index is more than nPrds times inflow points: extrapolate
@@ -1102,9 +1102,9 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             // extrapolate along i
                             //if(i>ifPtr->n2*ifPtr->prds2) iif = ifPtr->n2;
 
-                            luBarInstX[j][i].x = abl->uBarAvgTopX[4].x;
-                            luBarInstX[j][i].y = abl->uBarAvgTopX[4].y;
-                            luBarInstX[j][i].z = abl->uBarAvgTopX[4].z;
+                            luBarInstX[j][i].x = ifPtr->uBarAvgTopX[9].x;
+                            luBarInstX[j][i].y = ifPtr->uBarAvgTopX[9].y;
+                            luBarInstX[j][i].z = ifPtr->uBarAvgTopX[9].z;
                         }
                     }
                     // unsteady mapped interpolated
@@ -1114,11 +1114,11 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         PetscInt  IDs[2];
                         PetscReal Wg [2];
 
-                        findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
+                        findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
                         luBarInstX[j][i].x
                         =
-                        scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
@@ -1129,17 +1129,17 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             ifPtr->inflowWeights[j][i][3] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x
                         ) +
-                        scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
-                            abl->uBarAvgTopX[IDs[0]].x * Wg[0] +
-                            abl->uBarAvgTopX[IDs[1]].x * Wg[1]
+                            ifPtr->uBarAvgTopX[IDs[0]].x * Wg[0] +
+                            ifPtr->uBarAvgTopX[IDs[1]].x * Wg[1]
                         );
 
 
 
                         luBarInstX[j][i].y
                         =
-                        scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
@@ -1150,15 +1150,15 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             ifPtr->inflowWeights[j][i][3] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y
                         ) +
-                        scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
-                            abl->uBarAvgTopX[IDs[0]].y * Wg[0] +
-                            abl->uBarAvgTopX[IDs[1]].y * Wg[1]
+                            ifPtr->uBarAvgTopX[IDs[0]].y * Wg[0] +
+                            ifPtr->uBarAvgTopX[IDs[1]].y * Wg[1]
                         );
 
                         luBarInstX[j][i].z
                         =
-                        scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
@@ -1169,10 +1169,10 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             ifPtr->inflowWeights[j][i][3] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z
                         ) +
-                        scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                        scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
-                            abl->uBarAvgTopX[IDs[0]].z * Wg[0] +
-                            abl->uBarAvgTopX[IDs[1]].z * Wg[1]
+                            ifPtr->uBarAvgTopX[IDs[0]].z * Wg[0] +
+                            ifPtr->uBarAvgTopX[IDs[1]].z * Wg[1]
                         );
                     }
                     // Nieuwstadt model
@@ -1234,15 +1234,15 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                                 PetscInt  IDs[2];
                                 PetscReal Wg [2];
 
-                                findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
+                                findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
 
-                                ltBarInstX[j][i] = scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
+                                ltBarInstX[j][i] = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                                                    ifPtr->t_plane[jif][iif] +
-                                                   scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                                                   scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                                                    (
-                                                       abl->tBarAvgTopX[IDs[0]] * Wg[0] +
-                                                       abl->tBarAvgTopX[IDs[1]] * Wg[1]
+                                                       ifPtr->tBarAvgTopX[IDs[0]] * Wg[0] +
+                                                       ifPtr->tBarAvgTopX[IDs[1]] * Wg[1]
                                                    );
                             }
                             // index is more than nPrds times inflow points: apply lapse rate
@@ -1256,7 +1256,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                                     delta = cent[k_idx][j][i].z - gdataHeight;
                                 }
 
-                                ltBarInstX[j][i] = abl->tBarAvgTopX[4] + delta * abl->gTop;
+                                ltBarInstX[j][i] = ifPtr->tBarAvgTopX[9] + delta * abl->gTop;
                             }
                         }
                         // interpolated periodized mapped inflow
@@ -1267,11 +1267,11 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                             PetscInt  IDs[2];
                             PetscReal Wg [2];
-                            findInterpolationWeigthsWithExtrap(Wg, IDs, abl->avgTopPointCoords, 5, height);
+                            findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
                             ltBarInstX[j][i]
                             =
-                            scaleHyperTangBot(height, abl->avgTopLength, abl->avgTopDelta) *
+                            scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
                                 ifPtr->inflowWeights[j][i][0] *
                                 ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
@@ -1282,10 +1282,10 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                                 ifPtr->inflowWeights[j][i][3] *
                                 ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i]
                             ) +
-                            scaleHyperTangTop(height, abl->avgTopLength, abl->avgTopDelta) *
+                            scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
-                                abl->tBarAvgTopX[IDs[0]] * Wg[0] +
-                                abl->tBarAvgTopX[IDs[1]] * Wg[1]
+                                ifPtr->tBarAvgTopX[IDs[0]] * Wg[0] +
+                                ifPtr->tBarAvgTopX[IDs[1]] * Wg[1]
                             ) +
                             delta * abl->gTop;
                         }

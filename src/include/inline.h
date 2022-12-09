@@ -3487,7 +3487,7 @@ inline void findInterpolationWeigths(PetscReal *weights, PetscInt *labels, Petsc
 
 inline void findInterpolationWeigthsWithExtrap(PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)
 {
-    if(pval > pvec[npts-1])
+    if(pval >= pvec[npts-1])
     {
         weights[0] = 0.5;
         weights[1] = 0.5;
@@ -3495,7 +3495,7 @@ inline void findInterpolationWeigthsWithExtrap(PetscReal *weights, PetscInt *lab
         labels[0]  = npts-1;
         labels[1]  = npts-1;
     }
-    else if (pval < pvec[0])
+    else if (pval <= pvec[0])
     {
         weights[0] = 0.5;
         weights[1] = 0.5;
@@ -3515,12 +3515,12 @@ inline void findInterpolationWeigthsWithExtrap(PetscReal *weights, PetscInt *lab
 
 inline PetscReal scaleHyperTangBot(PetscReal h, PetscReal H, PetscReal delta)
 {
-    PetscReal H0 = 2.0*H, psi = h/H0;
+    PetscReal cb = H - 0.5*delta;
     return
     (
         0.5 *
         (
-            1.0 - std::tanh((psi - 0.5) * 2.0 * H0 / delta)
+            1.0 - std::tanh(7.0 * (h-cb)/delta)
         )
     );
 }
@@ -3529,12 +3529,12 @@ inline PetscReal scaleHyperTangBot(PetscReal h, PetscReal H, PetscReal delta)
 
 inline PetscReal scaleHyperTangTop(PetscReal h, PetscReal H, PetscReal delta)
 {
-    PetscReal H0 = 2.0*H, psi = h/H0;
+    PetscReal cb = H - 0.5*delta;
     return
     (
         0.5 *
         (
-            1.0 + std::tanh((psi - 0.5) * 2.0 * H0 / delta)
+            1.0 + std::tanh(7.0 * (h-cb)/delta)
         )
     );
 }

@@ -90,6 +90,12 @@ struct inletFunctionTypes
     inflowData    inflowU;                    //!< velocity inflow database inflormation for unsteadyMappedInflow BC
     inflowData    inflowT;                    //!< temperature inflow database inflormation for unsteadyMappedInflow BC
     inflowData    inflowNut;                  //!< temperature inflow database inflormation for unsteadyMappedInflow BC
+
+    Cmpnts       *uBarAvgTopX;                //!< velocity average from inflow database at top 10 points
+    PetscReal    *tBarAvgTopX;                //!< temperature average from inflow database at top 10 points
+    PetscReal    *avgTopPointCoords;          //!< z coordinates of the 10 average top points
+    PetscReal    avgTopDelta;                 //!< length of the five top cells
+    PetscReal    avgTopLength;                //!< height of the inflow slices
 };
 
 //! \brief Struct storing inlet functions data
