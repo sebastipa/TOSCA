@@ -1,5 +1,6 @@
 probesNumber 2
 timeStart    0
+intervalType adjustableTime
 timeInterval 2.0
 fields       U
 
