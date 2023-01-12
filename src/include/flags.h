@@ -16,6 +16,7 @@ struct flags_
     PetscInt isIBMActive;
     PetscInt isZDampingActive;
     PetscInt isXDampingActive;
+    PetscInt isYDampingActive;
     PetscInt isSideForceActive;
     PetscInt isPrecursorSpinUp;
     PetscInt isConcurrentPrecursorActive;

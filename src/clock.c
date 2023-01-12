@@ -32,10 +32,10 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         // time step imposed by the flow on this domain
         timeStepInfo(&domain[d], clock, dxByU_min, maxU, maxUCell);
 
-        // time step imposed by the precursor on this domain
+        // time step imposed by the precursor on this domain (must be corrected to syncronize time steps)
         if(domain[d].flags.isConcurrentPrecursorActive)
         {
-            timeStepInfo(domain[d].abl->precursor->domain, clock, dxByU_min, maxU, maxUCell);
+            //timeStepInfo(domain[d].abl->precursor->domain, clock, dxByU_min, maxU, maxUCell);
         }
 
         // try to guess a uniform predicted time step for the acquisition
@@ -207,6 +207,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             // concurrent precursor
             if(domain[d].flags.isConcurrentPrecursorActive)
             {
+                /*
                 if(domain[d].abl->precursor->domain->flags.isAquisitionActive)
                 {
                     if(domain[d].abl->precursor->domain->acquisition->isAverageABLActive)
@@ -218,6 +219,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                         predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                     }
                 }
+                */
             }
 
             // set time step as the gcd of all constraints

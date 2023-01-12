@@ -154,6 +154,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isIBMActive                 = 0;
     flags->isZDampingActive            = 0;
     flags->isXDampingActive            = 0;
+    flags->isYDampingActive            = 0;
     flags->isSideForceActive           = 0;
     flags->isConcurrentPrecursorActive = 0;
 
@@ -165,23 +166,32 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-ibm",           &(flags->isIBMActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-zDampingLayer", &(flags->isZDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer", &(flags->isXDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-yDampingLayer", &(flags->isYDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sideForce",     &(flags->isSideForceActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
 
 	// do some checks
-	if(flags->isZDampingActive || flags->isXDampingActive)
+	if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive)
 	{
+        // y damping only goes with x damping
+        if(flags->isYDampingActive && !flags->isXDampingActive)
+        {
+            char error[512];
+			sprintf(error, "xDampingLayer is required for yDampingLayer");
+			fatalErrorInFunction("SetSimulationFlags", error);
+        }
+
 		if(!flags->isAblActive)
 		{
 			char error[512];
-			sprintf(error, "abl flag is required for zDampingLayer and xDampingLayer");
+			sprintf(error, "abl flag is required for zDampingLayer, xDampingLayer or yDampingLayer");
 			fatalErrorInFunction("SetSimulationFlags", error);
 		}
 
 		if(!flags->isTeqnActive)
 		{
 			char error[512];
-			sprintf(error, "potentialT flag is required for zDampingLayer and xDampingLayer");
+			sprintf(error, "potentialT flag is required for zDampingLayer, xDampingLayer or yDampingLayer");
 			fatalErrorInFunction("SetSimulationFlags", error);
 		}
 	}

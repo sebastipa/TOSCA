@@ -106,6 +106,16 @@ struct abl_
     PetscInt    *closestLabelsFringe;            //!< closest height w.r.t. fringe controller height
     PetscReal   *levelWeightsFringe;             //!< weights for variables interpolated at closest heights w.r.t. fringe controller height
 
+    // y damping layer (can only be applied together with the x damping layer)
+    PetscReal    yDampingStart;                  //!< starting y of the fringe layer
+    PetscReal    yDampingEnd;                    //!< ending y of the fringe layer
+    PetscReal    yDampingDelta;                  //!< damping raise/decay distance (must be less than 0.5*(yDampingEnd - yDampingStart))
+    PetscReal    yDampingAlpha;                  //!< damping paramter
+    Vec          uBarInstY;                      //!< instantaneous bar velocity for y-fringe region (only used for concurent precursor)
+    Vec          tBarInstY;                      //!< instantaneous bar temperature for y-fringe region (only used for concurent precursor)
+    PetscInt     **yFringeInterpIDs;             //!< vector of size [Nx, 2] storing the interpolation IDs along x from the concurrent precursor
+    PetscReal    **yFringeInterpWeights;         //!< vector of size [Nx, 2] storing the interpolation weights along x from the concurrent precursor 
+
     // type of uBar computation
     PetscInt     xFringeUBarSelectionType;       //!< read type of fringe region in uBarSelectionType
     Cmpnts       **uBarInstX;                    //!< array storing the instantaneous velocity field for x damping layer

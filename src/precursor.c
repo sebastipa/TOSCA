@@ -19,17 +19,18 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     // read from control file
     PetscOptionsInsertFile(PETSC_COMM_WORLD, PETSC_NULL, "control.dat", PETSC_TRUE);
 
-    flags->isOversetActive    = 0;
-    flags->isLesActive        = 1;
-    flags->isTeqnActive       = 0;
-    flags->isWindFarmActive   = 0;
-    flags->isAquisitionActive = 0;
-    flags->isAblActive        = 0;
-    flags->isIBMActive        = 0;
-    flags->isZDampingActive   = 0;
-    flags->isXDampingActive   = 0;
-    flags->isSideForceActive  = 0;
-    flags->isPrecursorSpinUp  = 0;
+    flags->isOversetActive             = 0;
+    flags->isLesActive                 = 1;
+    flags->isTeqnActive                = 0;
+    flags->isWindFarmActive            = 0;
+    flags->isAquisitionActive          = 0;
+    flags->isAblActive                 = 0;
+    flags->isIBMActive                 = 0;
+    flags->isZDampingActive            = 0;
+    flags->isXDampingActive            = 0;
+    flags->isYDampingActive            = 0;
+    flags->isSideForceActive           = 0;
+    flags->isConcurrentPrecursorActive = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",            &(flags->isLesActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",     &(flags->isTeqnActive), PETSC_NULL);

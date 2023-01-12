@@ -1114,6 +1114,95 @@ PetscErrorCode InitializeABL(abl_ *abl)
         }
     }
 
+    // read the y damping layer properties
+    if(mesh->access->flags->isYDampingActive)
+    {
+        // assume also x-damping is active (cross checked in SetSimulationFlags)
+
+        // read parameters
+        readSubDictDouble("ABLProperties.dat", "yDampingProperties", "yDampingStart",   &(abl->yDampingStart));
+        readSubDictDouble("ABLProperties.dat", "yDampingProperties", "yDampingEnd",     &(abl->yDampingEnd));
+        readSubDictDouble("ABLProperties.dat", "yDampingProperties", "yDampingDelta",   &(abl->yDampingDelta));
+        readSubDictDouble("ABLProperties.dat", "yDampingProperties", "yDampingAlpha",   &(abl->yDampingAlpha));
+
+        if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 4)
+        {
+            // steady state y-damping
+
+        }
+        else if(abl->xFringeUBarSelectionType == 3)
+        {
+            // time-dependent y-damping
+
+            // initialize arrays
+            VecDuplicate(mesh->Cent,  &(abl->uBarInstY));      VecSet(abl->uBarInstY,    0.0);
+            VecDuplicate(mesh->Nvert, &(abl->tBarInstY));      VecSet(abl->tBarInstY,    0.0);
+
+            PetscMalloc(mz*sizeof(PetscInt*), &(abl->yFringeInterpIDs));
+            PetscMalloc(mz*sizeof(PetscReal*), &(abl->yFringeInterpWeights));
+
+            for(k=0; k<mz; k++)
+            {
+                PetscMalloc(2*sizeof(PetscInt), &(abl->yFringeInterpIDs[k]));
+                PetscMalloc(2*sizeof(PetscReal), &(abl->yFringeInterpWeights[k]));
+
+                for(i=0; i<2; i++)
+                {
+                    abl->yFringeInterpIDs[k][i]     = 0;
+                    abl->yFringeInterpWeights[k][i] = 0.0;
+                }
+            }
+
+            // create fictitious line
+            std::vector<PetscReal> lxCoordinates, gxCoordinates;
+
+            // selects those processors which are in the fringe
+            if(abl->access->flags->isConcurrentPrecursorActive)
+            {
+                precursor_ *precursor = abl->precursor;
+                domain_    *domain_p  = precursor->domain;
+                mesh_      *mesh_p    = domain_p->mesh;
+
+                DM            da_p   = mesh_p->da, fda_p = mesh_p->fda;
+                DMDALocalInfo info_p = mesh->info;
+                PetscInt      xs_p   = info_p.xs, xe_p = info_p.xs + info_p.xm;
+                PetscInt      ys_p   = info_p.ys, ye_p = info_p.ys + info_p.ym;
+                PetscInt      zs_p   = info_p.zs, ze_p = info_p.zs + info_p.zm;
+                PetscInt      mx_p   = info_p.mx, my_p = info_p.my, mz_p = info_p.mz;
+
+                Cmpnts        ***cent_p;
+
+                PetscReal     gNperiods = 0, lNperiods = std::floor(mesh->bounds.Lx / mesh_p->bounds.Lx);
+
+                PetscInt      k_p, r, lxs_p, lxe_p, lys_p, lye_p, lzs_p, lze_p;
+
+                lxs_p = xs_p; lxe_p = xe_p; if (xs_p==0) lxs_p = xs_p+1; if (xe_p==mx_p) lxe_p = xe_p-1;
+                lys_p = ys_p; lye_p = ye_p; if (ys_p==0) lys_p = ys_p+1; if (ye_p==my_p) lye_p = ye_p-1;
+                lzs_p = zs_p; lze_p = ze_p; if (zs_p==0) lzs_p = zs_p+1; if (ze_p==mz_p) lze_p = ze_p-1;
+
+                PetscMPIInt   rank_p, nProcs_p;
+
+                MPI_Comm_rank(mesh_p->MESH_COMM, &rank_p);
+                MPI_Comm_size(mesh_p->MESH_COMM, &nProcs_p);
+
+                DMDAVecGetArray(fda_p, mesh_p->lCent,  &cent_p);
+                DMDAVecGetArray(fda  , mesh->lCent,    &cent);
+
+
+
+                DMDAVecRestoreArray(fda_p, mesh_p->lCent,  &cent_p);
+                DMDAVecRestoreArray(fda  , mesh->lCent,    &cent);
+            }
+        }
+        else
+        {
+            // y-damping not available for x-damping in which an unsteady term is spread in the fringe
+            char error[512];
+            sprintf(error, "yDampingLayer not available with xDampingLayer where uBarSelectionType is 1 or 2");
+            fatalErrorInFunction("ABLInitialize",  error);
+        }
+    }
+
     // read the Rayleigh damping layer properties
     if(mesh->access->flags->isZDampingActive)
     {

@@ -1588,6 +1588,15 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 		DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
     }
 
+    if(ueqn->access->flags->isYDampingActive)
+    {
+        // update the unsteady uBar state
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+
+        }
+    }
+
     // update uBar for zDampingLayer (average at kLeft patch)
     if(ueqn->access->flags->isZDampingActive)
     {
@@ -1758,6 +1767,12 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal zS     = abl->zDampingStart;
     PetscReal zE     = abl->zDampingEnd;
 
+    // y damping layer
+    PetscReal alphaY = abl->yDampingAlpha;
+    PetscReal yS     = abl->yDampingStart;
+    PetscReal yE     = abl->yDampingEnd;
+    PetscReal yD     = abl->yDampingDelta;
+
     // x damping layer
     PetscReal alphaX = abl->xDampingAlpha;
     PetscReal xS     = abl->xDampingStart;
@@ -1766,10 +1781,12 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     // cell center coordinates
     PetscReal x, xi, xj, xk;
+    PetscReal y, yi, yj, yk;
     PetscReal z, zi, zj, zk;
 
     // Nordstrom viscosities
     PetscReal nud_x, nudi_x, nudj_x, nudk_x;
+    PetscReal nud_y, nudi_y, nudj_y, nudk_y;
 
     // Rayleigh viscosities
     PetscReal nud_z, nudi_z, nudj_z, nudk_z;
@@ -1804,6 +1821,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
+                // x damping layer
                 if(ueqn->access->flags->isXDampingActive)
                 {
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
@@ -1811,12 +1829,6 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     xi    = cent[k][j][i+1].x;
                     xj    = cent[k][j+1][i].x;
                     xk    = cent[k+1][j][i].x;
-
-					// compute cell center z at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-					z     = cent[k][j][i].z   - mesh->bounds.zmin;
-                    zi    = cent[k][j][i+1].z - mesh->bounds.zmin;
-                    zj    = cent[k][j+1][i].z - mesh->bounds.zmin;
-                    zk    = cent[k+1][j][i].z - mesh->bounds.zmin;
 
                     // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
@@ -1933,8 +1945,72 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     }
                 }
 
-                // Z DAMPING LAYER
-                // ---------------
+                // y damping layer
+                if(ueqn->access->flags->isYDampingActive)
+                {
+                    // compute cell center y at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    y     = cent[k][j][i].y;
+                    yi    = cent[k][j][i+1].y;
+                    yj    = cent[k][j+1][i].y;
+                    yk    = cent[k+1][j][i].y;
+
+                    // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    nud_y   = viscNordstrom(alphaY, yS, yE, yD, y);
+                    nudi_y  = viscNordstrom(alphaY, yS, yE, yD, yi);
+                    nudj_y  = viscNordstrom(alphaY, yS, yE, yD, yj);
+                    nudk_y  = viscNordstrom(alphaY, yS, yE, yD, yk);
+
+                    if(isInflowSpreadType)
+                    {
+
+                        // retrieve from fringe region inflow slice
+                        Cmpnts uBarInstY  = nSet(abl->uBarInstX[j][i]);
+                        Cmpnts uBarInstYi = nSet(abl->uBarInstX[j][i+1]);
+                        Cmpnts uBarInstYj = nSet(abl->uBarInstX[j+1][i]);
+
+                        // i-fluxes
+                        rhs[k][j][i].x
+                        +=
+                        scale * central(nud_y, nudi_y) *
+                        (
+                            (
+                                (central(uBarInstY.x, uBarInstYi.x) - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                                (central(uBarInstY.y, uBarInstYi.y) - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                                (central(uBarInstY.z, uBarInstYi.z) - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                            )
+                        );
+
+                        // j-fluxes
+                        rhs[k][j][i].y
+                        +=
+                        scale * central(nud_y, nudj_y) *
+                        (
+                            (
+                                (central(uBarInstY.x, uBarInstYj.x) - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                                (central(uBarInstY.y, uBarInstYj.y) - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                                (central(uBarInstY.z, uBarInstYj.z) - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
+                            )
+                        );
+
+                        // k-fluxes
+                        rhs[k][j][i].z
+                        +=
+                        scale * central(nud_y, nudk_y) *
+                        (
+                            (
+                                (uBarInstY.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                                (uBarInstY.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                                (uBarInstY.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                            )
+                        );
+                    }
+                    else
+                    {
+                        // retrieve from concurrent precursor - not yet implemented
+                    }
+                }
+
+                // z damping layer
                 if(ueqn->access->flags->isZDampingActive)
                 {
                     // compute cell center z at i,j,k and i,j+1,k points
