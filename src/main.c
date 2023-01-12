@@ -7,6 +7,10 @@
 #include "include/initialization.h"
 #include "include/inline.h"
 
+#ifdef USE_CATALYST
+#include "include/catalystAdaptor.h"
+#endif
+
 static char head[] = "TOSCA - Developed at UBC Okanagan CFDLab, Kelowna";
 
 int main(int argc, char **argv)
@@ -36,6 +40,10 @@ int main(int argc, char **argv)
 
     // initialize simulation
     simulationInitialize(&domain, &clock, &info, &flags);
+
+    #ifdef USE_CATALYST
+    catalystInitialize(argc, argv);
+    #endif
 
     while(clock.time < clock.endTime)
     {
@@ -188,6 +196,10 @@ int main(int argc, char **argv)
         MPI_Barrier(PETSC_COMM_WORLD);
 
     }
+
+    #ifdef USE_CATALYST
+    catalystFinalize();
+    #endif
 
     PetscTime(&solutionTimeEnd);
 

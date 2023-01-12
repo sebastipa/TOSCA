@@ -1,26 +1,18 @@
 # Set PETSC_DIR and PETSC_ARCH variables in the bash file 
 
-CC      = mpicxx
-PETSC=${PETSC_DIR}
-PETSCLIB=$(PETSC)/$(PETSC_ARCH)/lib/
-PETSCINC1=$(PETSC)/include/
-PETSCINC2=$(PETSC)/$(PETSC_ARCH)/include/
+CC        = mpicxx
+PETSC     = ${PETSC_DIR}
+PETSCLIB  = $(PETSC)/$(PETSC_ARCH)/lib/
+PETSCINC1 = $(PETSC)/include/
+PETSCINC2 = $(PETSC)/$(PETSC_ARCH)/include/
 
-#Serial HDF5
-HDF5INC=/usr/lib/x86_64-linux-gnu/hdf5/serial/include/
-HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/serial/
+LIBFLAG   = -lpthread -lrt -ldl -lstdc++ \
+		    -lpetsc -lf2cblas -lf2clapack -lhdf5 -lHYPRE -lcatalyst
 
-#Parallel HDF5
-#HDF5INC=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/include/
-#HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/
+LIBDIR    = -L$(PETSCLIB) -L$(HDF5LIB) -L$(CATALYST)/lib
 
-
-LIBFLAG =       -lpthread -lrt -ldl -lstdc++ \
-		        -lpetsc -lf2cblas -lf2clapack -lhdf5 -lHYPRE
-
-LIBDIR =        -L$(PETSCLIB) -L$(HDF5LIB)
-
-CPPFLAGS =      -DNDEBUG -I$(PETSCINC1) -I$(PETSCINC2) -I$(HDF5INC) -O -g
+CPPFLAGS  = -I$(PETSCINC1) -I$(PETSCINC2) -I$(CATALYST)/include/ -O3 -g \
+            -DPARAVIEW_IMPL_DIR=\"\" -DUSE_CATALYST=1
 
 
 SOURCEC =       main.c initialization.c io.c overset.c wallfunctions.c boundary.c \
