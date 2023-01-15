@@ -51,7 +51,6 @@ struct domain_
 
     flags_        flags;             //!< solution flags data structure
     access_       access;            //!< access database data structure
-
 };
 
 #endif

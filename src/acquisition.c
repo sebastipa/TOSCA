@@ -199,8 +199,9 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
         // initialize sections
         sectionsInitialize(acquisition);
 
-        // initialize averages
-        averageFieldsInitialize(acquisition);
+        /*
+        // initialize averages:
+        averageFieldsInitialize(acquisition); <- there is a bug since pvCatayst makes it active also for concurent precursor, should stay off
 
         // initialize ke budgets
         averageKEBudgetsInitialize(acquisition);
@@ -213,6 +214,7 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
 
         // initialize 3LM averaging
         averaging3LMInitialize(domain);
+        */
 
         // initialize ABL averaging
         averagingABLInitialize(domain);
@@ -282,12 +284,12 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
     mesh_  *mesh  = acquisition->access->mesh;
     flags_ *flags = acquisition->access->flags;
 
-    if(io->averaging || io->phaseAveraging || io->qCrit || io->l2Crit || io->sources || io->windFarmForce)
+    if(io->averaging || io->phaseAveraging || io->qCrit || io->l2Crit || io->sources || io->windFarmForce || flags->isPvCatalystActive)
     {
         PetscMalloc(sizeof(avgFields), &(acquisition->fields));
         avgFields *avg = acquisition->fields;
 
-        if(io->qCrit)
+        if(io->qCrit || flags->isPvCatalystActive)
         {
             VecDuplicate(mesh->Nvert, &(avg->Q));  VecSet(avg->Q,0.);
         }

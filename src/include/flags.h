@@ -20,6 +20,7 @@ struct flags_
     PetscInt isSideForceActive;
     PetscInt isPrecursorSpinUp;
     PetscInt isConcurrentPrecursorActive;
+    PetscInt isPvCatalystActive;
 };
 
 #endif

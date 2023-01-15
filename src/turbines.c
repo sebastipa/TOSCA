@@ -4773,7 +4773,7 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
         wt->uadm.sampleType != "givenVelocity"
     )
     {
-       char error[512];
+        char error[512];
         sprintf(error, "unknown velocity sampling type. Available types are givenVelocity or rotorUpstream");
         fatalErrorInFunction("initUADM",  error);
     }

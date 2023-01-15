@@ -3162,14 +3162,14 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
       clock->it == clock->itStart && !rank
     )
     {
-      errno = 0;
-      dirRes = mkdir("./fields", 0777);
-      if(dirRes != 0 && errno != EEXIST)
-      {
-         char error[512];
-          sprintf(error, "could not create fields directory \n");
-          fatalErrorInFunction("setRunTimeWrite",  error);
-      }
+        errno = 0;
+        dirRes = mkdir("./fields", 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+            char error[512];
+            sprintf(error, "could not create fields directory \n");
+            fatalErrorInFunction("setRunTimeWrite",  error);
+        }
     }
 
     for(PetscInt d=0; d < nDomains; d++)

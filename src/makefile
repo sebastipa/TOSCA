@@ -7,11 +7,11 @@ PETSCINC1 = $(PETSC)/include/
 PETSCINC2 = $(PETSC)/$(PETSC_ARCH)/include/
 
 LIBFLAG   = -lpthread -lrt -ldl -lstdc++ \
-		    -lpetsc -lf2cblas -lf2clapack -lhdf5 -lHYPRE -lcatalyst
+		    -lpetsc -lf2cblas -lf2clapack -lHYPRE -lcatalyst
 
 LIBDIR    = -L$(PETSCLIB) -L$(HDF5LIB) -L$(CATALYST)/lib
 
-CPPFLAGS  = -I$(PETSCINC1) -I$(PETSCINC2) -I$(CATALYST)/include/ -O3 -g \
+CPPFLAGS  = -I$(PETSCINC1) -I$(PETSCINC2) -I$(CATALYST)/include/catalyst-2.0/ -O3 -g \
             -DPARAVIEW_IMPL_DIR=\"\" -DUSE_CATALYST=1
 
 

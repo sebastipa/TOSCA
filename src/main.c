@@ -41,9 +41,12 @@ int main(int argc, char **argv)
     // initialize simulation
     simulationInitialize(&domain, &clock, &info, &flags);
 
-    #ifdef USE_CATALYST
-    catalystInitialize(argc, argv);
-    #endif
+    if(flags.isPvCatalystActive)
+    {
+        #ifdef USE_CATALYST
+        catalystInitialize(domain);
+        #endif
+    }
 
     while(clock.time < clock.endTime)
     {
@@ -156,7 +159,7 @@ int main(int argc, char **argv)
             {
                 UpdateTemperatureBCs(domain[d].teqn);
             }
-
+   
             // update cartesian BC
             UpdateCartesianBCs(domain[d].ueqn);
 
@@ -177,10 +180,16 @@ int main(int argc, char **argv)
             }
 
             MPI_Barrier(domain[d].mesh->MESH_COMM);
-
         }
 
         WriteAcquisition(domain);
+
+        if(flags.isPvCatalystActive)
+        {
+            #ifdef USE_CATALYST
+            catalystExecute(domain);
+            #endif
+        }
 
         if(flags.isOversetActive)
         {

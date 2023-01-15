@@ -112,6 +112,21 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 }
             }
 
+            // catalyst
+            if(flags->isPvCatalystActive)
+            {
+                #ifdef USE_CATALYST
+                if(domain[d].io->outputTypeCatalyst == "adjustableTime")
+                {
+                    timeStart    = domain[d].io->startTimeCatalyst;
+                    timeInterval = domain[d].io->timeIntervalCatalyst;
+
+                    timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                    predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
+                }
+                #endif
+            }
+
             if(flags->isAquisitionActive)
             {
                 // 3LM averaging for background domain only

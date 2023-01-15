@@ -158,6 +158,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isYDampingActive            = 0;
     flags->isSideForceActive           = 0;
     flags->isConcurrentPrecursorActive = 0;
+    flags->isPvCatalystActive          = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",       &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);
@@ -170,6 +171,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-yDampingLayer", &(flags->isYDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sideForce",     &(flags->isSideForceActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",    &(flags->isPvCatalystActive), PETSC_NULL);
 
 	// do some checks
 	if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive)
@@ -209,6 +211,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscInt isL2CritActive         = 0;
     PetscInt isSourcesActive        = 0;
     PetscInt isPerturbABLActive     = 0;
+    PetscInt PvCatalystActive       = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",        &isProbesActive,         PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &isSectionsActive,       PETSC_NULL);
@@ -221,13 +224,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2",     &isL2CritActive,         PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeSources",&isSourcesActive,        PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",    &isPerturbABLActive,     PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",    &PvCatalystActive,       PETSC_NULL);
 
     flags->isAquisitionActive
     =
     PetscMin(
     (
         isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive + isKEBudgetsActive +
-        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isSourcesActive + isPerturbABLActive),
+        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isSourcesActive + isPerturbABLActive + PvCatalystActive),
         1
     );
 
@@ -544,6 +548,7 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
 
     if(domain->flags.isIBMActive)
     {
+        // ibm two way access
         domain->access.ibm  = domain->ibm;
         domain->ibm->access = &(domain->access);
     }

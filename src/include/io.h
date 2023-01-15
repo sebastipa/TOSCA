@@ -36,6 +36,13 @@ struct io_
     // runtime modifiable
     word      lastModification;
 
+    // catalyst interface
+    PetscReal     timeIntervalCatalyst;
+    PetscReal     startTimeCatalyst;
+    word          outputTypeCatalyst;        
+    word          ioTypeCatalyst;           //!< type of catalyst output (generic/script)
+    word          scriptNameCatalyst;        //!< name of input script
+
     // access database
     access_   *access;
 };

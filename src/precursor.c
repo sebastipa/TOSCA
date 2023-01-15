@@ -31,6 +31,7 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isYDampingActive            = 0;
     flags->isSideForceActive           = 0;
     flags->isConcurrentPrecursorActive = 0;
+    flags->isPrecursorSpinUp           = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",            &(flags->isLesActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",     &(flags->isTeqnActive), PETSC_NULL);
@@ -68,9 +69,6 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
 {
     PetscPrintf(abl->access->mesh->MESH_COMM, "Initializing concurrent precursor:\n");
 
-    // activate precursor flag
-    abl->access->flags->isConcurrentPrecursorActive = 1;
-
     // allocate memory
     abl->precursor = new precursor_;
     precursor_ *precursor = abl->precursor;
@@ -104,6 +102,9 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
     // only fringe processors proceed
     if(precursor->thisProcessorInFringe)
     {
+		// activate precursor flag
+	    abl->access->flags->isConcurrentPrecursorActive = 1;
+
         // set I/O
         InitializeIO(domain->io);
 
@@ -141,6 +142,8 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
         // initialize acquisition
         InitializeAcquisitionPrecursor(domain);
     }
+
+    MPI_Barrier(abl->access->mesh->MESH_COMM);
 
     return(0);
 }
