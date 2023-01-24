@@ -158,7 +158,7 @@ In order to re-compile TOSCA with Paraview-catalyst2 capabilities on your system
 
 * `make install`
 
-* `echo "export CATALYST=$LOCATION >> $HOME/.bashrc`
+* `echo "export CATALYST=$LOCATION" >> $HOME/.bashrc`
 
 * Add the Catalyst2 shared libraries to your library path environment variable in your .bashrc:
 `echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LOCATION/catalyst2/install/lib" >> $HOME/.bashrc` Note: in some cases you may have to replace lib with lib64
