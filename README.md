@@ -171,7 +171,7 @@ In order to re-compile TOSCA with Paraview-catalyst2 capabilities on your system
 
 * `wget https://www.paraview.org/files/v5.11/ParaView-v5.11.0.tar.xz`
 
-* `tar -xvf ParaView-v5.11.0`
+* `tar -xvf ParaView-v5.11.0.tar.xz`
 
 * `mv ParaView-v5.11.0 paraview-src && cd paraview-src`
 
