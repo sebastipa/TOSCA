@@ -152,7 +152,7 @@ In order to re-compile TOSCA with Paraview-catalyst2 capabilities on your system
 
 * `mkdir -p build && cd build`
 
-* `cmake .. -DCMAKE_INSTALL_PREFIX=$LOCATION/catalyst2`
+* `cmake .. -DCMAKE_INSTALL_PREFIX=$LOCATION/catalyst2/install`
 
 * `make`
 
