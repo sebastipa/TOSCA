@@ -13,7 +13,7 @@ void uStarShumann
 (
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
     PetscReal &gammaM, PetscReal &kappa, PetscReal &qwall, PetscReal &thetaRef,
-    PetscReal &uStar, PetscReal &phiM, PetscReal &L, PetscReal nu
+    PetscReal &uStar, PetscReal &phiM, PetscReal &L
 )
 {
     PetscReal uStar0 = (kappa * UParallelMeanMag) / std::log(wallDist / z0);
@@ -626,16 +626,16 @@ void wallFunctionSchumann(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal ro
     *ustar = ut_mag * kappa / log(sc/roughness);
 
     // ut_magb = (*ustar/kappa) * log(sb/roughness);
-    
+
     // if (ut_magb < 1.e-10)
     // {
     //     ut_magb = 0.0;
     // }
-    
+
     // ut_b  = nScale(ut_magb, et);
-    
+
     // (*Ub) = nSum(ut_b, nScale( (sb/sc), unc));
-    
+
     // mSum(*Ub, Ua);
 
     (*Ub).x = (sb/sc) * Uc.x + (1.0 - (sb/sc)) * Ua.x;

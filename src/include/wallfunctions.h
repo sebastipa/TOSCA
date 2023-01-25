@@ -35,7 +35,7 @@ void uStarShumann
 (
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &roughness,
     PetscReal &gammaM, PetscReal &kappa, PetscReal &qwall, PetscReal &thetaRef,
-    PetscReal &uStar, PetscReal &phiM, PetscReal &L, PetscReal nu
+    PetscReal &uStar, PetscReal &phiM, PetscReal &L
 );
 
 void qWallShumann

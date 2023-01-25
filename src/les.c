@@ -1151,7 +1151,7 @@ PetscErrorCode UpdateCs (les_ *les)
         }
 
         // set Cs to zero if solid or on box corners
-        if(isIBMSolidCell(k, j, i, nvert)
+        if( isIBMSolidCell(k, j, i, nvert) )
         {
             Cs[k][j][i] = 0;
         }
