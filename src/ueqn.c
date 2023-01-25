@@ -24,7 +24,8 @@ PetscErrorCode SNESMonitorU(SNES snes, PetscInt iter, PetscReal rnorm, void* com
 PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 {
     // set pointer to mesh
-    mesh_ *mesh = ueqn->access->mesh;
+    mesh_  *mesh  = ueqn->access->mesh;
+    flags_ *flags = ueqn->access->flags;
 
     // input file
     PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
@@ -77,6 +78,13 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     if(ueqn->access->flags->isTeqnActive)
     {
         VecDuplicate(mesh->Cent, &(ueqn->bTheta)); VecSet(ueqn->bTheta,    0.0);
+    }
+
+    if(flags->isIBMActive)
+    {
+        VecDuplicate(mesh->lCent, &(ueqn->lViscIBM1));   VecSet(ueqn->lViscIBM1,  0.0);
+        VecDuplicate(mesh->lCent, &(ueqn->lViscIBM2));   VecSet(ueqn->lViscIBM2,  0.0);
+        VecDuplicate(mesh->lCent, &(ueqn->lViscIBM3));   VecSet(ueqn->lViscIBM3,  0.0);
     }
 
     if(ueqn->ddtScheme == "backwardEuler")
@@ -2718,7 +2726,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
         // compute inflow flux at k-left boundary
         if (zs==0)
         {
-            // k-right boundary face
+            // k-left boundary face
             k = 0;
 
             // loop on the boundary faces
@@ -2726,7 +2734,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux and area
+                    // cumulate flux
 
                     if(fabs(ucont[k][j][i].z) > epsilon){
                         lFluxIn   +=  ucont[k][j][i].z;
@@ -2752,7 +2760,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux and area
+                    // cumulate flux
 
                     if(fabs(ucont[k][j][i].z) > epsilon){
                         lFluxOut   +=  ucont[k][j][i].z;
@@ -2776,7 +2784,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
         // compute flux at j-left boundary
         if (ys==0)
         {
-            // k-right boundary face
+            // j-left boundary face
             j = 0;
 
             // loop on the boundary faces
@@ -2784,7 +2792,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux and area
+                    // cumulate flux
 
                     if(fabs(ucont[k][j][i].y) > epsilon){
                         lFluxIn   +=  ucont[k][j][i].y;
@@ -2801,7 +2809,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
         // compute flux at j-right boundary
         if (ye==my)
         {
-            // k-right boundary face
+            // j-right boundary face
             j = my-2;
 
             // loop on the boundary cells
@@ -2809,7 +2817,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux and area
+                    // cumulate flux
 
                     if(fabs(ucont[k][j][i].y) > epsilon){
                         lFluxOut   +=  ucont[k][j][i].y;
@@ -2832,7 +2840,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
         // compute flux at i-left boundary
         if (xs==0)
         {
-            // i-right boundary face
+            // i-left boundary face
             i = 0;
 
             // loop on the boundary faces
@@ -2840,7 +2848,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    // cumulate flux and area
+                    // cumulate flux
 
                     if(fabs(ucont[k][j][i].x) > epsilon)
                     {
@@ -2858,7 +2866,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
         // compute flux at i-right boundary
         if (xe==mx)
         {
-            // k-right boundary face
+            // i-right boundary face
             i = mx-2;
 
             // loop on the boundary faces
@@ -2866,7 +2874,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    // cumulate flux and area
+                    // cumulate flux
 
                     if(fabs(ucont[k][j][i].x) > epsilon){
                         lFluxOut   +=  ucont[k][j][i].x;
@@ -3216,7 +3224,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
     MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-    //PetscPrintf(mesh->MESH_COMM, "After correction fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
+    // PetscPrintf(mesh->MESH_COMM, "After correction fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
 
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
@@ -3798,6 +3806,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     mesh_            *mesh   = ueqn->access->mesh;
     les_             *les    = ueqn->access->les;
     constants_       *cst    = ueqn->access->constants;
+    flags_           *flags  = ueqn->access->flags;
     DM               da      = mesh->da, fda = mesh->fda;
     DMDALocalInfo    info    = mesh->info;
     PetscInt         xs      = info.xs, xe = info.xs + info.xm;
@@ -3819,7 +3828,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal        ***nvert, ***lnu_t;
 
     Cmpnts           ***div1,  ***div2,  ***div3;                               // divergence & cumulative fluxes
-    Cmpnts           ***visc1, ***visc2, ***visc3;                              // viscous terms
+    Cmpnts           ***visc1, ***visc2, ***visc3;
+    Cmpnts           ***viscIBM1, ***viscIBM2, ***viscIBM3;                              // viscous terms                             // viscous terms
     Cmpnts           ***rhs,   ***fp,    ***limiter;                            // right hand side
     PetscReal        ***aj,    ***iaj,   ***jaj, ***kaj;                        // cell and face jacobians
 
@@ -3889,6 +3899,13 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, ueqn->lVisc1, &visc1);
     DMDAVecGetArray(fda, ueqn->lVisc2, &visc2);
     DMDAVecGetArray(fda, ueqn->lVisc3, &visc3);
+
+    if(flags->isIBMActive)
+    {
+        DMDAVecGetArray(fda, ueqn->lViscIBM1, &viscIBM1);
+        DMDAVecGetArray(fda, ueqn->lViscIBM2, &viscIBM2);
+        DMDAVecGetArray(fda, ueqn->lViscIBM3, &viscIBM3);
+    }
 
     if(ueqn->access->flags->isLesActive)
     {
@@ -4113,18 +4130,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     ueqn->access->flags->isLesActive
                 )
                 {
-                    if(isIBMCell(k, j, i, nvert))
-                    {
-                        nut = lnu_t[k][j][i+1];
-                    }
-                    else if (isIBMCell(k, j, i+1, nvert))
-                    {
-                        nut = lnu_t[k][j][i];
-                    }
-                    else
-                    {
-                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
-                    }
+
+                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
 
                     // wall model i-left patch
                     if
@@ -4137,11 +4144,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         visc1[k][j][i].y = - ueqn->iLWM->tauWall.y[k-zs][j-ys];
                         visc1[k][j][i].z = - ueqn->iLWM->tauWall.z[k-zs][j-ys];
 
-                        nut = 0.0;
+                        nuEff = nu;
                     }
+                    else if(isIBMFluidIFace(k, j, i, i+1, nvert))
+                    {
+                        if(ueqn->access->ibm->wallShearOn)
+                        {
+                            visc1[k][j][i] = nSet(viscIBM1[k][j][i]);
 
+                            nuEff = 0;
+                        }
+
+                    }
                     // slip boundary condition on U (set nuEff to 0)
-                    if
+                    else if
                     (
                         (mesh->boundaryU.iLeft =="slip" && i==0   ) ||
                         (mesh->boundaryU.iRight=="slip" && i==mx-2)
@@ -4347,18 +4363,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     ueqn->access->flags->isLesActive
                 )
                 {
-                    if(isIBMCell(k, j, i, nvert))
-                    {
-                        nut = lnu_t[k][j+1][i];
-                    }
-                    else if (isIBMCell(k, j+1, i, nvert))
-                    {
-                        nut = lnu_t[k][j][i];
-                    }
-                    else
-                    {
-                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
-                    }
+
+                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
 
                     // wall model j-left patch
                     if
@@ -4371,11 +4377,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         visc2[k][j][i].y = - ueqn->jLWM->tauWall.y[k-zs][i-xs];
                         visc2[k][j][i].z = - ueqn->jLWM->tauWall.z[k-zs][i-xs];
 
-                        nut = 0.0;
+                        nuEff = nu;
                     }
+                    else if(isIBMFluidJFace(k, j, i, j+1, nvert))
+                    {
+                        if(ueqn->access->ibm->wallShearOn)
+                        {
+                            visc2[k][j][i] = nSet(viscIBM2[k][j][i]);
 
+                            nuEff = 0;
+                        }
+
+                    }
                     // slip boundary condition on U (set nuEff to 0)
-                    if
+                    else if
                     (
                         (mesh->boundaryU.jLeft =="slip" && j==0   ) ||
                         (mesh->boundaryU.jRight=="slip" && j==my-2)
@@ -4397,6 +4412,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 visc2[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nuEff);
                 visc2[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nuEff);
                 visc2[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nuEff);
+
             }
         }
     }
@@ -4583,23 +4599,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     ueqn->access->flags->isLesActive
                 )
                 {
-                    if(isIBMCell(k, j, i, nvert))
-                    {
-                        nut = lnu_t[k+1][j][i];
-                    }
-                    else if (isIBMCell(k+1, j, i, nvert))
-                    {
-                        nut = lnu_t[k][j][i];
-                    }
-                    else
-                    {
-                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
-                    }
+                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
 
-                    // wall models not present in k direction
+                    if(isIBMFluidKFace(k, j, i, k+1, nvert))
+                    {
+                        if(ueqn->access->ibm->wallShearOn)
+                        {
+                            visc3[k][j][i] = nSet(viscIBM3[k][j][i]);
 
+                            nuEff = 0;
+                        }
+
+                    }
                     // slip boundary condition on U (set nuEff to 0)
-                    if
+                    else if
                     (
                         (mesh->boundaryU.kLeft =="slip" && k==0   ) ||
                         (mesh->boundaryU.kRight=="slip" && k==mz-2)
@@ -4621,6 +4634,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 visc3[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nuEff);
                 visc3[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nuEff);
                 visc3[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nuEff);
+
             }
         }
     }
@@ -4641,6 +4655,13 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, ueqn->lVisc2, &visc2);
     DMDAVecRestoreArray(fda, ueqn->lVisc3, &visc3);
 
+    if(flags->isIBMActive)
+    {
+        DMDAVecRestoreArray(fda, ueqn->lViscIBM1, &viscIBM1);
+        DMDAVecRestoreArray(fda, ueqn->lViscIBM2, &viscIBM2);
+        DMDAVecRestoreArray(fda, ueqn->lViscIBM3, &viscIBM3);
+    }
+
     DMLocalToLocalBegin(fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
     DMLocalToLocalEnd  (fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
     DMLocalToLocalBegin(fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
@@ -4653,11 +4674,11 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     // ---------------------------------------------------------------------- //
 
     resetFacePeriodicFluxesVector(mesh, ueqn->lDiv1,   ueqn->lDiv1,   "localToLocal");
-    resetFacePeriodicFluxesVector(mesh, ueqn->lDiv2,   ueqn->lDiv1,   "localToLocal");
-    resetFacePeriodicFluxesVector(mesh, ueqn->lDiv3,   ueqn->lDiv1,   "localToLocal");
+    resetFacePeriodicFluxesVector(mesh, ueqn->lDiv2,   ueqn->lDiv2,   "localToLocal");
+    resetFacePeriodicFluxesVector(mesh, ueqn->lDiv3,   ueqn->lDiv3,   "localToLocal");
     resetFacePeriodicFluxesVector(mesh, ueqn->lVisc1,  ueqn->lVisc1,  "localToLocal");
-    resetFacePeriodicFluxesVector(mesh, ueqn->lVisc2,  ueqn->lVisc1,  "localToLocal");
-    resetFacePeriodicFluxesVector(mesh, ueqn->lVisc3,  ueqn->lVisc1,  "localToLocal");
+    resetFacePeriodicFluxesVector(mesh, ueqn->lVisc2,  ueqn->lVisc2,  "localToLocal");
+    resetFacePeriodicFluxesVector(mesh, ueqn->lVisc3,  ueqn->lVisc3,  "localToLocal");
 
     // get the arrays
     DMDAVecGetArray(fda, ueqn->lDiv1, &div1);
@@ -4881,49 +4902,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 rhs[k][j][i].z += scale * kaj[k][j][i] * central(v1, v2);
 
-                /*
-                rhs[k][j][i].z
-                +=
-                scale *
-                (
-                      0.5 *
-                    (
-                        zet[k][j][i].x * fp[k][j][i].x +
-                        zet[k][j][i].y * fp[k][j][i].y +
-                        zet[k][j][i].z * fp[k][j][i].z
-                    )
-                    + 0.5 *
-                    (
-                        zet[k+1][j][i].x * fp[k+1][j][i].x +
-                        zet[k+1][j][i].y * fp[k+1][j][i].y +
-                        zet[k+1][j][i].z * fp[k+1][j][i].z
-                    )
-                ) * kaj[k][j][i];
-                */
-
-                if
-                (
-                    isIBMIFace(k, j, i, i+1, nvert)
-                )
-                {
-                    rhs[k][j][i].x = 0;
-                }
-
-                if
-                (
-                    isIBMJFace(k, j, i, j+1, nvert)
-                )
-                {
-                    rhs[k][j][i].y = 0;
-                }
-
-                if
-                (
-                    isIBMKFace(k, j, i, k+1, nvert)
-                )
-                {
-                    rhs[k][j][i].z = 0;
-                }
             }
         }
     }
@@ -4997,6 +4975,11 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
 
     // transform to cartesian
     contravariantToCartesian(ueqn);
+
+    if(ueqn->access->flags->isIBMActive)
+    {
+        UpdateImmersedBCs(ueqn->access->ibm);
+    }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");

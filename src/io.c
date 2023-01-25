@@ -265,6 +265,14 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     VecLoad(peqn->P,viewer);
     PetscViewerDestroy(&viewer);
 
+    //read ibm field
+    PetscPrintf(mesh->MESH_COMM, "Reading nv...\n");
+    field = "/nv";
+    fileName = location + field;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(mesh->Nvert,viewer);
+    PetscViewerDestroy(&viewer);
+
     // read temperature
     if(domain->flags.isTeqnActive)
     {

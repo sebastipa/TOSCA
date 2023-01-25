@@ -94,7 +94,13 @@ int main(int argc, char **argv)
             {
                 UpdateCs (domain[d].les);
                 UpdateNut(domain[d].les);
-				UpdateWallModelsU(domain[d].ueqn);
+                UpdateWallModelsU(domain[d].ueqn);
+
+                if(flags.isIBMActive)
+                {
+                    if(domain[d].ibm->wallShearOn)
+                        findIBMWallShear(domain[d].ibm);
+                }
             }
 
             if(flags.isAblActive)
@@ -152,6 +158,29 @@ int main(int argc, char **argv)
             if(domain[d].ueqn->ddtScheme=="backwardEuler")
             {
                 VecSet(domain[d].ueqn->Rhs_o, 0.0);
+
+                if(flags.isIBMActive)
+                {
+                    //interpolate the ibm fluid cells
+                    if(domain[d].ibm->curvibType == "CurvibTrilinear")
+                    {
+                        CurvibInterpolation(domain[d].ibm);
+                    }
+                    else if(domain[d].ibm->curvibType == "CurvibTriangular")
+                    {
+                        CurvibInterpolationTriangular(domain[d].ibm);
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wrong curvib interpolation type\n");
+                        fatalErrorInFunction("main", error);
+                    }
+
+                    if(domain[d].ibm->wallShearOn)
+                        findIBMWallShear(domain[d].ibm);
+                }
+
                 FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);
             }
 
@@ -159,7 +188,7 @@ int main(int argc, char **argv)
             {
                 UpdateTemperatureBCs(domain[d].teqn);
             }
-   
+
             // update cartesian BC
             UpdateCartesianBCs(domain[d].ueqn);
 

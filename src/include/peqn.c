@@ -47,8 +47,6 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
     VecDuplicate(mesh->lCent,  &(peqn->pIBMPt));    VecSet(peqn->pIBMPt,  0.0);
     VecDuplicate(mesh->lCent,  &(peqn->pIBMCell));  VecSet(peqn->pIBMCell,   0.0);
 
-    VecDuplicate(mesh->lNvert, &(peqn->dudtRHS));   VecSet(peqn->dudtRHS,0.0);
-
     // default parameters
     peqn->hypreSolverType = 1;
     peqn->amgAgg          = 0;
@@ -190,9 +188,17 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
         {
             for (i = lxs; i < lxe; i++)
             {
-                // accumulate the number of dofs for current rank
-                // and set lid to the label of the current node
-                lid[k][j][i] = (PetscReal)lndof[rank]++;
+                if(isIBMCell(k,j,i,nvert))
+                {
+                    // do nothing, i,j,k is solid
+                }
+                else
+                {
+                    // accumulate the number of dofs for current rank
+                    // and set lid to the label of the current node
+                    lid[k][j][i] = (PetscReal)lndof[rank]++;
+                }
+
             }
         }
     }
@@ -241,22 +247,80 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
         }
     }
 
+    DMDAVecRestoreArray(da, peqn->lGid, &gid);
+    DMDAVecRestoreArray(da, peqn->lLid, &lid);
+
+    // scatter global IDs
+    DMLocalToLocalBegin(da, peqn->lGid, INSERT_VALUES, peqn->lGid);
+    DMLocalToLocalEnd  (da, peqn->lGid, INSERT_VALUES, peqn->lGid);
+
+    DMDAVecGetArray(da, peqn->lGid,    &gid);
+    DMDAVecGetArray(da, peqn->lLid,    &lid);
+
+    // lid at ghost cell is equal to the value at the first internal cells.
+    // This way we can use central differencing at the boundaries too.
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                PetscInt flag=0, a=i, b=j, c=k;
+
+                if(i==0)
+                {
+                    if(mesh->i_periodic)       a=mx-2, flag=1;
+                    else if(mesh->ii_periodic) a=-2, flag=1;
+                    else                      a=1, flag=1;
+                }
+                if(i==mx-1)
+                {
+                    if(mesh->i_periodic)       a=1, flag=1;
+                    else if(mesh->ii_periodic) a=mx+1, flag=1;
+                    else                      a=mx-2, flag=1;
+                }
+                if(j==0)
+                {
+                    if(mesh->j_periodic)       b=my-2, flag=1;
+                    else if(mesh->jj_periodic) b=-2, flag=1;
+                    else                      b=1, flag=1;
+                }
+                if(j==my-1)
+                {
+                    if(mesh->j_periodic)       b=1, flag=1;
+                    else if(mesh->jj_periodic) b=my+1, flag=1;
+                    else                      b=my-2, flag=1;
+                }
+                if(k==0)
+                {
+                    if(mesh->k_periodic)       c=mz-2, flag=1;
+                    else if(mesh->kk_periodic) c=-2, flag=1;
+                    else                      c=1, flag=1;
+                }
+                if(k==mz-1)
+                {
+                    if(mesh->k_periodic)       c=1, flag=1;
+                    else if(mesh->kk_periodic) c=mz+1, flag=1;
+                    else                      c=mz-2, flag=1;
+                }
+
+                if(flag)
+                {
+                    gid[k][j][i] = gid[c][b][a];
+                }
+            }
+        }
+    }
+
+    DMLocalToLocalBegin(da, peqn->lGid, INSERT_VALUES, peqn->lGid);
+    DMLocalToLocalEnd  (da, peqn->lGid, INSERT_VALUES, peqn->lGid);
+
     // destroy Phi2 of previous iteration
     if (clock->it > clock->itStart)
     {
         VecDestroy(&peqn->phi);
     }
-
-    // restore the arrays
-    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-    DMDAVecRestoreArray(da, peqn->lGid, &gid);
-    DMDAVecRestoreArray(da, peqn->lLid, &lid);
-
-    DMLocalToLocalBegin(da, peqn->lGid, INSERT_VALUES, peqn->lGid);
-    DMLocalToLocalEnd  (da, peqn->lGid, INSERT_VALUES, peqn->lGid);
-
-    // reset cartesian periodic cells if the flow is periodic
-    resetCellPeriodicFluxes(mesh, peqn->lGid, peqn->lGid, "scalar", "localToLocal");
 
     // create Phi2 of current iteration
     VecCreateMPI(mesh->MESH_COMM, gndof[rank], PETSC_DETERMINE, &peqn->phi);
@@ -264,6 +328,11 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
     // free memeory
     std::vector<PetscInt> ().swap(lndof);
     std::vector<PetscInt> ().swap(gndof);
+
+    // restore the arrays
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, peqn->lGid, &gid);
+    DMDAVecRestoreArray(da, peqn->lLid, &lid);
 
     return(0);
 }
@@ -719,7 +788,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     Cmpnts        ***pibmpt, ***pibmcell;
 
     PetscReal     ***aj, ***iaj, ***jaj, ***kaj;
-    PetscReal     ***nvert, ***gid, ***dudtrhs, ***dudtIBM;
+    PetscReal     ***nvert, ***gid;
 
     Vec           G11, G12, G13, G21, G22, G23, G31, G32, G33;
     PetscReal     ***g11, ***g12, ***g13,
@@ -763,13 +832,6 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
 
     DMDAVecGetArray(fda, peqn->pIBMPt, &pibmpt);
     DMDAVecGetArray(fda, peqn->pIBMCell, &pibmcell);
-
-    DMDAVecGetArray(da, peqn->dudtRHS, &dudtrhs);
-
-    if(flags->isIBMActive)
-    {
-        DMDAVecGetArray(da, peqn->access->ibm->dUl_dt, &dudtIBM);
-    }
 
     // create metric tensor
     VecDuplicate(mesh->lAj, &G11);
@@ -865,18 +927,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
 
                 if(isIBMCell(k, j, i, nvert))
                 {
-                    if(peqn->solverType == "HYPRE")
-                    {
-                        HYPRE_Int nrows = 1, ncols = 1;
 
-                        HYPRE_Int col = row;
-                        HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &one);
-                    }
-                    else if(peqn->solverType == "PETSc")
-                    {
-                        PetscInt rowId = (PetscInt)row;
-                        MatSetValues(peqn->petscA, 1, &rowId, 1, &rowId, &one, ADD_VALUES);
-                    }
                 }
                 // i,j,k is a fluid point
                 else
@@ -890,8 +941,6 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     // contribution from east face in i-direction (i+1/2)
 
                     PetscReal r = 1.0;
-
-                    // contribution from east face in i-direction (i+1/2)
 
                     // dpdc{i} = (p_{i+1} - p_{i}) * g11_{i}
 
@@ -1517,8 +1566,6 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     idx[TW] = matID(i-1, j  , k+1);
                     idx[BW] = matID(i-1, j  , k-1);
 
-                    PetscReal   sumdudt = 0.0;
-
                     for(m=0; m<19; m++)
                     {
                         if
@@ -1538,14 +1585,14 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 // the global column index to be set
                                 HYPRE_Int col = idx[m];
 
-                                HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
+                                HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
 
                             }
                             else if(peqn->solverType == "PETSc")
                             {
                                 PetscInt rowId = (PetscInt)row;
                                 PetscInt col   = (PetscInt)idx[m];
-                                MatSetValues(peqn->petscA, 1, &rowId, 1, &col, &vol[m], ADD_VALUES);
+                                MatSetValues(peqn->petscA, 1, &rowId, 1, &col, &vol[m], INSERT_VALUES);
                             }
                         }
 
@@ -1567,20 +1614,11 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 pCell.j = (PetscInt)pibmcell[Id.k][Id.j][Id.i].y;
                                 pCell.k = (PetscInt)pibmcell[Id.k][Id.j][Id.i].z;
 
-								//interpolation cell is inside the processor. But the trilinear interpolation box cell is outside. Use pressure at interpolation cell
-                                if(pCell.i-1 < gxs || pCell.i+1 >= gxe || pCell.j-1 < gys || pCell.j+1 >= gye || pCell.k-1 < gzs || pCell.k+1 >= gze)
-                                {
-                                    inProcessor = 2;
-                                }
-
                                 //interpolation cell is outside the processor. Cannot interpolate or use the pressure at this cell
                                 if(pCell.i < gxs || pCell.i >= gxe || pCell.j < gys || pCell.j >= gye || pCell.k < gzs || pCell.k >= gze)
                                 {
                                     inProcessor = 0;
                                 }
-
-								// note: inProcessor = 0 must be set after inProcessor = 2, because if a cell is outside its box will also be outside, then
-								// it will give segmentation when looking for the nearest interpolation
 
                                 //interpolation cell is inside the processor. But the trilinear interpolation box cell is outside. Use pressure at interpolation cell
                                 if(pCell.i-1 < gxs || pCell.i+1 >= gxe || pCell.j-1 < gys || pCell.j+1 >= gye || pCell.k-1 < gzs || pCell.k+1 >= gze)
@@ -1594,9 +1632,6 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 // cell ids of the cells - kL, kR, jL, jR, iL, iR
                                 PetscInt  intId[6];
 
-                                // distance from the ibm fluid cell to the pressure interpolation point
-                                PetscReal delIBM;
-
                                 // interpolation point not in processor - skip
                                 if(!inProcessor)
                                 {
@@ -1607,9 +1642,6 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 {
                                     HYPRE_Int col = matID(pCell.i, pCell.j, pCell.k);
                                     HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &vol[m]);
-
-                                    delIBM = nMag(nSub(cent[pCell.k][pCell.j][pCell.i], cent[Id.k][Id.j][Id.i]));
-
                                 }
                                 // tri-linear interpolation
                                 else
@@ -1647,19 +1679,10 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
 
                                         HYPRE_IJMatrixAddToValues(peqn->hypreA, nrows, &ncols, &row, &col, &coeff);
                                     }
-
-                                    delIBM = nMag(nSub(pibmpt[Id.k][Id.j][Id.i], cent[Id.k][Id.j][Id.i]));
-                                }
-
-                                if(peqn->access->ibm->p_dudt)
-                                {
-                                    sumdudt -= delIBM * dudtIBM[Id.k][Id.j][Id.i] * vol[m];
                                 }
                             }
                         }
                     }
-
-                    dudtrhs[k][j][i] = sumdudt;
                 }
             }
         }
@@ -2465,13 +2488,6 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     DMDAVecRestoreArray(fda, peqn->pIBMPt, &pibmpt);
     DMDAVecRestoreArray(fda, peqn->pIBMCell, &pibmcell);
 
-    DMDAVecRestoreArray(da, peqn->dudtRHS, &dudtrhs);
-
-    if(flags->isIBMActive)
-    {
-        DMDAVecRestoreArray(da, peqn->access->ibm->dUl_dt, &dudtIBM);
-    }
-
     return(0);
 }
 
@@ -2585,7 +2601,6 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
                 if(isIBMCell(k,j,i,nvert))
                 {
                     phi[k][j][i] = 0;
-                    pos++;
                 }
                 else
                 {
@@ -2897,7 +2912,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
 
     PetscReal        dt   = clock->dt;
 
-    PetscReal     ***nvert, ***gid, *rhs, ***dudtrhs;
+    PetscReal     ***nvert, ***gid, *rhs;
     Cmpnts        ***ucont;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
@@ -2907,8 +2922,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
     DMDAVecGetArray(da,  mesh->lNvert,  &nvert);
     DMDAVecGetArray(da,  peqn->lGid,    &gid);
-
-    DMDAVecGetArray(da, peqn->dudtRHS, &dudtrhs);
 
     if(peqn->solverType == "PETSc")
     {
@@ -2930,7 +2943,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                 // i, j, k is on solid body
                 if (isIBMCell(k, j, i, nvert))
                 {
-                    val = 0;
+                    continue;
                 }
                 // i, j, k is a fluid point
                 else
@@ -2958,8 +2971,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     val -= ucont[k-1][j][i].z;
 
                     val *=  1.0 / dt;
-
-                    val += dudtrhs[k][j][i];
                 }
 
                 if(peqn->solverType == "HYPRE")
@@ -2971,11 +2982,8 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     HYPRE_IJVectorSetValues(peqn->hypreRhs, 1, &idx, &val);
 
                     // sum up this cell value
-                    if (!isIBMCell(k, j, i, nvert))
-                    {
-                        lsum += val;
-                        lcount++;
-                    }
+                    lsum += val;
+                    lcount++;
                 }
                 else if(peqn->solverType == "PETSc")
                 {
@@ -2985,12 +2993,8 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     // set the RHS value
                     rhs[idx] = val;
 
-                    // sum up this cell value
-                    if (!isIBMCell(k, j, i, nvert))
-                    {
-                        lsum += val;
-                        lcount++;
-                    }
+                    lsum += val;
+                    lcount++;
 
                 }
             }
@@ -3011,24 +3015,21 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                 if(matID(i,j,k)>=0)
                 {
 
-                    if (!isIBMCell(k, j, i, nvert))
+                    if(peqn->solverType == "HYPRE")
                     {
-                        if(peqn->solverType == "HYPRE")
-                        {
-                            // get connectivity
-                            HYPRE_Int idx = matID(i,j,k);
+                        // get connectivity
+                        HYPRE_Int idx = matID(i,j,k);
 
-                            // subtract the mean to apply compatibility condition
-                            HYPRE_IJVectorAddToValues(peqn->hypreRhs, 1, &idx, &gsum);
-                        }
-                        else if(peqn->solverType == "PETSc")
-                        {
-                            // get connectivity
-                            PetscInt idx = (PetscInt)matID(i,j,k) - peqn->thisRankStart;
+                        // subtract the mean to apply compatibility condition
+                        HYPRE_IJVectorAddToValues(peqn->hypreRhs, 1, &idx, &gsum);
+                    }
+                    else if(peqn->solverType == "PETSc")
+                    {
+                        // get connectivity
+                        PetscInt idx = (PetscInt)matID(i,j,k) - peqn->thisRankStart;
 
-                            // set the RHS value
-                            rhs[idx] += gsum;
-                        }
+                        // set the RHS value
+                        rhs[idx] += gsum;
                     }
 
                 }
@@ -3052,7 +3053,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
     DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
     DMDAVecRestoreArray(da,  peqn->lGid,    &gid);
-    DMDAVecRestoreArray(da, peqn->dudtRHS, &dudtrhs);
 
     return(0);
 }
@@ -3907,10 +3907,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     DMGlobalToLocalEnd  (da, peqn->P, INSERT_VALUES, peqn->lP);
 
     //update phi and p for ibm fluid cells from the new fluid cell phi and p
-    if(peqn->access->flags->isIBMActive)
-    {
-         updateIBMPhi(peqn->access->ibm);
-    }
+    updateIBMPhi(peqn->access->ibm);
 
     return(0);
 }
@@ -4579,10 +4576,14 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
             {
                 DestroyHypreMatrix(peqn);
                 DestroyHypreVector(peqn);
+                DestroyHypreSolver(peqn);
 
+                // compute connectivity and create the solver
+                SetPoissonConnectivity(peqn);
 
                 CreateHypreMatrix(peqn);
                 CreateHypreVector(peqn);
+                CreateHypreSolver(peqn);
 
                 MPI_Barrier(mesh->MESH_COMM);
             }

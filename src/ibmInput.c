@@ -32,14 +32,28 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
   // read check normals
   readDictInt("./IBM/IBMProperties.dat", "checkNormal", &(ibm->checkNormal));
 
+  // set wall shear force from wall model
+  readDictInt("./IBM/IBMProperties.dat", "wallShear", &(ibm->wallShearOn));
+
   // write stl flag
   readDictInt("./IBM/IBMProperties.dat", "writeSTL", &(ibm->writeSTL));
+
+  //read ibm acceleration pressure flag
+  if(ibm->dynamic)
+  {
+      readDictInt("./IBM/IBMProperties.dat", "pressureBC", &(ibm->p_dudt));
+  }
 
   // read the number of ibm bodies
   readDictInt("./IBM/IBMProperties.dat", "NumberofBodies", &(ibm->numBodies));
 
   // read the interpolation method - MLS or CURVIB
   readDictWord("./IBM/IBMProperties.dat", "InterpolationMethod", &(ibm->IBInterpolationModel));
+
+  if(ibm->IBInterpolationModel == "CURVIB")
+  {
+      readDictWord("./IBM/IBMProperties.dat", "CURVIBInterpolationType", &(ibm->curvibType));
+  }
 
   // read the write settings
   if(ibm->computeForce)
@@ -94,6 +108,9 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
 
     // read the body base location
     readSubDictVector("./IBM/IBMProperties.dat", objectName, "baseLocation", &(ibmBody->baseLocation));
+
+    // read if thinbody or not
+    readSubDictInt("./IBM/IBMProperties.dat", objectName, "thinBody", &(ibmBody->thinBody));
 
     //read max processor bounds for the ibm body if dynamic simulation
     if(ibm->dynamic)
@@ -181,9 +198,24 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "rotationCenter", &(ibmRot->rotCenter));
             readSubDictDouble("./IBM/IBMProperties.dat", objectName, "maxTipRadius", &(ibmRot->maxR));
 
+            //normalise the rotation axis
+            mUnit(ibmRot->rotAxis);
+            
             //transform angular speed and acceleration from rpm to rad/s
             ibmRot->angSpeed = ibmRot->angSpeed*2*M_PI/60.0;
             ibmRot->angAcc   = ibmRot->angAcc*2*M_PI/60.0;
+        }
+
+        if(ibmBody->bodyMotion == "sinusoidal")
+        {
+            // allocate memory for ibm sinusoidal motion
+            ibmBody->ibmSine = new ibmSineMotion;
+
+            ibmSineMotion *ibmSine = ibmBody->ibmSine;
+
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "amplitude", &(ibmSine->amplitude));
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "frequency", &(ibmSine->frequency));
+            readSubDictVector("./IBM/IBMProperties.dat", objectName, "motionDirection", &(ibmSine->motionDir));
         }
     }
 
@@ -237,13 +269,9 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
           {
               readIBMSurfaceFileUCD(ibmSurface);
           }
-          else if(ibmSurface->surfaceFileType == "ascii")
+          else if(ibmSurface->surfaceFileType == "grd")
           {
-              readIBMSurfaceFileASCIIRaster(ibmSurface);
-          }
-          else if(ibmSurface->surfaceFileType == "stl")
-          {
-              readIBMSurfaceFileSTL(ibmSurface);
+              readIBMSurfaceFileGRD(ibmSurface);
           }
           else if(ibmSurface->surfaceFileType == "inp")
           {
@@ -256,7 +284,7 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
           else
           {
               char error[530];
-              sprintf(error, "wrong ibm surface file type. Use ucd, ucd2, ascii, inp , ucd2 or stl\n");
+              sprintf(error, "wrong ibm surface file type. Use ucd, ucd2, grd, ascii, inp\n");
               fatalErrorInFunction("readIBMObjectMesh",  error);
           }
       }
@@ -270,13 +298,13 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
       {
           readIBMBodyFileUCD(ibmBody);
       }
+      else if(ibmBody->fileType == "grd")
+      {
+          readIBMBodyFileGRD(ibmBody);
+      }
       else if(ibmBody->fileType == "ascii")
       {
-          readIBMBodyFileASCIIRaster(ibmBody);
-      }
-      else if(ibmBody->fileType == "stl")
-      {
-          readIBMBodyFileSTL(ibmBody);
+          readIBMBodyFileASCII(ibmBody);
       }
       else if(ibmBody->fileType == "inp")
       {
@@ -289,7 +317,7 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
       else
       {
           char error[530];
-          sprintf(error, "wrong ibm file type. Use ucd, ucd2, ascii, inp or stl\n");
+          sprintf(error, "wrong ibm file type. Use ucd, ucd2, ascii, inp or grd\n");
           fatalErrorInFunction("readIBMObjectMesh",  error);
       }
 
@@ -336,7 +364,27 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
           ibMesh->nCoor[i] = nSum(rvec, ibmRot->rotCenter);
 
           ibMesh->nU[i]  = nCross(angVel, rvec);
+
+          ibMesh->nUPrev[i]  = nSet(ibMesh->nU[i]);
       }
+  }
+  if(ibmBody->bodyMotion == "sinusoidal")
+  {
+    //move the body to the initial starting position
+    ibmSineMotion   *ibmSine  = ibmBody->ibmSine;
+
+    ibmSine->tPrev = clock->startTime;
+
+    for(PetscInt i = 0; i < ibMesh->nodes; i++)
+    {
+        // find the new co-ordinate
+        ibMesh->nCoor[i] = nSum(ibMesh->nCoor[i], nScale(ibmSine->amplitude * (1.0 - cos(2*M_PI * ibmSine->frequency * ibmSine->tPrev)), ibmSine->motionDir));
+
+        ibMesh->nU[i]    = nScale(2*M_PI*ibmSine->frequency*ibmSine->amplitude * sin(2*M_PI * ibmSine->frequency * ibmSine->tPrev), ibmSine->motionDir);
+
+        ibMesh->nUPrev[i]  = nSet(ibMesh->nU[i]);
+
+    }
   }
 
   // allocate memory for the element normal, area and center coordinate
@@ -398,6 +446,7 @@ PetscErrorCode combineMesh(ibmObject *ibmBody)
     // allocate memory for the x, y and z co-ordinates of the nodes
     ibMesh->nCoor = new Cmpnts[nodeTot];
     ibMesh->nU = new Cmpnts[nodeTot];
+    ibMesh->nUPrev = new Cmpnts[nodeTot];
 
     PetscInt ctr = 0;
     for (PetscInt s = 0; s < ibmBody->numSurfaces; s++)
@@ -410,9 +459,7 @@ PetscErrorCode combineMesh(ibmObject *ibmBody)
 
             // initialize node velocity to 0
             mSetValue(ibMesh->nU[ctr], 0.0);
-
-            // PetscPrintf(PETSC_COMM_WORLD, "node = %ld %ld, node coord = %lf %lf %lf, locally %lf %lf %lf\n", ctr, n, ibMesh->nCoor[ctr].x, ibMesh->nCoor[ctr].y, ibMesh->nCoor[ctr].z, ibmSurface->ibMsh->nCoor[n].x, ibmSurface->ibMsh->nCoor[n].y, ibmSurface->ibMsh->nCoor[n].z);
-
+            mSetValue(ibMesh->nUPrev[ctr], 0.0);
             ctr++;
         }
     }
@@ -456,58 +503,6 @@ PetscErrorCode combineMesh(ibmObject *ibmBody)
 
         nTot += ibmSurface->ibMsh->nodes;
         eTot += ibmSurface->ibMsh->elems;
-    }
-
-    return 0;
-}
-//***************************************************************************************************************//
-PetscErrorCode readIBMBodyFileSTL(ibmObject *ibmBody)
-{
-    char      ibmFile[256];
-    FILE      *fd;
-    PetscInt  readError; char* charError;
-    char      string[128];
-    ibmMesh   *ibMesh = ibmBody->ibMsh;
-
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmBody->bodyName.c_str());
-
-    sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
-
-    // open the ibm object file in read mode
-    fd = fopen(ibmFile, "r");
-
-    if(fd == NULL)
-    {
-      char error[512];
-      sprintf(error, "cannot open file %s\n", ibmFile);
-      fatalErrorInFunction("readIBMObjectMesh",  error);
-    }
-
-    return 0;
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode readIBMSurfaceFileSTL(surface *ibmSurface)
-{
-    char      ibmFile[256];
-    FILE      *fd;
-    PetscInt  readError; char* charError;
-    char      string[128];
-    ibmMesh   *ibMesh = ibmSurface->ibMsh;
-
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmSurface->surfaceName.c_str());
-
-    sprintf(ibmFile, "./IBM/%s", ibmSurface->surfaceName.c_str());
-
-    // open the ibm object file in read mode
-    fd = fopen(ibmFile, "r");
-
-    if(fd == NULL)
-    {
-      char error[512];
-      sprintf(error, "cannot open file %s\n", ibmFile);
-      fatalErrorInFunction("readIBMObjectMesh",  error);
     }
 
     return 0;
@@ -927,6 +922,7 @@ PetscErrorCode readIBMBodyFileAbaqusInp(ibmObject *ibmBody)
 
     // allocate memory for the node velocity
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nU));
+    PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
     // read the node co-rdinates from the file and initialize the node velocity to 0
     for (PetscInt i = 0; i < nodeList[0].size(); i++)
@@ -940,6 +936,8 @@ PetscErrorCode readIBMBodyFileAbaqusInp(ibmObject *ibmBody)
 
         // initialize node velocity to 0
         mSetValue(ibMesh->nU[i], 0.0);
+        mSetValue(ibMesh->nUPrev[i], 0.0);
+
     }
 
     //mapping from the ibm element list to the global element list
@@ -967,6 +965,7 @@ PetscErrorCode readIBMBodyFileAbaqusInp(ibmObject *ibmBody)
                     ibMesh->nID1[eCtr] = elemConnectivityList[1][i+k];
                     ibMesh->nID2[eCtr] = elemConnectivityList[2][i+k];
                     ibMesh->nID3[eCtr] = elemConnectivityList[3][i+k];
+
                     eCtr ++;
                 }
             }
@@ -1417,6 +1416,7 @@ PetscErrorCode readIBMSurfaceFileAbaqusInp(surface *ibmSurface)
 
     // allocate memory for the node velocity
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nU));
+    PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
     // read the node co-rdinates from the file and initialize the node velocity to 0
     for (PetscInt i = 0; i < nodeList[0].size(); i++)
@@ -1430,6 +1430,8 @@ PetscErrorCode readIBMSurfaceFileAbaqusInp(surface *ibmSurface)
 
         // initialize node velocity to 0
         mSetValue(ibMesh->nU[i], 0.0);
+        mSetValue(ibMesh->nUPrev[i], 0.0);
+
     }
 
     //mapping from the ibm element list to the global element list
@@ -1457,6 +1459,7 @@ PetscErrorCode readIBMSurfaceFileAbaqusInp(surface *ibmSurface)
                     ibMesh->nID1[eCtr] = elemConnectivityList[1][i+k];
                     ibMesh->nID2[eCtr] = elemConnectivityList[2][i+k];
                     ibMesh->nID3[eCtr] = elemConnectivityList[3][i+k];
+
                     eCtr ++;
                 }
             }
@@ -1498,7 +1501,118 @@ PetscErrorCode readIBMSurfaceFileAbaqusInp(surface *ibmSurface)
 
 //***************************************************************************************************************//
 
-PetscErrorCode readIBMBodyFileASCIIRaster(ibmObject *ibmBody)
+PetscErrorCode readIBMBodyFileASCII(ibmObject *ibmBody)
+{
+    char      ibmFile[256];
+    FILE      *fd;
+    PetscInt  readError; char* charError;
+    char      string[128], tmpS[128];
+    ibmMesh   *ibMesh = ibmBody->ibMsh;
+
+    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmBody->bodyName.c_str());
+
+    sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
+
+    // open the ibm object file in read mode
+    fd = fopen(ibmFile, "r");
+
+    if(fd == NULL)
+    {
+      char error[512];
+      sprintf(error, "cannot open file %s\n", ibmFile);
+      fatalErrorInFunction("readIBMObjectMesh",  error);
+    }
+
+    PetscInt    numRows, numCols;
+    PetscReal   xLL, yLL ;
+    PetscReal   cellSize;
+    PetscInt    noDataVal;
+
+    // read number of rows
+    readError = fscanf(fd, "%s %ld",  tmpS, &numCols);
+
+    // read number of columns
+    readError = fscanf(fd, "%s %ld",  tmpS, &numRows);
+
+    // lower left x coordinate
+    readError = fscanf(fd, "%s %le",  tmpS, &xLL);
+
+    // lower left y coordinate
+    readError = fscanf(fd, "%s %le",  tmpS, &yLL);
+
+    // cell size
+    readError = fscanf(fd, "%s %le",  tmpS, &cellSize);
+
+    //nodata value
+    readError = fscanf(fd, "%s %ld",  tmpS, &noDataVal);
+
+    ibMesh->nodes = numRows * numCols;
+    ibMesh->elems = 2 * (numCols-1) * (numRows-1);
+
+    // allocate memory for the x, y and z co-ordinates of the nodes
+    PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nCoor));
+
+    // allocate memory for the node velocity
+    PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nU));
+    PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
+
+    // set the node co-rdinates from the file and initialize the node velocity to 0
+    PetscInt n = 0;
+    for(PetscInt j = 0; j < numRows; j++)
+    {
+        for(PetscInt i = 0; i < numCols; i++)
+        {
+            ibMesh->nCoor[n].x = xLL + i*cellSize;
+
+            ibMesh->nCoor[n].y = yLL + j* cellSize;
+
+            readError = fscanf(fd, "%le", &(ibMesh->nCoor[n].z));
+
+            // translate the body based on the base location
+            mSum(ibMesh->nCoor[n], ibmBody->baseLocation);
+
+            // initialize node velocity to 0
+            mSetValue(ibMesh->nU[n], 0.0);
+            mSetValue(ibMesh->nUPrev[n], 0.0);
+
+            n++;
+
+            PetscPrintf(PETSC_COMM_WORLD, "node number = %ld\n", n);
+        }
+    }
+
+    // allocate memory for the pointer to nodes (n1, n2 and n3) of an element
+    PetscMalloc(ibMesh->elems * sizeof(PetscInt), &(ibMesh->nID1));
+    PetscMalloc(ibMesh->elems * sizeof(PetscInt), &(ibMesh->nID2));
+    PetscMalloc(ibMesh->elems * sizeof(PetscInt), &(ibMesh->nID3));
+
+    n = 0;
+    for(PetscInt j = 0; j < numRows-1; j++)
+    {
+        for(PetscInt i = 0; i < numCols-1; i++)
+        {
+            ibMesh->nID1[n] = numCols*j + i;
+            ibMesh->nID2[n] = numCols*(j) + i+1;
+            ibMesh->nID3[n] = numCols*(j+1) + i;
+
+            n++;
+
+            ibMesh->nID1[n] = numCols*(j) + i+1;
+            ibMesh->nID2[n] = numCols*(j+1) + i+1;
+            ibMesh->nID3[n] = numCols*(j+1) + i;
+
+            n++;
+        }
+    }
+
+    if ( fd != NULL ) fclose(fd);
+
+    return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
 {
     char      ibmFile[256];
     FILE      *fd;
@@ -1543,6 +1657,7 @@ PetscErrorCode readIBMBodyFileASCIIRaster(ibmObject *ibmBody)
 
     // allocate memory for the node velocity
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nU));
+    PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
     // set the node co-rdinates from the file and initialize the node velocity to 0
     PetscInt n = 0;
@@ -1561,6 +1676,8 @@ PetscErrorCode readIBMBodyFileASCIIRaster(ibmObject *ibmBody)
 
             // initialize node velocity to 0
             mSetValue(ibMesh->nU[n], 0.0);
+            mSetValue(ibMesh->nUPrev[n], 0.0);
+
             n++;
         }
     }
@@ -1596,7 +1713,7 @@ PetscErrorCode readIBMBodyFileASCIIRaster(ibmObject *ibmBody)
 
 //***************************************************************************************************************//
 
-PetscErrorCode readIBMSurfaceFileASCIIRaster(surface *ibmSurface)
+PetscErrorCode readIBMSurfaceFileGRD(surface *ibmSurface)
 {
     char      ibmFile[256];
     FILE      *fd;
@@ -1641,6 +1758,7 @@ PetscErrorCode readIBMSurfaceFileASCIIRaster(surface *ibmSurface)
 
     // allocate memory for the node velocity
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nU));
+    PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
     // set the node co-rdinates from the file and initialize the node velocity to 0
     PetscInt n = 0;
@@ -1659,6 +1777,8 @@ PetscErrorCode readIBMSurfaceFileASCIIRaster(surface *ibmSurface)
 
             // initialize node velocity to 0
             mSetValue(ibMesh->nU[n], 0.0);
+            mSetValue(ibMesh->nUPrev[n], 0.0);
+
             n++;
         }
     }
@@ -1694,49 +1814,169 @@ PetscErrorCode readIBMSurfaceFileASCIIRaster(surface *ibmSurface)
 
 //***************************************************************************************************************//
 
-PetscErrorCode writeSTLFile(ibmObject *ibmBody)
+PetscErrorCode writeSTLFile(ibm_ *ibm, PetscInt b)
 {
-    ibmMesh       *ibMesh  = ibmBody->ibMsh;
+    clock_      *clock   = ibm->access->clock;
+    io_         *io      = ibm->access->io;
+    mesh_       *mesh    = ibm->access->mesh;
 
-    PetscPrintf(PETSC_COMM_WORLD, "writing IBM mesh to STL...\n");
+    ibmObject   *ibmBody = ibm->ibmBody[b];
+    ibmMesh     *ibMesh   = ibmBody->ibMsh;
 
     PetscMPIInt rank;   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
     PetscInt    n1, n2, n3;
 
-    if(!rank)
-    {
-        FILE *f;
-        char fileName[256];
-        sprintf(fileName, "./IBM/%s.stl", ibmBody->bodyName.c_str());
-        f = fopen(fileName, "w");
+    // write flags for current time step
+    PetscInt    writeNow         =  0;
 
-        if(!f)
+    PetscReal   timeStart     = clock->startTime;
+    PetscReal   timeInterval  = io->timeInterval;
+    word        intervalType  = io->intervalType;
+    word        timeName;
+    word        meshPath;
+
+    PetscReal   epsilon          = 1e-6;
+
+    // set time folder name
+    timeName     = getTimeName(clock);
+    meshPath     = "./postProcessing/" + mesh->meshName + "/IBM/" + getStartTimeName(clock) + "/" + ibmBody->bodyName.c_str() + "/meshSTL/";
+
+    // create/initialize ibm write directory
+    if
+    (
+        clock->it == clock->itStart
+    )
+    {
+        errno = 0;
+        PetscInt dirRes = mkdir("./postProcessing", 0777);
+        if(dirRes != 0 && errno != EEXIST)
         {
             char error[512];
-            sprintf(error, "cannot open file %s\n", fileName);
+            sprintf(error, "could not create postProcessing directory\n");
             fatalErrorInFunction("writeSTLFile",  error);
         }
-        else
+
+        word domainFolderName = "./postProcessing/" + mesh->meshName;
+        dirRes = mkdir(domainFolderName.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
         {
-            fprintf(f, "solid %s\n", ibmBody->bodyName.c_str());
+            char error[512];
+            sprintf(error, "could not create %s directory", domainFolderName.c_str());
+            fatalErrorInFunction("writeSTLFile",  error);
+        }
 
-            for(PetscInt i = 0; i < ibMesh->elems; i++)
+        word ibmFolder = "./postProcessing/" + mesh->meshName + "/IBM/";
+        dirRes = mkdir(ibmFolder.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+           char error[512];
+            sprintf(error, "could not create %s directory", ibmFolder.c_str());
+            fatalErrorInFunction("writeSTLFile",  error);
+        }
+
+        word timeFolder = ibmFolder + getStartTimeName(clock);
+        dirRes = mkdir(timeFolder.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+           char error[512];
+            sprintf(error, "could not create %s directory", timeFolder.c_str());
+            fatalErrorInFunction("writeSTLFile",  error);
+        }
+
+        word ibmBodyFolder = timeFolder + "/" + ibmBody->bodyName.c_str();
+        dirRes = mkdir(ibmBodyFolder.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+           char error[512];
+            sprintf(error, "could not create %s directory", ibmBodyFolder.c_str());
+            fatalErrorInFunction("writeSTLFile",  error);
+        }
+
+        word meshFolder = ibmBodyFolder + "/meshSTL/";
+        dirRes = mkdir(meshFolder.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+           char error[512];
+            sprintf(error, "could not create %s directory", meshFolder.c_str());
+            fatalErrorInFunction("writeSTLFile",  error);
+        }
+
+    }
+
+    // check if must accumulate
+    if
+    (
+        (intervalType == "adjustableTime") &&
+        (clock->time >= timeStart) &&
+        (
+            fabs((clock->time - timeStart) / timeInterval -
+            std::floor
+            (
+                (clock->time - timeStart) / timeInterval + epsilon
+            )) < 1e-6
+        )
+    )
+    {
+        writeNow = 1;
+    }
+    // write every "timeInterval" iterations
+    else if
+    (
+        (clock->it >= 0) &&
+        (intervalType == "timeStep") &&
+        (
+            fabs(clock->it / timeInterval -
+            std::floor
+            (
+                clock->it / timeInterval + epsilon
+            )) < 1e-10
+        )
+    )
+    {
+        writeNow = 1;
+    }
+
+    if(writeNow)
+    {
+        if(!rank)
+        {
+            FILE *f;
+            word    fileName;
+
+            size_t found = timeName.find(".");
+            timeName.erase(found, 1);
+
+            fileName = meshPath + ibmBody->bodyName.c_str() + "_" + timeName + ".stl";
+            f        = fopen(fileName.c_str(), "w");
+
+            if(!f)
             {
-                n1 = ibMesh->nID1[i]; n2 = ibMesh->nID2[i]; n3 = ibMesh->nID3[i];
-
-                fprintf(f, "   facet normal %le %le %le\n", ibMesh->eN[i].x, ibMesh->eN[i].y, ibMesh->eN[i].z);
-                fprintf(f, "      outer loop\n");
-                fprintf(f, "         vertex  %le %le %le\n", ibMesh->nCoor[n1].x, ibMesh->nCoor[n1].y, ibMesh->nCoor[n1].z);
-                fprintf(f, "         vertex  %le %le %le\n", ibMesh->nCoor[n2].x, ibMesh->nCoor[n2].y, ibMesh->nCoor[n2].z);
-                fprintf(f, "         vertex  %le %le %le\n", ibMesh->nCoor[n3].x, ibMesh->nCoor[n3].y, ibMesh->nCoor[n3].z);
-                fprintf(f, "      endloop\n");
-                fprintf(f, "   endfacet\n");
-
-
+                char error[512];
+                sprintf(error, "cannot open file %s\n", fileName.c_str());
+                fatalErrorInFunction("writeSTLFile",  error);
             }
-            fprintf(f, "endsolid\n");
+            else
+            {
+                fprintf(f, "solid %s\n", ibmBody->bodyName.c_str());
 
-            fclose(f);
+                for(PetscInt i = 0; i < ibMesh->elems; i++)
+                {
+                    n1 = ibMesh->nID1[i]; n2 = ibMesh->nID2[i]; n3 = ibMesh->nID3[i];
+
+                    fprintf(f, "   facet normal %le %le %le\n", ibMesh->eN[i].x, ibMesh->eN[i].y, ibMesh->eN[i].z);
+                    fprintf(f, "      outer loop\n");
+                    fprintf(f, "         vertex  %le %le %le\n", ibMesh->nCoor[n1].x, ibMesh->nCoor[n1].y, ibMesh->nCoor[n1].z);
+                    fprintf(f, "         vertex  %le %le %le\n", ibMesh->nCoor[n2].x, ibMesh->nCoor[n2].y, ibMesh->nCoor[n2].z);
+                    fprintf(f, "         vertex  %le %le %le\n", ibMesh->nCoor[n3].x, ibMesh->nCoor[n3].y, ibMesh->nCoor[n3].z);
+                    fprintf(f, "      endloop\n");
+                    fprintf(f, "   endfacet\n");
+
+
+                }
+                fprintf(f, "endsolid\n");
+
+                fclose(f);
+            }
         }
     }
 
@@ -1798,6 +2038,7 @@ PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody)
 
     // allocate memory for the node velocity
     PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nU));
+    PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
     // read the node co-rdinates from the file and initialize the node velocity to 0
     for(PetscInt i = 0; i < nodes; i++)
@@ -1809,6 +2050,7 @@ PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody)
 
       // initialize node velocity to 0
       mSetValue(ibMesh->nU[i], 0.0);
+      mSetValue(ibMesh->nUPrev[i], 0.0);
     }
 
     // allocate memory for the pointer to nodes (n1, n2 and n3) of an element
@@ -1899,6 +2141,8 @@ PetscErrorCode readIBMBodyFileUCD2(ibmObject *ibmBody)
 
       // initialize node velocity to 0
       mSetValue(ibMesh->nU[i], 0.0);
+      mSetValue(ibMesh->nUPrev[i], 0.0);
+
     }
 
     // allocate memory for the pointer to nodes (n1, n2 and n3) of an element
@@ -1978,6 +2222,7 @@ PetscErrorCode readIBMSurfaceFileUCD(surface *ibmSurface)
 
     // allocate memory for the node velocity
     PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nU));
+    PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
     // read the node co-rdinates from the file and initialize the node velocity to 0
     for(PetscInt i = 0; i < nodes; i++)
@@ -1989,6 +2234,8 @@ PetscErrorCode readIBMSurfaceFileUCD(surface *ibmSurface)
 
       // initialize node velocity to 0
       mSetValue(ibMesh->nU[i], 0.0);
+      mSetValue(ibMesh->nUPrev[i], 0.0);
+
     }
 
     // allocate memory for the pointer to nodes (n1, n2 and n3) of an element
@@ -2068,6 +2315,7 @@ PetscErrorCode readIBMSurfaceFileUCD2(surface *ibmSurface)
 
     // allocate memory for the node velocity
     PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nU));
+    PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
     // read the node co-rdinates from the file and initialize the node velocity to 0
     for(PetscInt i = 0; i < nodes; i++)
@@ -2079,6 +2327,7 @@ PetscErrorCode readIBMSurfaceFileUCD2(surface *ibmSurface)
 
       // initialize node velocity to 0
       mSetValue(ibMesh->nU[i], 0.0);
+      mSetValue(ibMesh->nUPrev[i], 0.0);
     }
 
     // allocate memory for the pointer to nodes (n1, n2 and n3) of an element

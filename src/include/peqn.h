@@ -12,6 +12,9 @@ struct peqn_
     Vec           P, lP;                      //!< pressure at current and previous time step
     Vec           lLid, lGid;                 //!< matrixFree - matrixBased connectivity (used to build the poisson coeff. matrix)
     Vec           pIBMPt, pIBMCell;           //!< point where the ibm pressure is interpolated and its closest cell id
+
+    Vec           dudtRHS;
+    
     HYPRE_Int     thisRankSize,               //!< number of cells owned by this processore (used to build the poisson coeff. matrix)
                   thisRankStart,              //!< first cell ID owned by this processor in global indexing (used to build the poisson coeff. matrix)
                   thisRankEnd;                //!< last cell ID owned by this processor in global indexing (thisRankStart + thisRankSize - 1)

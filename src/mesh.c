@@ -115,12 +115,15 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
                 error = fscanf(meshFileID, "%s %ld", &bufferChar, &bufferInt);
             }
 
-           char error[512];
-            sprintf(error, "curvilinear mesh file input not implemented %s\n", meshFileName.c_str());
-            fatalErrorInFunction("SetDistributedArrays", error);
+            // first line contains number of nodes in x,y,z directions
+            PetscInt npx, npy, npz;
+            error = fscanf(meshFileID, "%ld %ld %ld\n", &npz, &npx, &npy);
+
+            mesh->IM = npy + 1;
+            mesh->JM = npz + 1;
+            mesh->KM = npx + 1;
         }
 
-        fclose(meshFileID);
     }
 
     // initialize domain boundary to ghost cells
@@ -203,59 +206,159 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
     DMDAVecGetArray(mesh->fda, gCoor, &gcoor);
 
     // read x coords - loop over k,i,j with global indexing
-    for (k = 0; k < mesh->KM; k++)
-    {
-        for (j = 0; j < mesh->JM; j++)
-        {
-            for (i = 0; i < mesh->IM; i++)
-            {
 
-                if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
+    if (mesh->meshFileType == "cartesian")
+    {
+        for (k = 0; k < mesh->KM; k++)
+        {
+            for (j = 0; j < mesh->JM; j++)
+            {
+                for (i = 0; i < mesh->IM; i++)
                 {
-                    if (mesh->meshFileType == "cartesian")
+
+                    if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
                     {
                         gcoor[k][j][i].x = Xcart[k];
                     }
                 }
             }
         }
-    }
 
-        // read y coords - loop over k,i,j with global indexing
-    for (k = 0; k < mesh->KM; k++)
-    {
-        for (j = 0; j < mesh->JM; j++)
+            // read y coords - loop over k,i,j with global indexing
+        for (k = 0; k < mesh->KM; k++)
         {
-            for (i = 0; i < mesh->IM; i++)
+            for (j = 0; j < mesh->JM; j++)
             {
-
-                if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
+                for (i = 0; i < mesh->IM; i++)
                 {
-                    if (mesh->meshFileType == "cartesian")
+
+                    if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
                     {
                         gcoor[k][j][i].y = Ycart[i];
                     }
                 }
             }
         }
-    }
 
-    // read z coords - loop over k,i,j with global indexing
-    for (k = 0; k < mesh->KM; k++)
-    {
-        for (j = 0; j < mesh->JM; j++)
+        // read z coords - loop over k,i,j with global indexing
+        for (k = 0; k < mesh->KM; k++)
         {
-            for (i = 0; i < mesh->IM; i++)
+            for (j = 0; j < mesh->JM; j++)
             {
-                if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
+                for (i = 0; i < mesh->IM; i++)
                 {
-                    if (mesh->meshFileType == "cartesian")
+                    if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
                     {
                         gcoor[k][j][i].z = Zcart[j];
                     }
                 }
             }
         }
+
+    }
+    else if (mesh->meshFileType == "curvilinear")
+    {
+        for (i = 0; i < mesh->IM-1; i++)
+        {
+            for (k = 0; k < mesh->KM-1; k++)
+            {
+                for (j = 0; j < mesh->JM-1; j++)
+                {
+                    error = fscanf(meshFileID, "%le", &bufferDouble);
+
+                    if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
+                    {
+                        gcoor[k][j][i].x = bufferDouble;
+                    }
+                }
+            }
+        }
+
+            // read y coords - loop over k,i,j with global indexing
+        for (i = 0; i < mesh->IM-1; i++)
+        {
+            for (k = 0; k < mesh->KM-1; k++)
+            {
+                for (j = 0; j < mesh->JM-1; j++)
+                {
+                    error = fscanf(meshFileID, "%le", &bufferDouble);
+
+                    if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
+                    {
+                        gcoor[k][j][i].y = bufferDouble;
+                    }
+                }
+            }
+        }
+
+        // read z coords - loop over k,i,j with global indexing
+        for (i = 0; i < mesh->IM-1; i++)
+        {
+            for (k = 0; k < mesh->KM-1; k++)
+            {
+                for (j = 0; j < mesh->JM-1; j++)
+                {
+                    error = fscanf(meshFileID, "%le", &bufferDouble);
+
+                    if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
+                    {
+                        gcoor[k][j][i].z = bufferDouble;
+                    }
+                }
+            }
+        }
+
+        // for (i = 0; i < mesh->IM-1; i++)
+        // {
+        //     for (k = mesh->KM-2; k >= 0; k--)
+        //     {
+        //         for (j = 0; j < mesh->JM-1; j++)
+        //         {
+        //             error = fscanf(meshFileID, "%le", &bufferDouble);
+        //
+        //             if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
+        //             {
+        //                 gcoor[k][j][i].x = bufferDouble;
+        //             }
+        //         }
+        //     }
+        // }
+        //
+        //     // read y coords - loop over k,i,j with global indexing
+        // for (i = 0; i < mesh->IM-1; i++)
+        // {
+        //     for (k = mesh->KM-2; k >= 0; k--)
+        //     {
+        //         for (j = 0; j < mesh->JM-1; j++)
+        //         {
+        //             error = fscanf(meshFileID, "%le", &bufferDouble);
+        //
+        //             if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
+        //             {
+        //                 gcoor[k][j][i].y = bufferDouble;
+        //             }
+        //         }
+        //     }
+        // }
+        //
+        // // read z coords - loop over k,i,j with global indexing
+        // for (i = 0; i < mesh->IM-1; i++)
+        // {
+        //     for (k = mesh->KM-2; k >= 0; k--)
+        //     {
+        //         for (j = mesh->JM-2; j >= 0; j--)
+        //         {
+        //             error = fscanf(meshFileID, "%le", &bufferDouble);
+        //
+        //             if (k >= zs && k < ze && j >= ys && j < ye && i >= xs && i < xe)
+        //             {
+        //                 gcoor[k][j][i].z = bufferDouble;
+        //             }
+        //         }
+        //     }
+        // }
+
+        fclose(meshFileID);
     }
 
     DMDAVecRestoreArray(mesh->fda, gCoor, &gcoor);
@@ -427,6 +530,7 @@ PetscErrorCode SetMeshMetrics(mesh_ *mesh)
                     coor[k  ][j  ][i-1].z + coor[k  ][j-1][i-1].z +
                     coor[k-1][j  ][i-1].z + coor[k-1][j-1][i-1].z
                 );
+
             }
         }
     }
@@ -558,6 +662,7 @@ PetscErrorCode SetMeshMetrics(mesh_ *mesh)
         {
             for (i=lxs; i<lxe; i++)
             {
+
                 // zet = dc X de
                 PetscReal dxdc = 0.5 *
                 (
@@ -826,6 +931,7 @@ PetscErrorCode SetMeshMetrics(mesh_ *mesh)
                 eta[k][j][i] = eta[k-1][j][i];
                 csi[k][j][i] = csi[k-1][j][i];
                 aj[k][j][i]  = aj[k-1][j][i];
+
             }
         }
     }
@@ -955,6 +1061,7 @@ PetscErrorCode SetMeshMetrics(mesh_ *mesh)
                     aj[k][j][i]   = laj[k][j][i];
 
                 }
+
             }
         }
     }
@@ -981,7 +1088,7 @@ PetscErrorCode SetMeshMetrics(mesh_ *mesh)
 
     MPI_Barrier(mesh->MESH_COMM);
 
-    //find the ghost node cell centers excluding the corner cells
+    //find the ghost node cell centers excluding the corner cells - only for cartesian mesh
     ghostnodesCellcenter(mesh);
 
     DMDAVecGetArray(fda, mesh->lCsi, &lcsi);
@@ -1393,7 +1500,7 @@ PetscErrorCode SetMeshMetrics(mesh_ *mesh)
     DMDAVecRestoreArray(fda, Centy, &centy);
 
     // ---------------------------------------------------------------------- //
-    // create j-face centered contrav. basis and transformation jacobian
+    // create k-face centered contrav. basis and transformation jacobian
     // ---------------------------------------------------------------------- //
 
     DMDAVecGetArray(fda, KCsi, &kcsi);
@@ -1749,7 +1856,6 @@ PetscErrorCode SetBoundingBox(mesh_ *mesh)
 }
 
 PetscErrorCode ghostnodesCellcenter(mesh_ *mesh){
-    // can be later added to metric.c
     //cell center for the ghost nodes - as ghost node coordinate info is not available
     // assumed to be one cell length from the first internal cell, depending on the direction
 

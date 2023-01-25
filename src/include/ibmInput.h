@@ -11,8 +11,11 @@ PetscErrorCode readIBMProperties(ibm_ *ibm);
 // \brief read the IBM mesh
 PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b);
 
+//! \brief read the ibm mesh in GRD format
+PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody);
+
 //! \brief read the ibm mesh in ASCII format
-PetscErrorCode readIBMBodyFileASCIIRaster(ibmObject *ibmBody);
+PetscErrorCode readIBMBodyFileASCII(ibmObject *ibmBody);
 
 //! \brief read the ibm mesh in ucd format
 PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody);
@@ -23,11 +26,8 @@ PetscErrorCode readIBMBodyFileUCD2(ibmObject *ibmBody);
 //! \brief read the ibm mesh in abaqus inp format
 PetscErrorCode readIBMBodyFileAbaqusInp(ibmObject *ibmBody);
 
-//! \brief read the ibm mesh in stl format
-PetscErrorCode readIBMBodyFileSTL(ibmObject *ibmBody);
-
-//! \brief read the ibm mesh in ASCII format
-PetscErrorCode readIBMSurfaceFileASCIIRaster(surface *ibmSurface);
+//! \brief read the ibm mesh in .grd format
+PetscErrorCode readIBMSurfaceFileGRD(surface *ibmSurface);
 
 //! \brief read the ibm mesh in ucd format
 PetscErrorCode readIBMSurfaceFileUCD(surface *ibmSurface);
@@ -38,11 +38,8 @@ PetscErrorCode readIBMSurfaceFileUCD2(surface *ibmSurface);
 //! \brief read the ibm mesh in abaqus inp format
 PetscErrorCode readIBMSurfaceFileAbaqusInp(surface *ibmSurface);
 
-//! \brief read the ibm mesh in stl format
-PetscErrorCode readIBMSurfaceFileSTL(surface *ibmSurface);
-
 //!< \brief combine the mesh nodes and elements of different surface bodies into one ibm body
 PetscErrorCode combineMesh(ibmObject *ibmBody);
 
 //! \brief write the STL mesh
-PetscErrorCode writeSTLFile(ibmObject *ibmBody);
+PetscErrorCode writeSTLFile(ibm_ *ibm, PetscInt b);

@@ -1848,7 +1848,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 // set to zero if solid
                 if(isIBMSolidCell(k, j, i, nvert))
                 {
-                    t[k][j][i] = 320;//teqn->access->abl->tRef;
+                    t[k][j][i] = teqn->access->abl->tRef;
                     continue;
                 }
 
@@ -2582,6 +2582,8 @@ PetscErrorCode UpdatePhiBCs(peqn_ *peqn)
     return(0);
 }
 
+//***************************************************************************************************************//
+
 PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
 {
     mesh_         *mesh  = ueqn->access->mesh;
@@ -3135,6 +3137,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
 }
 
 //***************************************************************************************************************//
+
 
 PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
 {
@@ -3711,6 +3714,7 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
 {
     // set useful pointers
     mesh_         *mesh  = ueqn->access->mesh;
+
     flags_        *flags = ueqn->access->flags;
     teqn_         *teqn;
 

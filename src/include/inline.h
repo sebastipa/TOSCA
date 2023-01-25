@@ -1099,6 +1099,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
     Cmpnts           ***v;
 
     DMDAVecGetArray(mesh->fda, V, &v);
+    DMDAVecGetArray(mesh->da,  mesh->lNvert, &nvert);
 
     // Resets to zero the values of a vector field at the non-resolved
     // faces of the mesh. Note: doesn't scatter to local.
@@ -1137,6 +1138,10 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                   v[k][j][i].x = 0.0;
                 }
               }
+              else if(isIBMIFace(k, j, i, i+1, nvert))
+              {
+                  v[k][j][i].x = 0.0;
+              }
 
               //jface
               if(j==0)
@@ -1164,6 +1169,10 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 {
                   v[k][j][i].y = 0.0;
                 }
+              }
+              else if(isIBMJFace(k, j, i, j+1, nvert))
+              {
+                  v[k][j][i].y = 0.0;
               }
 
               //kface
@@ -1193,12 +1202,17 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                   v[k][j][i].z = 0.0;
                 }
               }
+              else if(isIBMKFace(k, j, i, k+1, nvert))
+              {
+                  v[k][j][i].z = 0.0;
+              }
 
             }
         }
     }
 
     DMDAVecRestoreArray(mesh->fda, V, &v);
+    DMDAVecRestoreArray(mesh->da,  mesh->lNvert, &nvert);
 
     return;
 }
@@ -1855,14 +1869,14 @@ inline void Compute_du_i
     *dvdc = ucat[k][j][i+1].y - ucat[k][j][i].y;
     *dwdc = ucat[k][j][i+1].z - ucat[k][j][i].z;
 
-    if (isIBMIFace(k, j+1, i, i+1, nvert) ||
+    if (isIBMSolidIFace(k, j+1, i, i+1, nvert) ||
             (j==my-2 && (i==0 || i==mx-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
     {
         *dude = (ucat[k][j  ][i+1].x + ucat[k][j  ][i].x - ucat[k][j-1][i+1].x - ucat[k][j-1][i].x) * 0.5;
         *dvde = (ucat[k][j  ][i+1].y + ucat[k][j  ][i].y - ucat[k][j-1][i+1].y - ucat[k][j-1][i].y) * 0.5;
         *dwde = (ucat[k][j  ][i+1].z + ucat[k][j  ][i].z - ucat[k][j-1][i+1].z - ucat[k][j-1][i].z) * 0.5;
     }
-    else if  (isIBMIFace(k, j-1, i, i+1, nvert) ||
+    else if  (isIBMSolidIFace(k, j-1, i, i+1, nvert) ||
             (j==1 && (i==0 || i==mx-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
     {
         *dude = (ucat[k][j+1][i+1].x + ucat[k][j+1][i].x - ucat[k][j  ][i+1].x - ucat[k][j  ][i].x) * 0.5;
@@ -1876,14 +1890,14 @@ inline void Compute_du_i
         *dwde = (ucat[k][j+1][i+1].z + ucat[k][j+1][i].z - ucat[k][j-1][i+1].z - ucat[k][j-1][i].z) * 0.25;
     }
 
-    if (isIBMIFace(k+1, j, i, i+1, nvert) ||
+    if (isIBMSolidIFace(k+1, j, i, i+1, nvert) ||
             (k==mz-2 && (i==0 || i==mx-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
     {
         *dudz = (ucat[k  ][j][i+1].x + ucat[k  ][j][i].x - ucat[k-1][j][i+1].x - ucat[k-1][j][i].x) * 0.5;
         *dvdz = (ucat[k  ][j][i+1].y + ucat[k  ][j][i].y - ucat[k-1][j][i+1].y - ucat[k-1][j][i].y) * 0.5;
         *dwdz = (ucat[k  ][j][i+1].z + ucat[k  ][j][i].z - ucat[k-1][j][i+1].z - ucat[k-1][j][i].z) * 0.5;
     }
-    else if (isIBMIFace(k-1, j, i, i+1, nvert) ||
+    else if (isIBMSolidIFace(k-1, j, i, i+1, nvert) ||
             (k==1 && (i==0 || i==mx-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
     {
         *dudz = (ucat[k+1][j][i+1].x + ucat[k+1][j][i].x - ucat[k  ][j][i+1].x - ucat[k  ][j][i].x) * 0.5;
@@ -1913,14 +1927,14 @@ inline void Compute_du_j
 )
 
 {
-    if (isIBMJFace(k, j, i+1, j+1, nvert) ||
+    if (isIBMSolidJFace(k, j, i+1, j+1, nvert) ||
           (i==mx-2 && (j==0 || j==my-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
     {
         *dudc = (ucat[k][j+1][i  ].x + ucat[k][j][i  ].x - ucat[k][j+1][i-1].x - ucat[k][j][i-1].x) * 0.5;
         *dvdc = (ucat[k][j+1][i  ].y + ucat[k][j][i  ].y - ucat[k][j+1][i-1].y - ucat[k][j][i-1].y) * 0.5;
         *dwdc = (ucat[k][j+1][i  ].z + ucat[k][j][i  ].z - ucat[k][j+1][i-1].z - ucat[k][j][i-1].z) * 0.5;
     }
-    else if (isIBMJFace(k, j, i-1, j+1, nvert) ||
+    else if (isIBMSolidJFace(k, j, i-1, j+1, nvert) ||
             (i==1 && (j==0 || j==my-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
     {
         *dudc = (ucat[k][j+1][i+1].x + ucat[k][j][i+1].x - ucat[k][j+1][i  ].x - ucat[k][j][i  ].x) * 0.5;
@@ -1938,14 +1952,14 @@ inline void Compute_du_j
     *dvde = ucat[k][j+1][i].y - ucat[k][j][i].y;
     *dwde = ucat[k][j+1][i].z - ucat[k][j][i].z;
 
-    if (isIBMJFace(k+1, j, i, j+1, nvert) ||
+    if (isIBMSolidJFace(k+1, j, i, j+1, nvert) ||
             (k==mz-2 && (j==0 || j==my-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
     {
         *dudz = (ucat[k  ][j+1][i].x + ucat[k  ][j][i].x - ucat[k-1][j+1][i].x - ucat[k-1][j][i].x) * 0.5;
         *dvdz = (ucat[k  ][j+1][i].y + ucat[k  ][j][i].y - ucat[k-1][j+1][i].y - ucat[k-1][j][i].y) * 0.5;
         *dwdz = (ucat[k  ][j+1][i].z + ucat[k  ][j][i].z - ucat[k-1][j+1][i].z - ucat[k-1][j][i].z) * 0.5;
     }
-    else if (isIBMJFace(k-1, j, i, j+1, nvert) ||
+    else if (isIBMSolidJFace(k-1, j, i, j+1, nvert) ||
             (k==1 && (j==0 || j==my-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
     {
         *dudz = (ucat[k+1][j+1][i].x + ucat[k+1][j][i].x - ucat[k  ][j+1][i].x - ucat[k  ][j][i].x) * 0.5;
@@ -1975,14 +1989,14 @@ inline void Compute_du_k
 )
 
 {
-    if (isIBMKFace(k, j, i+1, k+1, nvert) ||
+    if (isIBMSolidKFace(k, j, i+1, k+1, nvert) ||
           (i==mx-2 && (k==0 || k==mz-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
     {
         *dudc = (ucat[k+1][j][i  ].x + ucat[k][j][i  ].x - ucat[k+1][j][i-1].x - ucat[k][j][i-1].x) * 0.5;
         *dvdc = (ucat[k+1][j][i  ].y + ucat[k][j][i  ].y - ucat[k+1][j][i-1].y - ucat[k][j][i-1].y) * 0.5;
         *dwdc = (ucat[k+1][j][i  ].z + ucat[k][j][i  ].z - ucat[k+1][j][i-1].z - ucat[k][j][i-1].z) * 0.5;
     }
-    else if (isIBMKFace(k, j, i-1, k+1, nvert) ||
+    else if (isIBMSolidKFace(k, j, i-1, k+1, nvert) ||
             (i==1 && (k==0 || k==mz-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
     {
         *dudc = (ucat[k+1][j][i+1].x + ucat[k][j][i+1].x - ucat[k+1][j][i  ].x - ucat[k][j][i  ].x) * 0.5;
@@ -1996,14 +2010,14 @@ inline void Compute_du_k
         *dwdc = (ucat[k+1][j][i+1].z + ucat[k][j][i+1].z - ucat[k+1][j][i-1].z - ucat[k][j][i-1].z) * 0.25;
     }
 
-    if (isIBMKFace(k, j+1, i, k+1, nvert) ||
+    if (isIBMSolidKFace(k, j+1, i, k+1, nvert) ||
             (j==my-2 && (k==0 || k==mz-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
     {
         *dude = (ucat[k+1][j  ][i].x + ucat[k][j  ][i].x - ucat[k+1][j-1][i].x - ucat[k][j-1][i].x) * 0.5;
         *dvde = (ucat[k+1][j  ][i].y + ucat[k][j  ][i].y - ucat[k+1][j-1][i].y - ucat[k][j-1][i].y) * 0.5;
         *dwde = (ucat[k+1][j  ][i].z + ucat[k][j  ][i].z - ucat[k+1][j-1][i].z - ucat[k][j-1][i].z) * 0.5;
     }
-    else if (isIBMKFace(k, j-1, i, k+1, nvert) ||
+    else if (isIBMSolidKFace(k, j-1, i, k+1, nvert) ||
             (j==1 && (k==0 || k==mz-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
     {
         *dude = (ucat[k+1][j+1][i].x + ucat[k][j+1][i].x - ucat[k+1][j  ][i].x - ucat[k][j  ][i].x) * 0.5;
@@ -2353,6 +2367,601 @@ inline void Compute_dscalar_dxyz
 	*dk_dz = (dkdc * csi2 + dkde * eta2 + dkdz * zet2) * ajc;
 
     return;
+}
+
+//***************************************************************************************************************//
+
+inline void Compute_du_wmLocal
+(
+    mesh_ *mesh,
+    Cmpnts eN, Cmpnts eT1, Cmpnts eT2,
+    PetscReal du_dx, PetscReal dv_dx, PetscReal dw_dx,
+    PetscReal du_dy, PetscReal dv_dy, PetscReal dw_dy,
+    PetscReal du_dz, PetscReal dv_dz, PetscReal dw_dz,
+    PetscReal *dut1dn, PetscReal *dut2dn, PetscReal *dundn,
+    PetscReal *dut1dt1, PetscReal *dut2dt1, PetscReal *dundt1,
+    PetscReal *dut1dt2, PetscReal *dut2dt2, PetscReal *dundt2
+)
+{
+    PetscReal dudn = du_dx * eN.x + du_dy * eN.y + du_dz * eN.z;
+    PetscReal dvdn = dv_dx * eN.x + dv_dy * eN.y + dv_dz * eN.z;
+    PetscReal dwdn = dw_dx * eN.x + dw_dy * eN.y + dw_dz * eN.z;
+
+    PetscReal dudt1 = du_dx * eT1.x + du_dy * eT1.y + du_dz * eT1.z;
+    PetscReal dvdt1 = dv_dx * eT1.x + dv_dy * eT1.y + dv_dz * eT1.z;
+    PetscReal dwdt1 = dw_dx * eT1.x + dw_dy * eT1.y + dw_dz * eT1.z;
+
+    PetscReal dudt2 = du_dx * eT2.x + du_dy * eT2.y + du_dz * eT2.z;
+    PetscReal dvdt2 = dv_dx * eT2.x + dv_dy * eT2.y + dv_dz * eT2.z;
+    PetscReal dwdt2 = dw_dx * eT2.x + dw_dy * eT2.y + dw_dz * eT2.z;
+
+    *dut1dn = dudn * eT1.x + dvdn * eT1.y + dwdn * eT1.z;
+    *dut2dn = dudn * eT2.x + dvdn * eT2.y + dwdn * eT2.z;
+    *dundn = dudn * eN.x + dvdn * eN.y + dwdn * eN.z;
+
+    *dut1dt1 = dudt1 * eT1.x + dvdt1 * eT1.y + dwdt1 * eT1.z;
+    *dut2dt1 = dudt1 * eT2.x + dvdt1 * eT2.y + dwdt1 * eT2.z;
+    *dundt1 = dudt1 * eN.x + dvdt1 * eN.y + dwdt1 * eN.z;
+
+    *dut1dt2 = dudt2 * eT1.x + dvdt2 * eT1.y + dwdt2 * eT1.z;
+    *dut2dt2 = dudt2 * eT2.x + dvdt2 * eT2.y + dwdt2 * eT2.z;
+    *dundt2 = dudt2 * eN.x + dvdt2 * eN.y + dwdt2 * eN.z;
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+inline void Comput_JacobTensor_i
+(
+    PetscInt i, PetscInt j, PetscInt k, PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***coor, PetscReal *dxdc, PetscReal *dxde, PetscReal *dxdz,
+    PetscReal *dydc, PetscReal *dyde, PetscReal *dydz, PetscReal *dzdc, PetscReal *dzde, PetscReal *dzdz
+)
+{
+
+    PetscReal centx, centy, centz;
+    PetscReal centx_ip1, centy_ip1, centz_ip1;
+    PetscReal centx_im1, centy_im1, centz_im1;
+    PetscReal centx_jp1, centy_jp1, centz_jp1;
+    PetscReal centx_jm1, centy_jm1, centz_jm1;
+    PetscReal centx_kp1, centy_kp1, centz_kp1;
+    PetscReal centx_km1, centy_km1, centz_km1;
+
+
+	PetscInt i1=i,j1=j,k1=k;
+
+    centx = (coor[k1  ][j1  ][i1].x + coor[k1-1][j1  ][i1].x +
+                 coor[k1  ][j1-1][i1].x + coor[k1-1][j1-1][i1].x) * 0.25;
+    centy = (coor[k1  ][j1  ][i1].y + coor[k1-1][j1  ][i1].y +
+                 coor[k1  ][j1-1][i1].y + coor[k1-1][j1-1][i1].y) * 0.25;
+    centz = (coor[k1  ][j1  ][i1].z + coor[k1-1][j1  ][i1].z +
+                 coor[k1  ][j1-1][i1].z + coor[k1-1][j1-1][i1].z) * 0.25;
+
+	if (i!=mx-2)
+    {
+        i1=i+1,j1=j,k1=k;
+
+    	centx_ip1 = (coor[k1  ][j1  ][i1].x + coor[k1-1][j1  ][i1].x +
+            	     coor[k1  ][j1-1][i1].x + coor[k1-1][j1-1][i1].x) * 0.25;
+        centy_ip1 = (coor[k1  ][j1  ][i1].y + coor[k1-1][j1  ][i1].y +
+    	             coor[k1  ][j1-1][i1].y + coor[k1-1][j1-1][i1].y) * 0.25;
+        centz_ip1 = (coor[k1  ][j1  ][i1].z + coor[k1-1][j1  ][i1].z +
+    	             coor[k1  ][j1-1][i1].z + coor[k1-1][j1-1][i1].z) * 0.25;
+	}
+
+	if (i!=0)
+    {
+        i1=i-1,j1=j,k1=k;
+
+        centx_im1 = (coor[k1  ][j1  ][i1].x + coor[k1-1][j1  ][i1].x +
+    	             coor[k1  ][j1-1][i1].x + coor[k1-1][j1-1][i1].x) * 0.25;
+        centy_im1 = (coor[k1  ][j1  ][i1].y + coor[k1-1][j1  ][i1].y +
+    	             coor[k1  ][j1-1][i1].y + coor[k1-1][j1-1][i1].y) * 0.25;
+        centz_im1 = (coor[k1  ][j1  ][i1].z + coor[k1-1][j1  ][i1].z +
+    	             coor[k1  ][j1-1][i1].z + coor[k1-1][j1-1][i1].z) * 0.25;
+	}
+
+	if (j!=my-2)
+    {
+    	i1=i,j1=j+1,k1=k;
+
+        centx_jp1 = (coor[k1  ][j1  ][i1].x + coor[k1-1][j1  ][i1].x +
+    	             coor[k1  ][j1-1][i1].x + coor[k1-1][j1-1][i1].x) * 0.25;
+        centy_jp1 = (coor[k1  ][j1  ][i1].y + coor[k1-1][j1  ][i1].y +
+    	             coor[k1  ][j1-1][i1].y + coor[k1-1][j1-1][i1].y) * 0.25;
+        centz_jp1 = (coor[k1  ][j1  ][i1].z + coor[k1-1][j1  ][i1].z +
+    	             coor[k1  ][j1-1][i1].z + coor[k1-1][j1-1][i1].z) * 0.25;
+	}
+
+	if (j!=1)
+    {
+        i1=i,j1=j-1,k1=k;
+
+        centx_jm1 = (coor[k1  ][j1  ][i1].x + coor[k1-1][j1  ][i1].x +
+    	             coor[k1  ][j1-1][i1].x + coor[k1-1][j1-1][i1].x) * 0.25;
+        centy_jm1 = (coor[k1  ][j1  ][i1].y + coor[k1-1][j1  ][i1].y +
+            	     coor[k1  ][j1-1][i1].y + coor[k1-1][j1-1][i1].y) * 0.25;
+    	centz_jm1 = (coor[k1  ][j1  ][i1].z + coor[k1-1][j1  ][i1].z +
+                     coor[k1  ][j1-1][i1].z + coor[k1-1][j1-1][i1].z) * 0.25;
+	}
+
+	if (k!=mz-2)
+    {
+    	i1=i,j1=j,k1=k+1;
+
+    	centx_kp1 = (coor[k1  ][j1  ][i1].x + coor[k1-1][j1  ][i1].x +
+            	     coor[k1  ][j1-1][i1].x + coor[k1-1][j1-1][i1].x) * 0.25;
+        centy_kp1 = (coor[k1  ][j1  ][i1].y + coor[k1-1][j1  ][i1].y +
+    	             coor[k1  ][j1-1][i1].y + coor[k1-1][j1-1][i1].y) * 0.25;
+        centz_kp1 = (coor[k1  ][j1  ][i1].z + coor[k1-1][j1  ][i1].z +
+    	             coor[k1  ][j1-1][i1].z + coor[k1-1][j1-1][i1].z) * 0.25;
+	}
+
+	if (k!=1)
+    {
+    	i1=i,j1=j,k1=k-1;
+
+        centx_km1 = (coor[k1  ][j1  ][i1].x + coor[k1-1][j1  ][i1].x +
+    	             coor[k1  ][j1-1][i1].x + coor[k1-1][j1-1][i1].x) * 0.25;
+        centy_km1 = (coor[k1  ][j1  ][i1].y + coor[k1-1][j1  ][i1].y +
+            	     coor[k1  ][j1-1][i1].y + coor[k1-1][j1-1][i1].y) * 0.25;
+        centz_km1 = (coor[k1  ][j1  ][i1].z + coor[k1-1][j1  ][i1].z +
+                     coor[k1  ][j1-1][i1].z + coor[k1-1][j1-1][i1].z) * 0.25;
+	}
+
+	if (i==0)
+    {
+	  *dxdc = centx_ip1 - centx;
+	  *dydc = centy_ip1 - centy;
+	  *dzdc = centz_ip1 - centz;
+	}
+	else if (i==mx-2)
+    {
+	  *dxdc = centx - centx_im1;
+	  *dydc = centy - centy_im1;
+	  *dzdc = centz - centz_im1;
+	}
+	else
+    {
+	  *dxdc = (centx_ip1 - centx_im1) * 0.5;
+	  *dydc = (centy_ip1 - centy_im1) * 0.5;
+	  *dzdc = (centz_ip1 - centz_im1) * 0.5;
+	}
+
+
+	if (j==1)
+    {
+	  *dxde = centx_jp1 - centx;
+	  *dyde = centy_jp1 - centy;
+	  *dzde = centz_jp1 - centz;
+	}
+	else if (j==my-2)
+    {
+	  *dxde = centx - centx_jm1;
+	  *dyde = centy - centy_jm1;
+	  *dzde = centz - centz_jm1;
+	}
+	else
+    {
+	  *dxde = (centx_jp1 - centx_jm1) * 0.5;
+	  *dyde = (centy_jp1 - centy_jm1) * 0.5;
+	  *dzde = (centz_jp1 - centz_jm1) * 0.5;
+	}
+
+	if (k==1)
+    {
+	  *dxdz = (centx_kp1 - centx);
+	  *dydz = (centy_kp1 - centy);
+	  *dzdz = (centz_kp1 - centz);
+	}
+	else if (k==mz-2)
+    {
+	  *dxdz = (centx - centx_km1);
+	  *dydz = (centy - centy_km1);
+	  *dzdz = (centz - centz_km1);
+	}
+	else
+    {
+	  *dxdz = (centx_kp1 - centx_km1) * 0.5;
+	  *dydz = (centy_kp1 - centy_km1) * 0.5;
+	  *dzdz = (centz_kp1 - centz_km1) * 0.5;
+	}
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+inline void Comput_JacobTensor_j
+(
+    PetscInt i, PetscInt j, PetscInt k, PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***coor, PetscReal *dxdc, PetscReal *dxde, PetscReal *dxdz,
+    PetscReal *dydc, PetscReal *dyde, PetscReal *dydz, PetscReal *dzdc, PetscReal *dzde, PetscReal *dzdz
+)
+{
+	PetscReal centx, centy, centz;
+	PetscReal centx_ip1, centy_ip1, centz_ip1;
+	PetscReal centx_im1, centy_im1, centz_im1;
+	PetscReal centx_jp1, centy_jp1, centz_jp1;
+	PetscReal centx_jm1, centy_jm1, centz_jm1;
+	PetscReal centx_kp1, centy_kp1, centz_kp1;
+	PetscReal centx_km1, centy_km1, centz_km1;
+
+	PetscInt i1=i,j1=j,k1=k;
+    centx = (coor[k1  ][j1][i1  ].x + coor[k1-1][j1][i1  ].x +
+             coor[k1  ][j1][i1-1].x + coor[k1-1][j1][i1-1].x) * 0.25;
+    centy = (coor[k1  ][j1][i1  ].y + coor[k1-1][j1][i1  ].y +
+             coor[k1  ][j1][i1-1].y + coor[k1-1][j1][i1-1].y) * 0.25;
+    centz = (coor[k1  ][j1][i1  ].z + coor[k1-1][j1][i1  ].z +
+             coor[k1  ][j1][i1-1].z + coor[k1-1][j1][i1-1].z) * 0.25;
+
+	if (i!=mx-2)
+    {
+	        i1=i+1,j1=j,k1=k;
+
+        	centx_ip1 = (coor[k1  ][j1][i1  ].x + coor[k1-1][j1][i1  ].x +
+                        coor[k1  ][j1][i1-1].x + coor[k1-1][j1][i1-1].x) * 0.25;
+	        centy_ip1 = (coor[k1  ][j1][i1  ].y + coor[k1-1][j1][i1  ].y +
+                        coor[k1  ][j1][i1-1].y + coor[k1-1][j1][i1-1].y) * 0.25;
+	        centz_ip1 = (coor[k1  ][j1][i1  ].z + coor[k1-1][j1][i1  ].z +
+                        coor[k1  ][j1][i1-1].z + coor[k1-1][j1][i1-1].z) * 0.25;
+
+	}
+
+	if (i!=1)
+    {
+        i1=i-1,j1=j,k1=k;
+
+        centx_im1 = (coor[k1  ][j1][i1  ].x + coor[k1-1][j1][i1  ].x +
+                coor[k1  ][j1][i1-1].x + coor[k1-1][j1][i1-1].x) * 0.25;
+        centy_im1 = (coor[k1  ][j1][i1  ].y + coor[k1-1][j1][i1  ].y +
+                coor[k1  ][j1][i1-1].y + coor[k1-1][j1][i1-1].y) * 0.25;
+        centz_im1 = (coor[k1  ][j1][i1  ].z + coor[k1-1][j1][i1  ].z +
+                coor[k1  ][j1][i1-1].z + coor[k1-1][j1][i1-1].z) * 0.25;
+
+	}
+
+	if (j!=my-2)
+    {
+        i1=i,j1=j+1,k1=k;
+
+        centx_jp1 = (coor[k1  ][j1][i1  ].x + coor[k1-1][j1][i1  ].x +
+                coor[k1  ][j1][i1-1].x + coor[k1-1][j1][i1-1].x) * 0.25;
+        centy_jp1 = (coor[k1  ][j1][i1  ].y + coor[k1-1][j1][i1  ].y +
+                coor[k1  ][j1][i1-1].y + coor[k1-1][j1][i1-1].y) * 0.25;
+        centz_jp1 = (coor[k1  ][j1][i1  ].z + coor[k1-1][j1][i1  ].z +
+                coor[k1  ][j1][i1-1].z + coor[k1-1][j1][i1-1].z) * 0.25;
+
+	}
+
+	if (j!=0)
+    {
+        i1=i,j1=j-1,k1=k;
+
+        centx_jm1 = (coor[k1  ][j1][i1  ].x + coor[k1-1][j1][i1  ].x +
+                     coor[k1  ][j1][i1-1].x + coor[k1-1][j1][i1-1].x) * 0.25;
+        centy_jm1 = (coor[k1  ][j1][i1  ].y + coor[k1-1][j1][i1  ].y +
+                coor[k1  ][j1][i1-1].y + coor[k1-1][j1][i1-1].y) * 0.25;
+        centz_jm1 = (coor[k1  ][j1][i1  ].z + coor[k1-1][j1][i1  ].z +
+                coor[k1  ][j1][i1-1].z + coor[k1-1][j1][i1-1].z) * 0.25;
+
+	}
+
+	if (k!=mz-2)
+    {
+        i1=i,j1=j,k1=k+1;
+
+        centx_kp1 = (coor[k1  ][j1][i1  ].x + coor[k1-1][j1][i1  ].x +
+                coor[k1  ][j1][i1-1].x + coor[k1-1][j1][i1-1].x) * 0.25;
+        centy_kp1 = (coor[k1  ][j1][i1  ].y + coor[k1-1][j1][i1  ].y +
+                coor[k1  ][j1][i1-1].y + coor[k1-1][j1][i1-1].y) * 0.25;
+        centz_kp1 = (coor[k1  ][j1][i1  ].z + coor[k1-1][j1][i1  ].z +
+                coor[k1  ][j1][i1-1].z + coor[k1-1][j1][i1-1].z) * 0.25;
+
+	}
+
+	if (k!=1)
+    {
+        i1=i,j1=j,k1=k-1;
+
+        centx_km1 = (coor[k1  ][j1][i1  ].x + coor[k1-1][j1][i1  ].x +
+                coor[k1  ][j1][i1-1].x + coor[k1-1][j1][i1-1].x) * 0.25;
+        centy_km1 = (coor[k1  ][j1][i1  ].y + coor[k1-1][j1][i1  ].y +
+                coor[k1  ][j1][i1-1].y + coor[k1-1][j1][i1-1].y) * 0.25;
+        centz_km1 = (coor[k1  ][j1][i1  ].z + coor[k1-1][j1][i1  ].z +
+                coor[k1  ][j1][i1-1].z + coor[k1-1][j1][i1-1].z) * 0.25;
+
+	}
+
+	if (i==1)
+    {
+	  *dxdc = centx_ip1 - centx;
+	  *dydc = centy_ip1 - centy;
+	  *dzdc = centz_ip1 - centz;
+	}
+	else if (i==mx-2)
+    {
+	  *dxdc = centx - centx_im1;
+	  *dydc = centy - centy_im1;
+	  *dzdc = centz - centz_im1;
+	}
+	else {
+	  *dxdc = (centx_ip1 - centx_im1) * 0.5;
+	  *dydc = (centy_ip1 - centy_im1) * 0.5;
+	  *dzdc = (centz_ip1 - centz_im1) * 0.5;
+	}
+
+
+	if (j==0)
+    {
+	  *dxde = centx_jp1 - centx;
+	  *dyde = centy_jp1 - centy;
+	  *dzde = centz_jp1 - centz;
+	}
+	else if (j==my-2)
+    {
+	  *dxde = centx - centx_jm1;
+	  *dyde = centy - centy_jm1;
+	  *dzde = centz - centz_jm1;
+	}
+	else
+    {
+	  *dxde = (centx_jp1 - centx_jm1) * 0.5;
+	  *dyde = (centy_jp1 - centy_jm1) * 0.5;
+	  *dzde = (centz_jp1 - centz_jm1) * 0.5;
+	}
+
+	if (k==1)
+    {
+	  *dxdz = (centx_kp1 - centx);
+	  *dydz = (centy_kp1 - centy);
+	  *dzdz = (centz_kp1 - centz);
+	}
+	else if (k==mz-2)
+    {
+	  *dxdz = (centx - centx_km1);
+	  *dydz = (centy - centy_km1);
+	  *dzdz = (centz - centz_km1);
+	}
+	else
+    {
+	  *dxdz = (centx_kp1 - centx_km1) * 0.5;
+	  *dydz = (centy_kp1 - centy_km1) * 0.5;
+	  *dzdz = (centz_kp1 - centz_km1) * 0.5;
+	}
+
+}
+
+//***************************************************************************************************************//
+
+inline void Comput_JacobTensor_k
+(
+    PetscInt i, PetscInt j, PetscInt k, PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***coor, PetscReal *dxdc, PetscReal *dxde, PetscReal *dxdz,
+    PetscReal *dydc, PetscReal *dyde, PetscReal *dydz, PetscReal *dzdc, PetscReal *dzde, PetscReal *dzdz
+)
+{
+	PetscReal centx, centy, centz;
+	PetscReal centx_ip1, centy_ip1, centz_ip1;
+	PetscReal centx_im1, centy_im1, centz_im1;
+	PetscReal centx_jp1, centy_jp1, centz_jp1;
+	PetscReal centx_jm1, centy_jm1, centz_jm1;
+	PetscReal centx_kp1, centy_kp1, centz_kp1;
+	PetscReal centx_km1, centy_km1, centz_km1;
+
+	PetscInt i1=i,j1=j,k1=k;
+
+    centx = (coor[k1  ][j1][i1  ].x + coor[k1][j1-1][i1  ].x +
+             coor[k1  ][j1][i1-1].x + coor[k1][j1-1][i1-1].x) * 0.25;
+    centy = (coor[k1  ][j1][i1  ].y + coor[k1][j1-1][i1  ].y +
+             coor[k1  ][j1][i1-1].y + coor[k1][j1-1][i1-1].y) * 0.25;
+    centz = (coor[k1  ][j1][i1  ].z + coor[k1][j1-1][i1  ].z +
+             coor[k1  ][j1][i1-1].z + coor[k1][j1-1][i1-1].z) * 0.25;
+
+	if (i!=mx-2)
+    {
+        i1=i+1,j1=j,k1=k;
+
+        centx_ip1 = (coor[k1  ][j1][i1  ].x + coor[k1][j1-1][i1  ].x +
+             	     coor[k1  ][j1][i1-1].x + coor[k1][j1-1][i1-1].x) * 0.25;
+    	centy_ip1 = (coor[k1  ][j1][i1  ].y + coor[k1][j1-1][i1  ].y +
+             	     coor[k1  ][j1][i1-1].y + coor[k1][j1-1][i1-1].y) * 0.25;
+    	centz_ip1 = (coor[k1  ][j1][i1  ].z + coor[k1][j1-1][i1  ].z +
+             	     coor[k1  ][j1][i1-1].z + coor[k1][j1-1][i1-1].z) * 0.25;
+
+	}
+
+	if (i!=1)
+    {
+        i1=i-1,j1=j,k1=k;
+
+        centx_im1 = (coor[k1  ][j1][i1  ].x + coor[k1][j1-1][i1  ].x +
+                     coor[k1  ][j1][i1-1].x + coor[k1][j1-1][i1-1].x) * 0.25;
+        centy_im1 = (coor[k1  ][j1][i1  ].y + coor[k1][j1-1][i1  ].y +
+                     coor[k1  ][j1][i1-1].y + coor[k1][j1-1][i1-1].y) * 0.25;
+        centz_im1 = (coor[k1  ][j1][i1  ].z + coor[k1][j1-1][i1  ].z +
+                     coor[k1  ][j1][i1-1].z + coor[k1][j1-1][i1-1].z) * 0.25;
+
+	}
+
+	if (j!=my-2)
+    {
+        i1=i,j1=j+1,k1=k;
+
+        centx_jp1 = (coor[k1  ][j1][i1  ].x + coor[k1][j1-1][i1  ].x +
+                     coor[k1  ][j1][i1-1].x + coor[k1][j1-1][i1-1].x) * 0.25;
+        centy_jp1 = (coor[k1  ][j1][i1  ].y + coor[k1][j1-1][i1  ].y +
+                     coor[k1  ][j1][i1-1].y + coor[k1][j1-1][i1-1].y) * 0.25;
+        centz_jp1 = (coor[k1  ][j1][i1  ].z + coor[k1][j1-1][i1  ].z +
+                     coor[k1  ][j1][i1-1].z + coor[k1][j1-1][i1-1].z) * 0.25;
+
+	}
+
+	if (j!=1)
+    {
+        i1=i,j1=j-1,k1=k;
+
+        centx_jm1 = (coor[k1  ][j1][i1  ].x + coor[k1][j1-1][i1  ].x +
+                     coor[k1  ][j1][i1-1].x + coor[k1][j1-1][i1-1].x) * 0.25;
+        centy_jm1 = (coor[k1  ][j1][i1  ].y + coor[k1][j1-1][i1  ].y +
+                     coor[k1  ][j1][i1-1].y + coor[k1][j1-1][i1-1].y) * 0.25;
+        centz_jm1 = (coor[k1  ][j1][i1  ].z + coor[k1][j1-1][i1  ].z +
+                     coor[k1  ][j1][i1-1].z + coor[k1][j1-1][i1-1].z) * 0.25;
+
+	}
+
+	if (k!=mz-2)
+    {
+        i1=i,j1=j,k1=k+1;
+
+        centx_kp1 = (coor[k1  ][j1][i1  ].x + coor[k1][j1-1][i1  ].x +
+                     coor[k1  ][j1][i1-1].x + coor[k1][j1-1][i1-1].x) * 0.25;
+        centy_kp1 = (coor[k1  ][j1][i1  ].y + coor[k1][j1-1][i1  ].y +
+                     coor[k1  ][j1][i1-1].y + coor[k1][j1-1][i1-1].y) * 0.25;
+        centz_kp1 = (coor[k1  ][j1][i1  ].z + coor[k1][j1-1][i1  ].z +
+                     coor[k1  ][j1][i1-1].z + coor[k1][j1-1][i1-1].z) * 0.25;
+
+	}
+
+	if (k!=0)
+    {
+        i1=i,j1=j,k1=k-1;
+
+        centx_km1 = (coor[k1  ][j1][i1  ].x + coor[k1][j1-1][i1  ].x +
+                     coor[k1  ][j1][i1-1].x + coor[k1][j1-1][i1-1].x) * 0.25;
+        centy_km1 = (coor[k1  ][j1][i1  ].y + coor[k1][j1-1][i1  ].y +
+                     coor[k1  ][j1][i1-1].y + coor[k1][j1-1][i1-1].y) * 0.25;
+        centz_km1 = (coor[k1  ][j1][i1  ].z + coor[k1][j1-1][i1  ].z +
+                     coor[k1  ][j1][i1-1].z + coor[k1][j1-1][i1-1].z) * 0.25;
+
+	}
+
+	if (i==1)
+    {
+	  *dxdc = centx_ip1 - centx;
+	  *dydc = centy_ip1 - centy;
+	  *dzdc = centz_ip1 - centz;
+	}
+	else if (i==mx-2)
+    {
+	  *dxdc = centx - centx_im1;
+	  *dydc = centy - centy_im1;
+	  *dzdc = centz - centz_im1;
+	}
+	else
+    {
+	  *dxdc = (centx_ip1 - centx_im1) * 0.5;
+	  *dydc = (centy_ip1 - centy_im1) * 0.5;
+	  *dzdc = (centz_ip1 - centz_im1) * 0.5;
+	}
+
+
+	if (j==1)
+    {
+	  *dxde = centx_jp1 - centx;
+	  *dyde = centy_jp1 - centy;
+	  *dzde = centz_jp1 - centz;
+	}
+	else if (j==my-2)
+    {
+	  *dxde = centx - centx_jm1;
+	  *dyde = centy - centy_jm1;
+	  *dzde = centz - centz_jm1;
+	}
+	else
+    {
+	  *dxde = (centx_jp1 - centx_jm1) * 0.5;
+	  *dyde = (centy_jp1 - centy_jm1) * 0.5;
+	  *dzde = (centz_jp1 - centz_jm1) * 0.5;
+	}
+
+	if (k==0)
+    {
+	  *dxdz = (centx_kp1 - centx);
+	  *dydz = (centy_kp1 - centy);
+	  *dzdz = (centz_kp1 - centz);
+	}
+	else if (k==mz-2)
+    {
+	  *dxdz = (centx - centx_km1);
+	  *dydz = (centy - centy_km1);
+	  *dzdz = (centz - centz_km1);
+	}
+	else
+    {
+	  *dxdz = (centx_kp1 - centx_km1) * 0.5;
+	  *dydz = (centy_kp1 - centy_km1) * 0.5;
+	  *dzdz = (centz_kp1 - centz_km1) * 0.5;
+	}
+
+}
+
+//***************************************************************************************************************//
+
+// From local wall model grid to computational grid
+inline void Compute_du_Compgrid
+(
+    PetscReal dxdc, PetscReal dxde, PetscReal dxdz, PetscReal dydc, PetscReal dyde, PetscReal dydz, PetscReal dzdc, PetscReal dzde, PetscReal dzdz,
+    PetscReal nx, PetscReal ny, PetscReal nz, PetscReal t1x, PetscReal t1y, PetscReal t1z, PetscReal t2x, PetscReal t2y, PetscReal t2z,
+    PetscReal dut1dn, PetscReal dut2dn, PetscReal dundn, PetscReal dut1dt1, PetscReal dut2dt1, PetscReal dundt1, PetscReal dut1dt2, PetscReal dut2dt2, PetscReal dundt2,
+    PetscReal *dudc, PetscReal *dvdc, PetscReal *dwdc, PetscReal *dude, PetscReal *dvde, PetscReal *dwde, PetscReal *dudz, PetscReal *dvdz, PetscReal *dwdz
+)
+{
+
+	PetscReal dxdn=nx, dydn=ny, dzdn=nz;
+	PetscReal dxdt1=t1x, dydt1=t1y, dzdt1=t1z;
+	PetscReal dxdt2=t2x, dydt2=t2y, dzdt2=t2z;
+
+	PetscReal dndx = dydt1*dzdt2-dydt2*dzdt1;
+	PetscReal dt1dx = dydt2*dzdn-dydn*dzdt2;
+	PetscReal dt2dx = dydn*dzdt1-dydt1*dzdn;
+
+    PetscReal dndy = dzdt1*dxdt2-dzdt2*dxdt1;
+    PetscReal dt1dy = dzdt2*dxdn-dzdn*dxdt2;
+    PetscReal dt2dy = dzdn*dxdt1-dzdt1*dxdn;
+
+    PetscReal dndz = dxdt1*dydt2-dxdt2*dydt1;
+    PetscReal dt1dz = dxdt2*dydn-dxdn*dydt2;
+    PetscReal dt2dz = dxdn*dydt1-dxdt1*dydn;
+
+
+	PetscReal dundx = dundn*dndx+dundt1*dt1dx+dundt2*dt2dx;
+	PetscReal dundy = dundn*dndy+dundt1*dt1dy+dundt2*dt2dy;
+	PetscReal dundz = dundn*dndz+dundt1*dt1dz+dundt2*dt2dz;
+
+    PetscReal dut1dx = dut1dn*dndx+dut1dt1*dt1dx+dut1dt2*dt2dx;
+    PetscReal dut1dy = dut1dn*dndy+dut1dt1*dt1dy+dut1dt2*dt2dy;
+    PetscReal dut1dz = dut1dn*dndz+dut1dt1*dt1dz+dut1dt2*dt2dz;
+
+    PetscReal dut2dx = dut2dn*dndx+dut2dt1*dt1dx+dut2dt2*dt2dx;
+    PetscReal dut2dy = dut2dn*dndy+dut2dt1*dt1dy+dut2dt2*dt2dy;
+    PetscReal dut2dz = dut2dn*dndz+dut2dt1*dt1dz+dut2dt2*dt2dz;
+
+
+	PetscReal du_dx = dundx*nx+dut1dx*t1x+dut2dx*t2x;
+	PetscReal du_dy = dundy*nx+dut1dy*t1x+dut2dy*t2x;
+	PetscReal du_dz = dundz*nx+dut1dz*t1x+dut2dz*t2x;
+
+    PetscReal dv_dx = dundx*ny+dut1dx*t1y+dut2dx*t2y;
+    PetscReal dv_dy = dundy*ny+dut1dy*t1y+dut2dy*t2y;
+    PetscReal dv_dz = dundz*ny+dut1dz*t1y+dut2dz*t2y;
+
+    PetscReal dw_dx = dundx*nz+dut1dx*t1z+dut2dx*t2z;
+    PetscReal dw_dy = dundy*nz+dut1dy*t1z+dut2dy*t2z;
+    PetscReal dw_dz = dundz*nz+dut1dz*t1z+dut2dz*t2z;
+
+	*dudc = du_dx*dxdc+du_dy*dydc+du_dz*dzdc;
+	*dude = du_dx*dxde+du_dy*dyde+du_dz*dzde;
+	*dudz = du_dx*dxdz+du_dy*dydz+du_dz*dzdz;
+
+    *dvdc = dv_dx*dxdc+dv_dy*dydc+dv_dz*dzdc;
+    *dvde = dv_dx*dxde+dv_dy*dyde+dv_dz*dzde;
+    *dvdz = dv_dx*dxdz+dv_dy*dydz+dv_dz*dzdz;
+
+    *dwdc = dw_dx*dxdc+dw_dy*dydc+dw_dz*dzdc;
+    *dwde = dw_dx*dxde+dw_dy*dyde+dw_dz*dzde;
+    *dwdz = dw_dx*dxdz+dw_dy*dydz+dw_dz*dzdz;
 }
 
 // DIVERGENCE SCHEMES
@@ -4834,29 +5443,36 @@ inline void initCellList(cellList *ilist)
 inline bool insertnode(list *ilist, PetscInt Node)
 {
 
-  node *_new;
-  node *current;
-  current = ilist->head;
+    node *_new;
+    node *current;
 
-  PetscBool Exist = PETSC_FALSE;
-  while(current) {
-    if (Node == current->Node) {
-      Exist = PETSC_TRUE;
+    current = ilist->head;
+
+    PetscBool Exist = PETSC_FALSE;
+
+    while(current)
+    {
+        if (Node == current->Node)
+        {
+            Exist = PETSC_TRUE;
+        }
+
+        if (Exist) break;
+        current = current->next;
     }
-    if (Exist) break;
-    current = current->next;
-  }
-  if (!Exist) {
-    PetscMalloc(sizeof(node), &_new);
-    _new->next = ilist->head;
-    _new->Node = Node;
-    ilist->head = _new;
-  }
 
-  if(Exist)
-    return false;
-  else
-    return true;
+    if (!Exist)
+    {
+        PetscMalloc(sizeof(node), &_new);
+        _new->next = ilist->head;
+        _new->Node = Node;
+        ilist->head = _new;
+    }
+
+    if(Exist)
+        return false;
+    else
+        return true;
 }
 
 //***************************************************************************************************************//
@@ -4864,17 +5480,17 @@ inline bool insertnode(list *ilist, PetscInt Node)
 // insert a node into a list
 inline void insertnode1(list *ilist, PetscInt Node)
 {
-  node *_new;
+    node *_new;
 
-  PetscMalloc(sizeof(node), &_new);
+    PetscMalloc(sizeof(node), &_new);
 
-  _new->next = ilist->head;
+    _new->next = ilist->head;
 
-  _new->Node = Node;
+    _new->Node = Node;
 
-  ilist->head = _new;
+    ilist->head = _new;
 
-  return;
+    return;
 }
 
 //***************************************************************************************************************//

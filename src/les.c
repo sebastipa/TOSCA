@@ -173,7 +173,7 @@ PetscErrorCode UpdateCs (les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // if on body skip
-                if( isIBMCell(k, j, i, nvert))
+                if( isIBMSolidCell(k, j, i, nvert))
                 {
                     continue;
                 }
@@ -341,7 +341,7 @@ PetscErrorCode UpdateCs (les_ *les)
         for (i=lxs; i<lxe; i++)
         {
             // set to zero if solid and skip
-            if(isIBMCell(k, j, i, nvert))
+            if(isIBMSolidCell(k, j, i, nvert))
             {
                 LM[k][j][i] = MM[k][j][i] = 0;
                 continue;
@@ -662,6 +662,7 @@ PetscErrorCode UpdateCs (les_ *les)
         PetscReal ***LM_old, ***MM_old;
 
         // local convective weighting
+        // local convective weighting
         if(les->access->flags->isLesActive==4)
         {
             PetscInt initializeLes4;
@@ -806,17 +807,60 @@ PetscErrorCode UpdateCs (les_ *les)
                     // if there is an IBM or overset cell around the given cell, use nearest cell
                     if(isBoxIBMCell(k_old, j_old, i_old, nvert))
                     {
-                        if(isIBMFluidCell(k_old, j_old, i_old, nvert))
+                        PetscInt intId[6];
+                        PetscInt ibmCellCtr = 0;
+
+                        // get the trilinear interpolation cells
+                        PointInterpolationCells
+                        (
+                                mesh,
+                                X_old.x, X_old.y, X_old.z,
+                                i_old, j_old, k_old,
+                                cent,
+                                intId
+                        );
+
+                        //see if any one of the trilinear interpolation cells is ibmSolid
+                        for (PetscInt kk = 0; kk<2; kk++)
+                        for (PetscInt jj = 0; jj<2; jj++)
+                        for (PetscInt ii = 0; ii<2; ii++)
                         {
-                            _LM_old = LM_old[k][j][i];
-                            _MM_old = MM_old[k][j][i];
+                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                            {
+                                ibmCellCtr ++;
+                            }
+
                         }
-                        else
+
+                        if(ibmCellCtr)
                         {
+                            //use the value at the closest cell
                             _LM_old = LM_old[k_old][j_old][i_old];
                             _MM_old = MM_old[k_old][j_old][i_old];
                         }
+                        else
+                        {
+                            //safe to trilinear interpolate
+                            scalarPointLocalVolumeInterpolation
+                            (
+                                mesh,
+                                X_old.x, X_old.y, X_old.z,
+                                i_old, j_old, k_old,
+                                cent,
+                                LM_old,
+                                _LM_old
+                            );
 
+                            scalarPointLocalVolumeInterpolation
+                            (
+                                mesh,
+                                X_old.x, X_old.y, X_old.z,
+                                i_old, j_old, k_old,
+                                cent,
+                                MM_old,
+                                _MM_old
+                            );
+                        }
                     }
                     else
                     {
@@ -938,7 +982,7 @@ PetscErrorCode UpdateCs (les_ *les)
     for (i=lxs; i<lxe; i++)
     {
         // body
-        if(isIBMCell(k, j, i, nvert))
+        if(isIBMSolidCell(k, j, i, nvert))
         {
             Cs[k][j][i] = 0.0;
             continue;
@@ -1106,8 +1150,17 @@ PetscErrorCode UpdateCs (les_ *les)
             C = 0.5 * LM_avg / (MM_avg + 1e-10);
         }
 
-        // clip Cs between upper and lower bound
-        Cs[k][j][i] = PetscMin(PetscMax(C, 0.0), les->maxCs);
+        // set Cs to zero if solid or on box corners
+        if(isIBMSolidCell(k, j, i, nvert)
+        {
+            Cs[k][j][i] = 0;
+        }
+        else
+        {
+
+            // clip Cs between upper and lower bound
+            Cs[k][j][i] = PetscMin( PetscMax(Cs[k][j][i], 0.0), les->maxCs);
+        }
     }
 
     if(les->access->flags->isLesActive == 2)
@@ -1222,7 +1275,7 @@ PetscErrorCode UpdateNut(les_ *les)
     for (j=lys; j<lye; j++)
     for (i=lxs; i<lxe; i++)
     {
-        if(isIBMCell(k, j, i, nvert))
+        if(isIBMSolidCell(k, j, i, nvert))
         {
             lnu_t[k][j][i]=0;
             continue;

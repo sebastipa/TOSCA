@@ -13,7 +13,7 @@ void uStarShumann
 (
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
     PetscReal &gammaM, PetscReal &kappa, PetscReal &qwall, PetscReal &thetaRef,
-    PetscReal &uStar, PetscReal &phiM, PetscReal &L
+    PetscReal &uStar, PetscReal &phiM, PetscReal &L, PetscReal nu
 )
 {
     PetscReal uStar0 = (kappa * UParallelMeanMag) / std::log(wallDist / z0);
@@ -381,15 +381,10 @@ inline PetscReal integrate_F(PetscReal nu, PetscReal utau, PetscReal yb, PetscRe
 
     PetscReal val = 0;
 
-    PetscInt     n_yp = 0;
-    PetscInt     interval_yp = 2;
-    PetscInt     max_yp = 1e7;
-
 	PetscReal ya_plus = 0 * utau / nu;
 	PetscReal yb_plus = yb * utau / nu;
 
-	int ib = (PetscInt) ( yb_plus / (PetscReal) interval_yp );
-	int N=10;
+	int N=25;
 	val=0;
 
 	PetscReal ydiff = yb_plus - ya_plus, dy = ydiff / (PetscReal)N;
@@ -570,6 +565,10 @@ void wallFunctionCabot(PetscReal nu, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpn
     (*Ub).y += Ua.y;
     (*Ub).z += Ua.z;
 
+    // (*Ub).x = (sb/sc) * Uc.x + (1.0 - (sb/sc)) * Ua.x;
+    // (*Ub).y= (sb/sc) * Uc.y + (1.0 - (sb/sc)) * Ua.y;
+    // (*Ub).z = (sb/sc) * Uc.z + (1.0 - (sb/sc)) * Ua.z;
+
     return;
 }
 
@@ -601,6 +600,47 @@ void wallFunctionCabotRoughness(PetscReal nu, PetscReal ks, PetscReal sc, PetscR
 	(*Ub).x += Ua.x;
 	(*Ub).y += Ua.y;
 	(*Ub).z += Ua.z;
+
+    // (*Ub).x = (sb/sc) * Uc.x + (1.0 - (sb/sc)) * Ua.x;
+    // (*Ub).y= (sb/sc) * Uc.y + (1.0 - (sb/sc)) * Ua.y;
+    // (*Ub).z = (sb/sc) * Uc.z + (1.0 - (sb/sc)) * Ua.z;
+
+
+    return;
+}
+
+//***************************************************************************************************************//
+// Wall function based on the log law model
+void wallFunctionSchumann(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal roughness,
+    PetscReal kappa, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
+{
+    Cmpnts    u_c = nSub(Uc, Ua);
+    Cmpnts    unc  = nScale(nDot(u_c, nf), nf);
+    Cmpnts    utc  = nSub(u_c, unc);
+    Cmpnts    ut_b;
+
+    Cmpnts    et  = nUnit(utc);
+
+    PetscReal ut_mag = nMag(utc), ut_magb;
+
+    *ustar = ut_mag * kappa / log(sc/roughness);
+
+    // ut_magb = (*ustar/kappa) * log(sb/roughness);
+    
+    // if (ut_magb < 1.e-10)
+    // {
+    //     ut_magb = 0.0;
+    // }
+    
+    // ut_b  = nScale(ut_magb, et);
+    
+    // (*Ub) = nSum(ut_b, nScale( (sb/sc), unc));
+    
+    // mSum(*Ub, Ua);
+
+    (*Ub).x = (sb/sc) * Uc.x + (1.0 - (sb/sc)) * Ua.x;
+    (*Ub).y= (sb/sc) * Uc.y + (1.0 - (sb/sc)) * Ua.y;
+    (*Ub).z = (sb/sc) * Uc.z + (1.0 - (sb/sc)) * Ua.z;
 
     return;
 }

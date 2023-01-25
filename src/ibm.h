@@ -197,7 +197,6 @@ typedef struct
 //! \brief struct storing IBM model
 struct ibm_
 {
-    Vec                dUl_dt;
     PetscInt           numBodies;                     //!<  number of bodies
     word               IBInterpolationModel;          //!<  interpolation methodology
     word               curvibType;
@@ -219,7 +218,6 @@ struct ibm_
     PetscInt         checkNormal;
     PetscInt         wallShearOn;
     PetscInt            writeSTL;
-    PetscInt              p_dudt;
 
     // output parameters
     PetscReal          timeStart;                    //!< start time of acquisition system

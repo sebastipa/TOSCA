@@ -15,19 +15,19 @@ struct ueqn_
     PC            pc;
 
     // momentum variables
-    Vec           Utmp;                       //!< temporary solution passed to the SNES evaluation function or used for RK4
-    Vec           Rhs;                        //!< rhs of the momentum equation (stores transport and viscous fluxes), low level use in FormU
-    Vec           Rhs_o;                      //!< rhs of the momentum equation at previous time step
-    Vec           lFp;                        //!< rhs of the momentum equation prior to dotting with curv. coords basis (becomes Rhs)
-    Vec           lDiv1, lDiv2, lDiv3;        //!< Components of the convective term in momentum equation
-    Vec           lVisc1, lVisc2, lVisc3;     //!< Components of the viscous term in the momentum equation
-    Vec           dP;                         //!< pressure term of the momentum equation
-    Vec           sourceU;                    //!< source term to drive Uref at Zref with periodic BCs
-    Vec           gCont;                      //!< gravity vector in cuvilinear coordinates
-    Vec           bTheta;                     //!< buoyancy field
-    Vec           Ucont, lUcont;              //!< contravariant fluxes (contravariant velocity / J)
-    Vec           Ucat, lUcat;                //!< cartesian velocity
-    Vec           Ucont_o;                    //!< contravariant fluxes at the previous time step
+    Vec           Utmp;                             //!< temporary solution passed to the SNES evaluation function or used for RK4
+    Vec           Rhs;                              //!< rhs of the momentum equation (stores transport and viscous fluxes), low level use in FormU
+    Vec           Rhs_o;                            //!< rhs of the momentum equation at previous time step
+    Vec           lFp;                              //!< rhs of the momentum equation prior to dotting with curv. coords basis (becomes Rhs)
+    Vec           lDiv1, lDiv2, lDiv3;              //!< Components of the convective term in momentum equation
+    Vec           lVisc1, lVisc2, lVisc3;           //!< Components of the viscous term in the momentum equation
+    Vec           lViscIBM1, lViscIBM2, lViscIBM3;  //!< Components of the viscous term in the momentum equation for IBM faces
+    Vec           dP;                               //!< pressure term of the momentum equation
+    Vec           sourceU;                          //!< source term to drive Uref at Zref with periodic BCs
+    Vec           gCont;                            //!< gravity vector in cuvilinear coordinates
+    Vec           Ucont, lUcont;                    //!< contravariant fluxes (contravariant velocity / J)
+    Vec           Ucat, lUcat;                      //!< cartesian velocity
+    Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step
     Vec           lUstar;
 
     // momentum settings
