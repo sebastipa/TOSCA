@@ -991,7 +991,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                 netMoment = nDot(gMoment[b], ibmRot->rotAxis);
             }
 
-            PetscPrintf(ibmBody->IBM_COMM, "pforce = %lf %lf %lf, Moment = %lf\n", gPForce[b].x, gPForce[b].y, gPForce[b].z, gMoment[b].z);
+            PetscPrintf(ibmBody->IBM_COMM, "%s: pforce = %lf %lf %lf, Moment = %lf\n", ibmBody->bodyName.c_str(), gPForce[b].x, gPForce[b].y, gPForce[b].z, netMoment);
 
             //write data
             if(ibmrank == 0)
@@ -4614,8 +4614,8 @@ PetscErrorCode checkIBMexists(ibm_ *ibm)
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
-    //check ibm body bounding box is inside the ibm processor bounds 
-    
+    //check ibm body bounding box is inside the ibm processor bounds
+
     // loop through the ibm bodies
     for (b = 0; b < ibm->numBodies; b++)
     {
