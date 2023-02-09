@@ -4146,16 +4146,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                         nuEff = nu;
                     }
-                    else if(isIBMFluidIFace(k, j, i, i+1, nvert))
-                    {
-                        if(ueqn->access->ibm->wallShearOn)
-                        {
-                            visc1[k][j][i] = nSet(viscIBM1[k][j][i]);
-
-                            nuEff = 0;
-                        }
-
-                    }
                     // slip boundary condition on U (set nuEff to 0)
                     else if
                     (
@@ -4168,6 +4158,21 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     else
                     {
                         nuEff = nu + nut;
+                    }
+
+                    if(isIBMFluidIFace(k, j, i, i+1, nvert))
+                    {
+                        if(ueqn->access->ibm->wallShearOn)
+                        {
+                            visc1[k][j][i] = nSet(viscIBM1[k][j][i]);
+
+                            nuEff = 0;
+                        }
+                        else
+                        {
+                            nuEff = nu + nut;
+                        }
+
                     }
                 }
                 else
@@ -4379,16 +4384,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                         nuEff = nu;
                     }
-                    else if(isIBMFluidJFace(k, j, i, j+1, nvert))
-                    {
-                        if(ueqn->access->ibm->wallShearOn)
-                        {
-                            visc2[k][j][i] = nSet(viscIBM2[k][j][i]);
-
-                            nuEff = 0;
-                        }
-
-                    }
                     // slip boundary condition on U (set nuEff to 0)
                     else if
                     (
@@ -4401,6 +4396,21 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     else
                     {
                         nuEff = nu + nut;
+                    }
+
+                    if(isIBMFluidJFace(k, j, i, j+1, nvert))
+                    {
+                        if(ueqn->access->ibm->wallShearOn)
+                        {
+                            visc2[k][j][i] = nSet(viscIBM2[k][j][i]);
+
+                            nuEff = 0;
+                        }
+                        else
+                        {
+                            nuEff = nu + nut;
+                        }
+
                     }
                 }
                 else
@@ -4601,18 +4611,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 {
                     nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
 
-                    if(isIBMFluidKFace(k, j, i, k+1, nvert))
-                    {
-                        if(ueqn->access->ibm->wallShearOn)
-                        {
-                            visc3[k][j][i] = nSet(viscIBM3[k][j][i]);
-
-                            nuEff = 0;
-                        }
-
-                    }
                     // slip boundary condition on U (set nuEff to 0)
-                    else if
+                    if
                     (
                         (mesh->boundaryU.kLeft =="slip" && k==0   ) ||
                         (mesh->boundaryU.kRight=="slip" && k==mz-2)
@@ -4623,6 +4623,21 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     else
                     {
                         nuEff = nu + nut;
+                    }
+
+                    if(isIBMFluidKFace(k, j, i, k+1, nvert))
+                    {
+                        if(ueqn->access->ibm->wallShearOn)
+                        {
+                            visc3[k][j][i] = nSet(viscIBM3[k][j][i]);
+
+                            nuEff = 0;
+                        }
+                        else
+                        {
+                            nuEff = nu + nut;
+                        }
+
                     }
                 }
                 else

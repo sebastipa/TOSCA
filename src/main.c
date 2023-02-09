@@ -99,7 +99,9 @@ int main(int argc, char **argv)
                 if(flags.isIBMActive)
                 {
                     if(domain[d].ibm->wallShearOn)
+                    {
                         findIBMWallShear(domain[d].ibm);
+                    }
                 }
             }
 

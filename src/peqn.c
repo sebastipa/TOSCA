@@ -1555,7 +1555,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             cellIds Id = GetIdFromStencil(m, k, j, i);
 
                             // FOR IBM  phi contribution only if stencil has an ibm fluid cell
-                            if(fabs(vol[m]) > 1.e-10 && isIBMFluidCell(Id.k, Id.j, Id.i, nvert))
+                            if(fabs(vol[m]) > 1.e-10 && idx[m] >= 0 && isIBMFluidCell(Id.k, Id.j, Id.i, nvert))
                             {
                                 // the number of values to be set with this call
                                 HYPRE_Int nrows = 1, ncols = 1;

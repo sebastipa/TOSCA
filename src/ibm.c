@@ -3311,7 +3311,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
         //find the distance from the wall where velocity is interpolated
         //a uniform distance from the wall is chosen for all ibm fluid points to prevent instabilities due to the stair step structure
         cellSize = pow( 1./aj[k][j][i], 1./3.);
-        bPt = nScale(2.5 * cellSize, eNorm);
+        bPt = nScale(2.0 * cellSize, eNorm);
         mSum(bPt, ibF[c].pMin);
 
         //check the neighbourhood of current ibm fluid cell for fluid cells

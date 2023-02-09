@@ -2234,7 +2234,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // set to zero at solid internal cells and skip
-                if(isIBMCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert))
                 {
                     nut[k][j][i] = 0.0;
                     continue;
