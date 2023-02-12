@@ -11,7 +11,7 @@ LIBFLAG   = -lpthread -lrt -ldl -lstdc++ \
 
 LIBDIR    = -L$(PETSCLIB) -L$(HDF5LIB) -L$(CATALYST)/lib
 
-CPPFLAGS  = -I$(PETSCINC1) -I$(PETSCINC2) -I$(CATALYST)/include/catalyst-2.0/ -O3 -g \
+CPPFLAGS  = -I$(PETSCINC1) -I$(PETSCINC2) -I$(CATALYST)/include/catalyst-2.0/ -O3 -g -lhdf5\
             -DPARAVIEW_IMPL_DIR=\"\" -DUSE_CATALYST=0
 
 

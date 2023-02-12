@@ -199,13 +199,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             fatalErrorInFunction("SetInitialFieldU", error);
         }
 
-        if(ueqn->access->teqn->initFieldType != "ABLFlow")
-        {
-            char error[512];
-            sprintf(error, "Set initial field in /boundary/T to ABLFlow\n");
-            fatalErrorInFunction("SetInitialFieldU", error);
-        }
-
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetABLInitialFlowU(ueqn);
     }
@@ -262,6 +255,16 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for T: %s\n\n", teqn->initFieldType.c_str());
         SetUniformFieldT(teqn, tRef);
     }
+    else if (teqn->initFieldType == "linear")
+    {
+        PetscReal tRef, tLapse;
+
+        readSubDictDouble(filename.c_str(), "linear", "tRef", &(tRef));
+        readSubDictDouble(filename.c_str(), "linear", "tLapse", &(tLapse));
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for T: %s\n\n", teqn->initFieldType.c_str());
+        SetLinearFieldT(teqn, tRef, tLapse);
+    }
     else if (teqn->initFieldType == "ABLFlow")
     {
         if(!(teqn->access->flags->isAblActive))
@@ -296,7 +299,7 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
     else
     {
         char error[512];
-        sprintf(error, "Invalid initial field keyword. Available initial fields at time=0 are:\n\n        1. uniform\n        2. ABLFlow\n        3. spreadInflow\n");
+        sprintf(error, "Invalid initial field keyword. Available initial fields at time=0 are:\n\n        1. uniform\n        2. linear\n        3. ABLFlow\n        4. spreadInflow\n");
         fatalErrorInFunction("SetInitialFieldT", error);
     }
 
@@ -532,13 +535,13 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                 {
                     uCell.z += (uTau/vkConst)*std::log(hInversion/hRough) * faceArea;
                 }
-				
+
 				PetscReal zPeak    = 0.015;
                 PetscReal deltaV   = 0.1*uRef;
                 PetscReal deltaU   = 0.1*uRef;
                 PetscReal Uperiods = 12;
                 PetscReal Vperiods = 12;
-				
+
                 // perturbations to trigger turbulence
                 uCell.z
                 +=
@@ -557,7 +560,7 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                 std::sin(Vperiods * 2.0 * M_PI * y/Ly) *
                 (z/(zPeak*Lz)) *
                 std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
-                
+
 
                 ContravariantToCartesianPoint
                 (
@@ -1130,6 +1133,57 @@ PetscErrorCode SetUniformFieldT(teqn_ *teqn, PetscReal &tRef)
     }
 
     DMDAVecRestoreArray(da, teqn->Tmprt,  &temp);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    UpdateTemperatureBCs(teqn);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetLinearFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse)
+{
+    mesh_         *mesh = teqn->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***temp;
+    Cmpnts        ***cent;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, teqn->Tmprt,  &temp);
+    DMDAVecGetArray(fda, mesh->Cent, &cent);
+
+    // loop on the internal cells and set the reference cartesian velocity
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+
+                temp[k][j][i] = tRef + h*tLapse;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, teqn->Tmprt,  &temp);
+    DMDAVecRestoreArray(fda, mesh->Cent, &cent);
 
     // scatter data to local values
     DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);

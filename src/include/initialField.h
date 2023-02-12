@@ -35,6 +35,9 @@ PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn);
 //!< \brief set uniform value for the temperature
 PetscErrorCode SetUniformFieldT(teqn_ *teqn, PetscReal &tRef);
 
+//!< \brief set linear profile for the temperature
+PetscErrorCode SetLinearFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse);
+
 //!< \brief set initial ABL flow T
 PetscErrorCode SetABLInitialFlowT(teqn_ *teqn);
 
