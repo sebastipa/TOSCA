@@ -25,6 +25,7 @@ struct abl_
     PetscReal    vkConst;                        //!< von Karman constant
     PetscReal    smear;                          //!< Rampanelli Zardi model parameter
     PetscReal    fc;                             //!< Coriolis parameter (omegaEarth * sin(latitude) = 7.292115e-5 * sin(latitude))
+    PetscInt     perturbations;                  //!< add turbulent perturbations (only if initialization is set to ABLFlow)
 
     PetscReal   *cellLevels;                     //!< heights of the averaging planes
 
@@ -114,7 +115,7 @@ struct abl_
     Vec          uBarInstY;                      //!< instantaneous bar velocity for y-fringe region (only used for concurent precursor)
     Vec          tBarInstY;                      //!< instantaneous bar temperature for y-fringe region (only used for concurent precursor)
     PetscInt     **yFringeInterpIDs;             //!< vector of size [Nx, 2] storing the interpolation IDs along x from the concurrent precursor
-    PetscReal    **yFringeInterpWeights;         //!< vector of size [Nx, 2] storing the interpolation weights along x from the concurrent precursor 
+    PetscReal    **yFringeInterpWeights;         //!< vector of size [Nx, 2] storing the interpolation weights along x from the concurrent precursor
 
     // type of uBar computation
     PetscInt     xFringeUBarSelectionType;       //!< read type of fringe region in uBarSelectionType

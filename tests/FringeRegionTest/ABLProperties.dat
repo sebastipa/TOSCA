@@ -107,3 +107,6 @@ sideForceProperties
     zStartSideF   0
     zEndSideF     500
 }
+
+# perturbations to trigger turbulence 
+perturbations   0

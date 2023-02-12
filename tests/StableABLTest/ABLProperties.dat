@@ -71,3 +71,6 @@ controllerProperties
 # Coriolis parameter: 7.272205217e-5 * sin(latitude)
 fCoriolis 5.156303966e-5
 
+# perturbations to trigger turbulence 
+perturbations   0
+

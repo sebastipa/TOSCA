@@ -72,6 +72,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
     readDictInt   ("ABLProperties.dat", "coriolisActive",   &(abl->coriolisActive));
     readDictInt   ("ABLProperties.dat", "controllerActive", &(abl->controllerActive));
     readDictInt   ("ABLProperties.dat", "controllerActiveT",&(abl->controllerActiveT));
+    readDictInt   ("ABLProperties.dat", "perturbations",    &(abl->perturbations));
 
     if(abl->coriolisActive)
     {
@@ -298,7 +299,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // read geosptrophic height
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "hGeo",     &(abl->hGeo));
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaGeo", &(abl->geoAngle));
-				
+
 				// read geostrophic speed
 				PetscReal geoWindMag;
 				readSubDictDouble("ABLProperties.dat", "controllerProperties", "uGeoMag", &geoWindMag);
@@ -364,7 +365,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 PetscPrintf(mesh->MESH_COMM, "   -> sum of weights = %lf, w1 = %lf, w2 = %lf\n", abl->levelWeightsGeo[0]+abl->levelWeightsGeo[1], abl->levelWeightsGeo[0], abl->levelWeightsGeo[1]);
 
                 std::vector<PetscReal> ().swap(absLevelDelta);
-				
+
 				// modify uTau to match exact uGeo above inversion (for proper initial condition)
                 abl->uTau = geoWindMag * abl->vkConst / std::log(abl->hInv / abl->hRough);
             }

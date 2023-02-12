@@ -93,3 +93,5 @@ xDampingProperties
     cellWidth2 20
 }
    
+# perturbations to trigger turbulence 
+perturbations   0

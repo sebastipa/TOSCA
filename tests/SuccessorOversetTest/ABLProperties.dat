@@ -74,3 +74,5 @@ zDampingProperties
     zDampingAlsoXY  0 
 }    
    
+# perturbations to trigger turbulence 
+perturbations   0

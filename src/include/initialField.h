@@ -23,8 +23,8 @@ PetscErrorCode SetInitialFieldP(peqn_ *peqn);
 //!< \brief set the initial variables for LES
 PetscErrorCode SetInitialFieldLES(les_ *les);
 
-//!< \brief set uniform value for the cartesian velocity
-PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef);
+//!< \brief set uniform value for the cartesian velocity (add perturbations if applicable)
+PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef, PetscInt &addPerturbations);
 
 //!< \brief set initial ABL flow U
 PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn);

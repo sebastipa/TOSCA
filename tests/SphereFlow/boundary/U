@@ -1,8 +1,8 @@
-# OKWind Input file - U boundary conditions 
+ # OKWind Input file - U boundary conditions 
 # ----------------------
 
 
-internalField    spreadInflow
+internalField     spreadInflow
 #internalField    readField
 
 # boundary patches

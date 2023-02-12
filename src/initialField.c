@@ -176,12 +176,14 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
     }
     else if (ueqn->initFieldType == "uniform")
     {
-        Cmpnts uRef;
+        Cmpnts   uRef;
+        PetscInt addPerturbations;
 
-        readSubDictVector(filename.c_str(), "uniform", "value", &(uRef));
+        readSubDictVector(filename.c_str(), "uniform", "value",         &(uRef));
+        readSubDictInt   (filename.c_str(), "uniform", "perturbations", &(addPerturbations));
 
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
-        SetUniformFieldU(ueqn, uRef);
+        SetUniformFieldU(ueqn, uRef, addPerturbations);
     }
     else if (ueqn->initFieldType == "ABLFlow")
     {
@@ -326,7 +328,7 @@ PetscErrorCode SetInitialFieldLES(les_ *les)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef)
+PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef, PetscInt &addPerturbations)
 {
     mesh_ *mesh = ueqn->access->mesh;
     DM            da   = mesh->da, fda = mesh->fda;
@@ -336,7 +338,7 @@ PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef)
     PetscInt      zs   = info.zs, ze = info.zs + info.zm;
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
-    Cmpnts        ***ucont, ***ucat;
+    Cmpnts        ***ucont, ***ucat, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
     Cmpnts        uFaceI, uFaceJ, uFaceK;
 
@@ -347,7 +349,12 @@ PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
+    PetscReal     Lx = mesh->bounds.Lx;
+    PetscReal     Ly = mesh->bounds.Ly;
+    PetscReal     Lz = mesh->bounds.Lz;
+
     DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     // loop on the internal cells and set the reference cartesian velocity
     for(k=lzs; k<lze; k++)
@@ -359,11 +366,43 @@ PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef)
                 ucat[k][j][i].x = uRef.x;
                 ucat[k][j][i].y = uRef.y;
                 ucat[k][j][i].z = uRef.z;
+
+                if(addPerturbations)
+                {
+                    PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                    PetscReal x = cent[k][j][i].x;
+                    PetscReal y = cent[k][j][i].y;
+                    PetscReal z = cent[k][j][i].z;
+
+                    PetscReal zPeak    = 0.05;
+                    PetscReal deltaV   = 0.1*nMag(uRef);
+                    PetscReal deltaU   = 0.1*nMag(uRef);
+                    PetscReal Uperiods = 12;
+                    PetscReal Vperiods = 12;
+
+                    // perturbations to trigger turbulence
+                    ucat[k][j][i].x
+                    +=
+                    deltaU *
+                    std::exp(0.5) *
+                    std::cos(Uperiods * 2.0 * M_PI * x/Lx) *
+                    (z/(zPeak*Lz)) *
+                    std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
+
+                    ucat[k][j][i].y
+                    +=
+                    deltaV *
+                    std::exp(0.5) *
+                    std::sin(Vperiods * 2.0 * M_PI * y/Ly) *
+                    (z/(zPeak*Lz)) *
+                    std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
+                }
             }
         }
     }
 
     DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
     // scatter data to local values
     DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
@@ -536,30 +575,33 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                     uCell.z += (uTau/vkConst)*std::log(hInversion/hRough) * faceArea;
                 }
 
-				PetscReal zPeak    = 0.015;
-                PetscReal deltaV   = 0.1*uRef;
-                PetscReal deltaU   = 0.1*uRef;
-                PetscReal Uperiods = 12;
-                PetscReal Vperiods = 12;
+                if(abl->perturbations)
+                {
+    				PetscReal zPeak    = 0.05;
+                    PetscReal deltaV   = 0.1*uRef;
+                    PetscReal deltaU   = 0.1*uRef;
+                    PetscReal Uperiods = 12;
+                    PetscReal Vperiods = 12;
 
-                // perturbations to trigger turbulence
-                uCell.z
-                +=
-                faceArea *
-                deltaU *
-                std::exp(0.5) *
-                std::cos(Uperiods * 2.0 * M_PI * x/Lx) *
-                (z/(zPeak*Lz)) *
-                std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
+                    // perturbations to trigger turbulence
+                    uCell.z
+                    +=
+                    faceArea *
+                    deltaU *
+                    std::exp(0.5) *
+                    std::cos(Uperiods * 2.0 * M_PI * x/Lx) *
+                    (z/(zPeak*Lz)) *
+                    std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
 
-                uCell.x
-                +=
-                faceArea *
-                deltaV *
-                std::exp(0.5) *
-                std::sin(Vperiods * 2.0 * M_PI * y/Ly) *
-                (z/(zPeak*Lz)) *
-                std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
+                    uCell.x
+                    +=
+                    faceArea *
+                    deltaV *
+                    std::exp(0.5) *
+                    std::sin(Vperiods * 2.0 * M_PI * y/Ly) *
+                    (z/(zPeak*Lz)) *
+                    std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
+                }
 
 
                 ContravariantToCartesianPoint
