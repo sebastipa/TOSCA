@@ -7,11 +7,10 @@
 #include "include/inline.h"
 #include "include/turbines.h"
 
-// Two words about our ADM implementation. Our ADM model is a detailed actuator disk
-// model with blade pitch and generator speed controls, blade and airfoil properties
+// Two words about our turbine model implementations. Our ADM/ALM models are detailed actuator disk/line
+// models with blade pitch and generator speed controls, blade and airfoil properties
 // linearly interpolated where necessary. UniformADM is a simple AD version, where the
-// thrust is weighted based on the rotor mesh element area. The code is thought to
-// accomodate also ALM model, that is in place but not implemented. Yaw control
+// thrust is weighted based on the rotor mesh element area. Yaw control
 // can be activated for all models and is based upon 1D upstream velocity sampling. Turbines
 // rotate with a prescribed nacelle rotation speed.
 // We have fully optimized parallel communication: each turbine, tower and up-sampling
@@ -27,7 +26,7 @@
 // all turbines is never performed. There is only 1 communication of type MPI_Reduce
 // for wind turbine yaw syncronization on the master node, which will then write
 // the mesh to file. That is done only at global write time (not at turbine log write time).
-// Non private function is "PetscErrorCode UpdateWindTurbines(farm_ *farm)"" defined at line 162.
+// The only function call for turbine update is "PetscErrorCode UpdateWindTurbines(farm_ *farm)"".
 
 
 PetscErrorCode UpdateWindTurbines(farm_ *farm)
@@ -1502,7 +1501,7 @@ PetscErrorCode findControlledPointsTower(farm_ *farm)
                 // create temporary vectors
                 std::vector<PetscReal> lminDist(npts_t);
                 std::vector<PetscReal> gminDist(npts_t);
-                std::vector<Cmpnts> perturb(npts_t);
+                std::vector<Cmpnts>    perturb(npts_t);
 
                 // loop over the tower mesh points
                 for(p=0; p<npts_t; p++)
@@ -1531,8 +1530,8 @@ PetscErrorCode findControlledPointsTower(farm_ *farm)
                     {
                         // cell indices
                         PetscInt i = wt->twr.controlledCells[c].i,
-                            j = wt->twr.controlledCells[c].j,
-                            k = wt->twr.controlledCells[c].k;
+                                 j = wt->twr.controlledCells[c].j,
+                                 k = wt->twr.controlledCells[c].k;
 
                         // compute distance from mesh cell to AD point
                         Cmpnts r_c = nSub(point_p, cent[k][j][i]);
@@ -1578,7 +1577,7 @@ PetscErrorCode findControlledPointsTower(farm_ *farm)
                 // clean memory
                 std::vector<PetscReal> ().swap(lminDist);
                 std::vector<PetscReal> ().swap(gminDist);
-                std::vector<Cmpnts> ().swap(perturb);
+                std::vector<Cmpnts>    ().swap(perturb);
             }
         }
     }
@@ -2146,18 +2145,27 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         for (j1=j-2; j1<j+3; j1++)
                         for (i1=i-2; i1<i+3; i1++)
                         {
-                            // compute distance from mesh cell to AF point
-                            Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
-
-                            // compute magnitude
-                            PetscReal r_c_mag = nMag(r_c);
-
-                            if(r_c_mag < r_c_minMag)
+                            // make sure not to interpolate from ghost: AFM control cells could be near ground
+                            if
+                            (
+                                (i1>0 && i1<mx-1) &&
+                                (j1>0 && j1<my-1) &&
+                                (k1>0 && k1<mz-1)
+                            )
                             {
-                                r_c_minMag = r_c_mag;
-                                closestCell.i = i1;
-                                closestCell.j = j1;
-                                closestCell.k = k1;
+                                // compute distance from mesh cell to AF point
+                                Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
+
+                                // compute magnitude
+                                PetscReal r_c_mag = nMag(r_c);
+
+                                if(r_c_mag < r_c_minMag)
+                                {
+                                    r_c_minMag = r_c_mag;
+                                    closestCell.i = i1;
+                                    closestCell.j = j1;
+                                    closestCell.k = k1;
+                                }
                             }
                         }
 
@@ -2329,29 +2337,29 @@ PetscErrorCode computeWindVectorsTower(farm_ *farm)
                         for (j1=j-2; j1<j+3; j1++)
                         for (i1=i-2; i1<i+3; i1++)
                         {
-                            // compute distance from mesh cell to AD point
-                            Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
-
-                            // compute magnitude
-                            PetscReal r_c_mag = nMag(r_c);
-
-                            if(r_c_mag < r_c_minMag)
+                            // make sure not to interpolate from ghost: tower is usually next to boundaries
+                            if
+                            (
+                                (i1>0 && i1<mx-1) &&
+                                (j1>0 && j1<my-1) &&
+                                (k1>0 && k1<mz-1)
+                            )
                             {
-                                r_c_minMag = r_c_mag;
-                                closestCell.i = i1;
-                                closestCell.j = j1;
-                                closestCell.k = k1;
+                                // compute distance from mesh cell to AD point
+                                Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
+
+                                // compute magnitude
+                                PetscReal r_c_mag = nMag(r_c);
+
+                                if(r_c_mag < r_c_minMag)
+                                {
+                                    r_c_minMag = r_c_mag;
+                                    closestCell.i = i1;
+                                    closestCell.j = j1;
+                                    closestCell.k = k1;
+                                }
                             }
                         }
-
-                        // make sure not to interpolate from ghost: tower is usually next to boundaries
-                        PetscInt flag = 0;
-                        if(closestCell.i < 2)    {closestCell.i = 2;    flag += 1;}
-                        if(closestCell.j < 2)    {closestCell.j = 2;    flag += 1;}
-                        if(closestCell.k < 2)    {closestCell.k = 2;    flag += 1;}
-                        if(closestCell.i > mx-3) {closestCell.i = mx-3; flag += 1;}
-                        if(closestCell.j < my-3) {closestCell.j = my-3; flag += 1;}
-                        if(closestCell.k < mz-3) {closestCell.k = mz-3; flag += 1;}
 
                         // trilinear interpolate
                         vectorPointLocalVolumeInterpolation
@@ -2367,6 +2375,8 @@ PetscErrorCode computeWindVectorsTower(farm_ *farm)
                 }
 
                 MPI_Allreduce(&(lU[0]), &(wt->twr.U[0]), wt->twr.nPoints*3, MPIU_REAL, MPIU_SUM, wt->twr.TWR_COMM);
+
+
 
                 // loop over the tower mesh points
                 for(p=0; p<npts_t; p++)
@@ -3524,7 +3534,7 @@ PetscErrorCode projectTowerForce(farm_ *farm)
 
                 // projection parameters
                 PetscReal rPrj = wt->twr.eps * wt->twr.prjNSigma,
-                       eps  = wt->twr.eps;
+                          eps  = wt->twr.eps;
 
                 // number of points in the tower mesh
                 PetscInt npts_t = wt->twr.nPoints;
@@ -5652,12 +5662,12 @@ PetscErrorCode initControlledCells(farm_ *farm)
 
             lnCells = wt->twr.nControlled;
 
-            // scatter on all processors because there might not be a TWR_COMM if no cells were selected
+            // scatter on MESH_COMM because there might not be a TWR_COMM if no cells were selected
             MPI_Allreduce(&lnCells, &gnCells, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
 
             if(gnCells == 0)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not find any tower cells when searching, try increase tower epsilon\n");
                 fatalErrorInFunction("initControlledCells",  error);
             }
