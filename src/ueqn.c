@@ -580,6 +580,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         uMeanGeo.z = guMeanGeo1.z * abl->levelWeightsGeo[0] + guMeanGeo2.z * abl->levelWeightsGeo[1];
 
         if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
+		if(print) PetscPrintf(mesh->MESH_COMM, "                         U at hRef: (%.3f %.3f %.3f) m/s, U at hGeo: (%.3f %.3f %.3f) m/s\n", uMean.x, uMean.y, uMean.z, uMeanGeo.x, uMeanGeo.y, uMeanGeo.z);
 
         // compute actual angles
         PetscReal hubAngle    = std::atan(uMean.y/uMean.x);
@@ -590,6 +591,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
         // compute filtered geostrophic angle
         abl->geoAngle = (1.0 - clock->dt / T) * abl->geoAngle + (clock->dt / T) * geoAngleNew;
+		
+		if(print) PetscPrintf(mesh->MESH_COMM, "                         Alpha at hRef: %.3f deg, Alpha at hGeo: %.3f deg\n",abl->hubAngle/M_PI*180, abl->geoAngle/M_PI*180);
 
         // compute the uniform source terms
         abl->a.x = -2.0*abl->fc*nMag(abl->uGeoBar)*sin(abl->geoAngle);
@@ -613,7 +616,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             PetscReal omega    = hubDelta / clock->dt;
 
             // time constant
-            PetscReal sigma    = clock->dt / 200;
+            PetscReal sigma    = clock->dt / 200; // filter hardcoded to 200s
 
             // compute omega bar
             abl->omegaBar    = sigma * omega + (1.0 - sigma) * abl->omegaBar;
@@ -736,14 +739,17 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 {
                     if(abl->controllerType=="geostrophic")
                     {
-                        source[k][j][i].x = abl->a.x + abl->b.x*ucat[k][j][i].y;
-                        source[k][j][i].y = abl->a.y + abl->b.y*ucat[k][j][i].x;
+						// multiply by dt for how TOSCA builds the source RHS
+                        source[k][j][i].x = (abl->a.x + abl->b.x*ucat[k][j][i].y) * clock->dt;
+                        source[k][j][i].y = (abl->a.y + abl->b.y*ucat[k][j][i].x) * clock->dt;
                         source[k][j][i].z = 0.0;
                     }
                     else if(abl->controllerType=="pressure")
                     {
                         if(applyGeoDamping)
                         {
+							// multiply by dt for how TOSCA builds the source RHS (only geo damping)
+							
                             PetscReal  height = cent[k][j][i].z - mesh->bounds.zmin;
                             source[k][j][i].x = s.x +
                                                 scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *

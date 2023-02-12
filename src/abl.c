@@ -298,6 +298,10 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // read geosptrophic height
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "hGeo",     &(abl->hGeo));
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaGeo", &(abl->geoAngle));
+				
+				// read geostrophic speed
+				PetscReal geoWindMag;
+				readSubDictDouble("ABLProperties.dat", "controllerProperties", "uGeoMag", &geoWindMag);
 
                 // initial parameters (should be correct at ABL convergence)
                 abl->geoAngle = abl->geoAngle*M_PI/180;
@@ -305,7 +309,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 abl->omegaBar = 0.0;
 
                 // compute geostrophic speed
-                abl->uGeoBar  = nSetFromComponents(NieuwstadtGeostrophicWind(abl), 0.0, 0.0);
+                // abl->uGeoBar  = nSetFromComponents(NieuwstadtGeostrophicWind(abl), 0.0, 0.0);
+				abl->uGeoBar  = nSetFromComponents(geoWindMag, 0.0, 0.0);
 
                 // rotate according to initial angle
                 Cmpnts uGeoBarTmp = nSetZero();
@@ -359,6 +364,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 PetscPrintf(mesh->MESH_COMM, "   -> sum of weights = %lf, w1 = %lf, w2 = %lf\n", abl->levelWeightsGeo[0]+abl->levelWeightsGeo[1], abl->levelWeightsGeo[0], abl->levelWeightsGeo[1]);
 
                 std::vector<PetscReal> ().swap(absLevelDelta);
+				
+				// modify uTau to match exact uGeo above inversion (for proper initial condition)
+                abl->uTau = geoWindMag * abl->vkConst / std::log(abl->hInv / abl->hRough);
             }
         }
         // source terms are read or averaged from available database

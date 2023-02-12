@@ -5718,7 +5718,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
                                 // biggest one. Test if is in the proximity of the closest cell.
 
                                 // furthest possible distance as 5.0 * cellWidth (w have to make this check more precise for high AR cell)
-                                PetscReal cellWidth = 5.0*pow(1.0/aj[indices[0]][indices[1]][indices[2]], 1.0/3.0);
+                                PetscReal cellWidth = 20.0*pow(1.0/aj[indices[0]][indices[1]][indices[2]], 1.0/3.0);
 
                                 // next to closest cell: is inside this domain
                                 if(gminDist < cellWidth)

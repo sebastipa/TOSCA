@@ -532,6 +532,32 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                 {
                     uCell.z += (uTau/vkConst)*std::log(hInversion/hRough) * faceArea;
                 }
+				
+				PetscReal zPeak    = 0.015;
+                PetscReal deltaV   = 0.1*uRef;
+                PetscReal deltaU   = 0.1*uRef;
+                PetscReal Uperiods = 12;
+                PetscReal Vperiods = 12;
+				
+                // perturbations to trigger turbulence
+                uCell.z
+                +=
+                faceArea *
+                deltaU *
+                std::exp(0.5) *
+                std::cos(Uperiods * 2.0 * M_PI * x/Lx) *
+                (z/(zPeak*Lz)) *
+                std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
+
+                uCell.x
+                +=
+                faceArea *
+                deltaV *
+                std::exp(0.5) *
+                std::sin(Vperiods * 2.0 * M_PI * y/Ly) *
+                (z/(zPeak*Lz)) *
+                std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
+                
 
                 ContravariantToCartesianPoint
                 (

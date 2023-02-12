@@ -7,7 +7,7 @@
 #include "include/initialization.h"
 #include "include/inline.h"
 
-#ifdef USE_CATALYST
+#ifndef USE_CATALYST
 #include "include/catalystAdaptor.h"
 #endif
 
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 
     if(flags.isPvCatalystActive)
     {
-        #ifdef USE_CATALYST
+        #ifndef USE_CATALYST
         catalystInitialize(domain);
         #endif
     }
@@ -217,7 +217,7 @@ int main(int argc, char **argv)
 
         if(flags.isPvCatalystActive)
         {
-            #ifdef USE_CATALYST
+            #ifndef USE_CATALYST
             catalystExecute(domain);
             #endif
         }
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
 
     }
 
-    #ifdef USE_CATALYST
+    #ifndef USE_CATALYST
     catalystFinalize();
     #endif
 
