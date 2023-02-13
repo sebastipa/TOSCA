@@ -954,10 +954,10 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
         windTurbine *wt = farm->wt[t];
 
         // test if this processor controls this turbine
-        if(wt->turbineControlled && wt->yawChanged)
+        if(wt->turbineControlled)
         {
             // actuator disk model
-            if((*farm->turbineModels[t]) == "ADM")
+            if((*farm->turbineModels[t]) == "ADM" && wt->yawChanged)
             {
                 // number of points in the AD mesh
                 PetscInt npts_t = wt->adm.nPoints;
@@ -1049,7 +1049,7 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                 std::vector<Cmpnts> ().swap(perturb);
             }
             // uniform actuator disk model
-            else if((*farm->turbineModels[t]) == "uniformADM")
+            else if((*farm->turbineModels[t]) == "uniformADM" && wt->yawChanged)
             {
                 // number of points in the AD mesh
                 PetscInt npts_t = wt->uadm.nPoints;
@@ -1234,66 +1234,70 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                 std::vector<Cmpnts> ().swap(perturb);
             }
             // actuator farm model
-            else if((*farm->turbineModels[t]) == "AFM" && !wt->afm.searchDone)
+            else if((*farm->turbineModels[t]) == "AFM")
             {
-                Cmpnts perturbVec;
-                       perturbVec.x = procContrib;
-                       perturbVec.y = procContrib;
-                       perturbVec.z = procContrib;
-
-                // we must find the closest cell to the AF point
-                Cmpnts rotor_c = wt->afm.point;
-
-                PetscReal gmindist, lmindist = 1e10;
-                cellIds   closestCell;
-
-                // loop over the sphere cells
-                for(c=0; c<wt->nControlled; c++)
+                // do the search only once even if yaw changes for this
+                if(!wt->afm.searchDone)
                 {
-                    // cell indices
-                    PetscInt i = wt->controlledCells[c].i,
-                             j = wt->controlledCells[c].j,
-                             k = wt->controlledCells[c].k;
+                    Cmpnts perturbVec;
+                           perturbVec.x = procContrib;
+                           perturbVec.y = procContrib;
+                           perturbVec.z = procContrib;
 
-                    // compute cell center to point distance
-                    Cmpnts dist = nSub(cent[k][j][i], rotor_c);
-                                  mSub(dist, perturbVec);
+                    // we must find the closest cell to the AF point
+                    Cmpnts rotor_c = wt->afm.point;
 
-                    // compute distance magnitude
-                    PetscReal distMag = nMag(dist);
+                    PetscReal gmindist, lmindist = 1e10;
+                    cellIds   closestCell;
 
-                    // test if inside sphere
-                    if(distMag < lmindist)
+                    // loop over the sphere cells
+                    for(c=0; c<wt->nControlled; c++)
                     {
-                        closestCell.i = i;
-                        closestCell.j = j;
-                        closestCell.k = k;
+                        // cell indices
+                        PetscInt i = wt->controlledCells[c].i,
+                                 j = wt->controlledCells[c].j,
+                                 k = wt->controlledCells[c].k;
 
-                        lmindist = distMag;
+                        // compute cell center to point distance
+                        Cmpnts dist = nSub(cent[k][j][i], rotor_c);
+                                      mSub(dist, perturbVec);
+
+                        // compute distance magnitude
+                        PetscReal distMag = nMag(dist);
+
+                        // test if inside sphere
+                        if(distMag < lmindist)
+                        {
+                            closestCell.i = i;
+                            closestCell.j = j;
+                            closestCell.k = k;
+
+                            lmindist = distMag;
+                        }
                     }
+
+                    // find the overall minimum distance
+                    MPI_Allreduce(&lmindist, &gmindist, 1, MPIU_REAL, MPIU_MIN, wt->TRB_COMM);
+
+                    // compare the lists, where they agree the point is in this processor
+                    if(lmindist == gmindist)
+                    {
+                        // set closest cell indices
+                        wt->afm.closestCell.i = closestCell.i;
+                        wt->afm.closestCell.j = closestCell.j;
+                        wt->afm.closestCell.k = closestCell.k;
+
+                        // set controlled flag
+                        wt->afm.thisPtControlled = 1;
+                    }
+                    else
+                    {
+                        // set controlled flag
+                        wt->afm.thisPtControlled = 0;
+                    }
+
+                    wt->afm.searchDone = 1;
                 }
-
-                // find the overall minimum distance
-                MPI_Allreduce(&lmindist, &gmindist, 1, MPIU_REAL, MPIU_MIN, wt->TRB_COMM);
-
-                // compare the lists, where they agree the point is in this processor
-                if(lmindist == gmindist)
-                {
-                    // set closest cell indices
-                    wt->afm.closestCell.i = closestCell.i;
-                    wt->afm.closestCell.j = closestCell.j;
-                    wt->afm.closestCell.k = closestCell.k;
-
-                    // set controlled flag
-                    wt->afm.thisPtControlled = 1;
-                }
-                else
-                {
-                    // set controlled flag
-                    wt->afm.thisPtControlled = 0;
-                }
-
-                wt->afm.searchDone = 1;
             }
         }
     }
@@ -2912,6 +2916,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
 
                 // aerodynamic power
                 wt->alm.aeroPwr = wt->alm.rtrTorque * wt->rtrOmega;
+
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
@@ -6772,7 +6777,9 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
         readTowerProperties(wt, dictName);
     }
 
-    // set yaw changed parameter to 1 at initialization (always perform the first search)
+    // set yaw changed parameter to 1 at initialization
+    // this makes sure all models do the first cell to point search
+    // ALM always does the search as blades are rotating
     wt->yawChanged = 1;
 
     return(0);
