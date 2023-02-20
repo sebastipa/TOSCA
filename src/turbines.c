@@ -63,6 +63,9 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     // compute wind velocity at the tower mesh points
     computeWindVectorsTower(farm);
 
+    // compute wind velocity at the nacelle mesh point
+    computeWindVectorsNacelle(farm);
+
     // compute wind velocity at the sample mesh points
     computeWindVectorsSample(farm);
 
@@ -74,6 +77,9 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
 
     // project the tower forces on the background mesh
     projectTowerForce(farm);
+
+    // project the nacelle forces on the background mesh
+    projectNacelleForce(farm);
 
     // transform forces from cartesian to contravariant
     bodyForceCartesian2Contravariant(farm);
@@ -141,11 +147,14 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
                 initTwrModel(farm->wt[t], farm->base[t]);
             }
 
+            // initialize the tower model
+            if(farm->wt[t]->includeNacelle)
+            {
+                initNacModel(farm->wt[t], farm->base[t]);
+            }
+
             // initialize upstream velocity sampling
             initSamplePoints(farm->wt[t], farm->base[t], mesh->meshName);
-
-            // initialize the nacelle model
-            // initNacModel(farm->wt[t]);
         }
 
         PetscPrintf(mesh->MESH_COMM, "   pre-calculating influence sphere cells...\n");
@@ -156,8 +165,11 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
         // initialize sample sphere cells and see what processor controls which sampling rig
         initSampleControlledCells(farm);
 
-        // determine which points in each tower are controlled by which processor
+        // determine which points in each tower are controlled by which processor (also finds closest cell)
         findControlledPointsTower(farm);
+
+        // determine which points in each nacelle are controlled by which processor (also finds closest cell)
+        findControlledPointsNacelle(farm);
 
         // read the checkpoint file if present and prepare wind turbines for restart
         windTurbinesReadCheckpoint(farm);
@@ -1596,6 +1608,124 @@ PetscErrorCode findControlledPointsTower(farm_ *farm)
 
 //***************************************************************************************************************//
 
+PetscErrorCode findControlledPointsNacelle(farm_ *farm)
+{
+    mesh_            *mesh = farm->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         t, c, p;
+
+    Cmpnts           ***cent;   // local vector (no ambiguity in this context)
+
+    PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    // create point perturbation range for breaking ties in determining the
+    // owner processor. Note: the actual position of the points is not changed,
+    // this is only to make sure that the nac point is only controlled by a
+    // single processor.
+
+    // max perturbation amplitude
+    PetscReal maxPerturb  = 1e-10;
+
+    // processor perturbation (changes between processors)
+    PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)nprocs;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    // loop over each wind turbine
+    for(t=0; t<farm->size; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        // test if nacelle is modeled in this turbine
+        if(wt->includeNacelle)
+        {
+            // test if this processor controls this turbine
+            if(wt->nac.nControlled)
+            {
+                // create temporary vectors
+                PetscReal lminDist = 1e20;
+                PetscReal gminDist = 1e20;
+                Cmpnts    perturb  = nSetFromComponents(procContrib,procContrib,procContrib);
+
+                // save this point locally
+                Cmpnts point_p = wt->nac.point;
+
+                // perturb the point position
+                mSum(point_p, perturb);
+
+                // find the closest cell center
+                PetscReal  r_c_minMag = 1e20;
+                cellIds    closestCell;
+
+                // loop over the tower cells
+                for(c=0; c<wt->nac.nControlled; c++)
+                {
+                    // cell indices
+                    PetscInt i = wt->nac.controlledCells[c].i,
+                             j = wt->nac.controlledCells[c].j,
+                             k = wt->nac.controlledCells[c].k;
+
+                    // compute distance from mesh cell to AD point
+                    Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                    // compute magnitude
+                    PetscReal r_c_mag = nMag(r_c);
+
+                    if(r_c_mag < r_c_minMag)
+                    {
+                        r_c_minMag = r_c_mag;
+                        closestCell.i = i;
+                        closestCell.j = j;
+                        closestCell.k = k;
+                    }
+                }
+
+                // save closest cell indices
+                wt->nac.closestCell.i = closestCell.i;
+                wt->nac.closestCell.j = closestCell.j;
+                wt->nac.closestCell.k = closestCell.k;
+
+                // save min dist
+                lminDist = r_c_minMag;
+
+                MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, wt->nac.NAC_COMM);
+
+                // point is controlled
+                if(lminDist == gminDist)
+                {
+                    wt->nac.thisPtControlled = 1;
+                }
+                // point is not controlled
+                else
+                {
+                    wt->nac.thisPtControlled = 0;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    // check that discrimination algorithm worked
+    checkPointDiscriminationNacelle(farm);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode computeWindVectorsRotor(farm_ *farm)
 {
     clock_           *clock = farm->access->clock;
@@ -2394,6 +2524,123 @@ PetscErrorCode computeWindVectorsTower(farm_ *farm)
 
                 // clean memory
                 std::vector<Cmpnts> ().swap(lU);
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeWindVectorsNacelle(farm_ *farm)
+{
+    clock_           *clock = farm->access->clock;
+    mesh_            *mesh  = farm->access->mesh;
+    ueqn_            *ueqn  = farm->access->ueqn;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         t, c;
+
+    Cmpnts           ***cent;   // local vector (no ambiguity in this context)
+    Cmpnts           ***ucat;   // local vector (no ambiguity in this context)
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+    DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+
+    // loop over each wind turbine
+    for(t=0; t<farm->size; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        // test if nacelle is modeled in this turbine
+        if(wt->includeNacelle)
+        {
+            // test if this processor controls this nacelle
+            if(wt->nac.nControlled)
+            {
+                // local velocity for this processor
+                Cmpnts lU = nSetZero();
+
+                // save this point locally for speed
+                Cmpnts point_p = wt->nac.point;
+
+                if(wt->nac.thisPtControlled)
+                {
+                    PetscInt i = wt->nac.closestCell.i,
+                             j = wt->nac.closestCell.j,
+                             k = wt->nac.closestCell.k;
+
+                    // get velocity at that point
+                    Cmpnts uc_p = nSet(ucat[k][j][i]);
+
+                    // reverse sign to the velocity (we go backward along streamline)
+                    mScale(-1.0, uc_p);
+
+                    // find the point at which velocity must be sampled
+                    Cmpnts sample = nScale(clock->dt, uc_p);
+                                    mSum(sample, point_p);
+
+                    // find the closest cell indices to the sample point,
+                    // allow for max 2 delta cells to stay in this processor
+                    PetscReal  r_c_minMag = 1e20;
+                    cellIds    closestCell;
+                    PetscInt   k1, j1, i1;
+
+                    for (k1=k-2; k1<k+3; k1++)
+                    for (j1=j-2; j1<j+3; j1++)
+                    for (i1=i-2; i1<i+3; i1++)
+                    {
+                        // make sure not to interpolate from ghost: tower is usually next to boundaries
+                        if
+                        (
+                            (i1>0 && i1<mx-1) &&
+                            (j1>0 && j1<my-1) &&
+                            (k1>0 && k1<mz-1)
+                        )
+                        {
+                            // compute distance from mesh cell to AD point
+                            Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
+
+                            // compute magnitude
+                            PetscReal r_c_mag = nMag(r_c);
+
+                            if(r_c_mag < r_c_minMag)
+                            {
+                                r_c_minMag = r_c_mag;
+                                closestCell.i = i1;
+                                closestCell.j = j1;
+                                closestCell.k = k1;
+                            }
+                        }
+                    }
+
+                    // trilinear interpolate
+                    vectorPointLocalVolumeInterpolation
+                    (
+                        mesh,
+                        sample.x, sample.y, sample.z,
+                        closestCell.i, closestCell.j, closestCell.k,
+                        cent, ucat, uc_p
+                    );
+
+                    lU = nSet(uc_p);
+                }
+
+                MPI_Allreduce(&lU, &(wt->nac.U), 3, MPIU_REAL, MPIU_SUM, wt->nac.NAC_COMM);
             }
         }
     }
@@ -3677,7 +3924,198 @@ PetscErrorCode projectTowerForce(farm_ *farm)
             word percent = "%";
 
             // print projection error info
-            printf("Wind turbine towers: global projection error on tang. force = %.5f %s, tangBFSum = %.5f, tangFSum = %.5f\n", errTang, percent.c_str(), gTangBFSum, gTangSum);
+            printf("Wind turbine towers: global projection error on tang. force = %.5f %s, tangBFSum = %.5f KN, tangFSum = %.5f KN\n", errTang, percent.c_str(), gTangBFSum/1000.0, gTangSum/1000.0);
+        }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode projectNacelleForce(farm_ *farm)
+{
+    constants_       *constants = farm->access->constants;
+    mesh_            *mesh = farm->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k, t, c, p;
+
+    Cmpnts           ***sCat;
+
+    Cmpnts           ***cent;
+
+    PetscReal        ***aj;
+
+    PetscMPIInt           rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    // global sums of tangential tower force over the entire wind farm
+    // used for the computation of the body force projection error
+    PetscReal lTangSum   = 0, gTangSum   = 0;
+    PetscReal lTangBFSum = 0, gTangBFSum = 0;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+    DMDAVecGetArray(fda, farm->lsourceFarmCat, &sCat);
+    DMDAVecGetArray(da,  mesh->lAj,    &aj);
+
+    // loop over each wind turbine
+    for(t=0; t<farm->size; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        // test if nacelle is modeled in this turbine
+        if(wt->includeNacelle)
+        {
+            // test if this processor controls this nacelle
+            if(wt->nac.nControlled)
+            {
+                // zero this nacelle thrust
+                wt->nac.nacThrust = 0.0;
+
+                // projection parameters
+                PetscReal rPrj = wt->nac.eps * wt->nac.prjNSigma,
+                          eps  = wt->nac.eps;
+
+                // get this point velocity
+                PetscReal uMag = nMag(wt->nac.U);
+
+                // compute scalar body force
+                PetscReal magB = 0.5 * uMag * uMag * wt->nac.A * wt->nac.Cd;
+
+                // get force direction unit vector (x in the local aero frame)
+                Cmpnts xa_hat = nUnit(wt->nac.U);
+
+                // compute vector body force
+                wt->nac.B = nScale(-magB, xa_hat);
+
+                // compute axial force
+                wt->nac.tangF = nDot(wt->nac.B, wt->rtrAxis);
+
+                // cumulate this nacelle thrust
+                wt->nac.nacThrust += wt->nac.tangF * constants->rho;
+
+                // save this point locally for speed
+                Cmpnts point_p = wt->nac.point;
+
+                // loop in nacelle cells
+                for(c=0; c<wt->nac.nControlled; c++)
+                {
+                    // cell indices
+                    PetscInt i = wt->nac.controlledCells[c].i,
+                             j = wt->nac.controlledCells[c].j,
+                             k = wt->nac.controlledCells[c].k;
+
+                    // compute distance from mesh cell to tower point
+                    Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                    // compute magnitude
+                    PetscReal r_c_mag = nMag(r_c);
+
+                    if(r_c_mag<rPrj)
+                    {
+                        // compute projection factor
+                        PetscReal pf
+                        =
+                        /*
+                        std::exp
+                        (
+                            -(r_c_mag *r_c_mag) /
+                             (2.0 * eps * eps)
+                        ) /
+                        (
+                            pow(eps,    3) *
+                            pow(2.0*M_PI, 1.5)
+                        );
+                        */
+                        std::exp
+                        (
+                            -(r_c_mag / eps)*
+                             (r_c_mag / eps)
+                        ) /
+                        (
+                            pow(eps,    3) *
+                            pow(M_PI, 1.5)
+                        );
+
+                        Cmpnts bfCell = nScale(pf, wt->nac.B);
+
+                        sCat[k][j][i].x += bfCell.x;
+                        sCat[k][j][i].y += bfCell.y;
+                        sCat[k][j][i].z += bfCell.z;
+
+                        // cumulate tower BF for projection error
+                        PetscReal vCell    = 1.0 / aj[k][j][i];
+                        Cmpnts tangBF = nScale(vCell*constants->rho, bfCell);
+
+                        // cumulate contribution from this AD point at this cell
+                        lTangBFSum += nDot(tangBF, wt->rtrAxis);
+                    }
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+    DMDAVecRestoreArray(fda, farm->lsourceFarmCat, &sCat);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    // scatter local to local
+    DMLocalToLocalBegin(fda, farm->lsourceFarmCat, INSERT_VALUES, farm->lsourceFarmCat);
+    DMLocalToLocalEnd(fda, farm->lsourceFarmCat, INSERT_VALUES, farm->lsourceFarmCat);
+
+    if(farm->dbg)
+    {
+        // output screen information: global parameters and projection errors
+        for(t=0; t<farm->size; t++)
+        {
+            windTurbine  *wt = farm->wt[t];
+
+            // all procs enter this test
+            if(wt->includeNacelle)
+            {
+                PetscReal       Tang        = 0.0;
+
+                // reduce tower thrust
+                MPI_Reduce(&(wt->nac.nacThrust), &Tang, 1, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+
+                if(!rank)
+                {
+                    // divide the summed up turbine parameters by the n of processors
+                    // that control this turbine since all had the data in the reduce operation
+                    Tang /= wt->nac.nProcsNac;
+
+                    // cumulate forces from this turbine
+                    lTangSum += Tang;
+                }
+            }
+        }
+
+        // reduce the global tangential force
+        MPI_Reduce(&lTangSum, &gTangSum, 1, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+
+        // reduce the global body force
+        MPI_Reduce(&lTangBFSum, &gTangBFSum, 1, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+
+        // compute projection errors if overall tower force is present
+        if(!rank && gTangSum > 1e-5)
+        {
+            // relative percentage projection errors
+            PetscReal errTang = fabs(gTangBFSum - gTangSum) / gTangSum * 100.0;
+
+            word percent = "%";
+
+            // print projection error info
+            printf("Wind turbine nacelles: global projection error on tang. force = %.5f %s, tangBFSum = %.5f  KN, tangFSum = %.5f KN\n", errTang, percent.c_str(), gTangBFSum/1000.0, gTangSum/1000.0);
         }
     }
 
@@ -5340,6 +5778,25 @@ PetscErrorCode initTwrModel(windTurbine *wt, Cmpnts &base)
 
 //***************************************************************************************************************//
 
+PetscErrorCode initNacModel(windTurbine *wt, Cmpnts &base)
+{
+    // set tower thrust to zero
+    wt->nac.nacThrust = 0.0;
+
+    // set projection confidence interval as number of standard deviations (harcoded to 2.7)
+    wt->nac.prjNSigma = sqrt(std::log(1.0/0.001));
+
+    // set nacelle point
+    wt->nac.point     = nSum(nScale(wt->hTwr, wt->twrDir), base);
+
+    // set nacelle area
+    wt->nac.A         = M_PI*wt->rHub*wt->rHub;
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode initControlledCells(farm_ *farm)
 {
     // initialize the controlled cells labels.
@@ -5653,9 +6110,116 @@ PetscErrorCode initControlledCells(farm_ *farm)
 
             MPI_Barrier(mesh->MESH_COMM);
         }
+
+        if(wt->includeNacelle)
+        {
+            // define communicator color
+            PetscInt commColor;
+
+            // cells where the velocity will be affected by the nacelle
+            std::vector<cellIds> nacelleCells;
+
+            // set this nacelle projection radius
+            PetscReal rPrj = std::min(wt->nac.eps * wt->nac.prjNSigma, wt->hTwr);
+
+            // set flag determining if this proc has cells for this nacelle to zero
+            PetscInt hasCells = 0;
+
+            // this turbine rotor center
+            Cmpnts rotor_c = wt->rotCenter;
+
+            // loop over this processor mesh points
+            for(k=lzs; k<lze; k++)
+            for(j=lys; j<lye; j++)
+            for(i=lxs; i<lxe; i++)
+            {
+                // compute distance from point to wind turbine base
+                Cmpnts dist = nSub(cent[k][j][i], rotor_c);
+
+                // compute distance magnitude
+                PetscReal distMag = nMag(dist);
+
+                // test if inside sphere
+                if(distMag < rPrj)
+                {
+                    cellIds thisCell;
+
+                    thisCell.i = i;
+                    thisCell.j = j;
+                    thisCell.k = k;
+
+                    nacelleCells.push_back(thisCell);
+
+                    // this proc has cells: activate flag
+                    if(hasCells == 0) hasCells = 1;
+                }
+            }
+
+            // if this processor has tower cells allocate and save
+            if(hasCells)
+            {
+                // set number of controlled cells
+                PetscInt nControlled = nacelleCells.size();
+                wt->nac.nControlled  = nControlled;
+
+                // allocate memory
+                PetscMalloc(nControlled*sizeof(cellIds), &(wt->nac.controlledCells));
+
+                // save cell ids
+                for(c=0; c<nControlled; c++)
+                {
+                    wt->nac.controlledCells[c].i = nacelleCells[c].i;
+                    wt->nac.controlledCells[c].j = nacelleCells[c].j;
+                    wt->nac.controlledCells[c].k = nacelleCells[c].k;
+                }
+
+                // set the communicator color
+                commColor = 1;
+            }
+            else
+            {
+                // set number of controlled cells to zero
+                wt->nac.nControlled = 0;
+
+                // set the communicator color
+                commColor = MPI_UNDEFINED;
+            }
+
+            // clean memory
+            std::vector<cellIds> ().swap(nacelleCells);
+
+            // create communicator
+            MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(wt->nac.NAC_COMM));
+
+            PetscMPIInt thisNacRank = 10;
+            MPI_Comm_rank(wt->nac.NAC_COMM, &thisNacRank);
+
+            // get the number of processor that control this turbine to average turbine data
+            PetscMPIInt lnProcsNac, gnProcsNac;
+            if(!thisNacRank && wt->nac.nControlled)
+            {
+                MPI_Comm_size(wt->nac.NAC_COMM, &lnProcsNac);
+            }
+            else
+            {
+                lnProcsNac = 0;
+            }
+
+            // scatter this info among all processors in the mesh->MESH_COMM
+            MPI_Allreduce(&lnProcsNac, &gnProcsNac, 1, MPI_INT, MPI_SUM, mesh->MESH_COMM);
+
+            wt->nac.nProcsNac = (PetscReal)gnProcsNac;
+
+            if(wt->dbg && rank == wt->writerRank)
+            {
+                printf("    > turbine %s: controlling nacelle ranks = %d\n", (*farm->turbineIds[t]).c_str(), gnProcsNac);
+            }
+
+            MPI_Barrier(mesh->MESH_COMM);
+        }
     }
 
-    // check that there are tower cells if tower is active, otherwise throws
+    // check that there are tower and nacelle cells if tower and nacelle are active, otherwise throws
     // errors and suggests to increase epsilon
     for(t=0; t<farm->size; t++)
     {
@@ -5674,6 +6238,23 @@ PetscErrorCode initControlledCells(farm_ *farm)
             {
                 char error[512];
                 sprintf(error, "could not find any tower cells when searching, try increase tower epsilon\n");
+                fatalErrorInFunction("initControlledCells",  error);
+            }
+        }
+
+        if(wt->includeNacelle)
+        {
+            PetscInt lnCells, gnCells;
+
+            lnCells = wt->nac.nControlled;
+
+            // scatter on MESH_COMM because there might not be a TWR_COMM if no cells were selected
+            MPI_Allreduce(&lnCells, &gnCells, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+            if(gnCells == 0)
+            {
+                char error[512];
+                sprintf(error, "could not find any nacelle cells when searching, try increase nacelle epsilon\n");
                 fatalErrorInFunction("initControlledCells",  error);
             }
         }
@@ -6682,6 +7263,9 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     // tower model flag
     readDictInt(dictName,    "includeTower",&(wt->includeTwr));
 
+    // nacelle model flag
+    readDictInt(dictName,    "includeNacelle",&(wt->includeNacelle));
+
     // debug switch
     readDictInt(dictName,    "debug",     &(wt->dbg));
 
@@ -6775,6 +7359,11 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     if(wt->includeTwr)
     {
         readTowerProperties(wt, dictName);
+    }
+
+    if(wt->includeNacelle)
+    {
+        readNacelleProperties(wt, dictName);
     }
 
     // set yaw changed parameter to 1 at initialization
@@ -7353,6 +7942,19 @@ PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName)
 
 //***************************************************************************************************************//
 
+PetscErrorCode readNacelleProperties(windTurbine *wt, const char *dictName)
+{
+    // allocate memory for the tower model
+    PetscMalloc(sizeof(nacelleModel), &(wt->nac));
+
+    readSubDictDouble(dictName, "nacelleData", "Cd",      &(wt->nac.Cd));
+    readSubDictDouble(dictName, "nacelleData", "epsilon", &(wt->nac.eps));
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode readGenControllerParameters(windTurbine *wt, const char *dictName, const char *meshName)
 {
     char path2dict[256];
@@ -7822,6 +8424,82 @@ PetscErrorCode checkPointDiscriminationTower(farm_ *farm)
                 std::vector<PetscInt> ().swap(gaccounted[t]);
             }
         }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode checkPointDiscriminationNacelle(farm_ *farm)
+{
+    if(farm->dbg)
+    {
+        mesh_ *mesh = farm->access->mesh;
+
+        PetscInt t, c;
+
+        // test for points accounted for twice or none
+        std::vector<PetscInt> laccounted(farm->size);
+        std::vector<PetscInt> gaccounted(farm->size);
+
+        // set to zero
+        for(t=0; t<farm->size; t++)
+        {
+            windTurbine *wt = farm->wt[t];
+
+            if(wt->includeNacelle)
+            {
+                laccounted[t] = 0;
+                gaccounted[t] = 0;
+            }
+        }
+
+        // loop over each wind turbine
+        for(t=0; t<farm->size; t++)
+        {
+            windTurbine *wt = farm->wt[t];
+
+            if(wt->includeNacelle)
+            {
+                // test if this processor controls this turbine
+                if(wt->nac.nControlled)
+                {
+                    if(wt->nac.thisPtControlled) laccounted[t]++;
+                }
+            }
+        }
+
+        // scatter the accounted variable
+        for(t=0; t<farm->size; t++)
+        {
+            windTurbine *wt = farm->wt[t];
+
+            if(wt->includeNacelle)
+            {
+                // scatter 'accounted' for processor point owning test
+                MPI_Allreduce(&laccounted[t], &gaccounted[t], 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+                // not accounted
+                if(gaccounted[t] == 0)
+                {
+                    char warning[256];
+                    sprintf(warning, "nacelle point from turbine %ld at location (%.2f %.2f %.2f) was not accounted for\n", t, wt->nac.point.x, wt->nac.point.y, wt->nac.point.z);
+                    warningInFunction("checkPointDiscriminationNacelle",  warning);
+                }
+                // accounted twice
+                else if(gaccounted[t] == 2)
+                {
+                    char warning[256];
+                    sprintf(warning, "nacelle point from turbine %ld at location (%.2f %.2f %.2f) was accounted twice\n", t, wt->nac.point.x, wt->nac.point.y, wt->nac.point.z);
+                    warningInFunction("checkPointDiscriminationNacelle",  warning);
+                }
+            }
+        }
+
+        // clean memory
+        std::vector<PetscInt> ().swap(laccounted);
+        std::vector<PetscInt> ().swap(gaccounted);
     }
 
     return(0);

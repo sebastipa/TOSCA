@@ -221,6 +221,33 @@ typedef struct
 
 } towerModel;
 
+//! \brief Wind turbine nacelle actuator point model
+typedef struct
+{
+    PetscReal                 Cd;   //!< tower drag coefficient
+    PetscReal                eps;   //!< spreading width of the gaussian projection function (good is 0.035 * hTower)
+    PetscReal          prjNSigma;   //!< confidence interval as number of std deviations for the projection function (hardcoded to 2.7)
+
+    Cmpnts                 point;   //!< nacelle point
+    PetscReal                  A;   //!< frontal area
+
+    cellIds     *controlledCells;   //!< labels of the background mesh cells influenced by this nacelle in this processor
+    PetscInt         nControlled;   //!< size of controlledCells
+
+    PetscInt    thisPtControlled;   //!< flags telling if this nacelle is controlled by this processor
+    cellIds          closestCell;   //!< indices of the closest cell to this turbine nacelle point
+
+    Cmpnts                     U;   //!< flow velocity at nacelle point
+    Cmpnts                     B;   //!< body at nacelle point
+    PetscReal              tangF;   //!< nacelle tangential force
+
+    PetscReal          nacThrust;   //!< total nacelle thrust
+
+    MPI_Comm            NAC_COMM;   //!< communicator for this nacelle
+    PetscMPIInt        nProcsNac;   //!< size of the NAC_COMM communicator
+
+} nacelleModel;
+
 //! \brief Wind turbine nacelle mounted anemometer
 typedef struct
 {
@@ -273,6 +300,10 @@ typedef struct
     // tower model
     towerModel               twr;   //!< actuator line tower model
     PetscInt          includeTwr;   //!< flag telling if tower is included
+
+    // nacelle model
+    nacelleModel             nac;   //!< actuator point for nacelle
+    PetscInt      includeNacelle;   //!< flag telling if nacelle is included
 
     // sampling points 2.5 RD upstream
     upSampling         *upPoints;   //!< struct containing the upstream sampling points information
@@ -432,6 +463,9 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm);
 //! \brief Discrimination algorithm: find out which points of each tower are controlled by this processor
 PetscErrorCode findControlledPointsTower(farm_ *farm);
 
+//! \brief Discrimination algorithm: find out which points of each nacelle are controlled by this processor
+PetscErrorCode findControlledPointsNacelle(farm_ *farm);
+
 //! \brief Discrimination algorithm: find out which points of each sample rig are controlled by this processor
 PetscErrorCode findControlledPointsSample(farm_ *farm);
 
@@ -441,6 +475,9 @@ PetscErrorCode checkPointDiscriminationRotor(farm_ *farm);
 //! \brief Debug check for the discrimination algorithm on the tower
 PetscErrorCode checkPointDiscriminationTower(farm_ *farm);
 
+//! \brief Debug check for the discrimination algorithm on the nacelle
+PetscErrorCode checkPointDiscriminationNacelle(farm_ *farm);
+
 //! \brief Debug check for the discrimination algorithm on sample points
 PetscErrorCode checkPointDiscriminationSample(farm_ *farm);
 
@@ -449,6 +486,9 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm);
 
 //! \brief Compute wind velocity at the tower mesh points
 PetscErrorCode computeWindVectorsTower(farm_ *farm);
+
+//! \brief Compute wind velocity at the nacelle mesh points
+PetscErrorCode computeWindVectorsNacelle(farm_ *farm);
 
 //! \brief Compute wind velocity at the sample mesh points
 PetscErrorCode computeWindVectorsSample(farm_ *farm);
@@ -461,6 +501,9 @@ PetscErrorCode projectBladeForce(farm_ *farm);
 
 //! \brief Compute and project the tower forces on the background mesh
 PetscErrorCode projectTowerForce(farm_ *farm);
+
+//! \brief Compute and project the nacelle forces on the background mesh
+PetscErrorCode projectNacelleForce(farm_ *farm);
 
 //! \brief Transform the cartesian body force to contravariant
 PetscErrorCode bodyForceCartesian2Contravariant(farm_ *farm);
@@ -510,6 +553,9 @@ PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base, const word meshName);
 //! \brief Initializes the tower model
 PetscErrorCode initTwrModel(windTurbine *wt, Cmpnts &base);
 
+//! \brief Initializes the nacelle model
+PetscErrorCode initNacModel(windTurbine *wt, Cmpnts &base);
+
 //! \brief Compute max tip speed and activate CFL control flag
 PetscErrorCode computeMaxTipSpeed(farm_ *farm);
 
@@ -533,6 +579,9 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName);
 
 //! \brief Reads the tower properties used in the turbine (given in the towerData subdict inside the file named as the wind turbine)
 PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName);
+
+//! \brief Reads the nacelle properties used in the turbine (given in the nacelleData subdict inside the file named as the wind turbine)
+PetscErrorCode readNacelleProperties(windTurbine *wt, const char *dictName);
 
 //! \brief Reads the 2D airfoil tables given in the file named as the airfoil
 PetscErrorCode readAirfoilTable(foilInfo *af, const char *tableName);

@@ -1303,6 +1303,9 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn)
                 // asymptotic behavior
                 else
                 {
+                    // Dries implementation (to add limit from below)
+					// gLim = (abs(eta) + eta)/2;
+
                     // potential temperature
                     tmprt[k][j][i] = thetaRef + a  + b * eta;
                 }
