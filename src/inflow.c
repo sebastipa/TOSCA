@@ -79,6 +79,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &(ifPtr->n2));
             readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &(ifPtr->prds1));
             readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &(ifPtr->prds2));
+            readSubDictInt(fileName.c_str(), "inletFunction", "n1Merge",   &(ifPtr->merge1));
 
             // increase n1 and n2 accounting for side ghost cells
             ifPtr->n1wg = ifPtr->n1 + 2;
@@ -111,13 +112,14 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                             ifPtr->mapT = 1;
 
                             // read parameters and check that are the same as U
-                            PetscInt n1, n2, prds1, prds2;
+                            PetscInt n1, n2, prds1, prds2, merge1;
                             readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
                             readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
                             readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
                             readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Merge",   &merge1);
 
-                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2)
+                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 || merge1!=ifPtr->merge1)
                             {
                                 char error[512];
                                 sprintf(error, "inletFunction type 3 parameters in boundary/T must match boundary/U");
@@ -151,12 +153,13 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                             ifPtr->mapNut = 1;
 
                             // read parameters and check that are the same as U
-                            PetscInt n1, n2, prds1, prds2;
+                            PetscInt n1, n2, prds1, prds2, merge1;
                             readSubDictInt(fileName.c_str(), "inletFunction", "n1Inflow",  &n1);
                             readSubDictInt(fileName.c_str(), "inletFunction", "n2Inflow",  &n2);
                             readSubDictInt(fileName.c_str(), "inletFunction", "n1Periods", &prds1);
                             readSubDictInt(fileName.c_str(), "inletFunction", "n2Periods", &prds2);
-                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2)
+                            readSubDictInt(fileName.c_str(), "inletFunction", "n1Merge",   &merge1);
+                            if(n1!=ifPtr->n1 || n2 != ifPtr->n2 || prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2  || merge1!=ifPtr->merge1)
                             {
                                 char error[512];
                                 sprintf(error, "inletFunction type 3 parameters in boundary/nut must match boundary/U");
@@ -173,173 +176,142 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             // initialize inflow data
             mappedInflowInitialize(ifPtr);
 
-            PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
-
-            // initialize height levels for the velocity controller
-            DMDAVecGetArray(fda, mesh->lCent, &cent);
-            DMDAVecGetArray(da,  mesh->lAj,   &aj);
-
-            // find cell levels
-            PetscInt nLevels = my-2;
-
-            std::vector<PetscReal> lLevels(nLevels);
-            std::vector<PetscReal> gLevels(nLevels);
-            std::vector<PetscInt>  lCells(nLevels);
-            std::vector<PetscInt>  gCells(nLevels);
-
-            for(l=0; l<nLevels; l++)
+            if(ifPtr->merge1)
             {
-                lLevels[l]  = 0.0;
-                gLevels[l]  = 0.0;
-                lCells[l]   = 0;
-                gCells[l]   = 0;
-            }
+                PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
 
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
+                // initialize height levels for the velocity controller
+                DMDAVecGetArray(fda, mesh->lCent, &cent);
+                DMDAVecGetArray(da,  mesh->lAj,   &aj);
+
+                // find cell levels
+                PetscInt nLevels = my-2;
+
+                std::vector<PetscReal> lLevels(nLevels);
+                std::vector<PetscReal> gLevels(nLevels);
+                std::vector<PetscInt>  lCells(nLevels);
+                std::vector<PetscInt>  gCells(nLevels);
+
+                for(l=0; l<nLevels; l++)
                 {
-                    for (i=lxs; i<lxe; i++)
+                    lLevels[l]  = 0.0;
+                    gLevels[l]  = 0.0;
+                    lCells[l]   = 0;
+                    gCells[l]   = 0;
+                }
+
+                for (k=lzs; k<lze; k++)
+                {
+                    for (j=lys; j<lye; j++)
                     {
-                        lLevels[j-1]  += (cent[k][j][i].z - mesh->bounds.zmin);
-                        lCells[j-1]++;
+                        for (i=lxs; i<lxe; i++)
+                        {
+                            lLevels[j-1]  += (cent[k][j][i].z - mesh->bounds.zmin);
+                            lCells[j-1]++;
+                        }
                     }
                 }
-            }
 
-            MPI_Allreduce(&lLevels[0], &gLevels[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-            MPI_Allreduce(&lCells[0], &gCells[0], nLevels, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&lLevels[0], &gLevels[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                MPI_Allreduce(&lCells[0], &gCells[0], nLevels, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
 
-            for(l=0; l<nLevels; l++)
-            {
-                gLevels[l] = gLevels[l] / gCells[l];
-            }
+                for(l=0; l<nLevels; l++)
+                {
+                    gLevels[l] = gLevels[l] / gCells[l];
+                }
 
-            DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
-            DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+                DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
+                DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
-            // top average to avoid top oscillations
-            PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
-
-            for(j=0; j<10; j++)
-            {
-                mSetValue(ifPtr->uBarAvgTopX[j], 0.0);
-            }
-
-            if(mesh->access->flags->isTeqnActive)
-            {
-                PetscMalloc(10*sizeof(PetscReal), &(ifPtr->tBarAvgTopX));
+                // top average to avoid top oscillations
+                PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
 
                 for(j=0; j<10; j++)
                 {
-                    ifPtr->tBarAvgTopX[j] = 0.0;
-                }
-            }
-
-            PetscReal heightTop = 0.5 * (gLevels[ifPtr->n1*ifPtr->prds1-1]  + gLevels[ifPtr->n1*ifPtr->prds1]);
-            PetscReal heightBot = 0.5 * (gLevels[ifPtr->n1*ifPtr->prds1-11] + gLevels[ifPtr->n1*ifPtr->prds1-10]);
-
-            // height of the inflow database
-            ifPtr->avgTopLength = heightTop;
-
-            // width of the merging region
-            ifPtr->avgTopDelta  = heightTop - heightBot;
-
-            // 5 top points coordinates
-            PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
-            i = 0;
-            for (PetscInt ii=ifPtr->n1*ifPtr->prds1-11; ii<ifPtr->n1*ifPtr->prds1-1; ii++)
-            {
-                ifPtr->avgTopPointCoords[i] = gLevels[ii];
-                i++;
-            }
-
-            // variable to store inflow function data
-            std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
-            std::vector<std::vector<PetscReal>> t_plane_tmp(ifPtr->n1wg);
-
-            // set to zero
-            for(j=0; j<ifPtr->n1wg; j++)
-            {
-                ucat_plane_tmp[j].resize(ifPtr->n2wg);
-                t_plane_tmp[j].resize(ifPtr->n2wg);
-
-                for(i=0; i<ifPtr->n2wg; i++)
-                {
-                    mSetValue(ucat_plane_tmp[j][i], 0.0);
-                    t_plane_tmp[j][i] = 0.0;
-                }
-            }
-
-            PetscInt  ti, nAvg;
-            PetscReal ntimes;
-
-            if(ifPtr->mapT)
-            {
-                 ntimes = std::min(ifPtr->inflowT.nInflowTimes, ifPtr->inflowU.nInflowTimes);
-            }
-            else
-            {
-                ntimes = ifPtr->inflowU.nInflowTimes;
-            }
-
-            word      fname_U, fname_T;
-            FILE      *fp_U, *fp_T;
-
-            for(ti=0; ti<ntimes; ti++)
-            {
-                fname_U = "inflowDatabase/U/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowU.inflowTimes[ti]);
-
-                // open the inflow files and read
-                fp_U = fopen(fname_U.c_str(), "rb");
-
-                if(!fp_U)
-                {
-                    char error[512];
-                    sprintf(error, "cannot open file:\n    %s\n", fname_U.c_str());
-                    fatalErrorInFunction("SetInflowFunctions",  error);
+                    mSetValue(ifPtr->uBarAvgTopX[j], 0.0);
                 }
 
-                for(j=0; j<ifPtr->n1wg; j++)
-                {
-                    PetscInt err1;
-                    err1 = fread(&(ucat_plane_tmp[j][0]), sizeof(Cmpnts), ifPtr->n2wg, fp_U);
-                }
-
-                fclose(fp_U);
-
-                // now average the top 10 cells (exclude ghosts)
-                PetscInt jAvg = 0;
-                for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
-                {
-                    for(i=1; i<ifPtr->n2; i++)
-                    {
-                        mSum(ifPtr->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
-                    }
-
-                    jAvg++;
-                }
-
-                // do the same with temperature
                 if(mesh->access->flags->isTeqnActive)
                 {
-                    fname_T = "inflowDatabase/T/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowT.inflowTimes[ti]);
-                    fp_T = fopen(fname_T.c_str(), "rb");
+                    PetscMalloc(10*sizeof(PetscReal), &(ifPtr->tBarAvgTopX));
 
-                    if(!fp_T)
+                    for(j=0; j<10; j++)
+                    {
+                        ifPtr->tBarAvgTopX[j] = 0.0;
+                    }
+                }
+
+                PetscReal heightTop = 0.5 * (gLevels[ifPtr->n1*ifPtr->prds1-1]  + gLevels[ifPtr->n1*ifPtr->prds1]);
+                PetscReal heightBot = 0.5 * (gLevels[ifPtr->n1*ifPtr->prds1-11] + gLevels[ifPtr->n1*ifPtr->prds1-10]);
+
+                // height of the inflow database
+                ifPtr->avgTopLength = heightTop;
+
+                // width of the merging region
+                ifPtr->avgTopDelta  = heightTop - heightBot;
+
+                // 5 top points coordinates
+                PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
+                i = 0;
+                for (PetscInt ii=ifPtr->n1*ifPtr->prds1-11; ii<ifPtr->n1*ifPtr->prds1-1; ii++)
+                {
+                    ifPtr->avgTopPointCoords[i] = gLevels[ii];
+                    i++;
+                }
+
+                // variable to store inflow function data
+                std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
+                std::vector<std::vector<PetscReal>> t_plane_tmp(ifPtr->n1wg);
+
+                // set to zero
+                for(j=0; j<ifPtr->n1wg; j++)
+                {
+                    ucat_plane_tmp[j].resize(ifPtr->n2wg);
+                    t_plane_tmp[j].resize(ifPtr->n2wg);
+
+                    for(i=0; i<ifPtr->n2wg; i++)
+                    {
+                        mSetValue(ucat_plane_tmp[j][i], 0.0);
+                        t_plane_tmp[j][i] = 0.0;
+                    }
+                }
+
+                PetscInt  ti, nAvg;
+                PetscReal ntimes;
+
+                if(ifPtr->mapT)
+                {
+                     ntimes = std::min(ifPtr->inflowT.nInflowTimes, ifPtr->inflowU.nInflowTimes);
+                }
+                else
+                {
+                    ntimes = ifPtr->inflowU.nInflowTimes;
+                }
+
+                word      fname_U, fname_T;
+                FILE      *fp_U, *fp_T;
+
+                for(ti=0; ti<ntimes; ti++)
+                {
+                    fname_U = "inflowDatabase/U/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowU.inflowTimes[ti]);
+
+                    // open the inflow files and read
+                    fp_U = fopen(fname_U.c_str(), "rb");
+
+                    if(!fp_U)
                     {
                         char error[512];
-                        sprintf(error, "cannot open file:\n    %s\n", fname_T.c_str());
+                        sprintf(error, "cannot open file:\n    %s\n", fname_U.c_str());
                         fatalErrorInFunction("SetInflowFunctions",  error);
                     }
 
                     for(j=0; j<ifPtr->n1wg; j++)
                     {
-                        PetscInt err2;
-                        err2 = fread(&(t_plane_tmp[j][0]), sizeof(PetscReal), ifPtr->n2wg, fp_T);
+                        PetscInt err1;
+                        err1 = fread(&(ucat_plane_tmp[j][0]), sizeof(Cmpnts), ifPtr->n2wg, fp_U);
                     }
 
-                    fclose(fp_T);
+                    fclose(fp_U);
 
                     // now average the top 10 cells (exclude ghosts)
                     PetscInt jAvg = 0;
@@ -347,49 +319,83 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     {
                         for(i=1; i<ifPtr->n2; i++)
                         {
-                            ifPtr->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                            mSum(ifPtr->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
                         }
 
                         jAvg++;
                     }
+
+                    // do the same with temperature
+                    if(mesh->access->flags->isTeqnActive)
+                    {
+                        fname_T = "inflowDatabase/T/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowT.inflowTimes[ti]);
+                        fp_T = fopen(fname_T.c_str(), "rb");
+
+                        if(!fp_T)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file:\n    %s\n", fname_T.c_str());
+                            fatalErrorInFunction("SetInflowFunctions",  error);
+                        }
+
+                        for(j=0; j<ifPtr->n1wg; j++)
+                        {
+                            PetscInt err2;
+                            err2 = fread(&(t_plane_tmp[j][0]), sizeof(PetscReal), ifPtr->n2wg, fp_T);
+                        }
+
+                        fclose(fp_T);
+
+                        // now average the top 10 cells (exclude ghosts)
+                        PetscInt jAvg = 0;
+                        for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
+                        {
+                            for(i=1; i<ifPtr->n2; i++)
+                            {
+                                ifPtr->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                            }
+
+                            jAvg++;
+                        }
+                    }
                 }
-            }
 
-            // number of data summed per level (ntimes times n levels in direction 2)
-            nAvg  = (ifPtr->n2-1) * ntimes;
+                // number of data summed per level (ntimes times n levels in direction 2)
+                nAvg  = (ifPtr->n2-1) * ntimes;
 
-            PetscPrintf(mesh->MESH_COMM, "done\n");
+                PetscPrintf(mesh->MESH_COMM, "done\n");
 
-            // now average the top 10 cells (exclude ghosts)
-            for(j=0; j<10; j++)
-            {
-                mScale(1.0/nAvg, ifPtr->uBarAvgTopX[j]);
-                PetscPrintf(mesh->MESH_COMM, "   - Uavg at %.2f m = (%.2f %.2f %.2f) m/s", ifPtr->avgTopPointCoords[j], ifPtr->uBarAvgTopX[j].x, ifPtr->uBarAvgTopX[j].y, ifPtr->uBarAvgTopX[j].z);
-
-                if(mesh->access->flags->isTeqnActive)
+                // now average the top 10 cells (exclude ghosts)
+                for(j=0; j<10; j++)
                 {
-                    ifPtr->tBarAvgTopX[j] /= nAvg;
-                    PetscPrintf(mesh->MESH_COMM, ", thetaAvg = %.2f K", ifPtr->tBarAvgTopX[j]);
+                    mScale(1.0/nAvg, ifPtr->uBarAvgTopX[j]);
+                    PetscPrintf(mesh->MESH_COMM, "   - Uavg at %.2f m = (%.2f %.2f %.2f) m/s", ifPtr->avgTopPointCoords[j], ifPtr->uBarAvgTopX[j].x, ifPtr->uBarAvgTopX[j].y, ifPtr->uBarAvgTopX[j].z);
+
+                    if(mesh->access->flags->isTeqnActive)
+                    {
+                        ifPtr->tBarAvgTopX[j] /= nAvg;
+                        PetscPrintf(mesh->MESH_COMM, ", thetaAvg = %.2f K", ifPtr->tBarAvgTopX[j]);
+                    }
+
+                    PetscPrintf(mesh->MESH_COMM, "\n");
+
                 }
 
-                PetscPrintf(mesh->MESH_COMM, "\n");
+                // temporary (basically forces zero gradient at the top for velocity)
+                mSet(ifPtr->uBarAvgTopX[9], ifPtr->uBarAvgTopX[8]);
 
+                // wipe vectors
+                for( j=0; j<ifPtr->n1wg; j++)
+                {
+                    std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
+                    std::vector<PetscReal> ().swap(t_plane_tmp[j]);
+                }
+
+                std::vector<PetscReal> ().swap(lLevels);
+                std::vector<PetscReal> ().swap(gLevels);
+                std::vector<PetscInt>  ().swap(lCells);
+                std::vector<PetscInt>  ().swap(gCells);
             }
-
-            // temporary (basically forces zero gradient at the top for velocity)
-            mSet(ifPtr->uBarAvgTopX[9], ifPtr->uBarAvgTopX[8]);
-
-            // wipe vectors
-            for( j=0; j<ifPtr->n1wg; j++)
-            {
-                std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
-                std::vector<PetscReal> ().swap(t_plane_tmp[j]);
-            }
-
-            std::vector<PetscReal> ().swap(lLevels);
-            std::vector<PetscReal> ().swap(gLevels);
-            std::vector<PetscInt>  ().swap(lCells);
-            std::vector<PetscInt>  ().swap(gCells);
         }
 
         // unsteady interpolated inflow
@@ -406,6 +412,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictInt   (fileName.c_str(), "inletFunction", "n2Inflow",   &(ifPtr->n2));
             readSubDictInt   (fileName.c_str(), "inletFunction", "n1Periods",  &(ifPtr->prds1));
             readSubDictInt   (fileName.c_str(), "inletFunction", "n2Periods",  &(ifPtr->prds2));
+            readSubDictInt   (fileName.c_str(), "inletFunction", "n1Merge",    &(ifPtr->merge1));
 
             if(ifPtr->sourceType == "uniform")
             {
@@ -517,7 +524,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                         ifPtr->mapT = 1;
 
                         // read parameters and check that are the same as U
-                        PetscInt  n1, n2, prds1, prds2;
+                        PetscInt  n1, n2, prds1, prds2, merge1;
                         PetscReal width1, width2;
                         word      sourceTypeT;
                         readSubDictWord(fileName.c_str(),   "inletFunction", "sourceType", &sourceTypeT);
@@ -525,11 +532,12 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                         readSubDictInt(fileName.c_str(),    "inletFunction", "n2Inflow",   &n2);
                         readSubDictInt(fileName.c_str(),    "inletFunction", "n1Periods",  &prds1);
                         readSubDictInt(fileName.c_str(),    "inletFunction", "n2Periods",  &prds2);
+                        readSubDictInt(fileName.c_str(),    "inletFunction", "n1Merge",    &merge1);
                         if
                         (
                             n1!=ifPtr->n1 || n2 != ifPtr->n2 ||
                             prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 ||
-                            sourceTypeT!=ifPtr->sourceType
+                            sourceTypeT!=ifPtr->sourceType || merge1!=ifPtr->merge1
                         )
                         {
                             char error[512];
@@ -565,7 +573,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                             ifPtr->mapNut = 1;
 
                             // read parameters and check that are the same as U
-                            PetscInt n1, n2, prds1, prds2;
+                            PetscInt n1, n2, prds1, prds2, merge1;
                             PetscReal width1, width2;
                             word      sourceTypeNut;
                             readSubDictWord(fileName.c_str(),   "inletFunction", "sourceType", &sourceTypeNut);
@@ -573,11 +581,12 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                             readSubDictInt(fileName.c_str(),    "inletFunction", "n2Inflow",   &n2);
                             readSubDictInt(fileName.c_str(),    "inletFunction", "n1Periods",  &prds1);
                             readSubDictInt(fileName.c_str(),    "inletFunction", "n2Periods",  &prds2);
+                            readSubDictInt(fileName.c_str(),    "inletFunction", "n1Merge",    &merge1);
                             if
                             (
                                 n1!=ifPtr->n1 || n2 != ifPtr->n2 ||
                                 prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 ||
-                                sourceTypeNut!=ifPtr->sourceType
+                                sourceTypeNut!=ifPtr->sourceType || merge1!=ifPtr->merge1
                             )
                             {
                                 char error[512];
@@ -595,112 +604,81 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             // initialize inflow data
             mappedInflowInitialize(ifPtr);
 
-            PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
-
-            // top average to avoid top oscillations
-            PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
-
-            for(j=0; j<10; j++)
+            if(ifPtr->merge1)
             {
-                mSetValue(ifPtr->uBarAvgTopX[j], 0.0);
-            }
+                PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
 
-            if(mesh->access->flags->isTeqnActive)
-            {
-                PetscMalloc(10*sizeof(PetscReal), &(ifPtr->tBarAvgTopX));
+                // top average to avoid top oscillations
+                PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
 
                 for(j=0; j<10; j++)
                 {
-                    ifPtr->tBarAvgTopX[j] = 0.0;
-                }
-            }
-
-            // variable to store inflow function data
-            std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
-            std::vector<std::vector<PetscReal>> t_plane_tmp(ifPtr->n1wg);
-
-            // set to zero
-            for(j=0; j<ifPtr->n1wg; j++)
-            {
-                ucat_plane_tmp[j].resize(ifPtr->n2wg);
-                t_plane_tmp[j].resize(ifPtr->n2wg);
-
-                for(i=0; i<ifPtr->n2wg; i++)
-                {
-                    mSetValue(ucat_plane_tmp[j][i], 0.0);
-                    t_plane_tmp[j][i] = 0.0;
-                }
-            }
-
-            PetscInt  ti, nAvg;
-            PetscReal ntimes;
-
-            if(ifPtr->mapT)
-            {
-                 ntimes = std::min(ifPtr->inflowT.nInflowTimes, ifPtr->inflowU.nInflowTimes);
-            }
-            else
-            {
-                ntimes = ifPtr->inflowU.nInflowTimes;
-            }
-
-            word      fname_U, fname_T;
-            FILE      *fp_U, *fp_T;
-
-            for(ti=0; ti<ntimes; ti++)
-            {
-                fname_U = "inflowDatabase/U/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowU.inflowTimes[ti]);
-
-                // open the inflow files and read
-                fp_U = fopen(fname_U.c_str(), "rb");
-
-                if(!fp_U)
-                {
-                    char error[512];
-                    sprintf(error, "cannot open file:\n    %s\n", fname_U.c_str());
-                    fatalErrorInFunction("SetInflowFunctions",  error);
+                    mSetValue(ifPtr->uBarAvgTopX[j], 0.0);
                 }
 
-                for(j=0; j<ifPtr->n1wg; j++)
-                {
-                    PetscInt err1;
-                    err1 = fread(&(ucat_plane_tmp[j][0]), sizeof(Cmpnts), ifPtr->n2wg, fp_U);
-                }
-
-                fclose(fp_U);
-
-                // now average the top 10 cells (exclude ghosts)
-                PetscInt jAvg = 0;
-                for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
-                {
-                    for(i=1; i<ifPtr->n2; i++)
-                    {
-                        mSum(ifPtr->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
-                    }
-
-                    jAvg++;
-                }
-
-                // do the same with temperature
                 if(mesh->access->flags->isTeqnActive)
                 {
-                    fname_T = "inflowDatabase/T/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowT.inflowTimes[ti]);
-                    fp_T = fopen(fname_T.c_str(), "rb");
+                    PetscMalloc(10*sizeof(PetscReal), &(ifPtr->tBarAvgTopX));
 
-                    if(!fp_T)
+                    for(j=0; j<10; j++)
+                    {
+                        ifPtr->tBarAvgTopX[j] = 0.0;
+                    }
+                }
+
+                // variable to store inflow function data
+                std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
+                std::vector<std::vector<PetscReal>> t_plane_tmp(ifPtr->n1wg);
+
+                // set to zero
+                for(j=0; j<ifPtr->n1wg; j++)
+                {
+                    ucat_plane_tmp[j].resize(ifPtr->n2wg);
+                    t_plane_tmp[j].resize(ifPtr->n2wg);
+
+                    for(i=0; i<ifPtr->n2wg; i++)
+                    {
+                        mSetValue(ucat_plane_tmp[j][i], 0.0);
+                        t_plane_tmp[j][i] = 0.0;
+                    }
+                }
+
+                PetscInt  ti, nAvg;
+                PetscReal ntimes;
+
+                if(ifPtr->mapT)
+                {
+                     ntimes = std::min(ifPtr->inflowT.nInflowTimes, ifPtr->inflowU.nInflowTimes);
+                }
+                else
+                {
+                    ntimes = ifPtr->inflowU.nInflowTimes;
+                }
+
+                word      fname_U, fname_T;
+                FILE      *fp_U, *fp_T;
+
+                for(ti=0; ti<ntimes; ti++)
+                {
+                    fname_U = "inflowDatabase/U/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowU.inflowTimes[ti]);
+
+                    // open the inflow files and read
+                    fp_U = fopen(fname_U.c_str(), "rb");
+
+                    if(!fp_U)
                     {
                         char error[512];
-                        sprintf(error, "cannot open file:\n    %s\n", fname_T.c_str());
+                        sprintf(error, "cannot open file:\n    %s\n", fname_U.c_str());
                         fatalErrorInFunction("SetInflowFunctions",  error);
                     }
 
                     for(j=0; j<ifPtr->n1wg; j++)
                     {
-                        PetscInt err2;
-                        err2 = fread(&(t_plane_tmp[j][0]), sizeof(PetscReal), ifPtr->n2wg, fp_T);
+                        PetscInt err1;
+                        err1 = fread(&(ucat_plane_tmp[j][0]), sizeof(Cmpnts), ifPtr->n2wg, fp_U);
                     }
 
-                    fclose(fp_T);
+                    fclose(fp_U);
 
                     // now average the top 10 cells (exclude ghosts)
                     PetscInt jAvg = 0;
@@ -708,43 +686,77 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     {
                         for(i=1; i<ifPtr->n2; i++)
                         {
-                            ifPtr->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                            mSum(ifPtr->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
                         }
 
                         jAvg++;
                     }
+
+                    // do the same with temperature
+                    if(mesh->access->flags->isTeqnActive)
+                    {
+                        fname_T = "inflowDatabase/T/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowT.inflowTimes[ti]);
+                        fp_T = fopen(fname_T.c_str(), "rb");
+
+                        if(!fp_T)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file:\n    %s\n", fname_T.c_str());
+                            fatalErrorInFunction("SetInflowFunctions",  error);
+                        }
+
+                        for(j=0; j<ifPtr->n1wg; j++)
+                        {
+                            PetscInt err2;
+                            err2 = fread(&(t_plane_tmp[j][0]), sizeof(PetscReal), ifPtr->n2wg, fp_T);
+                        }
+
+                        fclose(fp_T);
+
+                        // now average the top 10 cells (exclude ghosts)
+                        PetscInt jAvg = 0;
+                        for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
+                        {
+                            for(i=1; i<ifPtr->n2; i++)
+                            {
+                                ifPtr->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                            }
+
+                            jAvg++;
+                        }
+                    }
                 }
-            }
 
-            // number of data summed per level (ntimes times n levels in direction 2)
-            nAvg  = (ifPtr->n2-1) * ntimes;
+                // number of data summed per level (ntimes times n levels in direction 2)
+                nAvg  = (ifPtr->n2-1) * ntimes;
 
-            PetscPrintf(mesh->MESH_COMM, "done\n");
+                PetscPrintf(mesh->MESH_COMM, "done\n");
 
-            // now average the top 10 cells (exclude ghosts)
-            for(j=0; j<10; j++)
-            {
-                mScale(1.0/nAvg, ifPtr->uBarAvgTopX[j]);
-                PetscPrintf(mesh->MESH_COMM, "   - Uavg at %.2f m = (%.2f %.2f %.2f) m/s", ifPtr->avgTopPointCoords[j], ifPtr->uBarAvgTopX[j].x, ifPtr->uBarAvgTopX[j].y, ifPtr->uBarAvgTopX[j].z);
-
-                if(mesh->access->flags->isTeqnActive)
+                // now average the top 10 cells (exclude ghosts)
+                for(j=0; j<10; j++)
                 {
-                    ifPtr->tBarAvgTopX[j] /= nAvg;
-                    PetscPrintf(mesh->MESH_COMM, ", thetaAvg = %.2f K", ifPtr->tBarAvgTopX[j]);
+                    mScale(1.0/nAvg, ifPtr->uBarAvgTopX[j]);
+                    PetscPrintf(mesh->MESH_COMM, "   - Uavg at %.2f m = (%.2f %.2f %.2f) m/s", ifPtr->avgTopPointCoords[j], ifPtr->uBarAvgTopX[j].x, ifPtr->uBarAvgTopX[j].y, ifPtr->uBarAvgTopX[j].z);
+
+                    if(mesh->access->flags->isTeqnActive)
+                    {
+                        ifPtr->tBarAvgTopX[j] /= nAvg;
+                        PetscPrintf(mesh->MESH_COMM, ", thetaAvg = %.2f K", ifPtr->tBarAvgTopX[j]);
+                    }
+
+                    PetscPrintf(mesh->MESH_COMM, "\n");
+
                 }
 
-                PetscPrintf(mesh->MESH_COMM, "\n");
+                // temporary (basically forces zero gradient at the top for velocity)
+                mSet(ifPtr->uBarAvgTopX[9], ifPtr->uBarAvgTopX[8]);
 
-            }
-
-            // temporary (basically forces zero gradient at the top for velocity)
-            mSet(ifPtr->uBarAvgTopX[9], ifPtr->uBarAvgTopX[8]);
-
-            // wipe vectors
-            for( j=0; j<ifPtr->n1wg; j++)
-            {
-                std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
-                std::vector<PetscReal> ().swap(t_plane_tmp[j]);
+                // wipe vectors
+                for( j=0; j<ifPtr->n1wg; j++)
+                {
+                    std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
+                    std::vector<PetscReal> ().swap(t_plane_tmp[j]);
+                }
             }
         }
         // Nieuwstadt

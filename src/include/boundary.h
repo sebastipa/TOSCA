@@ -73,6 +73,7 @@ struct inletFunctionTypes
     PetscInt      n2wg;                       //!< n2 with ghosts (n2 + 2)
     PetscInt      prds1;                      //!< indicates how many times inflow data should be periodized along 1st index
     PetscInt      prds2;                      //!< indicates how many times inflow data should be periodized along 2nd index
+    PetscInt      merge1;                     //!< average data at 5 top cells
 
     PetscInt      mapT;                       //!< flag telling if also T is mapped (if temperatureTransport is active is mandatory)
     PetscInt      mapNut;                     //!< flag telling if also nut is mapped (optional)

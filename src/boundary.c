@@ -1269,61 +1269,138 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                             i<=ifPtr->n2*ifPtr->prds2
                         )
                         {
+                            if(ifPtr->merge1)
+                            {
+                                PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
+                                PetscInt  IDs[2];
+                                PetscReal Wg [2];
+
+                                findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
+
+                                ucat[k-1][j][i].x = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                                                    ifPtr->ucat_plane[jif][iif].x +
+                                                    scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                                                    (
+                                                        ifPtr->uBarAvgTopX[IDs[0]].x * Wg[0] +
+                                                        ifPtr->uBarAvgTopX[IDs[1]].x * Wg[1]
+                                                    );
+                                ucat[k-1][j][i].y = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                                                    ifPtr->ucat_plane[jif][iif].y +
+                                                    scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                                                    (
+                                                        ifPtr->uBarAvgTopX[IDs[0]].y * Wg[0] +
+                                                        ifPtr->uBarAvgTopX[IDs[1]].y * Wg[1]
+                                                    );
+                                ucat[k-1][j][i].z = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                                                    ifPtr->ucat_plane[jif][iif].z +
+                                                    scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                                                    (
+                                                        ifPtr->uBarAvgTopX[IDs[0]].z * Wg[0] +
+                                                        ifPtr->uBarAvgTopX[IDs[1]].z * Wg[1]
+                                                    );
+                            }
+                            else
+                            {
+                                ucat[k-1][j][i].x = ifPtr->ucat_plane[jif][iif].x;
+                                ucat[k-1][j][i].y = ifPtr->ucat_plane[jif][iif].y;
+                                ucat[k-1][j][i].z = ifPtr->ucat_plane[jif][iif].z;
+                            }
+                        }
+                        // index is more than nPrds times inflow points: extrapolate
+                        else
+                        {
+                            if(ifPtr->merge1)
+                            {
+                                ucat[k-1][j][i].x = ifPtr->uBarAvgTopX[9].x;
+                                ucat[k-1][j][i].y = ifPtr->uBarAvgTopX[9].y;
+                                ucat[k-1][j][i].z = ifPtr->uBarAvgTopX[9].z;
+                            }
+                            else
+                            {
+                                // extrapolate along j
+                                if(j>ifPtr->n1*ifPtr->prds1) jif = ifPtr->n1;
+
+                                // extrapolate along i
+                                if(i>ifPtr->n2*ifPtr->prds2) iif = ifPtr->n2;
+
+                                ucat[k-1][j][i].x = ifPtr->ucat_plane[jif][iif].x;
+                                ucat[k-1][j][i].y = ifPtr->ucat_plane[jif][iif].y;
+                                ucat[k-1][j][i].z = ifPtr->ucat_plane[jif][iif].z;
+                            }
+                        }
+                    }
+                    else if (ifPtr->typeU == 4)
+                    {
+                        if(ifPtr->merge1)
+                        {
                             PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
                             PetscInt  IDs[2];
                             PetscReal Wg [2];
 
                             findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
-                            ucat[k-1][j][i].x = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                                                ifPtr->ucat_plane[jif][iif].x +
-                                                scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                                                (
-                                                    ifPtr->uBarAvgTopX[IDs[0]].x * Wg[0] +
-                                                    ifPtr->uBarAvgTopX[IDs[1]].x * Wg[1]
-                                                );
-                            ucat[k-1][j][i].y = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                                                ifPtr->ucat_plane[jif][iif].y +
-                                                scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                                                (
-                                                    ifPtr->uBarAvgTopX[IDs[0]].y * Wg[0] +
-                                                    ifPtr->uBarAvgTopX[IDs[1]].y * Wg[1]
-                                                );
-                            ucat[k-1][j][i].z = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                                                ifPtr->ucat_plane[jif][iif].z +
-                                                scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                                                (
-                                                    ifPtr->uBarAvgTopX[IDs[0]].z * Wg[0] +
-                                                    ifPtr->uBarAvgTopX[IDs[1]].z * Wg[1]
-                                                );
+
+                            ucat[k-1][j][i].x
+                            =
+                            scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                            (
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x
+                            ) +
+                            scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                            (
+                                ifPtr->uBarAvgTopX[IDs[0]].x * Wg[0] +
+                                ifPtr->uBarAvgTopX[IDs[1]].x * Wg[1]
+                            );
+
+                            ucat[k-1][j][i].y
+                            =
+                            scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                            (
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y
+                            ) +
+                            scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                            (
+                                ifPtr->uBarAvgTopX[IDs[0]].y * Wg[0] +
+                                ifPtr->uBarAvgTopX[IDs[1]].y * Wg[1]
+                            );
+
+                            ucat[k-1][j][i].z
+                            =
+                            scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                            (
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z
+                            ) +
+                            scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                            (
+                                ifPtr->uBarAvgTopX[IDs[0]].z * Wg[0] +
+                                ifPtr->uBarAvgTopX[IDs[1]].z * Wg[1]
+                            );
                         }
-                        // index is more than nPrds times inflow points: extrapolate
                         else
                         {
-                            // extrapolate along j
-                            // if(j>ifPtr->n1*ifPtr->prds1) jif = ifPtr->n1;
-
-                            // extrapolate along i
-                            // if(i>ifPtr->n2*ifPtr->prds2) iif = ifPtr->n2;
-
-                            ucat[k-1][j][i].x = ifPtr->uBarAvgTopX[9].x;
-                            ucat[k-1][j][i].y = ifPtr->uBarAvgTopX[9].y;
-                            ucat[k-1][j][i].z = ifPtr->uBarAvgTopX[9].z;
-                        }
-                    }
-                    else if (ifPtr->typeU == 4)
-                    {
-                        PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
-                        PetscInt  IDs[2];
-                        PetscReal Wg [2];
-
-                        findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
-
-
-                        ucat[k-1][j][i].x
-                        =
-                        scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                        (
+                            ucat[k-1][j][i].x
+                            =
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
                             ifPtr->inflowWeights[j][i][1] *
@@ -1331,18 +1408,10 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                             ifPtr->inflowWeights[j][i][2] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
                             ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x
-                        ) +
-                        scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                        (
-                            ifPtr->uBarAvgTopX[IDs[0]].x * Wg[0] +
-                            ifPtr->uBarAvgTopX[IDs[1]].x * Wg[1]
-                        );
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x;
 
-                        ucat[k-1][j][i].y
-                        =
-                        scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                        (
+                            ucat[k-1][j][i].y
+                            =
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
                             ifPtr->inflowWeights[j][i][1] *
@@ -1350,18 +1419,10 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                             ifPtr->inflowWeights[j][i][2] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
                             ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y
-                        ) +
-                        scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                        (
-                            ifPtr->uBarAvgTopX[IDs[0]].y * Wg[0] +
-                            ifPtr->uBarAvgTopX[IDs[1]].y * Wg[1]
-                        );
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y;
 
-                        ucat[k-1][j][i].z
-                        =
-                        scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                        (
+                            ucat[k-1][j][i].z
+                            =
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
                             ifPtr->inflowWeights[j][i][1] *
@@ -1369,13 +1430,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                             ifPtr->inflowWeights[j][i][2] *
                             ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
                             ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z
-                        ) +
-                        scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                        (
-                            ifPtr->uBarAvgTopX[IDs[0]].z * Wg[0] +
-                            ifPtr->uBarAvgTopX[IDs[1]].z * Wg[1]
-                        );
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
+                        }
                     }
                 }
 
@@ -1901,19 +1957,26 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             i<=ifPtr->n2*ifPtr->prds2
                         )
                         {
-                            PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
-                            PetscInt  IDs[2];
-                            PetscReal Wg [2];
+                            if(ifPtr->merge1)
+                            {
+                                PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
+                                PetscInt  IDs[2];
+                                PetscReal Wg [2];
 
-                            findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
+                                findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
-                            t[k-1][j][i] = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                                           ifPtr->t_plane[jif][iif] +
-                                           scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                                           (
-                                               ifPtr->tBarAvgTopX[IDs[0]] * Wg[0] +
-                                               ifPtr->tBarAvgTopX[IDs[1]] * Wg[1]
-                                           );
+                                t[k-1][j][i] = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                                               ifPtr->t_plane[jif][iif] +
+                                               scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                                               (
+                                                   ifPtr->tBarAvgTopX[IDs[0]] * Wg[0] +
+                                                   ifPtr->tBarAvgTopX[IDs[1]] * Wg[1]
+                                               );
+                            }
+                            else
+                            {
+                                t[k-1][j][i] = ifPtr->t_plane[jif][iif];
+                            }
                         }
                         // index is more than nPrds times inflow points: apply lapse rate
                         else
@@ -1929,9 +1992,16 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             }
 
                             // extrapolate along i
-                            // if(i>ifPtr->n2*ifPtr->prds2) iif = ifPtr->n2;
+                            if(i>ifPtr->n2*ifPtr->prds2) iif = ifPtr->n2;
 
-                            t[k-1][j][i] = ifPtr->tBarAvgTopX[9] + delta * teqn->access->abl->gTop;
+                            if(ifPtr->merge1)
+                            {
+                                t[k-1][j][i] = ifPtr->tBarAvgTopX[9] + delta * teqn->access->abl->gTop;
+                            }
+                            else
+                            {
+                                t[k-1][j][i] = ifPtr->t_plane[jif][iif] + delta * teqn->access->abl->gTop;;
+                            }
                         }
                     }
 
@@ -1939,16 +2009,39 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     else if (ifPtr->typeT == 4)
                     {
                         PetscReal delta = PetscMax(0.0, cent[k][j][i].z - ifPtr->avgTopLength);
-                        PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
 
-                        PetscInt  IDs[2];
-                        PetscReal Wg [2];
-                        findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
+                        if(ifPtr->merge1)
+                        {
+                            PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
 
-                        t[k-1][j][i]
-                        =
-                        scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                        (
+                            PetscInt  IDs[2];
+                            PetscReal Wg [2];
+                            findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
+
+                            t[k-1][j][i]
+                            =
+                            scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                            (
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i]
+                            ) +
+                            scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
+                            (
+                                ifPtr->tBarAvgTopX[IDs[0]] * Wg[0] +
+                                ifPtr->tBarAvgTopX[IDs[1]] * Wg[1]
+                            ) +
+                            delta * teqn->access->abl->gTop;
+                        }
+                        else
+                        {
+                            t[k-1][j][i]
+                            =
                             ifPtr->inflowWeights[j][i][0] *
                             ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
                             ifPtr->inflowWeights[j][i][1] *
@@ -1956,14 +2049,8 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             ifPtr->inflowWeights[j][i][2] *
                             ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
                             ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i]
-                        ) +
-                        scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
-                        (
-                            ifPtr->tBarAvgTopX[IDs[0]] * Wg[0] +
-                            ifPtr->tBarAvgTopX[IDs[1]] * Wg[1]
-                        ) +
-                        delta * teqn->access->abl->gTop;
+                            ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+                        }
                     }
                 }
 

@@ -25,6 +25,7 @@ kLeft   inletFunction
             sourceType uniform
             cellWidth1 20.0
             cellWidth2 20.0
+            n1Merge    0
         }
 
 kRight  zeroGradient

@@ -11,6 +11,7 @@ towerDir            (0.0 0.0 1.0)
 rotorDir            (-1.0 0.0 0.0)
 upTilt              0
 includeTower        0
+includeNacelle      0
 
 # Controllers 
 genControllerType   fiveRegionsNREL
@@ -33,11 +34,18 @@ Uref                9.0
 # Tower properties 
 towerData
 {
-    Cd              0.5
-    epsilon         15.0
+    Cd              0.8
+    epsilon         12.0
     nLinPts         90
     rBase           3
     rTop            1.5
+}
+
+# Nacelle properties
+nacelleData
+{
+    Cd              4
+    epsilon         12
 }
 
 # names of the foils 

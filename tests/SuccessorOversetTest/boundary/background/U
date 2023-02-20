@@ -33,8 +33,9 @@ kLeft   inletFunction
             n1Periods 1
             n2Periods 1
             sourceType uniform
-	        cellWidth1 20.0
-	        cellWidth2 20.0  
+	    cellWidth1 20.0
+	    cellWidth2 20.0  
+	    n1Merge    0
         }
         
 kRight  zeroGradient   
