@@ -5,7 +5,7 @@ Toolbox fOr Stratified Convective Atmospheres
 ## Executables
 
     - tosca    : transient solver for stratified incompressible flows. Temperature stratification is accounted via Boussinesq approximation.
-    - windToPW : post processor for ParaView visualization. Writes data in XMF/HDF format.
+    - tosca2PV : post processor for ParaView visualization. Writes data in XMF/HDF format.
 
 ## Boundary Conditions
 
@@ -108,10 +108,10 @@ In order to compile TOSCA on your system, please follow these steps:
 
 * Reload the environment with `source $HOME/.bashrc`
 
-* Go inside TOSCA/src directory and compile the executables with `make tosca` and `make windToPW`
+* Go inside TOSCA/src directory and compile the executables with `make tosca` and `make tosca2PV`
 
-* Test the installation by copying `tosca` and `windToPW` in one of the example cases and run the simulation
-  and the post-processing with `./tosca` and `./windToPW` respectively. To run in parallel you have to use
+* Test the installation by copying `tosca` and `tosca2PV` in one of the example cases and run the simulation
+  and the post-processing with `./tosca` and `./tosca2PV` respectively. To run in parallel you have to use
   `mpirun -np 'your-number-of-processors' ./tosca`
 
 ## Paraview-Catalyst2 OS-Rendering
