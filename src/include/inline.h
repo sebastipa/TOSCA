@@ -3867,6 +3867,46 @@ inline PetscReal viscRayleigh(PetscReal &alpha, PetscReal &hS, PetscReal &hE, Pe
 
 //***************************************************************************************************************//
 
+inline PetscReal viscCosAscending(PetscReal &alpha, PetscReal &hS, PetscReal &hE, PetscReal &h)
+{
+    PetscReal h_hat = M_PI*(h-hS)/(hE-hS);
+    PetscReal viscosity = 0.0;
+
+    if(h > hS && h < hE)
+    {
+        viscosity
+        =
+        alpha * 0.5 *
+        (
+            1 - std::cos(h_hat)
+        );
+    }
+
+    return(viscosity);
+}
+
+//***************************************************************************************************************//
+
+inline PetscReal viscCosDescending(PetscReal &alpha, PetscReal &hS, PetscReal &hE, PetscReal &h)
+{
+    PetscReal h_hat = M_PI*(h-hS)/(hE-hS);
+    PetscReal viscosity = 0;
+
+    if(h > hS && h < hE)
+    {
+        viscosity
+        =
+        alpha * 0.5 *
+        (
+            1 + std::cos(h_hat)
+        );
+    }
+
+    return(viscosity);
+}
+
+//***************************************************************************************************************//
+
 inline PetscReal viscNordstrom(PetscReal &alpha, PetscReal &hS, PetscReal &hE, PetscReal &delta, PetscReal &h)
 {
     // make sure delta is positive and strictly greater than zero

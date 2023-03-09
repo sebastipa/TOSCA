@@ -156,7 +156,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isZDampingActive            = 0;
     flags->isXDampingActive            = 0;
     flags->isYDampingActive            = 0;
-    flags->isSideForceActive           = 0;
+    flags->isCanopyActive              = 0;
     flags->isConcurrentPrecursorActive = 0;
     flags->isPvCatalystActive          = 0;
 
@@ -169,12 +169,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-zDampingLayer", &(flags->isZDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer", &(flags->isXDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-yDampingLayer", &(flags->isYDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sideForce",     &(flags->isSideForceActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-canopy",        &(flags->isCanopyActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",&(flags->isAdjustableTime), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",    &(flags->isPvCatalystActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kLeftRayleigh", &(flags->isKLeftRayleighDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kRightRayleigh", &(flags->isKRightRayleighDampingActive), PETSC_NULL);
 
 	// do some checks
-	if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive)
+	if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive)
 	{
         // y damping only goes with x damping
         if(flags->isYDampingActive && !flags->isXDampingActive)

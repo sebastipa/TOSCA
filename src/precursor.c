@@ -29,7 +29,7 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isZDampingActive            = 0;
     flags->isXDampingActive            = 0;
     flags->isYDampingActive            = 0;
-    flags->isSideForceActive           = 0;
+    flags->isCanopyActive              = 0;
     flags->isConcurrentPrecursorActive = 0;
     flags->isPrecursorSpinUp           = 0;
 

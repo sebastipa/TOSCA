@@ -17,10 +17,12 @@ struct flags_
     PetscInt isZDampingActive;
     PetscInt isXDampingActive;
     PetscInt isYDampingActive;
-    PetscInt isSideForceActive;
+    PetscInt isCanopyActive;
     PetscInt isPrecursorSpinUp;
     PetscInt isConcurrentPrecursorActive;
     PetscInt isPvCatalystActive;
+    PetscInt isKLeftRayleighDampingActive;
+    PetscInt isKRightRayleighDampingActive;
 };
 
 #endif

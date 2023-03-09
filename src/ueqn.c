@@ -591,7 +591,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
         // compute filtered geostrophic angle
         abl->geoAngle = (1.0 - clock->dt / T) * abl->geoAngle + (clock->dt / T) * geoAngleNew;
-		
+
 		if(print) PetscPrintf(mesh->MESH_COMM, "                         Alpha at hRef: %.3f deg, Alpha at hGeo: %.3f deg\n",abl->hubAngle/M_PI*180, abl->geoAngle/M_PI*180);
 
         // compute the uniform source terms
@@ -749,7 +749,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                         if(applyGeoDamping)
                         {
 							// multiply by dt for how TOSCA builds the source RHS (only geo damping)
-							
+
                             PetscReal  height = cent[k][j][i].z - mesh->bounds.zmin;
                             source[k][j][i].x = s.x +
                                                 scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
@@ -2081,6 +2081,92 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         central(ucat[k][j][i].z, ucat[k][j+1][i].z) * jeta[k][j][i].z
                     );
                 }
+
+                // k Left damping layer
+                if(ueqn->access->flags->isKLeftRayleighDampingActive)
+                {
+                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    x     = cent[k][j][i].x;
+                    xi    = cent[k][j][i+1].x;
+                    xj    = cent[k][j+1][i].x;
+                    xk    = cent[k+1][j][i].x;
+
+                    PetscReal hs = mesh->bounds.xmin,
+                              he = mesh->bounds.xmin+abl->kLeftPatchDist;
+
+                    // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    nud_x   = viscCosDescending(abl->kLeftDampingAlpha, hs, he, x);
+                    nudi_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xi);
+                    nudj_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xj);
+                    nudk_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xk);
+
+                    // i-fluxes
+                    rhs[k][j][i].x
+                    +=
+                    scale * central(nud_x, nudi_x) *
+                    (
+                        (abl->kLeftDampingUBar - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x
+                    );
+
+                    // j-fluxes
+                    rhs[k][j][i].y
+                    +=
+                    scale * central(nud_x, nudj_x) *
+                    (
+                        (abl->kLeftDampingUBar - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x
+                    );
+
+                    // k-fluxes
+                    rhs[k][j][i].z
+                    +=
+                    scale * central(nud_x, nudk_x) *
+                    (
+                        (abl->kLeftDampingUBar - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x
+                    );
+                }
+
+                // k Right damping layer
+                if(ueqn->access->flags->isKRightRayleighDampingActive)
+                {
+                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    x     = cent[k][j][i].x;
+                    xi    = cent[k][j][i+1].x;
+                    xj    = cent[k][j+1][i].x;
+                    xk    = cent[k+1][j][i].x;
+
+                    PetscReal hs = mesh->bounds.xmax-abl->kRightPatchDist,
+                              he = mesh->bounds.xmax;
+
+                    // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    nud_x   = viscCosAscending(abl->kRightDampingAlpha, hs, he, x);
+                    nudi_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xi);
+                    nudj_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xj);
+                    nudk_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xk);
+
+                    // i-fluxes
+                    rhs[k][j][i].x
+                    +=
+                    scale * central(nud_x, nudi_x) *
+                    (
+                        (abl->kRightDampingUBar - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x
+                    );
+
+                    // j-fluxes
+                    rhs[k][j][i].y
+                    +=
+                    scale * central(nud_x, nudj_x) *
+                    (
+                        (abl->kRightDampingUBar - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x
+                    );
+
+                    // k-fluxes
+                    rhs[k][j][i].z
+                    +=
+                    scale * central(nud_x, nudk_x) *
+                    (
+                        (abl->kRightDampingUBar - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x
+                    );
+                }
             }
         }
     }
@@ -2216,11 +2302,8 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
 //***************************************************************************************************************//
 
-PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 {
-    // fictitious force evaluated as the Coriolis force with opposite direction:
-    // SideForce = -K * Coriolis
-
     mesh_         *mesh = ueqn->access->mesh;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
@@ -2231,17 +2314,27 @@ PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***ucat, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert;
+    PetscReal     ***nvert, ***aj;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
 
-    PetscReal     fc      = ueqn->access->abl->fc; // coriolis parameter
-    PetscReal     xStart  = ueqn->access->abl->xStartSideF,
-                  zStart  = ueqn->access->abl->zStartSideF,
-                  xEnd    = ueqn->access->abl->xEndSideF,
-                  zEnd    = ueqn->access->abl->zEndSideF;
-    double        K       = 5.0;
+    // adjust canopy bounds if they are defined outside of the domain
+    PetscReal     xStart  = std::max(ueqn->access->abl->xStartCanopy,mesh->bounds.xmin),
+                  yStart  = std::max(ueqn->access->abl->yStartCanopy,mesh->bounds.ymin),
+                  zStart  = std::max(ueqn->access->abl->zStartCanopy,mesh->bounds.zmin),
+                  xEnd    = std::min(ueqn->access->abl->xEndCanopy, mesh->bounds.xmax),
+                  yEnd    = std::min(ueqn->access->abl->yEndCanopy, mesh->bounds.ymax),
+                  zEnd    = std::min(ueqn->access->abl->zEndCanopy, mesh->bounds.zmax);
+
+    Cmpnts        diskNormal = ueqn->access->abl->diskDirCanopy;
+
+    PetscReal     Hc      = (zEnd-zStart);
+    PetscReal     V       = (xEnd-xStart)*(yEnd-yStart)*(zEnd-zStart);
+    PetscReal     cft     = ueqn->access->abl->cftCanopy;
+
+    PetscReal     ltotalIntU      = 0, gtotalIntU      = 0;
+    PetscReal     ltotalIntThrust = 0, gtotalIntThrust = 0;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -2253,6 +2346,8 @@ PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
+    DMDAVecGetArray(da,  mesh->lAj,  &aj);
+
     DMDAVecGetArray(fda, Rhs,  &rhs);
     DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
 
@@ -2262,62 +2357,130 @@ PetscErrorCode SideForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
-                double coeff_i = 0.0, coeff_j = 0.0, coeff_k = 0.0;
+                PetscReal uSource;
+                PetscReal coeff = 0.0, coeff_i = 0.0, coeff_j = 0.0, coeff_k = 0.0;
 
-                // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                double xi    = 0.5 * (cent[k][j][i].x + cent[k][j][i+1].x) - mesh->bounds.xmin;
-                double xj    = 0.5 * (cent[k][j][i].x + cent[k][j+1][i].x) - mesh->bounds.xmin;
-                double xk    = 0.5 * (cent[k][j][i].x + cent[k+1][j][i].x) - mesh->bounds.xmin;
+                // x coord of k-face center
+                PetscReal xk    = central(cent[k][j][i].x, cent[k+1][j][i].x);
 
-                // compute cell center z at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                double zi    = 0.5 * (cent[k][j][i].z + cent[k][j][i+1].z) - mesh->bounds.zmin;
-                double zj    = 0.5 * (cent[k][j][i].z + cent[k][j+1][i].z) - mesh->bounds.zmin;
-                double zk    = 0.5 * (cent[k][j][i].z + cent[k+1][j][i].z) - mesh->bounds.zmin;
+                // y coord of i-face center
+                PetscReal yi    = central(cent[k][j][i].y, cent[k][j][i+1].y);
 
-                if(xi < xEnd && xi > xStart && zi < zEnd && zi > zStart) coeff_i = 1;
-                if(xj < xEnd && xj > xStart && zj < zEnd && zj > zStart) coeff_j = 1;
-                if(xk < xEnd && xk > xStart && zk < zEnd && zk > zStart) coeff_k = 1;
+                // z coord of j-face center
+                PetscReal zj    = central(cent[k][j][i].z, cent[k][j][i+1].z);
 
-                rhs[k][j][i].x
-                +=
-                scale * coeff_i *
-                (
-                    2.0 * K *
+                // coords of cell center
+                PetscReal x     = cent[k][j][i].x;
+                PetscReal y     = cent[k][j][i].y;
+                PetscReal z     = cent[k][j][i].z;
+
+                // k-face center is located in the canopy box?
+                if(xk < xEnd && xk > xStart && y  < yEnd && y  > yStart && z  < zEnd && z  > zStart) coeff_k = 1;
+                // i-face center is located in the canopy box?
+                if(x  < xEnd && x  > xStart && yi < yEnd && yi > yStart && z  < zEnd && z  > zStart) coeff_i = 1;
+                // j-face center is located in the canopy box?
+                if(x  < xEnd && x  > xStart && y  < yEnd && y  > yStart && zj < zEnd && zj > zStart) coeff_j = 1;
+                // cell center is located in the canopy box?
+                if(x  < xEnd && x  > xStart && y  < yEnd && y  > yStart && z  < zEnd && z  > zStart) coeff   = 1;
+
+                // source-velocity at this i-face (use central interpolation scheme)
+                uSource   = nMag(centralVec(ucat[k][j][i], ucat[k][j][i+1]));
+
+                // force per unit volume at this i-face
+                PetscReal forceMagI = 0.5*cft*uSource*uSource/Hc;
+
+                // body force vector at this k-face
+                Cmpnts    forceI    = nScale(forceMagI, diskNormal);
+
+                // body force i-flux
+                if(isFluidIFace(k, j, i, i+1, nvert))
+                {
+                    rhs[k][j][i].x
+                    +=
+                    coeff_i *
                     (
-                        fc * 10.0 * icsi[k][j][i].y
-                    )
-                );
+                        forceI.x * icsi[k][j][i].x +
+                        forceI.y * icsi[k][j][i].y +
+                        forceI.z * icsi[k][j][i].z
+                    );
+                }
 
-                if
-                (
-                    isFluidJFace(k, j, i, j+1, nvert)
-                )
+                // source-velocity at this j-face (use central interpolation scheme)
+                uSource   = nMag(centralVec(ucat[k][j][i], ucat[k][j+1][i]));
+
+                // force per unit volume at this j-face
+                PetscReal forceMagJ = 0.5*cft*uSource*uSource/Hc;
+
+                // body force vector at this j-face
+                Cmpnts    forceJ    = nScale(forceMagJ, diskNormal);
+
+                // body force j-flux
+                if(isFluidJFace(k, j, i, j+1, nvert))
                 {
                     rhs[k][j][i].y
                     +=
-                    scale * coeff_j *
-                    0.0 ;
+                    coeff_j *
+                    (
+                        forceJ.x * jeta[k][j][i].x +
+                        forceJ.y * jeta[k][j][i].y +
+                        forceJ.z * jeta[k][j][i].z
+                    );
                 }
 
-                if
-                (
-                    isFluidKFace(k, j, i, k+1, nvert)
-                )
+                // source-velocity at this k-face (use central interpolation scheme)
+                uSource   = nMag(centralVec(ucat[k][j][i], ucat[k+1][j][i]));
+
+                // force per unit volume at this k-face
+                PetscReal forceMagK = 0.5*cft*uSource*uSource/Hc;
+
+                // body force vector at this k-face
+                Cmpnts    forceK    = nScale(forceMagK, diskNormal);
+
+                // body force k-flux
+                if(isFluidKFace(k, j, i, k+1, nvert))
                 {
                     rhs[k][j][i].z
                     +=
-                    scale * coeff_k *
-                    0.0 ;
+                    coeff_k *
+                    (
+                        forceK.x * kzet[k][j][i].x +
+                        forceK.y * kzet[k][j][i].y +
+                        forceK.z * kzet[k][j][i].z
+                    );
                 }
+
+                // now do the computation on cell centers just to check
+                /*
+                uSource             = nMag(ucat[k][j][i]);
+                PetscReal vCell     = 1.0/aj[k][j][i];
+                PetscReal forceMag  = 0.5*cft*uSource*uSource/Hc;
+
+                // integrate velocity on the canopy weghting with volume
+                ltotalIntU      += coeff*uSource*vCell/V;
+
+                // integrate the cell-thrust in the canopy
+                ltotalIntThrust += coeff*forceMag*vCell;
+                */
             }
         }
     }
+
+    /*
+    MPI_Allreduce(&ltotalIntU,      &gtotalIntU,      1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&ltotalIntThrust, &gtotalIntThrust, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    PetscReal totalThrust = 0.5*cft*gtotalIntU*gtotalIntU*V/Hc;
+
+    PetscPrintf(mesh->MESH_COMM, "Canopy: actual thrust = %.2f, integrated thrust = %.2f, error % = %.2f\n", totalThrust, gtotalIntThrust, fabs(totalThrust-gtotalIntThrust)/totalThrust*100);
+    */
 
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+
+    DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
 
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
@@ -5024,9 +5187,9 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     }
 
     // add side force term
-    if(ueqn->access->flags->isSideForceActive)
+    if(ueqn->access->flags->isCanopyActive)
     {
-        SideForce(ueqn, Rhs, 1.0);
+        CanopyForce(ueqn, Rhs, 1.0);
     }
 
     if(ueqn->access->flags->isTeqnActive)
@@ -5064,7 +5227,9 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     if
     (
         ueqn->access->flags->isXDampingActive ||
-        ueqn->access->flags->isZDampingActive
+        ueqn->access->flags->isZDampingActive ||
+        ueqn->access->flags->isKLeftRayleighDampingActive ||
+        ueqn->access->flags->isKRightRayleighDampingActive
     )
     {
         dampingSourceU(ueqn, Rhs, 1.0);
@@ -5128,9 +5293,9 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     }
 
     // add side force term
-    if(ueqn->access->flags->isSideForceActive)
+    if(ueqn->access->flags->isCanopyActive)
     {
-        SideForce(ueqn, ueqn->Rhs, 1.0);
+        CanopyForce(ueqn, ueqn->Rhs, 1.0);
     }
 
     if(ueqn->access->flags->isTeqnActive)
@@ -5160,7 +5325,9 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     if
     (
         ueqn->access->flags->isXDampingActive ||
-        ueqn->access->flags->isZDampingActive
+        ueqn->access->flags->isZDampingActive ||
+        ueqn->access->flags->isKLeftRayleighDampingActive ||
+        ueqn->access->flags->isKRightRayleighDampingActive
     )
     {
         dampingSourceU(ueqn, ueqn->Rhs, 1.0);

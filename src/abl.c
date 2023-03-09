@@ -150,22 +150,22 @@ PetscErrorCode InitializeABL(abl_ *abl)
         std::vector<PetscInt>  ().swap(gCells);
     }
 
+    if(abl->controllerActiveT)
+    {
+        PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
+
+        for(l=0; l<nLevels; l++)
+        {
+            abl->tDes[l] = 0.0;
+        }
+
+        // read proportional controller relaxation factor (same as the velocity one)
+        readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
+    }
+
     if(abl->controllerActive)
     {
         PetscPrintf(mesh->MESH_COMM, "   reading driving controller properties\n");
-
-        if(abl->controllerActiveT)
-        {
-            PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
-
-            for(l=0; l<nLevels; l++)
-            {
-                abl->tDes[l] = 0.0;
-            }
-
-            // read proportional controller relaxation factor (same as the velocity one)
-            readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
-        }
 
         readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerMaxHeight", &(abl->controllerMaxHeight));
         readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerType",   &(abl->controllerType));
@@ -1268,18 +1268,43 @@ PetscErrorCode InitializeABL(abl_ *abl)
         }
     }
 
-    // read the side force region properties
-    if(mesh->access->flags->isSideForceActive)
-    {
-        PetscPrintf(mesh->MESH_COMM, "   reading side force properties\n");
+    DMDAVecRestoreArray(fda, Coor, &coor);
 
-        readSubDictDouble("ABLProperties.dat", "sideForceProperties", "xStartSideF",   &(abl->xStartSideF));
-        readSubDictDouble("ABLProperties.dat", "sideForceProperties", "xEndSideF",     &(abl->xEndSideF));
-        readSubDictDouble("ABLProperties.dat", "sideForceProperties", "zStartSideF",   &(abl->zStartSideF));
-        readSubDictDouble("ABLProperties.dat", "sideForceProperties", "zEndSideF",     &(abl->zEndSideF));
+    // read the side force region properties
+    if(mesh->access->flags->isCanopyActive)
+    {
+        PetscPrintf(mesh->MESH_COMM, "   reading canopy properties\n");
+
+        readSubDictDouble("ABLProperties.dat", "canopyProperties", "xStartCanopy",   &(abl->xStartCanopy));
+        readSubDictDouble("ABLProperties.dat", "canopyProperties", "xEndCanopy",     &(abl->xEndCanopy));
+        readSubDictDouble("ABLProperties.dat", "canopyProperties", "yStartCanopy",   &(abl->yStartCanopy));
+        readSubDictDouble("ABLProperties.dat", "canopyProperties", "yEndCanopy",     &(abl->yEndCanopy));
+        readSubDictDouble("ABLProperties.dat", "canopyProperties", "zStartCanopy",   &(abl->zStartCanopy));
+        readSubDictDouble("ABLProperties.dat", "canopyProperties", "zEndCanopy",     &(abl->zEndCanopy));
+        readSubDictDouble("ABLProperties.dat", "canopyProperties", "cftCanopy",      &(abl->cftCanopy));
+        readSubDictVector("ABLProperties.dat", "canopyProperties", "diskDirCanopy",  &(abl->diskDirCanopy));
+        mUnit(abl->diskDirCanopy);
     }
 
-    DMDAVecRestoreArray(fda, Coor, &coor);
+    // read kLeft Rayleigh damping properties
+    if(mesh->access->flags->isKLeftRayleighDampingActive)
+    {
+        PetscPrintf(mesh->MESH_COMM, "   reading kLeft-damping properties\n");
+
+        readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftPatchDist",      &(abl->kLeftPatchDist));
+        readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingAlpha",   &(abl->kLeftDampingAlpha));
+        readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingUBar",    &(abl->kLeftDampingUBar));
+    }
+
+    // read kRight Rayleigh damping properties
+    if(mesh->access->flags->isKRightRayleighDampingActive)
+    {
+        PetscPrintf(mesh->MESH_COMM, "   reading kRigh-damping properties\n");
+
+        readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightPatchDist",      &(abl->kRightPatchDist));
+        readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingAlpha",   &(abl->kRightDampingAlpha));
+        readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingUBar",    &(abl->kRightDampingUBar));
+    }
 
     PetscPrintf(mesh->MESH_COMM, "done\n\n");
 

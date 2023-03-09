@@ -11,7 +11,7 @@ struct avgFields
     Vec           Coriolis;                   //!< coriolis source
     Vec           Driving;                    //!< driving pressure gradient source
     Vec           xDamping;                   //!< x damping layer (x fringe region source)
-    Vec           SideForce;                  //!< side force for fringe region testing
+    Vec           CanopyForce;                  //!< side force for fringe region testing
 
     Vec           windFarmForce;              //!< wind farm body force
 

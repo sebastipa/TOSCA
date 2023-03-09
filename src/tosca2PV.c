@@ -1,18 +1,15 @@
 
 //#include </usr/include/hdf5/serial/hdf5.h>
-#include <hdf5.h>
 #include "include/base.h"
 #include "include/domain.h"
-#include "include/inline.h"
 #include "include/initialization.h"
-#include "include/windToPW.h"
+#include "include/inline.h"
+#include <hdf5.h>
+#include "include/tosca2PV.h"
 
-static char head[] = "MARBLLES Post Processor";
+static char head[] = "TOSCA Post Processor";
 
 //***************************************************************************************************************//
-
-#undef __FUNCT__
-#define __FUNCT__ "main"
 
 int main(int argc, char **argv)
 {
@@ -118,15 +115,15 @@ int main(int argc, char **argv)
 
   }
 
-  PetscTime(&ppTimeEnd);
+    PetscTime(&ppTimeEnd);
 
-  PetscPrintf(PETSC_COMM_WORLD, "Cpu Time = %lf s, Finalizing run\n", ppTimeEnd - ppTimeStart);
+    PetscPrintf(PETSC_COMM_WORLD, "Cpu Time = %lf s, Finalizing run\n", ppTimeEnd - ppTimeStart);
 
-	PetscBarrier(PETSC_NULL);
+    PetscBarrier(PETSC_NULL);
 
-  PetscPrintf(PETSC_COMM_WORLD, "\nEnd\n\n");
+    PetscPrintf(PETSC_COMM_WORLD, "\nEnd\n\n");
 
-	PetscFinalize();
+    PetscFinalize();
 }
 
 //***************************************************************************************************************//
@@ -596,8 +593,8 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             &file_id,
             &dataspace_id,
             time,
-            "SideForce",
-            acquisition->fields->SideForce
+            "CanopyForce",
+            acquisition->fields->CanopyForce
         );
     }
 

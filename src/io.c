@@ -461,7 +461,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         MPI_Barrier(mesh->MESH_COMM);
 
         // x/z damping region
-        if(flags->isXDampingActive || flags->isZDampingActive)
+        if(flags->isXDampingActive || flags->isZDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive)
         {
             field = "/Damping";
             fileName = location + field;
@@ -480,9 +480,9 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         }
 
         // side force
-        if(flags->isSideForceActive)
+        if(flags->isCanopyActive)
         {
-            field = "/SideForce";
+            field = "/CanopyForce";
             fileName = location + field;
             fp=fopen(fileName.c_str(), "r");
 
@@ -492,7 +492,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
 
                 PetscPrintf(mesh->MESH_COMM, "Reading Side Force...\n");
                 PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-                VecLoad(acquisition->fields->SideForce,viewer);
+                VecLoad(acquisition->fields->CanopyForce,viewer);
                 PetscViewerDestroy(&viewer);
             }
             MPI_Barrier(mesh->MESH_COMM);
@@ -1991,7 +1991,7 @@ PetscErrorCode writeFields(io_ *io)
             MPI_Barrier(mesh->MESH_COMM);
 
             // x damping region
-            if(flags->isXDampingActive || flags->isZDampingActive)
+            if(flags->isXDampingActive || flags->isZDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive)
             {
                 computeXDampingIO(acquisition);
                 fieldName = timeName + "/Damping";
@@ -2000,11 +2000,11 @@ PetscErrorCode writeFields(io_ *io)
             }
 
             // side force
-            if(flags->isSideForceActive)
+            if(flags->isCanopyActive)
             {
-                computeSideForceIO(acquisition);
-                fieldName = timeName + "/SideForce";
-                writeBinaryField(mesh->MESH_COMM, acquisition->fields->SideForce, fieldName.c_str());
+                computeCanopyForceIO(acquisition);
+                fieldName = timeName + "/CanopyForce";
+                writeBinaryField(mesh->MESH_COMM, acquisition->fields->CanopyForce, fieldName.c_str());
                 MPI_Barrier(mesh->MESH_COMM);
             }
         }

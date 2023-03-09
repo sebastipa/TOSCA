@@ -82,6 +82,16 @@ struct abl_
     PetscInt     zDampingAlsoXY;                 //!< damp also x and y velocity components (if 0 only z component is damped)
     PetscInt     zDampingXYType;                 //!< type 1 (default) averages at inlet, type (2) requires concurrent precursor and xDamping and uses planar averages
 
+    // kLeft damping layer
+    PetscReal    kLeftPatchDist;                 //!< width of the kLeft Rayleigh damping layer
+    PetscReal    kLeftDampingAlpha;              //!< kLeft Rayleigh damping coefficient
+    PetscReal    kLeftDampingUBar;               //!< kLeft bar velocity with respect to which the flow is damped
+
+    // kRight damping layer
+    PetscReal    kRightPatchDist;                 //!< width of the kRight Rayleigh damping layer
+    PetscReal    kRightDampingAlpha;              //!< kRight Rayleigh damping coefficient
+    PetscReal    kRightDampingUBar;               //!< kRight bar velocity with respect to which the flow is damped
+
     // x damping layer (recycling fringe region)
     PetscReal    xDampingStart;                  //!< starting x of the fringe layer
     PetscReal    xDampingEnd;                    //!< ending x of the fringe layer
@@ -124,8 +134,11 @@ struct abl_
     PetscInt     **nProcsKLine;                  //!< number of processors in each k-line, used to average after MPI_Allreduce
 
     // side force for fringe region testing
-    PetscReal    xStartSideF, xEndSideF;         //!< x start and ending coordinates of the region where the side force is applied
-    PetscReal    zStartSideF, zEndSideF;         //!< z start and ending coordinates of the region where the side force is applied
+    PetscReal    xStartCanopy, xEndCanopy;         //!< x start and ending coordinates of the region where the side force is applied
+    PetscReal    yStartCanopy, yEndCanopy;         //!< x start and ending coordinates of the region where the side force is applied
+    PetscReal    zStartCanopy, zEndCanopy;         //!< z start and ending coordinates of the region where the side force is applied
+    PetscReal    cftCanopy;                        //!< thrust coefficient of the entire wind canopy
+    Cmpnts       diskDirCanopy;                    //!< disk direction of turbines inside the canopy
 
     // turbulent flow initialization
     PetscReal    zPeak;

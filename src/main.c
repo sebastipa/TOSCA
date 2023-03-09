@@ -1,13 +1,10 @@
 // include base headers and objects
 #include "include/base.h"
-
-// object declarations
 #include "include/domain.h"
-
 #include "include/initialization.h"
 #include "include/inline.h"
 
-#ifndef USE_CATALYST
+#if USE_CATALYST
 #include "include/catalystAdaptor.h"
 #endif
 
@@ -18,7 +15,7 @@ int main(int argc, char **argv)
     // initialize PETSc
     PetscInitialize(&argc, &argv, (char *)0, head);
 
-    // domains array
+    // domains array    
     domain_ *domain;
 
     // simulation clock
@@ -43,7 +40,7 @@ int main(int argc, char **argv)
 
     if(flags.isPvCatalystActive)
     {
-        #ifndef USE_CATALYST
+        #if USE_CATALYST
         catalystInitialize(domain);
         #endif
     }
@@ -217,7 +214,7 @@ int main(int argc, char **argv)
 
         if(flags.isPvCatalystActive)
         {
-            #ifndef USE_CATALYST
+            #if USE_CATALYST
             catalystExecute(domain);
             #endif
         }
@@ -237,7 +234,7 @@ int main(int argc, char **argv)
 
     }
 
-    #ifndef USE_CATALYST
+    #if USE_CATALYST
     catalystFinalize();
     #endif
 

@@ -109,7 +109,7 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition);
 PetscErrorCode computeXDampingIO(acquisition_ *acquisition);
 
 //! \brief Compute side force for I/O in cartesian form
-PetscErrorCode computeSideForceIO(acquisition_ *acquisition);
+PetscErrorCode computeCanopyForceIO(acquisition_ *acquisition);
 
 // MKE BUDGETS ACQUISITION
 // ============================================================================================================= //

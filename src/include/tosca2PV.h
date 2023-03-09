@@ -1,8 +1,8 @@
-//! \file  windToPW.h
+//! \file  tosca2PV.h
 //! \brief post processing header file.
 
-#ifndef _WINDTOPW_H_
-#define _WINDTOPW_H_
+#ifndef _TOSCA2PV_H_
+#define _TOSCA2PV_H_
 
 //! \brief Structure defining the variables for postProcessing
 typedef struct

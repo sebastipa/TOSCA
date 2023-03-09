@@ -309,7 +309,7 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
             VecDuplicate(mesh->Cent, &(avg->Coriolis)); VecSet(avg->Coriolis, 0.);
             VecDuplicate(mesh->Cent, &(avg->Driving));  VecSet(avg->Driving,  0.);
             VecDuplicate(mesh->Cent, &(avg->xDamping)); VecSet(avg->xDamping, 0.);
-            VecDuplicate(mesh->Cent, &(avg->SideForce));VecSet(avg->SideForce,0.);
+            VecDuplicate(mesh->Cent, &(avg->CanopyForce));VecSet(avg->CanopyForce,0.);
         }
 
         // allocate averaging vectors
@@ -2172,7 +2172,7 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
                 VecDuplicate(mesh->lCent,  &lSourcesCont); VecSet(lSourcesCont,0.);
                 VecDuplicate(mesh->lCent,  &lSourcesCat);  VecSet(lSourcesCat,0.);
 
-                if(flags->isXDampingActive || flags->isZDampingActive)
+                if(flags->isXDampingActive || flags->isZDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive)
                 {
                     dampingSourceU(ueqn, lSourcesCont, 1.0);
                 }
@@ -2844,7 +2844,7 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
 
                 // compute sources
                 VecDuplicate(mesh->lCent,  &lSourcesCont); VecSet(lSourcesCont,0.);
-                if(flags->isXDampingActive || flags->isZDampingActive)
+                if(flags->isXDampingActive || flags->isZDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive)
                 {
                     dampingSourceU(ueqn, lSourcesCont, 1.0);
                 }
@@ -6776,6 +6776,80 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                         )
                     );
                 }
+
+                // k Left damping layer
+                if(ueqn->access->flags->isKLeftRayleighDampingActive)
+                {
+                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    PetscReal x     = cent[k][j][i].x;
+
+                    PetscReal hs = mesh->bounds.xmin,
+                              he = mesh->bounds.xmin+abl->kLeftPatchDist;
+
+                    // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    PetscReal nud_kRayleigh   = viscCosDescending(abl->kLeftDampingAlpha, hs, he, x);
+
+                    // i-fluxes
+                    source[k][j][i].x
+                    +=
+                    nud_kRayleigh *
+                    (
+                        (abl->kLeftDampingUBar - ucat[k][j][i].x) * csi[k][j][i].x
+                    );
+
+                    // j-fluxes
+                    source[k][j][i].y
+                    +=
+                    nud_kRayleigh *
+                    (
+                        (abl->kLeftDampingUBar - ucat[k][j][i].x) * eta[k][j][i].x
+                    );
+
+                    // k-fluxes
+                    source[k][j][i].z
+                    +=
+                    nud_kRayleigh *
+                    (
+                        (abl->kLeftDampingUBar - ucat[k][j][i].x) * zet[k][j][i].x
+                    );
+                }
+
+                // k Right damping layer
+                if(ueqn->access->flags->isKRightRayleighDampingActive)
+                {
+                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    PetscReal x     = cent[k][j][i].x;
+
+                    PetscReal hs = mesh->bounds.xmax-abl->kRightPatchDist,
+                              he = mesh->bounds.xmax;
+
+                    // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    PetscReal nud_kRayleigh   = viscCosAscending(abl->kRightDampingAlpha, hs, he, x);
+
+                    // i-fluxes
+                    source[k][j][i].x
+                    +=
+                    nud_kRayleigh *
+                    (
+                        (abl->kRightDampingUBar - ucat[k][j][i].x) * csi[k][j][i].x
+                    );
+
+                    // j-fluxes
+                    source[k][j][i].y
+                    +=
+                    nud_kRayleigh *
+                    (
+                        (abl->kRightDampingUBar - ucat[k][j][i].x) * eta[k][j][i].x
+                    );
+
+                    // k-fluxes
+                    source[k][j][i].z
+                    +=
+                    nud_kRayleigh *
+                    (
+                        (abl->kRightDampingUBar - ucat[k][j][i].x) * zet[k][j][i].x
+                    );
+                }
             }
         }
     }
@@ -6805,7 +6879,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
 
 //***************************************************************************************************************//
 
-PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
+PetscErrorCode computeCanopyForceIO(acquisition_ *acquisition)
 {
     mesh_         *mesh = acquisition->access->mesh;
     ueqn_         *ueqn = acquisition->access->ueqn;
@@ -6821,21 +6895,26 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
 
     Cmpnts        ***source, ***ucat, ***cent;
     Cmpnts        ***csi, ***eta, ***zet;
-    PetscReal     ***nvert;
+    PetscReal     ***nvert, ***aj;
 
-    PetscReal     fc      = ueqn->access->abl->fc; // coriolis parameter
-    PetscReal     xStart  = ueqn->access->abl->xStartSideF,
-                  zStart  = ueqn->access->abl->zStartSideF,
-                  xEnd    = ueqn->access->abl->xEndSideF,
-                  zEnd    = ueqn->access->abl->zEndSideF;
+    PetscReal     xStart  = ueqn->access->abl->xStartCanopy,
+                  yStart  = ueqn->access->abl->yStartCanopy,
+                  zStart  = ueqn->access->abl->zStartCanopy,
+                  xEnd    = ueqn->access->abl->xEndCanopy,
+                  yEnd    = ueqn->access->abl->yEndCanopy,
+                  zEnd    = ueqn->access->abl->zEndCanopy;
 
-    double        K       = 5.0;
+    Cmpnts     diskNormal = ueqn->access->abl->diskDirCanopy;
+
+    PetscReal     A       = (xEnd-xStart)*(yEnd-yStart);
+    PetscReal     V       = (xEnd-xStart)*(yEnd-yStart)*(zEnd-zStart);
+    PetscReal     cft     = ueqn->access->abl->cftCanopy;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    VecSet(acquisition->fields->SideForce, 0.);
+    VecSet(acquisition->fields->CanopyForce, 0.);
 
     DMDAVecGetArray(fda, mesh->lCsi,  &csi);
     DMDAVecGetArray(fda, mesh->lEta,  &eta);
@@ -6843,7 +6922,9 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
     DMDAVecGetArray(da,  mesh->lNvert,&nvert);
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
-    DMDAVecGetArray(fda, acquisition->fields->SideForce,  &source);
+    DMDAVecGetArray(da,  mesh->lAj, &aj);
+
+    DMDAVecGetArray(fda, acquisition->fields->CanopyForce,  &source);
     DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
 
     for (k=lzs; k<lze; k++)
@@ -6852,49 +6933,78 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
         {
             for (i=lxs; i<lxe; i++)
             {
-                double coeff = 0.0;
+                double coeff_i = 0.0, coeff_j = 0.0, coeff_k = 0.0;
 
                 // compute cell center x at i,j,k
-                double x    = cent[k][j][i].x - mesh->bounds.xmin;
+                double x    = cent[k][j][i].x;
+
+                // compute cell center y at i,j,k
+                double y    = cent[k][j][i].y;
 
                 // compute cell center z at i,j,k
-                double z    = cent[k][j][i].z - mesh->bounds.zmin;
+                double z    = cent[k][j][i].z;
 
-                if(x < xEnd && x > xStart && z < zEnd && z > zStart) coeff = 1;
+                if(x < xEnd && x > xStart && y < yEnd && y > yStart && z < zEnd && z > zStart) coeff_i = 1;
+                if(x < xEnd && x > xStart && y < yEnd && y > yStart && z < zEnd && z > zStart) coeff_j = 1;
+                if(x < xEnd && x > xStart && y < yEnd && y > yStart && z < zEnd && z > zStart) coeff_k = 1;
 
+                // interpolate to the i-faces
+                PetscReal forceMagI = 0.5*cft*A*std::pow(nMag(nScale(0.5,ucat[k][j][i])),2.0);
+                Cmpnts    forceI    = nScale(forceMagI/(V*aj[k][j][i]), diskNormal);
+
+                // body force i-flux
                 if
                 (
-                    isFluidCell(k, j, i, nvert)
+                    isFluidIFace(k, j, i, i+1, nvert)
                 )
                 {
                     source[k][j][i].x
                     +=
-                    coeff *
+                    coeff_i *
                     (
-                        2.0 * K *
-                        (
-                            - fc * 10.0 * csi[k][j][i].x
-                        )
+                        forceI.x * csi[k][j][i].x +
+                        forceI.y * csi[k][j][i].y +
+                        forceI.z * csi[k][j][i].z
                     );
+                }
 
+                // interpolate to the i-faces
+                PetscReal forceMagJ = 0.5*cft*A*std::pow(nMag(nScale(0.5,ucat[k][j][i])),2.0);
+                Cmpnts    forceJ    = nScale(forceMagJ/(V*aj[k][j][i]), diskNormal);
+
+                // body force j-flux
+                if
+                (
+                    isFluidJFace(k, j, i, j+1, nvert)
+                )
+                {
                     source[k][j][i].y
                     +=
-                    coeff *
+                    coeff_j *
                     (
-                        2.0 * K *
-                        (
-                          0.0
-                        )
+                        forceJ.x * eta[k][j][i].x +
+                        forceJ.y * eta[k][j][i].y +
+                        forceJ.z * eta[k][j][i].z
                     );
+                }
 
+                // interpolate to the i-faces
+                PetscReal forceMagK = 0.5*cft*A*std::pow(nMag(nScale(0.5,ucat[k][j][i])),2.0);
+                Cmpnts    forceK    = nScale(forceMagK/(V*aj[k][j][i]), diskNormal);
+
+                // body force k-flux
+                if
+                (
+                    isFluidKFace(k, j, i, k+1, nvert)
+                )
+                {
                     source[k][j][i].z
                     +=
-                    coeff *
+                    coeff_k *
                     (
-                        2.0 * K *
-                        (
-                           0.0
-                        )
+                        forceK.x * zet[k][j][i].x +
+                        forceK.y * zet[k][j][i].y +
+                        forceK.z * zet[k][j][i].z
                     );
                 }
             }
@@ -6907,7 +7017,9 @@ PetscErrorCode computeSideForceIO(acquisition_ *acquisition)
     DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
-    DMDAVecRestoreArray(fda, acquisition->fields->SideForce,  &source);
+    DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+
+    DMDAVecRestoreArray(fda, acquisition->fields->CanopyForce,  &source);
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
 
     return(0);
