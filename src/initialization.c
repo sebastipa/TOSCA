@@ -146,19 +146,21 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     // read from control file
     PetscOptionsInsertFile(PETSC_COMM_WORLD, PETSC_NULL, "control.dat", PETSC_TRUE);
 
-    flags->isOversetActive             = 0;
-    flags->isLesActive                 = 1;
-    flags->isTeqnActive                = 0;
-    flags->isWindFarmActive            = 0;
-    flags->isAquisitionActive          = 0;
-    flags->isAblActive                 = 0;
-    flags->isIBMActive                 = 0;
-    flags->isZDampingActive            = 0;
-    flags->isXDampingActive            = 0;
-    flags->isYDampingActive            = 0;
-    flags->isCanopyActive              = 0;
-    flags->isConcurrentPrecursorActive = 0;
-    flags->isPvCatalystActive          = 0;
+    flags->isOversetActive               = 0;
+    flags->isLesActive                   = 1;
+    flags->isTeqnActive                  = 0;
+    flags->isWindFarmActive              = 0;
+    flags->isAquisitionActive            = 0;
+    flags->isAblActive                   = 0;
+    flags->isIBMActive                   = 0;
+    flags->isZDampingActive              = 0;
+    flags->isXDampingActive              = 0;
+    flags->isYDampingActive              = 0;
+    flags->isKLeftRayleighDampingActive  = 0;
+    flags->isKRightRayleighDampingActive = 0;
+    flags->isCanopyActive                = 0;
+    flags->isConcurrentPrecursorActive   = 0;
+    flags->isPvCatalystActive            = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",       &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);

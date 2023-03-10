@@ -3265,15 +3265,15 @@ PetscErrorCode projectBladeForce(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        // projection parameters
-        PetscReal rPrj = wt->eps * wt->prjNSigma;
-
         // test if this processor controls this turbine
         if(wt->turbineControlled)
         {
             // actuator disk model
             if((*farm->turbineModels[t]) == "ADM")
             {
+                // projection parameters
+                PetscReal rPrj = wt->eps * wt->prjNSigma;
+
                 // projection distance
                 PetscReal eps  = wt->eps;
 
@@ -3374,6 +3374,9 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             // uniform actuator disk model
             else if((*farm->turbineModels[t]) == "uniformADM")
             {
+                // projection parameters
+                PetscReal rPrj = wt->eps * wt->prjNSigma;
+
                 // projection distance
                 PetscReal eps  = wt->eps;
 
@@ -3450,8 +3453,13 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
             {
-                // projection distance
-                PetscReal eps  = wt->eps;
+                // projection type
+                PetscInt projectionType = 0;
+
+                if(wt->alm.projectionType == "anisotropic")
+                {
+                    projectionType = 1;
+                }
 
                 // number of points in the AL mesh
                 PetscInt npts_t = wt->alm.nPoints;
@@ -3485,22 +3493,36 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                             // compute magnitude
                             PetscReal r_c_mag = nMag(r_c);
 
-                            if(r_c_mag<rPrj)
+                            Cmpnts xb_hat, yb_hat, zb_hat;
+
+                            // define the bladed coordinate system
+                            if(wt->rotDir == "cw")
                             {
+                                zb_hat = nUnit(r_p);
+                                xb_hat = nScale(-1.0, wt->rtrAxis);
+                                yb_hat = nCross(zb_hat, xb_hat);
+                            }
+                            else if(wt->rotDir == "ccw")
+                            {
+                                zb_hat = nUnit(r_p);
+                                         mScale(-1.0, zb_hat);
+                                xb_hat = nScale(-1.0, wt->rtrAxis);
+                                yb_hat = nCross(zb_hat, xb_hat);
+                            }
+
+                            PetscReal pf, rPrj;
+
+                            if(projectionType==0)
+                            {
+                                // get projection epsilon
+                                PetscReal eps  = wt->eps;
+
+                                // projection parameters
+                                rPrj = eps * wt->prjNSigma;
+
                                 // compute projection factor
                                 PetscReal pf
                                 =
-                                /*
-                                std::exp
-                                (
-                                    -(r_c_mag *r_c_mag) /
-                                     (2.0 * eps * eps)
-                                ) /
-                                (
-                                    pow(eps,    3) *
-                                    pow(2.0*M_PI, 1.5)
-                                );
-                                */
                                 std::exp
                                 (
                                     -(r_c_mag / eps)*
@@ -3511,7 +3533,50 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                                     pow(M_PI, 1.5)
                                 );
 
-                                Cmpnts bfCell = nScale(solidity_p * pf, wt->alm.B[p]);
+                            }
+
+                            if(projectionType==1)
+                            {
+
+                                // get projection epsilon
+                                PetscReal eps_x =     wt->alm.thick[p]*wt->eps,
+                                          eps_y =     wt->alm.chord[p]*wt->eps,
+                                          eps_z = 2.0*wt->alm.chord[p]*wt->eps;
+
+                                // form a reference blade starting from the
+                                // bladed frame, but rotate x and y around z by
+                                // the twist angle
+                                Cmpnts xb_af_hat = nRot(zb_hat, xb_hat,  wt->alm.twist[p]*wt->deg2rad);
+                                Cmpnts yb_af_hat = nRot(zb_hat, yb_hat,  wt->alm.twist[p]*wt->deg2rad);
+
+                                PetscReal rcx = nDot(r_c,xb_af_hat),
+                                          rcy = nDot(r_c,yb_af_hat),
+                                          rcz = nDot(r_c,zb_hat);
+
+                                // projection parameters
+                                rPrj = std::max(std::max(eps_x, eps_y),eps_z) * wt->prjNSigma;
+
+                                // compute projection factor
+                                pf
+                                =
+                                std::exp
+                                (
+                                    -rcx * rcx / (eps_x * eps_x)
+                                    -rcy * rcy / (eps_y * eps_y)
+                                    -rcz * rcz / (eps_z * eps_z)
+                                ) /
+                                (
+                                    eps_x * eps_y * eps_z *
+                                    pow(M_PI, 1.5)
+                                );
+                            }
+
+                            if(r_c_mag<rPrj)
+                            {
+
+                                //Cmpnts bfCell = nScale(solidity_p * pf, wt->alm.B[p]);
+
+                                Cmpnts bfCell = nScale(solidity_p * pf, nSetFromComponents(-1.0, 0.0, 0.0));
 
                                 sCat[k][j][i].x += bfCell.x;
                                 sCat[k][j][i].y += bfCell.y;
@@ -3521,23 +3586,6 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                                 PetscReal vCell    = 1.0 / aj[k][j][i];
                                 Cmpnts thrustBF = nScale(vCell*constants->rho, bfCell);
                                 Cmpnts torqueBF = nScale(vCell*constants->rho*nMag(r_p)*std::cos(wt->deg2rad*wt->precone), bfCell);
-
-                                Cmpnts xb_hat, yb_hat, zb_hat;
-
-                                // define the bladed coordinate system
-                                if(wt->rotDir == "cw")
-                                {
-                                    zb_hat = nUnit(r_p);
-                                    xb_hat = nScale(-1.0, wt->rtrAxis);
-                                    yb_hat = nCross(zb_hat, xb_hat);
-                                }
-                                else if(wt->rotDir == "ccw")
-                                {
-                                    zb_hat = nUnit(r_p);
-                                             mScale(-1.0, zb_hat);
-                                    xb_hat = nScale(-1.0, wt->rtrAxis);
-                                    yb_hat = nCross(zb_hat, xb_hat);
-                                }
 
                                 // cumulate contribution from this AD point at this cell
                                 lThrustBFSum += nDot(thrustBF, wt->rtrAxis);
@@ -5479,9 +5527,18 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
     // read necessary properties from file
     word descrFile = "./turbines/" + meshName + "/" + wt->type;
 
-    // read from file AD parameters
-    readDictInt(descrFile.c_str(), "nRadPts", &(wt->alm.nRadial));
+    // read from file AL parameters
+    readDictWord(descrFile.c_str(),   "projection", &(wt->alm.projectionType));
+    readDictInt(descrFile.c_str(),    "nRadPts", &(wt->alm.nRadial));
     readDictDouble(descrFile.c_str(), "Uref",    &(wt->alm.Uref));
+
+    // validate
+    if(wt->alm.projectionType!="isotropic" && wt->alm.projectionType!="anisotropic")
+    {
+        char error[512];
+        sprintf(error, "unknown ALM projection, available possibilities are:\n    1. isotropic\n    2. anisotropic\n");
+        fatalErrorInFunction("initALM",  error);
+    }
 
     wt->alm.nAzimuth = wt->nBlades;
 
@@ -5513,6 +5570,11 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
     PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.solidity));
     PetscMalloc(wt->alm.nPoints*sizeof(PetscInt*), &(wt->alm.foilIds));
     PetscMalloc(wt->alm.nPoints*sizeof(PetscReal*), &(wt->alm.iw));
+
+    if(wt->alm.projectionType=="anisotropic")
+    {
+        PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.thick));
+    }
 
     // allocate memory for the variables used during the simulation
     PetscMalloc(wt->alm.nPoints*sizeof(PetscInt), &(wt->alm.thisPtControlled));
@@ -5617,6 +5679,12 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
 
             // set airfoil twist
             wt->alm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
+
+            // set airfoil thickness
+            if(wt->alm.projectionType=="anisotropic")
+            {
+                wt->alm.thick[pi] = w1*wt->blade.thick[l1] + w2*wt->blade.thick[l2];
+            }
 
             // set airfoil ids
             wt->alm.foilIds[pi][0] = wt->blade.foilIds[l1];
@@ -6824,7 +6892,7 @@ PetscErrorCode readFarmProperties(farm_ *farm)
     }
     else if(arraySpec=="grid")
     {
-       char error[512];
+        char error[512];
         sprintf(error, "array specification type %s not yet implemented\n", arraySpec.c_str());
         fatalErrorInFunction("readFarmProperties",  error);
     }
@@ -7327,8 +7395,21 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
             readAirfoilTable(wt->foils[f], name2af.c_str());
         }
 
+        PetscInt readThickness = 0;
+
+        if(modelName == "ALM")
+        {
+            word projectionType;
+            readDictWord(dictName, "projection", &projectionType);
+
+            if(projectionType=="anisotropic")
+            {
+                readThickness = 1;
+            }
+        }
+
         // read blade properties
-        readBladeProperties(wt, dictName);
+        readBladeProperties(wt, dictName, readThickness);
 
         // check that the max airfoil label in the blade properties actually
         // matches the number if provided airfoils
@@ -7712,7 +7793,7 @@ PetscErrorCode readAirfoilTable(foilInfo *af, const char *tableName)
 
 //***************************************************************************************************************//
 
-PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName)
+PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName, const PetscInt readThickness)
 {
     // The dictionary must be located inside a
     // file named as the turbine type and located
@@ -7730,14 +7811,16 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName)
     // two is the minimum number of data points.
     // no checks for doubles or integers are performed,
     // only the format is checked.
+    // For anisotropic gaussian ALM projection also blade thickness should be provided in the last column
 
     // define the local variables
     std::vector<PetscReal> radius;
     std::vector<PetscReal> chord;
     std::vector<PetscReal> twist;
+    std::vector<PetscReal> thick;
     std::vector<PetscInt> foilIds;
 
-    PetscReal radius_i, chord_i, twist_i;
+    PetscReal   radius_i, chord_i, twist_i, thick_i;
     PetscInt    foilIds_i;
     PetscInt    nlines = 0;
 
@@ -7818,9 +7901,19 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName)
                             // read the third component (twist)
                             indata >> word;
 
-                            // store second component
+                            // store third component
                             twist_i = std::strtod(word, &eptr);
                             twist.push_back(twist_i);
+
+                            if(readThickness)
+                            {
+                                // read the thickness
+                                indata >> word;
+
+                                // store thickness component
+                                thick_i = std::strtod(word, &eptr);
+                                thick.push_back(thick_i);
+                            }
 
                             // read the fourth component (foilIds), contains ")" character
                             indata >> word;
@@ -7859,6 +7952,8 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName)
                                 PetscMalloc(nlines*sizeof(PetscReal), &(wt->blade.twist));
                                 PetscMalloc(nlines*sizeof(PetscInt), &(wt->blade.foilIds));
 
+                                if(readThickness) PetscMalloc(nlines*sizeof(PetscReal), &(wt->blade.thick));
+
                                 // store the blade properties
                                 wt->blade.size = nlines;
 
@@ -7868,12 +7963,15 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName)
                                     wt->blade.chord[p]   = chord[p];
                                     wt->blade.twist[p]   = twist[p];
                                     wt->blade.foilIds[p] = foilIds[p];
+
+                                    if(readThickness) wt->blade.thick[p]   = thick[p];
                                 }
 
                                 // clean the local variables
                                 std::vector<PetscReal> ().swap(radius);
                                 std::vector<PetscReal> ().swap(chord);
                                 std::vector<PetscReal> ().swap(twist);
+                                std::vector<PetscReal> ().swap(thick);
                                 std::vector<PetscInt>    ().swap(foilIds);
 
                                 // exit

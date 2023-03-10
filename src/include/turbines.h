@@ -23,6 +23,7 @@ typedef struct
     PetscReal            *radius;   //!< radius stations
     PetscReal             *chord;   //!< chord distribution
     PetscReal             *twist;   //!< twist distribution
+    PetscReal             *thick;   //!< thickness distribution (only for anisotropic ALM projection)
     PetscInt            *foilIds;   //!< airfoil ids as provided in the dict, start from 0
 }bladeAeroInfo;
 
@@ -80,6 +81,9 @@ typedef struct
 //! \brief Actuator Line Model
 typedef struct
 {
+    // settings
+    word          projectionType;   //!< isotropic or anisotropic (follows chord)
+
     // mesh level preoperties
     PetscInt             nPoints;   //!< total number of points
     Cmpnts               *points;   //!< array containing the AL point coordinates
@@ -92,6 +96,7 @@ typedef struct
 
     PetscReal             *chord;   //!< array containing the chord at each AL point
     PetscReal             *twist;   //!< array containing the twist at each AL point
+    PetscReal             *thick;   //!< array containing the thickness at each AL point
     PetscReal          *solidity;   //!< array containing the solidity at each AL point
     PetscInt           **foilIds;   //!< labels of the 2 airfoils closest to each AL point
     PetscReal               **iw;   //!< interp. weights for the the 2 airfoils closest to each AL point
@@ -575,7 +580,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
 PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName);
 
 //! \brief Reads the blades aero properties used in the turbine (given in the bladeData subdict inside the file named as the wind turbine type)
-PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName);
+PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName, const PetscInt readThickness);
 
 //! \brief Reads the tower properties used in the turbine (given in the towerData subdict inside the file named as the wind turbine)
 PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName);
