@@ -33,7 +33,7 @@ Toolbox fOr Stratified Convective Atmospheres
 
     - UADM : base actuator disk model with imposed Ct and yaw controller
     - ADM  : advanced actuator disk model with rotor dynamics and yaw/pitch/rotation controllers
-    - UADM : base actuator disk model with uniform disk loading and yaw controller
+    - ALM  : advanced actuator line model with rotor dynamics and yaw/pitch/rotation controllers (anisotropic gaussuan projection avail.)
     - AFM  : anisotropic actuator farm model for coarser meshes, integral/point sampling available
 
 ## IBM Method
