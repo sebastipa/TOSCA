@@ -15,7 +15,7 @@ int main(int argc, char **argv)
     // initialize PETSc
     PetscInitialize(&argc, &argv, (char *)0, head);
 
-    // domains array    
+    // domains array
     domain_ *domain;
 
     // simulation clock
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
         #endif
     }
 
-    while(clock.time < clock.endTime)
+    while(clock.endTime - clock.time > 1e-10)
     {
         PetscTime(&iterationTimeStart);
 

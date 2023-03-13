@@ -1187,25 +1187,50 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                     cellIds closestCell;
 
                     // loop over the sphere cells
-                    for(c=0; c<wt->nControlled; c++)
+                    if(mesh->access->clock->it == 0)
                     {
-                        // cell indices
-                        PetscInt i = wt->controlledCells[c].i,
-                                 j = wt->controlledCells[c].j,
-                                 k = wt->controlledCells[c].k;
-
-                        // compute distance from mesh cell to AD point
-                        Cmpnts r_c = nSub(point_p, cent[k][j][i]);
-
-                        // compute magnitude
-                        PetscReal r_c_mag = nMag(r_c);
-
-                        if(r_c_mag < r_c_minMag)
+                        for(c=0; c<wt->nControlled; c++)
                         {
-                            r_c_minMag = r_c_mag;
-                            closestCell.i = i;
-                            closestCell.j = j;
-                            closestCell.k = k;
+                            // cell indices
+                            PetscInt i = wt->controlledCells[c].i,
+                                     j = wt->controlledCells[c].j,
+                                     k = wt->controlledCells[c].k;
+
+                            // compute distance from mesh cell to AD point
+                            Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                            // compute magnitude
+                            PetscReal r_c_mag = nMag(r_c);
+
+                            if(r_c_mag < r_c_minMag)
+                            {
+                                r_c_minMag = r_c_mag;
+                                closestCell.i = i;
+                                closestCell.j = j;
+                                closestCell.k = k;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        PetscInt ii, jj, kk;
+                        for(kk=wt->alm.closestCells[p].k-2; kk<wt->alm.closestCells[p].k+3; kk++)
+                        for(jj=wt->alm.closestCells[p].j-2; jj<wt->alm.closestCells[p].j+3; jj++)
+                        for(ii=wt->alm.closestCells[p].i-2; ii<wt->alm.closestCells[p].i+3; ii++)
+                        {
+                            // compute distance from mesh cell to AD point
+                            Cmpnts r_c = nSub(point_p, cent[kk][jj][ii]);
+
+                            // compute magnitude
+                            PetscReal r_c_mag = nMag(r_c);
+
+                            if(r_c_mag < r_c_minMag)
+                            {
+                                r_c_minMag = r_c_mag;
+                                closestCell.i = ii;
+                                closestCell.j = jj;
+                                closestCell.k = kk;
+                            }
                         }
                     }
 
@@ -3539,9 +3564,9 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                             {
 
                                 // get projection epsilon
-                                PetscReal eps_x =     wt->alm.thick[p]*wt->eps,
-                                          eps_y =     wt->alm.chord[p]*wt->eps,
-                                          eps_z = 2.0*wt->alm.chord[p]*wt->eps;
+                                PetscReal eps_x =     wt->alm.thick[p]*wt->eps/2.0,
+                                          eps_y =     wt->alm.chord[p]*wt->eps/2.0,
+                                          eps_z =     wt->alm.chord[p]*wt->eps;
 
                                 // form a reference blade starting from the
                                 // bladed frame, but rotate x and y around z by
@@ -3574,9 +3599,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                             if(r_c_mag<rPrj)
                             {
 
-                                //Cmpnts bfCell = nScale(solidity_p * pf, wt->alm.B[p]);
-
-                                Cmpnts bfCell = nScale(solidity_p * pf, nSetFromComponents(-1.0, 0.0, 0.0));
+                                Cmpnts bfCell = nScale(solidity_p * pf, wt->alm.B[p]);
 
                                 sCat[k][j][i].x += bfCell.x;
                                 sCat[k][j][i].y += bfCell.y;
@@ -5143,6 +5166,10 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
     mRot(zr_hat, xr_hat, wt->upTilt*wt->deg2rad);  // rotate xr_hat with uptilt
     mRot(zr_hat, yr_hat, wt->upTilt*wt->deg2rad);  // rotate yr_hat with uptilt
 
+	// preconed r_hat
+	Cmpnts r_hat = nSet(yr_hat);
+	mRot(zr_hat, r_hat, wt->precone*wt->deg2rad);
+
     // set rtrAxis and omega_hat turbine param. here
     {
         // set rotor axis (up-tilted, from nacell back to cone)
@@ -5187,15 +5214,20 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
         else dr = drval;
 
         // this station vector radius
-        Cmpnts rvec = nScale(drval*ri, yr_hat);
+        Cmpnts rvec = nScale(drval*ri, r_hat);
 
-        // add the initial hub radius
+		// compute radius
+		PetscReal  rMag = nMag(rvec);
+
+        // add the initial hub radius to rvec (not aligned if precone != 0)
         mSum(rvec, rHub);
+
+		// add hub radius (as if all was aligned)
+		rMag += nMag(rHub);
 
         // interpolate blade propertes (only depend on r)
         PetscReal  weights[2];
         PetscInt   labels[2];
-        PetscReal  rMag = nMag(rvec);
 
         findInterpolationWeigths(weights, labels, wt->blade.radius, wt->blade.size, rMag);
 
@@ -5336,6 +5368,10 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
     mRot(zr_hat, xr_hat, wt->upTilt*wt->deg2rad);  // rotate xr_hat with uptilt
     mRot(zr_hat, yr_hat, wt->upTilt*wt->deg2rad);  // rotate yr_hat with uptilt
 
+	// preconed r_hat
+	Cmpnts r_hat = nSet(yr_hat);
+	mRot(zr_hat, r_hat, wt->precone*wt->deg2rad);
+
     // set rotor axis (up-tilted, from nacell back to cone)
     wt->rtrAxis = xr_hat;
 
@@ -5373,7 +5409,7 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
         crownArea = M_PI * ((r+dr)*(r+dr) - r*r);
 
         // this station vector radius
-        Cmpnts rvec = nScale(drval*ri, yr_hat);
+        Cmpnts rvec = nScale(drval*ri, r_hat);
 
         // add the initial hub radius
         mSum(rvec, rHub);
@@ -5606,6 +5642,11 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
     mRot(zr_hat, xr_hat, wt->upTilt*wt->deg2rad);  // rotate xr_hat with uptilt
     mRot(zr_hat, yr_hat, wt->upTilt*wt->deg2rad);  // rotate yr_hat with uptilt
 
+	// preconed r_hat
+	Cmpnts r_hat = nSet(yr_hat);
+	mRot(zr_hat, r_hat, wt->precone*wt->deg2rad);
+
+
     // set rtrAxis and omega_hat turbine param. here
     {
         // set rotor axis (up-tilted, from nacell back to cone)
@@ -5650,15 +5691,21 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
         else dr = drval;
 
         // this station vector radius
-        Cmpnts rvec = nScale(drval*ri, yr_hat);
+        Cmpnts rvec = nScale(drval*ri, r_hat);
 
-        // add the initial hub radius
+		// compute radius
+		PetscReal  rMag = nMag(rvec);
+
+        // add the initial hub radius to rvec (not aligned if precone != 0)
         mSum(rvec, rHub);
+
+		// add hub radius (as if all was aligned)
+		rMag += nMag(rHub);
 
         // interpolate blade propertes (only depend on r)
         PetscReal  weights[2];
         PetscInt   labels[2];
-        PetscReal  rMag = nMag(rvec);
+
 
         findInterpolationWeigths(weights, labels, wt->blade.radius, wt->blade.size, rMag);
 
