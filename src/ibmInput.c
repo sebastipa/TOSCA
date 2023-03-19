@@ -44,7 +44,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
   {
     readDictDouble("./IBM/IBMProperties.dat", "groundLevel",      &(mesh->grndLevel));
   }
-  
+
   if(ibm->wallShearOn)
   {
     readDictDouble("./IBM/IBMProperties.dat", "interpolationDistance", &(ibm->interpDist));
@@ -250,6 +250,20 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "pitchingAxis", &(ibmPitch->pitchAxis));
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "pitchingCenter", &(ibmPitch->pitchCenter));
 
+        }
+
+        if(ibmBody->bodyMotion == "translation")
+        {
+            // read when movement starts
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "startMove", &(ibmBody->startMove));
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "endMove", &(ibmBody->endMove));
+
+            // allocate memory for ibm rotation
+            ibmBody->ibmTrans = new ibmTranslation;
+
+            ibmTranslation *ibmTrans = ibmBody->ibmTrans;
+
+            readSubDictVector("./IBM/IBMProperties.dat", objectName, "transVelocity", &(ibmTrans->transVelocity));
         }
     }
 

@@ -107,6 +107,11 @@ typedef struct
 
 typedef struct
 {
+    Cmpnts        transVelocity;
+}ibmTranslation;
+
+typedef struct
+{
     PetscReal     amplitude;
     PetscReal     frequency;
     Cmpnts        motionDir;
@@ -174,7 +179,7 @@ typedef struct
     //ibm wall model properties
     wallModel     *ibmWallModelU;
     wallModel     *ibmWallModelT;
-    
+
     //ibm velocity bc
     word          velocityBC;
     word          uBCSetType;
@@ -193,6 +198,9 @@ typedef struct
     ibmRotation    *ibmRot;
     ibmSineMotion  *ibmSine;
     ibmPitchMotion *ibmPitch;
+    ibmTranslation *ibmTrans;
+    PetscReal      startMove;                                 // start time for movement
+    PetscReal      endMove;
 
     //ibm search parameters
     PetscReal     searchCellRatio;
@@ -336,6 +344,9 @@ PetscErrorCode sineMotion(ibm_ *ibm, PetscInt b);
 
 //! \brief prescribe pitching oscillation motion for IBM body
 PetscErrorCode pitchingMotion(ibm_ *ibm, PetscInt b);
+
+//! \brief translate the ibm mesh based on the speed input
+PetscErrorCode translateIBMesh(ibm_ *ibm, PetscInt b);
 
 //! \brief set IBM wall model type and properties
 PetscErrorCode setIBMWallModels(ibm_ *ibm);

@@ -1,0 +1,21 @@
+# OKWind Input file - U boundary conditions
+# -------------------------------------------
+
+#internal field
+
+internalField     spreadInflow
+#internalField    readField
+
+# boundary patches
+
+iLeft            noSlip
+
+iRight           noSlip
+
+jLeft            noSlip
+
+jRight           noSlip
+
+kLeft            zeroGradient
+
+kRight           zeroGradient
