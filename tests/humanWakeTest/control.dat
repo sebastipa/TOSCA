@@ -22,7 +22,7 @@
 -potentialT                0
 -abl                       0
 -zDampingLayer             0
--ibm                       0
+-ibm                       1
 -overset                   0
 -absTolU                   1e-8
 -poissonIt                 30

@@ -22,7 +22,7 @@ jRight           noSlip
 
 kLeft            inletFunction
                  {
-                    type 6
+                    type 7
                     Urms 0.05334
                     meanU  (0.762 0.0 0.0)
                     kolLScale 0.00029
