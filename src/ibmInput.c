@@ -200,7 +200,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
 
             //normalise the rotation axis
             mUnit(ibmRot->rotAxis);
-            
+
             //transform angular speed and acceleration from rpm to rad/s
             ibmRot->angSpeed = ibmRot->angSpeed*2*M_PI/60.0;
             ibmRot->angAcc   = ibmRot->angAcc*2*M_PI/60.0;
@@ -216,6 +216,20 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             readSubDictDouble("./IBM/IBMProperties.dat", objectName, "amplitude", &(ibmSine->amplitude));
             readSubDictDouble("./IBM/IBMProperties.dat", objectName, "frequency", &(ibmSine->frequency));
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "motionDirection", &(ibmSine->motionDir));
+        }
+
+        if(ibmBody->bodyMotion == "translation")
+        {
+            // read when movement starts
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "startMove", &(ibmBody->startMove));
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "endMove", &(ibmBody->endMove));
+
+            // allocate memory for ibm rotation
+            ibmBody->ibmTrans = new ibmTranslation;
+
+            ibmTranslation *ibmTrans = ibmBody->ibmTrans;
+
+            readSubDictVector("./IBM/IBMProperties.dat", objectName, "transVelocity", &(ibmTrans->transVelocity));
         }
     }
 

@@ -1316,6 +1316,10 @@ PetscErrorCode UpdateIBMesh(ibm_ *ibm)
             {
                 sineMotion(ibm, b);
             }
+            else if(ibm->ibmBody[b]->bodyMotion == "translation")
+            {
+                translateIBMesh(ibm, b);
+            }
 
             //write the new position into STL file
             if(ibm->writeSTL)
@@ -4614,8 +4618,8 @@ PetscErrorCode checkIBMexists(ibm_ *ibm)
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
-    //check ibm body bounding box is inside the ibm processor bounds 
-    
+    //check ibm body bounding box is inside the ibm processor bounds
+
     // loop through the ibm bodies
     for (b = 0; b < ibm->numBodies; b++)
     {
@@ -6993,4 +6997,124 @@ inline void triangleIntpBg(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3, ibmFluidCell *
   ibF->cr3 = 1. - ibF->cr1 - ibF->cr2;
 
   return;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode translateIBMesh(ibm_ *ibm, PetscInt b)
+{
+    clock_        *clock   = ibm->access->clock;
+
+    ibmObject     *ibmBody = ibm->ibmBody[b];
+    ibmMesh       *ibMsh   = ibmBody->ibMsh;                         // pointer to the ibm body mesh
+    ibmTranslation   *ibmTrans  = ibmBody->ibmTrans;
+
+    Cmpnts        dBase;
+
+    if (clock->time > ibmBody->startMove && clock->time < ibmBody->endMove)
+
+    {
+        // change in location
+        dBase.x   = ibmTrans->transVelocity.x * clock->dt;
+        dBase.y  = ibmTrans->transVelocity.y * clock->dt;
+        dBase.z   = ibmTrans->transVelocity.z * clock->dt;
+    }
+
+    // find the new ibm node co-ordinate after translation
+    for(PetscInt n = 0; n < ibMsh->nodes; n++)
+    {
+        // translate the body based on the based location
+        mSum(ibMsh->nCoor[n], dBase);
+
+        // update Node velocity
+        ibMsh->nU[n] = ibmTrans->transVelocity;
+    }
+
+    //need to update surface nCoor as well in order to properly update sources.
+    if (ibmBody->bodyType == "surfaceBody")
+    {
+        ibmMesh       *ibMshSurface;
+
+        //loop through the IBM surfaces
+        for (PetscInt q = 0; q < ibmBody->numSurfaces; q++)
+        {
+            ibMshSurface = ibmBody->ibmSurface[q]->ibMsh;
+
+            for(PetscInt n = 0; n < ibMshSurface->nodes; n++)
+            {
+                //if (n==1) {printf("node xCoord = %f", ibMsh->nCoor[n].x);}
+                // translate the body based on the based location
+                mSum(ibMshSurface->nCoor[n], dBase);
+
+                //if (n==1) {printf("node xCoord = %f", ibMsh->nCoor[n].x);}
+
+                // no need to update node velocity for surface here. It will be read for in body.
+                //ibMsh->nU[n] = ibmTrans->transVelocity;
+            }
+        }
+    }
+
+    // recompute the ibm mesh properties - as rigid body motion the elements do not change
+    PetscInt  n1, n2, n3;
+    PetscReal normMag;
+    Cmpnts    vec1, vec2, temp;
+
+    for (PetscInt i=0; i<ibMsh->elems; i++)
+    {
+        // get the element nodes
+        n1 = ibMsh->nID1[i]; n2 = ibMsh->nID2[i]; n3 = ibMsh->nID3[i];
+
+        vec1 = nSub(ibMsh->nCoor[n2], ibMsh->nCoor[n1]);
+
+        vec2 = nSub(ibMsh->nCoor[n3], ibMsh->nCoor[n1]);
+
+        // normal to the face is found as cross product of the edges vec1 and vec2
+        ibMsh->eN[i] = nCross(vec1, vec2);
+        normMag = nMag(ibMsh->eN[i]);
+        mScale(1.0/normMag, ibMsh->eN[i]);
+
+        // flip normal if pointing inwards
+        if(ibMsh->flipNormal[i] == 1)
+        {
+            mScale(-1, ibMsh->eN[i]);
+        }
+
+        // tangential to the face( eT1 and eT2)
+        // eT1 = eN x k
+        if (
+            (((1.0 - ibMsh->eN[i].z ) <= 1e-6 ) && ((-1.0 + ibMsh->eN[i].z ) < 1e-6))
+            ||
+            (((ibMsh->eN[i].z + 1.0 ) <= 1e-6 ) && ((-1.0 - ibMsh->eN[i].z ) < 1e-6))
+           )
+        {
+            ibMsh->eT1[i].x = 1.0;
+            ibMsh->eT1[i].y = 0.0;
+            ibMsh->eT1[i].z = 0.0;
+
+            ibMsh->eT2[i].x = 0.0;
+            ibMsh->eT2[i].y = 1.0;
+            ibMsh->eT2[i].z = 0.0;
+        }
+        else
+        {
+            ibMsh->eT1[i].x =  ibMsh->eN[i].y/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+            ibMsh->eT1[i].y = -ibMsh->eN[i].x/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+            ibMsh->eT1[i].z = 0 ;
+
+               // eT2 = eT2 x eN
+            ibMsh->eT2[i].x = -ibMsh->eN[i].x*ibMsh->eN[i].z/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+            ibMsh->eT2[i].y = -ibMsh->eN[i].y*ibMsh->eN[i].z/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+            ibMsh->eT2[i].z = sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+        }
+
+        //element area
+        ibMsh->eA[i] = normMag/2.0;
+
+        //element center
+        temp = nSum(ibMsh->nCoor[n1], ibMsh->nCoor[n2]);
+        ibMsh->eCent[i] = nSum( temp, ibMsh->nCoor[n3]);
+        mScale(1/3.0, ibMsh->eCent[i]);
+    }
+
+    return (0);
 }

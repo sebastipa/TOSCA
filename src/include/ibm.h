@@ -72,6 +72,11 @@ typedef struct
 
 typedef struct
 {
+    Cmpnts        transVelocity;
+}ibmTranslation;
+
+typedef struct
+{
     PetscReal     amplitude;
     PetscReal     frequency;
     PetscReal     tPrev;
@@ -135,6 +140,9 @@ typedef struct
     word          bodyMotion;
     ibmRotation   *ibmRot;
     ibmSineMotion *ibmSine;
+    ibmTranslation *ibmTrans;
+    PetscReal      startMove;                                 // start time for movement
+    PetscReal      endMove;                                   // end time for movement
 
     //ibm search parameters
     PetscReal     searchCellRatio;
@@ -271,6 +279,9 @@ PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b);
 
 //! \brief prescribe sinusoidal motion for IBM body
 PetscErrorCode sineMotion(ibm_ *ibm, PetscInt b);
+
+//! \brief translate the ibm mesh based on the speed input
+PetscErrorCode translateIBMesh(ibm_ *ibm, PetscInt b);
 
 //! \brief set IBM wall model type and properties
 PetscErrorCode setIBMWallModels(ibm_ *ibm);
