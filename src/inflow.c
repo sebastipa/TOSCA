@@ -771,10 +771,138 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
             ifPtr->fc =  2*7.292115e-5*std::sin(ifPtr->latitude * M_PI / 180.0);
         }
+        // sinusoidally varying inflow in the i direction
+        else if (ifPtr->typeU == 6)
+        {
+            readSubDictVector(fileName.c_str(), "inletFunction", "Uref",       &(ifPtr->Uref));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "amplitude",  &(ifPtr->amplitude));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "periods",    &(ifPtr->periods));
+            ifPtr->Udir = nScale(1.0/nMag(ifPtr->Uref), ifPtr->Uref);
+        }
+        // periodic boundary conditions with i-shift
+        else if (ifPtr->typeU == 7)
+        {
+            readSubDictDouble(fileName.c_str(), "inletFunction", "shiftSpeed",     &(ifPtr->shiftSpeed));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "zeroShiftHeight",&(ifPtr->zeroShiftHeight));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "zeroShiftDelta", &(ifPtr->zeroShiftDelta));
+
+            PetscInt           i,j,k;
+
+            // allocate memory for temporary inflow data
+            ifPtr->ucat_plane = (Cmpnts **)malloc( sizeof(Cmpnts *) * my );
+
+            for(j=0; j<my; j++)
+            {
+                ifPtr->ucat_plane[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * mx );
+            }
+
+            // read in advance and check that also T is set to shifted periodic
+            if(mesh->access->flags->isTeqnActive)
+            {
+                if(mesh->boundaryT.kLeft == "inletFunction")
+                {
+                    word fileNameT = "./boundary/" + mesh->meshName + "/" + "T";
+                    readSubDictInt(fileNameT.c_str(), "inletFunction", "type", &(ifPtr->typeT));
+
+                    if(ifPtr->typeT != 7)
+                    {
+                        char error[512];
+                        sprintf(error, "inletFunction type 7 for U requires the same settings on T");
+                        fatalErrorInFunction("SetInflowFunctions",  error);
+                    }
+                    else
+                    {
+                        PetscReal shiftSpeed, zeroShiftHeight, zeroShiftDelta;
+                        readSubDictDouble(fileNameT.c_str(), "inletFunction", "shiftSpeed",     &shiftSpeed);
+                        readSubDictDouble(fileNameT.c_str(), "inletFunction", "zeroShiftHeight",&zeroShiftHeight);
+                        readSubDictDouble(fileNameT.c_str(), "inletFunction", "zeroShiftDelta", &zeroShiftDelta);
+
+                        if(shiftSpeed != ifPtr->shiftSpeed || zeroShiftHeight != ifPtr->zeroShiftHeight || zeroShiftDelta != ifPtr->zeroShiftDelta)
+                        {
+                            char error[512];
+                            sprintf(error, "inletFunction type 7 for T requires the same shiftSpeed, zeroShiftHeight and zeroShiftDelta to be the same as U");
+                            fatalErrorInFunction("SetInflowFunctions",  error);
+                        }
+
+                        // allocate memory for temporary inflow data
+                        ifPtr->t_plane = (PetscReal **)malloc( sizeof(PetscReal *) * my );
+
+                        for(j=0; j<my; j++)
+                        {
+                            ifPtr->t_plane[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
+                        }
+                    }
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "inletFunction type 7 for U requires the same settings on T");
+                    fatalErrorInFunction("SetInflowFunctions",  error);
+                }
+            }
+
+            // read in advance and check that also nut is set to shifted periodic
+            // read in advance and check that also T is set to shifted periodic
+            if(mesh->access->flags->isLesActive)
+            {
+                if(mesh->boundaryNut.kLeft == "inletFunction")
+                {
+                    word fileNameNut = "./boundary/" + mesh->meshName + "/" + "nut";
+                    readSubDictInt(fileNameNut.c_str(), "inletFunction", "type", &(ifPtr->typeNut));
+
+                    if(ifPtr->typeNut != 7)
+                    {
+                        char error[512];
+                        sprintf(error, "inletFunction type 7 for U requires the same settings on nut");
+                        fatalErrorInFunction("SetInflowFunctions",  error);
+                    }
+                    else
+                    {
+                        PetscReal shiftSpeed, zeroShiftHeight, zeroShiftDelta;
+                        readSubDictDouble(fileNameNut.c_str(), "inletFunction", "shiftSpeed",     &shiftSpeed);
+                        readSubDictDouble(fileNameNut.c_str(), "inletFunction", "zeroShiftHeight",&zeroShiftHeight);
+                        readSubDictDouble(fileNameNut.c_str(), "inletFunction", "zeroShiftDelta", &zeroShiftDelta);
+
+                        if(shiftSpeed != ifPtr->shiftSpeed || zeroShiftHeight != ifPtr->zeroShiftHeight || zeroShiftDelta != ifPtr->zeroShiftDelta)
+                        {
+                            char error[512];
+                            sprintf(error, "inletFunction type 7 for nut requires the same shiftSpeed, zeroShiftHeight and zeroShiftDelta to be the same as U");
+                            fatalErrorInFunction("SetInflowFunctions",  error);
+                        }
+
+                        // allocate memory for temporary inflow data
+                        ifPtr->nut_plane = (PetscReal **)malloc( sizeof(PetscReal *) * my );
+
+                        for(j=0; j<my; j++)
+                        {
+                            ifPtr->nut_plane[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
+                        }
+                    }
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "inletFunction type 7 for U requires the same settings on nut");
+                    fatalErrorInFunction("SetInflowFunctions",  error);
+                }
+            }
+
+            // create communicator
+            PetscMPIInt rank;
+            PetscInt    commColor = MPI_UNDEFINED;
+
+            if(zs==0 || ze==mz)
+            {
+                commColor = 1;
+            }
+
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
+            MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(ifPtr->IFFCN_COMM));
+        }
         else
         {
             char error[512];
-            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)");
+            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)\n        6 : Sinusoidal inflow varying in i-direction\n        7 : I-Shifted-periodic");
             fatalErrorInFunction("SetInflowFunctions",  error);
         }
 
@@ -1912,6 +2040,225 @@ PetscErrorCode readInflowNut(inletFunctionTypes *ifPtr, clock_ *clock)
         // nut
         std::vector<PetscReal> ().swap(nut_plane_tmp_1[j]);
         std::vector<PetscReal> ().swap(nut_plane_tmp_2[j]);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode setShiftedInflowU(inletFunctionTypes *ifPtr, ueqn_ *ueqn)
+{
+    mesh_        *mesh = ueqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    Cmpnts        ***lucat;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    if(zs == 0 || ze == mz)
+    {
+        DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
+
+        // initialize nut temporary local planes in each process
+        std::vector<std::vector<Cmpnts>> lucat_plane(my);
+
+        // set to zero
+        for(j=0; j<my; j++)
+        {
+            lucat_plane[j].resize(mx);
+
+            for(i=0; i<mx; i++)
+            {
+                lucat_plane[j][i] = nSetZero();
+            }
+        }
+
+        // set velocity on the plane
+        if(ze==mz)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    lucat_plane[j][i] = lucat[ze-2][j][i];
+                }
+            }
+        }
+
+        // scatter on the communicator
+        for (j=0; j<my; j++)
+        {
+            MPI_Allreduce(&(lucat_plane[j][0]), &(ifPtr->ucat_plane[j][0]), 3*mx, MPIU_REAL, MPI_SUM, ifPtr->IFFCN_COMM);
+        }
+
+        // set i-periodicity
+        for (j=0; j<my; j++)
+        {
+            ifPtr->ucat_plane[j][0]    = ifPtr->ucat_plane[j][mx-2];
+            ifPtr->ucat_plane[j][mx-1] = ifPtr->ucat_plane[j][1];
+
+            // free memory
+            std::vector<Cmpnts> ().swap(lucat_plane[j]);
+        }
+
+        DMDAVecRestoreArray(fda, ueqn->lUcat,  &lucat);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode setShiftedInflowT(inletFunctionTypes *ifPtr, teqn_ *teqn)
+{
+    mesh_        *mesh = teqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***lt;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    if(zs == 0 || ze == mz)
+    {
+        DMDAVecGetArray(da, teqn->lTmprt,  &lt);
+
+        // initialize nut temporary local planes in each process
+        std::vector<std::vector<PetscReal>> lt_plane(my);
+
+        // set to zero
+        for(j=0; j<my; j++)
+        {
+            lt_plane[j].resize(mx);
+
+            for(i=0; i<mx; i++)
+            {
+                lt_plane[j][i] = 0.0;
+            }
+        }
+
+        // set velocity on the plane
+        if(ze==mz)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    lt_plane[j][i] = lt[ze-2][j][i];
+                }
+            }
+        }
+
+        // scatter on the communicator
+        for (j=0; j<my; j++)
+        {
+            MPI_Allreduce(&(lt_plane[j][0]), &(ifPtr->t_plane[j][0]), mx, MPIU_REAL, MPI_SUM, ifPtr->IFFCN_COMM);
+        }
+
+        // set i-periodicity
+        for (j=0; j<my; j++)
+        {
+            ifPtr->t_plane[j][0]    = ifPtr->t_plane[j][mx-2];
+            ifPtr->t_plane[j][mx-1] = ifPtr->t_plane[j][1];
+
+            // free memory
+            std::vector<PetscReal> ().swap(lt_plane[j]);
+        }
+
+        DMDAVecRestoreArray(da, teqn->lTmprt,  &lt);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode setShiftedInflowNut(inletFunctionTypes *ifPtr, les_ *les)
+{
+    mesh_        *mesh = les->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***lnut;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    if(zs == 0 || ze == mz)
+    {
+        DMDAVecGetArray(da, les->lNu_t,  &lnut);
+
+        // initialize nut temporary local planes in each process
+        std::vector<std::vector<PetscReal>> lnut_plane(my);
+
+        // set to zero
+        for(j=0; j<my; j++)
+        {
+            lnut_plane[j].resize(mx);
+
+            for(i=0; i<mx; i++)
+            {
+                lnut_plane[j][i] = 0.0;
+            }
+        }
+
+        // set velocity on the plane
+        if(ze==mz)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    lnut_plane[j][i] = lnut[ze-2][j][i];
+                }
+            }
+        }
+
+        // scatter on the communicator
+        for (j=0; j<my; j++)
+        {
+            MPI_Allreduce(&(lnut_plane[j][0]), &(ifPtr->nut_plane[j][0]), mx, MPIU_REAL, MPI_SUM, ifPtr->IFFCN_COMM);
+        }
+
+        // set i-periodicity
+        for (j=0; j<my; j++)
+        {
+            ifPtr->nut_plane[j][0]    = ifPtr->nut_plane[j][mx-2];
+            ifPtr->nut_plane[j][mx-1] = ifPtr->nut_plane[j][1];
+
+            // free memory
+            std::vector<PetscReal> ().swap(lnut_plane[j]);
+        }
+
+        DMDAVecRestoreArray(da, les->lNu_t,  &lnut);
     }
 
     return(0);

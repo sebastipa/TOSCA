@@ -877,7 +877,9 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;          // surface area vectors components
     PetscReal     g11, g21, g31;                                                 // metric tensor components
 
-    PetscReal     tRef = teqn->access->abl->tRef;
+    PetscReal     tRef;
+    if(ueqn->access->flags->isAblActive) tRef = teqn->access->abl->tRef;
+    else                                 tRef = teqn->access->constants->tRef;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;

@@ -19,6 +19,7 @@ struct scalarBC
 };
 
 //! \brief Structure dafining the type of boundary conditions for a vector
+
 struct  vectorBC
 {
     word     iLeft, iRight,  //!< type of boundary condition
@@ -97,6 +98,16 @@ struct inletFunctionTypes
     PetscReal    *avgTopPointCoords;          //!< z coordinates of the 10 average top points
     PetscReal    avgTopDelta;                 //!< length of the five top cells
     PetscReal    avgTopLength;                //!< height of the inflow slices
+
+    // type 6: i-dir sinusoidal inflow
+    PetscReal    amplitude;                   //!< oscillation amplitude w.r.t. reference velocity magnitude
+    PetscReal    periods;                     //!< number of periods in the spanwise direction
+
+    // type 7: shifted periodic boundary condition
+    PetscReal    shiftSpeed;                  //!< speed of the i-direction shift
+    PetscReal    zeroShiftHeight;             //!< height at which the shift is brought to zero
+    PetscReal    zeroShiftDelta;              //!< distance it takes to the shift to go from max to zero
+    MPI_Comm     IFFCN_COMM;                  //!< communicator involving all processors touching k-boundaries
 };
 
 //! \brief Struct storing inlet functions data

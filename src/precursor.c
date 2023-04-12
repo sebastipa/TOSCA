@@ -19,19 +19,22 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     // read from control file
     PetscOptionsInsertFile(PETSC_COMM_WORLD, PETSC_NULL, "control.dat", PETSC_TRUE);
 
-    flags->isOversetActive             = 0;
-    flags->isLesActive                 = 1;
-    flags->isTeqnActive                = 0;
-    flags->isWindFarmActive            = 0;
-    flags->isAquisitionActive          = 0;
-    flags->isAblActive                 = 0;
-    flags->isIBMActive                 = 0;
-    flags->isZDampingActive            = 0;
-    flags->isXDampingActive            = 0;
-    flags->isYDampingActive            = 0;
-    flags->isCanopyActive              = 0;
-    flags->isConcurrentPrecursorActive = 0;
-    flags->isPrecursorSpinUp           = 0;
+    flags->isOversetActive               = 0;
+    flags->isLesActive                   = 1;
+    flags->isTeqnActive                  = 0;
+    flags->isWindFarmActive              = 0;
+    flags->isAquisitionActive            = 0;
+    flags->isAblActive                   = 0;
+    flags->isIBMActive                   = 0;
+    flags->isZDampingActive              = 0;
+    flags->isXDampingActive              = 0;
+    flags->isYDampingActive              = 0;
+    flags->isKLeftRayleighDampingActive  = 0;
+    flags->isKRightRayleighDampingActive = 0;
+    flags->isCanopyActive                = 0;
+    flags->isConcurrentPrecursorActive   = 0;
+    flags->isPrecursorSpinUp             = 0;
+    flags->isPvCatalystActive            = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",            &(flags->isLesActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",     &(flags->isTeqnActive), PETSC_NULL);
@@ -908,227 +911,198 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
         // set pointer to this inlet function type
         inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
 
-        // set tBarSelectionType the same as uBarSelectionType
-        ifPtr->typeU   = 4;
-        ifPtr->typeT   = 4; ifPtr->mapT   = 0;
-        ifPtr->typeNut = 4; ifPtr->mapNut = 0;
+        // read inlet function type (only 4 (interpolatedMappedInflow) and 7 (periodic with i-shift) are available)
+        readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "inletFunctionType",   &(ifPtr->typeU));
 
-        if(mesh->access->flags->isLesActive)  ifPtr->mapNut = 1;
-        if(mesh->access->flags->isTeqnActive) ifPtr->mapT   = 1;
+        if(ifPtr->typeU == 4)
+        {
+            // set tBarSelectionType the same as uBarSelectionType
+            ifPtr->typeT   = 4; ifPtr->mapT   = 0;
+            ifPtr->typeNut = 4; ifPtr->mapNut = 0;
 
-        // read if source mesh is uniform or grading
-        readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
+            if(mesh->access->flags->isLesActive)  ifPtr->mapNut = 1;
+            if(mesh->access->flags->isTeqnActive) ifPtr->mapT   = 1;
 
-        readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Inflow",   &(ifPtr->n1));
-        readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Inflow",   &(ifPtr->n2));
-        readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Periods",  &(ifPtr->prds1));
-        readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Periods",  &(ifPtr->prds2));
+            // read if source mesh is uniform or grading
+            readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
 
-		if(ifPtr->sourceType == "uniform")
-		{
-			PetscPrintf(mesh->MESH_COMM, "   -> using uniform source mesh type\n");
+            readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Inflow",   &(ifPtr->n1));
+            readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Inflow",   &(ifPtr->n2));
+            readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Periods",  &(ifPtr->prds1));
+            readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Periods",  &(ifPtr->prds2));
 
-			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
-			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
+    		if(ifPtr->sourceType == "uniform")
+    		{
+    			PetscPrintf(mesh->MESH_COMM, "   -> using uniform source mesh type\n");
 
-            // height of the inflow database (it is duplicate consider removing)
-            ifPtr->inflowHeigth = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
+    			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
+    			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
 
-            // height of the inflow database
-            ifPtr->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
-
-            // width of the merging region
-            ifPtr->avgTopDelta  = 10.0 * ifPtr->width1;
-
-            // 5 top points coordinates
-            PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
-
-            for (i=0; i<10; i++)
-            {
-                ifPtr->avgTopPointCoords[i] = ifPtr->avgTopLength - (10-i)*ifPtr->width1 + 0.5*ifPtr->width1;
-            }
-        }
-		else if(ifPtr->sourceType == "grading")
-		{
-			PetscPrintf(mesh->MESH_COMM, "   -> using grading source mesh type\n");
-
-			std::vector<PetscReal>  Zcart;
-
-			word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
-			FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
-
-			if(!meshFileID)
-			{
-				char error[512];
-				sprintf(error, "cannot open inflow points file %s\n", pointsFileName.c_str());
-				fatalErrorInFunction("SetInflowWeights", error);
-			}
-			else
-			{
-				// read the source mesh file in .xyz format
-				PetscReal bufferDouble;
-				PetscInt  npx, npy, npz;
-				PetscInt  error = fscanf(meshFileID, "%ld %ld %ld\n", &npx, &npy, &npz);
-
-				if(ifPtr->n1 != npz - 1 || ifPtr->n2 != npy - 1)
-				{
-					char error[512];
-					sprintf(error, "source mesh given in %s and expected number of cells do not match\n", pointsFileName.c_str());
-					fatalErrorInFunction("SetInflowFunctionsPrecursor", error);
-				}
-
-				Zcart.resize(npz);
-
-				for (PetscInt k = 0; k < npx; k++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
-				for (PetscInt i = 0; i < npy; i++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
-				for (PetscInt j = 0; j < npz; j++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &Zcart[j]);
-
-				fclose(meshFileID);
-
-				// height of the inflow database
-				ifPtr->inflowHeigth = Zcart[npz-1] - Zcart[0];
+                // height of the inflow database (it is duplicate consider removing)
+                ifPtr->inflowHeigth = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
 
                 // height of the inflow database
-                ifPtr->avgTopLength = Zcart[npz-1] - Zcart[0];
+                ifPtr->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
 
                 // width of the merging region
-                ifPtr->avgTopDelta  = Zcart[npz-1] - Zcart[npz-11];
+                ifPtr->avgTopDelta  = 10.0 * ifPtr->width1;
 
                 // 5 top points coordinates
                 PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
 
                 for (i=0; i<10; i++)
                 {
-                    ifPtr->avgTopPointCoords[i] = 0.5 * (Zcart[npz - 11 + i] + Zcart[npz - 11 + i + 1]);
+                    ifPtr->avgTopPointCoords[i] = ifPtr->avgTopLength - (10-i)*ifPtr->width1 + 0.5*ifPtr->width1;
                 }
+            }
+    		else if(ifPtr->sourceType == "grading")
+    		{
+    			PetscPrintf(mesh->MESH_COMM, "   -> using grading source mesh type\n");
 
-				// wipe vectors
-				std::vector<PetscReal> ().swap(Zcart);
-			}
-		}
-		else
-		{
-			char error[512];
-			sprintf(error, "unknown sourceType in inletFunction type 4, available types are\n    1: uniform\n    2: grading\n");
-			fatalErrorInFunction("SetInflowFunctions",  error);
-		}
+    			std::vector<PetscReal>  Zcart;
 
-        // increase n1 and n2 accounting for side ghost cells
-        ifPtr->n1wg = ifPtr->n1 + 2;
-        ifPtr->n2wg = ifPtr->n2 + 2;
+    			word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
+    			FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
 
-        // build interpolation weights and find periodized inflow cells indices
-        SetInflowWeights(mesh, ifPtr);
+    			if(!meshFileID)
+    			{
+    				char error[512];
+    				sprintf(error, "cannot open inflow points file %s\n", pointsFileName.c_str());
+    				fatalErrorInFunction("SetInflowWeights", error);
+    			}
+    			else
+    			{
+    				// read the source mesh file in .xyz format
+    				PetscReal bufferDouble;
+    				PetscInt  npx, npy, npz;
+    				PetscInt  error = fscanf(meshFileID, "%ld %ld %ld\n", &npx, &npy, &npz);
 
-        // initialize inflow data
-        mappedInflowInitialize(ifPtr);
+    				if(ifPtr->n1 != npz - 1 || ifPtr->n2 != npy - 1)
+    				{
+    					char error[512];
+    					sprintf(error, "source mesh given in %s and expected number of cells do not match\n", pointsFileName.c_str());
+    					fatalErrorInFunction("SetInflowFunctionsPrecursor", error);
+    				}
 
-        PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
+    				Zcart.resize(npz);
 
-        // top average to avoid top oscillations
-        PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
+    				for (PetscInt k = 0; k < npx; k++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+    				for (PetscInt i = 0; i < npy; i++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+    				for (PetscInt j = 0; j < npz; j++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &Zcart[j]);
 
-        for(j=0; j<10; j++)
-        {
-            mSetValue(ifPtr->uBarAvgTopX[j], 0.0);
-        }
+    				fclose(meshFileID);
 
-        if(mesh->access->flags->isTeqnActive)
-        {
-            PetscMalloc(10*sizeof(PetscReal), &(ifPtr->tBarAvgTopX));
+    				// height of the inflow database
+    				ifPtr->inflowHeigth = Zcart[npz-1] - Zcart[0];
+
+                    // height of the inflow database
+                    ifPtr->avgTopLength = Zcart[npz-1] - Zcart[0];
+
+                    // width of the merging region
+                    ifPtr->avgTopDelta  = Zcart[npz-1] - Zcart[npz-11];
+
+                    // 5 top points coordinates
+                    PetscMalloc(10*sizeof(PetscReal), &(ifPtr->avgTopPointCoords));
+
+                    for (i=0; i<10; i++)
+                    {
+                        ifPtr->avgTopPointCoords[i] = 0.5 * (Zcart[npz - 11 + i] + Zcart[npz - 11 + i + 1]);
+                    }
+
+    				// wipe vectors
+    				std::vector<PetscReal> ().swap(Zcart);
+    			}
+    		}
+    		else
+    		{
+    			char error[512];
+    			sprintf(error, "unknown sourceType in inletFunction type 4, available types are\n    1: uniform\n    2: grading\n");
+    			fatalErrorInFunction("SetInflowFunctions",  error);
+    		}
+
+            // increase n1 and n2 accounting for side ghost cells
+            ifPtr->n1wg = ifPtr->n1 + 2;
+            ifPtr->n2wg = ifPtr->n2 + 2;
+
+            // build interpolation weights and find periodized inflow cells indices
+            SetInflowWeights(mesh, ifPtr);
+
+            // initialize inflow data
+            mappedInflowInitialize(ifPtr);
+
+            PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
+
+            // top average to avoid top oscillations
+            PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
 
             for(j=0; j<10; j++)
             {
-                ifPtr->tBarAvgTopX[j] = 0.0;
-            }
-        }
-
-        // variable to store inflow function data
-        std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
-        std::vector<std::vector<PetscReal>> t_plane_tmp(ifPtr->n1wg);
-
-        // set to zero
-        for(j=0; j<ifPtr->n1wg; j++)
-        {
-            ucat_plane_tmp[j].resize(ifPtr->n2wg);
-            t_plane_tmp[j].resize(ifPtr->n2wg);
-
-            for(i=0; i<ifPtr->n2wg; i++)
-            {
-                mSetValue(ucat_plane_tmp[j][i], 0.0);
-                t_plane_tmp[j][i] = 0.0;
-            }
-        }
-
-        PetscInt  ti, nAvg;
-        PetscReal ntimes;
-
-        if(ifPtr->mapT)
-        {
-             ntimes = std::min(ifPtr->inflowT.nInflowTimes, ifPtr->inflowU.nInflowTimes);
-        }
-        else
-        {
-            ntimes = ifPtr->inflowU.nInflowTimes;
-        }
-
-        word      fname_U, fname_T;
-        FILE      *fp_U, *fp_T;
-
-        for(ti=0; ti<ntimes; ti++)
-        {
-            fname_U = "inflowDatabase/U/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowU.inflowTimes[ti]);
-
-            // open the inflow files and read
-            fp_U = fopen(fname_U.c_str(), "rb");
-
-            if(!fp_U)
-            {
-                char error[512];
-                sprintf(error, "cannot open file:\n    %s\n", fname_U.c_str());
-                fatalErrorInFunction("SetInflowFunctions",  error);
+                mSetValue(ifPtr->uBarAvgTopX[j], 0.0);
             }
 
-            for(j=0; j<ifPtr->n1wg; j++)
-            {
-                PetscInt err1;
-                err1 = fread(&(ucat_plane_tmp[j][0]), sizeof(Cmpnts), ifPtr->n2wg, fp_U);
-            }
-
-            fclose(fp_U);
-
-            // now average the top 10 cells (exclude ghosts)
-            PetscInt jAvg = 0;
-            for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
-            {
-                for(i=1; i<ifPtr->n2; i++)
-                {
-                    mSum(ifPtr->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
-                }
-
-                jAvg++;
-            }
-
-            // do the same with temperature
             if(mesh->access->flags->isTeqnActive)
             {
-                fname_T = "inflowDatabase/T/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowT.inflowTimes[ti]);
-                fp_T = fopen(fname_T.c_str(), "rb");
+                PetscMalloc(10*sizeof(PetscReal), &(ifPtr->tBarAvgTopX));
 
-                if(!fp_T)
+                for(j=0; j<10; j++)
+                {
+                    ifPtr->tBarAvgTopX[j] = 0.0;
+                }
+            }
+
+            // variable to store inflow function data
+            std::vector<std::vector<Cmpnts>>    ucat_plane_tmp(ifPtr->n1wg);
+            std::vector<std::vector<PetscReal>> t_plane_tmp(ifPtr->n1wg);
+
+            // set to zero
+            for(j=0; j<ifPtr->n1wg; j++)
+            {
+                ucat_plane_tmp[j].resize(ifPtr->n2wg);
+                t_plane_tmp[j].resize(ifPtr->n2wg);
+
+                for(i=0; i<ifPtr->n2wg; i++)
+                {
+                    mSetValue(ucat_plane_tmp[j][i], 0.0);
+                    t_plane_tmp[j][i] = 0.0;
+                }
+            }
+
+            PetscInt  ti, nAvg;
+            PetscReal ntimes;
+
+            if(ifPtr->mapT)
+            {
+                 ntimes = std::min(ifPtr->inflowT.nInflowTimes, ifPtr->inflowU.nInflowTimes);
+            }
+            else
+            {
+                ntimes = ifPtr->inflowU.nInflowTimes;
+            }
+
+            word      fname_U, fname_T;
+            FILE      *fp_U, *fp_T;
+
+            for(ti=0; ti<ntimes; ti++)
+            {
+                fname_U = "inflowDatabase/U/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowU.inflowTimes[ti]);
+
+                // open the inflow files and read
+                fp_U = fopen(fname_U.c_str(), "rb");
+
+                if(!fp_U)
                 {
                     char error[512];
-                    sprintf(error, "cannot open file:\n    %s\n", fname_T.c_str());
+                    sprintf(error, "cannot open file:\n    %s\n", fname_U.c_str());
                     fatalErrorInFunction("SetInflowFunctions",  error);
                 }
 
                 for(j=0; j<ifPtr->n1wg; j++)
                 {
-                    PetscInt err2;
-                    err2 = fread(&(t_plane_tmp[j][0]), sizeof(PetscReal), ifPtr->n2wg, fp_T);
+                    PetscInt err1;
+                    err1 = fread(&(ucat_plane_tmp[j][0]), sizeof(Cmpnts), ifPtr->n2wg, fp_U);
                 }
 
-                fclose(fp_T);
+                fclose(fp_U);
 
                 // now average the top 10 cells (exclude ghosts)
                 PetscInt jAvg = 0;
@@ -1136,43 +1110,139 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
                 {
                     for(i=1; i<ifPtr->n2; i++)
                     {
-                        ifPtr->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                        mSum(ifPtr->uBarAvgTopX[jAvg], ucat_plane_tmp[j][i]);
                     }
 
                     jAvg++;
                 }
+
+                // do the same with temperature
+                if(mesh->access->flags->isTeqnActive)
+                {
+                    fname_T = "inflowDatabase/T/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowT.inflowTimes[ti]);
+                    fp_T = fopen(fname_T.c_str(), "rb");
+
+                    if(!fp_T)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file:\n    %s\n", fname_T.c_str());
+                        fatalErrorInFunction("SetInflowFunctions",  error);
+                    }
+
+                    for(j=0; j<ifPtr->n1wg; j++)
+                    {
+                        PetscInt err2;
+                        err2 = fread(&(t_plane_tmp[j][0]), sizeof(PetscReal), ifPtr->n2wg, fp_T);
+                    }
+
+                    fclose(fp_T);
+
+                    // now average the top 10 cells (exclude ghosts)
+                    PetscInt jAvg = 0;
+                    for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
+                    {
+                        for(i=1; i<ifPtr->n2; i++)
+                        {
+                            ifPtr->tBarAvgTopX[jAvg] += t_plane_tmp[j][i];
+                        }
+
+                        jAvg++;
+                    }
+                }
+            }
+
+            // number of data summed per level (ntimes times n levels in direction 2)
+            nAvg  = (ifPtr->n2-1) * ntimes;
+
+            PetscPrintf(mesh->MESH_COMM, "done\n");
+
+            // now average the top 10 cells (exclude ghosts)
+            for(j=0; j<10; j++)
+            {
+                mScale(1.0/nAvg, ifPtr->uBarAvgTopX[j]);
+                PetscPrintf(mesh->MESH_COMM, "   - Uavg at %.2f m = (%.2f %.2f %.2f) m/s", ifPtr->avgTopPointCoords[j], ifPtr->uBarAvgTopX[j].x, ifPtr->uBarAvgTopX[j].y, ifPtr->uBarAvgTopX[j].z);
+
+                if(mesh->access->flags->isTeqnActive)
+                {
+                    ifPtr->tBarAvgTopX[j] /= nAvg;
+                    PetscPrintf(mesh->MESH_COMM, ", thetaAvg = %.2f K", ifPtr->tBarAvgTopX[j]);
+                }
+
+                PetscPrintf(mesh->MESH_COMM, "\n");
+
+            }
+
+            // temporary (basically forces zero gradient at the top for velocity)
+            mSet(ifPtr->uBarAvgTopX[9], ifPtr->uBarAvgTopX[8]);
+
+            // wipe vectors
+            for( j=0; j<ifPtr->n1wg; j++)
+            {
+                std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
+                std::vector<PetscReal> ().swap(t_plane_tmp[j]);
             }
         }
-
-        // number of data summed per level (ntimes times n levels in direction 2)
-        nAvg  = (ifPtr->n2-1) * ntimes;
-
-        PetscPrintf(mesh->MESH_COMM, "done\n");
-
-        // now average the top 10 cells (exclude ghosts)
-        for(j=0; j<10; j++)
+        else if(ifPtr->typeU == 7)
         {
-            mScale(1.0/nAvg, ifPtr->uBarAvgTopX[j]);
-            PetscPrintf(mesh->MESH_COMM, "   - Uavg at %.2f m = (%.2f %.2f %.2f) m/s", ifPtr->avgTopPointCoords[j], ifPtr->uBarAvgTopX[j].x, ifPtr->uBarAvgTopX[j].y, ifPtr->uBarAvgTopX[j].z);
+            // set also T and nut to the same type
+            ifPtr->typeT   = 7;
+            ifPtr->typeNut = 7;
+
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "shiftSpeed",     &(ifPtr->shiftSpeed));
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "zeroShiftHeight",&(ifPtr->zeroShiftHeight));
+            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "zeroShiftDelta", &(ifPtr->zeroShiftDelta));
+
+            PetscPrintf(mesh->MESH_COMM, "   -> using periodic inlet with i-shift\n");
+
+            PetscInt           i,j,k;
+
+            // allocate memory for temporary inflow data
+            ifPtr->ucat_plane = (Cmpnts **)malloc( sizeof(Cmpnts *) * my );
+
+            for(j=0; j<my; j++)
+            {
+                ifPtr->ucat_plane[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * mx );
+            }
 
             if(mesh->access->flags->isTeqnActive)
             {
-                ifPtr->tBarAvgTopX[j] /= nAvg;
-                PetscPrintf(mesh->MESH_COMM, ", thetaAvg = %.2f K", ifPtr->tBarAvgTopX[j]);
+                // allocate memory for temporary inflow data
+                ifPtr->t_plane = (PetscReal **)malloc( sizeof(PetscReal *) * my );
+
+                for(j=0; j<my; j++)
+                {
+                    ifPtr->t_plane[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
+                }
             }
 
-            PetscPrintf(mesh->MESH_COMM, "\n");
+            if(mesh->access->flags->isLesActive)
+            {
+                // allocate memory for temporary inflow data
+                ifPtr->nut_plane = (PetscReal **)malloc( sizeof(PetscReal *) * my );
 
+                for(j=0; j<my; j++)
+                {
+                    ifPtr->nut_plane[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
+                }
+            }
+
+            // create communicator
+            PetscMPIInt rank;
+            PetscInt    commColor = MPI_UNDEFINED;
+
+            if(zs==0 || ze==mz)
+            {
+                commColor = 1;
+            }
+
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
+            MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(ifPtr->IFFCN_COMM));
         }
-
-        // temporary (basically forces zero gradient at the top for velocity)
-        mSet(ifPtr->uBarAvgTopX[9], ifPtr->uBarAvgTopX[8]);
-
-        // wipe vectors
-        for( j=0; j<ifPtr->n1wg; j++)
+        else
         {
-            std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
-            std::vector<PetscReal> ().swap(t_plane_tmp[j]);
+            char error[512];
+            sprintf(error, "unknown inletFunctionType in xDampingProperties for concurrent precursor method, available types are\n    4: interpolatedMappedInflow\n    7: periodic with i-shift\n");
+            fatalErrorInFunction("SetInflowFunctionsPrecursor",  error);
         }
     }
 

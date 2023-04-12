@@ -2512,7 +2512,11 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
                   gravity.x = 0;
                   gravity.y = 0;
                   gravity.z = -9.81;
-    PetscReal     tRef      = ueqn->access->abl->tRef;
+
+    PetscReal     tRef;
+    if(ueqn->access->flags->isAblActive) tRef = ueqn->access->abl->tRef;
+    else                                 tRef = ueqn->access->constants->tRef;
+
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;

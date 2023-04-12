@@ -878,7 +878,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     Cmpnts        ***csi,  ***eta,  ***zet;
     Cmpnts        ***cent;
 
-    PetscReal     ***aj;
+    PetscReal     ***aj, ***iaj;
     PetscReal     ***nvert, ***ustar;
     Cmpnts        ***ucat,  ***lucat,
                   ***lucont;
@@ -902,6 +902,10 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
         {
             readInflowU(ifPtr, mesh->access->clock);
         }
+        else if(ifPtr->typeU == 7)
+        {
+            setShiftedInflowU(ifPtr, ueqn);
+        }
     }
 
     // initialize random number generator
@@ -917,6 +921,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecGetArray(fda, mesh->lEta, &eta);
     DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
+    DMDAVecGetArray(da,  mesh->lIAj,  &iaj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
 
     DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
@@ -1252,6 +1257,27 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     {
                         PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
                         ucat[k-1][j][i] = NieuwstadtInflowEvaluate(ifPtr, h);
+                    }
+                    // sinusoidal inflow
+                    else if (ifPtr->typeU == 6)
+                    {
+                        PetscReal fraction = (cent[k][j][i].y - mesh->bounds.ymin)/mesh->bounds.Ly;
+                        PetscReal uMag     = (1.0 + ifPtr->amplitude*std::cos(ifPtr->periods * 2.0 * M_PI * fraction)) * nMag(ifPtr->Uref);
+                        ucat[k-1][j][i]    = nScale(uMag, ifPtr->Udir);
+                    }
+                    // shifted periodic BC
+                    else if (ifPtr->typeU == 7)
+                    {
+                        // evaluate shifted velocity
+                        PetscReal shift    = ifPtr->shiftSpeed*ueqn->access->clock->dt;
+                        PetscReal delta    = 1./iaj[k][j][i-1]/nMag(icsi[k][j][i-1]);
+                        Cmpnts   ushift    = nSum(nScale(shift / delta, ifPtr->ucat_plane[j][i-1]), nScale((delta-shift)/delta, ifPtr->ucat_plane[j][i]));
+
+                        // apply shift only below zeroShiftHeight and smoothly merge with no shift
+                        PetscReal wshift   = scaleHyperTangBot(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta),
+                                  wnoshift = scaleHyperTangTop(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta);
+
+                        ucat[k-1][j][i]    = nSum(nScale(wshift, ushift), nScale(wnoshift, ifPtr->ucat_plane[j][i]));
                     }
                     // unsteady mapped inflow
                     else if (ifPtr->typeU == 3)
@@ -1802,6 +1828,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
     DMDAVecRestoreArray(fda, mesh->lZet, &zet);
     DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
+    DMDAVecRestoreArray(da,  mesh->lIAj,  &iaj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
 
     DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
@@ -1834,8 +1861,8 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     PetscInt      i, j, k;
 
     PetscReal     ***t, ***lt, ***nvert;
-    PetscReal     ***aj;
-    Cmpnts        ***csi, ***eta, ***zet, ***cent;
+    PetscReal     ***aj, ***iaj;
+    Cmpnts        ***csi, ***eta, ***zet, ***icsi, ***cent;
 
     // variables to recover inletFunction 3 lapse rate
     PetscReal        ldataHeight = 0, gdataHeight = 0;
@@ -1884,12 +1911,18 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 gdataHeight = ifPtr->inflowHeigth;
             }
         }
+        else if(ifPtr->typeT == 7)
+        {
+            setShiftedInflowT(ifPtr, teqn);
+        }
     }
 
     DMDAVecGetArray(fda, mesh->lCsi,   &csi);
     DMDAVecGetArray(fda, mesh->lEta,   &eta);
     DMDAVecGetArray(fda, mesh->lZet,   &zet);
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
     DMDAVecGetArray(da,  mesh->lAj,    &aj);
+    DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
 
     DMDAVecGetArray(da, teqn->lTmprt, &lt);
@@ -1913,7 +1946,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 {
                     inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
 
-                    // read the inflow data if necessary
+                    // rampanelli and zardi model
                     if(ifPtr->typeT == 2)
                     {
                         PetscReal b      = ifPtr->smear * ifPtr->gTop * ifPtr->dInv;
@@ -2051,6 +2084,19 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             ifPtr->inflowWeights[j][i][3] *
                             ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
                         }
+                    }
+                    else if(ifPtr->typeT == 7)
+                    {
+                        // evaluate shifted velocity
+                        PetscReal shift    = ifPtr->shiftSpeed*teqn->access->clock->dt;
+                        PetscReal delta    = 1./iaj[k][j][i-1]/nMag(icsi[k][j][i-1]);
+                        PetscReal tshift   = (shift / delta) * ifPtr->t_plane[j][i-1] + ((delta-shift)/delta)*ifPtr->t_plane[j][i];
+
+                        // apply shift only below zeroShiftHeight and smoothly merge with no shift
+                        PetscReal wshift   = scaleHyperTangBot(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta),
+                                  wnoshift = scaleHyperTangTop(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta);
+
+                        t[k-1][j][i]       = wshift*tshift + wnoshift*ifPtr->t_plane[j][i];
                     }
                 }
 
@@ -2262,8 +2308,10 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
     DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
     DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+    DMDAVecRestoreArray(da,  mesh->lIAj,   &iaj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
 
     DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
@@ -2293,7 +2341,8 @@ PetscErrorCode UpdateNutBCs(les_ *les)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***nut, ***nvert;
+    PetscReal     ***nut, ***nvert, ***iaj;
+    Cmpnts        ***icsi, ***cent;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -2309,10 +2358,17 @@ PetscErrorCode UpdateNutBCs(les_ *les)
         {
             readInflowNut(ifPtr, mesh->access->clock);
         }
+        else if(ifPtr->typeNut == 7)
+        {
+            setShiftedInflowNut(ifPtr, les);
+        }
     }
 
     DMDAVecGetArray(da, les->lNu_t, &nut);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     for (k=lzs; k<lze; k++)
     {
@@ -2376,6 +2432,19 @@ PetscErrorCode UpdateNutBCs(les_ *les)
                        ifPtr->nut_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
                        ifPtr->inflowWeights[j][i][3] *
                        ifPtr->nut_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+                    }
+                    else if (ifPtr->typeNut == 7)
+                    {
+                        // evaluate shifted velocity
+                        PetscReal shift    = ifPtr->shiftSpeed*les->access->clock->dt;
+                        PetscReal delta    = 1./iaj[k][j][i-1]/nMag(icsi[k][j][i-1]);
+                        PetscReal nutshift = (shift / delta) * ifPtr->nut_plane[j][i-1] + ((delta-shift)/delta)*ifPtr->nut_plane[j][i];
+
+                        // apply shift only below zeroShiftHeight and smoothly merge with no shift
+                        PetscReal wshift   = scaleHyperTangBot(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta),
+                                  wnoshift = scaleHyperTangTop(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta);
+
+                        nut[k-1][j][i]       = wshift*nutshift + wnoshift*ifPtr->nut_plane[j][i];
                     }
                 }
 
@@ -2483,6 +2552,9 @@ PetscErrorCode UpdateNutBCs(les_ *les)
 
     DMDAVecRestoreArray(da, les->lNu_t, &nut);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecRestoreArray(da,  mesh->lIAj,   &iaj);
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     // scatter nut from global to local
     DMLocalToLocalBegin(da, les->lNu_t, INSERT_VALUES, les->lNu_t);

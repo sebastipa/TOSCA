@@ -102,10 +102,16 @@ PetscErrorCode SetInitialFieldPrecursor(abl_ *abl)
         SpreadInletFlowU(domain->ueqn);
         SpreadInletFlowT(domain->teqn);
     }
-    // set initial fields: map fields
+    // set initial fields: read field still using inflow functions as precursorSpinUp is still active
     else if (flags->isPrecursorSpinUp==2)
     {
-        MapInitialConditionPrecursor(abl);
+        domain->ueqn->initFieldType = "readField";
+        if(flags->isTeqnActive) domain->teqn->initFieldType = "readField";
+        if(flags->isLesActive)  domain->les->initFieldType  = "readField";
+
+        PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: readField\n");
+        readFields(domain, clock->startTime);
+        //MapInitialConditionPrecursor(abl);
     }
     // set initial fields: read fields
     else
