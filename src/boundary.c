@@ -2082,7 +2082,8 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             ifPtr->inflowWeights[j][i][2] *
                             ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
                             ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+                            ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i] +
+                            delta * teqn->access->abl->gTop;
                         }
                     }
                     else if(ifPtr->typeT == 7)
