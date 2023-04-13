@@ -1031,6 +1031,9 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
             mappedInflowInitialize(ifPtr);
 
             PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
+		
+	    // set merging flag to default one: always merge instantaneous and averages at the top in precursor
+	    ifPtr->merge1 = 1;
 
             // top average to avoid top oscillations
             PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
