@@ -16,9 +16,13 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
     {
         mesh_ *mesh = ibm->access->mesh;
         VecDuplicate(mesh->lNvert, &(ibm->dUl_dt));  VecSet(ibm->dUl_dt,  0.0);
+        VecDuplicate(mesh->lNvert, &(ibm->lNvertFixed));  VecSet(ibm->lNvertFixed,  0.0);
 
         //read ibm input file
         readIBMProperties(ibm);
+
+        //compute the node to element reverse connectivity
+        nodeElementConnectivity(ibm);
 
         //set the wall model properties
         setIBMWallModels(ibm);
@@ -1333,7 +1337,149 @@ PetscErrorCode UpdateIBMesh(ibm_ *ibm)
 }
 
 //***************************************************************************************************************//
+PetscErrorCode recomputeIBMeshProperties(ibm_ *ibm, PetscInt b)
+{
+    ibmObject *ibmBody = ibm->ibmBody[b];
+    ibmMesh   *ibMsh   = ibmBody->ibMsh;
+    PetscInt  n1, n2, n3;
+    PetscReal normMag;
+    Cmpnts    vec1, vec2, temp;
 
+    for (PetscInt i=0; i<ibMsh->elems; i++)
+    {
+        // get the element nodes
+        n1 = ibMsh->nID1[i]; n2 = ibMsh->nID2[i]; n3 = ibMsh->nID3[i];
+
+        vec1 = nSub(ibMsh->nCoor[n2], ibMsh->nCoor[n1]);
+
+        vec2 = nSub(ibMsh->nCoor[n3], ibMsh->nCoor[n1]);
+
+        // normal to the face is found as cross product of the edges vec1 and vec2
+        ibMsh->eN[i] = nCross(vec1, vec2);
+        normMag = nMag(ibMsh->eN[i]);
+        mScale(1.0/normMag, ibMsh->eN[i]);
+
+        // flip normal if pointing inwards
+        if(ibMsh->flipNormal[i] == 1)
+        {
+            mScale(-1, ibMsh->eN[i]);
+        }
+    }
+
+    //use nearby elements to average the normal direction. this requires the node to element connectivity
+    if(ibm->averageNormal)
+    {
+        ibmNode *ibmNodes  = ibMsh->ibmMeshNode;
+
+        //temporary array to store the averaged element normals
+        Cmpnts *tempEn = new Cmpnts[ibMsh->elems];
+
+        for (PetscInt e=0; e<ibMsh->elems; e++)
+        {
+            PetscInt i, j;
+            // get the element nodes
+            n1 = ibMsh->nID1[e]; n2 = ibMsh->nID2[e]; n3 = ibMsh->nID3[e];
+
+            //find the number of elements connected to each node
+            PetscInt numElemn1 = ibmNodes[n1].numConnected;
+            PetscInt numElemn2 = ibmNodes[n2].numConnected;
+            PetscInt numElemn3 = ibmNodes[n3].numConnected;
+
+            PetscInt mergedElemArray[numElemn1 + numElemn2 + numElemn3];
+
+            //copy the first node elements into mergedElemArray
+            for (i = 0; i < numElemn1; i++)
+            {
+                mergedElemArray[i] = ibmNodes[n1].elem[i];
+            }
+
+            //copy the second node elements into merged array
+            for (j = 0; j < numElemn2; j++)
+            {
+                if (!isPresent(mergedElemArray, i+1, ibmNodes[n2].elem[j]))
+                {
+                    mergedElemArray[i++] = ibmNodes[n2].elem[j];
+                }
+            }
+
+            //copy the third node elements into merged array
+            for (j = 0; j < numElemn3; j++)
+            {
+                if (!isPresent(mergedElemArray, i+1, ibmNodes[n3].elem[j]))
+                {
+                    mergedElemArray[i++] = ibmNodes[n3].elem[j];
+                }
+            }
+
+            //average the normal at element e from its surrounding elements
+
+            PetscReal sumEnx = 0.0, sumEny = 0.0, sumEnz = 0.0;
+
+            for (j = 0; j < i; j++)
+            {
+                sumEnx += ibMsh->eN[mergedElemArray[j]].x;
+                sumEny += ibMsh->eN[mergedElemArray[j]].y;
+                sumEnz += ibMsh->eN[mergedElemArray[j]].z;
+
+            }
+
+            // save the averaged element normals
+            tempEn[e] = nSetFromComponents(sumEnx, sumEny, sumEnz);
+            PetscReal normMag = nMag(tempEn[e]);
+            mScale(1.0/normMag, tempEn[e]);
+        }
+
+        for (PetscInt e=0; e<ibMsh->elems; e++)
+        {
+            ibMsh->eN[e] = nSet(tempEn[e]);
+        }
+
+        delete[] tempEn;
+    }
+
+    for (PetscInt i=0; i<ibMsh->elems; i++)
+    {
+        // tangential to the face( eT1 and eT2)
+        // eT1 = eN x k
+        if (
+            (((1.0 - ibMsh->eN[i].z ) <= 1e-6 ) && ((-1.0 + ibMsh->eN[i].z ) < 1e-6))
+            ||
+            (((ibMsh->eN[i].z + 1.0 ) <= 1e-6 ) && ((-1.0 - ibMsh->eN[i].z ) < 1e-6))
+           )
+        {
+            ibMsh->eT1[i].x = 1.0;
+            ibMsh->eT1[i].y = 0.0;
+            ibMsh->eT1[i].z = 0.0;
+
+            ibMsh->eT2[i].x = 0.0;
+            ibMsh->eT2[i].y = 1.0;
+            ibMsh->eT2[i].z = 0.0;
+        }
+        else
+        {
+            ibMsh->eT1[i].x =  ibMsh->eN[i].y/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+            ibMsh->eT1[i].y = -ibMsh->eN[i].x/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+            ibMsh->eT1[i].z = 0 ;
+
+               // eT2 = eT2 x eN
+            ibMsh->eT2[i].x = -ibMsh->eN[i].x*ibMsh->eN[i].z/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+            ibMsh->eT2[i].y = -ibMsh->eN[i].y*ibMsh->eN[i].z/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+            ibMsh->eT2[i].z = sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
+        }
+
+        //element area
+        ibMsh->eA[i] = normMag/2.0;
+
+        //element center
+        temp = nSum(ibMsh->nCoor[n1], ibMsh->nCoor[n2]);
+        ibMsh->eCent[i] = nSum( temp, ibMsh->nCoor[n3]);
+        mScale(1/3.0, ibMsh->eCent[i]);
+    }
+
+    return 0;
+}
+
+//***************************************************************************************************************//
 PetscErrorCode sineMotion(ibm_ *ibm, PetscInt b)
 {
     clock_        *clock   = ibm->access->clock;
@@ -1361,20 +1507,7 @@ PetscErrorCode sineMotion(ibm_ *ibm, PetscInt b)
 
     ibmSine->tPrev  = tCurrent;
 
-    // recompute the ibm mesh properties - as rigid body motion the elements do not change
-    PetscInt  n1, n2, n3;
-    Cmpnts    temp;
-
-    for (PetscInt i=0; i<ibMsh->elems; i++)
-    {
-        // get the element nodes
-        n1 = ibMsh->nID1[i]; n2 = ibMsh->nID2[i]; n3 = ibMsh->nID3[i];
-
-        //element center
-        temp = nSum(ibMsh->nCoor[n1], ibMsh->nCoor[n2]);
-        ibMsh->eCent[i] = nSum( temp, ibMsh->nCoor[n3]);
-        mScale(1/3.0, ibMsh->eCent[i]);
-    }
+    recomputeIBMeshProperties(ibm, b);
 
     return (0);
 }
@@ -1422,67 +1555,7 @@ PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b)
     //update the angular speed if body is accelerating
     ibmRot->angSpeed += (ibmRot->angAcc * clock->dt);
 
-    // recompute the ibm mesh properties - as rigid body motion the elements do not change
-    PetscInt  n1, n2, n3;
-    PetscReal normMag;
-    Cmpnts    vec1, vec2, temp;
-
-    for (PetscInt i=0; i<ibMsh->elems; i++)
-    {
-        // get the element nodes
-        n1 = ibMsh->nID1[i]; n2 = ibMsh->nID2[i]; n3 = ibMsh->nID3[i];
-
-        vec1 = nSub(ibMsh->nCoor[n2], ibMsh->nCoor[n1]);
-
-        vec2 = nSub(ibMsh->nCoor[n3], ibMsh->nCoor[n1]);
-
-        // normal to the face is found as cross product of the edges vec1 and vec2
-        ibMsh->eN[i] = nCross(vec1, vec2);
-        normMag = nMag(ibMsh->eN[i]);
-        mScale(1.0/normMag, ibMsh->eN[i]);
-
-        // flip normal if pointing inwards
-        if(ibMsh->flipNormal[i] == 1)
-        {
-            mScale(-1, ibMsh->eN[i]);
-        }
-
-        // tangential to the face( eT1 and eT2)
-        // eT1 = eN x k
-        if (
-            (((1.0 - ibMsh->eN[i].z ) <= 1e-6 ) && ((-1.0 + ibMsh->eN[i].z ) < 1e-6))
-            ||
-            (((ibMsh->eN[i].z + 1.0 ) <= 1e-6 ) && ((-1.0 - ibMsh->eN[i].z ) < 1e-6))
-           )
-        {
-            ibMsh->eT1[i].x = 1.0;
-            ibMsh->eT1[i].y = 0.0;
-            ibMsh->eT1[i].z = 0.0;
-
-            ibMsh->eT2[i].x = 0.0;
-            ibMsh->eT2[i].y = 1.0;
-            ibMsh->eT2[i].z = 0.0;
-        }
-        else
-        {
-            ibMsh->eT1[i].x =  ibMsh->eN[i].y/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
-            ibMsh->eT1[i].y = -ibMsh->eN[i].x/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
-            ibMsh->eT1[i].z = 0 ;
-
-               // eT2 = eT2 x eN
-            ibMsh->eT2[i].x = -ibMsh->eN[i].x*ibMsh->eN[i].z/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
-            ibMsh->eT2[i].y = -ibMsh->eN[i].y*ibMsh->eN[i].z/ sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
-            ibMsh->eT2[i].z = sqrt(ibMsh->eN[i].x*ibMsh->eN[i].x + ibMsh->eN[i].y*ibMsh->eN[i].y);
-        }
-
-        //element area
-        ibMsh->eA[i] = normMag/2.0;
-
-        //element center
-        temp = nSum(ibMsh->nCoor[n1], ibMsh->nCoor[n2]);
-        ibMsh->eCent[i] = nSum( temp, ibMsh->nCoor[n3]);
-        mScale(1/3.0, ibMsh->eCent[i]);
-    }
+    recomputeIBMeshProperties(ibm, b);
 
     // write the current angular position of the ibm to a file
     writeIBMData(ibm, b);
@@ -3063,14 +3136,14 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
          {
              roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot->roughness;
 
-            if(ibm->wallShearOn)
-            {
-                ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
-                ucat[k][j][i].y = (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
-                ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
-            }
-            else
-            {
+            // if(ibm->wallShearOn)
+            // {
+            //     ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
+            //     ucat[k][j][i].y = (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
+            //     ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
+            // }
+            // else
+            // {
                 if(roughness > 1.0e-12)
                 {
                     wallFunctionCabotRoughness(cst->nu, roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
@@ -3079,7 +3152,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                 {
                     wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
                 }
-            }
+            // }
          }
          else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
          {
@@ -3798,7 +3871,7 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
 
   Vec           lCoor;
 
-  PetscReal     ***nvert, ***nvert_o, ***gnvert;
+  PetscReal     ***nvert, ***nvert_o, ***gnvert, ***nvertFixed;
   Cmpnts        ***cent, ***coor;
 
   lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
@@ -3995,6 +4068,7 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
         DMDAVecGetArray(fda, mesh->lCent, &cent);
         DMDAVecGetArray(da, mesh->lNvert, &nvert);
         DMDAVecGetArray(da, mesh->lNvert_o, &nvert_o);
+        DMDAVecGetArray(da, ibm->lNvertFixed, &nvertFixed);
 
         for (k = lzs; k < lze; k++)
         for (j = lys; j < lye; j++)
@@ -4047,9 +4121,15 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
                     val = rayCastingTest(cent[k][j][i], ibMsh, sCell, sBox, ibBox, searchCellList);
                     nvert[k][j][i] = PetscMax(nvert[k][j][i], val);
 
+                    if( (clock->it == clock->itStart) && (ibm->ibmBody[b]->bodyMotion == "static"))
+                    {
+                        nvertFixed[k][j][i] = PetscMax(nvert[k][j][i], val);
+                    }
+
                }
                else
-                {   // set nvert to old value
+                {
+                    if(ibm->ibmBody[b]->bodyMotion == "static")
                     nvert[k][j][i] = nvert_o[k][j][i];
 
                     if (PetscInt (nvert[k][j][i]+0.5) ==3)
@@ -4064,6 +4144,7 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
         DMDAVecRestoreArray(fda, mesh->lCent, &cent);
         DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
         DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
+        DMDAVecRestoreArray(da, ibm->lNvertFixed, &nvertFixed);
 
         MPI_Barrier(mesh->MESH_COMM);
 
@@ -4614,8 +4695,8 @@ PetscErrorCode checkIBMexists(ibm_ *ibm)
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
-    //check ibm body bounding box is inside the ibm processor bounds 
-    
+    //check ibm body bounding box is inside the ibm processor bounds
+
     // loop through the ibm bodies
     for (b = 0; b < ibm->numBodies; b++)
     {
@@ -4731,6 +4812,105 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
             PetscPrintf(PETSC_COMM_WORLD, "done\n");
         }
 
+        //use nearby elements to average the normal direction. this requires the node to element connectivity
+        if(ibm->averageNormal)
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "Averaging IBM element normals...");
+            ibmNode *ibmNodes  = ibMesh->ibmMeshNode;
+
+            //temporary array to store the averaged element normals
+            Cmpnts *tempEn = new Cmpnts[ibMesh->elems];
+
+            for (e=0; e<ibMesh->elems; e++)
+            {
+                PetscInt i, j;
+                // get the element nodes
+                n1 = ibMesh->nID1[e]; n2 = ibMesh->nID2[e]; n3 = ibMesh->nID3[e];
+
+                //find the number of elements connected to each node
+                PetscInt numElemn1 = ibmNodes[n1].numConnected;
+                PetscInt numElemn2 = ibmNodes[n2].numConnected;
+                PetscInt numElemn3 = ibmNodes[n3].numConnected;
+
+                PetscInt mergedElemArray[numElemn1 + numElemn2 + numElemn3];
+
+                //copy the first node elements into mergedElemArray
+                for (i = 0; i < numElemn1; i++)
+                {
+                    mergedElemArray[i] = ibmNodes[n1].elem[i];
+
+                    if(e == 100)
+                    {
+                        PetscPrintf(PETSC_COMM_WORLD, "NODE 1 elements = %ld\n", ibmNodes[n1].elem[i]);
+                    }
+                }
+
+                //copy the second node elements into merged array
+                for (j = 0; j < numElemn2; j++)
+                {
+                    if (!isPresent(mergedElemArray, i+1, ibmNodes[n2].elem[j]))
+                    {
+                        mergedElemArray[i++] = ibmNodes[n2].elem[j];
+                    }
+
+                    if(e == 100)
+                    {
+                        PetscPrintf(PETSC_COMM_WORLD, "NODE 2 elements = %ld\n", ibmNodes[n2].elem[j]);
+                    }
+                }
+
+                //copy the third node elements into merged array
+                for (j = 0; j < numElemn3; j++)
+                {
+                    if (!isPresent(mergedElemArray, i+1, ibmNodes[n3].elem[j]))
+                    {
+                        mergedElemArray[i++] = ibmNodes[n3].elem[j];
+                    }
+
+                    if(e == 100)
+                    {
+                        PetscPrintf(PETSC_COMM_WORLD, "NODE 3 elements = %ld\n", ibmNodes[n3].elem[j]);
+                    }
+                }
+
+                //average the normal at element e from its surrounding elements
+
+                PetscReal sumEnx = 0.0, sumEny = 0.0, sumEnz = 0.0;
+
+                for (j = 0; j < i; j++)
+                {
+                    sumEnx += ibMesh->eN[mergedElemArray[j]].x;
+                    sumEny += ibMesh->eN[mergedElemArray[j]].y;
+                    sumEnz += ibMesh->eN[mergedElemArray[j]].z;
+
+                    if(e == 100)
+                    {
+                        PetscPrintf(PETSC_COMM_WORLD, "merged elements = %ld\n", mergedElemArray[j]);
+                    }
+                }
+
+                // save the averaged element normals
+                tempEn[e] = nSetFromComponents(sumEnx, sumEny, sumEnz);
+
+                PetscReal normMag = nMag(tempEn[e]);
+                mScale(1.0/normMag, tempEn[e]);
+
+                if(e == 100)
+                {
+                    PetscPrintf(PETSC_COMM_WORLD, "normal = %lf %lf %lf, avg normal = %lf %lf %lf\n", ibMesh->eN[e].x, ibMesh->eN[e].y, ibMesh->eN[e].z, tempEn[e].x, tempEn[e].y, tempEn[e].z);
+                }
+            }
+
+            for (e=0; e<ibMesh->elems; e++)
+            {
+                ibMesh->eN[e] = nSet(tempEn[e]);
+            }
+
+            delete[] tempEn;
+            PetscPrintf(PETSC_COMM_WORLD, "done\n");
+        }
+
+        //find tangential unit vectors for the ibm mesh elements
         for (e=0; e<ibMesh->elems; e++)
         {
 
@@ -4756,7 +4936,7 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
                 ibMesh->eT1[e].y = -ibMesh->eN[e].x/ sqrt(ibMesh->eN[e].x*ibMesh->eN[e].x + ibMesh->eN[e].y*ibMesh->eN[e].y);
                 ibMesh->eT1[e].z = 0 ;
 
-                 // eT2 = eT2 x eN
+                 // eT2 = eT1 x eN
                 ibMesh->eT2[e].x = -ibMesh->eN[e].x*ibMesh->eN[e].z/ sqrt(ibMesh->eN[e].x*ibMesh->eN[e].x + ibMesh->eN[e].y*ibMesh->eN[e].y);
                 ibMesh->eT2[e].y = -ibMesh->eN[e].y*ibMesh->eN[e].z/ sqrt(ibMesh->eN[e].x*ibMesh->eN[e].x + ibMesh->eN[e].y*ibMesh->eN[e].y);
                 ibMesh->eT2[e].z = sqrt(ibMesh->eN[e].x*ibMesh->eN[e].x + ibMesh->eN[e].y*ibMesh->eN[e].y);
@@ -5461,7 +5641,7 @@ PetscErrorCode initElementProcs(ibm_ *ibm)
         MPI_Comm_size(ibmBody->IBM_COMM, &ibmProcSize);
         MPI_Comm_rank(ibmBody->IBM_COMM, &ibmRank);
 
-        //check if process controls this ibm body
+        //check if processor controls this ibm body
         if(ibmBody->ibmControlled)
         {
             elementBox  *eBox = ibmBody->eBox;

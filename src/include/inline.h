@@ -64,6 +64,22 @@ inline PetscInt mustWrite(PetscReal time, PetscReal startTime, PetscReal timeInt
 // MATH FUNCTIONS
 // ============================================================================================================= //
 
+//check for duplicates in an integer array
+inline PetscInt isPresent(PetscInt arr[], PetscInt n, PetscInt elem)
+{
+    for (PetscInt i = 0; i < n; i++)
+    {
+        if (arr[i] == elem)
+        {
+            return 1;
+        }
+    }
+    
+    return 0;
+}
+
+// ============================================================================================================= //
+
 inline PetscReal sign(PetscReal a)
 {
     if (a > 0)      return  1.0;

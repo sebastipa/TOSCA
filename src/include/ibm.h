@@ -4,6 +4,13 @@
 #ifndef IBM_H
 #define IBM_H
 
+#define MAX_ELEMENTS_PER_NODE 20
+
+typedef struct {
+    PetscInt elem[MAX_ELEMENTS_PER_NODE];
+    PetscInt numConnected;
+} ibmNode;
+
 //! \brief Node struct
 typedef struct node
 {
@@ -48,6 +55,7 @@ typedef struct
     Cmpnts       *eT1;                         //!< pointers to the component of face tangential1 (eT1 = eN x k, where k is unit normal along z, which is taken as a generic direction)
     Cmpnts       *eT2;                         //!< pointers to the component of face tangential2 (eT2 = eN x eT1)
 
+    ibmNode      *ibmMeshNode;
     PetscInt     *eSurface;                    //!< pointer to the surfaceBody that this element belongs to
     PetscReal    *eA;                          //!< area of the element
     Cmpnts       *eCent;                       //!< coordinate of the element center
@@ -197,6 +205,7 @@ typedef struct
 //! \brief struct storing IBM model
 struct ibm_
 {
+    Vec                lNvertFixed;
     Vec                dUl_dt;
     PetscInt           numBodies;                     //!<  number of bodies
     word               IBInterpolationModel;          //!<  interpolation methodology
@@ -217,6 +226,7 @@ struct ibm_
     PetscInt             dynamic;
     PetscInt        computeForce;
     PetscInt         checkNormal;
+    PetscInt       averageNormal;
     PetscInt         wallShearOn;
     PetscInt            writeSTL;
     PetscInt              p_dudt;
@@ -325,6 +335,8 @@ PetscErrorCode createSearchCellList(ibm_ *ibm);
 PetscErrorCode destroyLists(ibm_ *ibm);
 
 PetscErrorCode computeIBMElementNormal(ibm_ *ibm);
+
+PetscErrorCode recomputeIBMeshProperties(ibm_ *ibm, PetscInt b);
 
 //! \brief ray casting algorithm
 PetscReal rayCastingTest(Cmpnts p, ibmMesh *ibMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList);
