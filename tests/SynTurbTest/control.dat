@@ -1,0 +1,82 @@
+# TOSCA Input file - control dictionary
+# ---------------------------------
+
+# Simulation
+# ---------------------------------
+-startFrom                 startTime
+-startTime                 0
+-endTime                   0.8
+-cfl                       0.8
+-adjustTimeStep            1
+-timeStep                  0.0005
+-timePrecision             4
+
+# Write Data
+# ---------------------------------
+-intervalType              adjustableTime
+-timeInterval              0.0005
+-purgeWrite                0
+
+# Solution
+# ---------------------------------
+-potentialT                0
+-abl                       0
+-zDampingLayer             0
+-ibm                       0
+-overset                   0
+-absTolU                   1e-8
+-poissonIt                 30
+-poissonTol                1e-8
+-poissonSolver             PETSc
+-hypreSolverType           1
+-ceqn                      0
+-porousZones               0
+-sources                   0
+
+# Turbulence Model
+# ---------------------------------
+-les                       1
+-max_cs                    180
+
+# Numerical Schemes
+# ---------------------------------
+-dUdtScheme                backwardEuler
+-dTdtScheme                rungeKutta4
+-divScheme                 centralDiv
+
+# Wind Turbine
+# ---------------------------------
+-windplant                0
+
+# Constants
+# ---------------------------------
+-nu                        0.001665e-10
+-rho                       1.225
+-Pr                        0.71
+
+# Mesh
+# ---------------------------------
+-meshFileType             cartesian
+
+
+# Acquisition
+# ---------------------------------
+-sections                 1
+-probes                   0
+#-averagingABL            1
+#-averaging3LM             1
+
+#-computeQ                1
+
+#-averaging                1
+#-avgPeriod                5
+#-avgStartTime             0
+
+#-phaseAveraging          3
+#-phaseAvgPeriod          500
+#-phaseAvgStartTime       0
+
+# PostProcessing
+# ---------------------------------
+-writeRaster              0
+-postProcessFields        1

@@ -13,6 +13,7 @@
 PetscErrorCode SetInflowFunctions(mesh_ *mesh)
 {
     DM            da   = mesh->da, fda = mesh->fda;
+    constants_    *cst   = mesh->access->constants;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
     PetscInt      ys   = info.ys, ye = info.ys + info.ym;
@@ -397,7 +398,6 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                 std::vector<PetscInt>  ().swap(gCells);
             }
         }
-
         // unsteady interpolated inflow
         else if (ifPtr->typeU == 4)
         {
@@ -771,10 +771,48 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             mScale(1.0/nMag(ifPtr->Udir), ifPtr->Udir);
             ifPtr->fc =  2*7.292115e-5*std::sin(ifPtr->latitude * M_PI / 180.0);
         }
+        // Inverse Fourier
+        else if (ifPtr->typeU == 6)
+        {
+
+            PetscPrintf(mesh->MESH_COMM, "... Reading Synthetic Turbulence Inflow ...");
+
+            readSubDictDouble(fileName.c_str(), "inletFunction", "Urms", &(ifPtr->Urms));
+            readSubDictVector(fileName.c_str(), "inletFunction", "meanU", &(ifPtr->meanU));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "kolLScale", &(ifPtr->kolLScale));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "largeLScale", &(ifPtr->largeLScale));
+            readSubDictInt(fileName.c_str(), "inletFunction", "fourierSumNum", &(ifPtr->FSumNum));
+            readSubDictInt(fileName.c_str(), "inletFunction", "iterTKE", &(ifPtr->iterTKE));
+            readSubDictWord(fileName.c_str(), "inletFunction", "genType", &(ifPtr->genType));
+
+            if (ifPtr->genType == "dietzel")
+            {
+                ifPtr->kMax = 3.141592653589793238462643/(((mesh->bounds.Lx / mesh->KM) + (mesh->bounds.Lz / mesh->JM) + (mesh->bounds.Ly / mesh->IM))/3);
+                ifPtr->kKol = 1/ifPtr->kolLScale;
+                ifPtr->kEng = (9*3.141592653589793238462643*1.4256/(55*ifPtr->largeLScale));
+                ifPtr->kMin = ifPtr->kEng/2.75;
+                ifPtr->dkn = (ifPtr->kMax - ifPtr->kMin)/(ifPtr->FSumNum-1);
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "unknown driving energy spectrum type. 'dietzel' is the only option");
+                fatalErrorInFunction("SetInflowFunctions",  error);
+            }
+
+            //allocate memory to vectors
+            ifPtr->phaseN = (PetscReal *)malloc( sizeof(PetscReal) * ifPtr->FSumNum);
+            ifPtr->uMagN = (PetscReal *)malloc( sizeof(PetscReal) * ifPtr->FSumNum);
+            ifPtr->knMag = (PetscReal *)malloc( sizeof(PetscReal) * ifPtr->FSumNum);
+            ifPtr->Ek = (PetscReal *)malloc( sizeof(PetscReal) * ifPtr->FSumNum);
+            ifPtr->kn = (Cmpnts *)malloc( sizeof(Cmpnts) * ifPtr->FSumNum);
+            ifPtr->Gn = (Cmpnts *)malloc( sizeof(Cmpnts) * ifPtr->FSumNum);
+
+        }
         else
         {
             char error[512];
-            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)");
+            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)\n         6 : Sythetic turbulence, Fourier sum");
             fatalErrorInFunction("SetInflowFunctions",  error);
         }
 
@@ -1999,3 +2037,5 @@ Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
 
     return(nSetFromComponents(U,V,0.0));
 }
+
+//***************************************************************************************************************//
