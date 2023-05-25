@@ -53,6 +53,9 @@ struct mesh_
     Vec            Nvert, Nvert_o;             //!< solid body field for IBM
     Vec            lNvert, lNvert_o;
 
+    // vent and porous zone marker
+    Vec            ventMarkers;
+
     // periodic connectivity
     PetscInt       i_periodic, ii_periodic;
     PetscInt       j_periodic, jj_periodic;

@@ -10,6 +10,7 @@
 #include "include/abl.h"
 #include "include/turbines.h"
 #include "include/initialization.h"
+#include "include/vents.h"
 
 //***************************************************************************************************************//
 
@@ -98,7 +99,7 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
 
         // initialize ibm
         InitializeIBM(domain[d].ibm);
-        
+
         // set inflow functions
         SetInflowFunctions(domain[d].mesh);
 
@@ -143,6 +144,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
 
     PetscPrintf(PETSC_COMM_WORLD, "Acquisition initialization time = %lf s\n", timeEnd - timeStart);
 
+    // initialize vents
+    initializeVents(domain);
+
     // Set the initial field
     SetInitialField(domain);
 
@@ -178,6 +182,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isPvCatalystActive            = 0;
     flags->isGravityWaveModelingActive   = 0;
     flags->isNonInertialFrameActive      = 0;
+    flags->isVentsActive                 = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",         &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",             &(flags->isLesActive), PETSC_NULL);
@@ -196,6 +201,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDamping",&(flags->isAdvectionDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",     &(flags->isNonInertialFrameActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",     &(flags->isGravityWaveModelingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-vents", &(flags->isVentsActive), PETSC_NULL);
 
 	// do some checks
 	if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingActive)
@@ -494,6 +500,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     domain->os          = NULL;
     domain->farm        = NULL;
     domain->acquisition = NULL;
+    domain->vents       = NULL;
 
     // allocate pointers based on flags
     domain->mesh = new mesh_;
@@ -507,6 +514,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     if(domain->flags.isWindFarmActive)   domain->farm        = new farm_;
     if(domain->flags.isAquisitionActive) domain->acquisition = new acquisition_;
     if(domain->flags.isIBMActive)        domain->ibm         = new ibm_;
+    if(domain->flags.isVentsActive)      domain->vents       = new vents_;
 
     return(0);
 }
@@ -593,6 +601,12 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
         // ibm two way access
         domain->access.ibm  = domain->ibm;
         domain->ibm->access = &(domain->access);
+    }
+
+    if(domain->flags.isVentsActive)
+    {
+        domain->access.vents  = domain->vents;
+        domain->vents->access = &(domain->access);
     }
 
     return(0);

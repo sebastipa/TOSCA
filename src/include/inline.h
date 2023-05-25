@@ -3719,6 +3719,7 @@ inline PetscReal weno5(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, P
 inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
 {
     mesh_             *mesh = ueqn->access->mesh;
+    //vents_            *vents = ueqn->access->vents;
     DM               da = mesh->da, fda = mesh->fda;
     DMDALocalInfo    info = mesh->info;
     PetscInt         xs = info.xs, xe = info.xs + info.xm;
@@ -3727,9 +3728,12 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
     PetscInt         mx = info.mx, my = info.my, mz = info.mz;
 
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
-    PetscInt         i, j, k;
+    PetscInt         i, j, k, q;
+    PetscInt         i2, j2, k2;
 
     Cmpnts           ***ucont;
+
+    PetscInt         ***markVent;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -3741,6 +3745,7 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
     // exactly zero at the wall.
 
     DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
 
     for (k=zs; k<lze; k++)
     {
@@ -3748,6 +3753,48 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
         {
             for (i=xs; i<lxe; i++)
             {
+                //check for vents, skip if cell is in vent location.
+                if (i == 0 || j == 0 || k == 0 || i == 1 || j == 1 || k == 1)
+                {
+
+                    if (i == 0 || i == 1)
+                    {
+                        i2 = i+1;
+                    }
+                    else
+                    {
+                        i2 = i;
+                    }
+
+                    if (j == 0 || j == 1)
+                    {
+                        j2 = j+1;
+                    }
+                    else
+                    {
+                        j2 = j;
+                    }
+
+                    if (k == 0 || k == 1)
+                    {
+                        k2 = k+1;
+                    }
+                    else
+                    {
+                        k2 = k;
+                    }
+
+                    q = markVent[k2][j2][i2] - 1;
+                }
+                else
+                {
+                    q = markVent[k][j][i] - 1; //  q = 0, 1, 2 .. if point of interest is within borders of vent 0,1,2. q =-1 if no vent.
+                }
+                if (q >= 0)
+                {
+                    continue;
+                }
+
                 // noslip BC
                 if(i==0 && mesh->boundaryU.iLeft=="noSlip")     ucont[k][j][i].x = 0.0;
                 if(i==mx-2 && mesh->boundaryU.iRight=="noSlip") ucont[k][j][i].x = 0.0;
@@ -3802,6 +3849,7 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
     }
 
     DMDAVecRestoreArray (fda, ueqn->Ucont, &ucont);
+    DMDAVecRestoreArray(da, mesh->ventMarkers, &markVent);
 
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);

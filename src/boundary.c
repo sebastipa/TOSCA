@@ -580,6 +580,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
 PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
 {
     mesh_        *mesh = ueqn->access->mesh;
+    vents_       *vents = ueqn->access->vents;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -592,8 +593,11 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                   ***icsi, ***jeta, ***kzet;
     PetscReal     ***nvert;
 
+    PetscInt      ***markVent;
+
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k;
+    PetscInt      i, j, k, q;
+    PetscInt      i2, j2, k2;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -608,12 +612,159 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
     DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
     DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
 
+    DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
+
     for (k=zs; k<lze; k++)
     {
         for (j=ys; j<lye; j++)
         {
             for (i=xs; i<lxe; i++)
             {
+
+                // check for vents. have to adjust indices since looping from zs instead of lzs ...
+                if (i == 0 || j == 0 || k == 0 || i == 1 || j == 1 || k == 1)
+                {
+
+                    if (i == 0 || i == 1)
+                    {
+                        i2 = i+1;
+                    }
+                    else
+                    {
+                        i2 = i;
+                    }
+
+                    if (j == 0 || j == 1)
+                    {
+                        j2 = j+1;
+                    }
+                    else
+                    {
+                        j2 = j;
+                    }
+
+                    if (k == 0 || k == 1)
+                    {
+                        k2 = k+1;
+                    }
+                    else
+                    {
+                        k2 = k;
+                    }
+
+                    q = markVent[k2][j2][i2] - 1;
+                }
+                else
+                {
+                    q = markVent[k][j][i] - 1; //  q = 0, 1, 2 .. if point of interest is within borders of vent 0,1,2. q =-1 if no vent.
+                }
+
+                if (q >= 0) // this won't work if a vent is in the corner of the mesh, but I dont see a vent ever being in the very corner of a room.
+                {
+
+                    if (i == 0 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+                        ucont[k][j][i].x
+                        =
+                        0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
+                        0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
+                        0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+                        //printf("Ucont Inlet %i,%i,%i\n", k,j,i);
+                        ucont[k][j][i].x
+                        =
+                        0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
+                        0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
+                        0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
+                    }
+
+                    if (j == 0 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+                            ucont[k][j][i].y
+                            =
+                            0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
+                            0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
+                            0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
+                            //if (k==65 && i == 65) {printf("ucont BC j Left .....................\n");}
+                        }
+
+                    if (j == my-2 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+                            //printf("Ucont Inlet %i,%i,%i\n", k,j,i);
+                            ucont[k][j][i].y
+                            =
+                            0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
+                            0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
+                            0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
+                        }
+
+                    if (k == 0 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+                            ucont[k][j][i].z
+                            =
+                            0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) * kzet[k][j][i].x +
+                            0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) * kzet[k][j][i].y +
+                            0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
+
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+                        ucont[k][j][i].z
+                        =
+                        0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) * kzet[k][j][i].x +
+                        0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) * kzet[k][j][i].y +
+                        0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
+                    }
+
+                    if (i == 0 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                            //printf("Ucont outlet %i,%i,%i\n", k,j,i);
+                            if(ucont[k][j][i].x > 0.0) {ucont[k][j][i].x = 0.0;}
+                            //else if (fabs(ucont[k][j][i].y) < fabs(ucont[k][j+1][i].y)) {ucont[k][j][i].y = ucont[k][j+1][i].y;}
+                            //if (k == 65 && j == 0 && i == 65) {printf("UCont Y outlet == %f\n", ucont[k][j][i].y);}
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                             if(ucont[k][j][i].x < 0.0) ucont[k][j][i].x = 0.0;
+                             //if (k == 65 && i == 65) {printf("Ucont BC jRight.............");}
+                    }
+
+                    if (j == 0 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                            //printf("Ucont outlet %i,%i,%i\n", k,j,i);
+                            if(ucont[k][j][i].y > 0.0) {ucont[k][j][i].y = 0.0;}
+                            //else if (fabs(ucont[k][j][i].y) < fabs(ucont[k][j+1][i].y)) {ucont[k][j][i].y = ucont[k][j+1][i].y;}
+                            //if (k == 65 && j == 0 && i == 65) {printf("UCont Y outlet == %f\n", ucont[k][j][i].y);}
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                             if(ucont[k][j][i].y < 0.0) ucont[k][j][i].y = 0.0;
+                             //if (k == 65 && i == 65) {printf("Ucont BC jRight.............");}
+                    }
+
+                    if (k == 0 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                            //printf("Ucont outlet %i,%i,%i\n", k,j,i);
+                            if(ucont[k][j][i].z > 0.0) {ucont[k][j][i].z = 0.0;}
+                            //else if (fabs(ucont[k][j][i].y) < fabs(ucont[k][j+1][i].y)) {ucont[k][j][i].y = ucont[k][j+1][i].y;}
+                            //if (k == 65 && j == 0 && i == 65) {printf("UCont Y outlet == %f\n", ucont[k][j][i].y);}
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                             if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
+                             //if (k == 65 && i == 65) {printf("Ucont BC jRight.............");}
+                    }
+
+                    continue;
+                }
+
                 // fixedValue type BCs on k-direction: interpolate the contravariant velocity
                 if
                 (
@@ -853,6 +1004,8 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
+    DMDAVecRestoreArray(da, mesh->ventMarkers, &markVent);
+
     // scatter new contravariant velocity values
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
@@ -865,6 +1018,7 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
 PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 {
     mesh_        *mesh = ueqn->access->mesh;
+    vents_       *vents = ueqn->access->vents;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -886,7 +1040,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     PetscMPIInt   rank;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k;
+    PetscInt      i, j, k, q;
+
+    PetscInt      ***markVent;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -912,6 +1068,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
     DMDAVecGetArray(fda, ueqn->lUcont,  &lucont);
     DMDAVecGetArray(da,  ueqn->lUstar, &ustar);
+
+    DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
 
     // read inflow if necessary
     if(mesh->boundaryU.kLeft == "inletFunction")
@@ -1382,6 +1540,139 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     }
 
                     solid_flag=1;
+                }
+
+                if (markVent[k][j][i] > 0)
+                {
+                    q = markVent[k][j][i] - 1;
+
+                    if (i == 1 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+                        ucat[k][j][i-1].x = vents->vent[q]->ventBCVec.x;
+                        ucat[k][j][i-1].y = vents->vent[q]->ventBCVec.y;
+                        ucat[k][j][i-1].z = vents->vent[q]->ventBCVec.z;
+                        //if (k==65 && i == 65) {printf("ucart BC j Left .....................\n");}
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+
+                        //printf("Ucart Inlet %i,%i,%i\n", k,j,i);
+                        ucat[k][j][i+1].x = vents->vent[q]->ventBCVec.x;
+                        ucat[k][j][i+1].y = vents->vent[q]->ventBCVec.y;
+                        ucat[k][j][i+1].z = vents->vent[q]->ventBCVec.z;
+
+                        //printf("UcartZ = %f\n", ucat[k][j+1][i].z);
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+                        ucat[k][j-1][i].x = vents->vent[q]->ventBCVec.x;
+                        ucat[k][j-1][i].y = vents->vent[q]->ventBCVec.y;
+                        ucat[k][j-1][i].z = vents->vent[q]->ventBCVec.z;
+                        //if (k==65 && i == 65) {printf("ucart BC j Left .....................\n");}
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+
+                        //printf("Ucart Inlet %i,%i,%i\n", k,j,i);
+                        ucat[k][j+1][i].x = vents->vent[q]->ventBCVec.x;
+                        ucat[k][j+1][i].y = vents->vent[q]->ventBCVec.y;
+                        ucat[k][j+1][i].z = vents->vent[q]->ventBCVec.z;
+
+                        //printf("UcartZ = %f\n", ucat[k][j+1][i].z);
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+                        ucat[k-1][j][i].x = vents->vent[q]->ventBCVec.x;
+                        ucat[k-1][j][i].y = vents->vent[q]->ventBCVec.y;
+                        ucat[k-1][j][i].z = vents->vent[q]->ventBCVec.z;
+                        //if (k==65 && i == 65) {printf("ucart BC j Left .....................\n");}
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventBC == "fixedValue")
+                    {
+
+                        //printf("Ucart Inlet %i,%i,%i\n", k,j,i);
+                        ucat[k+1][j][i].x = vents->vent[q]->ventBCVec.x;
+                        ucat[k+1][j][i].y = vents->vent[q]->ventBCVec.y;
+                        ucat[k+1][j][i].z = vents->vent[q]->ventBCVec.z;
+
+                        //printf("UcartZ = %f\n", ucat[k][j+1][i].z);
+                    }
+
+                    if (i == 1 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+
+                       // printf("Ucart outlet %i,%i,%i\n", k,j,i);
+                        ucat[k][j][i-1].x = 2*lucat[k][j][i].x - lucat[k][j][i+1].x;
+                        ucat[k][j][i-1].y = 2*lucat[k][j][i].y - lucat[k][j][i+1].y;
+                        ucat[k][j][i-1].z = 2*lucat[k][j][i].z - lucat[k][j][i+1].z;
+
+                        if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i-1],0);
+                        //if (k == 65 && j == 1 && i == 65) {printf("UCart Z outlet == %f\n", ucat[k][j-1][i].z);}
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                        ucat[k][j][i+1].x = 2*lucat[k][j][i].x - lucat[k][j][i-1].x;
+                        ucat[k][j][i+1].y = 2*lucat[k][j][i].y - lucat[k][j][i-1].y;
+                        ucat[k][j][i+1].z = 2*lucat[k][j][i].z - lucat[k][j][i-1].z;
+                        //if (k==65 && i == 65) {printf("ucart BC jRight .....................\n");}
+
+                        if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i+1],0);
+                        //if (k == 65 && i == 65) {printf("UCart Z outlet == %f\n", ucat[k][j+1][i].z);}
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+
+                       // printf("Ucart outlet %i,%i,%i\n", k,j,i);
+                        ucat[k][j-1][i].x = 2*lucat[k][j][i].x - lucat[k][j+1][i].x;
+                        ucat[k][j-1][i].y = 2*lucat[k][j][i].y - lucat[k][j+1][i].y;
+                        ucat[k][j-1][i].z = 2*lucat[k][j][i].z - lucat[k][j+1][i].z;
+
+                        if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j-1][i],0);
+                        //if (k == 65 && j == 1 && i == 65) {printf("UCart Z outlet == %f\n", ucat[k][j-1][i].z);}
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                        ucat[k][j+1][i].x = 2*lucat[k][j][i].x - lucat[k][j-1][i].x;
+                        ucat[k][j+1][i].y = 2*lucat[k][j][i].y - lucat[k][j-1][i].y;
+                        ucat[k][j+1][i].z = 2*lucat[k][j][i].z - lucat[k][j-1][i].z;
+                        //if (k==65 && i == 65) {printf("ucart BC jRight .....................\n");}
+
+                        if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j+1][i],0);
+                        //if (k == 65 && i == 65) {printf("UCart Z outlet == %f\n", ucat[k][j+1][i].z);}
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+
+                       // printf("Ucart outlet %i,%i,%i\n", k,j,i);
+                        ucat[k-1][j][i].x = 2*lucat[k][j][i].x - lucat[k+1][j][i].x;
+                        ucat[k-1][j][i].y = 2*lucat[k][j][i].y - lucat[k+1][j][i].y;
+                        ucat[k-1][j][i].z = 2*lucat[k][j][i].z - lucat[k+1][j][i].z;
+
+                        if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k-1][j][i],0);
+                        //if (k == 65 && j == 1 && i == 65) {printf("UCart Z outlet == %f\n", ucat[k][j-1][i].z);}
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventBC == "zeroGradient")
+                    {
+                        ucat[k+1][j][i].x = 2*lucat[k][j][i].x - lucat[k-1][j][i].x;
+                        ucat[k+1][j][i].y = 2*lucat[k][j][i].y - lucat[k-1][j][i].y;
+                        ucat[k+1][j][i].z = 2*lucat[k][j][i].z - lucat[k-1][j][i].z;
+                        //if (k==65 && i == 65) {printf("ucart BC jRight .....................\n");}
+
+                        if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k+1][j][i],0);
+                        //if (k == 65 && i == 65) {printf("UCart Z outlet == %f\n", ucat[k][j+1][i].z);}
+                    }
+
+                    continue; //with this set-up no IBMs can't be touching a vent. Shouldn't be an issue. Even IMBs blocking a vent should be at least one cell length away
                 }
 
                 if (k==1 && mesh->boundaryU.kLeft == "inletFunction")
@@ -2188,6 +2479,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMGlobalToLocalEnd  (fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
 
     DMDAVecRestoreArray(da, ueqn->lUstar, &ustar);
+
+    DMDAVecRestoreArray(da, mesh->ventMarkers, &markVent);
 
     return(0);
 }

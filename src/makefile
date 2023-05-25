@@ -49,11 +49,11 @@ CPPFLAGS   =  $(INC_FLAGS) -DPARAVIEW_IMPL_DIR=\"\" -DUSE_CATALYST=0
 
 OBJS_TOSCA =  main.o initialization.o io.o overset.o wallfunctions.o boundary.o \
     mesh.o inflow.o abl.o ueqn.o peqn.o les.o teqn.o turbines.o \
-    initialField.o acquisition.o ibm.o clock.o precursor.o ibmInput.o
+    initialField.o acquisition.o ibm.o clock.o precursor.o ibmInput.o vents.o
 
 OBJS_PP   =  tosca2PV.o initialization.o io.o wallfunctions.o overset.o boundary.o \
     mesh.o inflow.o abl.o ueqn.o peqn.o les.o teqn.o turbines.o \
-    initialField.o acquisition.o ibm.o clock.o precursor.o ibmInput.o
+    initialField.o acquisition.o ibm.o clock.o precursor.o ibmInput.o vents.o
 
 tosca:  $(OBJS_TOSCA)
 	$(CC) -o $@ $(OBJS_TOSCA) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBS)
