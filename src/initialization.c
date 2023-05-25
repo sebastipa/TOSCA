@@ -10,6 +10,7 @@
 #include "include/abl.h"
 #include "include/turbines.h"
 #include "include/initialization.h"
+#include "include/vents.h"
 
 //***************************************************************************************************************//
 
@@ -129,6 +130,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
     // initialize acquisitions
     InitializeAcquisition(domain);
 
+    // initialize vents
+    initializeVents(domain);
+
     // Set the initial field
     SetInitialField(domain);
 
@@ -161,6 +165,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isCanopyActive                = 0;
     flags->isConcurrentPrecursorActive   = 0;
     flags->isPvCatalystActive            = 0;
+    flags->isVentsActive                 = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",       &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",           &(flags->isLesActive), PETSC_NULL);
@@ -176,6 +181,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",    &(flags->isPvCatalystActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kLeftRayleigh", &(flags->isKLeftRayleighDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kRightRayleigh", &(flags->isKRightRayleighDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-vents", &(flags->isVentsActive), PETSC_NULL);
 
 	// do some checks
 	if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive)
@@ -456,6 +462,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     domain->os          = NULL;
     domain->farm        = NULL;
     domain->acquisition = NULL;
+    domain->vents       = NULL;
 
     // allocate pointers based on flags
     domain->mesh = new mesh_;
@@ -469,6 +476,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     if(domain->flags.isWindFarmActive)   domain->farm        = new farm_;
     if(domain->flags.isAquisitionActive) domain->acquisition = new acquisition_;
     if(domain->flags.isIBMActive)        domain->ibm         = new ibm_;
+    if(domain->flags.isVentsActive)      domain->vents       = new vents_;
 
     return(0);
 }
@@ -555,6 +563,12 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
         // ibm two way access
         domain->access.ibm  = domain->ibm;
         domain->ibm->access = &(domain->access);
+    }
+
+    if(domain->flags.isVentsActive)
+    {
+        domain->access.vents  = domain->vents;
+        domain->vents->access = &(domain->access);
     }
 
     return(0);
