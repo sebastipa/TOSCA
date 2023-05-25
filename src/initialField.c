@@ -229,6 +229,193 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
 		SpreadInletFlowU(ueqn);
     }
+    else if (ueqn->initFieldType == "inverseFourier")
+    {
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
+
+        // the 3d fourier turbulence generation is only compatiable with periodic boundaries
+        if (
+            (mesh->boundaryU.kLeft != "periodic" || mesh->boundaryU.jLeft != "periodic" || mesh->boundaryU.iLeft != "periodic") ||
+            (mesh->boundaryU.kRight != "periodic" || mesh->boundaryU.jRight != "periodic" || mesh->boundaryU.iRight != "periodic")
+            )
+        {
+                char error[512];
+                sprintf(error, "Invalid initial boundaries. Must use periodic boundary conditions for 3d IF turbulence generation\n");
+                fatalErrorInFunction("SetInitialFieldU", error);
+            }
+
+        // allocate memory for this patch inlet function data and init types
+        PetscMalloc(sizeof(inletFunctionTypes), &mesh->inletF.kLeft);
+
+        // set local pointer to this inlet function type
+        inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
+
+        readSubDictDouble(filename.c_str(), "inverseFourier", "Urms", &(ifPtr->Urms));
+        readSubDictVector(filename.c_str(), "inverseFourier", "meanU", &(ifPtr->meanU));
+        readSubDictDouble(filename.c_str(), "inverseFourier", "kolLScale", &(ifPtr->kolLScale));
+        readSubDictDouble(filename.c_str(), "inverseFourier", "largeLScale", &(ifPtr->largeLScale));
+        readSubDictInt(filename.c_str(), "inverseFourier", "fourierSumNum", &(ifPtr->FSumNum));
+        readSubDictInt(filename.c_str(), "inverseFourier", "iterTKE", &(ifPtr->iterTKE));
+        readSubDictWord(filename.c_str(), "inverseFourier", "genType", &(ifPtr->genType));
+
+        if (ifPtr->genType == "dietzel")
+        {
+            ifPtr->kMax = 3.141592653589793238462643/(((mesh->bounds.Lx / mesh->KM) + (mesh->bounds.Lz / mesh->JM) + (mesh->bounds.Ly / mesh->IM))/3);
+            ifPtr->kKol = 1/ifPtr->kolLScale;
+            ifPtr->kEng = (9*3.141592653589793238462643*1.4256/(55*ifPtr->largeLScale));
+            ifPtr->kMin = ifPtr->kEng/2.75;
+            ifPtr->dkn = (ifPtr->kMax - ifPtr->kMin)/(ifPtr->FSumNum-1);
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "Invalid driving energy spectrum. Only 'dietzel' is available\n");
+            fatalErrorInFunction("SetInitialFieldU", error);
+        }
+
+        //allocate memory to vectors
+        ifPtr->phaseN = (PetscReal *)malloc( sizeof(PetscReal) * ifPtr->FSumNum);
+        ifPtr->uMagN = (PetscReal *)malloc( sizeof(PetscReal) * ifPtr->FSumNum);
+        ifPtr->knMag = (PetscReal *)malloc( sizeof(PetscReal) * ifPtr->FSumNum);
+        ifPtr->Ek = (PetscReal *)malloc( sizeof(PetscReal) * ifPtr->FSumNum);
+        ifPtr->kn = (Cmpnts *)malloc( sizeof(Cmpnts) * ifPtr->FSumNum);
+        ifPtr->Gn = (Cmpnts *)malloc( sizeof(Cmpnts) * ifPtr->FSumNum);
+
+        PetscMPIInt   rank;
+        srand(time(NULL));
+        MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+
+        if (ifPtr->genType == "dietzel" && rank == 0)
+        {
+
+            Cmpnts basis1, basis2, basis3, GnSph, GnCart, kComps;
+            PetscReal Coeff1, Coeff2, Coeff3, Coeff4, sphAng1, sphAng2, dirAng, phaseAng, dummyRand, max, min, random, intSum, intCst;
+            PetscReal UrmsDriving, TKEDriving, b;
+            PetscInt n, iter;
+
+            max = 3.141592653589793238462643;
+            min = -3.141592653589793238462643;
+            intSum = 0;
+
+            //Set wave number magnitudes and initial power spectra values
+            for (n = 0; n < ifPtr->FSumNum; n++)
+            {
+                ifPtr->knMag[n] = ifPtr->kMin + (n) * ifPtr->dkn;
+                Coeff1 = (1.42568*pow(ifPtr->Urms, 2))/(ifPtr->kEng);
+                Coeff2 = 1 + (pow((ifPtr->knMag[n]/ifPtr->kEng), 2));
+                Coeff3 = (pow((ifPtr->knMag[n]/ifPtr->kEng), 4))/pow(Coeff2, (17./6.));
+                Coeff4 = pow((ifPtr->knMag[n]/ifPtr->kKol), 2);
+                ifPtr->Ek[n] = Coeff1*Coeff3*exp(-2*Coeff4);
+            }
+
+            //begn driving energy spectra creation and adjustment
+            for (iter = 0; iter < ifPtr->iterTKE; iter++)
+            {
+                TKEDriving = 0; // reset TKE for trapazoidal rule integration of energy spectra
+
+                //adjust energy spectra constant to achieve desired Urms
+                for (n = 0; n < (ifPtr->FSumNum-1); n++)
+                {
+                    TKEDriving += 0.5*(ifPtr->Ek[n]+ifPtr->Ek[n+1])*(ifPtr->knMag[n+1]-ifPtr->knMag[n]);
+                }
+
+                UrmsDriving = pow((2*TKEDriving/3), 0.5);
+
+                b = (ifPtr->Urms/UrmsDriving);
+
+                for (n = 0; n < ifPtr->FSumNum; n++)
+                {
+                    ifPtr->Ek[n] *= b;
+                }
+
+            }
+
+            PetscPrintf(mesh->MESH_COMM, "\nDriving Turbulence Generation: UrmsDesired = %f, UrmsDriving = %f, TKEDriving2 = %f\n", ifPtr->Urms, UrmsDriving, TKEDriving);
+
+            //begin random number generation from adjusted energy spectrum
+            for (n = 0; n < ifPtr->FSumNum; n++)
+            {
+                //get random number from uniform distribution b/w -pi and pi for sperical angle 1 and direction angle
+
+                sphAng1 = (((double)rand()*(max - min) / RAND_MAX) + min);
+
+                dirAng = (((double)rand()*(max - min) / RAND_MAX) + min);
+
+                //get random number from uniform distribution b/w -pi and pi for phase
+                phaseAng =(((double)rand()*(max - min) / RAND_MAX) + min);
+
+                ifPtr->phaseN[n] = phaseAng;
+
+                // get random number for sphereical angle 2 from an probability densition fun of 0.5*sin(shprAng2) by inversing CDF.
+                dummyRand = (((double)rand()*(1 - (0)) / RAND_MAX) + (0));
+
+                sphAng2 = acos(1-2*dummyRand);
+
+
+                //put wave vector in to cartesian coordinates
+                kComps.x = ifPtr->knMag[n]*sin(sphAng2)*cos(sphAng1);
+                kComps.y = ifPtr->knMag[n]*sin(sphAng2)*sin(sphAng1);
+                kComps.z = ifPtr->knMag[n]*cos(sphAng2);
+
+                ifPtr->kn[n] = kComps;
+
+                //find the randomized unit direction vector in cartesian coordinates
+                basis1.x = -sin(sphAng1); basis1.y = -cos(sphAng2)*cos(sphAng1); basis1.z = sin(sphAng2)*cos(sphAng1);
+                basis2.x = cos(sphAng1); basis2.y = -cos(sphAng2)*sin(sphAng1); basis2.z = sin(sphAng2)*sin(sphAng1);
+                basis3.x = 0; basis3.y = sin(sphAng2); basis3.z = cos(sphAng2);
+
+                GnSph.x = cos(dirAng); GnSph.y = sin(dirAng); GnSph.z = 0;
+
+                GnCart.x = basis1.x * GnSph.x + basis1.y * GnSph.y + basis1.z * GnSph.z; // - sin(sphAng2)*cos(sphAng1);
+                GnCart.y = basis2.x * GnSph.x + basis2.y * GnSph.y + basis2.z * GnSph.z; // - sin(sphAng2)*sin(sphAng1);
+                GnCart.z = basis3.x * GnSph.x + basis3.y * GnSph.y + basis3.z * GnSph.z; // - cos(sphAng2);
+
+                ifPtr->Gn[n] = GnCart;
+
+                //calculate fluctuating u magnitude for this fourier series at this point.
+                ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
+
+                /*char *filename = "SynTurbSummary";
+
+                FILE *fp = fopen(filename, "a");
+
+                if (fp == NULL)
+                {
+                    printf("Errror cannot open file SynTurbSummary");
+                    return -1;
+                }
+
+                if (n == 0)
+                {
+                   fprintf(fp, "n, unMag, Gnx, Gny, Gnz, knx, kny, knz, phaseN, sphAng1, sphAng2, dirAng, EDriving, knMag\n");
+                }
+
+                fprintf(fp, "%li, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", n, ifPtr->uMagN[n], ifPtr->Gn[n].x, ifPtr->Gn[n].y, ifPtr->Gn[n].z, ifPtr->kn[n].x, ifPtr->kn[n].y, ifPtr->kn[n].z, ifPtr->phaseN[n], sphAng1, sphAng2, dirAng, ifPtr->Ek[n], ifPtr->knMag[n]);
+
+                fclose(fp);*/
+            }
+
+        }
+
+        MPI_Barrier(mesh->MESH_COMM);
+
+        for (PetscInt n = 0; n < ifPtr->FSumNum; n++)
+        {
+            MPI_Bcast(&ifPtr->uMagN[n], 2, MPI_REAL, 0, mesh->MESH_COMM);
+            MPI_Bcast(&ifPtr->phaseN[n], 2, MPI_REAL, 0, mesh->MESH_COMM);
+            MPI_Bcast(&ifPtr->Gn[n].x, 2, MPI_REAL, 0, mesh->MESH_COMM);
+            MPI_Bcast(&ifPtr->Gn[n].y, 2, MPI_REAL, 0, mesh->MESH_COMM);
+            MPI_Bcast(&ifPtr->Gn[n].z, 2, MPI_REAL, 0, mesh->MESH_COMM);
+            MPI_Bcast(&ifPtr->kn[n].x, 2, MPI_REAL, 0, mesh->MESH_COMM);
+            MPI_Bcast(&ifPtr->kn[n].y, 2, MPI_REAL, 0, mesh->MESH_COMM);
+            MPI_Bcast(&ifPtr->kn[n].z, 2, MPI_REAL, 0, mesh->MESH_COMM);
+        }
+
+        SetInverseFourierInitialField(ueqn, ifPtr);
+
+    }
     else
     {
         char error[512];
@@ -1143,6 +1330,166 @@ PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
     // update contravariant BCs
     UpdateContravariantBCs(ueqn);
 
+    return(0);
+}
+
+//***************************************************************************************************************//
+PetscErrorCode SetInverseFourierInitialField(ueqn_ *ueqn, inletFunctionTypes *ifPtr)
+{
+    mesh_ *mesh = ueqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***ucont, ***ucat, ***cent;
+    Cmpnts        ***icsi, ***jeta, ***kzet;
+    Cmpnts        uFaceI, uFaceJ, uFaceK;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    PetscReal     Lx = mesh->bounds.Lx;
+    PetscReal     Ly = mesh->bounds.Ly;
+    PetscReal     Lz = mesh->bounds.Lz;
+
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    // loop on the internal cells and set the reference cartesian velocity
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                // complete fourier series using shared random variables
+                Cmpnts uFluct = {};
+                PetscReal dotKnX;
+                PetscInt n;
+                for (n = 0; n < ifPtr->FSumNum; n++)
+                {
+                    dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                    uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                    uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                    uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+
+                }
+
+                ucat[k][j][i].x = ifPtr->meanU.x + uFluct.x;
+                ucat[k][j][i].y = ifPtr->meanU.y + uFluct.y;
+                ucat[k][j][i].z = ifPtr->meanU.z + uFluct.z;
+            }
+        }
+    }
+
+
+    DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+    DMGlobalToLocalEnd(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+
+    UpdateCartesianBCs(ueqn);
+
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+
+    // interpolate contravariant velocity at internal faces
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=xs; i<lxe; i++)
+            {
+                // interpolate cartesian velocity at the i,j,k th face
+                uFaceI.x = 0.5 * (ucat[k][j][i].x + ucat[k][j][i+1].x);
+                uFaceI.y = 0.5 * (ucat[k][j][i].y + ucat[k][j][i+1].y);
+                uFaceI.z = 0.5 * (ucat[k][j][i].z + ucat[k][j][i+1].z);
+
+                ucont[k][j][i].x
+                =
+                (
+                    uFaceI.x * icsi[k][j][i].x +
+                    uFaceI.y * icsi[k][j][i].y +
+                    uFaceI.z * icsi[k][j][i].z
+                );
+            }
+        }
+    }
+
+    // loop over j-face centers
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=ys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                uFaceJ.x = 0.5 * (ucat[k][j][i].x + ucat[k][j+1][i].x);
+                uFaceJ.y = 0.5 * (ucat[k][j][i].y + ucat[k][j+1][i].y);
+                uFaceJ.z = 0.5 * (ucat[k][j][i].z + ucat[k][j+1][i].z);
+
+                ucont[k][j][i].y
+                =
+                (
+                    uFaceJ.x * jeta[k][j][i].x +
+                    uFaceJ.y * jeta[k][j][i].y +
+                    uFaceJ.z * jeta[k][j][i].z
+                );
+            }
+        }
+    }
+
+    // loop over k-face centers
+    for(k=zs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                uFaceK.x = 0.5 * (ucat[k][j][i].x + ucat[k+1][j][i].x);
+                uFaceK.y = 0.5 * (ucat[k][j][i].y + ucat[k+1][j][i].y);
+                uFaceK.z = 0.5 * (ucat[k][j][i].z + ucat[k+1][j][i].z);
+
+                ucont[k][j][i].z
+                =
+                (
+                    uFaceK.x * kzet[k][j][i].x +
+                    uFaceK.y * kzet[k][j][i].y +
+                    uFaceK.z * kzet[k][j][i].z
+                );
+            }
+        }
+    }
+
+    //Chech generated TKE and Urms
+    //to come, FFT and E-spectrum intergration wrt to kmagnitude. See matlab code.
+
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    // update contravariant velocity at the boundaries
+    UpdateContravariantBCs(ueqn);
     return(0);
 }
 

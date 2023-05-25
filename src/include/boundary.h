@@ -78,6 +78,27 @@ struct inletFunctionTypes
     PetscInt      merge1;                     //!< average data at 5 top cells
 	PetscInt      shift2;                     //!< apply shift on inflow slice data along direction 2
 
+    //type 6: Synthetic turbulence inlet using random fourier series model.
+    PetscInt      FSumNum;                    //!< number of fourier series to include in summations
+    PetscInt      iterTKE;                    //!< number of iteration for Energy spectrum adjustment. should be <= 10.
+    PetscReal     Urms;                       //!< user defined rms velocity
+    PetscReal     kolLScale;                  //!< kolomagrov length scale in m
+    PetscReal     largeLScale;                //!< length scale in m of largest eddy
+    PetscReal     dkn;                        //!< calculated wave vector interval, based on log scale
+    PetscReal     kMax;                       //!< largerst wave number to include in driving energy spectrum
+    PetscReal     kMin;                       //!< smallest wave number to include in driving energy spectrum
+    PetscReal     kKol;                       //!< wave number assoicated with smallest eddies
+    PetscReal     kEng;                       //!< wave number assoicated with most energetic eddies (peak of driving energy spectrum)
+    Cmpnts        meanU;                      //!< mean velocity vector
+    Cmpnts           *kn;                         //!< randomized wave vector
+    Cmpnts           *Gn;                         //!< randomized direction unit vector
+    PetscReal           *phaseN;                     //!< randomized phase angle
+    PetscReal           *uMagN;                      //!< randomized velocity magnitudes
+    PetscReal           *knMag;                      //!< wave number magnitudes
+    PetscReal           *Ek;                         //!< Driving energy spectra values
+    word                genType;                //!< which type of random generator is being used?
+
+
     PetscInt      mapT;                       //!< flag telling if also T is mapped (if temperatureTransport is active is mandatory)
     PetscInt      mapNut;                     //!< flag telling if also nut is mapped (optional)
 

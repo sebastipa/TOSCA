@@ -32,6 +32,9 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn);
 //!< \brief set the internal field as the spreaded inlet flow condition
 PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn);
 
+//!< \brief set the internal field as the inverse fourier flow condition
+PetscErrorCode SetInverseFourierInitialField(ueqn_ *ueqn, inletFunctionTypes *ifPtr);
+
 //!< \brief set uniform value for the temperature
 PetscErrorCode SetUniformFieldT(teqn_ *teqn, PetscReal &tRef);
 

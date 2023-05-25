@@ -7,7 +7,7 @@
 #include "include/inline.h"
 
 const PetscReal wall_cs = 0.001 ;
-const PetscReal std_cs  = 0.0289; // standard Cs value for HIT
+const PetscReal std_cs  = 0.0289; // standard Cs value for HIT is 0.0289
 
 //***************************************************************************************************************//
 

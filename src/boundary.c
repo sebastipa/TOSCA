@@ -982,6 +982,142 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                 }
             }
         }
+        else if (ifPtr->typeU == 7)
+        {
+
+            if (rank == 0)
+            {
+
+                if (ifPtr->genType == "dietzel")
+                {
+                    Cmpnts basis1, basis2, basis3, GnSph, GnCart, kComps;
+                    PetscReal Coeff1, Coeff2, Coeff3, Coeff4, sphAng1, sphAng2, dirAng, phaseAng, dummyRand, max, min, random, intSum, intCst;
+                    PetscReal UrmsDriving, TKEDriving, TurbIntDriving, meanUMag, b;
+                    PetscInt n, iter;
+
+                    max = 3.141592653589793238462643;
+                    min = -3.141592653589793238462643;
+                    intSum = 0;
+
+                    //Set wave number magnitudes and initial power spectra values
+                    for (n = 0; n < ifPtr->FSumNum; n++)
+                    {
+                        ifPtr->knMag[n] = ifPtr->kMin + (n) * ifPtr->dkn;
+                        Coeff1 = (1.42568*pow(ifPtr->Urms, 2))/(ifPtr->kEng);
+                        Coeff2 = 1 + (pow((ifPtr->knMag[n]/ifPtr->kEng), 2));
+                        Coeff3 = (pow((ifPtr->knMag[n]/ifPtr->kEng), 4))/pow(Coeff2, (17./6.));
+                        Coeff4 = pow((ifPtr->knMag[n]/ifPtr->kKol), 2);
+                        ifPtr->Ek[n] = Coeff1*Coeff3*exp(-2*Coeff4);
+                    }
+
+                    //begn driving energy spectra creation and adjustment
+                    for (iter = 0; iter < ifPtr->iterTKE; iter++)
+                    {
+
+                        TKEDriving = 0; // reset TKE for trapazoidal rule integration of energy spectra
+
+                        //adjust energy spectra constant to achieve desired Urms
+                        for (n = 0; n < (ifPtr->FSumNum-1); n++)
+                        {
+                            TKEDriving += 0.5*(ifPtr->Ek[n]+ifPtr->Ek[n+1])*(ifPtr->knMag[n+1]-ifPtr->knMag[n]);
+                        }
+
+                        UrmsDriving = pow((2*TKEDriving/3), 0.5);
+                        meanUMag = sqrt(pow(ifPtr->meanU.x, 2) + pow(ifPtr->meanU.y, 2) + pow(ifPtr->meanU.z, 2));
+                        TurbIntDriving = UrmsDriving/meanUMag;
+
+                        b = (ifPtr->Urms/UrmsDriving);
+
+                        for (n = 0; n < ifPtr->FSumNum; n++)
+                        {
+                            ifPtr->Ek[n] *= b;
+                        }
+
+                    }
+
+                    PetscPrintf(mesh->MESH_COMM, "\nDriving Turbulence Generation: UrmsDesired = %f, UrmsDriving = %f, TKEDriving2 = %f, TIDriving = %f, meanUMag = %f\n", ifPtr->Urms, UrmsDriving, TKEDriving, TurbIntDriving, meanUMag);
+
+                    //begin random number generation from adjusted energy spectrum
+                    for (n = 0; n < ifPtr->FSumNum; n++)
+                    {
+                        //get random number from uniform distribution b/w -pi and pi for sperical angle 1 and direction angle
+
+                        sphAng1 = (((double)rand()*(max - min) / RAND_MAX) + min);
+
+                        dirAng = (((double)rand()*(max - min) / RAND_MAX) + min);
+
+                        //get random number from uniform distribution b/w -pi and pi for phase
+                        phaseAng =(((double)rand()*(max - min) / RAND_MAX) + min);
+
+                        ifPtr->phaseN[n] = phaseAng;
+
+                        // get random number for sphereical angle 2 from an probability densition fun of 0.5*sin(shprAng2) by inversing CDF.
+                        dummyRand = (((double)rand()*(1 - (0)) / RAND_MAX) + (0));
+
+                        sphAng2 = acos(1-2*dummyRand);
+
+                        //put wave vector in to cartesian coordinates
+                        kComps.x = ifPtr->knMag[n]*sin(sphAng2)*cos(sphAng1);
+                        kComps.y = ifPtr->knMag[n]*sin(sphAng2)*sin(sphAng1);
+                        kComps.z = ifPtr->knMag[n]*cos(sphAng2);
+
+                        ifPtr->kn[n] = kComps;
+
+                        //find the randomized unit direction vector in cartesian coordinates
+                        basis1.x = -sin(sphAng1); basis1.y = -cos(sphAng2)*cos(sphAng1); basis1.z = sin(sphAng2)*cos(sphAng1);
+                        basis2.x = cos(sphAng1); basis2.y = -cos(sphAng2)*sin(sphAng1); basis2.z = sin(sphAng2)*sin(sphAng1);
+                        basis3.x = 0; basis3.y = sin(sphAng2); basis3.z = cos(sphAng2);
+
+                        GnSph.x = cos(dirAng); GnSph.y = sin(dirAng); GnSph.z = 0;
+
+                        GnCart.x = basis1.x * GnSph.x + basis1.y * GnSph.y + basis1.z * GnSph.z; // - sin(sphAng2)*cos(sphAng1);
+                        GnCart.y = basis2.x * GnSph.x + basis2.y * GnSph.y + basis2.z * GnSph.z; // - sin(sphAng2)*sin(sphAng1);
+                        GnCart.z = basis3.x * GnSph.x + basis3.y * GnSph.y + basis3.z * GnSph.z; // - cos(sphAng2);
+
+                        ifPtr->Gn[n] = GnCart;
+
+                        //calculate fluctuating u magnitude for this fourier series at this point.
+                        ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
+
+                        /*char *filename = "SynTurbSummary";
+
+                        FILE *fp = fopen(filename, "a");
+
+                        if (fp == NULL)
+                        {
+                            printf("Errror cannot open file DrivingSynTurbSummary");
+                            return -1;
+                        }
+
+                        if (n == 0)
+                        {
+                           fprintf(fp, "n, unMag, Gnx, Gny, Gnz, knx, kny, knz, phaseN, sphAng1, sphAng2, dirAng, EDriving, knMag\n");
+                        }
+
+                        fprintf(fp, "%li, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", n, ifPtr->uMagN[n], ifPtr->Gn[n].x, ifPtr->Gn[n].y, ifPtr->Gn[n].z, ifPtr->kn[n].x, ifPtr->kn[n].y, ifPtr->kn[n].z, ifPtr->phaseN[n], sphAng1, sphAng2, dirAng, ifPtr->Ek[n], ifPtr->knMag[n]);
+
+                        fclose(fp);*/
+                    }
+
+                }
+
+            }
+
+            MPI_Barrier(mesh->MESH_COMM);
+
+            for (PetscInt n = 0; n < ifPtr->FSumNum; n++)
+            {
+                MPI_Bcast(&ifPtr->uMagN[n], 2, MPI_REAL, 0, mesh->MESH_COMM);
+                MPI_Bcast(&ifPtr->phaseN[n], 2, MPI_REAL, 0, mesh->MESH_COMM);
+                MPI_Bcast(&ifPtr->Gn[n].x, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                MPI_Bcast(&ifPtr->Gn[n].y, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                MPI_Bcast(&ifPtr->Gn[n].z, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                MPI_Bcast(&ifPtr->kn[n].x, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                MPI_Bcast(&ifPtr->kn[n].y, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                MPI_Bcast(&ifPtr->kn[n].z, 2, MPI_REAL, 0, mesh->MESH_COMM);
+            }
+
+        }
     }
 
     // set velocity boundary conditions
@@ -1649,6 +1785,28 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         {
                             ucat[k-1][j][i] = nSet(uGhost);
                         }
+                    }
+                    else if (ifPtr->typeU == 6)
+                    {
+                       // complete fourier series using shared random variables
+                       Cmpnts uFluct = {};
+                       PetscReal dotKnX;
+                       PetscInt n;
+
+
+                       for (n = 0; n < ifPtr->FSumNum; n++)
+                       {
+                           dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                           uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                           uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                           uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                       }
+
+                       ucat[k-1][j][i].x = ifPtr->meanU.x + uFluct.x;
+                       ucat[k-1][j][i].y = ifPtr->meanU.y + uFluct.y;
+                       ucat[k-1][j][i].z = ifPtr->meanU.z + uFluct.z;
+
+
                     }
                 }
 
@@ -2372,7 +2530,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         {
                             t[k][j-1][i] = lt[k][j][i];
                         }
-                        else 
+                        else
                         {
                             Shumann *wm  = teqn->jLWM->wmShumann;
 
@@ -2387,7 +2545,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             t[k][j-1][i] = 2.0*surfaceTemp - lt[k][j][i];
                         }
                     }
-                    else 
+                    else
                     {
                         t[k][j-1][i] = lt[k][j][i];
                     }
@@ -3905,7 +4063,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                 }
             }
         }
-        
+
     }
     else if(mesh->boundaryT.jLWF==-4)
     {
@@ -4915,7 +5073,7 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
             else if(mesh->boundaryT.jLWF == -2)
             {
                 PetscMalloc(sizeof(Shumann), &(teqn->jLWM->wmShumann));
-                
+
                 Shumann *wm = teqn->jLWM->wmShumann;
 
                 readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
@@ -4936,7 +5094,7 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
                 //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
                 readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
 
-                //read the surface temp and Obhukhov length 
+                //read the surface temp and Obhukhov length
                 readSurfaceTempData(wm);
             }
             else
@@ -4997,7 +5155,7 @@ PetscErrorCode SetWallModels(ueqn_ *ueqn)
             else if(mesh->boundaryT.jRWF == -2)
             {
                 PetscMalloc(sizeof(Shumann), &(teqn->jRWM->wmShumann));
-                
+
                 Shumann *wm = teqn->jRWM->wmShumann;
 
                 readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
@@ -5070,9 +5228,9 @@ PetscErrorCode readSurfaceTempData(Shumann *wm)
 
                 if(dim1 == 1)
                 {
-                    arrSize = dim2; 
+                    arrSize = dim2;
                 }
-                else 
+                else
                 {
                     arrSize = dim1;
                 }
@@ -5093,9 +5251,9 @@ PetscErrorCode readSurfaceTempData(Shumann *wm)
 
                 if(dim1 == 1)
                 {
-                    arrSize = dim2; 
+                    arrSize = dim2;
                 }
-                else 
+                else
                 {
                     arrSize = dim1;
                 }
@@ -5114,9 +5272,9 @@ PetscErrorCode readSurfaceTempData(Shumann *wm)
 
                 if(dim1 == 1)
                 {
-                    arrSize = dim2; 
+                    arrSize = dim2;
                 }
-                else 
+                else
                 {
                     arrSize = dim1;
                 }
@@ -5128,7 +5286,7 @@ PetscErrorCode readSurfaceTempData(Shumann *wm)
                     indata >> wm->surfL[j];
                 }
             }
-                        
+
             indata.close();
         }
     }

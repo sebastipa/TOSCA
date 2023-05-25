@@ -5,7 +5,7 @@ InterpolationMethod                 CURVIB
 CURVIBInterpolationType             CurvibTrilinear
 
 debug                               0
-dynamic                             1
+dynamic                             0
 checkNormal                         1
 computeForce                        0
 writeSTL                            0
@@ -29,7 +29,7 @@ object0
     thinBody                        0
 
     fileType                        ucd
-    bodyMotion                      translation
+    bodyMotion                      static
     baseLocation                    (0.4572 0.76 0.0)
 
     #wall model
