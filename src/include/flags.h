@@ -23,6 +23,7 @@ struct flags_
     PetscInt isPvCatalystActive;
     PetscInt isKLeftRayleighDampingActive;
     PetscInt isKRightRayleighDampingActive;
+    PetscInt isSideForceActive;
     PetscInt isNonInertialFrameActive;
 };
 

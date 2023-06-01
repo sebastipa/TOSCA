@@ -2133,55 +2133,18 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
 
                     if(wt->alm.thisPtControlled[p])
                     {
-                        // get velocity at that point
-                        Cmpnts uc_p = nSet(ucat[k][j][i]);
+                        // now we have to sample the velocity at the actuator line point
+                        // from the background mesh, we use trilinear interpolation knowing
+                        // that one of the closest cells to actuator line point is i,j,k
 
-                        // now we have to sample the velocity from the background mesh,
-                        // uc_p could also be behind the rotor so the estimation
-                        // would be unstable. We use the velocity info to go back along
-                        // the local streamline at a distance equal to uc_p*dt from the rotor,
-                        // and use that as an estimate. This is supported by the fact
-                        // that upon exiting this time iteration, the particle being at a distance
-                        // from the rotor of uc_p*dt will likely be at this AD mesh point.
-
-                        // reverse sign to the velocity (we go backward along streamline)
-                        mScale(-1.0, uc_p);
-
-                        // find the point at which velocity must be sampled
-                        Cmpnts sample = nScale(clock->dt, uc_p);
-                                        mSum(sample, point_p);
-
-                        // find the closest cell indices to the sample point,
-                        // allow for max 2 delta cells to stay in this processor
-                        PetscReal  r_c_minMag = 1e20;
-                        cellIds    closestCell;
-                        PetscInt   k1, j1, i1;
-
-                        for (k1=k-2; k1<k+3; k1++)
-                        for (j1=j-2; j1<j+3; j1++)
-                        for (i1=i-2; i1<i+3; i1++)
-                        {
-                            // compute distance from mesh cell to AL point
-                            Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
-
-                            // compute magnitude
-                            PetscReal r_c_mag = nMag(r_c);
-
-                            if(r_c_mag < r_c_minMag)
-                            {
-                                r_c_minMag = r_c_mag;
-                                closestCell.i = i1;
-                                closestCell.j = j1;
-                                closestCell.k = k1;
-                            }
-                        }
+                        Cmpnts uc_p;
 
                         // trilinear interpolate
                         vectorPointLocalVolumeInterpolation
                         (
                             mesh,
-                            sample.x, sample.y, sample.z,
-                            closestCell.i, closestCell.j, closestCell.k,
+                            point_p.x, point_p.y, point_p.z,
+                            i, j, k,
                             cent, ucat, uc_p
                         );
 
