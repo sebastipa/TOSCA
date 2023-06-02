@@ -1187,50 +1187,25 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                     cellIds closestCell;
 
                     // loop over the sphere cells
-                    if(mesh->access->clock->it == 0)
+                    for(c=0; c<wt->nControlled; c++)
                     {
-                        for(c=0; c<wt->nControlled; c++)
+                        // cell indices
+                        PetscInt i = wt->controlledCells[c].i,
+                                 j = wt->controlledCells[c].j,
+                                 k = wt->controlledCells[c].k;
+
+                        // compute distance from mesh cell to AD point
+                        Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                        // compute magnitude
+                        PetscReal r_c_mag = nMag(r_c);
+
+                        if(r_c_mag < r_c_minMag)
                         {
-                            // cell indices
-                            PetscInt i = wt->controlledCells[c].i,
-                                     j = wt->controlledCells[c].j,
-                                     k = wt->controlledCells[c].k;
-
-                            // compute distance from mesh cell to AD point
-                            Cmpnts r_c = nSub(point_p, cent[k][j][i]);
-
-                            // compute magnitude
-                            PetscReal r_c_mag = nMag(r_c);
-
-                            if(r_c_mag < r_c_minMag)
-                            {
-                                r_c_minMag = r_c_mag;
-                                closestCell.i = i;
-                                closestCell.j = j;
-                                closestCell.k = k;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        PetscInt ii, jj, kk;
-                        for(kk=wt->alm.closestCells[p].k-2; kk<wt->alm.closestCells[p].k+3; kk++)
-                        for(jj=wt->alm.closestCells[p].j-2; jj<wt->alm.closestCells[p].j+3; jj++)
-                        for(ii=wt->alm.closestCells[p].i-2; ii<wt->alm.closestCells[p].i+3; ii++)
-                        {
-                            // compute distance from mesh cell to AD point
-                            Cmpnts r_c = nSub(point_p, cent[kk][jj][ii]);
-
-                            // compute magnitude
-                            PetscReal r_c_mag = nMag(r_c);
-
-                            if(r_c_mag < r_c_minMag)
-                            {
-                                r_c_minMag = r_c_mag;
-                                closestCell.i = ii;
-                                closestCell.j = jj;
-                                closestCell.k = kk;
-                            }
+                            r_c_minMag = r_c_mag;
+                            closestCell.i = i;
+                            closestCell.j = j;
+                            closestCell.k = k;
                         }
                     }
 

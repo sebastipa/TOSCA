@@ -200,13 +200,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             fatalErrorInFunction("SetInitialFieldU", error);
         }
 
-        if(!(ueqn->access->flags->isTeqnActive))
-        {
-            char error[512];
-            sprintf(error, "activate Teqn flag before setting the ABLFlow initial field\n");
-            fatalErrorInFunction("SetInitialFieldU", error);
-        }
-
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetABLInitialFlowU(ueqn);
     }
@@ -279,20 +272,6 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
         {
             char error[512];
             sprintf(error, "activate ABL flag before setting the ABLFlow initial field\n");
-            fatalErrorInFunction("SetInitialFieldT", error);
-        }
-
-        if(!(teqn->access->flags->isTeqnActive))
-        {
-            char error[512];
-            sprintf(error, "activate Teqn flag before setting the ABLFlow initial field\n");
-            fatalErrorInFunction("SetInitialFieldT", error);
-        }
-
-        if(teqn->access->ueqn->initFieldType != "ABLFlow")
-        {
-            char error[512];
-            sprintf(error, "Set initial field in /boundary/U to ABLFlow\n");
             fatalErrorInFunction("SetInitialFieldT", error);
         }
 

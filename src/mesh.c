@@ -13,11 +13,17 @@ PetscErrorCode InitializeMesh(mesh_ *mesh)
     // set distributed arrays
     SetDistributedArrays(mesh);
 
-    // set curvilinear coordinates metrics
-    SetMeshMetrics(mesh);
-
     // bounding box initialize
     SetBoundingBox(mesh);
+
+    // deform mesh for BL displacement if gravity waves are modelled
+    if(mesh->access->flags->isGravityWaveModelingActive)
+    {
+        DeformMeshBasedOnBLDisp(mesh);
+    }
+
+    // set curvilinear coordinates metrics
+    SetMeshMetrics(mesh);
 
     MPI_Barrier(mesh->MESH_COMM);
     return(0);
@@ -196,7 +202,7 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
     lye = ye; if (ye == my) lye = ye - 1;
     lze = ze; if (ze == mz) lze = ze - 1;
 
-    //get initial global and local co-ordinates from the da
+    // get initial global and local co-ordinates from the da
     DMGetCoordinates(mesh->da, &gCoor);
     DMGetCoordinatesLocal(mesh->da, &lCoor);
 
@@ -224,7 +230,7 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
             }
         }
 
-            // read y coords - loop over k,i,j with global indexing
+        // read y coords - loop over k,i,j with global indexing
         for (k = 0; k < mesh->KM; k++)
         {
             for (j = 0; j < mesh->JM; j++)
@@ -364,11 +370,12 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
     DMDAVecRestoreArray(mesh->fda, gCoor, &gcoor);
 
     //scatter the global co-ordinates to local co-ordinates
-    DMGlobalToLocalBegin(mesh->fda, gCoor, INSERT_VALUES, lCoor);
-    DMGlobalToLocalEnd(mesh->fda, gCoor, INSERT_VALUES, lCoor);
+    // DMGlobalToLocalBegin(mesh->fda, gCoor, INSERT_VALUES, lCoor);
+    // DMGlobalToLocalEnd(mesh->fda, gCoor, INSERT_VALUES, lCoor);
 
-    // set local coordinates into da
-    DMSetCoordinatesLocal(mesh->da, lCoor);
+    // set coordinates into da
+    DMSetCoordinates(mesh->da, gCoor);
+    //DMSetCoordinatesLocal(mesh->da, lCoor);
 
     MPI_Barrier(mesh->MESH_COMM);
 
@@ -414,6 +421,186 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
     VecSet(mesh->lNvert, 0.0);
     VecSet(mesh->Nvert_o, 0.0);
     VecSet(mesh->lNvert_o, 0.0);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode DeformMeshBasedOnBLDisp(mesh_ *mesh)
+{
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs  = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys  = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs  = info.zs, ze = info.zs + info.zm;
+    PetscInt      gxs = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt      gys = info.gys, gye = info.gys + info.gym;
+    PetscInt      gzs = info.gzs, gze = info.gzs + info.gzm;
+    PetscInt      mx  = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      error;
+
+    Vec           gCoor, lCoor;
+
+    Cmpnts        ***coor;                     // point coordinates
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    // read BL displacement
+    FILE       *fileID = fopen("atmosphericSources/eta", "r");
+
+    if(!fileID)
+    {
+        char error[512];
+        sprintf(error, "cannot open atmosphericSources/eta file\n");
+        fatalErrorInFunction("DeformMeshBasedOnBLDisp", error);
+    }
+
+    PetscReal  dxSources, dySources,
+               xsSources, ysSources;
+    PetscInt   nxSources, nySources;
+    char       bufferChar;
+
+    // read number of points
+    error = fscanf(fileID, "%s %ld", &bufferChar, &nxSources);
+    error = fscanf(fileID, "%s %ld", &bufferChar, &nySources);
+
+    // read cell size
+    error = fscanf(fileID, "%s %lf", &bufferChar, &dxSources);
+    error = fscanf(fileID, "%s %lf", &bufferChar, &dySources);
+
+    // read starting coords
+    error = fscanf(fileID, "%s %lf", &bufferChar, &xsSources);
+    error = fscanf(fileID, "%s %lf", &bufferChar, &ysSources);
+
+    // allocate local vectors
+    std::vector<std::vector<PetscReal>>  etaSources(nxSources);
+
+    // read values
+    for (i=0; i<nxSources; i++)
+    {
+        etaSources[i].resize(nySources);
+
+        for (j=0; j<nySources; j++)
+        {
+            error = fscanf(fileID, "%lf", &(etaSources[i][j]));
+        }
+    }
+
+    // close file
+    fclose(fileID);
+
+    // get global co-ordinates from the da
+    DMGetCoordinates(mesh->da, &gCoor);
+
+    DMDAVecGetArray(mesh->fda, gCoor, &coor);
+
+    // only displace z coordinate by eta
+    for (k=zs; k<lze; k++)
+    {
+        for (i=xs; i<lxe; i++)
+        {
+            // the j index is dummy as the mesh is assumed cartesian
+            PetscReal xQuery = coor[k][lys][i].x,
+                      yQuery = coor[k][lys][i].y;
+
+            // find bilinear interpolation parameters
+            PetscInt kClose = std::floor((xQuery-xsSources)/dxSources);
+            PetscInt iClose = std::floor((yQuery-ysSources)/dySources);
+
+            PetscInt kl = kClose,
+                     kr = kClose + 1,
+                     ib = iClose,
+                     it = iClose + 1;
+
+            PetscReal wl = 0.0,
+                      wr = 0.0,
+                      wb = 0.0,
+                      wt = 0.0;
+
+            // out of right boundary
+            if(kr>=nxSources)
+            {
+                kr = nxSources-1;
+                kl = nxSources-1;
+            }
+            // out of left boundary
+            if(kl<=0)
+            {
+                kr = 0;
+                kl = 0;
+            }
+            // out of top boundary
+            if(it>=nySources)
+            {
+                it = nySources-1;
+                ib = nySources-1;
+            }
+            // out of bottom boundary
+            if(ib<=0)
+            {
+                it = 0;
+                ib = 0;
+            }
+
+            // set left and right weights
+            if(kl!=kr)
+            {
+                PetscReal xr = xsSources + kr*dxSources,
+                          xl = xsSources + kl*dxSources;
+                wl = (xr - xQuery) / dxSources;
+                wr = (xQuery - xl) / dxSources;
+            }
+            else
+            {
+                wl = 0.5;
+                wr = 0.5;
+            }
+
+            // set top and bottom weights
+            if(it!=ib)
+            {
+                PetscReal yt = ysSources + it*dySources,
+                          yb = ysSources + ib*dySources;
+                wb = (yt - yQuery) / dySources;
+                wt = (yQuery - yb) / dySources;
+            }
+            else
+            {
+                wt = 0.5;
+                wb = 0.5;
+            }
+
+            // interpolate vertical mesh deformation
+            PetscReal etaTop = wl*etaSources[kl][it] + wr*etaSources[kr][it],
+                      etaBot = wl*etaSources[kl][ib] + wr*etaSources[kr][ib],
+                      etaPt  = wt*etaTop + wb*etaBot;
+
+            // distribute the vertical mesh deformation
+            for (j=ys; j<ye; j++)
+            {
+
+                PetscReal fraction  = (coor[k][j][i].z - mesh->bounds.zmin)/mesh->bounds.Lz;
+                coor[k][j][i].z     =  coor[k][j][i].z + fraction*etaPt;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->fda, gCoor, &coor);
+
+    // set global coordinates into da
+    DMSetCoordinates(mesh->da, gCoor);
+
+    // clean local vectors
+    for (i=0; i<nxSources; i++)
+    {
+        std::vector<PetscReal> ().swap(etaSources[i]);
+    }
 
     return(0);
 }

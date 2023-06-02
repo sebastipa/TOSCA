@@ -7530,18 +7530,20 @@ PetscErrorCode averaging3LMInitialize(domain_ *domain)
         // check that a cartesian mesh is used
         if(mesh->meshFileType != "cartesian")
         {
-           char error[512];
+            char error[512];
             sprintf(error, "3LM averaging only available for cartesian meshes\n");
             fatalErrorInFunction("averaging3LMInitialize",  error);
         }
 
         // check if temperature transport is active
+        /*
         if(!flags->isTeqnActive)
         {
            char error[512];
             sprintf(error, "3LM averaging not available without temperature transport (set potentialT to true)");
             fatalErrorInFunction("averaging3LMInitialize",  error);
         }
+        */
 
         // allocate memory for the 3LM data
         PetscMalloc(sizeof(data3LM), &(acquisition->LM3));
@@ -7860,7 +7862,6 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
 
         ueqn_   *ueqn = acquisition->access->ueqn;
         peqn_   *peqn = acquisition->access->peqn;
-        teqn_   *teqn = acquisition->access->teqn;
 
         // check if must accumulate averaged fields
         PetscInt accumulateAvg = 0;
@@ -7914,8 +7915,6 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
             DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
             DMDAVecGetArray(fda, lm3->avgU, &um);
             DMDAVecGetArray(da, peqn->lP, &p);
-            DMDAVecGetArray(da, teqn->lTmprt, &t);
-            DMDAVecGetArray(da, lm3->avgdTdz, &dtdz);
 
             // set time averaging weights
             PetscReal mN = (PetscReal)lm3->avgWeight;
@@ -7951,9 +7950,6 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
                         um[k][j][i].x = m1 * um[k][j][i].x + m2 * U;
                         um[k][j][i].y = m1 * um[k][j][i].y + m2 * V;
                         um[k][j][i].z = m1 * um[k][j][i].z + m2 * W;
-
-                        PetscReal dz = 1.0 / (aj[k][j][i] * nMag(eta[k][j][i]));
-                        dtdz[k][j][i] = m1 * dtdz[k][j][i] + m2 * (t[k][j+1][i] - 2.0 *t[k][j][i] + t[k][j-1][i])/(dz*dz);
 
                         if(k == lm3->kSample)
                         {
@@ -8084,181 +8080,215 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
                 }
             }
 
+            PetscTime(&te);
+
+            PetscPrintf(mesh->MESH_COMM, "Averaged 3LM data in %lf s", te-ts);
+
             // 3. compute BL heights (top capping, bottom capping, internal farm)
-
-            // local arrays
-            std::vector<std::vector<PetscReal>> lTBL(lm3->nstw);
-            std::vector<std::vector<PetscReal>> gTBL(lm3->nstw);
-            std::vector<std::vector<PetscReal>> lddtmin(lm3->nstw);
-            std::vector<std::vector<PetscReal>> gddtmin(lm3->nstw);
-            std::vector<std::vector<PetscReal>> lLBL(lm3->nstw);
-            std::vector<std::vector<PetscReal>> gLBL(lm3->nstw);
-            std::vector<std::vector<PetscReal>> lddtmax(lm3->nstw);
-            std::vector<std::vector<PetscReal>> gddtmax(lm3->nstw);
-            std::vector<std::vector<PetscReal>> lIBL(lm3->nstw);
-            std::vector<std::vector<PetscReal>> gIBL(lm3->nstw);
-
-            // loop over 3LM grid points
-            for(pk=0; pk<lm3->nstw; pk++)
+            //    for this e use temperature, so only do if teqn is active
+            if(flags->isTeqnActive)
             {
-                // resize
-                lTBL[pk].resize(lm3->nspw);
-                gTBL[pk].resize(lm3->nspw);
-                lLBL[pk].resize(lm3->nspw);
-                gLBL[pk].resize(lm3->nspw);
-                lIBL[pk].resize(lm3->nspw);
-                gIBL[pk].resize(lm3->nspw);
-                lddtmin[pk].resize(lm3->nspw);
-                gddtmin[pk].resize(lm3->nspw);
-                lddtmax[pk].resize(lm3->nspw);
-                gddtmax[pk].resize(lm3->nspw);
+                teqn_   *teqn = acquisition->access->teqn;
 
-                for(pi=0; pi<lm3->nspw; pi++)
+                DMDAVecGetArray(da, teqn->lTmprt, &t);
+                DMDAVecGetArray(da, lm3->avgdTdz, &dtdz);
+
+                // average auxiliary fields
+                for (k = lzs; k < lze; k++)
                 {
-                    // initialize
-                    lTBL[pk][pi] = 0.0;
-                    gTBL[pk][pi] = 0.0;
-                    lLBL[pk][pi] = 0.0;
-                    gLBL[pk][pi] = 0.0;
-                    lIBL[pk][pi] = 1e20;
-                    gIBL[pk][pi] = 1e20;
-                    lddtmin[pk][pi] =  1e20;
-                    gddtmin[pk][pi] =  1e20;
-                    lddtmax[pk][pi] = -1e20;
-                    gddtmax[pk][pi] = -1e20;
-
-                    // get averaging line ids
-                    cellIds lineIds = lm3->closestCells[pk][pi];
-
-                    // test if this averaging line intercepts this processor
-                    if
-                    (
-                        lineIds.k < lze && lineIds.k >= lzs &&
-                        lineIds.i < lxe && lineIds.i >= lxs
-                    )
+                    for (j = lys; j < lye; j++)
                     {
-                        k = lineIds.k;
-                        i = lineIds.i;
-
-                        // find max and min dtdz in this processor and the lowest height at which velocity is less
-                        // than 5% of the reference plane (it is always verified above IBL so we take the lower in the proc)
-                        for(j=lys; j<lye; j++)
+                        for (i = lxs; i < lxe; i++)
                         {
-                            // do a box average of ddtdz for smoothing
-                            PetscReal dtdzAvg = 0.0;
-                            PetscInt  nBox    = 0;
+                            PetscReal dz = 1.0 / (aj[k][j][i] * nMag(eta[k][j][i]));
+                            dtdz[k][j][i] = m1 * dtdz[k][j][i] + m2 * (t[k][j+1][i] - 2.0 *t[k][j][i] + t[k][j-1][i])/(dz*dz);
+                        }
+                    }
+                }
 
-                            for(PetscInt kk=k-2; kk<k+3; kk++)
-                            for(PetscInt ii=i-2; ii<i+3; ii++)
+                // local arrays
+                std::vector<std::vector<PetscReal>> lTBL(lm3->nstw);
+                std::vector<std::vector<PetscReal>> gTBL(lm3->nstw);
+                std::vector<std::vector<PetscReal>> lddtmin(lm3->nstw);
+                std::vector<std::vector<PetscReal>> gddtmin(lm3->nstw);
+                std::vector<std::vector<PetscReal>> lLBL(lm3->nstw);
+                std::vector<std::vector<PetscReal>> gLBL(lm3->nstw);
+                std::vector<std::vector<PetscReal>> lddtmax(lm3->nstw);
+                std::vector<std::vector<PetscReal>> gddtmax(lm3->nstw);
+                std::vector<std::vector<PetscReal>> lIBL(lm3->nstw);
+                std::vector<std::vector<PetscReal>> gIBL(lm3->nstw);
+
+                // loop over 3LM grid points
+                for(pk=0; pk<lm3->nstw; pk++)
+                {
+                    // resize
+                    lTBL[pk].resize(lm3->nspw);
+                    gTBL[pk].resize(lm3->nspw);
+                    lLBL[pk].resize(lm3->nspw);
+                    gLBL[pk].resize(lm3->nspw);
+                    lIBL[pk].resize(lm3->nspw);
+                    gIBL[pk].resize(lm3->nspw);
+                    lddtmin[pk].resize(lm3->nspw);
+                    gddtmin[pk].resize(lm3->nspw);
+                    lddtmax[pk].resize(lm3->nspw);
+                    gddtmax[pk].resize(lm3->nspw);
+
+                    for(pi=0; pi<lm3->nspw; pi++)
+                    {
+                        // initialize
+                        lTBL[pk][pi] = 0.0;
+                        gTBL[pk][pi] = 0.0;
+                        lLBL[pk][pi] = 0.0;
+                        gLBL[pk][pi] = 0.0;
+                        lIBL[pk][pi] = 1e20;
+                        gIBL[pk][pi] = 1e20;
+                        lddtmin[pk][pi] =  1e20;
+                        gddtmin[pk][pi] =  1e20;
+                        lddtmax[pk][pi] = -1e20;
+                        gddtmax[pk][pi] = -1e20;
+
+                        // get averaging line ids
+                        cellIds lineIds = lm3->closestCells[pk][pi];
+
+                        // test if this averaging line intercepts this processor
+                        if
+                        (
+                            lineIds.k < lze && lineIds.k >= lzs &&
+                            lineIds.i < lxe && lineIds.i >= lxs
+                        )
+                        {
+                            k = lineIds.k;
+                            i = lineIds.i;
+
+                            // find max and min dtdz in this processor and the lowest height at which velocity is less
+                            // than 5% of the reference plane (it is always verified above IBL so we take the lower in the proc)
+                            for(j=lys; j<lye; j++)
                             {
-                                if(kk>=lzs && kk<lze && ii>=lxs && ii<lxe)
+                                // do a box average of ddtdz for smoothing
+                                PetscReal dtdzAvg = 0.0;
+                                PetscInt  nBox    = 0;
+
+                                for(PetscInt kk=k-2; kk<k+3; kk++)
+                                for(PetscInt ii=i-2; ii<i+3; ii++)
                                 {
-                                    dtdzAvg += dtdz[kk][j][ii];
-                                    nBox++;
+                                    if(kk>=lzs && kk<lze && ii>=lxs && ii<lxe)
+                                    {
+                                        dtdzAvg += dtdz[kk][j][ii];
+                                        nBox++;
+                                    }
                                 }
-                            }
 
-                            dtdzAvg /= nBox;
+                                dtdzAvg /= nBox;
 
-                            // save local minimum
-                            if(dtdzAvg < lddtmin[pk][pi])
-                            {
-                                lddtmin[pk][pi]      = dtdzAvg + procContrib;
-                                lTBL[pk][pi] = nDot(cent[k][j][i], upDir);
-                            }
-
-                            // save local maximum
-                            if(dtdzAvg > lddtmax[pk][pi])
-                            {
-                                lddtmax[pk][pi]      = dtdzAvg + procContrib;
-                                lLBL[pk][pi] = nDot(cent[k][j][i], upDir);
-                            }
-
-                            // percentage delta on velocity ratio
-                            PetscReal distU = fabs(nMag(um[k][j][i]) / lm3->bkgU[j][i] - 1.0) * 100;
-
-                            // excludes the points inside the IBL
-                            if(distU < 5.0)
-                            {
-                                // look for lowest height
-                                if(nDot(cent[k][j][i], upDir) < lIBL[pk][pi])
+                                // save local minimum
+                                if(dtdzAvg < lddtmin[pk][pi])
                                 {
-                                    lIBL[pk][pi] = nDot(cent[k][j][i], upDir);
+                                    lddtmin[pk][pi]      = dtdzAvg + procContrib;
+                                    lTBL[pk][pi] = nDot(cent[k][j][i], upDir);
+                                }
+
+                                // save local maximum
+                                if(dtdzAvg > lddtmax[pk][pi])
+                                {
+                                    lddtmax[pk][pi]      = dtdzAvg + procContrib;
+                                    lLBL[pk][pi] = nDot(cent[k][j][i], upDir);
+                                }
+
+                                // percentage delta on velocity ratio
+                                PetscReal distU = fabs(nMag(um[k][j][i]) / lm3->bkgU[j][i] - 1.0) * 100;
+
+                                // excludes the points inside the IBL
+                                if(distU < 5.0)
+                                {
+                                    // look for lowest height
+                                    if(nDot(cent[k][j][i], upDir) < lIBL[pk][pi])
+                                    {
+                                        lIBL[pk][pi] = nDot(cent[k][j][i], upDir);
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            // find global min and max
-            for(pk=0; pk<lm3->nstw; pk++)
-            {
-                MPI_Allreduce(&(lddtmin[pk][0]), &(gddtmin[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
-                MPI_Allreduce(&(lddtmax[pk][0]), &(gddtmax[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
-
-                // zero the heights of those processors with local minima
-                for(pi=0; pi<lm3->nspw; pi++)
+                // find global min and max
+                for(pk=0; pk<lm3->nstw; pk++)
                 {
-                    if(lddtmin[pk][pi] != gddtmin[pk][pi])
+                    MPI_Allreduce(&(lddtmin[pk][0]), &(gddtmin[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+                    MPI_Allreduce(&(lddtmax[pk][0]), &(gddtmax[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
+
+                    // zero the heights of those processors with local minima
+                    for(pi=0; pi<lm3->nspw; pi++)
                     {
-                        lTBL[pk][pi] = 0.0;
-                    }
+                        if(lddtmin[pk][pi] != gddtmin[pk][pi])
+                        {
+                            lTBL[pk][pi] = 0.0;
+                        }
 
-                    if(lddtmax[pk][pi] != gddtmax[pk][pi])
-                    {
-                        lLBL[pk][pi] = 0.0;
-                    }
-                }
-            }
-
-            // now take the maximum of TBL and LBL value at each point among all processors, while the minimum for IBL
-            for(pk=0; pk<lm3->nstw; pk++)
-            {
-                MPI_Reduce(&(lTBL[pk][0]), &(gTBL[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MAX, 0, mesh->MESH_COMM);
-                MPI_Reduce(&(lLBL[pk][0]), &(gLBL[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MAX, 0, mesh->MESH_COMM);
-                MPI_Reduce(&(lIBL[pk][0]), &(gIBL[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MIN, 0, mesh->MESH_COMM);
-            }
-
-            PetscReal monitorT = 0.0;
-            PetscReal monitorL = 0.0;
-            PetscReal monitorI = 0.0;
-
-            // time average
-            for(pk=0; pk<lm3->nstw; pk++)
-            {
-                for(pi=0; pi<lm3->nspw; pi++)
-                {
-                    if(!rank)
-                    {
-                        // compute boundary layer height
-                        lm3->etaTBL[pk][pi] = gTBL[pk][pi];
-                        lm3->etaLBL[pk][pi] = gLBL[pk][pi];
-                        lm3->etaIBL[pk][pi] = gIBL[pk][pi];
-
-                        // compute average
-                        monitorT += lm3->etaTBL[pk][pi];
-                        monitorL += lm3->etaLBL[pk][pi];
-                        monitorI += lm3->etaIBL[pk][pi];
+                        if(lddtmax[pk][pi] != gddtmax[pk][pi])
+                        {
+                            lLBL[pk][pi] = 0.0;
+                        }
                     }
                 }
 
-                // clean memory
-                std::vector<PetscReal> ().swap(lTBL[pk]);
-                std::vector<PetscReal> ().swap(gTBL[pk]);
-                std::vector<PetscReal> ().swap(lLBL[pk]);
-                std::vector<PetscReal> ().swap(gLBL[pk]);
-                std::vector<PetscReal> ().swap(lIBL[pk]);
-                std::vector<PetscReal> ().swap(gIBL[pk]);
-                std::vector<PetscReal> ().swap(lddtmin[pk]);
-                std::vector<PetscReal> ().swap(gddtmin[pk]);
-                std::vector<PetscReal> ().swap(lddtmax[pk]);
-                std::vector<PetscReal> ().swap(gddtmax[pk]);
-            }
+                // now take the maximum of TBL and LBL value at each point among all processors, while the minimum for IBL
+                for(pk=0; pk<lm3->nstw; pk++)
+                {
+                    MPI_Reduce(&(lTBL[pk][0]), &(gTBL[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MAX, 0, mesh->MESH_COMM);
+                    MPI_Reduce(&(lLBL[pk][0]), &(gLBL[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MAX, 0, mesh->MESH_COMM);
+                    MPI_Reduce(&(lIBL[pk][0]), &(gIBL[pk][0]), lm3->nspw, MPIU_REAL, MPIU_MIN, 0, mesh->MESH_COMM);
+                }
 
-            monitorT = monitorT / (lm3->nstw * lm3->nspw);
-            monitorL = monitorL / (lm3->nstw * lm3->nspw);
-            monitorI = monitorI / (lm3->nstw * lm3->nspw);
+                PetscReal monitorT = 0.0;
+                PetscReal monitorL = 0.0;
+                PetscReal monitorI = 0.0;
+
+                // time average
+                for(pk=0; pk<lm3->nstw; pk++)
+                {
+                    for(pi=0; pi<lm3->nspw; pi++)
+                    {
+                        if(!rank)
+                        {
+                            // compute boundary layer height
+                            lm3->etaTBL[pk][pi] = gTBL[pk][pi];
+                            lm3->etaLBL[pk][pi] = gLBL[pk][pi];
+                            lm3->etaIBL[pk][pi] = gIBL[pk][pi];
+
+                            // compute average
+                            monitorT += lm3->etaTBL[pk][pi];
+                            monitorL += lm3->etaLBL[pk][pi];
+                            monitorI += lm3->etaIBL[pk][pi];
+                        }
+                    }
+
+                    // clean memory
+                    std::vector<PetscReal> ().swap(lTBL[pk]);
+                    std::vector<PetscReal> ().swap(gTBL[pk]);
+                    std::vector<PetscReal> ().swap(lLBL[pk]);
+                    std::vector<PetscReal> ().swap(gLBL[pk]);
+                    std::vector<PetscReal> ().swap(lIBL[pk]);
+                    std::vector<PetscReal> ().swap(gIBL[pk]);
+                    std::vector<PetscReal> ().swap(lddtmin[pk]);
+                    std::vector<PetscReal> ().swap(gddtmin[pk]);
+                    std::vector<PetscReal> ().swap(lddtmax[pk]);
+                    std::vector<PetscReal> ().swap(gddtmax[pk]);
+                }
+
+                monitorT = monitorT / (lm3->nstw * lm3->nspw);
+                monitorL = monitorL / (lm3->nstw * lm3->nspw);
+                monitorI = monitorI / (lm3->nstw * lm3->nspw);
+
+                DMDAVecRestoreArray(da, teqn->lTmprt, &t);
+                DMDAVecRestoreArray(da, lm3->avgdTdz, &dtdz);
+
+                PetscPrintf(mesh->MESH_COMM, ", avg LBL/TBL/IBL = %.3f/%.3f/%.3f m\n", monitorL, monitorT, monitorI);
+            }
+            else
+            {
+                PetscPrintf(mesh->MESH_COMM, "\n");
+            }
 
             DMDAVecRestoreArray(fda, mesh->lCent, &cent);
             DMDAVecRestoreArray(fda, mesh->lEta, &eta);
@@ -8266,14 +8296,8 @@ PetscErrorCode writeAveraging3LM(domain_ *domain)
             DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
             DMDAVecRestoreArray(fda, lm3->avgU, &um);
             DMDAVecRestoreArray(da,  peqn->lP, &p);
-            DMDAVecRestoreArray(da, teqn->lTmprt, &t);
-            DMDAVecRestoreArray(da, lm3->avgdTdz, &dtdz);
 
             lm3->avgWeight++;
-
-            PetscTime(&te);
-
-            PetscPrintf(mesh->MESH_COMM, "Averaged 3LM data in %lf s, avg LBL/TBL/IBL = %.3f/%.3f/%.3f m\n", te-ts, monitorL, monitorT, monitorI);
         }
 
         // write fields
@@ -8383,10 +8407,11 @@ PetscErrorCode write3LMPoints(acquisition_ *acquisition)
 
 PetscErrorCode write3LMFields(acquisition_ *acquisition)
 {
-    mesh_  *mesh  = acquisition->access->mesh;
-    clock_ *clock = acquisition->access->clock;
-    data3LM *lm3  = acquisition->LM3;
-    io_     *io   = acquisition->access->io;
+    mesh_   *mesh  = acquisition->access->mesh;
+    clock_  *clock = acquisition->access->clock;
+    data3LM *lm3   = acquisition->LM3;
+    io_     *io    = acquisition->access->io;
+    flags_  *flags = acquisition->access->flags;
 
     word   lm3FolderTimeName = "./postProcessing/" + mesh->meshName + "/3LM/" + getStartTimeName(clock);
 
@@ -8475,6 +8500,7 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
             }
 
             // write TBL height
+            if(flags->isTeqnActive)
             {
                 char fileName[256];
                 sprintf(fileName, "%s/TBL",lm3FolderTimeName.c_str());
@@ -8510,6 +8536,7 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
             }
 
             // write LBL height
+            if(flags->isTeqnActive)
             {
                 char fileName[256];
                 sprintf(fileName, "%s/LBL",lm3FolderTimeName.c_str());
@@ -8545,6 +8572,7 @@ PetscErrorCode write3LMFields(acquisition_ *acquisition)
             }
 
             // write IBL height
+            if(flags->isTeqnActive)
             {
                 char fileName[256];
                 sprintf(fileName, "%s/IBL",lm3FolderTimeName.c_str());
@@ -8781,7 +8809,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
           // check if temperature transport is active
           if(!acquisition->access->flags->isTeqnActive)
           {
-             char error[512];
+              char error[512];
               sprintf(error, "ABL averaging not available without temperature transport (set potentialT to true)");
               fatalErrorInFunction("averagingABLInitialize",  error);
           }
@@ -8789,7 +8817,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
           // check if les is active
           if(!acquisition->access->flags->isLesActive)
           {
-             char error[512];
+              char error[512];
               sprintf(error, "ABL averaging not available without les closure (set les to true)");
               fatalErrorInFunction("averagingABLInitialize",  error);
           }
@@ -8852,7 +8880,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
             PetscInt dirRes = mkdir(averageFolder.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create %s directory",averageFolder.c_str());
                 fatalErrorInFunction("averagingABLInitialize",  error);
             }

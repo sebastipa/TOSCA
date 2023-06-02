@@ -122,6 +122,11 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
         }
     }
 
+    if(peqn->access->flags->isGravityWaveModelingActive)
+    {
+        InitGravityWaveInducedPressure(peqn);
+    }
+
     return(0);
 }
 
@@ -3825,13 +3830,13 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     clock_        *clock = peqn->access->clock;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
-    PetscInt           xs   = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys   = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs   = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx   = info.mx, my = info.my, mz = info.mz;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
-    PetscInt           i, j, k;
-    PetscInt           lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
     PetscReal     ***p, ***lphi, ***nvert;
 
@@ -3840,7 +3845,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
     PetscReal lPsum    = 0.0, gPsum  = 0.0;
-    PetscInt    lnPoints = 0, gnPoints = 0;
+    PetscInt  lnPoints = 0, gnPoints = 0;
 
     DMDAVecGetArray(da, peqn->P, &p);
     DMDAVecGetArray(da, peqn->lPhi, &lphi);
@@ -5023,6 +5028,184 @@ PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn)
     DMDAVecRestoreArray(da,  mesh->lAj,     &aj);
 
     MPI_Barrier(mesh->MESH_COMM);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode InitGravityWaveInducedPressure(peqn_ *peqn)
+{
+    mesh_         *mesh  = peqn->access->mesh;
+    clock_        *clock = peqn->access->clock;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      error;
+
+    PetscReal     ***p, ***nvert;
+    Cmpnts        ***cent;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    // read BL displacement
+    FILE       *fileID = fopen("atmosphericSources/p", "r");
+
+    if(!fileID)
+    {
+        char error[512];
+        sprintf(error, "cannot open atmosphericSources/p file\n");
+        fatalErrorInFunction("DeformMeshBasedOnBLDisp", error);
+    }
+
+    PetscReal  dxSources, dySources,
+               xsSources, ysSources;
+    PetscInt   nxSources, nySources;
+    char       bufferChar;
+
+    // read number of points
+    error = fscanf(fileID, "%s %ld", &bufferChar, &nxSources);
+    error = fscanf(fileID, "%s %ld", &bufferChar, &nySources);
+
+    // read cell size
+    error = fscanf(fileID, "%s %lf", &bufferChar, &dxSources);
+    error = fscanf(fileID, "%s %lf", &bufferChar, &dySources);
+
+    // read starting coords
+    error = fscanf(fileID, "%s %lf", &bufferChar, &xsSources);
+    error = fscanf(fileID, "%s %lf", &bufferChar, &ysSources);
+
+    // allocate local vectors
+    std::vector<std::vector<PetscReal>>  pSources(nxSources);
+
+    // read values
+    for (i=0; i<nxSources; i++)
+    {
+        pSources[i].resize(nySources);
+
+        for (j=0; j<nySources; j++)
+        {
+            error = fscanf(fileID, "%lf", &(pSources[i][j]));
+        }
+    }
+
+    // close file
+    fclose(fileID);
+
+    DMDAVecGetArray(da, peqn->P, &p);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (i=lxs; i<lxe; i++)
+        {
+            // the j index is dummy as the mesh is assumed cartesian
+            PetscReal xQuery = cent[k][lys][i].x,
+                      yQuery = cent[k][lys][i].y;
+
+            // find bilinear interpolation parameters
+            PetscInt kClose = std::floor((xQuery-xsSources)/dxSources);
+            PetscInt iClose = std::floor((yQuery-ysSources)/dySources);
+
+            PetscInt kl = kClose,
+                     kr = kClose + 1,
+                     ib = iClose,
+                     it = iClose + 1;
+
+            PetscReal wl = 0.0,
+                      wr = 0.0,
+                      wb = 0.0,
+                      wt = 0.0;
+
+            // out of right boundary
+            if(kr>=nxSources)
+            {
+                kr = nxSources-1;
+                kl = nxSources-1;
+            }
+            // out of left boundary
+            if(kl<=0)
+            {
+                kr = 0;
+                kl = 0;
+            }
+            // out of top boundary
+            if(it>=nySources)
+            {
+                it = nySources-1;
+                ib = nySources-1;
+            }
+            // out of bottom boundary
+            if(ib<=0)
+            {
+                it = 0;
+                ib = 0;
+            }
+
+            // set left and right weights
+            if(kl!=kr)
+            {
+                PetscReal xr = xsSources + kr*dxSources,
+                          xl = xsSources + kl*dxSources;
+                wl = (xr - xQuery) / dxSources;
+                wr = (xQuery - xl) / dxSources;
+            }
+            else
+            {
+                wl = 0.5;
+                wr = 0.5;
+            }
+
+            // set top and bottom weights
+            if(it!=ib)
+            {
+                PetscReal yt = ysSources + it*dySources,
+                          yb = ysSources + ib*dySources;
+                wb = (yt - yQuery) / dySources;
+                wt = (yQuery - yb) / dySources;
+            }
+            else
+            {
+                wt = 0.5;
+                wb = 0.5;
+            }
+
+            // interpolate vertical mesh deformation
+            PetscReal pTop = wl*pSources[kl][it] + wr*pSources[kr][it],
+                      pBot = wl*pSources[kl][ib] + wr*pSources[kr][ib],
+                      pPt  = wt*pTop + wb*pBot;
+
+
+            for (j=lys; j<lye; j++)
+            {
+                if (isIBMCell(k, j, i, nvert))
+                {
+                    continue;
+                }
+
+                if (isFluidCell(k, j, i, nvert))
+                {
+                    p[k][j][i] = pPt;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, peqn->P, &p);
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+
+    DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
+    DMGlobalToLocalEnd  (da, peqn->P, INSERT_VALUES, peqn->lP);
 
     return(0);
 }

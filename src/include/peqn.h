@@ -14,7 +14,7 @@ struct peqn_
     Vec           pIBMPt, pIBMCell;           //!< point where the ibm pressure is interpolated and its closest cell id
 
     Vec           dudtRHS;
-    
+
     HYPRE_Int     thisRankSize,               //!< number of cells owned by this processore (used to build the poisson coeff. matrix)
                   thisRankStart,              //!< first cell ID owned by this processor in global indexing (used to build the poisson coeff. matrix)
                   thisRankEnd;                //!< last cell ID owned by this processor in global indexing (thisRankStart + thisRankSize - 1)
@@ -150,6 +150,9 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn);
 
 //! \brief Compute continuity errors (only prints the max)
 PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn);
+
+//! \brief Initialize pressure with given gravity wave large-scale pressure field from 3LM
+PetscErrorCode InitGravityWaveInducedPressure(peqn_ *peqn);
 
 //! \brief get the cell id from stencil position
 cellIds GetIdFromStencil(int stencil, int k, int j, int i);

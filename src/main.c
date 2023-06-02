@@ -108,7 +108,7 @@ int main(int argc, char **argv)
                 {
                     CorrectSourceTerms(domain[d].ueqn, 1);
                 }
-                if(domain[d].abl->controllerActiveT)
+                if(domain[d].abl->controllerActiveT && flags.isTeqnActive)
                 {
                     CorrectSourceTermsT(domain[d].teqn, 1);
                 }

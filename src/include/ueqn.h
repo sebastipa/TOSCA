@@ -23,7 +23,7 @@ struct ueqn_
     Vec           lVisc1, lVisc2, lVisc3;           //!< Components of the viscous term in the momentum equation
     Vec           lViscIBM1, lViscIBM2, lViscIBM3;  //!< Components of the viscous term in the momentum equation for IBM faces
     Vec           dP;                               //!< pressure term of the momentum equation
-    Vec           bTheta;                     //!< buoyancy field
+    Vec           bTheta;                           //!< buoyancy field
     Vec           sourceU;                          //!< source term to drive Uref at Zref with periodic BCs
     Vec           gCont;                            //!< gravity vector in cuvilinear coordinates
     Vec           Ucont, lUcont;                    //!< contravariant fluxes (contravariant velocity / J)

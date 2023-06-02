@@ -95,3 +95,6 @@ PetscErrorCode SetBoundingBox(mesh_ *mesh);
 
 //! \brief Find the cell center for the ghost nodes
 PetscErrorCode ghostnodesCellcenter(mesh_ *mesh);
+
+//! \brief Deform the mesh according to prescribed BL Disp
+PetscErrorCode DeformMeshBasedOnBLDisp(mesh_ *mesh);

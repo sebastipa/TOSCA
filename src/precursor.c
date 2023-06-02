@@ -35,6 +35,8 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isConcurrentPrecursorActive   = 0;
     flags->isPrecursorSpinUp             = 0;
     flags->isPvCatalystActive            = 0;
+    flags->isGravityWaveModelingActive   = 0;
+    flags->isNonInertialFrameActive      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",            &(flags->isLesActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",     &(flags->isTeqnActive), PETSC_NULL);
@@ -1031,7 +1033,7 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
             mappedInflowInitialize(ifPtr);
 
             PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
-		
+
 	    // set merging flag to default one: always merge instantaneous and averages at the top in precursor
 	    ifPtr->merge1 = 1;
 

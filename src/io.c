@@ -1596,21 +1596,24 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
 			}
 			MPI_Barrier(mesh->MESH_COMM);
 
-			field = "/dTdz3LM";
-			fileName = location + field;
-			fp=fopen(fileName.c_str(), "r");
+            if(flags->isTeqnActive)
+            {
+    			field = "/dTdz3LM";
+    			fileName = location + field;
+    			fp=fopen(fileName.c_str(), "r");
 
-			if(fp!=NULL)
-			{
-				fclose(fp);
+    			if(fp!=NULL)
+    			{
+    				fclose(fp);
 
-				PetscPrintf(mesh->MESH_COMM, "dTdz3LM...\n");
-				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-				VecLoad(acquisition->LM3->avgdTdz,viewer);
-				PetscViewerDestroy(&viewer);
-				lm3Available++;
-			}
-			MPI_Barrier(mesh->MESH_COMM);
+    				PetscPrintf(mesh->MESH_COMM, "dTdz3LM...\n");
+    				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+    				VecLoad(acquisition->LM3->avgdTdz,viewer);
+    				PetscViewerDestroy(&viewer);
+    				lm3Available++;
+    			}
+    			MPI_Barrier(mesh->MESH_COMM);
+            }
 		}
 
 		if(acquisition->isPerturbABLActive)
@@ -2488,10 +2491,12 @@ PetscErrorCode writeFields(io_ *io)
                 writeBinaryField(mesh->MESH_COMM, acquisition->LM3->avgU, fieldName.c_str());
                 MPI_Barrier(mesh->MESH_COMM);
 
-                // write avgUmTauSGS
-                fieldName = timeName + "/dTdz3LM";
-                writeBinaryField(mesh->MESH_COMM, acquisition->LM3->avgdTdz, fieldName.c_str());
-                MPI_Barrier(mesh->MESH_COMM);
+                if(flags->isTeqnActive)
+                {
+                    fieldName = timeName + "/dTdz3LM";
+                    writeBinaryField(mesh->MESH_COMM, acquisition->LM3->avgdTdz, fieldName.c_str());
+                    MPI_Barrier(mesh->MESH_COMM);
+                }
 
                 // write weights
                 if(!rank)
