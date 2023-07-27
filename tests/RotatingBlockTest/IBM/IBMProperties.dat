@@ -4,12 +4,16 @@
 NumberofBodies                      1
 
 InterpolationMethod                 CURVIB
+CURVIBInterpolationType             CurvibTrilinear
 
 debug                               0
 dynamic                             1
-checkNormal                         1
 computeForce                        0
-writeSTL                            0
+checkNormal                         1
+writeSTL			                0
+wallShear                           0
+pressureBC                          0
+averageNormal                       0
 
 writeSettings
 {
@@ -24,6 +28,7 @@ object0
 {
     bodyName                        rotatingBlock
     bodyType                        closedBody
+    thinBody                        0
 
     fileType 			            ucd
     bodyMotion                      rotation

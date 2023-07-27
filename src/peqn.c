@@ -576,114 +576,133 @@ PetscErrorCode DestroyPETScSolver(peqn_ *peqn)
 cellIds GetIdFromStencil(int stencil, int k, int j, int i)
 {
     cellIds SId;
+    // center point
     if(stencil == CP)
     {
         SId.k = k;
         SId.j = j;
         SId.i = i;
     }
+    // east point
     else if (stencil == EP)
     {
         SId.k = k;
         SId.j = j;
         SId.i = i+1;
     }
+    // west point
     else if (stencil == WP)
     {
         SId.k = k;
         SId.j = j;
         SId.i = i-1;
     }
+    // north point
     else if (stencil == NP)
     {
         SId.k = k;
         SId.j = j+1;
         SId.i = i;
     }
+    // south point
     else if (stencil == SP)
     {
         SId.k = k;
         SId.j = j-1;
         SId.i = i;
     }
+    // top point
     else if (stencil == TP)
     {
         SId.k = k+1;
         SId.j = j;
         SId.i = i;
     }
+    // south point
     else if (stencil == BP)
     {
         SId.k = k-1;
         SId.j = j;
         SId.i = i;
     }
+    // north east
     else if (stencil == NE)
     {
         SId.k = k;
         SId.j = j+1;
         SId.i = i+1;
     }
+    // south east
     else if (stencil == SE)
     {
         SId.k = k;
         SId.j = j-1;
         SId.i = i+1;
     }
+    // north west
     else if (stencil == NW)
     {
         SId.k = k;
         SId.j = j+1;
         SId.i = i-1;
     }
+    // south west
     else if (stencil == SW)
     {
         SId.k = k;
         SId.j = j-1;
         SId.i = i-1;
     }
+    // top north
     else if (stencil == TN)
     {
         SId.k = k+1;
         SId.j = j+1;
         SId.i = i;
     }
+    // bottom north
     else if (stencil == BN)
     {
         SId.k = k-1;
         SId.j = j+1;
         SId.i = i;
     }
+    // top south
     else if (stencil == TS)
     {
         SId.k = k+1;
         SId.j = j-1;
         SId.i = i;
     }
+    // bottom south
     else if (stencil == BS)
     {
         SId.k = k-1;
         SId.j = j-1;
         SId.i = i;
     }
+    // top east
     else if (stencil == TE)
     {
         SId.k = k+1;
         SId.j = j;
         SId.i = i+1;
     }
+    // bottom east
     else if (stencil == BE)
     {
         SId.k = k-1;
         SId.j = j;
         SId.i = i+1;
     }
+    // top west
     else if (stencil == TW)
     {
         SId.k = k+1;
         SId.j = j;
         SId.i = i-1;
     }
+    // bottom west
     else if (stencil == BW)
     {
         SId.k = k-1;
@@ -852,7 +871,6 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                 g31[k][j][i] = (kcsi[c][b][a].x * kzet[c][b][a].x + kcsi[c][b][a].y * kzet[c][b][a].y + kcsi[c][b][a].z * kzet[c][b][a].z) * kaj[c][b][a];
                 g32[k][j][i] = (keta[c][b][a].x * kzet[c][b][a].x + keta[c][b][a].y * kzet[c][b][a].y + keta[c][b][a].z * kzet[c][b][a].z) * kaj[c][b][a];
                 g33[k][j][i] = (kzet[c][b][a].x * kzet[c][b][a].x + kzet[c][b][a].y * kzet[c][b][a].y + kzet[c][b][a].z * kzet[c][b][a].z) * kaj[c][b][a];
-
             }
         }
     }
@@ -892,38 +910,26 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         vol[m] = 0.;
                     }
 
-                    // contribution from east face in i-direction (i+1/2)
-
                     PetscReal r = 1.0;
 
                     // contribution from east face in i-direction (i+1/2)
-
-                    // dpdc{i} = (p_{i+1} - p_{i}) * g11_{i}
-
                     if
                     (
-                        i != mx-2  || // exclude boundary cell for zero gradient BC if non-periodic
+                        // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                        i != mx-2        ||
                         mesh->i_periodic ||
                         mesh->ii_periodic
 
                     )
                     {
+                        // dpdc{i} = (p_{i+1} - p_{i}) * g11_{i}
                         vol[CP] -= g11[k][j][i] / r; // i, j, k
                         vol[EP] += g11[k][j][i] / r; // i+1, j, k
-                    }
 
-                    // dpde{i} = ({p_{i+1,j+1} + p{i, j+1} - p{i+1, j-1} - p{i, j-1}) * 0.25 * g12[k][j][i]
+                        // dpde{i} = ({p_{i+1,j+1} + p{i, j+1} - p{i+1, j-1} - p{i, j-1}) * 0.25 * g12[k][j][i]
 
-                    if
-                    (
-                        // j-right boundary -> use upwind only at the corner faces
-                        (
-                            j==my-2 &&
-                            i==mx-2
-                        )
-                    )
-                    {
-                        if ( j!=1 )
+                        // j-right boundary -> use upwind
+                        if(j == my-2)
                         {
                             // upwind differencing
                             vol[CP] += g12[k][j][i] * 0.5 / r; // i, j, k
@@ -931,42 +937,28 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SP] -= g12[k][j][i] * 0.5 / r; // i, j-1, k
                             vol[SE] -= g12[k][j][i] * 0.5 / r; // i+1, j-1, k
                         }
-                    }
-                    else if
-                    (
-                        // j-left boundary -> use upwind  only at the corner faces
-                        (
-                            j == 1 &&
-                            i == mx-2
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[NP] += g12[k][j][i] * 0.5 / r; // i, j+1, k
-                        vol[NE] += g12[k][j][i] * 0.5 / r; // i+1, j+1, k
-                        vol[CP] -= g12[k][j][i] * 0.5 / r; // i, j, k
-                        vol[EP] -= g12[k][j][i] * 0.5 / r; // i+1, j, k
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[NP] += g12[k][j][i] * 0.25 / r; // i, j+1, k
-                        vol[NE] += g12[k][j][i] * 0.25 / r; // i+1, j+1, k
-                        vol[SP] -= g12[k][j][i] * 0.25 / r; // i, j-1, k
-                        vol[SE] -= g12[k][j][i] * 0.25 / r; // i+1, j-1, k
-                    }
+                        // j-left boundary -> use upwind
+                        else if(j == 1)
+                        {
+                            // upwind differencing
+                            vol[NP] += g12[k][j][i] * 0.5 / r; // i, j+1, k
+                            vol[NE] += g12[k][j][i] * 0.5 / r; // i+1, j+1, k
+                            vol[CP] -= g12[k][j][i] * 0.5 / r; // i, j, k
+                            vol[EP] -= g12[k][j][i] * 0.5 / r; // i+1, j, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[NP] += g12[k][j][i] * 0.25 / r; // i, j+1, k
+                            vol[NE] += g12[k][j][i] * 0.25 / r; // i+1, j+1, k
+                            vol[SP] -= g12[k][j][i] * 0.25 / r; // i, j-1, k
+                            vol[SE] -= g12[k][j][i] * 0.25 / r; // i+1, j-1, k
+                        }
 
-                    // dpdz{i}=(p_{i,k+1} + p{i+1,k+1} - p{i, k-1} - p{i+1, k-1}) * 0.25 / r * g13[k][j][i]
-                    if
-                    (
-                        // k-right boundary -> use upwind  only at the corner faces
-                        (
-                            k==mz-2 &&
-                            i==mx-2
-                        )
-                    )
-                    {
-                        if (k!=1)
+                        // dpdz{i}=(p_{i,k+1} + p{i+1,k+1} - p{i, k-1} - p{i+1, k-1}) * 0.25 / r * g13[k][j][i]
+
+                        // k-right boundary -> use upwind
+                        if(k==mz-2)
                         {
                             // upwind differencing
                             vol[CP] += g13[k][j][i] * 0.5 / r; // i, j, k
@@ -974,58 +966,42 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BP] -= g13[k][j][i] * 0.5 / r; // i, j, k-1
                             vol[BE] -= g13[k][j][i] * 0.5 / r; // i+1, j, k-1
                         }
-                    }
-                    else if
-                    (
-                        // k-left boundary  -> use upwind  only at the corner faces
-                        (
-                            k==1 &&
-                            i==mx-2
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[TP] += g13[k][j][i] * 0.5 / r; // i, j, k+1
-                        vol[TE] += g13[k][j][i] * 0.5 / r; // i+1, j, k+1
-                        vol[CP] -= g13[k][j][i] * 0.5 / r; // i, j, k
-                        vol[EP] -= g13[k][j][i] * 0.5 / r; // i+1, j, k
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[TP] += g13[k][j][i] * 0.25 / r; //i, j, k+1
-                        vol[TE] += g13[k][j][i] * 0.25 / r; //i+1, j, k+1
-                        vol[BP] -= g13[k][j][i] * 0.25 / r; //i, j, k-1
-                        vol[BE] -= g13[k][j][i] * 0.25 / r; //i+1, j, k-1
+                        // k-left boundary  -> use upwind
+                        else if(k==1)
+                        {
+                            // upwind differencing
+                            vol[TP] += g13[k][j][i] * 0.5 / r; // i, j, k+1
+                            vol[TE] += g13[k][j][i] * 0.5 / r; // i+1, j, k+1
+                            vol[CP] -= g13[k][j][i] * 0.5 / r; // i, j, k
+                            vol[EP] -= g13[k][j][i] * 0.5 / r; // i+1, j, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[TP] += g13[k][j][i] * 0.25 / r; //i, j, k+1
+                            vol[TE] += g13[k][j][i] * 0.25 / r; //i+1, j, k+1
+                            vol[BP] -= g13[k][j][i] * 0.25 / r; //i, j, k-1
+                            vol[BE] -= g13[k][j][i] * 0.25 / r; //i+1, j, k-1
+                        }
                     }
 
                     // contribution from west face in i-direction (i-1/2)
-
-                    // -dpdc{i-1} = -(p_{i} - p_{i-1}) * g11_{i}
-
                     if
                     (
-                        i != 1 ||  // exclude boundary cell for zero gradient BC if non-periodic
+                        // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                        i != 1 ||
                         mesh->i_periodic ||
                         mesh->ii_periodic
                     )
                     {
+                        // -dpdc{i-1} = -(p_{i} - p_{i-1}) * g11_{i}
                         vol[CP] -= g11[k][j][i-1] / r;  //i, j, k
                         vol[WP] += g11[k][j][i-1] / r;  //i-1, j, k
-                    }
 
-                    // -dpde{i-1} = -({p_{i,j+1}+p{i-1, j+1} - p{i, j-1}-p{i-1, j-1}) * 0.25 / r * g12[k][j][i-1]
+                        // -dpde{i-1} = -({p_{i,j+1}+p{i-1, j+1} - p{i, j-1}-p{i-1, j-1}) * 0.25 / r * g12[k][j][i-1]
 
-                    if
-                    (
-                        // j-right boundary -> use upwind only at the corner faces
-                        (
-                            j==my-2 &&
-                            i==1
-                        )
-                    )
-                    {
-                        if ( j!=1 )
+                        // j-right boundary -> use upwind
+                        if(j==my-2)
                         {
                             // upwind differencing
                             vol[CP] -= g12[k][j][i-1] * 0.5 / r; // i, j, k
@@ -1033,42 +1009,28 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SP] += g12[k][j][i-1] * 0.5 / r; // i, j-1, k
                             vol[SW] += g12[k][j][i-1] * 0.5 / r; // i-1, j-1, k
                         }
-                    }
-                    else if
-                    (
-                        // j-left boundary -> use upwind  only at the corner faces
-                        (
-                            j==1 &&
-                            i==1
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[NP] -= g12[k][j][i-1] * 0.5 / r; // i, j+1, k
-                        vol[NW] -= g12[k][j][i-1] * 0.5 / r; // i-1, j+1, k
-                        vol[CP] += g12[k][j][i-1] * 0.5 / r; // i, j, k
-                        vol[WP] += g12[k][j][i-1] * 0.5 / r; // i-1, j, k
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[NP] -= g12[k][j][i-1] * 0.25 / r; // i, j+1, k
-                        vol[NW] -= g12[k][j][i-1] * 0.25 / r; // i-1, j+1, k
-                        vol[SP] += g12[k][j][i-1] * 0.25 / r; // i, j-1, k
-                        vol[SW] += g12[k][j][i-1] * 0.25 / r; // i-1, j-1, k
-                    }
+                        // j-left boundary -> use upwind
+                        else if(j==1)
+                        {
+                            // upwind differencing
+                            vol[NP] -= g12[k][j][i-1] * 0.5 / r; // i, j+1, k
+                            vol[NW] -= g12[k][j][i-1] * 0.5 / r; // i-1, j+1, k
+                            vol[CP] += g12[k][j][i-1] * 0.5 / r; // i, j, k
+                            vol[WP] += g12[k][j][i-1] * 0.5 / r; // i-1, j, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[NP] -= g12[k][j][i-1] * 0.25 / r; // i, j+1, k
+                            vol[NW] -= g12[k][j][i-1] * 0.25 / r; // i-1, j+1, k
+                            vol[SP] += g12[k][j][i-1] * 0.25 / r; // i, j-1, k
+                            vol[SW] += g12[k][j][i-1] * 0.25 / r; // i-1, j-1, k
+                        }
 
-                    // -dpdz{i-1}=-(p_{i,k+1}+p{i-1,k+1} - p{i, k-1}-p{i-1, k-1}) * 0.25 / r * g13[k][j][i]
-                    if
-                    (
-                        // k-right boundary -> use upwind  only at the corner faces
-                        (
-                            k==mz-2 &&
-                            i==1
-                        )
-                    )
-                    {
-                        if (k!=1)
+                        // -dpdz{i-1}=-(p_{i,k+1}+p{i-1,k+1} - p{i, k-1}-p{i-1, k-1}) * 0.25 / r * g13[k][j][i]
+
+                        // k-right boundary -> use upwind
+                        if(k==mz-2)
                         {
                             // upwind differencing
                             vol[CP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k
@@ -1076,44 +1038,38 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BP] += g13[k][j][i-1] * 0.5 / r; // i, j, k-1
                             vol[BW] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k-1
                         }
-                    }
-                    else if
-                    (
-                        // k-left boundary  -> use upwind  only at the corner faces
-                        (
-                            k==1 &&
-                            i==1
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[TP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k+1
-                        vol[TW] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k+1
-                        vol[CP] += g13[k][j][i-1] * 0.5 / r; // i, j, k
-                        vol[WP] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[TP] -= g13[k][j][i-1] * 0.25 / r; // i, j, k+1
-                        vol[TW] -= g13[k][j][i-1] * 0.25 / r; // i-1, j, k+1
-                        vol[BP] += g13[k][j][i-1] * 0.25 / r; // i, j, k-1
-                        vol[BW] += g13[k][j][i-1] * 0.25 / r; // i-1, j, k-1
+                        // k-left boundary  -> use upwind
+                        else if(k==1)
+                        {
+                            // upwind differencing
+                            vol[TP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k+1
+                            vol[TW] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k+1
+                            vol[CP] += g13[k][j][i-1] * 0.5 / r; // i, j, k
+                            vol[WP] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[TP] -= g13[k][j][i-1] * 0.25 / r; // i, j, k+1
+                            vol[TW] -= g13[k][j][i-1] * 0.25 / r; // i-1, j, k+1
+                            vol[BP] += g13[k][j][i-1] * 0.25 / r; // i, j, k-1
+                            vol[BW] += g13[k][j][i-1] * 0.25 / r; // i-1, j, k-1
+                        }
                     }
 
                     // contribution from north face in j-direction (j+1/2)
-
-                    // dpdc{j} = (p_{i+1,j}+p{i+1,j+1} - p{i-1,j}-p{i-1,j+1}) * 0.25 / r
                     if
                     (
-                        // i-right boundary -> use upwind  only at the corner faces
-                        (
-                            i==mx-2 &&
-                            j==my-2
-                        )
+                        // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                        j != my-2  ||
+                        mesh->j_periodic ||
+                        mesh->jj_periodic
                     )
                     {
-                        if (i!=1 )
+                        // dpdc{j} = (p_{i+1,j}+p{i+1,j+1} - p{i-1,j}-p{i-1,j+1}) * 0.25
+
+                        // i-right boundary -> use upwind
+                        if(i==mx-2)
                         {
                             // upwind differencing
                             vol[CP] += g21[k][j][i] * 0.5 / r; // i, j, k
@@ -1121,54 +1077,32 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[WP] -= g21[k][j][i] * 0.5 / r; // i-1, j, k
                             vol[NW] -= g21[k][j][i] * 0.5 / r; // i-1, j+1, k
                         }
-                    }
-                    else if
-                    (
-                        // i-left boundary -> use upwind  only at the corner faces
-                        (
-                            i==1 &&
-                            j==my-2
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[EP] += g21[k][j][i] * 0.5 / r; // i+1, j, k
-                        vol[NE] += g21[k][j][i] * 0.5 / r; // i+1, j+1, k
-                        vol[CP] -= g21[k][j][i] * 0.5 / r; // i, j, k
-                        vol[NP] -= g21[k][j][i] * 0.5 / r; // i, j+1, k
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[EP] += g21[k][j][i] * 0.25 / r; // i+1, j, k
-                        vol[NE] += g21[k][j][i] * 0.25 / r; // i+1, j+1, k
-                        vol[WP] -= g21[k][j][i] * 0.25 / r; // i-1, j, k
-                        vol[NW] -= g21[k][j][i] * 0.25 / r; // i-1, j+1, k
-                    }
+                        // i-left boundary -> use upwind
+                        else if(i==1)
+                        {
+                            // upwind differencing
+                            vol[EP] += g21[k][j][i] * 0.5 / r; // i+1, j, k
+                            vol[NE] += g21[k][j][i] * 0.5 / r; // i+1, j+1, k
+                            vol[CP] -= g21[k][j][i] * 0.5 / r; // i, j, k
+                            vol[NP] -= g21[k][j][i] * 0.5 / r; // i, j+1, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[EP] += g21[k][j][i] * 0.25 / r; // i+1, j, k
+                            vol[NE] += g21[k][j][i] * 0.25 / r; // i+1, j+1, k
+                            vol[WP] -= g21[k][j][i] * 0.25 / r; // i-1, j, k
+                            vol[NW] -= g21[k][j][i] * 0.25 / r; // i-1, j+1, k
+                        }
 
-                    // dpde{j} = (p{j+1} - p{j}) * g22[k][j][i]
-                    if
-                    (
-                        j != my-2  ||
-                        mesh->j_periodic ||
-                        mesh->jj_periodic
-                    )
-                    {
+                        // dpde{j} = (p{j+1} - p{j}) * g22[k][j][i]
                         vol[CP] -= g22[k][j][i] / r;
                         vol[NP] += g22[k][j][i] / r;
-                    }
 
-                    // dpdz{j} = (p{j, k+1}+p{j+1,k+1} - p{j,k-1}-p{j+1,k-1}) *0.25 / r
-                    if
-                    (
-                        // k-right boundary -> use upwind  only at the corner faces
-                        (
-                            k==mz-2 &&
-                            j==my-2
-                        )
-                    )
-                    {
-                        if (k!=1)
+                        // dpdz{j} = (p{j, k+1}+p{j+1,k+1} - p{j,k-1}-p{j+1,k-1}) *0.25
+
+                        // k-right boundary -> use upwind
+                        if(k==mz-2)
                         {
                             // upwind differencing
                             vol[CP] += g23[k][j][i] * 0.5 / r; //i,j,k
@@ -1176,44 +1110,38 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BP] -= g23[k][j][i] * 0.5 / r;//i, j, k-1
                             vol[BN] -= g23[k][j][i] * 0.5 / r;//i, j+1, k-1
                         }
-                    }
-                    else if
-                    (
-                        // k-left boundary -> use upwind  only at the corner faces
-                        (
-                            k==1 &&
-                            j==my-2
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[TP] += g23[k][j][i] * 0.5 / r; //i, j, k+1
-                        vol[TN] += g23[k][j][i] * 0.5 / r;//i, j+1, k+1
-                        vol[CP] -= g23[k][j][i] * 0.5 / r;//i, j, k
-                        vol[NP] -= g23[k][j][i] * 0.5 / r;//i, j+1, k
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[TP] += g23[k][j][i] * 0.25 / r; // i, j, k+1
-                        vol[TN] += g23[k][j][i] * 0.25 / r; // i, j+1, k+1
-                        vol[BP] -= g23[k][j][i] * 0.25 / r; // i, j, k-1
-                        vol[BN] -= g23[k][j][i] * 0.25 / r; // i, j+1, k-1
+                        // k-left boundary -> use upwind
+                        else if(k==1)
+                        {
+                            // upwind differencing
+                            vol[TP] += g23[k][j][i] * 0.5 / r; //i, j, k+1
+                            vol[TN] += g23[k][j][i] * 0.5 / r;//i, j+1, k+1
+                            vol[CP] -= g23[k][j][i] * 0.5 / r;//i, j, k
+                            vol[NP] -= g23[k][j][i] * 0.5 / r;//i, j+1, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[TP] += g23[k][j][i] * 0.25 / r; // i, j, k+1
+                            vol[TN] += g23[k][j][i] * 0.25 / r; // i, j+1, k+1
+                            vol[BP] -= g23[k][j][i] * 0.25 / r; // i, j, k-1
+                            vol[BN] -= g23[k][j][i] * 0.25 / r; // i, j+1, k-1
+                        }
                     }
 
                     // contribution from south face in j-direction (j-1/2)
-
-                    // -dpdc{j-1} = -(p_{i+1,j}+p{i+1,j-1} - p{i-1,j}-p{i-1,j-1}) * 0.25 / r * g21[k][j-1][i]
                     if
                     (
-                        // i-right boundary -> use upwind  only at the corner faces
-                        (
-                            i==mx-2 &&
-                            j==1
-                        )
+                        // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                        j!=1       ||
+                        mesh->j_periodic ||
+                        mesh->jj_periodic
                     )
                     {
-                        if (i!=1 )
+                        // -dpdc{j-1} = -(p_{i+1,j}+p{i+1,j-1} - p{i-1,j}-p{i-1,j-1}) * 0.25
+
+                        // i-right boundary -> use upwind
+                        if(i==mx-2)
                         {
                             // upwind differencing
                             vol[CP] -= g21[k][j-1][i] * 0.5 / r; // i, j, k
@@ -1221,54 +1149,32 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[WP] += g21[k][j-1][i] * 0.5 / r; // i-1, j, k
                             vol[SW] += g21[k][j-1][i] * 0.5 / r; // i-1, j-1, k
                         }
-                    }
-                    else if
-                    (
-                        // i-left boundary -> use upwind  only at the corner faces
-                        (
-                            i==1 &&
-                            j==1
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[EP] -= g21[k][j-1][i] * 0.5 / r; // i+1, j, k
-                        vol[SE] -= g21[k][j-1][i] * 0.5 / r; // i+1, j-1, k
-                        vol[CP] += g21[k][j-1][i] * 0.5 / r; // i, j, k
-                        vol[SP] += g21[k][j-1][i] * 0.5 / r; // i, j-1, k
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[EP] -= g21[k][j-1][i] * 0.25 / r; // i+1, j, k
-                        vol[SE] -= g21[k][j-1][i] * 0.25 / r; // i+1, j-1, k
-                        vol[WP] += g21[k][j-1][i] * 0.25 / r; // i-1, j, k
-                        vol[SW] += g21[k][j-1][i] * 0.25 / r; // i-1, j-1, k
-                    }
+                        // i-left boundary -> use upwind
+                        else if(i==1)
+                        {
+                            // upwind differencing
+                            vol[EP] -= g21[k][j-1][i] * 0.5 / r; // i+1, j, k
+                            vol[SE] -= g21[k][j-1][i] * 0.5 / r; // i+1, j-1, k
+                            vol[CP] += g21[k][j-1][i] * 0.5 / r; // i, j, k
+                            vol[SP] += g21[k][j-1][i] * 0.5 / r; // i, j-1, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[EP] -= g21[k][j-1][i] * 0.25 / r; // i+1, j, k
+                            vol[SE] -= g21[k][j-1][i] * 0.25 / r; // i+1, j-1, k
+                            vol[WP] += g21[k][j-1][i] * 0.25 / r; // i-1, j, k
+                            vol[SW] += g21[k][j-1][i] * 0.25 / r; // i-1, j-1, k
+                        }
 
-                    // -dpde{j-1} = -(p{j} - p{j-1}) * g22[k][j-1][i]
-                    if
-                    (
-                        j!=1       ||
-                        mesh->j_periodic ||
-                        mesh->jj_periodic
-                    )
-                    {
+                        // -dpde{j-1} = -(p{j} - p{j-1}) * g22[k][j-1][i]
                         vol[CP] -= g22[k][j-1][i] / r;
                         vol[SP] += g22[k][j-1][i] / r;
-                    }
 
-                    // -dpdz{j-1} = -(p{j,k+1}+p{j-1,k+1} - p{j,k-1}-p{j-1,k-1}) * 0.25 / r * g23[k][j-1][i]
-                    if
-                    (
-                        // k-right boundary -> use upwind  only at the corner faces
-                        (
-                            k==mz-2 &&
-                            j==1
-                        )
-                    )
-                    {
-                        if (k!=1)
+                        // -dpdz{j-1} = -(p{j,k+1}+p{j-1,k+1} - p{j,k-1}-p{j-1,k-1}) * 0.25
+
+                        // k-right boundary -> use upwind
+                        if(k==mz-2)
                         {
                             // upwind differencing
                             vol[CP] -= g23[k][j-1][i] * 0.5 / r; //i, j, k
@@ -1276,44 +1182,38 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BP] += g23[k][j-1][i] * 0.5 / r; //i, j, k-1
                             vol[BS] += g23[k][j-1][i] * 0.5 / r; //i, j-1, k-1
                         }
-                    }
-                    else if
-                    (
-                        // k-left boundary -> use upwind  only at the corner faces
-                        (
-                            k==1 &&
-                            j==1
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[TP] -= g23[k][j-1][i] * 0.5 / r; // i, j, k+1
-                        vol[TS] -= g23[k][j-1][i] * 0.5 / r; // i, j-1, k+1
-                        vol[CP] += g23[k][j-1][i] * 0.5 / r; // i, j, k
-                        vol[SP] += g23[k][j-1][i] * 0.5 / r; // i, j-1, k
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[TP] -= g23[k][j-1][i] * 0.25 / r; // i, j, k+1
-                        vol[TS] -= g23[k][j-1][i] * 0.25 / r; // i, j-1, k+1
-                        vol[BP] += g23[k][j-1][i] * 0.25 / r; // i, j, k-1
-                        vol[BS] += g23[k][j-1][i] * 0.25 / r; // i, j-1, k-1
+                        // k-left boundary -> use upwind
+                        else if(k==1)
+                        {
+                            // upwind differencing
+                            vol[TP] -= g23[k][j-1][i] * 0.5 / r; // i, j, k+1
+                            vol[TS] -= g23[k][j-1][i] * 0.5 / r; // i, j-1, k+1
+                            vol[CP] += g23[k][j-1][i] * 0.5 / r; // i, j, k
+                            vol[SP] += g23[k][j-1][i] * 0.5 / r; // i, j-1, k
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[TP] -= g23[k][j-1][i] * 0.25 / r; // i, j, k+1
+                            vol[TS] -= g23[k][j-1][i] * 0.25 / r; // i, j-1, k+1
+                            vol[BP] += g23[k][j-1][i] * 0.25 / r; // i, j, k-1
+                            vol[BS] += g23[k][j-1][i] * 0.25 / r; // i, j-1, k-1
+                        }
                     }
 
                     // contribution from top face in k-direction (k+1/2)
-
-                    // dpdc{k} = (p{i+1,k}+p{i+1,k+1} - p{i-1,k}-p{i-1,k+1}) * 0.25 / r * g31[k][j][i]
                     if
                     (
-                        // i-right boundary -> use upwind  only at the corner faces
-                        (
-                            i==mx-2 &&
-                            k==mz-2
-                        )
+                        // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                        k != mz-2  ||
+                        mesh->k_periodic ||
+                        mesh->kk_periodic
                     )
                     {
-                        if (i!=1 )
+                        // dpdc{k} = (p{i+1,k}+p{i+1,k+1} - p{i-1,k}-p{i-1,k+1}) * 0.25
+
+                        // i-right boundary -> use upwind
+                        if(i==mx-2)
                         {
                             // upwind differencing
                             vol[CP] += g31[k][j][i] * 0.5 / r; // i, j, k
@@ -1321,42 +1221,28 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[WP] -= g31[k][j][i] * 0.5 / r; // i-1, j, k
                             vol[TW] -= g31[k][j][i] * 0.5 / r; // i-1, j, k+1
                         }
-                    }
-                    else if
-                    (
-                        // i-left boundary -> use upwind  only at the corner faces
-                        (
-                            i==1 &&
-                            k==mz-2
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[EP] += g31[k][j][i] * 0.5 / r; // i+1, j, k
-                        vol[TE] += g31[k][j][i] * 0.5 / r; // i+1, j, k+1
-                        vol[CP] -= g31[k][j][i] * 0.5 / r; // i, j, k
-                        vol[TP] -= g31[k][j][i] * 0.5 / r; // i, j, k+1
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[EP] += g31[k][j][i] * 0.25 / r; // i+1, j, k
-                        vol[TE] += g31[k][j][i] * 0.25 / r; // i+1, j, k+1
-                        vol[WP] -= g31[k][j][i] * 0.25 / r; // i-1, j, k
-                        vol[TW] -= g31[k][j][i] * 0.25 / r; // i-1, j, k+1
-                    }
+                        // i-left boundary -> use upwind
+                        else if(i==1)
+                        {
+                            // upwind differencing
+                            vol[EP] += g31[k][j][i] * 0.5 / r; // i+1, j, k
+                            vol[TE] += g31[k][j][i] * 0.5 / r; // i+1, j, k+1
+                            vol[CP] -= g31[k][j][i] * 0.5 / r; // i, j, k
+                            vol[TP] -= g31[k][j][i] * 0.5 / r; // i, j, k+1
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[EP] += g31[k][j][i] * 0.25 / r; // i+1, j, k
+                            vol[TE] += g31[k][j][i] * 0.25 / r; // i+1, j, k+1
+                            vol[WP] -= g31[k][j][i] * 0.25 / r; // i-1, j, k
+                            vol[TW] -= g31[k][j][i] * 0.25 / r; // i-1, j, k+1
+                        }
 
-                    // dpde{k} = (p{j+1, k}+p{j+1,k+1} - p{j-1, k}-p{j-1,k+1}) * 0.25 / r * g32[k][j][i]
-                    if
-                    (
-                        // j-right boundary -> use upwind  only at the corner faces
-                        (
-                            j==my-2 &&
-                            k==mz-2
-                        )
-                    )
-                    {
-                        if (j!=1)
+                        // dpde{k} = (p{j+1, k}+p{j+1,k+1} - p{j-1, k}-p{j-1,k+1}) * 0.25
+
+                        // j-right boundary -> use upwind
+                        if(j==my-2)
                         {
                             // upwind differencing
                             vol[CP] += g32[k][j][i] * 0.5 / r; // i, j,k
@@ -1364,56 +1250,42 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SP] -= g32[k][j][i] * 0.5 / r; // i, j-1, k
                             vol[TS] -= g32[k][j][i] * 0.5 / r; // i, j-1, k+1
                         }
-                    }
-                    else if
-                    (
-                        // j-left boundary -> use upwind  only at the corner faces
-                        (
-                            j==1 &&
-                            k==mz-2
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[NP] += g32[k][j][i] * 0.5 / r; // i, j+1, k
-                        vol[TN] += g32[k][j][i] * 0.5 / r; // i, j+1, k+1
-                        vol[CP] -= g32[k][j][i] * 0.5 / r; // i, j, k
-                        vol[TP] -= g32[k][j][i] * 0.5 / r; // i, j, k+1
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[NP] += g32[k][j][i] * 0.25 / r;//i, j+1, k
-                        vol[TN] += g32[k][j][i] * 0.25 / r;//i, j+1, k+1
-                        vol[SP] -= g32[k][j][i] * 0.25 / r;//i, j-1, k
-                        vol[TS] -= g32[k][j][i] * 0.25 / r;//i, j-1, k+1
-                    }
+                        // j-left boundary -> use upwind
+                        else if(j==1)
+                        {
+                            // upwind differencing
+                            vol[NP] += g32[k][j][i] * 0.5 / r; // i, j+1, k
+                            vol[TN] += g32[k][j][i] * 0.5 / r; // i, j+1, k+1
+                            vol[CP] -= g32[k][j][i] * 0.5 / r; // i, j, k
+                            vol[TP] -= g32[k][j][i] * 0.5 / r; // i, j, k+1
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[NP] += g32[k][j][i] * 0.25 / r;//i, j+1, k
+                            vol[TN] += g32[k][j][i] * 0.25 / r;//i, j+1, k+1
+                            vol[SP] -= g32[k][j][i] * 0.25 / r;//i, j-1, k
+                            vol[TS] -= g32[k][j][i] * 0.25 / r;//i, j-1, k+1
+                        }
 
-                    // dpdz{k} = p{k+1} - p{k}
-                    if
-                    (
-                        k != mz-2  ||
-                        mesh->k_periodic ||
-                        mesh->kk_periodic
-                    )
-                    {
+                        // dpdz{k} = p{k+1} - p{k}
                         vol[CP] -= g33[k][j][i] / r; // i, j, k
                         vol[TP] += g33[k][j][i] / r; // i, j, k+1
                     }
 
                     // contribution from bottom face in k-direction (k-1/2)
-
-                    // -dpdc{k-1} = -(p{i+1,k}+p{i+1,k-1} - p{i-1,k}-p{i-1,k-1}) * 0.25 / r * g31[k-1][j][i]
                     if
                     (
-                        // i-right boundary -> use upwind  only at the corner faces
-                        (
-                            i==mx-2 &&
-                            k==1
-                        )
+                        // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                        k != 1     ||
+                        mesh->k_periodic ||
+                        mesh->kk_periodic
                     )
                     {
-                        if (i!=1 )
+                        // -dpdc{k-1} = -(p{i+1,k}+p{i+1,k-1} - p{i-1,k}-p{i-1,k-1}) * 0.25
+
+                        // i-right boundary -> use upwind
+                        if(i==mx-2)
                         {
                             // upwind differencing
                             vol[CP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k
@@ -1421,43 +1293,28 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[WP] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k
                             vol[BW] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k-1
                         }
-                    }
-                    else if
-                    (
-                        // i-left boundary -> use upwind  only at the corner faces
-                        (
-                            i==1 &&
-                            k==1
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[EP] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k
-                        vol[BE] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k-1
-                        vol[CP] += g31[k-1][j][i] * 0.5 / r; // i, j, k
-                        vol[BP] += g31[k-1][j][i] * 0.5 / r; // i, j, k-1
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[EP] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k
-                        vol[BE] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k-1
-                        vol[WP] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k
-                        vol[BW] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k-1
-                    }
+                        // i-left boundary -> use upwind
+                        else if(i==1)
+                        {
+                            // upwind differencing
+                            vol[EP] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k
+                            vol[BE] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k-1
+                            vol[CP] += g31[k-1][j][i] * 0.5 / r; // i, j, k
+                            vol[BP] += g31[k-1][j][i] * 0.5 / r; // i, j, k-1
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[EP] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k
+                            vol[BE] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k-1
+                            vol[WP] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k
+                            vol[BW] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k-1
+                        }
 
-                    // -dpde{k-1} = -(p{j+1, k}+p{j+1,k-1} - p{j-1, k}-p{j-1,k-1}) *  0.25 / r * g32[k-1][j][i]
-                    // ( p{i, j+1,k-1/2} - p{i, j-1,k-1/2} ) / (2eta)
-                    if
-                    (
-                        // j-right boundary -> use upwind  only at the corner faces
-                        (
-                            j==my-2 &&
-                            k==1
-                        )
-                    )
-                    {
-                        if ( j!=1 )
+                        // -dpde{k-1} = -(p{j+1, k}+p{j+1,k-1} - p{j-1, k}-p{j-1,k-1}) *  0.25 / r * g32[k-1][j][i]
+
+                        // j-right boundary -> use upwind
+                        if(j==my-2)
                         {
                             // upwind differencing
                             vol[CP] -= g32[k-1][j][i] * 0.5 / r; // i, j,k
@@ -1465,39 +1322,25 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SP] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k
                             vol[BS] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k-1
                         }
-                    }
-                    else if
-                    (
-                        // j-left boundary -> use upwind  only at the corner faces
-                        (
-                            j==1 &&
-                            k==1
-                        )
-                    )
-                    {
-                        // upwind differencing
-                        vol[NP] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k
-                        vol[BN] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k-1
-                        vol[CP] += g32[k-1][j][i] * 0.5 / r; // i, j, k
-                        vol[BP] += g32[k-1][j][i] * 0.5 / r; // i, j, k-1
-                    }
-                    else
-                    {
-                        // central differencing
-                        vol[NP] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k
-                        vol[BN] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k-1
-                        vol[SP] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k
-                        vol[BS] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k-1
-                    }
+                        // j-left boundary -> use upwind
+                        else if(j==1)
+                        {
+                            // upwind differencing
+                            vol[NP] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k
+                            vol[BN] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k-1
+                            vol[CP] += g32[k-1][j][i] * 0.5 / r; // i, j, k
+                            vol[BP] += g32[k-1][j][i] * 0.5 / r; // i, j, k-1
+                        }
+                        else
+                        {
+                            // central differencing
+                            vol[NP] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k
+                            vol[BN] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k-1
+                            vol[SP] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k
+                            vol[BS] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k-1
+                        }
 
-                    // -dpdz{k-1} = -(p{k} - p{k-1}) * g33[k-1][j][i]
-                    if
-                    (
-                        k != 1     ||
-                        mesh->k_periodic ||
-                        mesh->kk_periodic
-                    )
-                    {
+                        // -dpdz{k-1} = -(p{k} - p{k-1}) * g33[k-1][j][i]
                         vol[CP] -= g33[k-1][j][i] / r; // i, j, k
                         vol[BP] += g33[k-1][j][i] / r; //i, j, k-1
                     }
@@ -1696,36 +1539,26 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[m] = 0.;
                         }
 
-                        // contribution from east face in i-direction (i+1/2)
-
                         PetscReal r = 1.0;
 
-                        // dpdc{i} = (p_{i+1} - p_{i}) * g11_{i}
-
+                        // contribution from east face in i-direction (i+1/2)
                         if
                         (
-                            i != mx-2  || // exclude boundary cell for zero gradient BC if non-periodic
+                            // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                            i != mx-2        ||
                             mesh->i_periodic ||
                             mesh->ii_periodic
 
                         )
                         {
+                            // dpdc{i} = (p_{i+1} - p_{i}) * g11_{i}
                             vol[CP] -= g11[k][j][i] / r; // i, j, k
                             vol[EP] += g11[k][j][i] / r; // i+1, j, k
-                        }
 
-                        // dpde{i} = ({p_{i+1,j+1} + p{i, j+1} - p{i+1, j-1} - p{i, j-1}) * 0.25 * g12[k][j][i]
+                            // dpde{i} = ({p_{i+1,j+1} + p{i, j+1} - p{i+1, j-1} - p{i, j-1}) * 0.25 * g12[k][j][i]
 
-                        if
-                        (
-                            // j-right boundary -> use upwind only at the corner faces
-                            (
-                                j==my-2 &&
-                                i==mx-2
-                            )
-                        )
-                        {
-                            if ( j!=1 )
+                            // j-right boundary -> use upwind
+                            if(j == my-2)
                             {
                                 // upwind differencing
                                 vol[CP] += g12[k][j][i] * 0.5 / r; // i, j, k
@@ -1733,42 +1566,28 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[SP] -= g12[k][j][i] * 0.5 / r; // i, j-1, k
                                 vol[SE] -= g12[k][j][i] * 0.5 / r; // i+1, j-1, k
                             }
-                        }
-                        else if
-                        (
-                            // j-left boundary -> use upwind  only at the corner faces
-                            (
-                                j == 1 &&
-                                i == mx-2
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[NP] += g12[k][j][i] * 0.5 / r; // i, j+1, k
-                            vol[NE] += g12[k][j][i] * 0.5 / r; // i+1, j+1, k
-                            vol[CP] -= g12[k][j][i] * 0.5 / r; // i, j, k
-                            vol[EP] -= g12[k][j][i] * 0.5 / r; // i+1, j, k
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[NP] += g12[k][j][i] * 0.25 / r; // i, j+1, k
-                            vol[NE] += g12[k][j][i] * 0.25 / r; // i+1, j+1, k
-                            vol[SP] -= g12[k][j][i] * 0.25 / r; // i, j-1, k
-                            vol[SE] -= g12[k][j][i] * 0.25 / r; // i+1, j-1, k
-                        }
+                            // j-left boundary -> use upwind
+                            else if(j == 1)
+                            {
+                                // upwind differencing
+                                vol[NP] += g12[k][j][i] * 0.5 / r; // i, j+1, k
+                                vol[NE] += g12[k][j][i] * 0.5 / r; // i+1, j+1, k
+                                vol[CP] -= g12[k][j][i] * 0.5 / r; // i, j, k
+                                vol[EP] -= g12[k][j][i] * 0.5 / r; // i+1, j, k
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[NP] += g12[k][j][i] * 0.25 / r; // i, j+1, k
+                                vol[NE] += g12[k][j][i] * 0.25 / r; // i+1, j+1, k
+                                vol[SP] -= g12[k][j][i] * 0.25 / r; // i, j-1, k
+                                vol[SE] -= g12[k][j][i] * 0.25 / r; // i+1, j-1, k
+                            }
 
-                        // dpdz{i}=(p_{i,k+1} + p{i+1,k+1} - p{i, k-1} - p{i+1, k-1}) * 0.25 / r * g13[k][j][i]
-                        if
-                        (
-                            // k-right boundary -> use upwind  only at the corner faces
-                            (
-                                k==mz-2 &&
-                                i==mx-2
-                            )
-                        )
-                        {
-                            if (k!=1)
+                            // dpdz{i}=(p_{i,k+1} + p{i+1,k+1} - p{i, k-1} - p{i+1, k-1}) * 0.25 / r * g13[k][j][i]
+
+                            // k-right boundary -> use upwind
+                            if(k==mz-2)
                             {
                                 // upwind differencing
                                 vol[CP] += g13[k][j][i] * 0.5 / r; // i, j, k
@@ -1776,58 +1595,42 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[BP] -= g13[k][j][i] * 0.5 / r; // i, j, k-1
                                 vol[BE] -= g13[k][j][i] * 0.5 / r; // i+1, j, k-1
                             }
-                        }
-                        else if
-                        (
-                            // k-left boundary  -> use upwind  only at the corner faces
-                            (
-                                k==1 &&
-                                i==mx-2
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[TP] += g13[k][j][i] * 0.5 / r; // i, j, k+1
-                            vol[TE] += g13[k][j][i] * 0.5 / r; // i+1, j, k+1
-                            vol[CP] -= g13[k][j][i] * 0.5 / r; // i, j, k
-                            vol[EP] -= g13[k][j][i] * 0.5 / r; // i+1, j, k
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[TP] += g13[k][j][i] * 0.25 / r; //i, j, k+1
-                            vol[TE] += g13[k][j][i] * 0.25 / r; //i+1, j, k+1
-                            vol[BP] -= g13[k][j][i] * 0.25 / r; //i, j, k-1
-                            vol[BE] -= g13[k][j][i] * 0.25 / r; //i+1, j, k-1
+                            // k-left boundary  -> use upwind
+                            else if(k==1)
+                            {
+                                // upwind differencing
+                                vol[TP] += g13[k][j][i] * 0.5 / r; // i, j, k+1
+                                vol[TE] += g13[k][j][i] * 0.5 / r; // i+1, j, k+1
+                                vol[CP] -= g13[k][j][i] * 0.5 / r; // i, j, k
+                                vol[EP] -= g13[k][j][i] * 0.5 / r; // i+1, j, k
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[TP] += g13[k][j][i] * 0.25 / r; //i, j, k+1
+                                vol[TE] += g13[k][j][i] * 0.25 / r; //i+1, j, k+1
+                                vol[BP] -= g13[k][j][i] * 0.25 / r; //i, j, k-1
+                                vol[BE] -= g13[k][j][i] * 0.25 / r; //i+1, j, k-1
+                            }
                         }
 
                         // contribution from west face in i-direction (i-1/2)
-
-                        // -dpdc{i-1} = -(p_{i} - p_{i-1}) * g11_{i}
-
                         if
                         (
-                            i != 1 ||  // exclude boundary cell for zero gradient BC if non-periodic
+                            // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                            i != 1 ||
                             mesh->i_periodic ||
                             mesh->ii_periodic
                         )
                         {
+                            // -dpdc{i-1} = -(p_{i} - p_{i-1}) * g11_{i}
                             vol[CP] -= g11[k][j][i-1] / r;  //i, j, k
                             vol[WP] += g11[k][j][i-1] / r;  //i-1, j, k
-                        }
 
-                        // -dpde{i-1} = -({p_{i,j+1}+p{i-1, j+1} - p{i, j-1}-p{i-1, j-1}) * 0.25 / r * g12[k][j][i-1]
+                            // -dpde{i-1} = -({p_{i,j+1}+p{i-1, j+1} - p{i, j-1}-p{i-1, j-1}) * 0.25 / r * g12[k][j][i-1]
 
-                        if
-                        (
-                            // j-right boundary -> use upwind only at the corner faces
-                            (
-                                j==my-2 &&
-                                i==1
-                            )
-                        )
-                        {
-                            if ( j!=1 )
+                            // j-right boundary -> use upwind
+                            if(j==my-2)
                             {
                                 // upwind differencing
                                 vol[CP] -= g12[k][j][i-1] * 0.5 / r; // i, j, k
@@ -1835,42 +1638,28 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[SP] += g12[k][j][i-1] * 0.5 / r; // i, j-1, k
                                 vol[SW] += g12[k][j][i-1] * 0.5 / r; // i-1, j-1, k
                             }
-                        }
-                        else if
-                        (
-                            // j-left boundary -> use upwind  only at the corner faces
-                            (
-                                j==1 &&
-                                i==1
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[NP] -= g12[k][j][i-1] * 0.5 / r; // i, j+1, k
-                            vol[NW] -= g12[k][j][i-1] * 0.5 / r; // i-1, j+1, k
-                            vol[CP] += g12[k][j][i-1] * 0.5 / r; // i, j, k
-                            vol[WP] += g12[k][j][i-1] * 0.5 / r; // i-1, j, k
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[NP] -= g12[k][j][i-1] * 0.25 / r; // i, j+1, k
-                            vol[NW] -= g12[k][j][i-1] * 0.25 / r; // i-1, j+1, k
-                            vol[SP] += g12[k][j][i-1] * 0.25 / r; // i, j-1, k
-                            vol[SW] += g12[k][j][i-1] * 0.25 / r; // i-1, j-1, k
-                        }
+                            // j-left boundary -> use upwind
+                            else if(j==1)
+                            {
+                                // upwind differencing
+                                vol[NP] -= g12[k][j][i-1] * 0.5 / r; // i, j+1, k
+                                vol[NW] -= g12[k][j][i-1] * 0.5 / r; // i-1, j+1, k
+                                vol[CP] += g12[k][j][i-1] * 0.5 / r; // i, j, k
+                                vol[WP] += g12[k][j][i-1] * 0.5 / r; // i-1, j, k
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[NP] -= g12[k][j][i-1] * 0.25 / r; // i, j+1, k
+                                vol[NW] -= g12[k][j][i-1] * 0.25 / r; // i-1, j+1, k
+                                vol[SP] += g12[k][j][i-1] * 0.25 / r; // i, j-1, k
+                                vol[SW] += g12[k][j][i-1] * 0.25 / r; // i-1, j-1, k
+                            }
 
-                        // -dpdz{i-1}=-(p_{i,k+1}+p{i-1,k+1} - p{i, k-1}-p{i-1, k-1}) * 0.25 / r * g13[k][j][i]
-                        if
-                        (
-                            // k-right boundary -> use upwind  only at the corner faces
-                            (
-                                k==mz-2 &&
-                                i==1
-                            )
-                        )
-                        {
-                            if (k!=1)
+                            // -dpdz{i-1}=-(p_{i,k+1}+p{i-1,k+1} - p{i, k-1}-p{i-1, k-1}) * 0.25 / r * g13[k][j][i]
+
+                            // k-right boundary -> use upwind
+                            if(k==mz-2)
                             {
                                 // upwind differencing
                                 vol[CP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k
@@ -1878,44 +1667,38 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[BP] += g13[k][j][i-1] * 0.5 / r; // i, j, k-1
                                 vol[BW] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k-1
                             }
-                        }
-                        else if
-                        (
-                            // k-left boundary  -> use upwind  only at the corner faces
-                            (
-                                k==1 &&
-                                i==1
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[TP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k+1
-                            vol[TW] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k+1
-                            vol[CP] += g13[k][j][i-1] * 0.5 / r; // i, j, k
-                            vol[WP] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[TP] -= g13[k][j][i-1] * 0.25 / r; // i, j, k+1
-                            vol[TW] -= g13[k][j][i-1] * 0.25 / r; // i-1, j, k+1
-                            vol[BP] += g13[k][j][i-1] * 0.25 / r; // i, j, k-1
-                            vol[BW] += g13[k][j][i-1] * 0.25 / r; // i-1, j, k-1
+                            // k-left boundary  -> use upwind
+                            else if(k==1)
+                            {
+                                // upwind differencing
+                                vol[TP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k+1
+                                vol[TW] -= g13[k][j][i-1] * 0.5 / r; // i-1, j, k+1
+                                vol[CP] += g13[k][j][i-1] * 0.5 / r; // i, j, k
+                                vol[WP] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[TP] -= g13[k][j][i-1] * 0.25 / r; // i, j, k+1
+                                vol[TW] -= g13[k][j][i-1] * 0.25 / r; // i-1, j, k+1
+                                vol[BP] += g13[k][j][i-1] * 0.25 / r; // i, j, k-1
+                                vol[BW] += g13[k][j][i-1] * 0.25 / r; // i-1, j, k-1
+                            }
                         }
 
                         // contribution from north face in j-direction (j+1/2)
-
-                        // dpdc{j} = (p_{i+1,j}+p{i+1,j+1} - p{i-1,j}-p{i-1,j+1}) * 0.25 / r
                         if
                         (
-                            // i-right boundary -> use upwind  only at the corner faces
-                            (
-                                i==mx-2 &&
-                                j==my-2
-                            )
+                            // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                            j != my-2  ||
+                            mesh->j_periodic ||
+                            mesh->jj_periodic
                         )
                         {
-                            if (i!=1 )
+                            // dpdc{j} = (p_{i+1,j}+p{i+1,j+1} - p{i-1,j}-p{i-1,j+1}) * 0.25
+
+                            // i-right boundary -> use upwind
+                            if(i==mx-2)
                             {
                                 // upwind differencing
                                 vol[CP] += g21[k][j][i] * 0.5 / r; // i, j, k
@@ -1923,54 +1706,32 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[WP] -= g21[k][j][i] * 0.5 / r; // i-1, j, k
                                 vol[NW] -= g21[k][j][i] * 0.5 / r; // i-1, j+1, k
                             }
-                        }
-                        else if
-                        (
-                            // i-left boundary -> use upwind  only at the corner faces
-                            (
-                                i==1 &&
-                                j==my-2
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[EP] += g21[k][j][i] * 0.5 / r; // i+1, j, k
-                            vol[NE] += g21[k][j][i] * 0.5 / r; // i+1, j+1, k
-                            vol[CP] -= g21[k][j][i] * 0.5 / r; // i, j, k
-                            vol[NP] -= g21[k][j][i] * 0.5 / r; // i, j+1, k
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[EP] += g21[k][j][i] * 0.25 / r; // i+1, j, k
-                            vol[NE] += g21[k][j][i] * 0.25 / r; // i+1, j+1, k
-                            vol[WP] -= g21[k][j][i] * 0.25 / r; // i-1, j, k
-                            vol[NW] -= g21[k][j][i] * 0.25 / r; // i-1, j+1, k
-                        }
+                            // i-left boundary -> use upwind
+                            else if(i==1)
+                            {
+                                // upwind differencing
+                                vol[EP] += g21[k][j][i] * 0.5 / r; // i+1, j, k
+                                vol[NE] += g21[k][j][i] * 0.5 / r; // i+1, j+1, k
+                                vol[CP] -= g21[k][j][i] * 0.5 / r; // i, j, k
+                                vol[NP] -= g21[k][j][i] * 0.5 / r; // i, j+1, k
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[EP] += g21[k][j][i] * 0.25 / r; // i+1, j, k
+                                vol[NE] += g21[k][j][i] * 0.25 / r; // i+1, j+1, k
+                                vol[WP] -= g21[k][j][i] * 0.25 / r; // i-1, j, k
+                                vol[NW] -= g21[k][j][i] * 0.25 / r; // i-1, j+1, k
+                            }
 
-                        // dpde{j} = (p{j+1} - p{j}) * g22[k][j][i]
-                        if
-                        (
-                            j != my-2  ||
-                            mesh->j_periodic ||
-                            mesh->jj_periodic
-                        )
-                        {
+                            // dpde{j} = (p{j+1} - p{j}) * g22[k][j][i]
                             vol[CP] -= g22[k][j][i] / r;
                             vol[NP] += g22[k][j][i] / r;
-                        }
 
-                        // dpdz{j} = (p{j, k+1}+p{j+1,k+1} - p{j,k-1}-p{j+1,k-1}) *0.25 / r
-                        if
-                        (
-                            // k-right boundary -> use upwind  only at the corner faces
-                            (
-                                k==mz-2 &&
-                                j==my-2
-                            )
-                        )
-                        {
-                            if (k!=1)
+                            // dpdz{j} = (p{j, k+1}+p{j+1,k+1} - p{j,k-1}-p{j+1,k-1}) *0.25
+
+                            // k-right boundary -> use upwind
+                            if(k==mz-2)
                             {
                                 // upwind differencing
                                 vol[CP] += g23[k][j][i] * 0.5 / r; //i,j,k
@@ -1978,44 +1739,38 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[BP] -= g23[k][j][i] * 0.5 / r;//i, j, k-1
                                 vol[BN] -= g23[k][j][i] * 0.5 / r;//i, j+1, k-1
                             }
-                        }
-                        else if
-                        (
-                            // k-left boundary -> use upwind  only at the corner faces
-                            (
-                                k==1 &&
-                                j==my-2
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[TP] += g23[k][j][i] * 0.5 / r; //i, j, k+1
-                            vol[TN] += g23[k][j][i] * 0.5 / r;//i, j+1, k+1
-                            vol[CP] -= g23[k][j][i] * 0.5 / r;//i, j, k
-                            vol[NP] -= g23[k][j][i] * 0.5 / r;//i, j+1, k
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[TP] += g23[k][j][i] * 0.25 / r; // i, j, k+1
-                            vol[TN] += g23[k][j][i] * 0.25 / r; // i, j+1, k+1
-                            vol[BP] -= g23[k][j][i] * 0.25 / r; // i, j, k-1
-                            vol[BN] -= g23[k][j][i] * 0.25 / r; // i, j+1, k-1
+                            // k-left boundary -> use upwind
+                            else if(k==1)
+                            {
+                                // upwind differencing
+                                vol[TP] += g23[k][j][i] * 0.5 / r; //i, j, k+1
+                                vol[TN] += g23[k][j][i] * 0.5 / r;//i, j+1, k+1
+                                vol[CP] -= g23[k][j][i] * 0.5 / r;//i, j, k
+                                vol[NP] -= g23[k][j][i] * 0.5 / r;//i, j+1, k
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[TP] += g23[k][j][i] * 0.25 / r; // i, j, k+1
+                                vol[TN] += g23[k][j][i] * 0.25 / r; // i, j+1, k+1
+                                vol[BP] -= g23[k][j][i] * 0.25 / r; // i, j, k-1
+                                vol[BN] -= g23[k][j][i] * 0.25 / r; // i, j+1, k-1
+                            }
                         }
 
                         // contribution from south face in j-direction (j-1/2)
-
-                        // -dpdc{j-1} = -(p_{i+1,j}+p{i+1,j-1} - p{i-1,j}-p{i-1,j-1}) * 0.25 / r * g21[k][j-1][i]
                         if
                         (
-                            // i-right boundary -> use upwind  only at the corner faces
-                            (
-                                i==mx-2 &&
-                                j==1
-                            )
+                            // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                            j!=1       ||
+                            mesh->j_periodic ||
+                            mesh->jj_periodic
                         )
                         {
-                            if (i!=1 )
+                            // -dpdc{j-1} = -(p_{i+1,j}+p{i+1,j-1} - p{i-1,j}-p{i-1,j-1}) * 0.25
+
+                            // i-right boundary -> use upwind
+                            if(i==mx-2)
                             {
                                 // upwind differencing
                                 vol[CP] -= g21[k][j-1][i] * 0.5 / r; // i, j, k
@@ -2023,54 +1778,32 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[WP] += g21[k][j-1][i] * 0.5 / r; // i-1, j, k
                                 vol[SW] += g21[k][j-1][i] * 0.5 / r; // i-1, j-1, k
                             }
-                        }
-                        else if
-                        (
-                            // i-left boundary -> use upwind  only at the corner faces
-                            (
-                                i==1 &&
-                                j==1
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[EP] -= g21[k][j-1][i] * 0.5 / r; // i+1, j, k
-                            vol[SE] -= g21[k][j-1][i] * 0.5 / r; // i+1, j-1, k
-                            vol[CP] += g21[k][j-1][i] * 0.5 / r; // i, j, k
-                            vol[SP] += g21[k][j-1][i] * 0.5 / r; // i, j-1, k
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[EP] -= g21[k][j-1][i] * 0.25 / r; // i+1, j, k
-                            vol[SE] -= g21[k][j-1][i] * 0.25 / r; // i+1, j-1, k
-                            vol[WP] += g21[k][j-1][i] * 0.25 / r; // i-1, j, k
-                            vol[SW] += g21[k][j-1][i] * 0.25 / r; // i-1, j-1, k
-                        }
+                            // i-left boundary -> use upwind
+                            else if(i==1)
+                            {
+                                // upwind differencing
+                                vol[EP] -= g21[k][j-1][i] * 0.5 / r; // i+1, j, k
+                                vol[SE] -= g21[k][j-1][i] * 0.5 / r; // i+1, j-1, k
+                                vol[CP] += g21[k][j-1][i] * 0.5 / r; // i, j, k
+                                vol[SP] += g21[k][j-1][i] * 0.5 / r; // i, j-1, k
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[EP] -= g21[k][j-1][i] * 0.25 / r; // i+1, j, k
+                                vol[SE] -= g21[k][j-1][i] * 0.25 / r; // i+1, j-1, k
+                                vol[WP] += g21[k][j-1][i] * 0.25 / r; // i-1, j, k
+                                vol[SW] += g21[k][j-1][i] * 0.25 / r; // i-1, j-1, k
+                            }
 
-                        // -dpde{j-1} = -(p{j} - p{j-1}) * g22[k][j-1][i]
-                        if
-                        (
-                            j!=1       ||
-                            mesh->j_periodic ||
-                            mesh->jj_periodic
-                        )
-                        {
+                            // -dpde{j-1} = -(p{j} - p{j-1}) * g22[k][j-1][i]
                             vol[CP] -= g22[k][j-1][i] / r;
                             vol[SP] += g22[k][j-1][i] / r;
-                        }
 
-                        // -dpdz{j-1} = -(p{j,k+1}+p{j-1,k+1} - p{j,k-1}-p{j-1,k-1}) * 0.25 / r * g23[k][j-1][i]
-                        if
-                        (
-                            // k-right boundary -> use upwind  only at the corner faces
-                            (
-                                k==mz-2 &&
-                                j==1
-                            )
-                        )
-                        {
-                            if (k!=1)
+                            // -dpdz{j-1} = -(p{j,k+1}+p{j-1,k+1} - p{j,k-1}-p{j-1,k-1}) * 0.25
+
+                            // k-right boundary -> use upwind
+                            if(k==mz-2)
                             {
                                 // upwind differencing
                                 vol[CP] -= g23[k][j-1][i] * 0.5 / r; //i, j, k
@@ -2078,44 +1811,38 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[BP] += g23[k][j-1][i] * 0.5 / r; //i, j, k-1
                                 vol[BS] += g23[k][j-1][i] * 0.5 / r; //i, j-1, k-1
                             }
-                        }
-                        else if
-                        (
-                            // k-left boundary -> use upwind  only at the corner faces
-                            (
-                                k==1 &&
-                                j==1
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[TP] -= g23[k][j-1][i] * 0.5 / r; // i, j, k+1
-                            vol[TS] -= g23[k][j-1][i] * 0.5 / r; // i, j-1, k+1
-                            vol[CP] += g23[k][j-1][i] * 0.5 / r; // i, j, k
-                            vol[SP] += g23[k][j-1][i] * 0.5 / r; // i, j-1, k
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[TP] -= g23[k][j-1][i] * 0.25 / r; // i, j, k+1
-                            vol[TS] -= g23[k][j-1][i] * 0.25 / r; // i, j-1, k+1
-                            vol[BP] += g23[k][j-1][i] * 0.25 / r; // i, j, k-1
-                            vol[BS] += g23[k][j-1][i] * 0.25 / r; // i, j-1, k-1
+                            // k-left boundary -> use upwind
+                            else if(k==1)
+                            {
+                                // upwind differencing
+                                vol[TP] -= g23[k][j-1][i] * 0.5 / r; // i, j, k+1
+                                vol[TS] -= g23[k][j-1][i] * 0.5 / r; // i, j-1, k+1
+                                vol[CP] += g23[k][j-1][i] * 0.5 / r; // i, j, k
+                                vol[SP] += g23[k][j-1][i] * 0.5 / r; // i, j-1, k
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[TP] -= g23[k][j-1][i] * 0.25 / r; // i, j, k+1
+                                vol[TS] -= g23[k][j-1][i] * 0.25 / r; // i, j-1, k+1
+                                vol[BP] += g23[k][j-1][i] * 0.25 / r; // i, j, k-1
+                                vol[BS] += g23[k][j-1][i] * 0.25 / r; // i, j-1, k-1
+                            }
                         }
 
                         // contribution from top face in k-direction (k+1/2)
-
-                        // dpdc{k} = (p{i+1,k}+p{i+1,k+1} - p{i-1,k}-p{i-1,k+1}) * 0.25 / r * g31[k][j][i]
                         if
                         (
-                            // i-right boundary -> use upwind  only at the corner faces
-                            (
-                                i==mx-2 &&
-                                k==mz-2
-                            )
+                            // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                            k != mz-2  ||
+                            mesh->k_periodic ||
+                            mesh->kk_periodic
                         )
                         {
-                            if (i!=1 )
+                            // dpdc{k} = (p{i+1,k}+p{i+1,k+1} - p{i-1,k}-p{i-1,k+1}) * 0.25
+
+                            // i-right boundary -> use upwind
+                            if(i==mx-2)
                             {
                                 // upwind differencing
                                 vol[CP] += g31[k][j][i] * 0.5 / r; // i, j, k
@@ -2123,42 +1850,28 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[WP] -= g31[k][j][i] * 0.5 / r; // i-1, j, k
                                 vol[TW] -= g31[k][j][i] * 0.5 / r; // i-1, j, k+1
                             }
-                        }
-                        else if
-                        (
-                            // i-left boundary -> use upwind  only at the corner faces
-                            (
-                                i==1 &&
-                                k==mz-2
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[EP] += g31[k][j][i] * 0.5 / r; // i+1, j, k
-                            vol[TE] += g31[k][j][i] * 0.5 / r; // i+1, j, k+1
-                            vol[CP] -= g31[k][j][i] * 0.5 / r; // i, j, k
-                            vol[TP] -= g31[k][j][i] * 0.5 / r; // i, j, k+1
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[EP] += g31[k][j][i] * 0.25 / r; // i+1, j, k
-                            vol[TE] += g31[k][j][i] * 0.25 / r; // i+1, j, k+1
-                            vol[WP] -= g31[k][j][i] * 0.25 / r; // i-1, j, k
-                            vol[TW] -= g31[k][j][i] * 0.25 / r; // i-1, j, k+1
-                        }
+                            // i-left boundary -> use upwind
+                            else if(i==1)
+                            {
+                                // upwind differencing
+                                vol[EP] += g31[k][j][i] * 0.5 / r; // i+1, j, k
+                                vol[TE] += g31[k][j][i] * 0.5 / r; // i+1, j, k+1
+                                vol[CP] -= g31[k][j][i] * 0.5 / r; // i, j, k
+                                vol[TP] -= g31[k][j][i] * 0.5 / r; // i, j, k+1
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[EP] += g31[k][j][i] * 0.25 / r; // i+1, j, k
+                                vol[TE] += g31[k][j][i] * 0.25 / r; // i+1, j, k+1
+                                vol[WP] -= g31[k][j][i] * 0.25 / r; // i-1, j, k
+                                vol[TW] -= g31[k][j][i] * 0.25 / r; // i-1, j, k+1
+                            }
 
-                        // dpde{k} = (p{j+1, k}+p{j+1,k+1} - p{j-1, k}-p{j-1,k+1}) * 0.25 / r * g32[k][j][i]
-                        if
-                        (
-                            // j-right boundary -> use upwind  only at the corner faces
-                            (
-                                j==my-2 &&
-                                k==mz-2
-                            )
-                        )
-                        {
-                            if (j!=1)
+                            // dpde{k} = (p{j+1, k}+p{j+1,k+1} - p{j-1, k}-p{j-1,k+1}) * 0.25
+
+                            // j-right boundary -> use upwind
+                            if(j==my-2)
                             {
                                 // upwind differencing
                                 vol[CP] += g32[k][j][i] * 0.5 / r; // i, j,k
@@ -2166,56 +1879,42 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[SP] -= g32[k][j][i] * 0.5 / r; // i, j-1, k
                                 vol[TS] -= g32[k][j][i] * 0.5 / r; // i, j-1, k+1
                             }
-                        }
-                        else if
-                        (
-                            // j-left boundary -> use upwind  only at the corner faces
-                            (
-                                j==1 &&
-                                k==mz-2
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[NP] += g32[k][j][i] * 0.5 / r; // i, j+1, k
-                            vol[TN] += g32[k][j][i] * 0.5 / r; // i, j+1, k+1
-                            vol[CP] -= g32[k][j][i] * 0.5 / r; // i, j, k
-                            vol[TP] -= g32[k][j][i] * 0.5 / r; // i, j, k+1
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[NP] += g32[k][j][i] * 0.25 / r;//i, j+1, k
-                            vol[TN] += g32[k][j][i] * 0.25 / r;//i, j+1, k+1
-                            vol[SP] -= g32[k][j][i] * 0.25 / r;//i, j-1, k
-                            vol[TS] -= g32[k][j][i] * 0.25 / r;//i, j-1, k+1
-                        }
+                            // j-left boundary -> use upwind
+                            else if(j==1)
+                            {
+                                // upwind differencing
+                                vol[NP] += g32[k][j][i] * 0.5 / r; // i, j+1, k
+                                vol[TN] += g32[k][j][i] * 0.5 / r; // i, j+1, k+1
+                                vol[CP] -= g32[k][j][i] * 0.5 / r; // i, j, k
+                                vol[TP] -= g32[k][j][i] * 0.5 / r; // i, j, k+1
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[NP] += g32[k][j][i] * 0.25 / r;//i, j+1, k
+                                vol[TN] += g32[k][j][i] * 0.25 / r;//i, j+1, k+1
+                                vol[SP] -= g32[k][j][i] * 0.25 / r;//i, j-1, k
+                                vol[TS] -= g32[k][j][i] * 0.25 / r;//i, j-1, k+1
+                            }
 
-                        // dpdz{k} = p{k+1} - p{k}
-                        if
-                        (
-                            k != mz-2  ||
-                            mesh->k_periodic ||
-                            mesh->kk_periodic
-                        )
-                        {
+                            // dpdz{k} = p{k+1} - p{k}
                             vol[CP] -= g33[k][j][i] / r; // i, j, k
                             vol[TP] += g33[k][j][i] / r; // i, j, k+1
                         }
 
                         // contribution from bottom face in k-direction (k-1/2)
-
-                        // -dpdc{k-1} = -(p{i+1,k}+p{i+1,k-1} - p{i-1,k}-p{i-1,k-1}) * 0.25 / r * g31[k-1][j][i]
                         if
                         (
-                            // i-right boundary -> use upwind  only at the corner faces
-                            (
-                                i==mx-2 &&
-                                k==1
-                            )
+                            // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                            k != 1     ||
+                            mesh->k_periodic ||
+                            mesh->kk_periodic
                         )
                         {
-                            if (i!=1 )
+                            // -dpdc{k-1} = -(p{i+1,k}+p{i+1,k-1} - p{i-1,k}-p{i-1,k-1}) * 0.25
+
+                            // i-right boundary -> use upwind
+                            if(i==mx-2)
                             {
                                 // upwind differencing
                                 vol[CP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k
@@ -2223,43 +1922,28 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[WP] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k
                                 vol[BW] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k-1
                             }
-                        }
-                        else if
-                        (
-                            // i-left boundary -> use upwind  only at the corner faces
-                            (
-                                i==1 &&
-                                k==1
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[EP] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k
-                            vol[BE] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k-1
-                            vol[CP] += g31[k-1][j][i] * 0.5 / r; // i, j, k
-                            vol[BP] += g31[k-1][j][i] * 0.5 / r; // i, j, k-1
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[EP] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k
-                            vol[BE] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k-1
-                            vol[WP] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k
-                            vol[BW] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k-1
-                        }
+                            // i-left boundary -> use upwind
+                            else if(i==1)
+                            {
+                                // upwind differencing
+                                vol[EP] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k
+                                vol[BE] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k-1
+                                vol[CP] += g31[k-1][j][i] * 0.5 / r; // i, j, k
+                                vol[BP] += g31[k-1][j][i] * 0.5 / r; // i, j, k-1
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[EP] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k
+                                vol[BE] -= g31[k-1][j][i] * 0.25 / r; // i+1, j, k-1
+                                vol[WP] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k
+                                vol[BW] += g31[k-1][j][i] * 0.25 / r; // i-1, j, k-1
+                            }
 
-                        // -dpde{k-1} = -(p{j+1, k}+p{j+1,k-1} - p{j-1, k}-p{j-1,k-1}) *  0.25 / r * g32[k-1][j][i]
-                        // ( p{i, j+1,k-1/2} - p{i, j-1,k-1/2} ) / (2eta)
-                        if
-                        (
-                            // j-right boundary -> use upwind  only at the corner faces
-                            (
-                                j==my-2 &&
-                                k==1
-                            )
-                        )
-                        {
-                            if ( j!=1 )
+                            // -dpde{k-1} = -(p{j+1, k}+p{j+1,k-1} - p{j-1, k}-p{j-1,k-1}) *  0.25 / r * g32[k-1][j][i]
+
+                            // j-right boundary -> use upwind
+                            if(j==my-2)
                             {
                                 // upwind differencing
                                 vol[CP] -= g32[k-1][j][i] * 0.5 / r; // i, j,k
@@ -2267,39 +1951,25 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                                 vol[SP] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k
                                 vol[BS] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k-1
                             }
-                        }
-                        else if
-                        (
-                            // j-left boundary -> use upwind  only at the corner faces
-                            (
-                                j==1 &&
-                                k==1
-                            )
-                        )
-                        {
-                            // upwind differencing
-                            vol[NP] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k
-                            vol[BN] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k-1
-                            vol[CP] += g32[k-1][j][i] * 0.5 / r; // i, j, k
-                            vol[BP] += g32[k-1][j][i] * 0.5 / r; // i, j, k-1
-                        }
-                        else
-                        {
-                            // central differencing
-                            vol[NP] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k
-                            vol[BN] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k-1
-                            vol[SP] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k
-                            vol[BS] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k-1
-                        }
+                            // j-left boundary -> use upwind
+                            else if(j==1)
+                            {
+                                // upwind differencing
+                                vol[NP] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k
+                                vol[BN] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k-1
+                                vol[CP] += g32[k-1][j][i] * 0.5 / r; // i, j, k
+                                vol[BP] += g32[k-1][j][i] * 0.5 / r; // i, j, k-1
+                            }
+                            else
+                            {
+                                // central differencing
+                                vol[NP] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k
+                                vol[BN] -= g32[k-1][j][i] * 0.25 / r; // i, j+1, k-1
+                                vol[SP] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k
+                                vol[BS] += g32[k-1][j][i] * 0.25 / r; // i, j-1, k-1
+                            }
 
-                        // -dpdz{k-1} = -(p{k} - p{k-1}) * g33[k-1][j][i]
-                        if
-                        (
-                            k != 1     ||
-                            mesh->k_periodic ||
-                            mesh->kk_periodic
-                        )
-                        {
+                            // -dpdz{k-1} = -(p{k} - p{k-1}) * g33[k-1][j][i]
                             vol[CP] -= g33[k-1][j][i] / r; // i, j, k
                             vol[BP] += g33[k-1][j][i] / r; //i, j, k-1
                         }
@@ -3472,14 +3142,21 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
     DMDAVecGetArray(fda,  ueqn->Ucont, &ucont);
 
+    PetscInt periodic_i = mesh->i_periodic + mesh->ii_periodic,
+             periodic_j = mesh->j_periodic + mesh->jj_periodic,
+             periodic_k = mesh->k_periodic + mesh->kk_periodic;
+
     for (k=zs; k<lze; k++)
     {
         for (j=ys; j<lye; j++)
         {
             for (i=xs; i<lxe; i++)
             {
-                // exclude non-defined indices in the i-direction
-                if (j > 0 && k > 0)
+                if
+                (
+                    j > 0 && k > 0 &&              // exclude non-defined indices in the i-direction
+                    (i>0 && i<mx-2 || periodic_i)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                )
                 {
                     dpdc = phi[k][j][i + 1] - phi[k][j][i];
 
@@ -3488,13 +3165,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                        // j-right boundary -> use upwind only at the corner faces
+                        // j-right boundary -> use upwind
                         (
-                            j==my-2 &&
-                            (
-                                i==0 ||
-                                i==mx-2
-                            )
+                            j==my-2
                         )
                     )
                     {
@@ -3502,14 +3175,10 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                     }
                     else if
                     (
-                        // j-left boundary -> use upwind  only at the corner faces
+                        // j-left boundary -> use upwind
                         (
-                            j == 1 &&
-                            (
-                                i == 0 ||
-                                i == mx - 2
-                            )
-                         )
+                            j == 1
+                        )
                      )
                      {
                          dpde = (phi[k][j+1][i] + phi[k][j+1][i+1] - phi[k][j][i] - phi[k][j][i+1])* 0.5;
@@ -3522,13 +3191,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                      if
                      (
-                        // k-right boundary -> use upwind  only at the corner faces
+                        // k-right boundary -> use upwind
                         (
-                            k == mz - 2 &&
-                            (
-                                i==0 ||
-                                i==mx-2
-                            )
+                            k == mz - 2
                         )
                     )
                     {
@@ -3536,13 +3201,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                     }
                     else if
                     (
-                        // k-left boundary  -> use upwind  only at the corner faces
+                        // k-left boundary  -> use upwind
                         (
-                            k == 1 &&
-                            (
-                                i==0 ||
-                                i==mx-2
-                            )
+                            k == 1
                         )
                     )
                     {
@@ -3555,7 +3216,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                            isFluidIFace(k, j, i, i+1, nvert)
+                        isFluidIFace(k, j, i, i+1, nvert)
                     )
                     {
                         ucont[k][j][i].x
@@ -3583,21 +3244,20 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                     }
                 }
 
-                // exclude non-defined indices in the j-direction
-                if (i > 0 && k > 0)
+                if
+                (
+                    i > 0 && k > 0 &&              // exclude non-defined indices in the j-direction
+                    (j>0 && j<my-2 || periodic_j)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                )
                 {
                     dpdc = 0.;
                     dpdz = 0.;
 
                     if
                     (
-                        // i-right boundary -> use upwind  only at the corner faces
+                        // i-right boundary -> use upwind
                         (
-                            i == mx-2 &&
-                            (
-                                j==0 ||
-                                j==my-2
-                            )
+                            i == mx-2
                         )
                     )
                     {
@@ -3605,13 +3265,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                     }
                     else if
                     (
-                        // i-left boundary -> use upwind  only at the corner faces
+                        // i-left boundary -> use upwind
                         (
-                            i == 1 &&
-                            (
-                                j==0 ||
-                                j==my-2
-                            )
+                            i == 1
                         )
                     )
                     {
@@ -3627,13 +3283,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                        // k-right boundary -> use upwind  only at the corner faces
+                        // k-right boundary -> use upwind
                         (
-                            k == mz-2 &&
-                            (
-                                j==0 ||
-                                j== my-2
-                            )
+                            k == mz-2
                         )
                     )
                     {
@@ -3641,13 +3293,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                     }
                     else if
                     (
-                        // k-left boundary -> use upwind  only at the corner faces
+                        // k-left boundary -> use upwind
                         (
-                            k == 1 &&
-                            (
-                                j==0 ||
-                                j== my-2
-                            )
+                            k == 1
                         )
                     )
                     {
@@ -3689,21 +3337,20 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                     }
                 }
 
-                // exclude non-defined indices in the k-direction
-                if (i > 0 && j > 0)
+                if
+                (
+                    i > 0 && j > 0 &&              // exclude non-defined indices in the k-direction
+                    (k>0 && k<mz-2 || periodic_k)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                )
                 {
                     dpdc = 0.;
                     dpde = 0.;
 
                     if
                     (
-                        // i-right boundary -> use upwind  only at the corner faces
+                        // i-right boundary -> use upwind
                         (
-                            i == mx - 2 &&
-                            (
-                                k==0 ||
-                                k==mz-2
-                            )
+                            i == mx - 2
                         )
                     )
                     {
@@ -3711,13 +3358,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                     }
                     else if
                     (
-                        // i-left boundary -> use upwind  only at the corner faces
+                        // i-left boundary -> use upwind
                         (
-                            i == 1 &&
-                            (
-                                k==0 ||
-                                k == mz - 2
-                            )
+                            i == 1
                         )
                     )
                     {
@@ -3730,13 +3373,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                        // j-right boundary -> use upwind  only at the corner faces
+                        // j-right boundary -> use upwind
                         (
-                            j == my - 2 &&
-                            (
-                                k==0 ||
-                                k==mz-2
-                            )
+                            j == my - 2
                         )
                     )
                     {
@@ -3744,13 +3383,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                     }
                     else if
                     (
-                        // j-left boundary -> use upwind  only at the corner faces
+                        // j-left boundary -> use upwind
                         (
-                            j == 1 &&
-                            (
-                                k==0 ||
-                                k==mz-2
-                            )
+                            j == 1
                         )
                     )
                     {
@@ -3766,7 +3401,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                            isFluidKFace(k, j, i, k+1, nvert)
+                        isFluidKFace(k, j, i, k+1, nvert)
                     )
                     {
                         ucont[k][j][i].z

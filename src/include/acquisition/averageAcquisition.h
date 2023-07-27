@@ -7,11 +7,14 @@
 //! \brief Struct defining the average fields
 struct avgFields
 {
+    // numerical
+    Vec           divU;                       //!< velocity divergence
+
     // source terms
     Vec           Coriolis;                   //!< coriolis source
     Vec           Driving;                    //!< driving pressure gradient source
     Vec           xDamping;                   //!< x damping layer (x fringe region source)
-    Vec           CanopyForce;                  //!< side force for fringe region testing
+    Vec           CanopyForce;                //!< side force for fringe region testing
 
     Vec           windFarmForce;              //!< wind farm body force
 

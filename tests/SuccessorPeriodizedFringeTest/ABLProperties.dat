@@ -85,6 +85,7 @@ xDampingProperties
     advectionDampingType     0
     
     uBarSelectionType 3
+    inletFunctionType 4
     n1Inflow 50 
     n2Inflow 50 
     n1Periods 1

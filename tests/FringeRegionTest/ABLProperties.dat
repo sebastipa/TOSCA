@@ -91,6 +91,7 @@ xDampingProperties
     xDampingLineSamplingYmax 2000           # starting y of the sampling line for vBar
     
     uBarSelectionType 3
+    inletFunctionType 4
     n1Inflow 50 
     n2Inflow 50 
     n1Periods 1
@@ -98,6 +99,8 @@ xDampingProperties
     sourceType uniform
     cellWidth1 20
     cellWidth2 20
+    
+    
 }
 
 sideForceProperties

@@ -111,6 +111,9 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition);
 //! \brief Compute side force for I/O in cartesian form
 PetscErrorCode computeCanopyForceIO(acquisition_ *acquisition);
 
+//! \brief Compute velocity divergence field for I/O 
+PetscErrorCode computeVelocityDivergence(acquisition_ *acquisition);
+
 // MKE BUDGETS ACQUISITION
 // ============================================================================================================= //
 

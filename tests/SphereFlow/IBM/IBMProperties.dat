@@ -6,12 +6,12 @@ CURVIBInterpolationType             CurvibTrilinear
 
 debug                               0
 dynamic                             0
-checkNormal			    1
 computeForce                        1
-writeSTL			    0
-writeSTL                            0
+checkNormal                         1
+writeSTL			                0
 wallShear                           0
 pressureBC                          0
+averageNormal                       0
 
 writeSettings
 {

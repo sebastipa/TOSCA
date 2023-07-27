@@ -66,6 +66,9 @@ PetscErrorCode InitializeIO(io_ *io)
     io->buoyancy        = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeBuoyancy", &(io->buoyancy), PETSC_NULL);
 
+    io->continuity      = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeContinuity", &(io->continuity), PETSC_NULL);
+
     // allocate memory and initialize averaged fields
     if(io->averaging)
     {
@@ -516,6 +519,29 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscPrintf(mesh->MESH_COMM, "Reading buoyancy...\n");
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(ueqn->bTheta,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+
+        MPI_Barrier(mesh->MESH_COMM);
+    }
+
+    if(io->continuity)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // coriolis force
+        field = "/divU";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading divU...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->divU,viewer);
             PetscViewerDestroy(&viewer);
         }
 
@@ -2017,6 +2043,15 @@ PetscErrorCode writeFields(io_ *io)
         {
             fieldName = timeName + "/buoyancy";
             writeBinaryField(mesh->MESH_COMM, ueqn->bTheta, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        // write continuity
+        if(io->continuity)
+        {
+            computeVelocityDivergence(acquisition);
+            fieldName = timeName + "/divU";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->divU, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
         }
 

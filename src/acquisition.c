@@ -284,7 +284,7 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
     mesh_  *mesh  = acquisition->access->mesh;
     flags_ *flags = acquisition->access->flags;
 
-    if(io->averaging || io->phaseAveraging || io->qCrit || io->l2Crit || io->sources || io->windFarmForce || flags->isPvCatalystActive)
+    if(io->averaging || io->phaseAveraging || io->qCrit || io->l2Crit || io->sources || io->windFarmForce || flags->isPvCatalystActive || io->continuity)
     {
         PetscMalloc(sizeof(avgFields), &(acquisition->fields));
         avgFields *avg = acquisition->fields;
@@ -310,6 +310,11 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
             VecDuplicate(mesh->Cent, &(avg->Driving));  VecSet(avg->Driving,  0.);
             VecDuplicate(mesh->Cent, &(avg->xDamping)); VecSet(avg->xDamping, 0.);
             VecDuplicate(mesh->Cent, &(avg->CanopyForce));VecSet(avg->CanopyForce,0.);
+        }
+
+        if(io->continuity)
+        {
+            VecDuplicate(mesh->Nvert, &(avg->divU));        VecSet(avg->divU,0.);
         }
 
         // allocate averaging vectors
@@ -7021,6 +7026,82 @@ PetscErrorCode computeCanopyForceIO(acquisition_ *acquisition)
 
     DMDAVecRestoreArray(fda, acquisition->fields->CanopyForce,  &source);
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeVelocityDivergence(acquisition_ *acquisition)
+{
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***ucont;
+    PetscReal     ***nvert, ***aj, ***div;
+
+    PetscReal     maxdiv;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecGetArray(da,  mesh->lAj, &aj);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  acquisition->fields->divU, &div);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                maxdiv
+                =
+                fabs
+                (
+                    (
+                        ucont[k][j][i].x - ucont[k][j][i-1].x +
+                        ucont[k][j][i].y - ucont[k][j-1][i].y +
+                        ucont[k][j][i].z - ucont[k-1][j][i].z
+                    )*aj[k][j][i]
+                );
+
+                if
+                (
+                    nvert[k  ][j  ][i  ] +
+                    nvert[k+1][j  ][i  ] +
+                    nvert[k-1][j  ][i  ] +
+                    nvert[k  ][j+1][i  ] +
+                    nvert[k  ][j-1][i  ] +
+                    nvert[k  ][j  ][i+1] +
+                    nvert[k  ][j  ][i-1] > 0.1
+                )
+                {
+                    maxdiv = 0.;
+                }
+
+                div[k][j][i] = maxdiv;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  acquisition->fields->divU, &div);
+
+    MPI_Barrier ( mesh->MESH_COMM );
 
     return(0);
 }

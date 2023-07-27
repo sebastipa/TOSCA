@@ -598,6 +598,21 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
         );
     }
 
+    if(io->continuity)
+    {
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "divU",
+            acquisition->fields->divU
+        );
+    }
+
     if(io->buoyancy)
     {
         writeVectorToXMF
@@ -3431,7 +3446,7 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
             {
              char error[512];
               sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-              fatalErrorInFunction("binary3DToXMF",  error);
+              fatalErrorInFunction("binaryJSectionsToXMF",  error);
             }
 
             if(acquisition->jSections->available)
@@ -3738,7 +3753,7 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
       {
          char error[512];
           sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-          fatalErrorInFunction("binary3DToXMF",  error);
+          fatalErrorInFunction("binaryISectionsToXMF",  error);
       }
 
       if(acquisition->iSections->available)
@@ -4034,7 +4049,7 @@ PetscErrorCode binaryKSectionsPerturbToXMF(domain_ *domain)
             {
                char error[512];
                 sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-                fatalErrorInFunction("binary3DToXMF",  error);
+                fatalErrorInFunction("binaryKSectionsPerturbToXMF",  error);
             }
 
             if(acquisition->kSections->available && acquisition->isPerturbABLActive)
@@ -4269,7 +4284,7 @@ PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp)
             {
               char error[512];
               sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-              fatalErrorInFunction("binary3DToXMF",  error);
+              fatalErrorInFunction("binaryJSectionsPerturbToXMF",  error);
             }
 
             if(acquisition->jSections->available && acquisition->isPerturbABLActive)
@@ -4512,7 +4527,7 @@ PetscErrorCode binaryISectionsPerturbToXMF(domain_ *domain)
       {
          char error[512];
           sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-          fatalErrorInFunction("binary3DToXMF",  error);
+          fatalErrorInFunction("binaryISectionsPerturbToXMF",  error);
       }
 
       if(acquisition->iSections->available && acquisition->isPerturbABLActive)

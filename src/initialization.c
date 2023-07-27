@@ -220,26 +220,28 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscInt isSourcesActive        = 0;
     PetscInt isPerturbABLActive     = 0;
     PetscInt PvCatalystActive       = 0;
+    PetscInt continuityActive       = 0;
 
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",        &isProbesActive,         PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &isSectionsActive,       PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averageABL",    &isAverageABLActive,     PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-average3LM",    &isAverage3LMActive,     PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averaging",     &isAveragingActive,      PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-keBudgets",     &isKEBudgetsActive,      PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-phaseAveraging",&isPhaseAveragingActive, PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQ",      &isQCritActive,          PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2",     &isL2CritActive,         PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeSources",&isSourcesActive,        PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",    &isPerturbABLActive,     PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",    &PvCatalystActive,       PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",           &isProbesActive,         PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",         &isSectionsActive,       PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averageABL",       &isAverageABLActive,     PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-average3LM",       &isAverage3LMActive,     PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averaging",        &isAveragingActive,      PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-keBudgets",        &isKEBudgetsActive,      PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-phaseAveraging",   &isPhaseAveragingActive, PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQ",         &isQCritActive,          PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2",        &isL2CritActive,         PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeSources",   &isSourcesActive,        PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",       &isPerturbABLActive,     PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",       &PvCatalystActive,       PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeContinuity",&continuityActive,       PETSC_NULL);
 
     flags->isAquisitionActive
     =
     PetscMin(
     (
         isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive + isKEBudgetsActive +
-        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isSourcesActive + isPerturbABLActive + PvCatalystActive),
+        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isSourcesActive + isPerturbABLActive + PvCatalystActive + continuityActive),
         1
     );
 

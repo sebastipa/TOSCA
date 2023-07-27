@@ -32,6 +32,7 @@ struct io_
     PetscInt  windFarmForce;
     PetscInt  sources;
     PetscInt  buoyancy;
+    PetscInt  continuity;
 
     // runtime modifiable
     word      lastModification;
@@ -39,7 +40,7 @@ struct io_
     // catalyst interface
     PetscReal     timeIntervalCatalyst;
     PetscReal     startTimeCatalyst;
-    word          outputTypeCatalyst;        
+    word          outputTypeCatalyst;
     word          ioTypeCatalyst;           //!< type of catalyst output (generic/script)
     word          scriptNameCatalyst;        //!< name of input script
 
