@@ -391,7 +391,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
             if(!indata)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "cannot open file inflowDatabase/momentumSource\n");
                 fatalErrorInFunction("ABLInitialize",  error);
             }
@@ -399,9 +399,15 @@ PetscErrorCode InitializeABL(abl_ *abl)
             {
                 std::string tmpStr;
 
-                // read lines and get number of saved times
-                for (ntimes = 0; std::getline(indata, tmpStr); ntimes++);
-
+                ntimes = 0;
+                for (int t = 0; std::getline(indata, tmpStr); t++)
+                {
+                    if (!tmpStr.empty())
+                    {
+                        ntimes++;
+                    }
+                }
+                
                 // first line is header
                 ntimes--;
 

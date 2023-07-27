@@ -25,8 +25,8 @@
 -xDampingLayer             0
 
 -absTolU                   1e-5
--poissonIt                 40
--poissonTol                1e-10
+-poissonIt                 10
+-poissonTol                1e-5
 -poissonSolver             HYPRE
 
 # Turbulence Model

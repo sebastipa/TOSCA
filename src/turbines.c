@@ -48,6 +48,9 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     // apply the pitch PID controller
     controlBldPitch(farm);
 
+    // apply the wind farm controller
+    windFarmControl(farm);
+
     // apply the yaw controller
     controlNacYaw(farm);
 
@@ -138,7 +141,7 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
             {
                char error[512];
                sprintf(error, "unknown wind turbine model for turbine %s\n", (*farm->turbineIds[t]).c_str());
-               fatalErrorInFunction("initWindTurbines",  error);
+               fatalErrorInFunction("InitializeWindFarm",  error);
             }
 
             // initialize the tower model
@@ -920,6 +923,101 @@ PetscErrorCode controlNacYaw(farm_ *farm)
     }
 
     MPI_Barrier(mesh->MESH_COMM);
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode windFarmControl(farm_ *farm)
+{
+    mesh_ *mesh = farm->access->mesh;
+
+    // turbine and AD mesh point indices
+    PetscInt t;
+
+    // set physical time clock pointer
+    clock_ *clock = farm->access->clock;
+
+    PetscMPIInt rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // loop over each wind turbine
+    for(t=0; t<farm->size; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        // test if this processor controls this turbine
+        if(wt->turbineControlled)
+        {
+            if(farm->farmControlActive[t])
+            {
+                // get the 2 time values closest to the current time
+                PetscInt idx_1 = wt->currentCloseIdx;
+                PetscInt idx_2 = wt->currentCloseIdx + 1;
+
+                PetscInt lwrBound = 0;
+                PetscInt uprBound = wt->wfControlNData;
+
+                // if past first iteration do the search on a subset to speed up the process
+                if(clock->it > clock->itStart)
+                {
+                    lwrBound = PetscMax(0, (wt->currentCloseIdx - 50));
+                    uprBound = PetscMin(wt->wfControlNData, (wt->currentCloseIdx + 50));
+                }
+
+                // build error vector for the time search
+                PetscReal  diff[wt->wfControlNData];
+
+                for(PetscInt i=lwrBound; i<uprBound; i++)
+                {
+                    diff[i] = fabs(wt->wfControlTimes[i] - clock->time);
+                }
+
+                // find the two closest times
+                for(PetscInt i=lwrBound; i<uprBound; i++)
+                {
+                    if(diff[i] < diff[idx_1])
+                    {
+                        idx_2 = idx_1;
+                        idx_1 = i;
+                    }
+                    if(diff[i] < diff[idx_2] && i != idx_1)
+                    {
+                        idx_2 = i;
+                    }
+                }
+
+                // always put the lower time at idx_1 and higher at idx_2
+                if(wt->wfControlTimes[idx_2] < wt->wfControlTimes[idx_1])
+                {
+                    PetscInt idx_tmp = idx_2;
+                    idx_2 = idx_1;
+                    idx_1 = idx_tmp;
+                }
+
+                // find interpolation weights
+                PetscReal idx = (idx_2 - idx_1) / (wt->wfControlTimes[idx_2] - wt->wfControlTimes[idx_1]) * (clock->time - wt->wfControlTimes[idx_1]) + idx_1;
+                PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+                PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+                // reset the closest index for nex iteration
+                wt->currentCloseIdx = idx_1;
+
+                // these models are controlled by changing the Ct coefficient
+                if((*farm->turbineModels[t]) == "uniformADM" || (*farm->turbineModels[t]) == "AFM")
+                {
+                    // save commanded Ct delta
+                    wt->wfControlCt = w1* wt->wfControlValues[idx_1] + w2 * wt->wfControlValues[idx_2];
+                }
+                // these models are controlled by changing the blade pitch
+                else if ((*farm->turbineModels[t]) == "ADM" || (*farm->turbineModels[t]) == "ALM")
+                {
+                    // save commanded pitch delta
+                    wt->wfControlCollPitch = w1* wt->wfControlValues[idx_1] + w2 * wt->wfControlValues[idx_2];
+                }
+            }
+        }
+    }
+
     return(0);
 }
 
@@ -2764,6 +2862,15 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             // actuator disk model
             if((*farm->turbineModels[t]) == "ADM")
             {
+                // apply wind farm control
+                PetscReal wfControlPitch = 0.0;
+
+                // apply wind farm controller
+                if(farm->farmControlActive[t])
+                {
+                    wfControlPitch = wt->wfControlCollPitch;
+                }
+
                 // zero the rotor torque at this time step
                 wt->adm.rtrTorque = 0.0;
 
@@ -2819,7 +2926,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                         PetscReal ub_y = nDot(wt->adm.U[p], yb_hat);
 
                         // compute angle of angle of attack in degrees: alpha = phi - twist - pitch
-                        wt->adm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->adm.twist[p] - wt->collPitch * wt->rad2deg;
+                        wt->adm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->adm.twist[p] - wt->collPitch * wt->rad2deg - wfControlPitch;
 
                         // The idea is to interpolate the aero coeffs for the computed
                         // angle of attack, but the airfoils are discrete in radius.
@@ -2927,6 +3034,12 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                 // get thrust coefficient
                 PetscReal Ct_t = wt->uadm.Ct;
 
+                // apply wind farm controller
+                if(farm->farmControlActive[t])
+                {
+                    Ct_t += wt->wfControlCt;
+                }
+
                 // get induction factor
                 PetscReal a_t = wt->uadm.axiInd;
 
@@ -2970,6 +3083,15 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
             {
+                // apply wind farm control
+                PetscReal wfControlPitch = 0.0;
+
+                // apply wind farm controller
+                if(farm->farmControlActive[t])
+                {
+                    wfControlPitch = wt->wfControlCollPitch;
+                }
+
                 // zero the rotor torque at this time step
                 wt->alm.rtrTorque = 0.0;
 
@@ -3025,7 +3147,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                         PetscReal ub_y = nDot(wt->alm.U[p], yb_hat);
 
                         // compute angle of angle of attack in degrees: alpha = phi - twist - pitch
-                        wt->alm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->alm.twist[p] - wt->collPitch * wt->rad2deg;
+                        wt->alm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->alm.twist[p] - wt->collPitch * wt->rad2deg - wfControlPitch;
 
                         // The idea is to interpolate the aero coeffs for the computed
                         // angle of attack, but the airfoils are discrete in radius.
@@ -3130,19 +3252,24 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
-                PetscReal a_t, Uref, bMag;
+                PetscReal a_t, Uref, bMag, Ct_t = wt->afm.Ct;
+
+                if(farm->farmControlActive[t])
+                {
+                    Ct_t += wt->wfControlCt;
+                }
 
                 // reference velocity is extrapolated using induction coefficient - Ct relation
                 if(wt->afm.sampleType == "momentumTheory")
                 {
                     // compute induction factor
-                    a_t     = (1.0 - std::sqrt(1.0 - wt->afm.Ct)) / 2.0;
+                    a_t     = (1.0 - std::sqrt(1.0 - Ct_t)) / 2.0;
 
                     // compute freestream velocity
                     Uref  = nMag(wt->afm.U) / (1.0 - a_t);
 
                     // compute body force
-                    bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * wt->afm.Ct;
+                    bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
                 }
                 // disk based Ct is used
                 else if(wt->afm.sampleType == "rotorDisk" || wt->afm.sampleType == "integral")
@@ -3151,7 +3278,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                     Uref  = nMag(wt->afm.U);
 
                     // compute body force
-                    bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * wt->afm.Ct;
+                    bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
 
                     // compute induction factor (zero so that power is correct bcs Uref is already at disk)
                     a_t = 0.0;
@@ -6839,6 +6966,7 @@ PetscErrorCode readFarmProperties(farm_ *farm)
     //     turbineType         NREL5MW
     //     turbineModel        ADM
     //     base                (5.0191 0.0 -90.0)
+    //     windFarmController  1
     // }
     //
     // If grid we still have to implement it.
@@ -6922,6 +7050,12 @@ PetscErrorCode readFarmProperties(farm_ *farm)
 
         // read turbine properties
         readTurbineProperties(farm->wt[t], descrFile.c_str(), mesh->meshName, (*farm->turbineModels[t]));
+
+        // read wind farm control table for this wind turbine
+        if(farm->farmControlActive[t])
+        {
+            readWindFarmControlTable(farm->wt[t]);
+        }
     }
 
     // set CFL checking flag to zero
@@ -6944,13 +7078,15 @@ PetscErrorCode readTurbineArray(farm_ *farm)
     std::vector<std::string>   turbineIds;
     std::vector<std::string>   turbineModels;
     std::vector<Cmpnts>        base;
+    std::vector<PetscInt>      windFarmController;
 
     std::string turbineTypes_i,
                 turbineIds_i,
                 turbineModels_i;
     Cmpnts      base_i;
+    PetscInt    controller_i;
 
-    PetscInt         nturbines = 0;
+    PetscInt    nturbines = 0;
 
     // pointer for strtod and strtol
     char        *eptr;
@@ -7020,7 +7156,8 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                                 PetscMalloc(nturbines*sizeof(std::string*), &(farm->turbineTypes));
                                 PetscMalloc(nturbines*sizeof(std::string*), &(farm->turbineIds));
                                 PetscMalloc(nturbines*sizeof(std::string*), &(farm->turbineModels));
-                                PetscMalloc(nturbines*sizeof(Cmpnts), &(farm->base));
+                                PetscMalloc(nturbines*sizeof(Cmpnts),  &(farm->base));
+                                PetscMalloc(nturbines*sizeof(PetscInt),&(farm->farmControlActive));
 
                                 // base locations
                                 for(PetscInt p=0; p<nturbines; p++)
@@ -7039,6 +7176,8 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                                     farm->base[p].x = base[p].x;
                                     farm->base[p].y = base[p].y;
                                     farm->base[p].z = base[p].z;
+
+                                    farm->farmControlActive[p] = windFarmController[p];
                                 }
 
                                 // wind farm size
@@ -7199,30 +7338,46 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                                                // save the base location
                                                base.push_back(base_i);
 
-
-                                               // increate turbine counter
-                                               nturbines++;
-
-                                               // read the closing ')'
+                                               // read windFarmController keyword
                                                indata >> word;
                                                token = word;
-                                               if(trim(token)!=")")
+                                               if(trim(token)=="windFarmController")
                                                {
-                                                  char error[512];
-                                                   sprintf(error, "expected <)>  at end of subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
+                                                   // read wether controller is active or not
+                                                   indata >> word;
+                                                   controller_i = (PetscInt)std::strtol(word, &eptr, 10);
+                                                   windFarmController.push_back(controller_i);
+
+                                                   // increase turbine counter
+                                                   nturbines++;
+
+                                                   // read the closing ')'
+                                                   indata >> word;
+                                                   token = word;
+                                                   if(trim(token)!=")")
+                                                   {
+                                                       char error[512];
+                                                       sprintf(error, "expected <)>  at end of subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
+                                                       fatalErrorInFunction("readTurbineArray",  error);
+                                                   }
+                                               }
+                                               else
+                                               {
+                                                   char error[512];
+                                                   sprintf(error, "expected windFarmController keyword after %s in subdictionary %s of %s dictionary, found '%s'\n", last.c_str(), turbineIds_i.c_str(), dictName.c_str(), word);
                                                    fatalErrorInFunction("readTurbineArray",  error);
                                                }
                                            }
                                            else
                                            {
-                                              char error[512];
+                                               char error[512];
                                                sprintf(error, "expected <(>  after vector defined by keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                                fatalErrorInFunction("readTurbineArray",  error);
                                            }
                                        }
                                        else
                                        {
-                                          char error[512];
+                                           char error[512];
                                            sprintf(error, "expected <(>  after keyword baseLocation in subdictionary %s of %s dictionary, found '%s'\n", turbineIds_i.c_str(), dictName.c_str(), word);
                                            fatalErrorInFunction("readTurbineArray",  error);
                                        }
@@ -7231,7 +7386,7 @@ PetscErrorCode readTurbineArray(farm_ *farm)
                                     }
                                     else
                                     {
-                                       char error[512];
+                                        char error[512];
                                         sprintf(error, "expected turbineModel keyword after %s in subdictionary %s of %s dictionary, found '%s'\n", turbineModels_i.c_str(), turbineIds_i.c_str(), dictName.c_str(), word);
                                         fatalErrorInFunction("readTurbineArray",  error);
                                     }
@@ -8194,6 +8349,101 @@ PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName
        char error[512];
         sprintf(error, "unknown yaw sampleType %s. Known types are hubUpDistance and anemometer", wt->yawSamplingType.c_str());
         fatalErrorInFunction("readYawControllerParameters",  error);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readWindFarmControlTable(windTurbine *wt)
+{
+    word tableName = "turbines/control/" + wt->id;
+
+    std::vector<std::vector<PetscReal>> table;
+
+    // open file stream
+    std::ifstream indata;
+    indata.open(tableName);
+
+    // word by word read
+    char word[256];
+
+    // buffer for read data
+    PetscReal buffer;
+
+    // time counter
+    PetscInt ntimes;
+
+    if(!indata)
+    {
+        char error[512];
+        sprintf(error, "cannot open file %s\n", tableName.c_str());
+        fatalErrorInFunction("readWindFarmControlTable",  error);
+    }
+    else
+    {
+        std::string tmpStr;
+
+        // read lines and get number of saved times
+        ntimes = 0;
+        for (int t = 0; std::getline(indata, tmpStr); t++)
+        {
+            if (!tmpStr.empty())
+            {
+                ntimes++;
+            }
+        }
+
+        // first line is header
+        ntimes--;
+
+        // save the number of times
+        wt->wfControlNData  = ntimes;
+        wt->currentCloseIdx = 0;
+
+        // go back on top of file
+        indata.close();
+        indata.open(tableName);
+
+        // skip header line
+        std::getline(indata, tmpStr);
+
+        // resize the source table
+        table.resize(ntimes);
+
+        for(PetscInt t=0; t<ntimes; t++)
+        {
+            // read along the line: time | value
+            for(PetscInt i=0; i<2; i++)
+            {
+                table[t].resize(2);
+
+                indata >> word;
+                std::sscanf(word, "%lf", &buffer);
+
+                table[t][i] = buffer;
+            }
+
+        }
+
+        indata.close();
+    }
+
+    // now store the source  and free the temporary variable
+    PetscMalloc(sizeof(PetscReal) * ntimes, &(wt->wfControlTimes));
+    PetscMalloc(sizeof(PetscReal) * ntimes, &(wt->wfControlValues));
+
+    for(PetscInt t=0; t<ntimes; t++)
+    {
+        wt->wfControlTimes[t]  = table[t][0];
+        wt->wfControlValues[t] = table[t][1];
+    }
+
+    // clean the temporary variables
+    for(PetscInt t=0; t<ntimes; t++)
+    {
+        std::vector<PetscReal> ().swap(table[t]);
     }
 
     return(0);

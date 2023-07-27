@@ -21,5 +21,6 @@ turbineArray
         turbineType         NREL5MW
         turbineModel        ADM
         baseLocation        (250.0 100.0 0.0)
+        windFarmController  0
     )
 }

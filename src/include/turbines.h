@@ -385,6 +385,14 @@ typedef struct
     cellIds         yawSampleIds;   //!< ids of the point where the velocity for misalignment computation must be sampled
     PetscInt          yawChanged;   //!< flag telling if must do the search on the turbine points due to yaw change
 
+    // wind farm controller
+    PetscReal wfControlCollPitch;   //!< delta pitch proscribed by wind farm controller (ADM and ALM)
+    PetscReal        wfControlCt;   //!< delta Ct prescribed by wind farm controller (uniformADM, AFM)
+    PetscInt      wfControlNData;   //!< number of entries in the control table
+    PetscReal    *wfControlTimes;   //!< time from wind farm controller table
+    PetscReal   *wfControlValues;   //!< values of wind farm controller variables (changes based on turbine model)
+    PetscInt     currentCloseIdx;   //!< save the current closest index at each iteration to speed up the interpolation search
+
     // numerical parameters
     cellIds     *controlledCells;   //!< labels of the background mesh cells influenced by this turbine in this processor
     PetscInt         nControlled;   //!< size of controlledCells
@@ -406,6 +414,7 @@ struct farm_
     word                    name;   //!< wind farm name
     PetscInt                size;   //!< number of turbines in the farm
     Cmpnts                 *base;   //!< base coordinates of each turbine
+    PetscInt  *farmControlActive;   //!< wind farm controller active flag on each wind turbine
 
     word          **turbineTypes;   //!< array of pointers to type of the wind turbines in the farm
     word            **turbineIds;   //!< array of pointers to ID of the wind turbines in the farm
@@ -461,6 +470,9 @@ PetscErrorCode controlBldPitch(farm_ *farm);
 
 //! \brief Compute nacelle yaw
 PetscErrorCode controlNacYaw(farm_ *farm);
+
+//! \brief Compute wind turbine control based on wind farm controller
+PetscErrorCode windFarmControl(farm_ *farm);
 
 //! \brief Discrimination algorithm: find out which points of each rotor are controlled by this processor
 PetscErrorCode findControlledPointsRotor(farm_ *farm);
@@ -599,3 +611,6 @@ PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictNa
 
 //! \brief Reads nacelle yaw controller parameters
 PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
+
+//! \brief Read wind farm controller table (1 header and time - value list)
+PetscErrorCode readWindFarmControlTable(windTurbine *wt);
