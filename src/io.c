@@ -2674,6 +2674,27 @@ void createDir(MPI_Comm comm, const char* path)
 
 //***************************************************************************************************************//
 
+void createDirNoRemove(MPI_Comm comm, const char* path)
+{
+    PetscMPIInt  rank; MPI_Comm_rank(comm, &rank);
+
+    errno = 0;
+
+    if(!rank)
+    {
+      PetscInt dirRes = mkdir(path, 0777);
+      if(dirRes != 0 && errno != EEXIST)
+      {
+         char error[512];
+          sprintf(error, "could not create %s directory\n", path);
+          fatalErrorInFunction("createDir",  error);
+      }
+    }
+    return;
+}
+
+//***************************************************************************************************************//
+
 word thisCaseName()
 {
     word caseName;

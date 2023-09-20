@@ -75,8 +75,11 @@ PetscInt dir_exist(const char *str);
 //! \brief Count number of files
 PetscInt count_files(const char* path);
 
-//! \brief Created directory
+//! \brief Creat directory (remove stuff it exists)
 void createDir(MPI_Comm comm, const char* path);
+
+//! \brief Creat directory (leave stuff it exists)
+void createDirNoRemove(MPI_Comm comm, const char* path);
 
 //! \brief Removes directory
 void remove_dir(MPI_Comm comm, const char *path2dir);

@@ -8433,11 +8433,16 @@ PetscErrorCode readWindFarmControlTable(windTurbine *wt)
     // now store the source  and free the temporary variable
     PetscMalloc(sizeof(PetscReal) * ntimes, &(wt->wfControlTimes));
     PetscMalloc(sizeof(PetscReal) * ntimes, &(wt->wfControlValues));
+	
+	// hard-coded difference between the sim. start and control action start 
+	PetscReal initialShift = 100000;
 
     for(PetscInt t=0; t<ntimes; t++)
     {
-        wt->wfControlTimes[t]  = table[t][0];
+        wt->wfControlTimes[t]  = table[t][0] + initialShift;
         wt->wfControlValues[t] = table[t][1];
+		
+		//printf("time %.1f, ct: %.5f\n", wt->wfControlTimes[t], wt->wfControlValues[t]);
     }
 
     // clean the temporary variables

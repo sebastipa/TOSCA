@@ -26,17 +26,26 @@ PetscErrorCode binary3DToXMF(domain_ *domain, postProcess *pp);
 //! \brief Reads binary i-section data and writes paraview data into XMF folder
 PetscErrorCode binaryISectionsToXMF(domain_ *domain);
 
+//! \brief Reads i-section data from average fields and writes paraview data into XMF folder
+PetscErrorCode fieldISectionsToXMF(domain_ *domain);
+
 //! \brief Reads binary i-section pertirbation data and writes paraview data into XMF folder
 PetscErrorCode binaryISectionsPerturbToXMF(domain_ *domain);
 
 //! \brief Reads binary j-section data and writes paraview data into XMF folder
 PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp);
 
+//! \brief Reads j-section data from average fields and writes paraview data into XMF folder
+PetscErrorCode fieldJSectionsToXMF(domain_ *domain);
+
 //! \brief Reads binary j-section perturbation data and writes paraview data into XMF folder
 PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp);
 
 //! \brief Reads binary k-section data and writes paraview data into XMF folder
 PetscErrorCode binaryKSectionsToXMF(domain_ *domain);
+
+//! \brief Reads k-section data from average fields and writes paraview data into XMF folder
+PetscErrorCode fieldKSectionsToXMF(domain_ *domain);
 
 //! \brief Reads binary k-section perturbation data and writes paraview data into XMF folder
 PetscErrorCode binaryKSectionsPerturbToXMF(domain_ *domain);
@@ -56,19 +65,28 @@ PetscErrorCode getTimeList(const char* dataLoc, std::vector<PetscReal> &timeSeri
 //! \brief Reads i,j,k - sections info and allocates moemry. Some info are not necessary thus not read.
 PetscErrorCode sectionsReadAndAllocate(domain_ *domain);
 
+//! Generate the section on-the-fly in the post processing phase (for average fields that only have to be done at the end)
+PetscErrorCode kSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
+PetscErrorCode kSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
+
 //! \briefReads from k-slices time series and loads the velocity, temperature and nut planes. Important: assumes T and nut databases have the same times of U.
 PetscErrorCode kSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
-
 PetscErrorCode kSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 
-// //! \briefReads from i-slices time series and loads the velocity, temperature and nut planes. Important: assumes T and nut databases have the same times of U.
-PetscErrorCode iSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time);
+//! Generate the section on-the-fly in the post processing phase (for average fields that only have to be done at the end)
+PetscErrorCode iSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time);
+PetscErrorCode iSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time);
 
+//! \briefReads from i-slices time series and loads the velocity, temperature and nut planes. Important: assumes T and nut databases have the same times of U.
+PetscErrorCode iSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time);
 PetscErrorCode iSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time);
+
+//! Generate the section on-the-fly in the post processing phase (for average fields that only have to be done at the end)
+PetscErrorCode jSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time);
+PetscErrorCode jSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time);
 
 //! \briefReads from j-slices time series and loads the velocity, temperature and nut planes. Important: assumes T and nut databases have the same times of U.
 PetscErrorCode jSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time);
-
 PetscErrorCode jSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time);
 
 

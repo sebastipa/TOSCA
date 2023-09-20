@@ -113,6 +113,11 @@ int main(int argc, char **argv)
       binaryJSectionsPerturbToXMF(domain, &pp);
       binaryISectionsPerturbToXMF(domain);
 
+      // on-the-fly read and cut sections from average fields 
+      fieldKSectionsToXMF(domain);
+      fieldJSectionsToXMF(domain);
+      fieldISectionsToXMF(domain);
+
   }
 
     PetscTime(&ppTimeEnd);
@@ -2754,6 +2759,8 @@ PetscErrorCode writeJSectionToRaster
     return(0);
 }
 
+//***************************************************************************************************************//
+
 PetscErrorCode kSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time)
 {
     clock_             *clock = mesh->access->clock;
@@ -2794,52 +2801,6 @@ PetscErrorCode kSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt kplane, c
     {
         PetscInt err;
         err = fread(&(sec->vectorSec[j][0]), sizeof(Cmpnts), mx, fp);
-    }
-    fclose(fp);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode kSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time)
-{
-    clock_             *clock = mesh->access->clock;
-    DMDALocalInfo      info = mesh->info;
-    PetscInt           mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt           i, j, k;
-
-    std::stringstream stream;
-    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
-
-    // set to zero
-    for( j=0; j<my; j++)
-    {
-        for(i=0; i<mx; i++)
-        {
-            sec->scalarSec[j][i] = 0;
-        }
-    }
-
-    // get the file name to read
-    word fname;
-    fname = "./postProcessing/" + mesh->meshName + "/kSurfaces/" + std::to_string(kplane) + "/" + fieldName + "/" + stream.str();
-
-    // open the file and read
-    FILE *fp = fopen(fname.c_str(), "rb");
-
-    if(!fp)
-    {
-       char error[512];
-        sprintf(error, "cannot open file: %s\n", fname.c_str());
-        fatalErrorInFunction("kSectionLoadScalar",  error);
-    }
-
-    for(j=0; j<my; j++)
-    {
-        PetscInt err;
-        err = fread(&(sec->scalarSec[j][0]), sizeof(PetscReal), mx, fp);
     }
     fclose(fp);
 
@@ -2897,52 +2858,6 @@ PetscErrorCode jSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt jplane, c
 
 //***************************************************************************************************************//
 
-PetscErrorCode jSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time)
-{
-    clock_             *clock = mesh->access->clock;
-    DMDALocalInfo      info = mesh->info;
-    PetscInt           mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt           i, j, k;
-
-    std::stringstream stream;
-    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
-
-    // set to zero
-    for( k=0; k<mz; k++)
-    {
-        for(i=0; i<mx; i++)
-        {
-            sec->scalarSec[k][i] = 0;
-        }
-    }
-
-    // get the file name to read
-    word fname;
-    fname = "./postProcessing/" + mesh->meshName + "/jSurfaces/" + std::to_string(jplane) + "/" + fieldName + "/" + stream.str();
-
-    // open the file and read
-    FILE *fp = fopen(fname.c_str(), "rb");
-
-    if(!fp)
-    {
-       char error[512];
-        sprintf(error, "cannot open file: %s\n", fname.c_str());
-        fatalErrorInFunction("jSectionLoadScalar",  error);
-    }
-
-    for(k=0; k<mz; k++)
-    {
-        PetscInt err;
-        err = fread(&(sec->scalarSec[k][0]), sizeof(PetscReal), mx, fp);
-    }
-    fclose(fp);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
 PetscErrorCode iSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time)
 {
     clock_             *clock = mesh->access->clock;
@@ -2985,6 +2900,377 @@ PetscErrorCode iSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt iplane, c
         err = fread(&(sec->vectorSec[k][0]), sizeof(Cmpnts), my, fp);
     }
 
+    fclose(fp);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode kSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscMPIInt        rank;
+
+    Cmpnts             ***v;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // get the file name to read
+    word fname;
+    fname = "./fields/" + mesh->meshName + "/" + stream.str() + "/" + fieldName;
+
+    // read field
+    PetscPrintf(mesh->MESH_COMM, " > %s\n", fieldName.c_str());
+
+    PetscViewer  viewer;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fname.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(V,viewer);
+    PetscViewerDestroy(&viewer);
+
+    // set to zero
+    for(j=0; j<my; j++)
+    {
+        for(i=0; i<mx; i++)
+        {
+            sec->vectorSec[j][i].x = 0;
+            sec->vectorSec[j][i].y = 0;
+            sec->vectorSec[j][i].z = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->fda, V, &v);
+
+    if(kplane>=zs && kplane<ze)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                mSet(sec->vectorSec[j][i], v[kplane][j][i]);
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->fda, V, &v);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    if(!rank)
+    {
+        for(j=0; j<my; j++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, sec->vectorSec[j], mx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(j=0; j<my; j++)
+        {
+            MPI_Reduce(sec->vectorSec[j], sec->vectorSec[j], mx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions are average fields are only defined internally
+    if(!rank)
+    {
+        for (j=0; j<my; j++)
+        {
+            mSet(sec->vectorSec[j][0],    sec->vectorSec[j][1]);
+            mSet(sec->vectorSec[j][mx-1], sec->vectorSec[j][mx-2]);
+        }
+        for (i=0; i<mx; i++)
+        {
+            mSet(sec->vectorSec[0][i],    sec->vectorSec[1][i]);
+            mSet(sec->vectorSec[my-1][i], sec->vectorSec[my-2][i]);
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode jSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscMPIInt        rank;
+
+    Cmpnts             ***v;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // get the file name to read
+    word fname;
+    fname = "./fields/" + mesh->meshName + "/" + stream.str() + "/" + fieldName;
+
+    // read field
+    PetscPrintf(mesh->MESH_COMM, " > %s\n", fieldName.c_str());
+
+    PetscViewer  viewer;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fname.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(V,viewer);
+    PetscViewerDestroy(&viewer);
+
+    // set to zero
+    for( k=0; k<mz; k++)
+    {
+        for(i=0; i<mx; i++)
+        {
+          sec->vectorSec[k][i].x = 0;
+          sec->vectorSec[k][i].y = 0;
+          sec->vectorSec[k][i].z = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->fda, V, &v);
+
+    if(jplane>=ys && jplane<ye)
+    {
+        for (k=zs; k<ze; k++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                mSet(sec->vectorSec[k][i], v[k][jplane][i]);
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->fda, V, &v);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    if(!rank)
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, sec->vectorSec[k], mx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(sec->vectorSec[k], sec->vectorSec[k], mx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions are average fields are only defined internally
+    if(!rank)
+    {
+        for (k=0; k<mz; k++)
+        {
+            mSet(sec->vectorSec[k][0],    sec->vectorSec[k][1]);
+            mSet(sec->vectorSec[k][mx-1], sec->vectorSec[k][mx-2]);
+        }
+        for (i=0; i<mx; i++)
+        {
+            mSet(sec->vectorSec[0][i],    sec->vectorSec[1][i]);
+            mSet(sec->vectorSec[mz-1][i], sec->vectorSec[mz-2][i]);
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode iSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscMPIInt        rank;
+
+    Cmpnts             ***v;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // get the file name to read
+    word fname;
+    fname = "./fields/" + mesh->meshName + "/" + stream.str() + "/" + fieldName;
+
+    // read field
+    PetscPrintf(mesh->MESH_COMM, " > %s\n", fieldName.c_str());
+
+    PetscViewer  viewer;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fname.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(V,viewer);
+    PetscViewerDestroy(&viewer);
+
+    // set to zero
+    for(k=0; k<mz; k++)
+    {
+        for(j=0; j<my; j++)
+        {
+            sec->vectorSec[k][j].x = 0;
+            sec->vectorSec[k][j].y = 0;
+            sec->vectorSec[k][j].z = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->fda, V, &v);
+
+    if(iplane>=xs && iplane<xe)
+    {
+        for (k=zs; k<ze; k++)
+        {
+            for (j=ys; j<ye; j++)
+            {
+                mSet(sec->vectorSec[k][j], v[k][j][iplane]);
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->fda, V, &v);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    if(!rank)
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, sec->vectorSec[k], my*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(sec->vectorSec[k], sec->vectorSec[k], my*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions are average fields are only defined internally
+    if(!rank)
+    {
+        for (k=0; k<mz; k++)
+        {
+            mSet(sec->vectorSec[k][0],    sec->vectorSec[k][1]);
+            mSet(sec->vectorSec[k][my-1], sec->vectorSec[k][my-2]);
+        }
+        for (j=0; j<my; j++)
+        {
+            mSet(sec->vectorSec[0][j],    sec->vectorSec[1][j]);
+            mSet(sec->vectorSec[mz-1][j], sec->vectorSec[mz-2][j]);
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode kSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // set to zero
+    for( j=0; j<my; j++)
+    {
+        for(i=0; i<mx; i++)
+        {
+            sec->scalarSec[j][i] = 0;
+        }
+    }
+
+    // get the file name to read
+    word fname;
+    fname = "./postProcessing/" + mesh->meshName + "/kSurfaces/" + std::to_string(kplane) + "/" + fieldName + "/" + stream.str();
+
+    // open the file and read
+    FILE *fp = fopen(fname.c_str(), "rb");
+
+    if(!fp)
+    {
+       char error[512];
+        sprintf(error, "cannot open file: %s\n", fname.c_str());
+        fatalErrorInFunction("kSectionLoadScalar",  error);
+    }
+
+    for(j=0; j<my; j++)
+    {
+        PetscInt err;
+        err = fread(&(sec->scalarSec[j][0]), sizeof(PetscReal), mx, fp);
+    }
+    fclose(fp);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode jSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // set to zero
+    for( k=0; k<mz; k++)
+    {
+        for(i=0; i<mx; i++)
+        {
+            sec->scalarSec[k][i] = 0;
+        }
+    }
+
+    // get the file name to read
+    word fname;
+    fname = "./postProcessing/" + mesh->meshName + "/jSurfaces/" + std::to_string(jplane) + "/" + fieldName + "/" + stream.str();
+
+    // open the file and read
+    FILE *fp = fopen(fname.c_str(), "rb");
+
+    if(!fp)
+    {
+       char error[512];
+        sprintf(error, "cannot open file: %s\n", fname.c_str());
+        fatalErrorInFunction("jSectionLoadScalar",  error);
+    }
+
+    for(k=0; k<mz; k++)
+    {
+        PetscInt err;
+        err = fread(&(sec->scalarSec[k][0]), sizeof(PetscReal), mx, fp);
+    }
     fclose(fp);
 
     return(0);
@@ -3038,6 +3324,279 @@ PetscErrorCode iSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt iplane, c
 
 //***************************************************************************************************************//
 
+PetscErrorCode kSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscMPIInt        rank;
+
+    PetscReal          ***v;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // get the file name to read
+    word fname;
+    fname = "./fields/" + mesh->meshName + "/" + stream.str() + "/" + fieldName;
+
+    // read field
+    PetscPrintf(mesh->MESH_COMM, " > %s\n", fieldName.c_str());
+
+    PetscViewer  viewer;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fname.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(V,viewer);
+    PetscViewerDestroy(&viewer);
+
+    // set to zero
+    for(j=0; j<my; j++)
+    {
+        for(i=0; i<mx; i++)
+        {
+            sec->scalarSec[j][i] = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->da, V, &v);
+
+    if(kplane>=zs && kplane<ze)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                sec->scalarSec[j][i] = v[kplane][j][i];
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->da, V, &v);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    if(!rank)
+    {
+        for(j=0; j<my; j++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, sec->scalarSec[j], mx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(j=0; j<my; j++)
+        {
+            MPI_Reduce(sec->scalarSec[j], sec->scalarSec[j], mx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions are average fields are only defined internally
+    if(!rank)
+    {
+        for (j=0; j<my; j++)
+        {
+            sec->scalarSec[j][0]    = sec->scalarSec[j][1];
+            sec->scalarSec[j][mx-1] = sec->scalarSec[j][mx-2];
+        }
+        for (i=0; i<mx; i++)
+        {
+            sec->scalarSec[0][i]     = sec->scalarSec[1][i];
+            sec->scalarSec[my-1][i]  = sec->scalarSec[my-2][i];
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode jSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscMPIInt        rank;
+
+    PetscReal          ***v;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // get the file name to read
+    word fname;
+    fname = "./fields/" + mesh->meshName + "/" + stream.str() + "/" + fieldName;
+
+    // read field
+    PetscPrintf(mesh->MESH_COMM, " > %s\n", fieldName.c_str());
+
+    PetscViewer  viewer;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fname.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(V,viewer);
+    PetscViewerDestroy(&viewer);
+
+    // set to zero
+    for( k=0; k<mz; k++)
+    {
+        for(i=0; i<mx; i++)
+        {
+          sec->scalarSec[k][i] = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->da, V, &v);
+
+    if(jplane>=ys && jplane<ye)
+    {
+        for (k=zs; k<ze; k++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                sec->scalarSec[k][i] = v[k][jplane][i];
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->da, V, &v);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    if(!rank)
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, sec->scalarSec[k], mx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(sec->scalarSec[k], sec->scalarSec[k], mx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions are average fields are only defined internally
+    if(!rank)
+    {
+        for (k=0; k<mz; k++)
+        {
+            sec->scalarSec[k][0]     = sec->scalarSec[k][1];
+            sec->scalarSec[k][mx-1]  = sec->scalarSec[k][mx-2];
+        }
+        for (i=0; i<mx; i++)
+        {
+            sec->scalarSec[0][i]     = sec->scalarSec[1][i];
+            sec->scalarSec[mz-1][i]  = sec->scalarSec[mz-2][i];
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode iSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscMPIInt        rank;
+
+    PetscReal          ***v;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // get the file name to read
+    word fname;
+    fname = "./fields/" + mesh->meshName + "/" + stream.str() + "/" + fieldName;
+
+    // read field
+    PetscPrintf(mesh->MESH_COMM, " > %s\n", fieldName.c_str());
+
+    PetscViewer  viewer;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fname.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(V,viewer);
+    PetscViewerDestroy(&viewer);
+
+    // set to zero
+    for(k=0; k<mz; k++)
+    {
+        for(j=0; j<my; j++)
+        {
+            sec->scalarSec[k][j] = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->da, V, &v);
+
+    if(iplane>=xs && iplane<xe)
+    {
+        for (k=zs; k<ze; k++)
+        {
+            for (j=ys; j<ye; j++)
+            {
+                sec->scalarSec[k][j] = v[k][j][iplane];
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->da, V, &v);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    if(!rank)
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, sec->scalarSec[k], my, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(sec->scalarSec[k], sec->scalarSec[k], my, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions are average fields are only defined internally
+    if(!rank)
+    {
+        for (k=0; k<mz; k++)
+        {
+            sec->scalarSec[k][0]    = sec->scalarSec[k][1];
+            sec->scalarSec[k][my-1] = sec->scalarSec[k][my-2];
+        }
+        for (j=0; j<my; j++)
+        {
+            sec->scalarSec[0][j]    = sec->scalarSec[1][j];
+            sec->scalarSec[mz-1][j] = sec->scalarSec[mz-2][j];
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode getIndexList(const char* dataLoc, std::vector<PetscInt> &indexSeries, PetscInt &ntimes)
 {
     // get file names inside path
@@ -3077,7 +3636,7 @@ PetscErrorCode getIndexList(const char* dataLoc, std::vector<PetscInt> &indexSer
     {
        char error[512];
         sprintf(error, "could not access %s directory\n", dataLoc);
-        fatalErrorInFunction("getTimeList", error);
+        fatalErrorInFunction("getIndexList", error);
     }
 
     // sort the timeSeries
@@ -3147,7 +3706,7 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
             PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
                 fatalErrorInFunction("binary3DToXMF",  error);
             }
@@ -3170,6 +3729,15 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
 
                 // get list of available times
                 word path2times = "./postProcessing/" + mesh->meshName + "/kSurfaces/" + std::to_string(kplane) + "/U" ;
+
+                // see if can access the directory (shouldn't give error
+                // as samplig/kSection could have been created just for averages)
+                DIR* dir;
+                if ((dir = opendir(path2times.c_str())) == nullptr)
+                {
+                    PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+                    return(0);
+                }
 
                 std::vector<PetscReal>      timeSeries;
                 PetscInt                      ntimes;
@@ -3404,6 +3972,231 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
 
 //***************************************************************************************************************//
 
+PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
+{
+    PetscInt  nDomains = domain[0].info.nDomains;
+    word      meshDir, sectionDir, indexDir;
+
+    for(PetscInt d=0; d<nDomains; d++)
+    {
+        flags_    flags    = domain[d].flags;
+        io_       *io      = domain[d].io;
+
+        if(flags.isAquisitionActive && io->averaging)
+        {
+            // get pointers
+            clock_ *clock = domain[d].clock;
+            mesh_  *mesh  = domain[d].mesh;
+
+            acquisition_ *acquisition = domain[d].acquisition;
+
+            ueqn_  *ueqn  = domain[d].ueqn;
+            peqn_  *peqn  = domain[d].peqn;
+            teqn_  *teqn;
+            les_   *les;
+
+            if(flags.isTeqnActive) teqn = domain[d].teqn;
+            if(flags.isLesActive)  les  = domain[d].les;
+
+            DMDALocalInfo info = mesh->info;
+            PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+            PetscMPIInt           rank;
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+            word fieldsFileName;
+            FILE *xmf;
+
+            meshDir     = "./XMF/" + mesh->meshName;
+
+            // create domain directory within XMF folder
+            errno = 0;
+            PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
+            if(dirRes != 0 && errno != EEXIST)
+            {
+              char error[512];
+              sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
+              fatalErrorInFunction("binaryJSectionsToXMF",  error);
+            }
+
+            if(acquisition->kSections->available)
+            {
+                PetscPrintf(mesh->MESH_COMM, "On-the-fly k-sections extraction for mesh: %s...\n", mesh->meshName.c_str());
+                sections *kSections = acquisition->kSections;
+
+                // create jSections folder
+                sectionDir = "./XMF/" + mesh->meshName + "/kSections";
+                createDirNoRemove(mesh->MESH_COMM, sectionDir.c_str());
+
+                for(PetscInt k=0; k<kSections->nSections; k++)
+                {
+                  PetscInt kplane = kSections->indices[k];
+
+                  // exclude ghost nodes
+                  if (kplane<1 || kplane>mz-2) continue;
+
+                  // get list of available times
+                  word path2times = "./fields/";
+
+                  std::vector<PetscReal>        timeSeries;
+                  PetscInt                      ntimes;
+                  getTimeList(path2times.c_str(), timeSeries, ntimes);
+
+                  if(!rank)
+                  {
+                    //create the k index folder
+                    indexDir = sectionDir + "/" + std::to_string(kplane);
+                    createDirNoRemove(mesh->MESH_COMM, indexDir.c_str());
+
+                    // create XMF file
+                    fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_kSec" + std::to_string(kplane) + "_averages.xmf";
+
+                    // write XMF file intro
+                    xmf = fopen(fieldsFileName.c_str(), "w");
+                    fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                    fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                    fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                    fprintf(xmf, " <Domain>\n");
+                    fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                    fclose(xmf);
+                  }
+
+                  // now we get only the last time (the meaningful one)
+
+                  // HDF5 file with path
+                  word fileName;
+
+                  // HDF5 file w/o path
+                  word hdfileName;
+
+                  // set time precision
+                  std::stringstream stream;
+                  stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ntimes-1];
+
+                  fileName   = indexDir + "/" + thisCaseName() + "_" + "kSec" + std::to_string(kplane) + "_averages_" + stream.str();
+                  hdfileName = thisCaseName() + "_" + "kSec" + std::to_string(kplane) + "_averages_" + stream.str();
+
+                  // open this time section in the XMF file
+                  if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, my-1, 1, "3DSMesh", timeSeries[ntimes-1]);
+
+                  // Write the data file.
+                  hid_t     dataspace_id;
+                  hsize_t   dims[3];
+                  herr_t    status;
+
+                  // write HDF file
+                  hid_t	file_id;
+                  if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+                  // ************************** write mesh points **************************
+                  dims[0] = 1;
+                  dims[1]	= my - 1;
+                  dims[2]	= mx - 1;
+
+                  if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                  writeKSectionPointsToXMF
+                  (
+                      mesh,
+                      fieldsFileName.c_str(),
+                      hdfileName.c_str(),
+                      &file_id,
+                      &dataspace_id,
+                      timeSeries[ntimes-1],
+                      kplane
+                  );
+
+                  if(!rank) status = H5Sclose(dataspace_id);
+                  if(!rank) status = H5Fclose(file_id);
+
+                  // load average velocity
+                  kSectionLoadVectorFromField(acquisition->fields->avgU, mesh, kSections, kplane, "avgU", timeSeries[ntimes-1]);
+
+                  if(!rank)
+                  {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeKSectionVectorToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ntimes-1],
+                          "avgU",
+                          kSections->vectorSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                  }
+
+                  /*
+                  // load pressure
+                  kSectionLoadScalar(mesh, kSections, kplane, "p", timeSeries[ntimes-1]);
+
+                  if(!rank)
+                  {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeISectionScalarToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ntimes-1],
+                          "p",
+                          kSections->scalarSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                  }*/
+
+                  // load nut
+                  if(flags.isLesActive)
+                  {
+
+                  }
+
+                  // load temperature
+                  if(flags.isTeqnActive)
+                  {
+
+                  }
+
+                  // close this time section in the XMF file
+                  if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+
+                  // wait all processes
+                  MPI_Barrier(mesh->MESH_COMM);
+                }
+
+                if(!rank)
+                {
+                    // write XMF file end
+                    xmf = fopen(fieldsFileName.c_str(), "a");
+                    fprintf(xmf, "   </Grid>\n");
+                    fprintf(xmf, " </Domain>\n");
+                    fprintf(xmf, "</Xdmf>\n");
+                    fclose(xmf);
+                }
+            }
+
+            PetscPrintf(mesh->MESH_COMM, "done\n\n");
+        }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
 {
     PetscInt  nDomains = domain[0].info.nDomains;
@@ -3444,9 +4237,9 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
             PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-             char error[512];
-              sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-              fatalErrorInFunction("binaryJSectionsToXMF",  error);
+                char error[512];
+                sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
+                fatalErrorInFunction("binaryJSectionsToXMF",  error);
             }
 
             if(acquisition->jSections->available)
@@ -3467,6 +4260,15 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
 
                   // get list of available times
                   word path2times = "./postProcessing/" + mesh->meshName + "/jSurfaces/" + std::to_string(jplane) + "/U" ;
+
+                  // see if can access the directory (shouldn't give error
+                  // as samplig/jSection could have been created just for averages)
+                  DIR* dir;
+                  if ((dir = opendir(path2times.c_str())) == nullptr)
+                  {
+                      PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+                      return(0);
+                  }
 
                   std::vector<PetscReal>      timeSeries;
                   PetscInt                      ntimes;
@@ -3709,6 +4511,231 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
 
 //***************************************************************************************************************//
 
+PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
+{
+    PetscInt  nDomains = domain[0].info.nDomains;
+    word      meshDir, sectionDir, indexDir;
+
+    for(PetscInt d=0; d<nDomains; d++)
+    {
+        flags_    flags    = domain[d].flags;
+        io_       *io      = domain[d].io;
+
+        if(flags.isAquisitionActive && io->averaging)
+        {
+            // get pointers
+            clock_ *clock = domain[d].clock;
+            mesh_  *mesh  = domain[d].mesh;
+
+            acquisition_ *acquisition = domain[d].acquisition;
+
+            ueqn_  *ueqn  = domain[d].ueqn;
+            peqn_  *peqn  = domain[d].peqn;
+            teqn_  *teqn;
+            les_   *les;
+
+            if(flags.isTeqnActive) teqn = domain[d].teqn;
+            if(flags.isLesActive)  les  = domain[d].les;
+
+            DMDALocalInfo info = mesh->info;
+            PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+            PetscMPIInt           rank;
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+            word fieldsFileName;
+            FILE *xmf;
+
+            meshDir     = "./XMF/" + mesh->meshName;
+
+            // create domain directory within XMF folder
+            errno = 0;
+            PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
+            if(dirRes != 0 && errno != EEXIST)
+            {
+              char error[512];
+              sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
+              fatalErrorInFunction("binaryJSectionsToXMF",  error);
+            }
+
+            if(acquisition->jSections->available)
+            {
+                PetscPrintf(mesh->MESH_COMM, "On-the-fly j-sections extraction for mesh: %s...\n", mesh->meshName.c_str());
+                sections *jSections = acquisition->jSections;
+
+                // create jSections folder
+                sectionDir = "./XMF/" + mesh->meshName + "/jSections";
+                createDirNoRemove(mesh->MESH_COMM, sectionDir.c_str());
+
+                for(PetscInt j=0; j<jSections->nSections; j++)
+                {
+                  PetscInt jplane = jSections->indices[j];
+
+                  // exclude ghost nodes
+                  if (jplane<1 || jplane>my-2) continue;
+
+                  // get list of available times
+                  word path2times = "./fields/";
+
+                  std::vector<PetscReal>        timeSeries;
+                  PetscInt                      ntimes;
+                  getTimeList(path2times.c_str(), timeSeries, ntimes);
+
+                  if(!rank)
+                  {
+                    //create the j index folder
+                    indexDir = sectionDir + "/" + std::to_string(jplane);
+                    createDirNoRemove(mesh->MESH_COMM, indexDir.c_str());
+
+                    // create XMF file
+                    fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_jSec" + std::to_string(jplane) + "_averages.xmf";
+
+                    // write XMF file intro
+                    xmf = fopen(fieldsFileName.c_str(), "w");
+                    fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                    fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                    fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                    fprintf(xmf, " <Domain>\n");
+                    fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                    fclose(xmf);
+                  }
+
+                  // now we get only the last time (the meaningful one)
+
+                  // HDF5 file with path
+                  word fileName;
+
+                  // HDF5 file w/o path
+                  word hdfileName;
+
+                  // set time precision
+                  std::stringstream stream;
+                  stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ntimes-1];
+
+                  fileName   = indexDir + "/" + thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_averages_" + stream.str();
+                  hdfileName = thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_averages_" + stream.str();
+
+                  // open this time section in the XMF file
+                  if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, 1, mz-1, "3DSMesh", timeSeries[ntimes-1]);
+
+                  // Write the data file.
+                  hid_t     dataspace_id;
+                  hsize_t   dims[3];
+                  herr_t    status;
+
+                  // write HDF file
+                  hid_t	file_id;
+                  if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+                  // ************************** write mesh points **************************
+                  dims[0] = mz - 1;
+                  dims[1] = 1;
+                  dims[2] = mx - 1;
+
+                  if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                  writeJSectionPointsToXMF
+                  (
+                      mesh,
+                      fieldsFileName.c_str(),
+                      hdfileName.c_str(),
+                      &file_id,
+                      &dataspace_id,
+                      timeSeries[ntimes-1],
+                      jplane
+                  );
+
+                  if(!rank) status = H5Sclose(dataspace_id);
+                  if(!rank) status = H5Fclose(file_id);
+
+                  // load average velocity
+                  jSectionLoadVectorFromField(acquisition->fields->avgU, mesh, jSections, jplane, "avgU", timeSeries[ntimes-1]);
+
+                  if(!rank)
+                  {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeJSectionVectorToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ntimes-1],
+                          "avgU",
+                          jSections->vectorSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                  }
+
+                  /*
+                  // load pressure
+                  jSectionLoadScalar(mesh, jSections, jplane, "p", timeSeries[ti]);
+
+                  if(!rank)
+                  {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeJSectionScalarToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ti],
+                          "p",
+                          jSections->scalarSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                  }*/
+
+                  // load nut
+                  if(flags.isLesActive)
+                  {
+
+                  }
+
+                  // load temperature
+                  if(flags.isTeqnActive)
+                  {
+
+                  }
+
+                  // close this time section in the XMF file
+                  if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+
+                  // wait all processes
+                  MPI_Barrier(mesh->MESH_COMM);
+                }
+
+                if(!rank)
+                {
+                    // write XMF file end
+                    xmf = fopen(fieldsFileName.c_str(), "a");
+                    fprintf(xmf, "   </Grid>\n");
+                    fprintf(xmf, " </Domain>\n");
+                    fprintf(xmf, "</Xdmf>\n");
+                    fclose(xmf);
+                }
+            }
+
+            PetscPrintf(mesh->MESH_COMM, "done\n\n");
+        }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode binaryISectionsToXMF(domain_ *domain)
 {
   PetscInt  nDomains = domain[0].info.nDomains;
@@ -3774,6 +4801,15 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
 
           // get list of available times
           word path2times = "./postProcessing/" + mesh->meshName + "/iSurfaces/" + std::to_string(iplane) + "/U" ;
+
+          // see if can access the directory (shouldn't give error
+          // as samplig/iSection could have been created just for averages)
+          DIR* dir;
+          if ((dir = opendir(path2times.c_str())) == nullptr)
+          {
+              PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+              return(0);
+          }
 
           std::vector<PetscReal>      timeSeries;
           PetscInt                      ntimes;
@@ -4007,6 +5043,231 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
 
 //***************************************************************************************************************//
 
+PetscErrorCode fieldISectionsToXMF(domain_ *domain)
+{
+    PetscInt  nDomains = domain[0].info.nDomains;
+    word      meshDir, sectionDir, indexDir;
+
+    for(PetscInt d=0; d<nDomains; d++)
+    {
+        flags_    flags    = domain[d].flags;
+        io_       *io      = domain[d].io;
+
+        if(flags.isAquisitionActive && io->averaging)
+        {
+            // get pointers
+            clock_ *clock = domain[d].clock;
+            mesh_  *mesh  = domain[d].mesh;
+
+            acquisition_ *acquisition = domain[d].acquisition;
+
+            ueqn_  *ueqn  = domain[d].ueqn;
+            peqn_  *peqn  = domain[d].peqn;
+            teqn_  *teqn;
+            les_   *les;
+
+            if(flags.isTeqnActive) teqn = domain[d].teqn;
+            if(flags.isLesActive)  les  = domain[d].les;
+
+            DMDALocalInfo info = mesh->info;
+            PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+            PetscMPIInt           rank;
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+            word fieldsFileName;
+            FILE *xmf;
+
+            meshDir     = "./XMF/" + mesh->meshName;
+
+            // create domain directory within XMF folder
+            errno = 0;
+            PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
+            if(dirRes != 0 && errno != EEXIST)
+            {
+              char error[512];
+              sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
+              fatalErrorInFunction("binaryJSectionsToXMF",  error);
+            }
+
+            if(acquisition->iSections->available)
+            {
+                PetscPrintf(mesh->MESH_COMM, "On-the-fly i-sections extraction for mesh: %s...\n", mesh->meshName.c_str());
+                sections *iSections = acquisition->iSections;
+
+                // create jSections folder
+                sectionDir = "./XMF/" + mesh->meshName + "/iSections";
+                createDirNoRemove(mesh->MESH_COMM, sectionDir.c_str());
+
+                for(PetscInt i=0; i<iSections->nSections; i++)
+                {
+                  PetscInt iplane = iSections->indices[i];
+
+                  // exclude ghost nodes
+                  if (iplane<1 || iplane>mx-2) continue;
+
+                  // get list of available times
+                  word path2times = "./fields/";
+
+                  std::vector<PetscReal>        timeSeries;
+                  PetscInt                      ntimes;
+                  getTimeList(path2times.c_str(), timeSeries, ntimes);
+
+                  if(!rank)
+                  {
+                    //create the j index folder
+                    indexDir = sectionDir + "/" + std::to_string(iplane);
+                    createDirNoRemove(mesh->MESH_COMM, indexDir.c_str());
+
+                    // create XMF file
+                    fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_iSec" + std::to_string(iplane) + "_averages.xmf";
+
+                    // write XMF file intro
+                    xmf = fopen(fieldsFileName.c_str(), "w");
+                    fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                    fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                    fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                    fprintf(xmf, " <Domain>\n");
+                    fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                    fclose(xmf);
+                  }
+
+                  // now we get only the last time (the meaningful one)
+
+                  // HDF5 file with path
+                  word fileName;
+
+                  // HDF5 file w/o path
+                  word hdfileName;
+
+                  // set time precision
+                  std::stringstream stream;
+                  stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ntimes-1];
+
+                  fileName   = indexDir + "/" + thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_averages_" + stream.str();
+                  hdfileName = thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_averages_" + stream.str();
+
+                  // open this time section in the XMF file
+                  if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), 1, my-1, mz-1, "3DSMesh", timeSeries[ntimes-1]);
+
+                  // Write the data file.
+                  hid_t     dataspace_id;
+                  hsize_t   dims[3];
+                  herr_t    status;
+
+                  // write HDF file
+                  hid_t	file_id;
+                  if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+                  // ************************** write mesh points **************************
+                  dims[0] = mz - 1;
+                  dims[1] = my - 1;
+                  dims[2] = 1;
+
+                  if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                  writeISectionPointsToXMF
+                  (
+                      mesh,
+                      fieldsFileName.c_str(),
+                      hdfileName.c_str(),
+                      &file_id,
+                      &dataspace_id,
+                      timeSeries[ntimes-1],
+                      iplane
+                  );
+
+                  if(!rank) status = H5Sclose(dataspace_id);
+                  if(!rank) status = H5Fclose(file_id);
+
+                  // load average velocity
+                  iSectionLoadVectorFromField(acquisition->fields->avgU, mesh, iSections, iplane, "avgU", timeSeries[ntimes-1]);
+
+                  if(!rank)
+                  {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeISectionVectorToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ntimes-1],
+                          "avgU",
+                          iSections->vectorSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                  }
+
+                  /*
+                  // load pressure
+                  iSectionLoadScalar(mesh, iSections, iplane, "p", timeSeries[ntimes-1]);
+
+                  if(!rank)
+                  {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeISectionScalarToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ntimes-1],
+                          "p",
+                          iSections->scalarSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                  }*/
+
+                  // load nut
+                  if(flags.isLesActive)
+                  {
+
+                  }
+
+                  // load temperature
+                  if(flags.isTeqnActive)
+                  {
+
+                  }
+
+                  // close this time section in the XMF file
+                  if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+
+                  // wait all processes
+                  MPI_Barrier(mesh->MESH_COMM);
+                }
+
+                if(!rank)
+                {
+                    // write XMF file end
+                    xmf = fopen(fieldsFileName.c_str(), "a");
+                    fprintf(xmf, "   </Grid>\n");
+                    fprintf(xmf, " </Domain>\n");
+                    fprintf(xmf, "</Xdmf>\n");
+                    fclose(xmf);
+                }
+            }
+
+            PetscPrintf(mesh->MESH_COMM, "done\n\n");
+        }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode binaryKSectionsPerturbToXMF(domain_ *domain)
 {
     PetscInt    nDomains = domain[0].info.nDomains;
@@ -4069,6 +5330,15 @@ PetscErrorCode binaryKSectionsPerturbToXMF(domain_ *domain)
 
                 // get list of available times
                 word path2times = "./postProcessing/" + mesh->meshName + "/kSurfaces/" + std::to_string(kplane) + "/UpABL" ;
+
+                // see if can access the directory (shouldn't give error
+                // as samplig/kSection could have been created just for averages)
+                DIR* dir;
+                if ((dir = opendir(path2times.c_str())) == nullptr)
+                {
+                    PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+                    return(0);
+                }
 
                 std::vector<PetscReal>      timeSeries;
                 PetscInt                      ntimes;
@@ -4304,6 +5574,15 @@ PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp)
 
                   // get list of available times
                   word path2times = "./postProcessing/" + mesh->meshName + "/jSurfaces/" + std::to_string(jplane) + "/UpABL" ;
+
+                  // see if can access the directory (shouldn't give error
+                  // as samplig/jSection could have been created just for averages)
+                  DIR* dir;
+                  if ((dir = opendir(path2times.c_str())) == nullptr)
+                  {
+                      PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+                      return(0);
+                  }
 
                   std::vector<PetscReal>      timeSeries;
                   PetscInt                      ntimes;
@@ -4548,6 +5827,15 @@ PetscErrorCode binaryISectionsPerturbToXMF(domain_ *domain)
           // get list of available times
           word path2times = "./postProcessing/" + mesh->meshName + "/iSurfaces/" + std::to_string(iplane) + "/UpABL" ;
 
+          // see if can access the directory (shouldn't give error
+          // as samplig/iSection could have been created just for averages)
+          DIR* dir;
+          if ((dir = opendir(path2times.c_str())) == nullptr)
+          {
+              PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+              return(0);
+          }
+
           std::vector<PetscReal>      timeSeries;
           PetscInt                      ntimes;
           getTimeList(path2times.c_str(), timeSeries, ntimes);
@@ -4737,11 +6025,12 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
             PetscInt           zs = info.zs, ze = info.zs + info.zm;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
 
-            Cmpnts        ***cent;
+            Cmpnts             ***cent;
+            PetscReal          ***aj;
 
             PetscInt           i, j, k;
             PetscInt           lxs, lxe, lys, lye, lzs, lze;
-            PetscMPIInt           rank, nprocs;
+            PetscMPIInt        rank, nprocs;
 
             lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
             lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -4757,6 +6046,12 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
             }
 
             DMDAVecGetArray(mesh->fda, mesh->lCent, &cent);
+            DMDAVecGetArray(mesh->da,  mesh->lAj, &aj);
+
+            // max perturbation amplitude
+            PetscReal maxPerturb  = 1e-10;
+            // processor perturbation for search (changes between processors)
+            PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)nprocs;
 
             PetscInt iskavail = 0, isjavail = 0, isiavail = 0;
 
@@ -4798,12 +6093,26 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 PetscInt atLeastOneVector = 0;
                 PetscInt atLeastOneScalar = 0;
 
-                // read number of sections
                 word path2index = "./postProcessing/" + mesh->meshName + "/kSurfaces/";
                 std::vector<PetscInt>      kIndex;
                 PetscInt                   nkSec;
-                std::vector<PetscReal>   lcoor;
-                getIndexList(path2index.c_str(), kIndex, nkSec);
+                std::vector<PetscReal>     lcoor;
+
+                // try to read from post procesing files
+                DIR *dir;
+                PetscInt indicesSet = 0;
+                if ((dir = opendir(path2index.c_str())) != nullptr)
+                {
+                    getIndexList(path2index.c_str(), kIndex, nkSec);
+                    indicesSet++;
+                }
+                // on-the-fly slices: calculate now
+                else
+                {
+                    // read number of sections
+                    readDictInt(kSecName.c_str(), "surfaceNumber" ,&nkSec);
+                    kIndex.resize(nkSec);
+                }
 
                 lcoor.resize(nkSec);
 
@@ -4814,10 +6123,89 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                 sections *kSections = acquisition->kSections;
 
-                for(PetscInt s = 0; s< nkSec; s++)
+                // set indices if didn't read from file
+                if(!indicesSet)
                 {
-                  lcoor[s] = 0.0;
-                  kSections->coordinates[s] = 0.0;
+                    // read section indices
+                    std::ifstream indata;
+                    indata.open(kSecName.c_str());
+                    char buffer[256];
+
+                    while(!indata.eof())
+                    {
+                        indata >> buffer;
+                        if(strcmp("coordinates",buffer) == 0)
+                        {
+                            for(PetscInt s=0; s<nkSec; s++)
+                            {
+                                indata >> buffer;
+                                std::sscanf(buffer, "%lf", &(lcoor[s]));
+                            }
+                        }
+                    }
+                    indata.close();
+
+                    // find the closest point, then take its k index
+                    for(PetscInt s=0; s<nkSec; s++)
+                    {
+                        Cmpnts surfacePoint;
+                               surfacePoint.x = lcoor[s];
+                               surfacePoint.y = (mesh->bounds.ymax + mesh->bounds.ymin) / 2.0;
+                               surfacePoint.z = (mesh->bounds.zmax + mesh->bounds.zmin) / 2.0;
+
+                        PetscReal  lminDist = 1e30,  gminDist = 1e30;
+                        cellIds    closestIds;
+                        PetscInt   lclosestK = 0;
+
+                        for (k=lzs; k<lze; k++)
+                        {
+                            for (j=lys; j<lye; j++)
+                            {
+                                for (i=lxs; i<lxe; i++)
+                                {
+                                    Cmpnts distVec = nSub(surfacePoint, cent[k][j][i]);
+                                    PetscReal distMag = nMag(distVec) + procContrib;
+
+                                    if(distMag < lminDist)
+                                    {
+                                        lminDist = distMag;
+                                        closestIds.i = i;
+                                        closestIds.j = j;
+                                        closestIds.k = k;
+                                    }
+
+                                }
+                            }
+                        }
+
+                        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+                        if(lminDist == gminDist)
+                        {
+                            lclosestK = closestIds.k;
+
+                            // exclude section if coordinate is greater than 5*cellWidth
+                            PetscReal cellWidth = 5.0*pow(1.0/aj[closestIds.k][(PetscInt)(std::floor(0.5*(lys+lye)))][(PetscInt)(std::floor(0.5*(lxs+lxe)))], 1.0/3.0);
+
+                            if(gminDist > cellWidth)
+                            {
+                                lclosestK = -1;
+                            }
+                        }
+
+                        MPI_Allreduce(&lclosestK, &(kIndex[s]), 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+                        lcoor[s] = 0.0;
+                        kSections->coordinates[s] = 0.0;
+                    }
+                }
+                else
+                {
+                    for(PetscInt s = 0; s< nkSec; s++)
+                    {
+                        lcoor[s] = 0.0;
+                        kSections->coordinates[s] = 0.0;
+                    }
                 }
 
                 // store number of sections
@@ -4828,12 +6216,12 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                 for(PetscInt s=0; s<nkSec; s++)
                 {
-                  kSections->indices[s] = kIndex[s];
+                    kSections->indices[s] = kIndex[s];
 
-                  if((kIndex[s] >= lzs) && (kIndex[s] < lze))
-                  {
-                    lcoor[s] = cent[kIndex[s]][lys][lxs].x;
-                  }
+                    if((kIndex[s] >= lzs) && (kIndex[s] < lze))
+                    {
+                        lcoor[s] = cent[kIndex[s]][lys][lxs].x;
+                    }
                 }
 
                 MPI_Allreduce(&lcoor[0], &kSections->coordinates[0], nkSec, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
@@ -4896,8 +6284,23 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 word path2index = "./postProcessing/" + mesh->meshName + "/jSurfaces/";
                 std::vector<PetscInt>      jIndex;
                 PetscInt                   njSec;
-                std::vector<PetscReal>   lcoor;
-                getIndexList(path2index.c_str(), jIndex, njSec);
+                std::vector<PetscReal>     lcoor;
+
+                // try to read from post procesing files
+                DIR *dir;
+                PetscInt indicesSet = 0;
+                if ((dir = opendir(path2index.c_str())) != nullptr)
+                {
+                    getIndexList(path2index.c_str(), jIndex, njSec);
+                    indicesSet++;
+                }
+                // on-the-fly slices: calculate now
+                else
+                {
+                    // read number of sections
+                    readDictInt(jSecName.c_str(), "surfaceNumber" ,&njSec);
+                    jIndex.resize(njSec);
+                }
 
                 lcoor.resize(njSec);
 
@@ -4908,10 +6311,90 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                 sections *jSections = acquisition->jSections;
 
-                for(PetscInt s = 0; s< njSec; s++)
+                // set indices if didn't read from file
+                if(!indicesSet)
                 {
-                  lcoor[s] = 0.0;
-                  jSections->coordinates[s] = 0.0;
+                    // read section indices
+                    std::ifstream indata;
+                    indata.open(jSecName.c_str());
+                    char buffer[256];
+
+                    while(!indata.eof())
+                    {
+                        indata >> buffer;
+
+                        if(strcmp("coordinates",buffer) == 0)
+                        {
+                            for(PetscInt s=0; s<njSec; s++)
+                            {
+                                indata >> buffer;
+                                std::sscanf(buffer, "%lf", &(lcoor[s]));
+                            }
+                        }
+                    }
+                    indata.close();
+
+                    // find the closest point, then take is k index
+                    for(PetscInt s=0; s<njSec; s++)
+                    {
+                        Cmpnts surfacePoint;
+                               surfacePoint.x = (mesh->bounds.xmax + mesh->bounds.xmin) / 2.0;
+                               surfacePoint.y = (mesh->bounds.ymax + mesh->bounds.ymin) / 2.0;
+                               surfacePoint.z = lcoor[s];
+
+                        PetscReal  lminDist = 1e30,  gminDist = 1e30;
+                        cellIds    closestIds;
+                        PetscInt   lclosestJ = 0;
+
+                        for (k=lzs; k<lze; k++)
+                        {
+                            for (j=lys; j<lye; j++)
+                            {
+                                for (i=lxs; i<lxe; i++)
+                                {
+                                    Cmpnts distVec = nSub(surfacePoint, cent[k][j][i]);
+                                    PetscReal distMag = nMag(distVec) + procContrib;
+
+                                    if(distMag < lminDist)
+                                    {
+                                        lminDist = distMag;
+                                        closestIds.i = i;
+                                        closestIds.j = j;
+                                        closestIds.k = k;
+                                    }
+
+                                }
+                            }
+                        }
+
+                        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+                        if(lminDist == gminDist)
+                        {
+                            lclosestJ = closestIds.j;
+
+                            // exclude section if coordinate is greater than 5*cellWidth
+                            PetscReal cellWidth = 5.0*pow(1.0/aj[(PetscInt)(std::floor(0.5*(lzs+lze)))][closestIds.j][(PetscInt)(std::floor(0.5*(lxs+lxe)))], 1.0/3.0);
+
+                            if(gminDist > cellWidth)
+                            {
+                                lclosestJ = -1;
+                            }
+                        }
+
+                        MPI_Allreduce(&lclosestJ, &(jIndex[s]), 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+                        lcoor[s] = 0.0;
+                        jSections->coordinates[s] = 0.0;
+                    }
+                }
+                else
+                {
+                    for(PetscInt s = 0; s< njSec; s++)
+                    {
+                        lcoor[s] = 0.0;
+                        jSections->coordinates[s] = 0.0;
+                    }
                 }
 
                 // store number of sections
@@ -4991,7 +6474,22 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 std::vector<PetscInt>      iIndex;
                 PetscInt                   niSec;
                 std::vector<PetscReal>   lcoor;
-                getIndexList(path2index.c_str(), iIndex, niSec);
+
+                // try to read from post procesing files
+                DIR *dir;
+                PetscInt indicesSet = 0;
+                if ((dir = opendir(path2index.c_str())) != nullptr)
+                {
+                    getIndexList(path2index.c_str(), iIndex, niSec);
+                    indicesSet++;
+                }
+                // on-the-fly slices: calculate now
+                else
+                {
+                    // read number of sections
+                    readDictInt(iSecName.c_str(), "surfaceNumber" ,&niSec);
+                    iIndex.resize(niSec);
+                }
 
                 lcoor.resize(niSec);
 
@@ -5002,10 +6500,89 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                 sections *iSections = acquisition->iSections;
 
-                for(PetscInt s = 0; s< niSec; s++)
+                // set indices if didn't read from file
+                if(!indicesSet)
                 {
-                  lcoor[s] = 0.0;
-                  iSections->coordinates[s] = 0.0;
+                    // read section indices
+                    std::ifstream indata;
+                    indata.open(iSecName.c_str());
+                    char buffer[256];
+
+                    while(!indata.eof())
+                    {
+                        indata >> buffer;
+                        if(strcmp("coordinates",buffer) == 0)
+                        {
+                            for(PetscInt s=0; s<niSec; s++)
+                            {
+                                indata >> buffer;
+                                std::sscanf(buffer, "%lf", &(lcoor[s]));
+                            }
+                        }
+                    }
+                    indata.close();
+
+                    // find the closest point, then take is k index
+                    for(PetscInt s=0; s<niSec; s++)
+                    {
+                        Cmpnts surfacePoint;
+                               surfacePoint.x = (mesh->bounds.xmax + mesh->bounds.xmin) / 2.0;
+                               surfacePoint.y = lcoor[s];
+                               surfacePoint.z = (mesh->bounds.zmax + mesh->bounds.zmin) / 2.0;
+
+                        PetscReal  lminDist = 1e30,  gminDist = 1e30;
+                        cellIds closestIds;
+                        PetscInt     lclosestI = 0;
+
+                        for (k=lzs; k<lze; k++)
+                        {
+                            for (j=lys; j<lye; j++)
+                            {
+                                for (i=lxs; i<lxe; i++)
+                                {
+                                    Cmpnts distVec = nSub(surfacePoint, cent[k][j][i]);
+                                    PetscReal distMag = nMag(distVec) + procContrib;
+
+                                    if(distMag < lminDist)
+                                    {
+                                        lminDist = distMag;
+                                        closestIds.i = i;
+                                        closestIds.j = j;
+                                        closestIds.k = k;
+                                    }
+
+                                }
+                            }
+                        }
+
+                        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+                        if(lminDist == gminDist)
+                        {
+                            lclosestI = closestIds.i;
+
+                            // exclude section if coordinate is greater than 5*cellWidth
+                            PetscReal cellWidth = 5.0*pow(1.0/aj[(PetscInt)(std::floor(0.5*(lzs+lze)))][(PetscInt)(std::floor(0.5*(lys+lye)))][closestIds.i], 1.0/3.0);
+
+                            if(gminDist > cellWidth)
+                            {
+                                lclosestI = -1;
+                            }
+                        }
+
+                        MPI_Allreduce(&lclosestI, &(iIndex[s]), 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+                        lcoor[s] = 0.0;
+                        iSections->coordinates[s] = 0.0;
+                    }
+                }
+                else
+                {
+                    for(PetscInt s = 0; s< niSec; s++)
+                    {
+                        lcoor[s] = 0.0;
+                        iSections->coordinates[s] = 0.0;
+                    }
                 }
 
                 // store number of sections
@@ -5016,12 +6593,12 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                 for(PetscInt s=0; s<niSec; s++)
                 {
-                  iSections->indices[s] = iIndex[s];
+                    iSections->indices[s] = iIndex[s];
 
-                  if((iIndex[s] >= lxs) && (iIndex[s] < lxe))
-                  {
-                    lcoor[s] = cent[lzs][lys][iIndex[s]].y;
-                  }
+                    if((iIndex[s] >= lxs) && (iIndex[s] < lxe))
+                    {
+                        lcoor[s] = cent[lzs][lys][iIndex[s]].y;
+                    }
                 }
 
                 MPI_Allreduce(&lcoor[0], &iSections->coordinates[0], niSec, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
@@ -5075,6 +6652,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
             }
 
             DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
+            DMDAVecRestoreArray(mesh->da,  mesh->lAj, &aj);
 
             if(d == 0)
             {

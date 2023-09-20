@@ -86,6 +86,11 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         VecDuplicate(mesh->lCent, &(ueqn->lViscIBM2));   VecSet(ueqn->lViscIBM2,  0.0);
         VecDuplicate(mesh->lCent, &(ueqn->lViscIBM3));   VecSet(ueqn->lViscIBM3,  0.0);
     }
+	
+	if(ueqn->access->flags->isGravityWaveModelingActive)
+    {
+		VecDuplicate(mesh->Cent, &(ueqn->dPAGW));        VecSet(ueqn->dPAGW,      0.0);
+	}
 
     if(ueqn->ddtScheme == "backwardEuler")
     {
