@@ -1024,58 +1024,61 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
         }
     }
 
-    if(domain->acquisition->isAverage3LMActive)
+    if(flags->isAquisitionActive)
     {
-        writeScalarToXMF
-        (
-            domain,
-            filexmf,
-            hdfileName.c_str(),
-            &file_id,
-            &dataspace_id,
-            time,
-            "dTdz3LM",
-            acquisition->LM3->avgdTdz
-        );
-    }
+        if(domain->acquisition->isAverage3LMActive)
+        {
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "dTdz3LM",
+                acquisition->LM3->avgdTdz
+            );
+        }
 
-    if(domain->acquisition->isPerturbABLActive)
-    {
-        writeVectorToXMF
-        (
-            domain,
-            filexmf,
-            hdfileName.c_str(),
-            &file_id,
-            &dataspace_id,
-            time,
-            "UpABL",
-            acquisition->perturbABL->pertU
-        );
+        if(domain->acquisition->isPerturbABLActive)
+        {
+            writeVectorToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "UpABL",
+                acquisition->perturbABL->pertU
+            );
 
-        writeScalarToXMF
-        (
-            domain,
-            filexmf,
-            hdfileName.c_str(),
-            &file_id,
-            &dataspace_id,
-            time,
-            "PpABL",
-            acquisition->perturbABL->pertP
-        );
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "PpABL",
+                acquisition->perturbABL->pertP
+            );
 
-        writeScalarToXMF
-        (
-            domain,
-            filexmf,
-            hdfileName.c_str(),
-            &file_id,
-            &dataspace_id,
-            time,
-            "TpABL",
-            acquisition->perturbABL->pertT
-        );
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "TpABL",
+                acquisition->perturbABL->pertT
+            );
+        }
     }
 
     status = H5Sclose(dataspace_id);

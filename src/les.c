@@ -1159,7 +1159,7 @@ PetscErrorCode UpdateCs (les_ *les)
         {
 
             // clip Cs between upper and lower bound
-            Cs[k][j][i] = PetscMin( PetscMax(Cs[k][j][i], 0.0), les->maxCs);
+            Cs[k][j][i] = PetscMin( PetscMax(C, 0.0), les->maxCs);
         }
     }
 
