@@ -38,7 +38,10 @@ int main(int argc, char **argv)
   // initialize post-processing clock
   PetscReal ppTimeStart,ppTimeEnd; PetscTime(&ppTimeStart);
 
-  PetscMPIInt rank; MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+  PetscMPIInt rank;   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+  PetscMPIInt nProcs; MPI_Comm_size(PETSC_COMM_WORLD, &nProcs);
+
+
 
   // initialize the flags
   pp.postProcessFields    = 0;
@@ -61,6 +64,15 @@ int main(int argc, char **argv)
   if(pp.postProcessFields || pp.writeRaster || pp.samplingSections)
   {
       postProcessInitialize(&domain, &clock, &info, &flags);
+
+      // turn-off field post processing if parallel
+      if(nProcs > 1 && pp.postProcessFields == 1)
+      {
+          char warning[256];
+          sprintf(warning, "-postProcessFields is not available in parallel: setting to 0");
+          warningInFunction("main",  warning);
+          pp.postProcessFields = 0;
+      }
   }
 
   // write 3D fields into XMF
@@ -113,7 +125,7 @@ int main(int argc, char **argv)
       binaryJSectionsPerturbToXMF(domain, &pp);
       binaryISectionsPerturbToXMF(domain);
 
-      // on-the-fly read and cut sections from average fields 
+      // on-the-fly read and cut sections from average fields
       fieldKSectionsToXMF(domain);
       fieldJSectionsToXMF(domain);
       fieldISectionsToXMF(domain);
@@ -2267,6 +2279,597 @@ PetscErrorCode writeISectionVectorToXMF
 }
 
 //***************************************************************************************************************//
+PetscErrorCode writeKSectionSymmTensorToXMF
+(
+    mesh_    *mesh,        // user context
+    const char *filexmf,     // name of the XMF file to append
+    const char *hdfilen,     // name of the HDF file to refer
+    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t      *dataspace_id,// id of the HDF dataspace to refer
+    PetscReal     time,         // time
+    const char *fieldName,   // field name as it appears in ParaView
+    symmTensor     **field       // 2D array containing the field data
+)
+{
+    // note: the field data is contained inside user->ucat_plane_ks
+    //       and must be loaded prior to call this function
+    DM            fda  = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+
+    FILE          *xmf;
+
+    // create 1D vector which stores the 2D points
+    float *x; x = new float[(mx-1)*(my-1)];
+
+    // set internal variables used to recall the HDF5 field from the XMF file
+    char str1xx[256], str1yy[256], str1zz[256],
+         str1xy[256], str1xz[256], str1yz[256],
+         str2xx[256], str2yy[256], str2zz[256],
+         str2xy[256], str2xz[256], str2yz[256];
+
+    sprintf(str1xx, "/%s_xx",fieldName);
+    sprintf(str1yy, "/%s_yy",fieldName);
+    sprintf(str1zz, "/%s_zz",fieldName);
+    sprintf(str1xy, "/%s_xy",fieldName);
+    sprintf(str1xz, "/%s_xz",fieldName);
+    sprintf(str1yz, "/%s_yz",fieldName);
+
+    sprintf(str2xx, "%s_xx",fieldName);
+    sprintf(str2yy, "%s_yy",fieldName);
+    sprintf(str2zz, "%s_zz",fieldName);
+    sprintf(str2xy, "%s_xy",fieldName);
+    sprintf(str2xz, "%s_xz",fieldName);
+    sprintf(str2yz, "%s_yz",fieldName);
+
+    PetscReal VN, VS, VE, VW, V;
+
+    // write xx component
+    for (j=0; j<my-1; j++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[j+1][i+1].xx;
+        else        VW = field[j+1][i  ].xx;
+
+        if(i==mx-2) VE = field[j+1][i  ].xx;
+        else        VE = field[j+1][i+1].xx;
+
+        if(j==0)    VS = field[j+1][i+1].xx;
+        else        VS = field[j  ][i+1].xx;
+
+        if(j==my-2) VN = field[j  ][i+1].xx;
+        else        VN = field[j+1][i+1].xx;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[j * (mx-1) + i] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xx, x);
+
+    // write yy component
+    for (j=0; j<my-1; j++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[j+1][i+1].yy;
+        else        VW = field[j+1][i  ].yy;
+
+        if(i==mx-2) VE = field[j+1][i  ].yy;
+        else        VE = field[j+1][i+1].yy;
+
+        if(j==0)    VS = field[j+1][i+1].yy;
+        else        VS = field[j  ][i+1].yy;
+
+        if(j==my-2) VN = field[j  ][i+1].yy;
+        else        VN = field[j+1][i+1].yy;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[j * (mx-1) + i] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1yy, x);
+
+    // write z component
+    for (j=0; j<my-1; j++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[j+1][i+1].zz;
+        else        VW = field[j+1][i  ].zz;
+
+        if(i==mx-2) VE = field[j+1][i  ].zz;
+        else        VE = field[j+1][i+1].zz;
+
+        if(j==0)    VS = field[j+1][i+1].zz;
+        else        VS = field[j  ][i+1].zz;
+
+        if(j==my-2) VN = field[j  ][i+1].zz;
+        else        VN = field[j+1][i+1].zz;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[j * (mx-1) + i] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1zz, x);
+
+    // write xx component
+    for (j=0; j<my-1; j++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[j+1][i+1].xy;
+        else        VW = field[j+1][i  ].xy;
+
+        if(i==mx-2) VE = field[j+1][i  ].xy;
+        else        VE = field[j+1][i+1].xy;
+
+        if(j==0)    VS = field[j+1][i+1].xy;
+        else        VS = field[j  ][i+1].xy;
+
+        if(j==my-2) VN = field[j  ][i+1].xy;
+        else        VN = field[j+1][i+1].xy;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[j * (mx-1) + i] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xy, x);
+
+    // write xx component
+    for (j=0; j<my-1; j++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[j+1][i+1].xz;
+        else        VW = field[j+1][i  ].xz;
+
+        if(i==mx-2) VE = field[j+1][i  ].xz;
+        else        VE = field[j+1][i+1].xz;
+
+        if(j==0)    VS = field[j+1][i+1].xz;
+        else        VS = field[j  ][i+1].xz;
+
+        if(j==my-2) VN = field[j  ][i+1].xz;
+        else        VN = field[j+1][i+1].xz;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[j * (mx-1) + i] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xz, x);
+
+    // write xx component
+    for (j=0; j<my-1; j++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[j+1][i+1].yz;
+        else        VW = field[j+1][i  ].yz;
+
+        if(i==mx-2) VE = field[j+1][i  ].yz;
+        else        VE = field[j+1][i+1].yz;
+
+        if(j==0)    VS = field[j+1][i+1].yz;
+        else        VS = field[j  ][i+1].yz;
+
+        if(j==my-2) VN = field[j  ][i+1].yz;
+        else        VN = field[j+1][i+1].yz;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[j * (mx-1) + i] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1yz, x);
+
+    // write reference to HDF file in XMF file
+    xmfWriteFileSymmTensor(xmf, filexmf, mx-1, my-1, 1, hdfilen, fieldName, str2xx, str2yy, str2zz, str2xy, str2xz, str2yz, "Node");
+
+    delete [] x;
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode writeJSectionSymmTensorToXMF
+(
+    mesh_    *mesh,        // user context
+    const char *filexmf,     // name of the XMF file to append
+    const char *hdfilen,     // name of the HDF file to refer
+    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t      *dataspace_id,// id of the HDF dataspace to refer
+    PetscReal     time,         // time
+    const char *fieldName,   // field name as it appears in ParaView
+    symmTensor     **field       // 2D array containing the field data
+)
+{
+    // note: the field data is contained inside user->ucat_plane_ks
+    //       and must be loaded prior to call this function
+    DM            fda  = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+
+    FILE          *xmf;
+
+    // create 1D vector which stores the 2D points
+    float *x; x = new float[(mx-1)*(mz-1)];
+
+    // set internal variables used to recall the HDF5 field from the XMF file
+    char str1xx[256], str1yy[256], str1zz[256],
+         str1xy[256], str1xz[256], str1yz[256],
+         str2xx[256], str2yy[256], str2zz[256],
+         str2xy[256], str2xz[256], str2yz[256];
+
+    sprintf(str1xx, "/%s_xx",fieldName);
+    sprintf(str1yy, "/%s_yy",fieldName);
+    sprintf(str1zz, "/%s_zz",fieldName);
+    sprintf(str1xy, "/%s_xy",fieldName);
+    sprintf(str1xz, "/%s_xz",fieldName);
+    sprintf(str1yz, "/%s_yz",fieldName);
+
+    sprintf(str2xx, "%s_xx",fieldName);
+    sprintf(str2yy, "%s_yy",fieldName);
+    sprintf(str2zz, "%s_zz",fieldName);
+    sprintf(str2xy, "%s_xy",fieldName);
+    sprintf(str2xz, "%s_xz",fieldName);
+    sprintf(str2yz, "%s_yz",fieldName);
+
+    PetscReal VN, VS, VE, VW, V;
+
+    // write xx component
+    for (k=0; k<mz-1; k++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[k+1][i+1].xx;
+        else        VW = field[k+1][i  ].xx;
+
+        if(i==mx-2) VE = field[k+1][i  ].xx;
+        else        VE = field[k+1][i+1].xx;
+
+        if(k==0)    VS = field[k+1][i+1].xx;
+        else        VS = field[k  ][i+1].xx;
+
+        if(k==mz-2) VN = field[k  ][i+1].xx;
+        else        VN = field[k+1][i+1].xx;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (mx-1) + i] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xx, x);
+
+    // write yy component
+    for (k=0; k<mz-1; k++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[k+1][i+1].yy;
+        else        VW = field[k+1][i  ].yy;
+
+        if(i==mx-2) VE = field[k+1][i  ].yy;
+        else        VE = field[k+1][i+1].yy;
+
+        if(k==0)    VS = field[k+1][i+1].yy;
+        else        VS = field[k  ][i+1].yy;
+
+        if(k==mz-2) VN = field[k  ][i+1].yy;
+        else        VN = field[k+1][i+1].yy;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (mx-1) + i] = V;
+    }
+
+    hdfWriteDataset(file_id, dataspace_id, str1yy, x);
+
+    // write zz component
+    for (k=0; k<mz-1; k++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[k+1][i+1].zz;
+        else        VW = field[k+1][i  ].zz;
+
+        if(i==mx-2) VE = field[k+1][i  ].zz;
+        else        VE = field[k+1][i+1].zz;
+
+        if(k==0)    VS = field[k+1][i+1].zz;
+        else        VS = field[k  ][i+1].zz;
+
+        if(k==mz-2) VN = field[k  ][i+1].zz;
+        else        VN = field[k+1][i+1].zz;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (mx-1) + i] = V;
+    }
+
+    hdfWriteDataset(file_id, dataspace_id, str1zz, x);
+
+    // write xy component
+    for (k=0; k<mz-1; k++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[k+1][i+1].xy;
+        else        VW = field[k+1][i  ].xy;
+
+        if(i==mx-2) VE = field[k+1][i  ].xy;
+        else        VE = field[k+1][i+1].xy;
+
+        if(k==0)    VS = field[k+1][i+1].xy;
+        else        VS = field[k  ][i+1].xy;
+
+        if(k==mz-2) VN = field[k  ][i+1].xy;
+        else        VN = field[k+1][i+1].xy;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (mx-1) + i] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xy, x);
+
+    // write xz component
+    for (k=0; k<mz-1; k++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[k+1][i+1].xz;
+        else        VW = field[k+1][i  ].xz;
+
+        if(i==mx-2) VE = field[k+1][i  ].xz;
+        else        VE = field[k+1][i+1].xz;
+
+        if(k==0)    VS = field[k+1][i+1].xz;
+        else        VS = field[k  ][i+1].xz;
+
+        if(k==mz-2) VN = field[k  ][i+1].xz;
+        else        VN = field[k+1][i+1].xz;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (mx-1) + i] = V;
+    }
+
+    hdfWriteDataset(file_id, dataspace_id, str1xz, x);
+
+    // write yz component
+    for (k=0; k<mz-1; k++)
+    for (i=0; i<mx-1; i++)
+    {
+        // build cell-to-node interpolation points
+        if(i==0)    VW = field[k+1][i+1].yz;
+        else        VW = field[k+1][i  ].yz;
+
+        if(i==mx-2) VE = field[k+1][i  ].yz;
+        else        VE = field[k+1][i+1].yz;
+
+        if(k==0)    VS = field[k+1][i+1].yz;
+        else        VS = field[k  ][i+1].yz;
+
+        if(k==mz-2) VN = field[k  ][i+1].yz;
+        else        VN = field[k+1][i+1].yz;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (mx-1) + i] = V;
+    }
+
+    hdfWriteDataset(file_id, dataspace_id, str1yz, x);
+
+    // write reference to HDF file in XMF file
+    xmfWriteFileSymmTensor(xmf, filexmf, mx-1, 1, mz-1, hdfilen, fieldName, str2xx, str2yy, str2zz, str2xy, str2xz, str2yz, "Node");
+
+    delete [] x;
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode writeISectionSymmTensorToXMF
+(
+    mesh_    *mesh,        // user context
+    const char *filexmf,     // name of the XMF file to append
+    const char *hdfilen,     // name of the HDF file to refer
+    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t      *dataspace_id,// id of the HDF dataspace to refer
+    PetscReal     time,         // time
+    const char *fieldName,   // field name as it appears in ParaView
+    symmTensor     **field       // 2D array containing the field data
+)
+{
+    // note: the field data is contained inside user->ucat_plane_ks
+    //       and must be loaded prior to call this function
+    DM            fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+
+    FILE          *xmf;
+
+    // create 1D vector which stores the 2D points
+    float *x = (float*)malloc((my-1)*(mz-1)*sizeof(float));
+
+    // set internal variables used to recall the HDF5 field from the XMF file
+    char str1xx[256], str1yy[256], str1zz[256],
+         str1xy[256], str1xz[256], str1yz[256],
+         str2xx[256], str2yy[256], str2zz[256],
+         str2xy[256], str2xz[256], str2yz[256];
+
+    sprintf(str1xx, "/%s_xx",fieldName);
+    sprintf(str1yy, "/%s_yy",fieldName);
+    sprintf(str1zz, "/%s_zz",fieldName);
+    sprintf(str1xy, "/%s_xy",fieldName);
+    sprintf(str1xz, "/%s_xz",fieldName);
+    sprintf(str1yz, "/%s_yz",fieldName);
+
+    sprintf(str2xx, "%s_xx",fieldName);
+    sprintf(str2yy, "%s_yy",fieldName);
+    sprintf(str2zz, "%s_zz",fieldName);
+    sprintf(str2xy, "%s_xy",fieldName);
+    sprintf(str2xz, "%s_xz",fieldName);
+    sprintf(str2yz, "%s_yz",fieldName);
+
+    PetscReal VN, VS, VE, VW, V;
+
+    // write xx component
+    for (k=0; k<mz-1; k++)
+    for (j=0; j<my-1; j++)
+    {
+        // build cell-to-node interpolation points
+        if(j==0)    VW = field[k+1][j+1].xx;
+        else        VW = field[k+1][j  ].xx;
+
+        if(j==my-2) VE = field[k+1][j  ].xx;
+        else        VE = field[k+1][j+1].xx;
+
+        if(k==0)    VS = field[k+1][j+1].xx;
+        else        VS = field[k  ][j+1].xx;
+
+        if(k==mz-2) VN = field[k  ][j+1].xx;
+        else        VN = field[k+1][j+1].xx;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (my-1) + j] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xx, x);
+
+    // write yy component
+    for (k=0; k<mz-1; k++)
+    for (j=0; j<my-1; j++)
+    {
+        // build cell-to-node interpolation points
+        if(j==0)    VW = field[k+1][j+1].yy;
+        else        VW = field[k+1][j  ].yy;
+
+        if(j==my-2) VE = field[k+1][j  ].yy;
+        else        VE = field[k+1][j+1].yy;
+
+        if(k==0)    VS = field[k+1][j+1].yy;
+        else        VS = field[k  ][j+1].yy;
+
+        if(k==mz-2) VN = field[k  ][j+1].yy;
+        else        VN = field[k+1][j+1].yy;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (my-1) + j] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1yy, x);
+
+    // write zz component
+    for (k=0; k<mz-1; k++)
+    for (j=0; j<my-1; j++)
+    {
+        // build cell-to-node interpolation points
+        if(j==0)    VW = field[k+1][j+1].zz;
+        else        VW = field[k+1][j  ].zz;
+
+        if(j==my-2) VE = field[k+1][j  ].zz;
+        else        VE = field[k+1][j+1].zz;
+
+        if(k==0)    VS = field[k+1][j+1].zz;
+        else        VS = field[k  ][j+1].zz;
+
+        if(k==mz-2) VN = field[k  ][j+1].zz;
+        else        VN = field[k+1][j+1].zz;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (my-1) + j] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1zz, x);
+
+    // write xy component
+    for (k=0; k<mz-1; k++)
+    for (j=0; j<my-1; j++)
+    {
+        // build cell-to-node interpolation points
+        if(j==0)    VW = field[k+1][j+1].xy;
+        else        VW = field[k+1][j  ].xy;
+
+        if(j==my-2) VE = field[k+1][j  ].xy;
+        else        VE = field[k+1][j+1].xy;
+
+        if(k==0)    VS = field[k+1][j+1].xy;
+        else        VS = field[k  ][j+1].xy;
+
+        if(k==mz-2) VN = field[k  ][j+1].xy;
+        else        VN = field[k+1][j+1].xy;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (my-1) + j] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xy, x);
+
+    // write xz component
+    for (k=0; k<mz-1; k++)
+    for (j=0; j<my-1; j++)
+    {
+        // build cell-to-node interpolation points
+        if(j==0)    VW = field[k+1][j+1].xz;
+        else        VW = field[k+1][j  ].xz;
+
+        if(j==my-2) VE = field[k+1][j  ].xz;
+        else        VE = field[k+1][j+1].xz;
+
+        if(k==0)    VS = field[k+1][j+1].yz;
+        else        VS = field[k  ][j+1].yz;
+
+        if(k==mz-2) VN = field[k  ][j+1].xz;
+        else        VN = field[k+1][j+1].xz;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (my-1) + j] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xz, x);
+
+    // write yz component
+    for (k=0; k<mz-1; k++)
+    for (j=0; j<my-1; j++)
+    {
+        // build cell-to-node interpolation points
+        if(j==0)    VW = field[k+1][j+1].yz;
+        else        VW = field[k+1][j  ].yz;
+
+        if(j==my-2) VE = field[k+1][j  ].yz;
+        else        VE = field[k+1][j+1].yz;
+
+        if(k==0)    VS = field[k+1][j+1].yz;
+        else        VS = field[k  ][j+1].yz;
+
+        if(k==mz-2) VN = field[k  ][j+1].yz;
+        else        VN = field[k+1][j+1].yz;
+
+        V = 0.25 * (VN + VS + VW + VW);
+
+        x[k * (my-1) + j] = V;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1yz, x);
+
+    // write reference to HDF file in XMF file
+    xmfWriteFileSymmTensor(xmf, filexmf, 1, my-1, mz-1, hdfilen, fieldName, str2xx, str2yy, str2zz, str2xy, str2xz, str2yz, "Node");
+
+    delete [] x;
+
+    return(0);
+}
+
+//***************************************************************************************************************//
 
 PetscErrorCode writeScalarToXMF
 (
@@ -3179,6 +3782,375 @@ PetscErrorCode iSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, P
         {
             mSet(sec->vectorSec[0][j],    sec->vectorSec[1][j]);
             mSet(sec->vectorSec[mz-1][j], sec->vectorSec[mz-2][j]);
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode kSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscMPIInt        rank;
+
+    symmTensor          ***v;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // get the file name to read
+    word fname;
+    fname = "./fields/" + mesh->meshName + "/" + stream.str() + "/" + fieldName;
+
+    // read field
+    PetscPrintf(mesh->MESH_COMM, " > %s\n", fieldName.c_str());
+
+    PetscViewer  viewer;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fname.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(V,viewer);
+    PetscViewerDestroy(&viewer);
+
+    // set to zero
+    for(j=0; j<my; j++)
+    {
+        for(i=0; i<mx; i++)
+        {
+            sec->symmTensorSec[j][i].xx = 0;
+            sec->symmTensorSec[j][i].yy = 0;
+            sec->symmTensorSec[j][i].zz = 0;
+            sec->symmTensorSec[j][i].xy = 0;
+            sec->symmTensorSec[j][i].xz = 0;
+            sec->symmTensorSec[j][i].yz = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->sda, V, &v);
+
+    if(kplane>=zs && kplane<ze)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                sec->symmTensorSec[j][i].xx = v[kplane][j][i].xx;
+                sec->symmTensorSec[j][i].yy = v[kplane][j][i].yy;
+                sec->symmTensorSec[j][i].zz = v[kplane][j][i].zz;
+                sec->symmTensorSec[j][i].xy = v[kplane][j][i].xy;
+                sec->symmTensorSec[j][i].xz = v[kplane][j][i].xz;
+                sec->symmTensorSec[j][i].yz = v[kplane][j][i].yz;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->sda, V, &v);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    if(!rank)
+    {
+        for(j=0; j<my; j++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, sec->symmTensorSec[j], mx*6, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(j=0; j<my; j++)
+        {
+            MPI_Reduce(sec->symmTensorSec[j], sec->symmTensorSec[j], mx*6, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply zeroGradient boundary conditions are average fields are only defined internally
+    if(!rank)
+    {
+        for (j=0; j<my; j++)
+        {
+            sec->symmTensorSec[j][0].xx = sec->symmTensorSec[j][1].xx;
+            sec->symmTensorSec[j][0].yy = sec->symmTensorSec[j][1].yy;
+            sec->symmTensorSec[j][0].zz = sec->symmTensorSec[j][1].zz;
+            sec->symmTensorSec[j][0].xy = sec->symmTensorSec[j][1].xy;
+            sec->symmTensorSec[j][0].xz = sec->symmTensorSec[j][1].xz;
+            sec->symmTensorSec[j][0].yz = sec->symmTensorSec[j][1].yz;
+
+            sec->symmTensorSec[j][mx-1].xx = sec->symmTensorSec[j][mx-2].xx;
+            sec->symmTensorSec[j][mx-1].yy = sec->symmTensorSec[j][mx-2].yy;
+            sec->symmTensorSec[j][mx-1].zz = sec->symmTensorSec[j][mx-2].zz;
+            sec->symmTensorSec[j][mx-1].xy = sec->symmTensorSec[j][mx-2].xy;
+            sec->symmTensorSec[j][mx-1].xz = sec->symmTensorSec[j][mx-2].xz;
+            sec->symmTensorSec[j][mx-1].yz = sec->symmTensorSec[j][mx-2].yz;
+        }
+        for (i=0; i<mx; i++)
+        {
+            sec->symmTensorSec[0][i].xx = sec->symmTensorSec[1][i].xx;
+            sec->symmTensorSec[0][i].yy = sec->symmTensorSec[1][i].yy;
+            sec->symmTensorSec[0][i].zz = sec->symmTensorSec[1][i].zz;
+            sec->symmTensorSec[0][i].xy = sec->symmTensorSec[1][i].xy;
+            sec->symmTensorSec[0][i].xz = sec->symmTensorSec[1][i].xz;
+            sec->symmTensorSec[0][i].yz = sec->symmTensorSec[1][i].yz;
+
+            sec->symmTensorSec[my-1][i].xx = sec->symmTensorSec[my-2][i].xx;
+            sec->symmTensorSec[my-1][i].yy = sec->symmTensorSec[my-2][i].yy;
+            sec->symmTensorSec[my-1][i].zz = sec->symmTensorSec[my-2][i].zz;
+            sec->symmTensorSec[my-1][i].xy = sec->symmTensorSec[my-2][i].xy;
+            sec->symmTensorSec[my-1][i].xz = sec->symmTensorSec[my-2][i].xz;
+            sec->symmTensorSec[my-1][i].yz = sec->symmTensorSec[my-2][i].yz;
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode jSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscMPIInt        rank;
+
+    symmTensor         ***v;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // get the file name to read
+    word fname;
+    fname = "./fields/" + mesh->meshName + "/" + stream.str() + "/" + fieldName;
+
+    // read field
+    PetscPrintf(mesh->MESH_COMM, " > %s\n", fieldName.c_str());
+
+    PetscViewer  viewer;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fname.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(V,viewer);
+    PetscViewerDestroy(&viewer);
+
+    // set to zero
+    for( k=0; k<mz; k++)
+    {
+        for(i=0; i<mx; i++)
+        {
+            sec->symmTensorSec[k][i].xx = 0;
+            sec->symmTensorSec[k][i].yy = 0;
+            sec->symmTensorSec[k][i].zz = 0;
+            sec->symmTensorSec[k][i].xy = 0;
+            sec->symmTensorSec[k][i].xz = 0;
+            sec->symmTensorSec[k][i].yz = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->sda, V, &v);
+
+    if(jplane>=ys && jplane<ye)
+    {
+        for (k=zs; k<ze; k++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                sec->symmTensorSec[k][i].xx = v[k][jplane][i].xx;
+                sec->symmTensorSec[k][i].yy = v[k][jplane][i].yy;
+                sec->symmTensorSec[k][i].zz = v[k][jplane][i].zz;
+                sec->symmTensorSec[k][i].xy = v[k][jplane][i].xy;
+                sec->symmTensorSec[k][i].xz = v[k][jplane][i].xz;
+                sec->symmTensorSec[k][i].yz = v[k][jplane][i].yz;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->sda, V, &v);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    if(!rank)
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, sec->symmTensorSec[k], mx*6, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(sec->symmTensorSec[k], sec->symmTensorSec[k], mx*6, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions are average fields are only defined internally
+    if(!rank)
+    {
+        for (k=0; k<mz; k++)
+        {
+            sec->symmTensorSec[k][0].xx = sec->symmTensorSec[k][1].xx;
+            sec->symmTensorSec[k][0].yy = sec->symmTensorSec[k][1].yy;
+            sec->symmTensorSec[k][0].zz = sec->symmTensorSec[k][1].zz;
+            sec->symmTensorSec[k][0].xy = sec->symmTensorSec[k][1].xy;
+            sec->symmTensorSec[k][0].xz = sec->symmTensorSec[k][1].xz;
+            sec->symmTensorSec[k][0].yz = sec->symmTensorSec[k][1].yz;
+
+            sec->symmTensorSec[k][mx-1].xx = sec->symmTensorSec[k][mx-2].xx;
+            sec->symmTensorSec[k][mx-1].yy = sec->symmTensorSec[k][mx-2].yy;
+            sec->symmTensorSec[k][mx-1].zz = sec->symmTensorSec[k][mx-2].zz;
+            sec->symmTensorSec[k][mx-1].xy = sec->symmTensorSec[k][mx-2].xy;
+            sec->symmTensorSec[k][mx-1].xz = sec->symmTensorSec[k][mx-2].xz;
+            sec->symmTensorSec[k][mx-1].yz = sec->symmTensorSec[k][mx-2].yz;
+        }
+        for (i=0; i<mx; i++)
+        {
+            sec->symmTensorSec[0][i].xx = sec->symmTensorSec[1][i].xx;
+            sec->symmTensorSec[0][i].yy = sec->symmTensorSec[1][i].yy;
+            sec->symmTensorSec[0][i].zz = sec->symmTensorSec[1][i].zz;
+            sec->symmTensorSec[0][i].xy = sec->symmTensorSec[1][i].xy;
+            sec->symmTensorSec[0][i].xz = sec->symmTensorSec[1][i].xz;
+            sec->symmTensorSec[0][i].yz = sec->symmTensorSec[1][i].yz;
+
+            sec->symmTensorSec[mz-1][i].xx = sec->symmTensorSec[mz-2][i].xx;
+            sec->symmTensorSec[mz-1][i].yy = sec->symmTensorSec[mz-2][i].yy;
+            sec->symmTensorSec[mz-1][i].zz = sec->symmTensorSec[mz-2][i].zz;
+            sec->symmTensorSec[mz-1][i].xy = sec->symmTensorSec[mz-2][i].xy;
+            sec->symmTensorSec[mz-1][i].xz = sec->symmTensorSec[mz-2][i].xz;
+            sec->symmTensorSec[mz-1][i].yz = sec->symmTensorSec[mz-2][i].yz;
+        }
+    }
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode iSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time)
+{
+    clock_             *clock = mesh->access->clock;
+    DMDALocalInfo      info = mesh->info;
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscMPIInt        rank;
+
+    symmTensor         ***v;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(clock->timePrecision) << time;
+
+    // get the file name to read
+    word fname;
+    fname = "./fields/" + mesh->meshName + "/" + stream.str() + "/" + fieldName;
+
+    // read field
+    PetscPrintf(mesh->MESH_COMM, " > %s\n", fieldName.c_str());
+
+    PetscViewer  viewer;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fname.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(V,viewer);
+    PetscViewerDestroy(&viewer);
+
+    // set to zero
+    for(k=0; k<mz; k++)
+    {
+        for(j=0; j<my; j++)
+        {
+            sec->symmTensorSec[k][j].xx = 0;
+            sec->symmTensorSec[k][j].yy = 0;
+            sec->symmTensorSec[k][j].zz = 0;
+            sec->symmTensorSec[k][j].xy = 0;
+            sec->symmTensorSec[k][j].xz = 0;
+            sec->symmTensorSec[k][j].yz = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->sda, V, &v);
+
+    if(iplane>=xs && iplane<xe)
+    {
+        for (k=zs; k<ze; k++)
+        {
+            for (j=ys; j<ye; j++)
+            {
+                sec->symmTensorSec[k][j].xx = v[k][j][iplane].xx;
+                sec->symmTensorSec[k][j].yy = v[k][j][iplane].yy;
+                sec->symmTensorSec[k][j].zz = v[k][j][iplane].zz;
+                sec->symmTensorSec[k][j].xy = v[k][j][iplane].xy;
+                sec->symmTensorSec[k][j].xz = v[k][j][iplane].xz;
+                sec->symmTensorSec[k][j].yz = v[k][j][iplane].yz;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->sda, V, &v);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    if(!rank)
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, sec->symmTensorSec[k], my*6, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(k=0; k<mz; k++)
+        {
+            MPI_Reduce(sec->symmTensorSec[k], sec->symmTensorSec[k], my*6, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions are average fields are only defined internally
+    if(!rank)
+    {
+        for (k=0; k<mz; k++)
+        {
+            sec->symmTensorSec[k][0].xx = sec->symmTensorSec[k][1].xx;
+            sec->symmTensorSec[k][0].yy = sec->symmTensorSec[k][1].yy;
+            sec->symmTensorSec[k][0].zz = sec->symmTensorSec[k][1].zz;
+            sec->symmTensorSec[k][0].xy = sec->symmTensorSec[k][1].xy;
+            sec->symmTensorSec[k][0].xz = sec->symmTensorSec[k][1].xz;
+            sec->symmTensorSec[k][0].yz = sec->symmTensorSec[k][1].yz;
+
+            sec->symmTensorSec[k][my-1].xx = sec->symmTensorSec[k][my-2].xx;
+            sec->symmTensorSec[k][my-1].yy = sec->symmTensorSec[k][my-2].yy;
+            sec->symmTensorSec[k][my-1].zz = sec->symmTensorSec[k][my-2].zz;
+            sec->symmTensorSec[k][my-1].xy = sec->symmTensorSec[k][my-2].xy;
+            sec->symmTensorSec[k][my-1].xz = sec->symmTensorSec[k][my-2].xz;
+            sec->symmTensorSec[k][my-1].yz = sec->symmTensorSec[k][my-2].yz;
+        }
+        for (j=0; j<my; j++)
+        {
+            sec->symmTensorSec[0][i].xx = sec->symmTensorSec[1][i].xx;
+            sec->symmTensorSec[0][i].yy = sec->symmTensorSec[1][i].yy;
+            sec->symmTensorSec[0][i].zz = sec->symmTensorSec[1][i].zz;
+            sec->symmTensorSec[0][i].xy = sec->symmTensorSec[1][i].xy;
+            sec->symmTensorSec[0][i].xz = sec->symmTensorSec[1][i].xz;
+            sec->symmTensorSec[0][i].yz = sec->symmTensorSec[1][i].yz;
+
+            sec->symmTensorSec[mz-1][j].xx = sec->symmTensorSec[mz-2][j].xx;
+            sec->symmTensorSec[mz-1][j].yy = sec->symmTensorSec[mz-2][j].yy;
+            sec->symmTensorSec[mz-1][j].zz = sec->symmTensorSec[mz-2][j].zz;
+            sec->symmTensorSec[mz-1][j].xy = sec->symmTensorSec[mz-2][j].xy;
+            sec->symmTensorSec[mz-1][j].xz = sec->symmTensorSec[mz-2][j].xz;
+            sec->symmTensorSec[mz-1][j].yz = sec->symmTensorSec[mz-2][j].yz;
         }
     }
     return(0);
@@ -4133,16 +5105,15 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                       status = H5Fclose(file_id);
                   }
 
-                  /*
-                  // load pressure
-                  kSectionLoadScalar(mesh, kSections, kplane, "p", timeSeries[ntimes-1]);
+                  // load average Reynold stresses
+                  kSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, kSections, kplane, "avgUU", timeSeries[ntimes-1]);
 
                   if(!rank)
                   {
                       file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
                       dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                      writeISectionScalarToXMF
+                      writeKSectionSymmTensorToXMF
                       (
                           mesh,
                           fieldsFileName.c_str(),
@@ -4150,24 +5121,94 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                           &file_id,
                           &dataspace_id,
                           timeSeries[ntimes-1],
-                          "p",
+                          "avgUU",
+                          kSections->symmTensorSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                  }
+
+                  // load average pressure
+                  kSectionLoadScalarFromField(acquisition->fields->avgP, mesh, kSections, kplane, "avgP", timeSeries[ntimes-1]);
+
+                  if(!rank)
+                  {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeKSectionScalarToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ntimes-1],
+                          "avgP",
                           kSections->scalarSec
                       );
 
                       status = H5Sclose(dataspace_id);
                       status = H5Fclose(file_id);
-                  }*/
+                  }
 
-                  // load nut
                   if(flags.isLesActive)
                   {
+                      // load average nut
+                      kSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, kSections, kplane, "avgNut", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeKSectionScalarToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgNut",
+                              kSections->scalarSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
+
+                      // load average cs
+                      kSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, kSections, kplane, "avgCs", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeKSectionScalarToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgCs",
+                              kSections->scalarSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
 
                   }
 
                   // load temperature
                   if(flags.isTeqnActive)
                   {
-
+                      // no fields for now
                   }
 
                   // close this time section in the XMF file
@@ -4672,9 +5713,32 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                       status = H5Fclose(file_id);
                   }
 
-                  /*
-                  // load pressure
-                  jSectionLoadScalar(mesh, jSections, jplane, "p", timeSeries[ti]);
+                  // load average Reynold stresses
+                  jSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, jSections, jplane, "avgUU", timeSeries[ntimes-1]);
+
+                  if(!rank)
+                  {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeJSectionSymmTensorToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ntimes-1],
+                          "avgUU",
+                          jSections->symmTensorSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                  }
+
+                  // load average pressure
+                  jSectionLoadScalarFromField(acquisition->fields->avgP, mesh, jSections, jplane, "avgP", timeSeries[ntimes-1]);
 
                   if(!rank)
                   {
@@ -4688,25 +5752,71 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                           hdfileName.c_str(),
                           &file_id,
                           &dataspace_id,
-                          timeSeries[ti],
-                          "p",
+                          timeSeries[ntimes-1],
+                          "avgP",
                           jSections->scalarSec
                       );
 
                       status = H5Sclose(dataspace_id);
                       status = H5Fclose(file_id);
-                  }*/
+                  }
 
-                  // load nut
                   if(flags.isLesActive)
                   {
+                      // load average nut
+                      jSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, jSections, jplane, "avgNut", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeJSectionScalarToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgNut",
+                              jSections->scalarSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
+
+                      // load average cs
+                      jSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, jSections, jplane, "avgCs", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeJSectionScalarToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgCs",
+                              jSections->scalarSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
 
                   }
 
                   // load temperature
                   if(flags.isTeqnActive)
                   {
-
+                      // no fields for now
                   }
 
                   // close this time section in the XMF file
@@ -5204,9 +6314,32 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
                       status = H5Fclose(file_id);
                   }
 
-                  /*
-                  // load pressure
-                  iSectionLoadScalar(mesh, iSections, iplane, "p", timeSeries[ntimes-1]);
+                  // load average Reynold stresses
+                  iSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, iSections, iplane, "avgUU", timeSeries[ntimes-1]);
+
+                  if(!rank)
+                  {
+                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                      dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                      writeISectionSymmTensorToXMF
+                      (
+                          mesh,
+                          fieldsFileName.c_str(),
+                          hdfileName.c_str(),
+                          &file_id,
+                          &dataspace_id,
+                          timeSeries[ntimes-1],
+                          "avgUU",
+                          iSections->symmTensorSec
+                      );
+
+                      status = H5Sclose(dataspace_id);
+                      status = H5Fclose(file_id);
+                  }
+
+                  // load average pressure
+                  iSectionLoadScalarFromField(acquisition->fields->avgP, mesh, iSections, iplane, "avgP", timeSeries[ntimes-1]);
 
                   if(!rank)
                   {
@@ -5221,24 +6354,69 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
                           &file_id,
                           &dataspace_id,
                           timeSeries[ntimes-1],
-                          "p",
+                          "avgP",
                           iSections->scalarSec
                       );
 
                       status = H5Sclose(dataspace_id);
                       status = H5Fclose(file_id);
-                  }*/
+                  }
 
-                  // load nut
                   if(flags.isLesActive)
                   {
+                      // load average nut
+                      iSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, iSections, iplane, "avgNut", timeSeries[ntimes-1]);
 
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeISectionScalarToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgNut",
+                              iSections->scalarSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
+
+                      // load average cs
+                      iSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, iSections, iplane, "avgCs", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeISectionScalarToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgCs",
+                              iSections->scalarSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
                   }
 
                   // load temperature
                   if(flags.isTeqnActive)
                   {
-
+                      // no fields for now
                   }
 
                   // close this time section in the XMF file
@@ -6013,6 +7191,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
     for(PetscInt d=0; d<nDomains; d++)
     {
         flags_ flags = domain[d].flags;
+        io_    *io   = domain[d].io;
 
         if(flags.isAquisitionActive)
         {
@@ -6090,8 +7269,9 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
             // read k-section input file
             if(iskavail)
             {
-                PetscInt atLeastOneVector = 0;
-                PetscInt atLeastOneScalar = 0;
+                PetscInt atLeastOneVector     = 0;
+                PetscInt atLeastOneScalar     = 0;
+                PetscInt atLeastOneSymmTensor = 0;
 
                 word path2index = "./postProcessing/" + mesh->meshName + "/kSurfaces/";
                 std::vector<PetscInt>      kIndex;
@@ -6227,22 +7407,10 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 MPI_Allreduce(&lcoor[0], &kSections->coordinates[0], nkSec, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
 
                 atLeastOneVector++;
-
-                if(flags.isTeqnActive)
-                {
-                  atLeastOneScalar++;
-                }
-
-                if(flags.isLesActive)
-                {
-                  atLeastOneScalar++;
-                }
-
-                if(acquisition->isPerturbABLActive)
-                {
-                    atLeastOneScalar++;
-                    atLeastOneVector++;
-                }
+                if(flags.isTeqnActive) atLeastOneScalar++;
+                if(flags.isLesActive)  atLeastOneScalar++;
+                if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
+                if(io->averaging) atLeastOneSymmTensor++;
 
                 // allocate variables where data are stored
                 if(atLeastOneVector)
@@ -6264,6 +7432,16 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                         kSections->scalarSec[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
                     }
                 }
+
+                if(atLeastOneSymmTensor)
+                {
+                    kSections->symmTensorSec = (symmTensor **)malloc( sizeof(symmTensor *) * my );
+
+                    for(j=0; j<my; j++)
+                    {
+                        kSections->symmTensorSec[j] = (symmTensor *)malloc( sizeof(symmTensor) * mx );
+                    }
+                }
             }
             else
             {
@@ -6277,8 +7455,9 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
             // read j-section input file
             if(isjavail)
             {
-                PetscInt atLeastOneVector = 0;
-                PetscInt atLeastOneScalar = 0;
+                PetscInt atLeastOneVector     = 0;
+                PetscInt atLeastOneScalar     = 0;
+                PetscInt atLeastOneSymmTensor = 0;
 
                 // read number of sections
                 word path2index = "./postProcessing/" + mesh->meshName + "/jSurfaces/";
@@ -6416,22 +7595,10 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 MPI_Allreduce(&lcoor[0], &jSections->coordinates[0], njSec, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
 
                 atLeastOneVector++;
-
-                if(flags.isTeqnActive)
-                {
-                  atLeastOneScalar++;
-                }
-
-                if(flags.isLesActive)
-                {
-                  atLeastOneScalar++;
-                }
-
-                if(acquisition->isPerturbABLActive)
-                {
-                    atLeastOneScalar++;
-                    atLeastOneVector++;
-                }
+                if(flags.isTeqnActive) atLeastOneScalar++;
+                if(flags.isLesActive)  atLeastOneScalar++;
+                if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
+                if(io->averaging) atLeastOneSymmTensor++;
 
                 // allocate variables where data are stored
                 if(atLeastOneVector)
@@ -6453,6 +7620,16 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                         jSections->scalarSec[k] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
                     }
                 }
+
+                if(atLeastOneSymmTensor)
+                {
+                    jSections->symmTensorSec = (symmTensor **)malloc( sizeof(symmTensor *) * mz );
+
+                    for(k=0; k<mz; k++)
+                    {
+                        jSections->symmTensorSec[k] = (symmTensor *)malloc( sizeof(symmTensor) * mx );
+                    }
+                }
             }
             else
             {
@@ -6466,8 +7643,9 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
             // read i-section input file
             if(isiavail)
             {
-                PetscInt atLeastOneVector = 0;
-                PetscInt atLeastOneScalar = 0;
+                PetscInt atLeastOneVector     = 0;
+                PetscInt atLeastOneScalar     = 0;
+                PetscInt atLeastOneSymmTensor = 0;
 
                 // read number of sections
                 word path2index = "./postProcessing/" + mesh->meshName + "/iSurfaces/";
@@ -6604,22 +7782,10 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 MPI_Allreduce(&lcoor[0], &iSections->coordinates[0], niSec, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
 
                 atLeastOneVector++;
-
-                if(flags.isTeqnActive)
-                {
-                  atLeastOneScalar++;
-                }
-
-                if(flags.isLesActive)
-                {
-                  atLeastOneScalar++;
-                }
-
-                if(acquisition->isPerturbABLActive)
-                {
-                    atLeastOneScalar++;
-                    atLeastOneVector++;
-                }
+                if(flags.isTeqnActive) atLeastOneScalar++;
+                if(flags.isLesActive)  atLeastOneScalar++;
+                if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
+                if(io->averaging) atLeastOneSymmTensor++;
 
                 // allocate variables where data are stored
                 if(atLeastOneVector)
@@ -6639,6 +7805,16 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                     for(k=0; k<mz; k++)
                     {
                         iSections->scalarSec[k] = (PetscReal *)malloc( sizeof(PetscReal) * my );
+                    }
+                }
+
+                if(atLeastOneSymmTensor)
+                {
+                    iSections->symmTensorSec = (symmTensor **)malloc( sizeof(symmTensor *) * mz );
+
+                    for(k=0; k<mz; k++)
+                    {
+                        iSections->symmTensorSec[k] = (symmTensor *)malloc( sizeof(symmTensor) * my );
                     }
                 }
             }

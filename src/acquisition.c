@@ -1369,13 +1369,13 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
                             p_mean[k][j][i] = m1 * p_mean[k][j][i] + m2 * P;
 
                             // cumulate avgUU
-                            uu_mean[k][j][i].xx = m1 * uu_mean[k][j][i].xx + m2 * U * U;
-                            uu_mean[k][j][i].yy = m1 * uu_mean[k][j][i].yy + m2 * V * V;
-                            uu_mean[k][j][i].zz = m1 * uu_mean[k][j][i].zz + m2 * W * W;
+                            uu_mean[k][j][i].xx = m1 * uu_mean[k][j][i].xx + m2 * (U-u_mean[k][j][i].x) * (U-u_mean[k][j][i].x);
+                            uu_mean[k][j][i].yy = m1 * uu_mean[k][j][i].yy + m2 * (V-u_mean[k][j][i].y) * (V-u_mean[k][j][i].y);
+                            uu_mean[k][j][i].zz = m1 * uu_mean[k][j][i].zz + m2 * (W-u_mean[k][j][i].z) * (W-u_mean[k][j][i].z);
 
-                            uu_mean[k][j][i].xy = m1 * uu_mean[k][j][i].xy + m2 * U * V;
-                            uu_mean[k][j][i].xz = m1 * uu_mean[k][j][i].xz + m2 * U * W;
-                            uu_mean[k][j][i].yz = m1 * uu_mean[k][j][i].yz + m2 * V * W;
+                            uu_mean[k][j][i].xy = m1 * uu_mean[k][j][i].xy + m2 * (U-u_mean[k][j][i].x) * (V-u_mean[k][j][i].y);
+                            uu_mean[k][j][i].xz = m1 * uu_mean[k][j][i].xz + m2 * (U-u_mean[k][j][i].x) * (W-u_mean[k][j][i].z);
+                            uu_mean[k][j][i].yz = m1 * uu_mean[k][j][i].yz + m2 * (V-u_mean[k][j][i].y) * (W-u_mean[k][j][i].z);
 
                             if (flags->isLesActive)
                             {
@@ -1394,13 +1394,13 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
                                 if(io->averaging > 2)
                                 {
                                     // cumulate avgOmegaOmega
-                                    ww_mean[k][j][i].xx = m1 * ww_mean[k][j][i].xx + m2 * omega_x * omega_x;
-                                    ww_mean[k][j][i].yy = m1 * ww_mean[k][j][i].yy + m2 * omega_y * omega_y;
-                                    ww_mean[k][j][i].zz = m1 * ww_mean[k][j][i].zz + m2 * omega_z * omega_z;
+                                    ww_mean[k][j][i].xx = m1 * ww_mean[k][j][i].xx + m2 * (omega_x-w_mean[k][j][i].x) * (omega_x-w_mean[k][j][i].x);
+                                    ww_mean[k][j][i].yy = m1 * ww_mean[k][j][i].yy + m2 * (omega_y-w_mean[k][j][i].y) * (omega_y-w_mean[k][j][i].y);
+                                    ww_mean[k][j][i].zz = m1 * ww_mean[k][j][i].zz + m2 * (omega_z-w_mean[k][j][i].z) * (omega_z-w_mean[k][j][i].z);
 
-                                    ww_mean[k][j][i].xy = m1 * ww_mean[k][j][i].xy + m2 * omega_x * omega_y;
-                                    ww_mean[k][j][i].xz = m1 * ww_mean[k][j][i].xz + m2 * omega_x * omega_z;
-                                    ww_mean[k][j][i].yz = m1 * ww_mean[k][j][i].yz + m2 * omega_y * omega_z;
+                                    ww_mean[k][j][i].xy = m1 * ww_mean[k][j][i].xy + m2 * (omega_x-w_mean[k][j][i].x) * (omega_y-w_mean[k][j][i].y);
+                                    ww_mean[k][j][i].xz = m1 * ww_mean[k][j][i].xz + m2 * (omega_x-w_mean[k][j][i].x) * (omega_z-w_mean[k][j][i].z);
+                                    ww_mean[k][j][i].yz = m1 * ww_mean[k][j][i].yz + m2 * (omega_y-w_mean[k][j][i].y) * (omega_z-w_mean[k][j][i].z);
 
                                     // cumulate avgP2
                                     p2_mean[k][j][i] = m1 * p2_mean[k][j][i] + m2 * P * P;
@@ -1442,13 +1442,13 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
                             p_phase[k][j][i] = p1 * p_phase[k][j][i] + p2 * P;
 
                             // cumulate pAvgUU
-                            uu_phase[k][j][i].xx = p1 * uu_phase[k][j][i].xx + p2 * U * U;
-                            uu_phase[k][j][i].yy = p1 * uu_phase[k][j][i].yy + p2 * V * V;
-                            uu_phase[k][j][i].zz = p1 * uu_phase[k][j][i].zz + p2 * W * W;
+                            uu_phase[k][j][i].xx = p1 * uu_phase[k][j][i].xx + p2 * (U-u_phase[k][j][i].x) * (U-u_phase[k][j][i].x);
+                            uu_phase[k][j][i].yy = p1 * uu_phase[k][j][i].yy + p2 * (V-u_phase[k][j][i].y) * (V-u_phase[k][j][i].y);
+                            uu_phase[k][j][i].zz = p1 * uu_phase[k][j][i].zz + p2 * (W-u_phase[k][j][i].z) * (W-u_phase[k][j][i].z);
 
-                            uu_phase[k][j][i].xy = p1 * uu_phase[k][j][i].xy + p2 * U * V;
-                            uu_phase[k][j][i].xz = p1 * uu_phase[k][j][i].xz + p2 * U * W;
-                            uu_phase[k][j][i].yz = p1 * uu_phase[k][j][i].yz + p2 * V * W;
+                            uu_phase[k][j][i].xy = p1 * uu_phase[k][j][i].xy + p2 * (U-u_phase[k][j][i].x) * (V-u_phase[k][j][i].y);
+                            uu_phase[k][j][i].xz = p1 * uu_phase[k][j][i].xz + p2 * (U-u_phase[k][j][i].x) * (W-u_phase[k][j][i].z);
+                            uu_phase[k][j][i].yz = p1 * uu_phase[k][j][i].yz + p2 * (V-u_phase[k][j][i].y) * (W-u_phase[k][j][i].z);
 
                             if(flags->isLesActive)
                             {
@@ -1467,13 +1467,13 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
                                 if(io->phaseAveraging > 2)
                                 {
                                     // cumulate pAvgOmegaOmega
-                                    ww_phase[k][j][i].xx = p1 * ww_phase[k][j][i].xx + p2 * omega_x * omega_x;
-                                    ww_phase[k][j][i].yy = p1 * ww_phase[k][j][i].yy + p2 * omega_y * omega_y;
-                                    ww_phase[k][j][i].zz = p1 * ww_phase[k][j][i].zz + p2 * omega_z * omega_z;
+                                    ww_phase[k][j][i].xx = p1 * ww_phase[k][j][i].xx + p2 * (omega_x-w_phase[k][j][i].x) * (omega_x-w_phase[k][j][i].x);
+                                    ww_phase[k][j][i].yy = p1 * ww_phase[k][j][i].yy + p2 * (omega_y-w_phase[k][j][i].y) * (omega_y-w_phase[k][j][i].y);
+                                    ww_phase[k][j][i].zz = p1 * ww_phase[k][j][i].zz + p2 * (omega_z-w_phase[k][j][i].z) * (omega_z-w_phase[k][j][i].z);
 
-                                    ww_phase[k][j][i].xy = p1 * ww_phase[k][j][i].xy + p2 * omega_x * omega_y;
-                                    ww_phase[k][j][i].xz = p1 * ww_phase[k][j][i].xz + p2 * omega_x * omega_z;
-                                    ww_phase[k][j][i].yz = p1 * ww_phase[k][j][i].yz + p2 * omega_y * omega_z;
+                                    ww_phase[k][j][i].xy = p1 * ww_phase[k][j][i].xy + p2 * (omega_x-w_phase[k][j][i].x) * (omega_y-w_phase[k][j][i].y);
+                                    ww_phase[k][j][i].xz = p1 * ww_phase[k][j][i].xz + p2 * (omega_x-w_phase[k][j][i].x) * (omega_z-w_phase[k][j][i].z);
+                                    ww_phase[k][j][i].yz = p1 * ww_phase[k][j][i].yz + p2 * (omega_y-w_phase[k][j][i].y) * (omega_z-w_phase[k][j][i].z);
 
                                     // cumulate pAvgP2
                                     p2_phase[k][j][i] = p1 * p2_phase[k][j][i] + p2 * P * P;

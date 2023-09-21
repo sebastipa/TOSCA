@@ -14,6 +14,7 @@ struct sections
     PetscReal          timeInterval;               //!< acquisition time interval (overrides simulation time step if smaller), not used if intervalType = timeStep
     PetscInt           *indices;
     PetscReal          *coordinates;               //!< cutting coordinate of the section
+    symmTensor         **symmTensorSec;            //!< temporary saves symmetric tensor section data
     Cmpnts             **vectorSec;                //!< temporarly saves vector section data
     PetscReal          **scalarSec;                //!< temporarly saves scalar section data
 };

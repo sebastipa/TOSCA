@@ -66,6 +66,7 @@ PetscErrorCode getTimeList(const char* dataLoc, std::vector<PetscReal> &timeSeri
 PetscErrorCode sectionsReadAndAllocate(domain_ *domain);
 
 //! Generate the section on-the-fly in the post processing phase (for average fields that only have to be done at the end)
+PetscErrorCode kSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 PetscErrorCode kSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 PetscErrorCode kSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 
@@ -74,6 +75,7 @@ PetscErrorCode kSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt kplane, c
 PetscErrorCode kSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 
 //! Generate the section on-the-fly in the post processing phase (for average fields that only have to be done at the end)
+PetscErrorCode iSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 PetscErrorCode iSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time);
 PetscErrorCode iSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time);
 
@@ -82,6 +84,7 @@ PetscErrorCode iSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt iplane, c
 PetscErrorCode iSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt iplane, const word &fieldName, PetscReal time);
 
 //! Generate the section on-the-fly in the post processing phase (for average fields that only have to be done at the end)
+PetscErrorCode jSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 PetscErrorCode jSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time);
 PetscErrorCode jSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt jplane, const word &fieldName, PetscReal time);
 
@@ -277,6 +280,45 @@ PetscErrorCode writeKSectionVectorToXMF
     PetscReal     time,
     const char *fieldName,
     Cmpnts     **field
+);
+
+//! \brief Writes a vector defined on an i-section (appends to XMF and creates HDF)
+PetscErrorCode writeISectionSymmTensorToXMF
+(
+    mesh_    *mesh,
+    const char *filexmf,
+    const char *hdfilen,
+    hid_t	   *file_id,
+    hid_t      *dataspace_id,
+    PetscReal     time,
+    const char *fieldName,
+    symmTensor     **field
+);
+
+//! \brief Writes a vector defined on an j-section (appends to XMF and creates HDF)
+PetscErrorCode writeJSectionSymmTensorToXMF
+(
+    mesh_    *mesh,
+    const char *filexmf,
+    const char *hdfilen,
+    hid_t	   *file_id,
+    hid_t      *dataspace_id,
+    PetscReal     time,
+    const char *fieldName,
+    symmTensor     **field
+);
+
+//! \brief Writes a vector defined on an k-section (appends to XMF and creates HDF)
+PetscErrorCode writeKSectionSymmTensorToXMF
+(
+    mesh_    *mesh,
+    const char *filexmf,
+    const char *hdfilen,
+    hid_t	   *file_id,
+    hid_t      *dataspace_id,
+    PetscReal     time,
+    const char *fieldName,
+    symmTensor     **field
 );
 
 // Interface functions for writing the mesh (3D or 2D)
