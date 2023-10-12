@@ -45,3 +45,6 @@ struct overset_;
 
 //! \brief Defined in precursor.h: precursor domain context
 struct precursor_;
+
+//! \brief Defined in vents.h: vents domain context
+struct vents_;

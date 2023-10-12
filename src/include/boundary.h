@@ -83,7 +83,7 @@ struct inletFunctionTypes
     PetscInt      iterTKE;                    //!< number of iteration for Energy spectrum adjustment. should be <= 10.
     PetscReal     Urms;                       //!< user defined rms velocity
     PetscReal     kolLScale;                  //!< kolomagrov length scale in m
-    PetscReal     largeLScale;                //!< length scale in m of largest eddy
+    PetscReal     intLScale;                //!< length scale in m of largest eddy
     PetscReal     dkn;                        //!< calculated wave vector interval, based on log scale
     PetscReal     kMax;                       //!< largerst wave number to include in driving energy spectrum
     PetscReal     kMin;                       //!< smallest wave number to include in driving energy spectrum

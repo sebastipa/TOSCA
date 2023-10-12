@@ -3,9 +3,9 @@
 
 #internal field
 
-internalField     uniform
+internalField    uniform
 {
-  value (0.1 0.0 0.0)
+  value (5.0 5.0 5.0)
   perturbations 0
 }
 #internalField    readField

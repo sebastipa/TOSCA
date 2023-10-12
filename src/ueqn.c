@@ -751,7 +751,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             abl->closestTimeIndV = idx_1;
 
             for(j=0; j<nlevels; j++)
-            {                
+            {
                 idxh1 = abl->velInterpIdx[j][0];
                 idxh2 = abl->velInterpIdx[j][1];
 
@@ -762,7 +762,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
                 uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
 
-                //interpolating in vertical direction 
+                //interpolating in vertical direction
                 uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
 
                 // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf, interpolated from %lf and %lf, wts = %lf %lf\n", uDes.x, uDes.y, uDes.z, guMean[j].x, guMean[j].y, guMean[j].z, abl->timeV[idx_1], abl->timeV[idx_2], w1, w2);
@@ -771,13 +771,13 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 abl->cumulatedSourceHt[j].x = (1.0 - clock->dt / T) * abl->cumulatedSourceHt[j].x + (clock->dt / T) * (uMeso[j].x - guMean[j].x);
                 abl->cumulatedSourceHt[j].y = (1.0 - clock->dt / T) * abl->cumulatedSourceHt[j].y + (clock->dt / T) * (uMeso[j].y - guMean[j].y);
                 abl->cumulatedSourceHt[j].z = 0.0;
-                
+
                 src[j].x = relax * (alpha * (uMeso[j].x - guMean[j].x) + (1.0-alpha) * abl->cumulatedSourceHt[j].x);
                 src[j].y = relax * (alpha * (uMeso[j].y - guMean[j].y) + (1.0-alpha) * abl->cumulatedSourceHt[j].y) ;
                 src[j].z = 0.0;
-                
+
             }
-        
+
         //to be performed after all values of src are set
         // set the source terms outside the provided range of mesoscale data. this is set incorrectly above so corrected here
         for(j=0; j<nlevels; j++)
@@ -788,7 +788,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 src[j].y = src[abl->lMesoIndV].y;
                 src[j].z = src[abl->lMesoIndV].z;
             }
-            
+
             if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
             {
                 src[j].x = src[abl->hMesoIndV].x;
@@ -817,11 +817,11 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
             if (abl->controllerType=="indirectProfileAssimilation")
             {
-                for (j=0; j<nlevels; j++) 
+                for (j=0; j<nlevels; j++)
                 {
                     PetscReal dotProductx = 0.0, dotProducty = 0.0, dotProductz = 0.0;
 
-                    for (k = 0; k < nlevels; k++) 
+                    for (k = 0; k < nlevels; k++)
                     {
                         dotProductx += abl->polyCoeffM[j][k] * src[k].x;
                         dotProducty += abl->polyCoeffM[j][k] * src[k].y;
@@ -833,15 +833,15 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     srcPA[j].z = dotProductz;
                 }
 
-                for (j=0; j<nlevels; j++) 
-                {              
+                for (j=0; j<nlevels; j++)
+                {
                     if(abl->cellLevels[j] < abl->lowestSrcHt)
                     {
                         srcPA[j].x = srcPA[abl->lowestIndV].x;
                         srcPA[j].y = srcPA[abl->lowestIndV].y;
                         srcPA[j].z = srcPA[abl->lowestIndV].z;
                     }
-                    
+
                     if(abl->cellLevels[j] > abl->highestSrcHt)
                     {
                         srcPA[j].x = srcPA[abl->highestIndV].x;
@@ -863,14 +863,14 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                         abl->avgsrc[j].x = m1*abl->avgsrc[j].x + m2*srcPA[j].x;
                         abl->avgsrc[j].y = m1*abl->avgsrc[j].y + m2*srcPA[j].y;
                         abl->avgsrc[j].z = m1*abl->avgsrc[j].z + m2*srcPA[j].z;
-                        
+
                     }
 
                     // PetscPrintf(PETSC_COMM_WORLD, "src[%ld] = %lf %lf %lf, avgsrc[%ld] = %lf %lf %lf\n", j, srcPA[j].x, srcPA[j].y, srcPA[j].z);
                 }
             }
 
-            //write the source terms 
+            //write the source terms
             if(!rank)
             {
                 if(clock->it == clock->itStart)
@@ -913,7 +913,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
                         word w2 = "time";
                         PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
-                    } 
+                    }
 
                     PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
 
@@ -922,9 +922,9 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                         for(j=0; j<nlevels; j++)
                         {
                             PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, abl->avgsrc[j].x,  width, abl->avgsrc[j].y,  width, abl->avgsrc[j].z);
-                        }                       
+                        }
                     }
-                    else 
+                    else
                     {
                         for(j=0; j<nlevels; j++)
                         {
@@ -934,8 +934,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
                     PetscFPrintf(mesh->MESH_COMM, fp, "\n");
 
-                    fclose(fp);                  
-                
+                    fclose(fp);
+
                 }
             }
         }
@@ -995,7 +995,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
             PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
 
-            
+
             if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading sources\n", w1 * abl->preCompSources[idx_1][0] + w2 * abl->preCompSources[idx_2][0]);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->preCompSources[idx_1][0], abl->preCompSources[idx_2][0]);
@@ -1093,7 +1093,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             PetscReal idx = (idx_2 - idx_1) / (abl->timeHtSources[idx_2][0][0] - abl->timeHtSources[idx_1][0][0]) * (clock->time - abl->timeHtSources[idx_1][0][0]) + idx_1;
             PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
             PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
-            
+
             if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading sources\n", w1 * abl->timeHtSources[idx_1][0][0] + w2 * abl->timeHtSources[idx_2][0][0]);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeHtSources[idx_1][0][0], abl->timeHtSources[idx_2][0][0]);
@@ -1116,7 +1116,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
                     wth1  = abl->velInterpWts[j][0];
                     wth2  = abl->velInterpWts[j][1];
-                    
+
                     uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][1] + wth2 * abl->timeHtSources[idx_1][idxh2][1];
                     uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][1] + wth2 * abl->timeHtSources[idx_2][idxh2][1];
 
@@ -1130,16 +1130,16 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][3] + wth2 * abl->timeHtSources[idx_1][idxh2][3];
                     uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][3] + wth2 * abl->timeHtSources[idx_2][idxh2][3];
 
-                    src[j].z = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt; 
+                    src[j].z = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
                 }
-                else 
+                else
                 {
                     src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][1] / dtSource2) * clock->dt;
                     src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][2] / dtSource2) * clock->dt;
-                    src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][3] / dtSource2) * clock->dt; 
-                } 
-            }           
- 
+                    src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][3] / dtSource2) * clock->dt;
+                }
+            }
+
         }
 
     }
@@ -1192,27 +1192,27 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                             {
                                 source[k][j][i].x = abl->avgsrc[j-1].x;
                                 source[k][j][i].y = abl->avgsrc[j-1].y;
-                                source[k][j][i].z = 0.0;  
+                                source[k][j][i].z = 0.0;
 
                                 if((abl->cellLevels[j] > abl->lowestSrcHt) && (abl->cellLevels[i] < abl->highestSrcHt))
                                 {
                                     lrelError += std::pow(abl->avgsrc[j-1].x*abl->avgsrc[j-1].x + abl->avgsrc[j-1].y*abl->avgsrc[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
                                     lcells ++;
-                                }                              
+                                }
                             }
                             else
                             {
                                 source[k][j][i].x = abl->srcPA[j-1].x;
                                 source[k][j][i].y = abl->srcPA[j-1].y;
                                 source[k][j][i].z = 0.0;
-                                                                
+
                                 if((abl->cellLevels[j] > abl->lowestSrcHt) && (abl->cellLevels[i] < abl->highestSrcHt))
                                 {
                                     lrelError += std::pow(src[j-1].x*src[j-1].x + src[j-1].y*src[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
                                     lcells ++;
-                                } 
+                                }
                             }
-                        } 
+                        }
                     }
                     else if(abl->controllerAction == "read")
                     {
@@ -1286,7 +1286,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         if (abl->controllerType=="timeHeightSeries")
         {
             free(src);
-        }       
+        }
     }
 
     std::vector<Cmpnts> ().swap(uMeso);
@@ -1431,7 +1431,7 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
     PetscReal     w_left, w_right;
 
     VecCopy(ueqn->lUcat, abl->uBarInstY);
-    
+
     if(flags->isTeqnActive)
     {
         VecCopy(ueqn->access->teqn->lTmprt, abl->tBarInstY);
@@ -1440,7 +1440,7 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-    
+
     PetscMPIInt   rank;
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
@@ -1466,7 +1466,7 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
 
                     numI = abl->srcNumI[p];
                     numJ = abl->srcNumJ[p];
-                    numK = abl->srcNumK[p];  
+                    numK = abl->srcNumK[p];
 
                     iminSrc = abl->srcMinInd[p].i;
                     jminSrc = abl->srcMinInd[p].j;
@@ -1489,7 +1489,7 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
                             continue;
                         }
 
-                        //check that the min and max are within the processor boundaries 
+                        //check that the min and max are within the processor boundaries
                         if(kmin >= lzs && kmax <= lze && jmin >= lys && jmax <= lye && imin >= lxs && imax <= lxe)
                         {
                             for (k=kmin; k<=kmax; k++)
@@ -1513,7 +1513,7 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
                                             PetscReal tLeft  = tMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)];
                                             PetscReal tRight = tMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)];
 
-                                            tbar[k][j][i] = w_left * tLeft + w_right * tRight;    
+                                            tbar[k][j][i] = w_left * tLeft + w_right * tRight;
                                         }
                                         // PetscPrintf(PETSC_COMM_SELF, "ubar[%ld][%ld][%ld] = %lf %lf %lf\n", k, j, i, ubar[k][j][i].x, ubar[k][j][i].y, ubar[k][j][i].z);
                                     }
@@ -1566,7 +1566,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-    
+
     PetscMPIInt   rank;
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
@@ -2284,10 +2284,10 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     numI = abl->srcNumI[p];
                     numJ = abl->srcNumJ[p];
                     numK = abl->srcNumK[p];
-                    
+
                     MPI_Ibcast(velMapped[p], numI * numJ * numK * 3, MPIU_REAL, abl->srcCommLocalRank[p], abl->yDamp_comm[p], &(abl->mapRequest[p]));
                 }
-                
+
             }
 
             if(precursor->thisProcessorInFringe)
@@ -2486,7 +2486,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal yS     = abl->yDampingStart;
     PetscReal yE     = abl->yDampingEnd;
     PetscReal yD     = abl->yDampingDelta;
-    
+
 
     // x damping layer
     PetscReal alphaX = abl->xDampingAlpha;
@@ -2502,7 +2502,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     // Nordstrom viscosities
     PetscReal nud_x, nudi_x, nudj_x, nudk_x;
     PetscReal nud_y, nudi_y, nudj_y, nudk_y;
-    
+
     // ascend function factor
     PetscReal fAsc_x, fAsc_xi, fAsc_xj, fAsc_xk;
 
@@ -2706,7 +2706,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // i-fluxes
                         rhs[k][j][i].x
                         +=
-                        scale * central(nud_y, nudi_y) * central(fAsc_x, fAsc_xi) * 
+                        scale * central(nud_y, nudi_y) * central(fAsc_x, fAsc_xi) *
                         (
                             uBarContI - ucont[k][j][i].x
                         );
@@ -2714,7 +2714,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // j-fluxes
                         rhs[k][j][i].y
                         +=
-                        scale * central(nud_y, nudj_y) * central(fAsc_x, fAsc_xj) * 
+                        scale * central(nud_y, nudj_y) * central(fAsc_x, fAsc_xj) *
                         (
                             uBarContJ - ucont[k][j][i].y
                         );
@@ -2899,7 +2899,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // k-fluxes
                     rhs[k][j][i].z
                     +=
-                    scale * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) * 
+                    scale * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                     (
                         (
                             (abl->kRightDampingUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
@@ -3256,6 +3256,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
 
     PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
 
     Cmpnts        gravity;
                   gravity.x = 0;
@@ -5221,7 +5222,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             {
                                 visc2[k][j][i] = nSet(viscIBM2[k][j+1][i]);
                             }
-                           
+
                             nuEff = 0;
                         }
                         else

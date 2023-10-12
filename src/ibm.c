@@ -7562,7 +7562,7 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
 
       if(flags->isTeqnActive)
       {
-          tmp[n] = 20;//ibm->access->abl->tRef;
+          tmp[n] = ibm->access->constants->tRef;
       }
 
       // get normalized distance

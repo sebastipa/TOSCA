@@ -254,23 +254,23 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
         readSubDictDouble(filename.c_str(), "inverseFourier", "Urms", &(ifPtr->Urms));
         readSubDictVector(filename.c_str(), "inverseFourier", "meanU", &(ifPtr->meanU));
         readSubDictDouble(filename.c_str(), "inverseFourier", "kolLScale", &(ifPtr->kolLScale));
-        readSubDictDouble(filename.c_str(), "inverseFourier", "largeLScale", &(ifPtr->largeLScale));
+        readSubDictDouble(filename.c_str(), "inverseFourier", "intLScale", &(ifPtr->intLScale));
         readSubDictInt(filename.c_str(), "inverseFourier", "fourierSumNum", &(ifPtr->FSumNum));
         readSubDictInt(filename.c_str(), "inverseFourier", "iterTKE", &(ifPtr->iterTKE));
         readSubDictWord(filename.c_str(), "inverseFourier", "genType", &(ifPtr->genType));
 
-        if (ifPtr->genType == "dietzel")
+        if (ifPtr->genType == "isoIF")
         {
             ifPtr->kMax = 3.141592653589793238462643/(((mesh->bounds.Lx / mesh->KM) + (mesh->bounds.Lz / mesh->JM) + (mesh->bounds.Ly / mesh->IM))/3);
             ifPtr->kKol = 1/ifPtr->kolLScale;
-            ifPtr->kEng = (9*3.141592653589793238462643*1.4256/(55*ifPtr->largeLScale));
+            ifPtr->kEng = (9*3.141592653589793238462643*1.4256/(55*ifPtr->intLScale));
             ifPtr->kMin = ifPtr->kEng/2.75;
             ifPtr->dkn = (ifPtr->kMax - ifPtr->kMin)/(ifPtr->FSumNum-1);
         }
         else
         {
             char error[512];
-            sprintf(error, "Invalid driving energy spectrum. Only 'dietzel' is available\n");
+            sprintf(error, "Invalid driving energy spectrum. Only 'isoIF' is available\n");
             fatalErrorInFunction("SetInitialFieldU", error);
         }
 
@@ -287,7 +287,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
         MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
 
-        if (ifPtr->genType == "dietzel" && rank == 0)
+        if (ifPtr->genType == "isoIF" && rank == 0)
         {
 
             Cmpnts basis1, basis2, basis3, GnSph, GnCart, kComps;
@@ -376,25 +376,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
 
                 //calculate fluctuating u magnitude for this fourier series at this point.
                 ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
-
-                /*char *filename = "SynTurbSummary";
-
-                FILE *fp = fopen(filename, "a");
-
-                if (fp == NULL)
-                {
-                    printf("Errror cannot open file SynTurbSummary");
-                    return -1;
-                }
-
-                if (n == 0)
-                {
-                   fprintf(fp, "n, unMag, Gnx, Gny, Gnz, knx, kny, knz, phaseN, sphAng1, sphAng2, dirAng, EDriving, knMag\n");
-                }
-
-                fprintf(fp, "%li, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", n, ifPtr->uMagN[n], ifPtr->Gn[n].x, ifPtr->Gn[n].y, ifPtr->Gn[n].z, ifPtr->kn[n].x, ifPtr->kn[n].y, ifPtr->kn[n].z, ifPtr->phaseN[n], sphAng1, sphAng2, dirAng, ifPtr->Ek[n], ifPtr->knMag[n]);
-
-                fclose(fp);*/
+               
             }
 
         }

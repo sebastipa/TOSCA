@@ -141,9 +141,9 @@ int main(int argc, char **argv)
             // Pressure Correction
             SolvePEqn(domain[d].peqn);
 
-            // transform contravariant to cartesian
+            // transform contravarian1qt to cartesian
             contravariantToCartesian(domain[d].ueqn);
-
+              
             // temperature step
             if(flags.isTeqnActive)
             {

@@ -5,16 +5,16 @@
 # ---------------------------------
 -startFrom                 startTime
 -startTime                 0
--endTime                   68.3
+-endTime                   420
 -cfl                       0.8
 -adjustTimeStep            1
--timeStep                  0.016
+-timeStep                  0.015
 -timePrecision             3
 
 # Write Data
 # ---------------------------------
--intervalType              adjustableTime
--timeInterval              0.016
+-intervalType              timeStep
+-timeInterval              0.015
 -purgeWrite                0
 
 # Solution
@@ -40,9 +40,9 @@
 
 # Numerical Schemes
 # ---------------------------------
--dUdtScheme                backwardEuler
+-dUdtScheme                rungeKutta4
 -dTdtScheme                rungeKutta4
--divScheme                 centralUpwindW
+-divScheme                 central
 
 # Wind Turbine
 # ---------------------------------
@@ -62,7 +62,7 @@
 # Acquisition
 # ---------------------------------
 -sections                 1
-#-probes                   1
+-probes                   1
 #-averagingABL            1
 #-averaging3LM             1
 

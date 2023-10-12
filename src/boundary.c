@@ -662,63 +662,68 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                 if (q >= 0) // this won't work if a vent is in the corner of the mesh, but I dont see a vent ever being in the very corner of a room.
                 {
 
-                    if (i == 0 && vents->vent[q]->ventBC == "fixedValue")
-                    {
-                        ucont[k][j][i].x
-                        =
-                        0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
-                        0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
-                        0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
-                    }
+                    if (vents->vent[q]->ventBC == "fixedValue" ||  vents->vent[q]->ventBC == "inletFunction")
 
-                    if (i == mx-2 && vents->vent[q]->ventBC == "fixedValue")
                     {
-                        //printf("Ucont Inlet %i,%i,%i\n", k,j,i);
-                        ucont[k][j][i].x
-                        =
-                        0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
-                        0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
-                        0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
-                    }
-
-                    if (j == 0 && vents->vent[q]->ventBC == "fixedValue")
-                    {
-                            ucont[k][j][i].y
+                        if (i == 0)
+                        {
+                            ucont[k][j][i].x
                             =
-                            0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
-                            0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
-                            0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
-                            //if (k==65 && i == 65) {printf("ucont BC j Left .....................\n");}
+                            0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
+                            0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
+                            0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
                         }
 
-                    if (j == my-2 && vents->vent[q]->ventBC == "fixedValue")
-                    {
+                        if (i == mx-2)
+                        {
                             //printf("Ucont Inlet %i,%i,%i\n", k,j,i);
-                            ucont[k][j][i].y
+                            ucont[k][j][i].x
                             =
-                            0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
-                            0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
-                            0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
+                            0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
+                            0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
+                            0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
                         }
 
-                    if (k == 0 && vents->vent[q]->ventBC == "fixedValue")
-                    {
+                        if (j == 0)
+                        {
+                                ucont[k][j][i].y
+                                =
+                                0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
+                                0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
+                                0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
+                                //if (k==65 && i == 65) {printf("ucont BC j Left .....................\n");}
+                            }
+
+                        if (j == my-2)
+                        {
+                                //printf("Ucont Inlet %i,%i,%i\n", k,j,i);
+                                ucont[k][j][i].y
+                                =
+                                0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
+                                0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
+                                0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
+                            }
+
+                        if (k == 0)
+                        {
+                                ucont[k][j][i].z
+                                =
+                                0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) * kzet[k][j][i].x +
+                                0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) * kzet[k][j][i].y +
+                                0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
+
+                        }
+
+                        if (k == mz-2)
+                        {
                             ucont[k][j][i].z
                             =
                             0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) * kzet[k][j][i].x +
                             0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) * kzet[k][j][i].y +
                             0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
-
+                        }
                     }
 
-                    if (k == mz-2 && vents->vent[q]->ventBC == "fixedValue")
-                    {
-                        ucont[k][j][i].z
-                        =
-                        0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) * kzet[k][j][i].x +
-                        0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) * kzet[k][j][i].y +
-                        0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
-                    }
 
                     if (i == 0 && vents->vent[q]->ventBC == "zeroGradient")
                     {
@@ -1019,6 +1024,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 {
     mesh_        *mesh = ueqn->access->mesh;
     vents_       *vents = ueqn->access->vents;
+    flags_       *flags = ueqn->access->flags;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -1146,7 +1152,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
             if (rank == 0)
             {
 
-                if (ifPtr->genType == "dietzel")
+                if (ifPtr->genType == "isoIF")
                 {
                     Cmpnts basis1, basis2, basis3, GnSph, GnCart, kComps;
                     PetscReal Coeff1, Coeff2, Coeff3, Coeff4, sphAng1, sphAng2, dirAng, phaseAng, dummyRand, max, min, random, intSum, intCst;
@@ -1275,6 +1281,156 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                 MPI_Bcast(&ifPtr->kn[n].z, 2, MPI_REAL, 0, mesh->MESH_COMM);
             }
 
+        }
+    }
+
+    // read vent inflow if necessary
+    if (flags->isVentsActive)
+    {
+        for (q=0; q < vents->numberOfVents; q++)
+        {
+            // read inflow if necessary
+            if(vents->vent[q]->ventBC == "inletFunction")
+            {
+                ventInletFunction *ifPtr = vents->vent[q]->inletF;
+
+                 if (ifPtr->typeU == 6)
+                {
+
+                    if (rank == 0)
+                    {
+
+                        if (ifPtr->genType == "isoIF")
+                        {
+                            Cmpnts basis1, basis2, basis3, GnSph, GnCart, kComps;
+                            PetscReal Coeff1, Coeff2, Coeff3, Coeff4, sphAng1, sphAng2, dirAng, phaseAng, dummyRand, max, min, random, intSum, intCst;
+                            PetscReal UrmsDriving, TKEDriving, TurbIntDriving, meanUMag, b;
+                            PetscInt n, iter;
+
+                            max = 3.141592653589793238462643;
+                            min = -3.141592653589793238462643;
+                            intSum = 0;
+
+                            //Set wave number magnitudes and initial power spectra values
+                            for (n = 0; n < ifPtr->FSumNum; n++)
+                            {
+                                ifPtr->knMag[n] = ifPtr->kMin + (n) * ifPtr->dkn;
+                                Coeff1 = (1.42568*pow(ifPtr->Urms, 2))/(ifPtr->kEng);
+                                Coeff2 = 1 + (pow((ifPtr->knMag[n]/ifPtr->kEng), 2));
+                                Coeff3 = (pow((ifPtr->knMag[n]/ifPtr->kEng), 4))/pow(Coeff2, (17./6.));
+                                Coeff4 = pow((ifPtr->knMag[n]/ifPtr->kKol), 2);
+                                ifPtr->Ek[n] = Coeff1*Coeff3*exp(-2*Coeff4);
+                            }
+
+                            //begn driving energy spectra creation and adjustment
+                            for (iter = 0; iter < ifPtr->iterTKE; iter++)
+                            {
+
+                                TKEDriving = 0; // reset TKE for trapazoidal rule integration of energy spectra
+
+                                //adjust energy spectra constant to achieve desired Urms
+                                for (n = 0; n < (ifPtr->FSumNum-1); n++)
+                                {
+                                    TKEDriving += 0.5*(ifPtr->Ek[n]+ifPtr->Ek[n+1])*(ifPtr->knMag[n+1]-ifPtr->knMag[n]);
+                                }
+
+                                UrmsDriving = pow((2*TKEDriving/3), 0.5);
+                                meanUMag = sqrt(pow(ifPtr->meanU.x, 2) + pow(ifPtr->meanU.y, 2) + pow(ifPtr->meanU.z, 2));
+                                TurbIntDriving = UrmsDriving/meanUMag;
+
+                                b = (ifPtr->Urms/UrmsDriving);
+
+                                for (n = 0; n < ifPtr->FSumNum; n++)
+                                {
+                                    ifPtr->Ek[n] *= b;
+                                }
+
+                            }
+
+                            PetscPrintf(mesh->MESH_COMM, "\nDriving Turbulence Generation: UrmsDesired = %f, UrmsDriving = %f, TKEDriving2 = %f, TIDriving = %f, meanUMag = %f\n", ifPtr->Urms, UrmsDriving, TKEDriving, TurbIntDriving, meanUMag);
+
+                            //begin random number generation from adjusted energy spectrum
+                            for (n = 0; n < ifPtr->FSumNum; n++)
+                            {
+                                //get random number from uniform distribution b/w -pi and pi for sperical angle 1 and direction angle
+
+                                sphAng1 = (((double)rand()*(max - min) / RAND_MAX) + min);
+
+                                dirAng = (((double)rand()*(max - min) / RAND_MAX) + min);
+
+                                //get random number from uniform distribution b/w -pi and pi for phase
+                                phaseAng =(((double)rand()*(max - min) / RAND_MAX) + min);
+
+                                ifPtr->phaseN[n] = phaseAng;
+
+                                // get random number for sphereical angle 2 from an probability densition fun of 0.5*sin(shprAng2) by inversing CDF.
+                                dummyRand = (((double)rand()*(1 - (0)) / RAND_MAX) + (0));
+
+                                sphAng2 = acos(1-2*dummyRand);
+
+                                //put wave vector in to cartesian coordinates
+                                kComps.x = ifPtr->knMag[n]*sin(sphAng2)*cos(sphAng1);
+                                kComps.y = ifPtr->knMag[n]*sin(sphAng2)*sin(sphAng1);
+                                kComps.z = ifPtr->knMag[n]*cos(sphAng2);
+
+                                ifPtr->kn[n] = kComps;
+
+                                //find the randomized unit direction vector in cartesian coordinates
+                                basis1.x = -sin(sphAng1); basis1.y = -cos(sphAng2)*cos(sphAng1); basis1.z = sin(sphAng2)*cos(sphAng1);
+                                basis2.x = cos(sphAng1); basis2.y = -cos(sphAng2)*sin(sphAng1); basis2.z = sin(sphAng2)*sin(sphAng1);
+                                basis3.x = 0; basis3.y = sin(sphAng2); basis3.z = cos(sphAng2);
+
+                                GnSph.x = cos(dirAng); GnSph.y = sin(dirAng); GnSph.z = 0;
+
+                                GnCart.x = basis1.x * GnSph.x + basis1.y * GnSph.y + basis1.z * GnSph.z; // - sin(sphAng2)*cos(sphAng1);
+                                GnCart.y = basis2.x * GnSph.x + basis2.y * GnSph.y + basis2.z * GnSph.z; // - sin(sphAng2)*sin(sphAng1);
+                                GnCart.z = basis3.x * GnSph.x + basis3.y * GnSph.y + basis3.z * GnSph.z; // - cos(sphAng2);
+
+                                ifPtr->Gn[n] = GnCart;
+
+                                //calculate fluctuating u magnitude for this fourier series at this point.
+                                ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
+
+                                /*char *filename = "SynTurbSummary";
+
+                                FILE *fp = fopen(filename, "a");
+
+                                if (fp == NULL)
+                                {
+                                    printf("Errror cannot open file DrivingSynTurbSummary");
+                                    return -1;
+                                }
+
+                                if (n == 0)
+                                {
+                                   fprintf(fp, "n, unMag, Gnx, Gny, Gnz, knx, kny, knz, phaseN, sphAng1, sphAng2, dirAng, EDriving, knMag\n");
+                                }
+
+                                fprintf(fp, "%li, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", n, ifPtr->uMagN[n], ifPtr->Gn[n].x, ifPtr->Gn[n].y, ifPtr->Gn[n].z, ifPtr->kn[n].x, ifPtr->kn[n].y, ifPtr->kn[n].z, ifPtr->phaseN[n], sphAng1, sphAng2, dirAng, ifPtr->Ek[n], ifPtr->knMag[n]);
+
+                                fclose(fp);*/
+                            }
+
+                        }
+
+                    }
+
+                    MPI_Barrier(mesh->MESH_COMM);
+
+                    for (PetscInt n = 0; n < ifPtr->FSumNum; n++)
+                    {
+                        MPI_Bcast(&ifPtr->uMagN[n], 2, MPI_REAL, 0, mesh->MESH_COMM);
+                        MPI_Bcast(&ifPtr->phaseN[n], 2, MPI_REAL, 0, mesh->MESH_COMM);
+                        MPI_Bcast(&ifPtr->Gn[n].x, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                        MPI_Bcast(&ifPtr->Gn[n].y, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                        MPI_Bcast(&ifPtr->Gn[n].z, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                        MPI_Bcast(&ifPtr->kn[n].x, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                        MPI_Bcast(&ifPtr->kn[n].y, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                        MPI_Bcast(&ifPtr->kn[n].z, 2, MPI_REAL, 0, mesh->MESH_COMM);
+                    }
+
+                }
+            }
         }
     }
 
@@ -1670,6 +1826,174 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                         if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k+1][j][i],0);
                         //if (k == 65 && i == 65) {printf("UCart Z outlet == %f\n", ucat[k][j+1][i].z);}
+                    }
+
+                    if (i == 1 && vents->vent[q]->ventBC == "inletFunction")
+                    {
+                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
+
+                        if (ifPtr->typeU == 6)
+                        {
+                           // complete fourier series using shared random variables
+                           Cmpnts uFluct = {};
+                           PetscReal dotKnX;
+                           PetscInt n;
+
+
+                           for (n = 0; n < ifPtr->FSumNum; n++)
+                           {
+                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                           }
+
+                           ucat[k][j][i-1].x = ifPtr->meanU.x + uFluct.x;
+                           ucat[k][j][i-1].y = ifPtr->meanU.y + uFluct.y;
+                           ucat[k][j][i-1].z = ifPtr->meanU.z + uFluct.z;
+
+
+                        }
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventBC == "inletFunction")
+                    {
+                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
+
+                        if (ifPtr->typeU == 6)
+                        {
+                           // complete fourier series using shared random variables
+                           Cmpnts uFluct = {};
+                           PetscReal dotKnX;
+                           PetscInt n;
+
+
+                           for (n = 0; n < ifPtr->FSumNum; n++)
+                           {
+                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                           }
+
+                           ucat[k][j][i+1].x = ifPtr->meanU.x + uFluct.x;
+                           ucat[k][j][i+1].y = ifPtr->meanU.y + uFluct.y;
+                           ucat[k][j][i+1].z = ifPtr->meanU.z + uFluct.z;
+
+
+                        }
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventBC == "inletFunction")
+                    {
+                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
+
+                        if (ifPtr->typeU == 6)
+                        {
+                           // complete fourier series using shared random variables
+                           Cmpnts uFluct = {};
+                           PetscReal dotKnX;
+                           PetscInt n;
+
+
+                           for (n = 0; n < ifPtr->FSumNum; n++)
+                           {
+                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                           }
+
+                           ucat[k][j-1][i].x = ifPtr->meanU.x + uFluct.x;
+                           ucat[k][j-1][i].y = ifPtr->meanU.y + uFluct.y;
+                           ucat[k][j-1][i].z = ifPtr->meanU.z + uFluct.z;
+
+
+                        }
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventBC == "inletFunction")
+                    {
+                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
+
+                        if (ifPtr->typeU == 6)
+                        {
+                           // complete fourier series using shared random variables
+                           Cmpnts uFluct = {};
+                           PetscReal dotKnX;
+                           PetscInt n;
+
+
+                           for (n = 0; n < ifPtr->FSumNum; n++)
+                           {
+                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                           }
+
+                           ucat[k][j+1][i].x = ifPtr->meanU.x + uFluct.x;
+                           ucat[k][j+1][i].y = ifPtr->meanU.y + uFluct.y;
+                           ucat[k][j+1][i].z = ifPtr->meanU.z + uFluct.z;
+
+
+                        }
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventBC == "inletFunction")
+                    {
+                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
+
+                        if (ifPtr->typeU == 6)
+                        {
+                           // complete fourier series using shared random variables
+                           Cmpnts uFluct = {};
+                           PetscReal dotKnX;
+                           PetscInt n;
+
+
+                           for (n = 0; n < ifPtr->FSumNum; n++)
+                           {
+                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                           }
+
+                           ucat[k-1][j][i].x = ifPtr->meanU.x + uFluct.x;
+                           ucat[k-1][j][i].y = ifPtr->meanU.y + uFluct.y;
+                           ucat[k-1][j][i].z = ifPtr->meanU.z + uFluct.z;
+
+
+                        }
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventBC == "inletFunction")
+                    {
+                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
+
+                        if (ifPtr->typeU == 6)
+                        {
+                           // complete fourier series using shared random variables
+                           Cmpnts uFluct = {};
+                           PetscReal dotKnX;
+                           PetscInt n;
+
+
+                           for (n = 0; n < ifPtr->FSumNum; n++)
+                           {
+                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                           }
+
+                           ucat[k+1][j][i].x = ifPtr->meanU.x + uFluct.x;
+                           ucat[k+1][j][i].y = ifPtr->meanU.y + uFluct.y;
+                           ucat[k+1][j][i].z = ifPtr->meanU.z + uFluct.z;
+
+
+                        }
                     }
 
                     continue; //with this set-up no IBMs can't be touching a vent. Shouldn't be an issue. Even IMBs blocking a vent should be at least one cell length away
@@ -2616,8 +2940,17 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 // set to zero if solid
                 if(isIBMSolidCell(k, j, i, nvert))
                 {
-                    t[k][j][i] = teqn->access->abl->tRef;
-                    continue;
+                    if(teqn->access->flags->isAblActive)
+                    {
+                        t[k][j][i] = teqn->access->abl->tRef;
+                        continue;
+                    }
+                    else
+                    {
+                        t[k][j][i] = teqn->access->constants->tRef;
+                        continue;
+                    }
+
                 }
 
                 // special boundary condition where inflow is mapped from precursor

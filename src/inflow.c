@@ -836,23 +836,23 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictDouble(fileName.c_str(), "inletFunction", "Urms", &(ifPtr->Urms));
             readSubDictVector(fileName.c_str(), "inletFunction", "meanU", &(ifPtr->meanU));
             readSubDictDouble(fileName.c_str(), "inletFunction", "kolLScale", &(ifPtr->kolLScale));
-            readSubDictDouble(fileName.c_str(), "inletFunction", "largeLScale", &(ifPtr->largeLScale));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "intLScale", &(ifPtr->intLScale));
             readSubDictInt(fileName.c_str(), "inletFunction", "fourierSumNum", &(ifPtr->FSumNum));
             readSubDictInt(fileName.c_str(), "inletFunction", "iterTKE", &(ifPtr->iterTKE));
             readSubDictWord(fileName.c_str(), "inletFunction", "genType", &(ifPtr->genType));
 
-            if (ifPtr->genType == "dietzel")
+            if (ifPtr->genType == "isoIF")
             {
                 ifPtr->kMax = 3.141592653589793238462643/(((mesh->bounds.Lx / mesh->KM) + (mesh->bounds.Lz / mesh->JM) + (mesh->bounds.Ly / mesh->IM))/3);
                 ifPtr->kKol = 1/ifPtr->kolLScale;
-                ifPtr->kEng = (9*3.141592653589793238462643*1.4256/(55*ifPtr->largeLScale));
+                ifPtr->kEng = (9*3.141592653589793238462643*1.4256/(55*ifPtr->intLScale));
                 ifPtr->kMin = ifPtr->kEng/2.75;
                 ifPtr->dkn = (ifPtr->kMax - ifPtr->kMin)/(ifPtr->FSumNum-1);
             }
             else
             {
                 char error[512];
-                sprintf(error, "unknown driving energy spectrum type. 'dietzel' is the only option");
+                sprintf(error, "unknown driving energy spectrum type. 'isoIF' is the only option");
                 fatalErrorInFunction("SetInflowFunctions",  error);
             }
 

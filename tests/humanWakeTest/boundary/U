@@ -26,10 +26,9 @@ kLeft            inletFunction
                     Urms 0.05334
                     meanU  (0.762 0.0 0.0)
                     kolLScale 0.00029
-                    largeLScale 0.024
+                    intLScale 0.024
                     fourierSumNum 200
-                    dissipation 0.474
-                    genType dietzel
+                    genType isoIF
                     iterTKE 10
                  }
 

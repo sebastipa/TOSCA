@@ -311,21 +311,21 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
         if((abl->controllerTypeT == "indirectProfileAssimilation"))
         {
-            //smooth the source based on the polynomial interpolation 
-            for (PetscInt iCtr = 0; iCtr < nLevels; iCtr++) 
+            //smooth the source based on the polynomial interpolation
+            for (PetscInt iCtr = 0; iCtr < nLevels; iCtr++)
             {
                 PetscReal dotProduct1 = 0.0, dotProduct2 = 0.0;
 
-                for (PetscInt kCtr = 0; kCtr < nLevels; kCtr++) 
+                for (PetscInt kCtr = 0; kCtr < nLevels; kCtr++)
                 {
                     dotProduct1 += abl->polyCoeffM[iCtr][kCtr] * tD[kCtr];
                     dotProduct2 += abl->polyCoeffM[iCtr][kCtr] * tM[kCtr];
                 }
                 abl->tDes[iCtr] = dotProduct1;
                 gtMean[iCtr]    = dotProduct2;
-            }   
+            }
 
-            for(j=0; j<nLevels; j++)    
+            for(j=0; j<nLevels; j++)
             {
                 if(abl->cellLevels[j] < abl->lowestSrcHt)
                 {
@@ -466,7 +466,17 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
     PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
-    const PetscReal  g = -9.81, tRef = ueqn->access->abl->tRef;;
+    PetscReal     g, tRef;
+
+    if(teqn->access->flags->isAblActive)
+    {
+         g = -9.81, tRef = ueqn->access->abl->tRef;
+    }
+    else
+    {
+         g = -9.81, tRef = ueqn->access->constants->tRef;
+    }
+
 
     PetscReal     dbdc, dbde, dbdz;
 
@@ -832,7 +842,7 @@ PetscErrorCode correctDampingSourcesT(teqn_ *teqn)
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-    
+
     PetscMPIInt   rank;
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
@@ -854,7 +864,7 @@ PetscErrorCode correctDampingSourcesT(teqn_ *teqn)
             if(precursor->thisProcessorInFringe)
             {
                 DMDAVecGetArray(pdomain->mesh->da, pdomain->teqn->lTmprt,  &tP);
-            } 
+            }
 
             for(PetscInt p=0; p < abl->numSourceProc; p++)
             {
@@ -891,10 +901,10 @@ PetscErrorCode correctDampingSourcesT(teqn_ *teqn)
                     numI = abl->srcNumI[p];
                     numJ = abl->srcNumJ[p];
                     numK = abl->srcNumK[p];
-                    
+
                     MPI_Ibcast(tMapped[p], numI * numJ * numK, MPIU_REAL, abl->srcCommLocalRank[p], abl->yDamp_comm[p], &(abl->mapRequest[p]));
                 }
-                
+
             }
 
             if(precursor->thisProcessorInFringe)
@@ -973,7 +983,7 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     PetscReal yS     = abl->yDampingStart;
     PetscReal yE     = abl->yDampingEnd;
     PetscReal yD     = abl->yDampingDelta;
-    
+
 
     // loop over internal cell faces
     for (k=lzs; k<lze; k++)
@@ -1026,7 +1036,7 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 {
                     PetscReal y = cent[k][j][i].y;
                     PetscReal x = cent[k][j][i].x;
-                    
+
                     PetscReal nud_y  = viscNordstrom(alphaY, yS, yE, yD, y);
                     PetscReal fAsc_x = viscNordstromNoVertFilter(xS, xE, xD, x);
 
@@ -1328,7 +1338,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                         kappaEff = 0.0;
                     }
 
-                    //IBM wall model 
+                    //IBM wall model
                     if(isIBMFluidIFace(k, j, i, i+1, nvert))
                     {
                         if(teqn->access->ibm->wallShearOn && teqn->access->ibm->ibmBody[0]->tempBC == "thetaWallFunction")
@@ -1474,7 +1484,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                             {
                                 visc[k][j][i].y = viscIBM[k][j+1][i].y;
                             }
-                           
+
                             kappaEff = 0;
                         }
 
@@ -1541,11 +1551,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 )
                 {
                     nu = 0;
-                    
+
                     if(teqn->access->flags->isLesActive != 2)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
-                        
+
                         // compute stability depentend turbulent Prandtl number
                         PetscReal gradTdotG = dtde*(-9.81);
                         PetscReal l, delta = pow( 1./ajc, 1./3. );
