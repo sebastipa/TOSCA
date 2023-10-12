@@ -1,0 +1,20 @@
+# OKWind Input file - nut boundary conditions
+# -------------------------------------------
+
+#internal field
+
+internalField    uniform
+
+# boundary patches
+
+iLeft  	 periodic
+
+iRight  	 periodic
+
+jLeft   	 periodic
+
+jRight  	 periodic
+
+kLeft   	 periodic
+
+kRight  	 periodic

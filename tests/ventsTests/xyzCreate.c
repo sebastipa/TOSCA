@@ -13,10 +13,10 @@ int main(int argc, char **argv)
     char filename[256]="mesh.xyz";
 
 	// length of the domain in the cartesian x, y and z direction
-	double  lengthX = 55 , lengthY = 1.52, lengthZ = 1.52;
+	double  lengthX = 1.52 , lengthY = 1.52, lengthZ = 1.52;
 
 	// number of nodes in the cartesian x, y and z direction
-	int     nx = 122, ny = 76, nz = 76;
+	int     nx = 76, ny = 76, nz = 76;
 
 	// set periodicity type in the computational i, j and k direction
 	int     iPeriodicity = 0, jPeriodicity = 0, kPeriodicity = 0;

@@ -6063,6 +6063,7 @@ PetscErrorCode writeProbes(domain_ *domain)
 
                 )
                 {
+                    printf("here........................");
                     // initialize local vectors
                     std::vector<Cmpnts> lprobeValuesU;
                     std::vector<Cmpnts> gprobeValuesU;

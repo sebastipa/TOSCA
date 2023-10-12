@@ -30,7 +30,7 @@ object0
 
     fileType                        ucd
     bodyMotion                      static
-    baseLocation                    (0.4572 0.76 0.0)
+    baseLocation                    (0.0 0.0 0.0)
 
     #wall model
     wallModelU                      Cabot

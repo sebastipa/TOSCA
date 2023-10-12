@@ -7,6 +7,32 @@
 
 typedef struct
 {
+    // type of inlet function
+    PetscInt      typeU;
+
+    //type 6: Synthetic turbulence inlet using random fourier series model.
+    PetscInt      FSumNum;                    //!< number of fourier series to include in summations
+    PetscInt      iterTKE;                    //!< number of iteration for Energy spectrum adjustment. should be <= 10.
+    PetscReal     Urms;                       //!< user defined rms velocity
+    PetscReal     kolLScale;                  //!< kolomagrov length scale in m
+    PetscReal     intLScale;                //!< length scale in m of largest eddy
+    PetscReal     dkn;                        //!< calculated wave vector interval, based on log scale
+    PetscReal     kMax;                       //!< largerst wave number to include in driving energy spectrum
+    PetscReal     kMin;                       //!< smallest wave number to include in driving energy spectrum
+    PetscReal     kKol;                       //!< wave number assoicated with smallest eddies
+    PetscReal     kEng;                       //!< wave number assoicated with most energetic eddies (peak of driving energy spectrum)
+    Cmpnts        meanU;                      //!< mean velocity vector
+    Cmpnts           *kn;                         //!< randomized wave vector
+    Cmpnts           *Gn;                         //!< randomized direction unit vector
+    PetscReal           *phaseN;                     //!< randomized phase angle
+    PetscReal           *uMagN;                      //!< randomized velocity magnitudes
+    PetscReal           *knMag;                      //!< wave number magnitudes
+    PetscReal           *Ek;                         //!< Driving energy spectra values
+    word                genType;                //!< which type of random generator is being used?
+}ventInletFunction;
+
+typedef struct
+{
     word                face;   //face on which vent lies
 
     word                dir;   //direction of vent flow. either outlet or inlet. Needed for adjustFluxesVents. will affect all backflow codes as well.
@@ -24,6 +50,8 @@ typedef struct
     PetscReal           zBound2;    // upper bound for z axis
 
     word               ventBC;	   //boundary condition for vent
+
+    ventInletFunction      *inletF;    //inflow data for vent object
 
     Cmpnts             ventBCVec;  //fixed value velocity components, if needed.
 

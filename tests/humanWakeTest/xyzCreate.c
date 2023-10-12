@@ -13,17 +13,17 @@ int main(int argc, char **argv)
     char filename[256]="mesh.xyz";
 
 	// length of the domain in the cartesian x, y and z direction
-	double  lengthX = 55 , lengthY = 1.52, lengthZ = 1.52;
+	double  lengthX = 7.317 , lengthY = 1.524, lengthZ = 1.524;
 
 	// number of nodes in the cartesian x, y and z direction
-	int     nx = 122, ny = 76, nz = 76;
+	int     nx = 181, ny = 105, nz = 119;
 
 	// set periodicity type in the computational i, j and k direction
 	int     iPeriodicity = 0, jPeriodicity = 0, kPeriodicity = 0;
 	double  dx, dy, dz;
 
 	// reference origin - bottom left co-ordinate of the domain
-	vector<double> origin{0, 0, 0};
+	vector<double> origin{-2.438, -0.762, 0};
 
 	dx = lengthX / (nx-1);
 	dy = lengthY / (ny-1);
