@@ -401,6 +401,18 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
         // unsteady interpolated inflow
         else if (ifPtr->typeU == 4)
         {
+            // create inflow communicator to speed up the initialization
+            PetscMPIInt rank;
+            PetscInt    commColor = MPI_UNDEFINED;
+
+            if(zs==0)
+            {
+                commColor = 1;
+            }
+
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
+            MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(ifPtr->IFFCN_COMM));
+
             field = "U";
             fileName = location + field;
 
@@ -413,6 +425,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictInt   (fileName.c_str(), "inletFunction", "n1Periods",  &(ifPtr->prds1));
             readSubDictInt   (fileName.c_str(), "inletFunction", "n2Periods",  &(ifPtr->prds2));
             readSubDictInt   (fileName.c_str(), "inletFunction", "n1Merge",    &(ifPtr->merge1));
+			readSubDictInt   (fileName.c_str(), "inletFunction", "n2Shift",    &(ifPtr->shift2));
 
             if(ifPtr->sourceType == "uniform")
             {
@@ -524,7 +537,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                         ifPtr->mapT = 1;
 
                         // read parameters and check that are the same as U
-                        PetscInt  n1, n2, prds1, prds2, merge1;
+                        PetscInt  n1, n2, prds1, prds2, merge1, shift2;
                         PetscReal width1, width2;
                         word      sourceTypeT;
                         readSubDictWord(fileName.c_str(),   "inletFunction", "sourceType", &sourceTypeT);
@@ -533,11 +546,12 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                         readSubDictInt(fileName.c_str(),    "inletFunction", "n1Periods",  &prds1);
                         readSubDictInt(fileName.c_str(),    "inletFunction", "n2Periods",  &prds2);
                         readSubDictInt(fileName.c_str(),    "inletFunction", "n1Merge",    &merge1);
+						readSubDictInt(fileName.c_str(),    "inletFunction", "n2Shift",    &shift2);
                         if
                         (
                             n1!=ifPtr->n1 || n2 != ifPtr->n2 ||
                             prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 ||
-                            sourceTypeT!=ifPtr->sourceType || merge1!=ifPtr->merge1
+                            sourceTypeT!=ifPtr->sourceType || merge1!=ifPtr->merge1 || shift2!=ifPtr->shift2
                         )
                         {
                             char error[512];
@@ -573,7 +587,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                             ifPtr->mapNut = 1;
 
                             // read parameters and check that are the same as U
-                            PetscInt n1, n2, prds1, prds2, merge1;
+                            PetscInt n1, n2, prds1, prds2, merge1, shift2;
                             PetscReal width1, width2;
                             word      sourceTypeNut;
                             readSubDictWord(fileName.c_str(),   "inletFunction", "sourceType", &sourceTypeNut);
@@ -582,11 +596,12 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                             readSubDictInt(fileName.c_str(),    "inletFunction", "n1Periods",  &prds1);
                             readSubDictInt(fileName.c_str(),    "inletFunction", "n2Periods",  &prds2);
                             readSubDictInt(fileName.c_str(),    "inletFunction", "n1Merge",    &merge1);
+							readSubDictInt(fileName.c_str(),    "inletFunction", "n2Shift",    &shift2);
                             if
                             (
                                 n1!=ifPtr->n1 || n2 != ifPtr->n2 ||
                                 prds1!=ifPtr->prds1 || prds2!=ifPtr->prds2 ||
-                                sourceTypeNut!=ifPtr->sourceType || merge1!=ifPtr->merge1
+                                sourceTypeNut!=ifPtr->sourceType || merge1!=ifPtr->merge1 || shift2!=ifPtr->shift2
                             )
                             {
                                 char error[512];
@@ -758,6 +773,34 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     std::vector<PetscReal> ().swap(t_plane_tmp[j]);
                 }
             }
+
+			// see if must apply shift
+			if (ifPtr->shift2 == 1)
+			{
+				readSubDictDouble(fileName.c_str(), "inletFunction", "shiftSpeed", &(ifPtr->shiftSpeed));
+
+                // compute y coordinates assuming that the mesh has straight z lines, this is required to speed up the
+                // search to find the index from which the shifted velocity has to be sourced
+                Cmpnts ***cent;
+                DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+                std::vector<PetscReal> ycent(mx);
+                PetscMalloc(sizeof(PetscReal)*mx, &(ifPtr->ycent));
+                PetscMalloc(sizeof(PetscReal)*mx, &(ifPtr->yWeights));
+                PetscMalloc(sizeof(PetscInt )*mx, &(ifPtr->yIDs));
+
+                if(zs==0 && ys==0)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        ycent[i] = cent[lzs][lys][i].y;
+                    }
+                }
+
+                DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+                MPI_Allreduce(&ycent[0], &ifPtr->ycent[0], mx, MPIU_REAL, MPIU_SUM, ifPtr->IFFCN_COMM);
+			}
         }
         // Nieuwstadt
         else if (ifPtr->typeU == 5)
@@ -779,130 +822,10 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictDouble(fileName.c_str(), "inletFunction", "periods",    &(ifPtr->periods));
             ifPtr->Udir = nScale(1.0/nMag(ifPtr->Uref), ifPtr->Uref);
         }
-        // periodic boundary conditions with i-shift
-        else if (ifPtr->typeU == 7)
-        {
-            readSubDictDouble(fileName.c_str(), "inletFunction", "shiftSpeed",     &(ifPtr->shiftSpeed));
-            readSubDictDouble(fileName.c_str(), "inletFunction", "zeroShiftHeight",&(ifPtr->zeroShiftHeight));
-            readSubDictDouble(fileName.c_str(), "inletFunction", "zeroShiftDelta", &(ifPtr->zeroShiftDelta));
-
-            PetscInt           i,j,k;
-
-            // allocate memory for temporary inflow data
-            ifPtr->ucat_plane = (Cmpnts **)malloc( sizeof(Cmpnts *) * my );
-
-            for(j=0; j<my; j++)
-            {
-                ifPtr->ucat_plane[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * mx );
-            }
-
-            // read in advance and check that also T is set to shifted periodic
-            if(mesh->access->flags->isTeqnActive)
-            {
-                if(mesh->boundaryT.kLeft == "inletFunction")
-                {
-                    word fileNameT = "./boundary/" + mesh->meshName + "/" + "T";
-                    readSubDictInt(fileNameT.c_str(), "inletFunction", "type", &(ifPtr->typeT));
-
-                    if(ifPtr->typeT != 7)
-                    {
-                        char error[512];
-                        sprintf(error, "inletFunction type 7 for U requires the same settings on T");
-                        fatalErrorInFunction("SetInflowFunctions",  error);
-                    }
-                    else
-                    {
-                        PetscReal shiftSpeed, zeroShiftHeight, zeroShiftDelta;
-                        readSubDictDouble(fileNameT.c_str(), "inletFunction", "shiftSpeed",     &shiftSpeed);
-                        readSubDictDouble(fileNameT.c_str(), "inletFunction", "zeroShiftHeight",&zeroShiftHeight);
-                        readSubDictDouble(fileNameT.c_str(), "inletFunction", "zeroShiftDelta", &zeroShiftDelta);
-
-                        if(shiftSpeed != ifPtr->shiftSpeed || zeroShiftHeight != ifPtr->zeroShiftHeight || zeroShiftDelta != ifPtr->zeroShiftDelta)
-                        {
-                            char error[512];
-                            sprintf(error, "inletFunction type 7 for T requires the same shiftSpeed, zeroShiftHeight and zeroShiftDelta to be the same as U");
-                            fatalErrorInFunction("SetInflowFunctions",  error);
-                        }
-
-                        // allocate memory for temporary inflow data
-                        ifPtr->t_plane = (PetscReal **)malloc( sizeof(PetscReal *) * my );
-
-                        for(j=0; j<my; j++)
-                        {
-                            ifPtr->t_plane[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
-                        }
-                    }
-                }
-                else
-                {
-                    char error[512];
-                    sprintf(error, "inletFunction type 7 for U requires the same settings on T");
-                    fatalErrorInFunction("SetInflowFunctions",  error);
-                }
-            }
-
-            // read in advance and check that also nut is set to shifted periodic
-            // read in advance and check that also T is set to shifted periodic
-            if(mesh->access->flags->isLesActive)
-            {
-                if(mesh->boundaryNut.kLeft == "inletFunction")
-                {
-                    word fileNameNut = "./boundary/" + mesh->meshName + "/" + "nut";
-                    readSubDictInt(fileNameNut.c_str(), "inletFunction", "type", &(ifPtr->typeNut));
-
-                    if(ifPtr->typeNut != 7)
-                    {
-                        char error[512];
-                        sprintf(error, "inletFunction type 7 for U requires the same settings on nut");
-                        fatalErrorInFunction("SetInflowFunctions",  error);
-                    }
-                    else
-                    {
-                        PetscReal shiftSpeed, zeroShiftHeight, zeroShiftDelta;
-                        readSubDictDouble(fileNameNut.c_str(), "inletFunction", "shiftSpeed",     &shiftSpeed);
-                        readSubDictDouble(fileNameNut.c_str(), "inletFunction", "zeroShiftHeight",&zeroShiftHeight);
-                        readSubDictDouble(fileNameNut.c_str(), "inletFunction", "zeroShiftDelta", &zeroShiftDelta);
-
-                        if(shiftSpeed != ifPtr->shiftSpeed || zeroShiftHeight != ifPtr->zeroShiftHeight || zeroShiftDelta != ifPtr->zeroShiftDelta)
-                        {
-                            char error[512];
-                            sprintf(error, "inletFunction type 7 for nut requires the same shiftSpeed, zeroShiftHeight and zeroShiftDelta to be the same as U");
-                            fatalErrorInFunction("SetInflowFunctions",  error);
-                        }
-
-                        // allocate memory for temporary inflow data
-                        ifPtr->nut_plane = (PetscReal **)malloc( sizeof(PetscReal *) * my );
-
-                        for(j=0; j<my; j++)
-                        {
-                            ifPtr->nut_plane[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
-                        }
-                    }
-                }
-                else
-                {
-                    char error[512];
-                    sprintf(error, "inletFunction type 7 for U requires the same settings on nut");
-                    fatalErrorInFunction("SetInflowFunctions",  error);
-                }
-            }
-
-            // create communicator
-            PetscMPIInt rank;
-            PetscInt    commColor = MPI_UNDEFINED;
-
-            if(zs==0 || ze==mz)
-            {
-                commColor = 1;
-            }
-
-            MPI_Comm_rank(mesh->MESH_COMM, &rank);
-            MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(ifPtr->IFFCN_COMM));
-        }
         else
         {
             char error[512];
-            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)\n        6 : Sinusoidal inflow varying in i-direction\n        7 : I-Shifted-periodic");
+            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)\n        6 : Sinusoidal inflow varying in i-direction\n");
             fatalErrorInFunction("SetInflowFunctions",  error);
         }
 
@@ -945,6 +868,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                 readSubDictDouble(fileName.c_str(), "inletFunction", "gInv",  &(ifPtr->gInv));
                 readSubDictDouble(fileName.c_str(), "inletFunction", "tRef",  &(ifPtr->tRef));
                 readSubDictDouble(fileName.c_str(), "inletFunction", "gTop",  &(ifPtr->gTop));
+				readSubDictDouble(fileName.c_str(), "inletFunction", "gABL",  &(ifPtr->gABL));
                 readSubDictDouble(fileName.c_str(), "inletFunction", "smearT",&(ifPtr->smear));
 
                 // check input
@@ -986,20 +910,30 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
     lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
     lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
 
-    // allocate space for weights and closest cell ids
+    // allocate space for weights and closest cell ids (global)
     ifPtr->closestCells  = (cellIds***)malloc(my*sizeof(cellIds**));
     ifPtr->inflowWeights = (PetscReal***)malloc(my*sizeof(PetscReal**));
+
+    // temporary variables (per processor)
+    // initialize nut temporary local planes in each process
+    std::vector<std::vector<std::vector<  cellIds>>> closestCells_tmp(my);
+    std::vector<std::vector<std::vector<PetscReal>>> inflowWeights_tmp(my);
 
     for(j=0; j<my; j++)
     {
         ifPtr->closestCells[j]  = (cellIds**)malloc(mx*sizeof(cellIds*));
         ifPtr->inflowWeights[j] = (PetscReal**)malloc(mx*sizeof(PetscReal*));
 
+        closestCells_tmp[j]. resize(mx);
+        inflowWeights_tmp[j].resize(mx);
+
         for (i=0; i<mx; i++)
         {
             ifPtr->closestCells[j][i]  = (cellIds*)malloc(4*sizeof(cellIds));
             ifPtr->inflowWeights[j][i] = (PetscReal*)malloc(4*sizeof(PetscReal));
 
+            closestCells_tmp[j][i]. resize(4);
+            inflowWeights_tmp[j][i].resize(4);
             /*
             ifPtr->closestCells[j][i][0].i = ifPtr->closestCells[j][i][0].j = ifPtr->closestCells[j][i][0].k = 0;
             ifPtr->closestCells[j][i][1].i = ifPtr->closestCells[j][i][1].j = ifPtr->closestCells[j][i][1].k = 0;
@@ -1133,173 +1067,204 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
     // now do the search and, for each cell center on the kLeftPatch, find its
     // 4 closest cell centers belonging to the fictitious inflow plane
 
-    // the k is free so all processors in the k line build the data
-
-    // loop over internal cells on kLeftPatch
-    for(j=lys; j<lye; j++)
+    // select processors on the k-left patch
+    if(zs==0)
     {
-        for(i=lxs; i<lxe; i++)
+        // loop over internal cells on kLeftPatch
+        for(j=lys; j<lye; j++)
         {
-            PetscReal  minDistMag = 1e20;
-            cellIds closestCell;
-
-            // loop over cells on fictitious inflow plane
-            for(PetscInt jif=1; jif<jN; jif++)
+            for(i=lxs; i<lxe; i++)
             {
-                for(PetscInt iif=1; iif<iN; iif++)
+                PetscReal  minDistMag = 1e20;
+                cellIds closestCell;
+
+                // loop over cells on fictitious inflow plane
+                for(PetscInt jif=1; jif<jN; jif++)
                 {
-                    // compute distance
-                    Cmpnts dist    = nSub(cent[lzs][j][i], inflowCellCenters[jif][iif]);
-
-                    // set x component to zero
-                    dist.x         = 0.0;
-
-                    PetscReal distMag = nMag(dist);
-
-                    if(distMag < minDistMag)
+                    for(PetscInt iif=1; iif<iN; iif++)
                     {
-                        minDistMag = distMag;
-                        closestCell.i = iif;
-                        closestCell.j = jif;
-                        closestCell.k = 0;
+                        // compute distance
+                        Cmpnts dist    = nSub(cent[lzs][j][i], inflowCellCenters[jif][iif]);
+
+                        // set x component to zero
+                        dist.x         = 0.0;
+
+                        PetscReal distMag = nMag(dist);
+
+                        if(distMag < minDistMag)
+                        {
+                            minDistMag = distMag;
+                            closestCell.i = iif;
+                            closestCell.j = jif;
+                            closestCell.k = 0;
+                        }
                     }
                 }
-            }
 
-            PetscInt    j_n, j_s, i_w, i_e;
-            PetscReal z1, z2, y1, y2;
+                PetscInt    j_n, j_s, i_w, i_e;
+                PetscReal z1, z2, y1, y2;
 
-            if(closestCell.i == 1)
-            {
-                i_w = 1;
-                i_e = 2;
-            }
-            else if(closestCell.i == iN-1)
-            {
-                i_w = iN-2;
-                i_e = iN-1;
-            }
-            else
-            {
-                // find surrounding points for bilinear interpolation
-                PetscReal dyl = fabs(cent[lzs][j][i].y - inflowCellCenters[closestCell.j][closestCell.i-1].y);
-                PetscReal dyr = fabs(inflowCellCenters[closestCell.j][closestCell.i+1].y - cent[lzs][j][i].y);
-
-                if(dyr<=dyl)
+                if(closestCell.i == 1)
                 {
-                    i_e = closestCell.i+1;
-                    i_w = closestCell.i;
+                    i_w = 1;
+                    i_e = 2;
                 }
-                else if (dyr>dyl)
+                else if(closestCell.i == iN-1)
                 {
-                    i_e = closestCell.i;
-                    i_w = closestCell.i-1;
+                    i_w = iN-2;
+                    i_e = iN-1;
                 }
-            }
-
-            y1 = inflowCellCenters[closestCell.j][i_w].y;
-            y2 = inflowCellCenters[closestCell.j][i_e].y;
-
-            if(closestCell.j == 1)
-            {
-                j_s = 1;
-                j_n = 2;
-            }
-            else if(closestCell.j == jN-1)
-            {
-                j_s = jN-2;
-                j_n = jN-1;
-            }
-            else
-            {
-                // find surrounding points for bilinear interpolation
-                PetscReal dzl = fabs(cent[lzs][j][i].z - inflowCellCenters[closestCell.j-1][closestCell.i].z);
-                PetscReal dzr = fabs(inflowCellCenters[closestCell.j+1][closestCell.i].z - cent[lzs][j][i].z);
-
-                if(dzr<=dzl)
+                else
                 {
-                    j_n = closestCell.j+1;
-                    j_s = closestCell.j;
+                    // find surrounding points for bilinear interpolation
+                    PetscReal dyl = fabs(cent[lzs][j][i].y - inflowCellCenters[closestCell.j][closestCell.i-1].y);
+                    PetscReal dyr = fabs(inflowCellCenters[closestCell.j][closestCell.i+1].y - cent[lzs][j][i].y);
+
+                    if(dyr<=dyl)
+                    {
+                        i_e = closestCell.i+1;
+                        i_w = closestCell.i;
+                    }
+                    else if (dyr>dyl)
+                    {
+                        i_e = closestCell.i;
+                        i_w = closestCell.i-1;
+                    }
                 }
-                else if (dzr>dzl)
+
+                y1 = inflowCellCenters[closestCell.j][i_w].y;
+                y2 = inflowCellCenters[closestCell.j][i_e].y;
+
+                if(closestCell.j == 1)
                 {
-                    j_n = closestCell.j;
-                    j_s = closestCell.j-1;
+                    j_s = 1;
+                    j_n = 2;
                 }
-            }
+                else if(closestCell.j == jN-1)
+                {
+                    j_s = jN-2;
+                    j_n = jN-1;
+                }
+                else
+                {
+                    // find surrounding points for bilinear interpolation
+                    PetscReal dzl = fabs(cent[lzs][j][i].z - inflowCellCenters[closestCell.j-1][closestCell.i].z);
+                    PetscReal dzr = fabs(inflowCellCenters[closestCell.j+1][closestCell.i].z - cent[lzs][j][i].z);
 
-            z1 = inflowCellCenters[j_s][closestCell.i].z;
-            z2 = inflowCellCenters[j_n][closestCell.i].z;
+                    if(dzr<=dzl)
+                    {
+                        j_n = closestCell.j+1;
+                        j_s = closestCell.j;
+                    }
+                    else if (dzr>dzl)
+                    {
+                        j_n = closestCell.j;
+                        j_s = closestCell.j-1;
+                    }
+                }
 
-            // remove singularity if points are coincident
-            PetscReal coeff = (y2 - y1) * (z2 - z1);
+                z1 = inflowCellCenters[j_s][closestCell.i].z;
+                z2 = inflowCellCenters[j_n][closestCell.i].z;
 
-            // compute weights
-            ifPtr->inflowWeights[j][i][0]  = (y2 - cent[lzs][j][i].y) * (z2 - cent[lzs][j][i].z) / coeff;
-            ifPtr->inflowWeights[j][i][1]  = (y2 - cent[lzs][j][i].y) * (cent[lzs][j][i].z - z1) / coeff;
-            ifPtr->inflowWeights[j][i][2]  = (cent[lzs][j][i].y - y1) * (z2 - cent[lzs][j][i].z) / coeff;
-            ifPtr->inflowWeights[j][i][3]  = (cent[lzs][j][i].y - y1) * (cent[lzs][j][i].z - z1) / coeff;
+                // remove singularity if points are coincident
+                PetscReal coeff = (y2 - y1) * (z2 - z1);
 
-            /*
-            if(ifPtr->inflowWeights[j][i][0]+ifPtr->inflowWeights[j][i][1]+ifPtr->inflowWeights[j][i][2]+ifPtr->inflowWeights[j][i][3] != 1.0)
-            {
-                PetscPrintf(mesh->MESH_COMM, " --> Warning in function: non-normal weights at P = (0.0, %lf, %lf)\n", cent[lzs][j][i].y, cent[lzs][j][i].z);
-                PetscPrintf(mesh->MESH_COMM, "W1 = %lf, W2 = %lf, W3 = %lf, W4 = %lf, SUM = %lf\n", ifPtr->inflowWeights[j][i][0], ifPtr->inflowWeights[j][i][1], ifPtr->inflowWeights[j][i][2], ifPtr->inflowWeights[j][i][3],  ifPtr->inflowWeights[j][i][0]+ifPtr->inflowWeights[j][i][1]+ifPtr->inflowWeights[j][i][2]+ifPtr->inflowWeights[j][i][3]);
-            }
-            */
+                // compute weights
+                inflowWeights_tmp[j][i][0]  = (y2 - cent[lzs][j][i].y) * (z2 - cent[lzs][j][i].z) / coeff;
+                inflowWeights_tmp[j][i][1]  = (y2 - cent[lzs][j][i].y) * (cent[lzs][j][i].z - z1) / coeff;
+                inflowWeights_tmp[j][i][2]  = (cent[lzs][j][i].y - y1) * (z2 - cent[lzs][j][i].z) / coeff;
+                inflowWeights_tmp[j][i][3]  = (cent[lzs][j][i].y - y1) * (cent[lzs][j][i].z - z1) / coeff;
 
-            // compute indices with periodicization
+                /*
+                if(ifPtr->inflowWeights[j][i][0]+ifPtr->inflowWeights[j][i][1]+ifPtr->inflowWeights[j][i][2]+ifPtr->inflowWeights[j][i][3] != 1.0)
+                {
+                    PetscPrintf(mesh->MESH_COMM, " --> Warning in function: non-normal weights at P = (0.0, %lf, %lf)\n", cent[lzs][j][i].y, cent[lzs][j][i].z);
+                    PetscPrintf(mesh->MESH_COMM, "W1 = %lf, W2 = %lf, W3 = %lf, W4 = %lf, SUM = %lf\n", ifPtr->inflowWeights[j][i][0], ifPtr->inflowWeights[j][i][1], ifPtr->inflowWeights[j][i][2], ifPtr->inflowWeights[j][i][3],  ifPtr->inflowWeights[j][i][0]+ifPtr->inflowWeights[j][i][1]+ifPtr->inflowWeights[j][i][2]+ifPtr->inflowWeights[j][i][3]);
+                }
+                */
 
-            // j south index periodicization
-            if(j_s<=ifPtr->n1*ifPtr->prds1)
-            {
-                ifPtr->closestCells[j][i][0].j = j_s % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
-                ifPtr->closestCells[j][i][2].j = j_s % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
-            }
-            else
-            {
-                ifPtr->closestCells[j][i][0].j = ifPtr->n1;
-                ifPtr->closestCells[j][i][2].j = ifPtr->n1;
-            }
+                // compute indices with periodicization
 
-            // j north index periodicization
-            if(j_n<=ifPtr->n1*ifPtr->prds1)
-            {
-                ifPtr->closestCells[j][i][1].j = j_n % ifPtr->n1 == 0 ? ifPtr->n1 : j_n % ifPtr->n1;
-                ifPtr->closestCells[j][i][3].j = j_n % ifPtr->n1 == 0 ? ifPtr->n1 : j_n % ifPtr->n1;
-            }
-            else
-            {
-                ifPtr->closestCells[j][i][1].j = ifPtr->n1;
-                ifPtr->closestCells[j][i][3].j = ifPtr->n1;
-            }
+                // j south index periodicization
+                if(j_s<=ifPtr->n1*ifPtr->prds1)
+                {
+                    closestCells_tmp[j][i][0].j = j_s % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
+                    closestCells_tmp[j][i][2].j = j_s % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
+                }
+                // padding outside of periods (shouldn't end up here)
+                else
+                {
+                    closestCells_tmp[j][i][0].j = ifPtr->n1;
+                    closestCells_tmp[j][i][2].j = ifPtr->n1;
+                }
 
-            // i west index periodicization
-            if(i_w<=ifPtr->n2*ifPtr->prds2)
-            {
-                ifPtr->closestCells[j][i][0].i = i_w % ifPtr->n2 == 0 ? ifPtr->n2 : i_w % ifPtr->n2;
-                ifPtr->closestCells[j][i][1].i = i_w % ifPtr->n2 == 0 ? ifPtr->n2 : i_w % ifPtr->n2;
-            }
-            else
-            {
-                ifPtr->closestCells[j][i][0].i = ifPtr->n2;
-                ifPtr->closestCells[j][i][1].i = ifPtr->n2;
-            }
+                // j north index periodicization
+                if(j_n<=ifPtr->n1*ifPtr->prds1)
+                {
+                    closestCells_tmp[j][i][1].j = j_n % ifPtr->n1 == 0 ? ifPtr->n1 : j_n % ifPtr->n1;
+                    closestCells_tmp[j][i][3].j = j_n % ifPtr->n1 == 0 ? ifPtr->n1 : j_n % ifPtr->n1;
+                }
+                // padding outside of periods (shouldn't end up here)
+                else
+                {
+                    closestCells_tmp[j][i][1].j = ifPtr->n1;
+                    closestCells_tmp[j][i][3].j = ifPtr->n1;
+                }
 
-            // i east index periodicization
-            if(i_e<=ifPtr->n2*ifPtr->prds2)
-            {
-                ifPtr->closestCells[j][i][2].i = i_e % ifPtr->n2 == 0 ? ifPtr->n2 : i_e % ifPtr->n2;
-                ifPtr->closestCells[j][i][3].i = i_e % ifPtr->n2 == 0 ? ifPtr->n2 : i_e % ifPtr->n2;
-            }
-            else
-            {
-                ifPtr->closestCells[j][i][2].i = ifPtr->n2;
-                ifPtr->closestCells[j][i][3].i = ifPtr->n2;
+                // i west index periodicization
+                if(i_w<=ifPtr->n2*ifPtr->prds2)
+                {
+                    closestCells_tmp[j][i][0].i = i_w % ifPtr->n2 == 0 ? ifPtr->n2 : i_w % ifPtr->n2;
+                    closestCells_tmp[j][i][1].i = i_w % ifPtr->n2 == 0 ? ifPtr->n2 : i_w % ifPtr->n2;
+                }
+                // padding outside of periods (shouldn't end up here)
+                else
+                {
+                    closestCells_tmp[j][i][0].i = ifPtr->n2;
+                    closestCells_tmp[j][i][1].i = ifPtr->n2;
+                }
+
+                // i east index periodicization
+                if(i_e<=ifPtr->n2*ifPtr->prds2)
+                {
+                    closestCells_tmp[j][i][2].i = i_e % ifPtr->n2 == 0 ? ifPtr->n2 : i_e % ifPtr->n2;
+                    closestCells_tmp[j][i][3].i = i_e % ifPtr->n2 == 0 ? ifPtr->n2 : i_e % ifPtr->n2;
+                }
+                // padding outside of periods (shouldn't end up here)
+                else
+                {
+                    closestCells_tmp[j][i][2].i = ifPtr->n2;
+                    closestCells_tmp[j][i][3].i = ifPtr->n2;
+                }
             }
         }
     }
 
+    // scatter to all processors
+    for (j=1; j<my-1; j++)
+    {
+        for (i=1; i<mx-1; i++)
+        {
+            MPI_Allreduce(&(closestCells_tmp[j][i][0]),  &(ifPtr->closestCells [j][i][0]), 12, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
+            MPI_Allreduce(&(inflowWeights_tmp[j][i][0]), &(ifPtr->inflowWeights[j][i][0]), 4, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
+
+            std::vector<  cellIds> ().swap(closestCells_tmp[j][i]);
+            std::vector<PetscReal> ().swap(inflowWeights_tmp[j][i]);
+        }
+    }
+
+    // periodic along i for i-shift
+    // set i-periodicity
+	for (j=0; j<my; j++)
+	{
+		ifPtr->closestCells [j][0]    = ifPtr->closestCells [j][mx-2];
+		ifPtr->closestCells [j][mx-1] = ifPtr->closestCells [j][1];
+
+        ifPtr->inflowWeights [j][0]    = ifPtr->inflowWeights [j][mx-2];
+		ifPtr->inflowWeights [j][mx-1] = ifPtr->inflowWeights [j][1];
+	}
+
+    // free memory
     for(PetscInt jif=0; jif<jN; jif++)
     {
         std::vector<Cmpnts> ().swap(inflowCellCenters[jif]);
@@ -1766,13 +1731,16 @@ PetscErrorCode readInflowU(inletFunctionTypes *ifPtr, clock_ *clock)
     // PetscPrintf(PETSC_COMM_WORLD, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
     // PetscPrintf(PETSC_COMM_WORLD, "                         closest avail. times : t1 = %lf, t2 = %lf\n", ifPtr->inflowU.inflowTimes[idx_1], ifPtr->inflowU.inflowTimes[idx_2]);
 
-    // free memory
-    for( j=0; j<m1; j++)
-    {
-        // velocity
-        std::vector<Cmpnts> ().swap(ucat_plane_tmp_1[j]);
+	// set i-periodicity
+	for (j=0; j<m1; j++)
+	{
+		ifPtr->ucat_plane[j][0]    = ifPtr->ucat_plane[j][m1-2];
+		ifPtr->ucat_plane[j][m1-1] = ifPtr->ucat_plane[j][1];
+
+		// free memory
+		std::vector<Cmpnts> ().swap(ucat_plane_tmp_1[j]);
         std::vector<Cmpnts> ().swap(ucat_plane_tmp_2[j]);
-    }
+	}
 
     return(0);
 }
@@ -1900,13 +1868,16 @@ PetscErrorCode readInflowT(inletFunctionTypes *ifPtr, clock_ *clock)
     // update closest indices
     ifPtr->inflowT.currentCloseIdx   = idx_1;
 
-    // free memory
-    for( j=0; j<m1; j++)
-    {
-        // temeperature
-        std::vector<PetscReal> ().swap(t_plane_tmp_1[j]);
+	// set i-periodicity
+	for (j=0; j<m1; j++)
+	{
+		ifPtr->t_plane[j][0]    = ifPtr->t_plane[j][m1-2];
+		ifPtr->t_plane[j][m1-1] = ifPtr->t_plane[j][1];
+
+		// free memory
+		std::vector<PetscReal> ().swap(t_plane_tmp_1[j]);
         std::vector<PetscReal> ().swap(t_plane_tmp_2[j]);
-    }
+	}
 
     return(0);
 }
@@ -2034,232 +2005,16 @@ PetscErrorCode readInflowNut(inletFunctionTypes *ifPtr, clock_ *clock)
     // update closest indices
     ifPtr->inflowNut.currentCloseIdx = idx_1;
 
-    // free memory
-    for( j=0; j<m1; j++)
-    {
-        // nut
-        std::vector<PetscReal> ().swap(nut_plane_tmp_1[j]);
+	// set i-periodicity
+	for (j=0; j<m1; j++)
+	{
+		ifPtr->nut_plane[j][0]    = ifPtr->nut_plane[j][m1-2];
+		ifPtr->nut_plane[j][m1-1] = ifPtr->nut_plane[j][1];
+
+		// free memory
+		std::vector<PetscReal> ().swap(nut_plane_tmp_1[j]);
         std::vector<PetscReal> ().swap(nut_plane_tmp_2[j]);
-    }
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode setShiftedInflowU(inletFunctionTypes *ifPtr, ueqn_ *ueqn)
-{
-    mesh_        *mesh = ueqn->access->mesh;
-    DM            da   = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info = mesh->info;
-    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k;
-
-    Cmpnts        ***lucat;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-    if(zs == 0 || ze == mz)
-    {
-        DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
-
-        // initialize nut temporary local planes in each process
-        std::vector<std::vector<Cmpnts>> lucat_plane(my);
-
-        // set to zero
-        for(j=0; j<my; j++)
-        {
-            lucat_plane[j].resize(mx);
-
-            for(i=0; i<mx; i++)
-            {
-                lucat_plane[j][i] = nSetZero();
-            }
-        }
-
-        // set velocity on the plane
-        if(ze==mz)
-        {
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    lucat_plane[j][i] = lucat[ze-2][j][i];
-                }
-            }
-        }
-
-        // scatter on the communicator
-        for (j=0; j<my; j++)
-        {
-            MPI_Allreduce(&(lucat_plane[j][0]), &(ifPtr->ucat_plane[j][0]), 3*mx, MPIU_REAL, MPI_SUM, ifPtr->IFFCN_COMM);
-        }
-
-        // set i-periodicity
-        for (j=0; j<my; j++)
-        {
-            ifPtr->ucat_plane[j][0]    = ifPtr->ucat_plane[j][mx-2];
-            ifPtr->ucat_plane[j][mx-1] = ifPtr->ucat_plane[j][1];
-
-            // free memory
-            std::vector<Cmpnts> ().swap(lucat_plane[j]);
-        }
-
-        DMDAVecRestoreArray(fda, ueqn->lUcat,  &lucat);
-    }
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode setShiftedInflowT(inletFunctionTypes *ifPtr, teqn_ *teqn)
-{
-    mesh_        *mesh = teqn->access->mesh;
-    DM            da   = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info = mesh->info;
-    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k;
-
-    PetscReal     ***lt;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-    if(zs == 0 || ze == mz)
-    {
-        DMDAVecGetArray(da, teqn->lTmprt,  &lt);
-
-        // initialize nut temporary local planes in each process
-        std::vector<std::vector<PetscReal>> lt_plane(my);
-
-        // set to zero
-        for(j=0; j<my; j++)
-        {
-            lt_plane[j].resize(mx);
-
-            for(i=0; i<mx; i++)
-            {
-                lt_plane[j][i] = 0.0;
-            }
-        }
-
-        // set velocity on the plane
-        if(ze==mz)
-        {
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    lt_plane[j][i] = lt[ze-2][j][i];
-                }
-            }
-        }
-
-        // scatter on the communicator
-        for (j=0; j<my; j++)
-        {
-            MPI_Allreduce(&(lt_plane[j][0]), &(ifPtr->t_plane[j][0]), mx, MPIU_REAL, MPI_SUM, ifPtr->IFFCN_COMM);
-        }
-
-        // set i-periodicity
-        for (j=0; j<my; j++)
-        {
-            ifPtr->t_plane[j][0]    = ifPtr->t_plane[j][mx-2];
-            ifPtr->t_plane[j][mx-1] = ifPtr->t_plane[j][1];
-
-            // free memory
-            std::vector<PetscReal> ().swap(lt_plane[j]);
-        }
-
-        DMDAVecRestoreArray(da, teqn->lTmprt,  &lt);
-    }
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode setShiftedInflowNut(inletFunctionTypes *ifPtr, les_ *les)
-{
-    mesh_        *mesh = les->access->mesh;
-    DM            da   = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info = mesh->info;
-    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k;
-
-    PetscReal     ***lnut;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-    if(zs == 0 || ze == mz)
-    {
-        DMDAVecGetArray(da, les->lNu_t,  &lnut);
-
-        // initialize nut temporary local planes in each process
-        std::vector<std::vector<PetscReal>> lnut_plane(my);
-
-        // set to zero
-        for(j=0; j<my; j++)
-        {
-            lnut_plane[j].resize(mx);
-
-            for(i=0; i<mx; i++)
-            {
-                lnut_plane[j][i] = 0.0;
-            }
-        }
-
-        // set velocity on the plane
-        if(ze==mz)
-        {
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    lnut_plane[j][i] = lnut[ze-2][j][i];
-                }
-            }
-        }
-
-        // scatter on the communicator
-        for (j=0; j<my; j++)
-        {
-            MPI_Allreduce(&(lnut_plane[j][0]), &(ifPtr->nut_plane[j][0]), mx, MPIU_REAL, MPI_SUM, ifPtr->IFFCN_COMM);
-        }
-
-        // set i-periodicity
-        for (j=0; j<my; j++)
-        {
-            ifPtr->nut_plane[j][0]    = ifPtr->nut_plane[j][mx-2];
-            ifPtr->nut_plane[j][mx-1] = ifPtr->nut_plane[j][1];
-
-            // free memory
-            std::vector<PetscReal> ().swap(lnut_plane[j]);
-        }
-
-        DMDAVecRestoreArray(da, les->lNu_t,  &lnut);
-    }
+	}
 
     return(0);
 }

@@ -20,6 +20,7 @@ struct abl_
     PetscReal    hInv;                           //!< inversion height
     PetscReal    dInv;                           //!< inversion width
     PetscReal    gInv;                           //!< delta T across inversion layer
+    PetscReal    gABL;                           //!< temperature gradient below the inversion layer 
     PetscReal    tRef;                           //!< reference potential temperature
     PetscReal    gTop;                           //!< temperature gradient above the inversion layer
     PetscReal    vkConst;                        //!< von Karman constant

@@ -892,22 +892,6 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    // read inflow if necessary
-    if(mesh->boundaryU.kLeft == "inletFunction")
-    {
-        inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
-
-        // read the inflow data if necessary
-        if (ifPtr->typeU == 3 || ifPtr->typeU == 4)
-        {
-            readInflowU(ifPtr, mesh->access->clock);
-        }
-        else if(ifPtr->typeU == 7)
-        {
-            setShiftedInflowU(ifPtr, ueqn);
-        }
-    }
-
     // initialize random number generator
     srand(time(NULL));
 
@@ -928,6 +912,77 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
     DMDAVecGetArray(fda, ueqn->lUcont,  &lucont);
     DMDAVecGetArray(da,  ueqn->lUstar, &ustar);
+
+    // read inflow if necessary
+    if(mesh->boundaryU.kLeft == "inletFunction")
+    {
+        inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
+
+        // read the inflow data if necessary
+        if (ifPtr->typeU == 3 || ifPtr->typeU == 4)
+        {
+            readInflowU(ifPtr, mesh->access->clock);
+
+            if(ifPtr->typeU == 4)
+            {
+                // for each y coordinate, find the intex for the right shifted interpolation point
+                if(ifPtr->shift2)
+                {
+                    PetscReal refRatio = ifPtr->shiftSpeed*ueqn->access->clock->time / mesh->bounds.Ly;
+                    PetscReal refShift = (refRatio - floor(refRatio))*mesh->bounds.Ly;
+
+                    // print information
+                    /*
+                    PetscPrintf(ifPtr->IFFCN_COMM,"Shift info:\n");
+                    PetscPrintf(ifPtr->IFFCN_COMM," distance        = %.2f\n", refRatio);
+                    PetscPrintf(ifPtr->IFFCN_COMM," shift (Ly=%.1f) = %.2f\n", mesh->bounds.Ly, refShift);
+                    PetscPrintf(ifPtr->IFFCN_COMM," point specific\n");
+                    */
+
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        PetscReal locRatio = (refShift + cent[lzs][lys][i].y) / mesh->bounds.Ly;
+                        PetscReal locShift = (locRatio - floor(locRatio))*mesh->bounds.Ly;
+
+                        PetscReal minDist = 1e20;
+                        PetscInt  iClose  = 0;
+
+                        for (PetscInt ii=1; ii<mx-1; ii++)
+                        {
+                            PetscReal dist = fabs(ifPtr->ycent[ii] - locShift);
+                            if(dist < minDist)
+                            {
+                                minDist = dist;
+                                iClose  = ii;
+                            }
+                        }
+
+                        // make sure iClose is the right index
+                        if(ifPtr->ycent[iClose] <= locShift)
+                        {
+                            iClose++;
+                        }
+
+                        // only set the ones belonging to this processor. This is the index that has to
+                        // be sourced from the inflow data to apply the shift at index i
+                        ifPtr->yIDs[i] = iClose;
+
+                        // set the right weight
+                        PetscReal delta    = ifPtr->ycent[ifPtr->yIDs[i]] - ifPtr->ycent[ifPtr->yIDs[i]-1];
+                        PetscReal dist     = locShift - ifPtr->ycent[ifPtr->yIDs[i]-1];
+                        ifPtr->yWeights[i] = dist / delta;
+
+                        /*
+                        PetscPrintf(ifPtr->IFFCN_COMM,"  distance = %.2f\n", locRatio);
+                        PetscPrintf(ifPtr->IFFCN_COMM,"  shift    = %.2f\n", locShift);
+                        PetscPrintf(ifPtr->IFFCN_COMM,"  iRight   = %ld\n", iClose);
+                        PetscPrintf(ifPtr->IFFCN_COMM,"  weight   = %.2f\n", dist / delta);
+                        */
+                    }
+                }
+            }
+        }
+    }
 
     // set velocity boundary conditions
     for (k=lzs; k<lze; k++)
@@ -1265,20 +1320,6 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         PetscReal uMag     = (1.0 + ifPtr->amplitude*std::cos(ifPtr->periods * 2.0 * M_PI * fraction)) * nMag(ifPtr->Uref);
                         ucat[k-1][j][i]    = nScale(uMag, ifPtr->Udir);
                     }
-                    // shifted periodic BC
-                    else if (ifPtr->typeU == 7)
-                    {
-                        // evaluate shifted velocity
-                        PetscReal shift    = ifPtr->shiftSpeed*ueqn->access->clock->dt;
-                        PetscReal delta    = 1./iaj[k][j][i-1]/nMag(icsi[k][j][i-1]);
-                        Cmpnts   ushift    = nSum(nScale(shift / delta, ifPtr->ucat_plane[j][i-1]), nScale((delta-shift)/delta, ifPtr->ucat_plane[j][i]));
-
-                        // apply shift only below zeroShiftHeight and smoothly merge with no shift
-                        PetscReal wshift   = scaleHyperTangBot(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta),
-                                  wnoshift = scaleHyperTangTop(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta);
-
-                        ucat[k-1][j][i]    = nSum(nScale(wshift, ushift), nScale(wnoshift, ifPtr->ucat_plane[j][i]));
-                    }
                     // unsteady mapped inflow
                     else if (ifPtr->typeU == 3)
                     {
@@ -1357,6 +1398,110 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     }
                     else if (ifPtr->typeU == 4)
                     {
+						Cmpnts uGhost;
+
+						if(ifPtr->shift2)
+						{
+                            PetscInt  iLeft    = ifPtr->yIDs[i]-1,
+                                      iRight   = ifPtr->yIDs[i];
+
+							Cmpnts uLeft;
+							uLeft.x =
+								ifPtr->inflowWeights[j][iLeft][0] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].x +
+								ifPtr->inflowWeights[j][iLeft][1] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].x +
+								ifPtr->inflowWeights[j][iLeft][2] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].x +
+								ifPtr->inflowWeights[j][iLeft][3] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].x;
+
+							uLeft.y =
+								ifPtr->inflowWeights[j][iLeft][0] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].y +
+								ifPtr->inflowWeights[j][iLeft][1] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].y +
+								ifPtr->inflowWeights[j][iLeft][2] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].y +
+								ifPtr->inflowWeights[j][iLeft][3] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].y;
+
+							uLeft.z =
+								ifPtr->inflowWeights[j][iLeft][0] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].z +
+								ifPtr->inflowWeights[j][iLeft][1] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].z +
+								ifPtr->inflowWeights[j][iLeft][2] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].z +
+								ifPtr->inflowWeights[j][iLeft][3] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].z;
+
+                            Cmpnts uRight;
+							uRight.x =
+								ifPtr->inflowWeights[j][iRight][0] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].x +
+								ifPtr->inflowWeights[j][iRight][1] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].x +
+								ifPtr->inflowWeights[j][iRight][2] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].x +
+								ifPtr->inflowWeights[j][iRight][3] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].x;
+
+							uRight.y =
+								ifPtr->inflowWeights[j][iRight][0] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].y +
+								ifPtr->inflowWeights[j][iRight][1] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].y +
+								ifPtr->inflowWeights[j][iRight][2] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].y +
+								ifPtr->inflowWeights[j][iRight][3] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].y;
+
+							uRight.z =
+								ifPtr->inflowWeights[j][iRight][0] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].z +
+								ifPtr->inflowWeights[j][iRight][1] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].z +
+								ifPtr->inflowWeights[j][iRight][2] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].z +
+								ifPtr->inflowWeights[j][iRight][3] *
+								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].z;
+
+							uGhost = nSum(nScale(1.0-ifPtr->yWeights[i], uLeft), nScale(ifPtr->yWeights[i], uRight));
+						}
+                        else
+                        {
+                            uGhost.x =
+    							ifPtr->inflowWeights[j][i][0] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
+    							ifPtr->inflowWeights[j][i][1] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
+    							ifPtr->inflowWeights[j][i][2] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
+    							ifPtr->inflowWeights[j][i][3] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x;
+
+    						uGhost.y =
+    							ifPtr->inflowWeights[j][i][0] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
+    							ifPtr->inflowWeights[j][i][1] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
+    							ifPtr->inflowWeights[j][i][2] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
+    							ifPtr->inflowWeights[j][i][3] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y;
+
+    						uGhost.z =
+    							ifPtr->inflowWeights[j][i][0] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
+    							ifPtr->inflowWeights[j][i][1] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
+    							ifPtr->inflowWeights[j][i][2] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
+    							ifPtr->inflowWeights[j][i][3] *
+    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
+                        }
+
                         if(ifPtr->merge1)
                         {
                             PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
@@ -1365,19 +1510,11 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                             findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
-
                             ucat[k-1][j][i].x
                             =
                             scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
-                                ifPtr->inflowWeights[j][i][0] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
-                                ifPtr->inflowWeights[j][i][1] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
-                                ifPtr->inflowWeights[j][i][2] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
-                                ifPtr->inflowWeights[j][i][3] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x
+                                uGhost.x
                             ) +
                             scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
@@ -1389,14 +1526,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                             =
                             scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
-                                ifPtr->inflowWeights[j][i][0] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
-                                ifPtr->inflowWeights[j][i][1] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
-                                ifPtr->inflowWeights[j][i][2] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
-                                ifPtr->inflowWeights[j][i][3] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y
+                                uGhost.y
                             ) +
                             scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
@@ -1408,14 +1538,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                             =
                             scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
-                                ifPtr->inflowWeights[j][i][0] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
-                                ifPtr->inflowWeights[j][i][1] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
-                                ifPtr->inflowWeights[j][i][2] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
-                                ifPtr->inflowWeights[j][i][3] *
-                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z
+                                uGhost.z
                             ) +
                             scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
@@ -1425,38 +1548,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         }
                         else
                         {
-                            ucat[k-1][j][i].x
-                            =
-                            ifPtr->inflowWeights[j][i][0] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
-                            ifPtr->inflowWeights[j][i][1] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
-                            ifPtr->inflowWeights[j][i][2] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
-                            ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x;
-
-                            ucat[k-1][j][i].y
-                            =
-                            ifPtr->inflowWeights[j][i][0] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
-                            ifPtr->inflowWeights[j][i][1] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
-                            ifPtr->inflowWeights[j][i][2] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
-                            ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y;
-
-                            ucat[k-1][j][i].z
-                            =
-                            ifPtr->inflowWeights[j][i][0] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
-                            ifPtr->inflowWeights[j][i][1] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
-                            ifPtr->inflowWeights[j][i][2] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
-                            ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
+                            ucat[k-1][j][i] = nSet(uGhost);
                         }
                     }
                 }
@@ -1909,11 +2001,48 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
             else if (ifPtr->typeT == 4)
             {
                 gdataHeight = ifPtr->inflowHeigth;
+
+                // for each y coordinate, find the intex for the right shifted interpolation point
+                if(ifPtr->shift2)
+                {
+                    PetscReal refRatio = ifPtr->shiftSpeed*teqn->access->clock->time / mesh->bounds.Ly;
+                    PetscReal refShift = (refRatio - floor(refRatio))*mesh->bounds.Ly;
+
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        PetscReal locRatio = (refShift + cent[lzs][lys][i].y) / mesh->bounds.Ly;
+                        PetscReal locShift = (locRatio - floor(locRatio))*mesh->bounds.Ly;
+
+                        PetscReal minDist = 1e20;
+                        PetscInt  iClose  = 0;
+
+                        for (PetscInt ii=1; ii<mx-1; ii++)
+                        {
+                            PetscReal dist = fabs(ifPtr->ycent[ii] - locShift);
+                            if(dist < minDist)
+                            {
+                                minDist = dist;
+                                iClose  = ii;
+                            }
+                        }
+
+                        // make sure iClose is the right index
+                        if(ifPtr->ycent[iClose] <= locShift)
+                        {
+                            iClose++;
+                        }
+
+                        // only set the ones belonging to this processor. This is the index that has to
+                        // be sourced from the inflow data to apply the shift at index i
+                        ifPtr->yIDs[i] = iClose;
+
+                        // set the right weight
+                        PetscReal delta    = ifPtr->ycent[ifPtr->yIDs[i]] - ifPtr->ycent[ifPtr->yIDs[i]-1];
+                        PetscReal dist     = locShift - ifPtr->ycent[ifPtr->yIDs[i]-1];
+                        ifPtr->yWeights[i] = dist / delta;
+                    }
+                }
             }
-        }
-        else if(ifPtr->typeT == 7)
-        {
-            setShiftedInflowT(ifPtr, teqn);
         }
     }
 
@@ -1951,6 +2080,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     {
                         PetscReal b      = ifPtr->smear * ifPtr->gTop * ifPtr->dInv;
                         PetscReal a      = ifPtr->gInv - b;
+						PetscReal c      = ifPtr->smear * ifPtr->gABL * ifPtr->dInv;
                         PetscReal h      = cent[k][j][i].z - mesh->bounds.zmin;
                         PetscReal etaLim = ifPtr->hInv / ifPtr->smear / ifPtr->dInv;
 
@@ -1963,15 +2093,27 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             // non dimensional functions
                             PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
                             PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
+							PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
 
                             // potential temperature
-                            t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta;
+                            t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta + c * h_eta + ifPtr->gABL*ifPtr->hInv;
                         }
                         // asymptotic behavior
                         else
                         {
+							// non dimensional functions
+                            PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
+                            PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
+							PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
+
+							// potential temperature
+                            t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta + c * h_eta + ifPtr->gABL*ifPtr->hInv;
+
+							// Dries implementation (to add limit from below)
+							// gLim = (abs(eta) + eta)/2;
+
                             // potential temperature
-                            t[k-1][j][i] = ifPtr->tRef + a + b * eta;
+                            // t[k-1][j][i] = ifPtr->tRef + a + b * eta;
                         }
                     }
                     // periodized mapped inflow
@@ -2041,7 +2183,48 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     // interpolated periodized mapped inflow
                     else if (ifPtr->typeT == 4)
                     {
-                        PetscReal delta = PetscMax(0.0, cent[k][j][i].z - ifPtr->avgTopLength);
+                        PetscReal delta  = PetscMax(0.0, cent[k][j][i].z - ifPtr->avgTopLength);
+						PetscReal tGhost;
+
+						if(ifPtr->shift2)
+						{
+                            PetscInt  iLeft    = ifPtr->yIDs[i]-1,
+                                      iRight   = ifPtr->yIDs[i];
+
+							PetscReal tLeft =
+								ifPtr->inflowWeights[j][iLeft][0] *
+								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
+								ifPtr->inflowWeights[j][iLeft][1] *
+								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
+								ifPtr->inflowWeights[j][iLeft][2] *
+								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
+								ifPtr->inflowWeights[j][iLeft][3] *
+								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
+
+                            PetscReal tRight =
+								ifPtr->inflowWeights[j][iRight][0] *
+								ifPtr->t_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
+								ifPtr->inflowWeights[j][iRight][1] *
+								ifPtr->t_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
+								ifPtr->inflowWeights[j][iRight][2] *
+								ifPtr->t_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
+								ifPtr->inflowWeights[j][iRight][3] *
+								ifPtr->t_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
+
+							tGhost   = (1.0 - ifPtr->yWeights[i]) * tLeft + ifPtr->yWeights[i] * tRight;
+						}
+                        else
+                        {
+                            tGhost =
+    							ifPtr->inflowWeights[j][i][0] *
+    							ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+    							ifPtr->inflowWeights[j][i][1] *
+    							ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+    							ifPtr->inflowWeights[j][i][2] *
+    							ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+    							ifPtr->inflowWeights[j][i][3] *
+    							ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+                        }
 
                         if(ifPtr->merge1)
                         {
@@ -2055,14 +2238,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             =
                             scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
-                                ifPtr->inflowWeights[j][i][0] *
-                                ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
-                                ifPtr->inflowWeights[j][i][1] *
-                                ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
-                                ifPtr->inflowWeights[j][i][2] *
-                                ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
-                                ifPtr->inflowWeights[j][i][3] *
-                                ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i]
+                                tGhost
                             ) +
                             scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
@@ -2073,31 +2249,8 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         }
                         else
                         {
-                            t[k-1][j][i]
-                            =
-                            ifPtr->inflowWeights[j][i][0] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
-                            ifPtr->inflowWeights[j][i][1] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
-                            ifPtr->inflowWeights[j][i][2] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
-                            ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i] +
-                            delta * teqn->access->abl->gTop;
+                            t[k-1][j][i] = tGhost;
                         }
-                    }
-                    else if(ifPtr->typeT == 7)
-                    {
-                        // evaluate shifted velocity
-                        PetscReal shift    = ifPtr->shiftSpeed*teqn->access->clock->dt;
-                        PetscReal delta    = 1./iaj[k][j][i-1]/nMag(icsi[k][j][i-1]);
-                        PetscReal tshift   = (shift / delta) * ifPtr->t_plane[j][i-1] + ((delta-shift)/delta)*ifPtr->t_plane[j][i];
-
-                        // apply shift only below zeroShiftHeight and smoothly merge with no shift
-                        PetscReal wshift   = scaleHyperTangBot(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta),
-                                  wnoshift = scaleHyperTangTop(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta);
-
-                        t[k-1][j][i]       = wshift*tshift + wnoshift*ifPtr->t_plane[j][i];
                     }
                 }
 
@@ -2349,6 +2502,12 @@ PetscErrorCode UpdateNutBCs(les_ *les)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
+    DMDAVecGetArray(da, les->lNu_t, &nut);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+
     // read inflow if necessary
     if(mesh->boundaryNut.kLeft == "inletFunction")
     {
@@ -2358,18 +2517,52 @@ PetscErrorCode UpdateNutBCs(les_ *les)
         if (ifPtr->typeNut == 3 || ifPtr->typeNut == 4)
         {
             readInflowNut(ifPtr, mesh->access->clock);
-        }
-        else if(ifPtr->typeNut == 7)
-        {
-            setShiftedInflowNut(ifPtr, les);
+
+            if(ifPtr->typeU == 4)
+            {
+                // for each y coordinate, find the intex for the right shifted interpolation point
+                if(ifPtr->shift2)
+                {
+                    PetscReal refRatio = ifPtr->shiftSpeed*les->access->clock->time / mesh->bounds.Ly;
+                    PetscReal refShift = (refRatio - floor(refRatio))*mesh->bounds.Ly;
+
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        PetscReal locRatio = (refShift + cent[lzs][lys][i].y) / mesh->bounds.Ly;
+                        PetscReal locShift = (locRatio - floor(locRatio))*mesh->bounds.Ly;
+
+                        PetscReal minDist = 1e20;
+                        PetscInt  iClose  = 0;
+
+                        for (PetscInt ii=1; ii<mx-1; ii++)
+                        {
+                            PetscReal dist = fabs(ifPtr->ycent[ii] - locShift);
+                            if(dist < minDist)
+                            {
+                                minDist = dist;
+                                iClose  = ii;
+                            }
+                        }
+
+                        // make sure iClose is the right index
+                        if(ifPtr->ycent[iClose] <= locShift)
+                        {
+                            iClose++;
+                        }
+
+                        // only set the ones belonging to this processor. This is the index that has to
+                        // be sourced from the inflow data to apply the shift at index i
+                        ifPtr->yIDs[i] = iClose;
+
+                        // set the right weight
+                        PetscReal delta    = ifPtr->ycent[ifPtr->yIDs[i]] - ifPtr->ycent[ifPtr->yIDs[i]-1];
+                        PetscReal dist     = locShift - ifPtr->ycent[ifPtr->yIDs[i]-1];
+                        ifPtr->yWeights[i] = dist / delta;
+                    }
+                }
+            }
         }
     }
-
-    DMDAVecGetArray(da, les->lNu_t, &nut);
-    DMDAVecGetArray(da, mesh->lNvert, &nvert);
-    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
-    DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
-    DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     for (k=lzs; k<lze; k++)
     {
@@ -2423,29 +2616,49 @@ PetscErrorCode UpdateNutBCs(les_ *les)
                     }
                     else if (ifPtr->typeNut == 4)
                     {
-                       nut[k-1][j][i]
-                       =
-                       ifPtr->inflowWeights[j][i][0] *
-                       ifPtr->nut_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
-                       ifPtr->inflowWeights[j][i][1] *
-                       ifPtr->nut_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
-                       ifPtr->inflowWeights[j][i][2] *
-                       ifPtr->nut_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
-                       ifPtr->inflowWeights[j][i][3] *
-                       ifPtr->nut_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
-                    }
-                    else if (ifPtr->typeNut == 7)
-                    {
-                        // evaluate shifted velocity
-                        PetscReal shift    = ifPtr->shiftSpeed*les->access->clock->dt;
-                        PetscReal delta    = 1./iaj[k][j][i-1]/nMag(icsi[k][j][i-1]);
-                        PetscReal nutshift = (shift / delta) * ifPtr->nut_plane[j][i-1] + ((delta-shift)/delta)*ifPtr->nut_plane[j][i];
+						PetscReal nutGhost;
 
-                        // apply shift only below zeroShiftHeight and smoothly merge with no shift
-                        PetscReal wshift   = scaleHyperTangBot(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta),
-                                  wnoshift = scaleHyperTangTop(cent[k][j][i].z - mesh->bounds.zmin, ifPtr->zeroShiftHeight, ifPtr->zeroShiftDelta);
+					    if(ifPtr->shift2)
+						{
+                            PetscInt  iLeft    = ifPtr->yIDs[i]-1,
+                                      iRight   = ifPtr->yIDs[i];
 
-                        nut[k-1][j][i]       = wshift*nutshift + wnoshift*ifPtr->nut_plane[j][i];
+							PetscReal nutLeft =
+								ifPtr->inflowWeights[j][iLeft][0] *
+								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
+								ifPtr->inflowWeights[j][iLeft][1] *
+								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
+								ifPtr->inflowWeights[j][iLeft][2] *
+								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
+								ifPtr->inflowWeights[j][iLeft][3] *
+								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
+
+                            PetscReal nutRight =
+								ifPtr->inflowWeights[j][iRight][0] *
+								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
+								ifPtr->inflowWeights[j][iRight][1] *
+								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
+								ifPtr->inflowWeights[j][iRight][2] *
+								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
+								ifPtr->inflowWeights[j][iRight][3] *
+								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
+
+							nutGhost   = (1.0-ifPtr->yWeights[i]) * nutLeft + ifPtr->yWeights[i]*nutRight;
+						}
+                        else
+                        {
+                            nutGhost =
+    							ifPtr->inflowWeights[j][i][0] *
+    							ifPtr->nut_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+    							ifPtr->inflowWeights[j][i][1] *
+    							ifPtr->nut_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+    							ifPtr->inflowWeights[j][i][2] *
+    							ifPtr->nut_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+    							ifPtr->inflowWeights[j][i][3] *
+    							ifPtr->nut_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+                        }
+
+                        nut[k-1][j][i] = nutGhost;
                     }
                 }
 

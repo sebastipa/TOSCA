@@ -50,7 +50,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
     DMGetCoordinatesLocal(mesh->da, &Coor);
     DMDAVecGetArray(fda, Coor, &coor);
 
-    if(mesh->meshFileType != "cartesian")
+    if(mesh->meshFileType != "cartesian")   
     {
         char error[512];
         sprintf(error, "ABL capabilites only available for cartesian meshes\n");
@@ -67,6 +67,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
     readDictDouble("ABLProperties.dat", "gInv",             &(abl->gInv));
     readDictDouble("ABLProperties.dat", "tRef",             &(abl->tRef));
     readDictDouble("ABLProperties.dat", "gTop",             &(abl->gTop));
+	readDictDouble("ABLProperties.dat", "gABL",             &(abl->gABL));
     readDictDouble("ABLProperties.dat", "vkConst",          &(abl->vkConst));
     readDictDouble("ABLProperties.dat", "smearT",           &(abl->smear));
     readDictInt   ("ABLProperties.dat", "coriolisActive",   &(abl->coriolisActive));
@@ -407,7 +408,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                         ntimes++;
                     }
                 }
-                
+
                 // first line is header
                 ntimes--;
 

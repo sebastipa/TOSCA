@@ -925,6 +925,18 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
             if(mesh->access->flags->isLesActive)  ifPtr->mapNut = 1;
             if(mesh->access->flags->isTeqnActive) ifPtr->mapT   = 1;
 
+            // create inflow communicator to speed up the initialization
+            PetscMPIInt rank;
+            PetscInt    commColor = MPI_UNDEFINED;
+
+            if(zs==0)
+            {
+                commColor = 1;
+            }
+
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
+            MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(ifPtr->IFFCN_COMM));
+
             // read if source mesh is uniform or grading
             readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
 
@@ -932,6 +944,7 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
             readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Inflow",   &(ifPtr->n2));
             readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Periods",  &(ifPtr->prds1));
             readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Periods",  &(ifPtr->prds2));
+			readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Shift",    &(ifPtr->shift2));
 
     		if(ifPtr->sourceType == "uniform")
     		{
@@ -1034,8 +1047,8 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
 
             PetscPrintf(mesh->MESH_COMM, "   -> averaging inflow at 10 top cells...");
 
-	    // set merging flag to default one: always merge instantaneous and averages at the top in precursor
-	    ifPtr->merge1 = 1;
+			// set merging flag to default one: always merge instantaneous and averages at the top in precursor
+			ifPtr->merge1 = 1;
 
             // top average to avoid top oscillations
             PetscMalloc(10*sizeof(Cmpnts),    &(ifPtr->uBarAvgTopX));
@@ -1183,70 +1196,42 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
             // wipe vectors
             for( j=0; j<ifPtr->n1wg; j++)
             {
-                std::vector<Cmpnts>   ().swap(ucat_plane_tmp[j]);
+                std::vector<Cmpnts>    ().swap(ucat_plane_tmp[j]);
                 std::vector<PetscReal> ().swap(t_plane_tmp[j]);
             }
-        }
-        else if(ifPtr->typeU == 7)
-        {
-            // set also T and nut to the same type
-            ifPtr->typeT   = 7;
-            ifPtr->typeNut = 7;
 
-            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "shiftSpeed",     &(ifPtr->shiftSpeed));
-            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "zeroShiftHeight",&(ifPtr->zeroShiftHeight));
-            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "zeroShiftDelta", &(ifPtr->zeroShiftDelta));
+			// see if must apply shift
+			if (ifPtr->shift2 == 1)
+			{
+				readSubDictDouble("ABLProperties.dat", "xDampingProperties", "shiftSpeed", &(ifPtr->shiftSpeed));
 
-            PetscPrintf(mesh->MESH_COMM, "   -> using periodic inlet with i-shift\n");
+                // compute y coordinates assuming that the mesh has straight z lines, this is required to speed up the
+                // search to find the index from which the shifted velocity has to be sourced
+                Cmpnts ***cent;
+                DMDAVecGetArray(fda, mesh->lCent, &cent);
 
-            PetscInt           i,j,k;
+                std::vector<PetscReal> ycent(mx);
+                PetscMalloc(sizeof(PetscReal)*mx, &(ifPtr->ycent));
+                PetscMalloc(sizeof(PetscReal)*mx, &(ifPtr->yWeights));
+                PetscMalloc(sizeof(PetscInt )*mx, &(ifPtr->yIDs));
 
-            // allocate memory for temporary inflow data
-            ifPtr->ucat_plane = (Cmpnts **)malloc( sizeof(Cmpnts *) * my );
-
-            for(j=0; j<my; j++)
-            {
-                ifPtr->ucat_plane[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * mx );
-            }
-
-            if(mesh->access->flags->isTeqnActive)
-            {
-                // allocate memory for temporary inflow data
-                ifPtr->t_plane = (PetscReal **)malloc( sizeof(PetscReal *) * my );
-
-                for(j=0; j<my; j++)
+                if(zs==0 && ys==0)
                 {
-                    ifPtr->t_plane[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        ycent[i] = cent[lzs][lys][i].y;
+                    }
                 }
-            }
 
-            if(mesh->access->flags->isLesActive)
-            {
-                // allocate memory for temporary inflow data
-                ifPtr->nut_plane = (PetscReal **)malloc( sizeof(PetscReal *) * my );
+                DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
-                for(j=0; j<my; j++)
-                {
-                    ifPtr->nut_plane[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
-                }
-            }
-
-            // create communicator
-            PetscMPIInt rank;
-            PetscInt    commColor = MPI_UNDEFINED;
-
-            if(zs==0 || ze==mz)
-            {
-                commColor = 1;
-            }
-
-            MPI_Comm_rank(mesh->MESH_COMM, &rank);
-            MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(ifPtr->IFFCN_COMM));
+                MPI_Allreduce(&ycent[0], &ifPtr->ycent[0], mx, MPIU_REAL, MPIU_SUM, ifPtr->IFFCN_COMM);
+			}
         }
         else
         {
             char error[512];
-            sprintf(error, "unknown inletFunctionType in xDampingProperties for concurrent precursor method, available types are\n    4: interpolatedMappedInflow\n    7: periodic with i-shift\n");
+            sprintf(error, "unknown inletFunctionType in xDampingProperties for concurrent precursor method, available types are\n    4: interpolatedMappedInflow\n");
             fatalErrorInFunction("SetInflowFunctionsPrecursor",  error);
         }
     }

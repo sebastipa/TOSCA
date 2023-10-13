@@ -22,6 +22,8 @@ kLeft   inletFunction
             cellWidth1 20
             cellWidth2 20
             n1Merge    1
+            n2Shift    0
+            shiftSpeed 1.5
         }
 
 kRight  zeroGradient

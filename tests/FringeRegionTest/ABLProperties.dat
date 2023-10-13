@@ -26,6 +26,9 @@ gInv 5.0
 # Potential temperature gradient on top of the inversion layer.
 gTop 0.003
 
+# Potential temperature gradient below the inversion layer.
+gABL 0.0
+
 # Von Karman Constant.
 vkConst 0.4
 
@@ -99,8 +102,8 @@ xDampingProperties
     sourceType uniform
     cellWidth1 20
     cellWidth2 20
-    
-    
+    n2Shift    0
+    shiftSpeed 1.5
 }
 
 sideForceProperties

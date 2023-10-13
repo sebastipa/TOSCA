@@ -63,6 +63,7 @@ struct inletFunctionTypes
     PetscReal     gInv;                       //!< delta T across inversion layer
     PetscReal     tRef;                       //!< reference potential temperature
     PetscReal     gTop;                       //!< temperature gradient above the inversion layer
+	PetscReal     gABL;                       //!< temperature gradient below the inversion layer
     PetscReal     smear;                      //!< Rampanelli Zardi model parameter
     PetscReal     latitude;                   //!< for Nieuwstadt model
     PetscReal     fc;                         //!< Coriolis parameter
@@ -75,6 +76,7 @@ struct inletFunctionTypes
     PetscInt      prds1;                      //!< indicates how many times inflow data should be periodized along 1st index
     PetscInt      prds2;                      //!< indicates how many times inflow data should be periodized along 2nd index
     PetscInt      merge1;                     //!< average data at 5 top cells
+	PetscInt      shift2;                     //!< apply shift on inflow slice data along direction 2
 
     PetscInt      mapT;                       //!< flag telling if also T is mapped (if temperatureTransport is active is mandatory)
     PetscInt      mapNut;                     //!< flag telling if also nut is mapped (optional)
@@ -99,15 +101,15 @@ struct inletFunctionTypes
     PetscReal    avgTopDelta;                 //!< length of the five top cells
     PetscReal    avgTopLength;                //!< height of the inflow slices
 
+	PetscReal    shiftSpeed;                  //!< speed of the i-direction shift
+    PetscReal    *ycent;                      //!< vector storing y cell center coordinates (assuming they don't vary vertically)
+    PetscInt     *yIDs;                       //!< IDs for the right interpolation point (the left would be IDs[i]-1)
+    PetscReal    *yWeights;                   //!< vector storing the right weight for the interpolation (left weight is 1.0 - right weight)
+    MPI_Comm     IFFCN_COMM;                  //!< communicator involving all processors touching k-boundaries
+
     // type 6: i-dir sinusoidal inflow
     PetscReal    amplitude;                   //!< oscillation amplitude w.r.t. reference velocity magnitude
     PetscReal    periods;                     //!< number of periods in the spanwise direction
-
-    // type 7: shifted periodic boundary condition
-    PetscReal    shiftSpeed;                  //!< speed of the i-direction shift
-    PetscReal    zeroShiftHeight;             //!< height at which the shift is brought to zero
-    PetscReal    zeroShiftDelta;              //!< distance it takes to the shift to go from max to zero
-    MPI_Comm     IFFCN_COMM;                  //!< communicator involving all processors touching k-boundaries
 };
 
 //! \brief Struct storing inlet functions data
