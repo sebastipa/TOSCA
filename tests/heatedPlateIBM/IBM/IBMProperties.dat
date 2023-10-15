@@ -1,0 +1,59 @@
+
+NumberofBodies                      1
+
+InterpolationMethod                 CURVIB
+CURVIBInterpolationType             CurvibTrilinear
+
+debug                               0
+dynamic                             0
+checkNormal                         1
+computeForce                        0
+writeSTL                            0
+wallShear                           0
+pressureBC                          0
+
+
+writeSettings
+{
+    timeStart           0
+    intervalType        timeStep
+    timeInterval        10
+}
+
+#ibm object properties
+
+object0
+{
+    bodyName                        heatedPlateIBM.ucd
+    bodyType                        closedBody
+    thinBody                        0
+
+    fileType                        ucd
+    bodyMotion                      static
+    baseLocation                    (0.25 0.0 0.25)
+
+    #wall model
+    wallModelU                      Cabot
+    wallModelUProp                  setHere
+    roughness                       0.00
+    kappa                           0.4
+    uStarEval                       localized
+    gammaM                          4.9
+    thetaRef                        300.0
+
+    #motion properties
+    transVelocity                   (-0.762 0.0 0.0)
+    startMove		                0
+    endMove		                    1
+
+    #source properties
+    tSourceFlag                     1
+    IBTemp                          22.0
+
+
+    #procBounds
+    procBoundCenter                 (1.22 0.76 0.76)
+    procBoundSize                   (2.44 1.52 1.52)
+
+    searchCellRatio                 3
+}

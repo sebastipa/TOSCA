@@ -1,0 +1,39 @@
+
+numberOfVents       1
+
+vent0
+{
+    #ventLocationInfo
+
+    face            iRight
+    dir             outlet
+    xBound1		    0.25
+    xBound2         0.75
+    zBound1			0.25
+    zBound2			0.75
+
+    #zBounds needed for i and k faces.
+
+    #U_BC_info
+
+    ventBC			   noSlip
+    #ventBCVec		   (0.0 1.177 0.0)
+    #ventDesiredFlux    0.335
+
+
+    #Nut_BC_info
+
+    ventBCNut          noSlip
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+
+    ventTBC			   fixedValue
+    ventTBCVal		   35.0
+
+    #C_BC_info
+
+    ventCBC			   noSlip
+    #ventCBCVal		   22.0
+
+}
