@@ -267,6 +267,19 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
         }
     }
 
+    // check if IB is a heat source
+    readSubDictInt("./IBM/IBMProperties.dat", objectName, "tSourceFlag", &(ibmBody->tSourceFlag));
+
+    //read tSource info if needed
+    if(ibmBody->tSourceFlag == 1)
+    {
+        readSubDictDouble("./IBM/IBMProperties.dat", objectName, "IBTemp", &(ibmBody->IBTemp));
+    }
+    else if(ibmBody->tSourceFlag == 2)
+    {
+        readSubDictDouble("./IBM/IBMProperties.dat", objectName, "IBTFlux", &(ibmBody->IBTFlux));
+    }
+
     // read the search cell ratio wrt to the average cell size of the domain mesh
     readSubDictDouble("./IBM/IBMProperties.dat", objectName, "searchCellRatio", &(ibmBody->searchCellRatio));
 

@@ -211,15 +211,15 @@ PetscErrorCode readVentsProperties(vents_ *vents)
     }*/
 
     // read temp BC info
-    /*if(flags->isTeqnActive)
+    if(flags->isTeqnActive)
     {
         readSubDictWord("./vents/ventsProperties.dat", ventName, "ventTBC", &(vents->vent[i]->ventTBC));
 
-        if (vents->vent[i]->ventTBC == "fixedValue" || vents->vent[i]->ventTBC == "fixedGradient")
+        if (vents->vent[i]->ventTBC == "fixedValue")
         {
             readSubDictDouble("./vents/ventsProperties.dat", ventName, "ventTBCVal", &(vents->vent[i]->ventTBCVal));
         }
-    }*/
+    }
 
     // read temp BC info
     /*if(flags->isCeqnActive)

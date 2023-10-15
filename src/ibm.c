@@ -4677,6 +4677,23 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
             {
                 temp[k][j][i] =  ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
             }
+
+            /*if(flags->isAblActive)
+            {
+                ibmPtTemp = ibm->access->abl->tRef;
+            }
+            else if (ibm->ibmBody[ibF[c].bodyID]->tSourceFlag == 1)
+            {
+                ibmPtTemp = ibm->ibmBody[ibF[c].bodyID]->IBTemp;
+            }
+            else if (ibm->ibmBody[ibF[c].bodyID]->tSourceFlag == 2)
+            {
+                //future work
+            }
+            else
+            {
+                ibmPtTemp = ibm->access->constants->tRef;
+            }*/
          }
 
          // save the element acceleration term (dudt . elementNormal)

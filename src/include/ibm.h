@@ -218,8 +218,13 @@ typedef struct
     PetscInt      *thisPtControlTransfer;                     //!< flag telling that the control of this point is being transferred to another processor
     cellIds       *closestCells;                              //!< closest cell id to the outward normal projection from the ibm mesh element
 
+    //ibm source variables
+    PetscReal     IBTemp;                                     //!< surface temperature of fixed temp IB sources
+    PetscReal     IBTFlux;                                     //!< surface temperature of fixed temp IB sources
+
     //flags
     PetscInt       ibmControlled;                             //!< flag which tells if this proc controls this IBM body
+    PetscInt       tSourceFlag;                               //!< set to 0 if no source, 1 if if fixed surface temp. and 2 if fixed heat flux
 
     // communication color
     MPI_Comm            IBM_COMM;                             //!< communicator for this IBM

@@ -2814,6 +2814,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
 {
     mesh_          *mesh = teqn->access->mesh;
+    ibm_           *ibm = teqn->access->ibm;
+    vents_         *vents = teqn->access->vents;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -2824,7 +2826,9 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     word          typeName = "boundary/T";
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k;
+    PetscInt      i, j, k, b, q;
+
+    PetscInt      ***markVent;;
 
     PetscReal     ***t, ***lt, ***nvert;
     PetscReal     ***aj, ***iaj;
@@ -2931,6 +2935,8 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     DMDAVecGetArray(da, teqn->lTmprt, &lt);
     DMDAVecGetArray(da, teqn->Tmprt,  &t);
 
+    DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
+
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
@@ -2947,10 +2953,104 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     }
                     else
                     {
-                        t[k][j][i] = teqn->access->constants->tRef;
-                        continue;
+                        // loop through IBM bodies
+                        for (b = 0; b < ibm->numBodies; b++)
+                        {
+                            ibmObject   *ibmBody  = ibm->ibmBody[b];
+
+                            if(ibmBody->bound->xmin < cent[k][j][i].x && ibmBody->bound->xmax > cent[k][j][i].x && ibmBody->bound->ymin < cent[k][j][i].y && ibmBody->bound->ymax > cent[k][j][i].y && ibmBody->bound->zmin < cent[k][j][i].z && ibmBody->bound->zmax > cent[k][j][i].z)
+                            {
+                                if(ibmBody->tSourceFlag == 1)
+                                {
+                                    t[k][j][i] = ibmBody->IBTemp;
+                                    continue;
+                                }
+                                else if(ibmBody->tSourceFlag == 2)
+                                {
+                                    //futurework
+                                }
+                                else
+                                {
+                                    t[k][j][i] = teqn->access->constants->tRef;
+                                    continue;
+                                }
+                            }
+
+                        }
+
                     }
 
+
+                }
+
+                //set ventBC and continues to next if vent cell
+                if (markVent[k][j][i] > 0)
+                {
+                    q = markVent[k][j][i] - 1;
+
+                    if (i == 1 && vents->vent[q]->ventTBC == "fixedValue")
+                    {
+                        t[k][j][i-1] = vents->vent[q]->ventTBCVal;
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventTBC == "fixedValue")
+                    {
+
+                        t[k][j][i+1] = vents->vent[q]->ventTBCVal;
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventTBC == "fixedValue")
+                    {
+                        t[k][j-1][i] = vents->vent[q]->ventTBCVal;
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventTBC == "fixedValue")
+                    {
+
+                         t[k][j+1][i] = vents->vent[q]->ventTBCVal;
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventTBC == "fixedValue")
+                    {
+                         t[k-1][j][i] = vents->vent[q]->ventTBCVal;
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventTBC == "fixedValue")
+                    {
+                         t[k+1][j][i] = vents->vent[q]->ventTBCVal;
+                    }
+
+                    if (i == 1 && vents->vent[q]->ventTBC == "zeroGradient")
+                    {
+                       t[k][j][i-1] = lt[k][j][i];
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventTBC == "zeroGradient")
+                    {
+                        t[k][j][i+1] = lt[k][j][i];
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventTBC == "zeroGradient")
+                    {
+                       t[k][j-1][i] = lt[k][j][i];
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventTBC == "zeroGradient")
+                    {
+                       t[k][j+1][i] = lt[k][j][i];
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventTBC == "zeroGradient")
+                    {
+                       t[k-1][j][i] = lt[k][j][i];
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventTBC == "zeroGradient")
+                    {
+                       t[k+1][j][i] = lt[k][j][i];
+                    }
+
+                    continue; //with this set-up no IBMs can't be touching a vent. Shouldn't be an issue. Even IMBs blocking a vent should be at least one cell length away
                 }
 
                 // special boundary condition where inflow is mapped from precursor
@@ -3377,6 +3477,8 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
 
     DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
     DMDAVecRestoreArray(da, teqn->Tmprt,  &t);
+
+    DMDAVecRestoreArray(da, mesh->ventMarkers, &markVent);
 
     // scatter global to local
     DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
