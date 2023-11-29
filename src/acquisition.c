@@ -5850,48 +5850,60 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
         // create folders
         for(r=0; r<probes->nRakes; r++)
         {
+            // get this processor rank in the global communicator
+            MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+
+            //create probe folder directory tree using only the rank 0 processor
+            if(!rank)
+            {
+                // create rake folder
+                errno = 0;
+                word rakeFolderName = "./postProcessing/" + probes->rakes[r].rakeName;
+                PetscInt dirRes = mkdir(rakeFolderName.c_str(), 0777);
+                if(dirRes != 0 && errno != EEXIST)
+                {
+                   char error[512];
+                    sprintf(error, "could not create %s directory\n", rakeFolderName.c_str());
+                    fatalErrorInFunction("ProbesInitialize",  error);
+                }
+                else
+                {
+                    // create time folder
+                    errno = 0;
+                    dirRes = mkdir(probes->rakes[r].timeName.c_str(), 0777);
+                    if(dirRes != 0 && errno != EEXIST)
+                    {
+                       char error[512];
+                        sprintf(error, "could not create %s directory\n", probes->rakes[r].timeName.c_str());
+                        fatalErrorInFunction("ProbesInitialize",  error);
+                    }
+                    // if the time name exists remove everything inside
+                    else if(errno == EEXIST)
+                    {
+                        remove_subdirs(probes->rakes[r].RAKE_COMM, probes->rakes[r].timeName.c_str());
+                    }
+                }
+            }
+        }
+
+        // initialize probe files in the created folders using the base processor of that probe
+        for(r=0; r<probes->nRakes; r++)
+        {
             if(probes->rakes[r].thisRakeControlled)
             {
                 MPI_Comm_rank(probes->rakes[r].RAKE_COMM, &rank);
 
                 if(!rank)
                 {
-                    // create rake folder
-                    errno = 0;
-                    word rakeFolderName = "./postProcessing/" + probes->rakes[r].rakeName;
-                    PetscInt dirRes = mkdir(rakeFolderName.c_str(), 0777);
-                    if(dirRes != 0 && errno != EEXIST)
-                    {
-                       char error[512];
-                        sprintf(error, "could not create %s directory\n", rakeFolderName.c_str());
-                        fatalErrorInFunction("ProbesInitialize",  error);
-                    }
-                    else
-                    {
-                        // create time folder
-                        errno = 0;
-                        dirRes = mkdir(probes->rakes[r].timeName.c_str(), 0777);
-                        if(dirRes != 0 && errno != EEXIST)
-                        {
-                           char error[512];
-                            sprintf(error, "could not create %s directory\n", probes->rakes[r].timeName.c_str());
-                            fatalErrorInFunction("ProbesInitialize",  error);
-                        }
-                        // if the time name exists remove everything inside
-                        else if(errno == EEXIST)
-                        {
-                            remove_subdirs(probes->rakes[r].RAKE_COMM, probes->rakes[r].timeName.c_str());
-                        }
+                    // initialize velocity file
+                    if(probes->rakes[r].Uflag) InitRakeFile(&(probes->rakes[r]), "U");
 
-                        // initialize velocity file
-                        if(probes->rakes[r].Uflag) InitRakeFile(&(probes->rakes[r]), "U");
+                    // initialize temperature file
+                    if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
 
-                        // initialize temperature file
-                        if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
+                    // initialize pressure file
+                    if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
 
-                        // initialize pressure file
-                        if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
-                    }
                 }
 
                 // print acquisition system information

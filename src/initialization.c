@@ -126,8 +126,22 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
     }
 
+    PetscReal timeStart, timeEnd;
+
+    // sync processors
+    MPI_Barrier(PETSC_COMM_WORLD);
+
+    PetscTime(&timeStart);
+
     // initialize acquisitions
     InitializeAcquisition(domain);
+
+    // sync processors
+    MPI_Barrier(PETSC_COMM_WORLD);
+
+    PetscTime(&timeEnd);
+
+    PetscPrintf(PETSC_COMM_WORLD, "Acquisition initialization time = %lf s\n", timeEnd - timeStart);
 
     // Set the initial field
     SetInitialField(domain);

@@ -2249,7 +2249,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         }
                         else
                         {
-                            t[k-1][j][i] = tGhost;
+                            t[k-1][j][i] = tGhost + delta * teqn->access->abl->gTop;
                         }
                     }
                 }

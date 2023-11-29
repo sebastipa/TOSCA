@@ -799,7 +799,10 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
 
                 DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
-                MPI_Allreduce(&ycent[0], &ifPtr->ycent[0], mx, MPIU_REAL, MPIU_SUM, ifPtr->IFFCN_COMM);
+				if(zs==0)
+                {
+					MPI_Allreduce(&ycent[0], &ifPtr->ycent[0], mx, MPIU_REAL, MPIU_SUM, ifPtr->IFFCN_COMM);
+				}
 			}
         }
         // Nieuwstadt
@@ -1238,31 +1241,31 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
                 }
             }
         }
+		
+		// scatter to all processors
+		for (j=1; j<my-1; j++)
+		{
+			for (i=1; i<mx-1; i++)
+			{
+				MPI_Allreduce(&(closestCells_tmp[j][i][0]),  &(ifPtr->closestCells [j][i][0]), 12, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
+				MPI_Allreduce(&(inflowWeights_tmp[j][i][0]), &(ifPtr->inflowWeights[j][i][0]), 4, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
+
+				//std::vector<  cellIds> ().swap(closestCells_tmp[j][i]);
+				//std::vector<PetscReal> ().swap(inflowWeights_tmp[j][i]);
+			}
+		}
+
+		// periodic along i for i-shift
+		// set i-periodicity
+		for (j=0; j<my; j++)
+		{
+			ifPtr->closestCells [j][0]    = ifPtr->closestCells [j][mx-2];
+			ifPtr->closestCells [j][mx-1] = ifPtr->closestCells [j][1];
+
+			ifPtr->inflowWeights [j][0]    = ifPtr->inflowWeights [j][mx-2];
+			ifPtr->inflowWeights [j][mx-1] = ifPtr->inflowWeights [j][1];
+		}
     }
-
-    // scatter to all processors
-    for (j=1; j<my-1; j++)
-    {
-        for (i=1; i<mx-1; i++)
-        {
-            MPI_Allreduce(&(closestCells_tmp[j][i][0]),  &(ifPtr->closestCells [j][i][0]), 12, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
-            MPI_Allreduce(&(inflowWeights_tmp[j][i][0]), &(ifPtr->inflowWeights[j][i][0]), 4, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
-
-            std::vector<  cellIds> ().swap(closestCells_tmp[j][i]);
-            std::vector<PetscReal> ().swap(inflowWeights_tmp[j][i]);
-        }
-    }
-
-    // periodic along i for i-shift
-    // set i-periodicity
-	for (j=0; j<my; j++)
-	{
-		ifPtr->closestCells [j][0]    = ifPtr->closestCells [j][mx-2];
-		ifPtr->closestCells [j][mx-1] = ifPtr->closestCells [j][1];
-
-        ifPtr->inflowWeights [j][0]    = ifPtr->inflowWeights [j][mx-2];
-		ifPtr->inflowWeights [j][mx-1] = ifPtr->inflowWeights [j][1];
-	}
 
     // free memory
     for(PetscInt jif=0; jif<jN; jif++)

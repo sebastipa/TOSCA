@@ -1210,7 +1210,7 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
                 Cmpnts ***cent;
                 DMDAVecGetArray(fda, mesh->lCent, &cent);
 
-                std::vector<PetscReal> ycent(mx);
+                std::vector<PetscReal> ycent(mx, 0.0);
                 PetscMalloc(sizeof(PetscReal)*mx, &(ifPtr->ycent));
                 PetscMalloc(sizeof(PetscReal)*mx, &(ifPtr->yWeights));
                 PetscMalloc(sizeof(PetscInt )*mx, &(ifPtr->yIDs));
@@ -1225,7 +1225,11 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
 
                 DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
-                MPI_Allreduce(&ycent[0], &ifPtr->ycent[0], mx, MPIU_REAL, MPIU_SUM, ifPtr->IFFCN_COMM);
+                if(zs==0)
+                {
+                    MPI_Allreduce(&ycent[0], &ifPtr->ycent[0], mx, MPIU_REAL, MPIU_SUM, ifPtr->IFFCN_COMM);
+                }
+                
 			}
         }
         else
