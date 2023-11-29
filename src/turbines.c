@@ -2111,7 +2111,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                             cent, ucat, uc_p
                         );
 
-                        // compute the inflow at the AD point (UADM does not have rotation)
+                        // compute relative velocity at the AD point (UADM does not have rotation)
                         lU[p]    = nSet(uc_p);
 
                         // compute the inflow wind at the AD point
@@ -3050,9 +3050,13 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                 {
                     Uref = wt->upPoints->Uref;
                 }
-                if(wt->uadm.sampleType == "givenVelocity")
+                else if(wt->uadm.sampleType == "givenVelocity")
                 {
                     Uref = wt->uadm.Uref;
+                }
+                else if(wt->uadm.sampleType == "rotorDisk")
+                {
+                    Uref = wt->uadm.rtrAvgMagU;
                 }
 
                 // cumulate rotor thrust at this time step
@@ -5367,25 +5371,35 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
     // check sample type
     if
     (
-        wt->uadm.sampleType != "rotorUpstream" &&
-        wt->uadm.sampleType != "givenVelocity"
+        wt->uadm.sampleType != "rotorUpstream" &&  // samples velocity on 2.5D upstream disk (needs Ct)
+        wt->uadm.sampleType != "givenVelocity" &&  // uses input velocity (needs Ct, good for isolated turbine)
+        wt->uadm.sampleType != "rotorDisk"         // samples velocity on rotor disk (needs CtPrime)
     )
     {
         char error[512];
-        sprintf(error, "unknown velocity sampling type. Available types are givenVelocity or rotorUpstream");
-        fatalErrorInFunction("initUADM",  error);
-    }
-
-    // check that Ct does not make induction complex or negative
-    if(wt->uadm.Ct <= 0.0 || wt->uadm.Ct >= 1.0)
-    {
-        char error[512];
-        sprintf(error, "provided thrust coefficient ouside of bounds ([0 1] excluded)");
+        sprintf(error, "unknown velocity sampling type. Available types are givenVelocity, rotorUpstream or rotorDisk");
         fatalErrorInFunction("initUADM",  error);
     }
 
     // compute axial induction factor
-    wt->uadm.axiInd = (1.0 - sqrt(1 - wt->uadm.Ct)) / 2.0;
+    if(wt->uadm.sampleType != "rotorDisk")
+    {
+        // check that Ct does not make induction complex or negative
+        if(wt->uadm.Ct <= 0.0 || wt->uadm.Ct >= 1.0)
+        {
+            char error[512];
+            sprintf(error, "provided thrust coefficient ouside of bounds ([0 1] excluded). Change or switch to sampleType = rotorDisk");
+            fatalErrorInFunction("initUADM",  error);
+        }
+
+        // Ct
+        wt->uadm.axiInd = (1.0 - sqrt(1 - wt->uadm.Ct)) / 2.0;
+    }
+    else
+    {
+        // CtPrime
+        wt->uadm.axiInd = 0.0;
+    }
 
     // debug switch
     readDictInt(descrFile.c_str(), "debug", &(wt->uadm.dbg));
@@ -8433,15 +8447,15 @@ PetscErrorCode readWindFarmControlTable(windTurbine *wt)
     // now store the source  and free the temporary variable
     PetscMalloc(sizeof(PetscReal) * ntimes, &(wt->wfControlTimes));
     PetscMalloc(sizeof(PetscReal) * ntimes, &(wt->wfControlValues));
-	
-	// hard-coded difference between the sim. start and control action start 
+
+	// hard-coded difference between the sim. start and control action start
 	PetscReal initialShift = 100000;
 
     for(PetscInt t=0; t<ntimes; t++)
     {
         wt->wfControlTimes[t]  = table[t][0] + initialShift;
         wt->wfControlValues[t] = table[t][1];
-		
+
 		//printf("time %.1f, ct: %.5f\n", wt->wfControlTimes[t], wt->wfControlValues[t]);
     }
 
