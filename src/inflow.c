@@ -1241,7 +1241,7 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
                 }
             }
         }
-		
+
 		// scatter to all processors
 		for (j=1; j<my-1; j++)
 		{
@@ -1833,8 +1833,8 @@ PetscErrorCode readInflowT(inletFunctionTypes *ifPtr, clock_ *clock)
     PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
 
     // get the file name to read
-    word fname_1 = "inflowDatabase/T/" + getArbitraryTimeName(clock, ifPtr->inflowU.inflowTimes[idx_1]);
-    word fname_2 = "inflowDatabase/T/" + getArbitraryTimeName(clock, ifPtr->inflowU.inflowTimes[idx_2]);
+    word fname_1 = "inflowDatabase/T/" + getArbitraryTimeName(clock, ifPtr->inflowT.inflowTimes[idx_1]);
+    word fname_2 = "inflowDatabase/T/" + getArbitraryTimeName(clock, ifPtr->inflowT.inflowTimes[idx_2]);
 
     // open the two inflow files and read
     FILE *fp_1 = fopen(fname_1.c_str(), "rb");
@@ -1970,8 +1970,8 @@ PetscErrorCode readInflowNut(inletFunctionTypes *ifPtr, clock_ *clock)
     PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
 
     // get the file name to read
-    word fname_1 = "inflowDatabase/nut/" + getArbitraryTimeName(clock, ifPtr->inflowU.inflowTimes[idx_1]);
-    word fname_2 = "inflowDatabase/nut/" + getArbitraryTimeName(clock, ifPtr->inflowU.inflowTimes[idx_2]);
+    word fname_1 = "inflowDatabase/nut/" + getArbitraryTimeName(clock, ifPtr->inflowNut.inflowTimes[idx_1]);
+    word fname_2 = "inflowDatabase/nut/" + getArbitraryTimeName(clock, ifPtr->inflowNut.inflowTimes[idx_2]);
 
     // open the two inflow files and read
     FILE *fp_1 = fopen(fname_1.c_str(), "rb");

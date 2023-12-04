@@ -74,7 +74,7 @@ inline PetscInt isPresent(PetscInt arr[], PetscInt n, PetscInt elem)
             return 1;
         }
     }
-    
+
     return 0;
 }
 
@@ -796,12 +796,12 @@ inline void AxByC ( PetscReal a, Cmpnts &X, PetscReal b, Cmpnts &Y, Cmpnts *C)
 // domain checks
 inline bool isInsideBoundingBox ( Cmpnts pt, const boundingBox &simBox)
 {
-    return (pt.x >= simBox.xmin
-       &&   pt.x <= simBox.xmax
-       &&   pt.y >= simBox.ymin
-       &&   pt.y <= simBox.ymax
-       &&   pt.z >= simBox.zmin
-       &&   pt.z <= simBox.zmax ) ;
+    return (pt.x > simBox.xmin
+       &&   pt.x < simBox.xmax
+       &&   pt.y > simBox.ymin
+       &&   pt.y < simBox.ymax
+       &&   pt.z > simBox.zmin
+       &&   pt.z < simBox.zmax ) ;
 
 }
 
@@ -4090,12 +4090,12 @@ inline void findInterpolationWeigths(PetscReal *weights, PetscInt *labels, Petsc
     // check that extrapolation is not necessary
     // (up to a minimum tol of (pEnd-pStart) / npts that it is small enough not to have extrapolation errors)
     PetscReal eps = (pvec[npts-1] - pvec[0]) / npts;
-    if(pval > pvec[npts-1]+eps || pval < pvec[0]-eps)
-    {
-       char error[512];
-        sprintf(error, "query point %lf outside of bounds [%lf - %lf]... was told not to extrapolate\n", pval, pvec[0]-eps, pvec[npts-1]+eps);
-        fatalErrorInFunction("findInterpolationWeigths",  error);
-    }
+    // if(pval > pvec[npts-1]+eps || pval < pvec[0]-eps)
+    // {
+    //    char error[512];
+    //     sprintf(error, "query point %lf outside of bounds [%lf - %lf]... was told not to extrapolate\n", pval, pvec[0]-eps, pvec[npts-1]+eps);
+    //     fatalErrorInFunction("findInterpolationWeigths",  error);
+    // }
 
     PetscReal diff[npts];
     PetscInt    idx_1 = 0,

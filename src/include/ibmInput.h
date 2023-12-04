@@ -44,5 +44,5 @@ PetscErrorCode combineMesh(ibmObject *ibmBody);
 //! \brief write the STL mesh
 PetscErrorCode writeSTLFile(ibm_ *ibm, PetscInt b);
 
-//! \brief find the reverse connectivity which lists the elements connected to a node. 
+//! \brief find the reverse connectivity which lists the elements connected to a node.
 PetscErrorCode nodeElementConnectivity(ibm_ *ibm);

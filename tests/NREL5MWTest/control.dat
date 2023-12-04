@@ -1,5 +1,5 @@
 # TOSCA Input file - control dictionary
-# --------------------------------- 
+# ---------------------------------
 
 # Simulation
 # ---------------------------------
@@ -17,7 +17,7 @@
 -timeInterval              10
 -purgeWrite                0
 
-# Solution 
+# Solution
 # ---------------------------------
 -potentialT                0
 -abl                       0
@@ -25,8 +25,8 @@
 -xDampingLayer             0
 
 -absTolU                   1e-5
--poissonIt                 10
--poissonTol                1e-5
+-poissonIt                 20
+-poissonTol                1e-7
 -poissonSolver             HYPRE
 
 # Turbulence Model
@@ -43,7 +43,7 @@
 # ---------------------------------
 -windplant                1
 
-# Constants 
+# Constants
 # ---------------------------------
 -nu                        1.5e-5
 -rho                       1.225
@@ -64,7 +64,7 @@
 #-computeQ                0
 
 -averaging                1
--avgPeriod                5 
+-avgPeriod                5
 -avgStartTime             0
 
 #-phaseAveraging          3
@@ -73,9 +73,7 @@
 
 -keBudgets                1
 
-# PostProcessing 
+# PostProcessing
 # ---------------------------------
 -writeRaster              0
 -postProcessFields        0
-
-

@@ -3,9 +3,12 @@ NumberofBodies                      1
 
 InterpolationMethod                 CURVIB
 CURVIBInterpolationType             CurvibTrilinear
+interpolationOrder		            quadratic
 
 debug                               0
 dynamic                             0
+checkNormal			                1
+averageNormal			            0
 computeForce                        1
 checkNormal                         1
 writeSTL			                0
@@ -31,7 +34,7 @@ object0
     fileType                        ucd
     bodyMotion                      static
     baseLocation                    (0.0 0.0 0.0)
-    
+
     #wall model
     wallModelU                      Cabot
     wallModelUProp                  setHere
@@ -40,7 +43,6 @@ object0
     uStarEval                       localized
     gammaM                          4.9
     thetaRef                        300.0
- 
+
     searchCellRatio                 3
 }
-

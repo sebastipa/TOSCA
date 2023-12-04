@@ -163,7 +163,20 @@ int main(int argc, char **argv)
                     //interpolate the ibm fluid cells
                     if(domain[d].ibm->curvibType == "CurvibTrilinear")
                     {
-                        CurvibInterpolation(domain[d].ibm);
+                        if(domain[d].ibm->curvibOrder == "linear")
+                        {
+                            CurvibInterpolation(domain[d].ibm);
+                        }
+                        else if(domain[d].ibm->curvibOrder == "quadratic")
+                        {
+                            CurvibInterpolationQuadratic(domain[d].ibm);
+                        }
+                        else
+                        {
+                            char error[512];
+                            sprintf(error, "wrong interpolation order chosen. Available options are linear and quadratic\n");
+                            fatalErrorInFunction("readIBMProperties",  error);
+                        }
                     }
                     else if(domain[d].ibm->curvibType == "CurvibTriangular")
                     {
@@ -178,6 +191,8 @@ int main(int argc, char **argv)
 
                     if(domain[d].ibm->wallShearOn)
                         findIBMWallShear(domain[d].ibm);
+
+                    UpdateImmersedBCs(domain[d].ibm);
                 }
 
                 FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);

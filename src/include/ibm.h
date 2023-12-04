@@ -6,6 +6,28 @@
 
 #define MAX_ELEMENTS_PER_NODE 20
 
+typedef struct Vertex Vertex;
+typedef struct HalfEdge HalfEdge;
+typedef struct Face Face;
+
+struct Vertex{
+    Cmpnts       nCoor;
+    PetscInt     vertexId;
+    HalfEdge     *edge;
+};
+
+struct HalfEdge{
+    Vertex       *origin;
+    HalfEdge     *next;
+    HalfEdge     *twin;
+    Face         *face;
+};
+
+struct Face{
+    PetscInt     faceId;
+    HalfEdge     *edge;
+};
+
 typedef struct {
     PetscInt elem[MAX_ELEMENTS_PER_NODE];
     PetscInt numConnected;
@@ -48,7 +70,10 @@ typedef struct
     PetscInt     nodes;                        //!< number of nodes in the IBM Body
     PetscInt     elems;                        //!< number of elements in the IBM body
 
-    PetscInt     *flipNormal;
+    Vertex       *vertices;
+    HalfEdge     *halfEdges;
+    Face         *faces;
+
     Cmpnts       *nCoor;                       //!< pointer to the co-ordinates of the nodes
     PetscInt	 *nID1 , *nID2 , *nID3 ;       //!< pointer to the 3 node ids of a triangular mesh element
     Cmpnts	     *eN;                          //!< pointers to the component of face normal in x, y and z direction of element
@@ -64,6 +89,8 @@ typedef struct
 
     Cmpnts       *eQVec;                       //!< center of the smallest bounding sphere of an ibm element
     PetscReal    *eRVec;                       //!< radius of the smallest bounding sphere of an ibm element
+
+
 }ibmMesh;
 
 typedef struct
@@ -82,10 +109,21 @@ typedef struct
 {
     PetscReal     amplitude;
     PetscReal     frequency;
-    PetscReal     tPrev;
     Cmpnts        motionDir;
+    PetscReal     tPrev;
 
 }ibmSineMotion;
+
+typedef struct
+{
+    PetscReal     amplitude;
+    PetscReal     frequency;
+    PetscReal     initAngPosition;
+    Cmpnts        pitchAxis;
+    Cmpnts        pitchCenter;
+    PetscReal     tPrev;
+
+}ibmPitchMotion;
 
 typedef struct
 {
@@ -139,10 +177,11 @@ typedef struct
     wallModel     *ibmWallmodel;
 
     //ibm motion variables
-    Cmpnts        baseLocation;
-    word          bodyMotion;
-    ibmRotation   *ibmRot;
-    ibmSineMotion *ibmSine;
+    Cmpnts         baseLocation;
+    word           bodyMotion;
+    ibmRotation    *ibmRot;
+    ibmSineMotion  *ibmSine;
+    ibmPitchMotion *ibmPitch;
 
     //ibm search parameters
     PetscReal     searchCellRatio;
@@ -190,6 +229,7 @@ typedef struct
   Cmpnts          pMin;                                       //!< projected point on the ibm mesh element from the ibm fluid cell
   PetscReal       minDist;                                    //!< dist to the ibm mesh element from the ibm fluid cell
   PetscInt        bodyID;
+  Cmpnts          normal;
 
   PetscReal       cs1, cs2, cs3;                              //!< ibm interpolation coefficient of the projected point from the ibm element nodes
   PetscReal       cr1, cr2, cr3;                              //!< ibm interpolation coefficient of the background mesh point from the background plane triangle nodes
@@ -206,10 +246,10 @@ typedef struct
 struct ibm_
 {
     Vec                lNvertFixed;
-    Vec                dUl_dt;
     PetscInt           numBodies;                     //!<  number of bodies
     word               IBInterpolationModel;          //!<  interpolation methodology
     word               curvibType;
+    word               curvibOrder;
     ibmObject          **ibmBody;                     //!<  array of pointers to ibm objects
 
     searchBox          *sBox;                         //!< array of searchBox with number of search cells and their size for each ibm object
@@ -229,7 +269,6 @@ struct ibm_
     PetscInt       averageNormal;
     PetscInt         wallShearOn;
     PetscInt            writeSTL;
-    PetscInt              p_dudt;
 
     // output parameters
     PetscReal          timeStart;                    //!< start time of acquisition system
@@ -282,6 +321,9 @@ PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b);
 //! \brief prescribe sinusoidal motion for IBM body
 PetscErrorCode sineMotion(ibm_ *ibm, PetscInt b);
 
+//! \brief prescribe pitching oscillation motion for IBM body
+PetscErrorCode pitchingMotion(ibm_ *ibm, PetscInt b);
+
 //! \brief set IBM wall model type and properties
 PetscErrorCode setIBMWallModels(ibm_ *ibm);
 
@@ -320,6 +362,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm);
 
 PetscErrorCode CurvibInterpolationTriangular(ibm_ *ibm);
 
+PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm);
+
 PetscErrorCode ComputeForceMoment(ibm_ *ibm);
 
 //! \brief compute shear stress at faces close to the IBM
@@ -337,6 +381,8 @@ PetscErrorCode destroyLists(ibm_ *ibm);
 PetscErrorCode computeIBMElementNormal(ibm_ *ibm);
 
 PetscErrorCode recomputeIBMeshProperties(ibm_ *ibm, PetscInt b);
+
+PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm);
 
 //! \brief ray casting algorithm
 PetscReal rayCastingTest(Cmpnts p, ibmMesh *ibMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList);
@@ -370,9 +416,14 @@ inline PetscInt ISInsideTriangle2D(Cpt2D p, Cpt2D pa, Cpt2D pb, Cpt2D pc);
 //! \brief check whether point p is inside the triangle - 3D
 inline PetscInt isPointInTriangle(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts p3, Cmpnts norm);
 
-//! \brief find projection of point on a line and the distance to it
-inline void disP2Line(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts *po, PetscReal *d);
+//! \brief find the angle averaged normal about a vertex
+inline Cmpnts computeVertexAverageNormal(ibmMesh *ibMsh, PetscInt vertexId);
 
+//! \brief find the angle averaged normal about an edge
+inline Cmpnts computeEdgeAverageNormal(ibmMesh *ibMsh, PetscInt vertexId, PetscInt faceId);
+
+//! \brief find projection of point on a line and the distance to it
+inline void disP2Line(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts *po, PetscReal *d, PetscReal *t);
 //! \brief find the interpolation weights of a point inside a triangle from its nodes
 inline void triangleIntp(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3, ibmFluidCell *ibF);
 

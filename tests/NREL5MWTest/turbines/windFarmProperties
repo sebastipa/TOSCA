@@ -9,7 +9,7 @@ debug                   0
 
 writeSettings
 {
-    timeStart           10.0
+    timeStart           0.0
     intervalType        timeStep
     timeInterval        1
 }

@@ -108,6 +108,7 @@ typedef struct
     PetscReal                *Cl;   //!< lift coefficient at each point of the AL
     PetscReal             *alpha;   //!< angle of attack at each point of the AL
     Cmpnts                    *U;   //!< flow velocity at each point of the AL (relative to the blade)
+    Cmpnts                *gWind;   //!< sampled velocity at each point of the AL 
     Cmpnts                    *B;   //!< body force at each point of the AL mesh
     PetscReal            *axialF;   //!< rotor axial force at each point of the AL mesh
     PetscReal            *tangtF;   //!< rotor tangential force at each point of the AL mesh

@@ -41,12 +41,6 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
   // write stl flag
   readDictInt("./IBM/IBMProperties.dat", "writeSTL", &(ibm->writeSTL));
 
-  //read ibm acceleration pressure flag
-  if(ibm->dynamic)
-  {
-      readDictInt("./IBM/IBMProperties.dat", "pressureBC", &(ibm->p_dudt));
-  }
-
   // read the number of ibm bodies
   readDictInt("./IBM/IBMProperties.dat", "NumberofBodies", &(ibm->numBodies));
 
@@ -56,6 +50,11 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
   if(ibm->IBInterpolationModel == "CURVIB")
   {
       readDictWord("./IBM/IBMProperties.dat", "CURVIBInterpolationType", &(ibm->curvibType));
+
+      if(ibm->curvibType == "CurvibTrilinear")
+      {
+          readDictWord("./IBM/IBMProperties.dat", "interpolationOrder", &(ibm->curvibOrder));
+      }
   }
 
   // read the write settings
@@ -172,7 +171,6 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             // read name of the element set
             readSubDictWord("./IBM/IBMProperties.dat", objectName, "elementSet", &(ibmBody->elementSet));
         }
-
     }
 
     // read the ibm motion
@@ -220,6 +218,22 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             readSubDictDouble("./IBM/IBMProperties.dat", objectName, "frequency", &(ibmSine->frequency));
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "motionDirection", &(ibmSine->motionDir));
         }
+
+        if(ibmBody->bodyMotion == "pitchingOscillation")
+        {
+            // allocate memory for ibm pitching motion
+            ibmBody->ibmPitch = new ibmPitchMotion;
+
+            ibmPitchMotion *ibmPitch = ibmBody->ibmPitch;
+
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "angularAmplitude", &(ibmPitch->amplitude));
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "frequency", &(ibmPitch->frequency));
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "initialAngle", &(ibmPitch->initAngPosition));
+
+            readSubDictVector("./IBM/IBMProperties.dat", objectName, "pitchingAxis", &(ibmPitch->pitchAxis));
+            readSubDictVector("./IBM/IBMProperties.dat", objectName, "pitchingCenter", &(ibmPitch->pitchCenter));
+
+        }
     }
 
     // read the search cell ratio wrt to the average cell size of the domain mesh
@@ -253,6 +267,12 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
   return 0;
 }
 
+//***************************************************************************************************************//
+PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm, PetscInt b)
+{
+
+    return 0;
+}
 //***************************************************************************************************************//
 
 PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
@@ -371,6 +391,7 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
           ibMesh->nUPrev[i]  = nSet(ibMesh->nU[i]);
       }
   }
+
   if(ibmBody->bodyMotion == "sinusoidal")
   {
     //move the body to the initial starting position
@@ -390,17 +411,45 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
     }
   }
 
+  if(ibmBody->bodyMotion == "pitchingOscillation")
+  {
+    //move the body to the initial starting position
+    ibmPitchMotion   *ibmPitch  = ibmBody->ibmPitch;
+
+    ibmPitch->tPrev = clock->startTime;
+
+    //transform all angles to radian
+    ibmPitch->amplitude       = ibmPitch->amplitude * M_PI/180.0;
+    ibmPitch->initAngPosition = ibmPitch->initAngPosition * M_PI/180.0;
+
+    // initial angular position
+    PetscReal rotAngle = ibmPitch->initAngPosition - ibmPitch->amplitude * cos(2*M_PI * ibmPitch->frequency * ibmPitch->tPrev);
+
+    Cmpnts rvec;
+    Cmpnts angVel = nScale(2*M_PI * ibmPitch->frequency * ibmPitch->amplitude * sin(2*M_PI * ibmPitch->frequency * ibmPitch->tPrev), ibmPitch->pitchAxis);
+
+
+    for(PetscInt i = 0; i < ibMesh->nodes; i++)
+    {
+        rvec    = nSub(ibMesh->nCoor[i], ibmPitch->pitchCenter);
+
+        // rotate the vector to the required angular position
+        mRot(ibmPitch->pitchAxis, rvec, rotAngle);
+
+        // find the new co-ordinate
+        ibMesh->nCoor[i]  = nSum(rvec, ibmPitch->pitchCenter);
+
+        ibMesh->nU[i]     = nCross(angVel, rvec);
+
+        ibMesh->nUPrev[i] = nSet(ibMesh->nU[i]);
+
+    }
+  }
+
   // allocate memory for the element normal, area and center coordinate
   PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eN));
   PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eT1));
   PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eT2));
-
-  PetscMalloc(ibMesh->elems * sizeof(PetscInt), &(ibMesh->flipNormal));
-
-  for (PetscInt i=0; i<ibMesh->elems; i++)
-  {
-      ibMesh->flipNormal[i] = 0;
-  }
 
   PetscMalloc(ibMesh->elems * sizeof(PetscReal), &(ibMesh->eA));
   PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eCent));
@@ -2163,17 +2212,17 @@ PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody)
     PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nU));
     PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
-    // read the node co-rdinates from the file and initialize the node velocity to 0
+    // read the node co-ordinates from the file and initialize the node velocity to 0
     for(PetscInt i = 0; i < nodes; i++)
     {
-      readError = fscanf(fd, "%ld %le %le %le", &tmp, &ibMesh->nCoor[i].x, &ibMesh->nCoor[i].y, &ibMesh->nCoor[i].z);
+        readError = fscanf(fd, "%ld %le %le %le", &tmp, &ibMesh->nCoor[i].x, &ibMesh->nCoor[i].y, &ibMesh->nCoor[i].z);
 
-      // translate the body based on the based location
-      mSum(ibMesh->nCoor[i], ibmBody->baseLocation);
+        // translate the body based on the based location
+        mSum(ibMesh->nCoor[i], ibmBody->baseLocation);
 
-      // initialize node velocity to 0
-      mSetValue(ibMesh->nU[i], 0.0);
-      mSetValue(ibMesh->nUPrev[i], 0.0);
+        // initialize node velocity to 0
+        mSetValue(ibMesh->nU[i], 0.0);
+        mSetValue(ibMesh->nUPrev[i], 0.0);
     }
 
     // allocate memory for the pointer to nodes (n1, n2 and n3) of an element
@@ -2184,13 +2233,13 @@ PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody)
     // read the nodes that form the 3 vertices of an element
     for(PetscInt i = 0; i < elem; i++)
     {
-      readError = fscanf(fd, "%ld %ld %s %ld %ld %ld", &tmp, &tmp, tmpS, &ibMesh->nID1[i], &ibMesh->nID2[i], &ibMesh->nID3[i]);
+        PetscInt id[3];
+        readError = fscanf(fd, "%ld %ld %s %ld %ld %ld", &tmp, &tmp, tmpS, &id[0], &id[1], &id[2]);
 
-      // node numbers start from 0
-      ibMesh->nID1[i] = ibMesh->nID1[i] - 1;
-      ibMesh->nID2[i] = ibMesh->nID2[i] - 1;
-      ibMesh->nID3[i] = ibMesh->nID3[i] - 1;
-
+        // node numbers start from 0
+        ibMesh->nID1[i] = id[0] - 1;
+        ibMesh->nID2[i] = id[1] - 1;
+        ibMesh->nID3[i] = id[2] - 1;
     }
 
     if ( fd != NULL ) fclose(fd);

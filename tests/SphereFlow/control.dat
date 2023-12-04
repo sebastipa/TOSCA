@@ -55,7 +55,7 @@
 
 # Acquisition
 # ---------------------------------
-#-sections 1
+-sections 1
 #-probes 1
 #-averagingABL 1
 #-averaging3LM 1
