@@ -2169,11 +2169,8 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                 // local relative velocity for this processor
                 std::vector<Cmpnts> lU(npts_t);
 
-                // global inflow velocity for this processor
+                // local inflow velocity for this processor
                 std::vector<Cmpnts> lWind(npts_t);
-
-                // global inflow velocity for this processor
-                std::vector<Cmpnts> gWind(npts_t);
 
                 // loop over the AL mesh points
                 for(p=0; p<npts_t; p++)
@@ -2232,7 +2229,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                 }
 
                 MPI_Allreduce(&(lU[0]),  &(wt->alm.U[0]),  wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
-                MPI_Allreduce(&(lWind[0]), &(gWind[0]), wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+                MPI_Allreduce(&(lWind[0]), &(wt->alm.gWind[0]), wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
 
                 PetscReal rtrAvgMagU = 0.0;
                 PetscReal areaSum    = 0.0;
@@ -2274,8 +2271,8 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
 
                     // transform the velocity in the bladed reference frame and
                     // remove radial (z) component
-                    PetscReal ub_x = nDot(gWind[p], xb_hat);
-                    PetscReal ub_y = nDot(gWind[p], yb_hat);
+                    PetscReal ub_x = nDot(wt->alm.gWind[p], xb_hat);
+                    PetscReal ub_y = nDot(wt->alm.gWind[p], yb_hat);
 
                     PetscReal dA   = wt->alm.dr[p] * wt->alm.chord[p];
 
@@ -2289,7 +2286,6 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                 // clean memory
                 std::vector<Cmpnts> ().swap(lU);
                 std::vector<Cmpnts> ().swap(lWind);
-                std::vector<Cmpnts> ().swap(gWind);
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
@@ -3615,7 +3611,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                                 rPrj = eps * wt->prjNSigma;
 
                                 // compute projection factor
-                                PetscReal pf
+                                pf
                                 =
                                 std::exp
                                 (
@@ -3633,9 +3629,9 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                             {
 
                                 // get projection epsilon
-                                PetscReal eps_x =     wt->alm.thick[p]*wt->eps/2.0,
-                                          eps_y =     wt->alm.chord[p]*wt->eps/2.0,
-                                          eps_z =     wt->alm.chord[p]*wt->eps;
+                                PetscReal eps_x =     wt->alm.chord[p]*wt->eps/2.0,
+                                          eps_y =     wt->alm.thick[p]*wt->eps/2.0,
+                                          eps_z =     wt->eps;
 
                                 // form a reference blade starting from the
                                 // bladed frame, but rotate x and y around z by
@@ -4541,6 +4537,400 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
 
                     fclose(f);
                 }
+
+                if((*farm->turbineModels[t]) == "ALM")
+                {
+                    //create file to write the turbine radial point angle of attack values
+                    sprintf(fileName, "%s/%s_aoa", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+
+                    //create file to write the turbine radial point relative velocity magnitude
+                    sprintf(fileName, "%s/%s_relVelMag", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+
+                    //create file to write the turbine radial point rel velocity angle phi
+                    sprintf(fileName, "%s/%s_phi", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+
+                    //create file to write the turbine radial point inflow velocity in axial direction
+                    sprintf(fileName, "%s/%s_uAxl", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+
+                    //create file to write the turbine radial point inflow velocity in radial direction
+                    sprintf(fileName, "%s/%s_uRad", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+
+                    //create file to write the turbine radial point inflow velocity in tangential direction
+                    sprintf(fileName, "%s/%s_uTan", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+
+                    //create file to write the turbine radial point Cl
+                    sprintf(fileName, "%s/%s_Cl", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+
+                    //create file to write the turbine radial point Cd
+                    sprintf(fileName, "%s/%s_Cd", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+
+                    //create file to write the turbine radial point axial force
+                    sprintf(fileName, "%s/%s_axialF", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+
+                    //create file to write the turbine radial point tangential force
+                    sprintf(fileName, "%s/%s_tangF", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                    f = fopen(fileName, "w");
+
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName);
+                        fatalErrorInFunction("windTurbinesWrite",  error);
+                    }
+                    else
+                    {
+                        int width = 20;
+
+                        word w0 = "time [s]";
+
+                        fprintf(f, "%s ", w0.c_str());
+
+                        // radial mesh cell size size
+                        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                        PetscReal rMag;
+                        word w1 = "R";
+
+                        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+                        {
+                            // compute radius
+                            rMag = drval*ri;
+
+                            // add hub radius (as if all was aligned)
+                            rMag += wt->rHub;
+
+                            fprintf(f, "%*s%ld (%lf)", width, w1.c_str(), ri, rMag);
+                        }
+
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+                }
+
             }
         }
     }
@@ -4791,6 +5181,399 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
 
                         fclose(f);
                     }
+
+                    if((*farm->turbineModels[t]) == "ALM")
+                    {
+                        sprintf(fileName, "%s/%s_aoa", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f = fopen(fileName, "a");
+
+                        if(!f)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName);
+                            fatalErrorInFunction("windTurbinesWrite",  error);
+                        }
+                        else
+                        {
+                            int width = 20;
+
+                            fprintf(f, "%.4f", clock->time);
+
+                            PetscInt nRad = wt->alm.nRadial;
+                            PetscInt nAz = wt->alm.nAzimuth;
+
+                            PetscInt ri, ai;
+                            //average the aoa over the azimuthal points
+                            for(ri=0; ri<nRad; ri++)
+                            {
+                                PetscReal sumAlpha = 0.0;
+
+                                for(ai=0; ai<nAz; ai++)
+                                {
+                                    sumAlpha += wt->alm.alpha[nAz*ri + ai];
+                                }
+
+                                sumAlpha/=nAz;
+
+                                fprintf(f, "%*.4f", width, sumAlpha);
+                            }
+
+                            fprintf(f, "\n");
+
+                            fclose(f);
+                        }
+
+                        sprintf(fileName, "%s/%s_relVelMag", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f = fopen(fileName, "a");
+
+                        if(!f)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName);
+                            fatalErrorInFunction("windTurbinesWrite",  error);
+                        }
+                        else
+                        {
+                            int width = 20;
+
+                            fprintf(f, "%.4f", clock->time);
+
+                            PetscInt nRad = wt->alm.nRadial;
+                            PetscInt nAz = wt->alm.nAzimuth;
+
+                            PetscInt ri, ai;
+                            //average the aoa over the azimuthal points
+                            for(ri=0; ri<nRad; ri++)
+                            {
+                                PetscReal sum = 0.0;
+
+                                for(ai=0; ai<nAz; ai++)
+                                {
+                                    sum += nMag(wt->alm.U[nAz*ri + ai]);
+                                }
+
+                                sum/=nAz;
+
+                                fprintf(f, "%*.4f", width, sum);
+                            }
+
+                            fprintf(f, "\n");
+
+                            fclose(f);
+                        }
+
+                        sprintf(fileName, "%s/%s_phi", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f = fopen(fileName, "a");
+
+                        if(!f)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName);
+                            fatalErrorInFunction("windTurbinesWrite",  error);
+                        }
+                        else
+                        {
+                            int width = 20;
+
+                            fprintf(f, "%.4f", clock->time);
+
+                            PetscInt nRad = wt->alm.nRadial;
+                            PetscInt nAz = wt->alm.nAzimuth;
+
+                            PetscInt ri, ai, p;
+                            Cmpnts point_p, r_p;
+                            Cmpnts xb_hat, yb_hat, zb_hat;
+                            PetscReal ub_x, ub_y, phi;
+
+                            //average the aoa over the azimuthal points
+                            for(ri=0; ri<nRad; ri++)
+                            {
+                                PetscReal sum = 0.0;
+
+                                for(ai=0; ai<nAz; ai++)
+                                {
+                                    p =  nAz*ri + ai;
+
+                                    // save this point locally for speed
+                                    point_p = wt->alm.points[p];
+
+                                    // this point position from COR
+                                    r_p  = nSub(point_p, wt->rotCenter);
+
+                                    if(wt->rotDir == "cw")
+                                    {
+                                        zb_hat = nUnit(r_p);
+                                        xb_hat = nScale(-1.0, farm->wt[t]->rtrAxis);
+                                        yb_hat = nCross(zb_hat, xb_hat);
+                                    }
+                                    else if(wt->rotDir == "ccw")
+                                    {
+                                        zb_hat = nUnit(r_p);
+                                                 mScale(-1.0, zb_hat);
+                                        xb_hat = nScale(-1.0, farm->wt[t]->rtrAxis);
+                                        yb_hat = nCross(zb_hat, xb_hat);
+                                    }
+
+                                    ub_x = nDot(wt->alm.U[p], xb_hat);
+                                    ub_y = nDot(wt->alm.U[p], yb_hat);
+
+                                    phi = wt->rad2deg * std::atan2(ub_x, ub_y);
+                                    sum += phi;
+                                }
+
+                                sum/=nAz;
+
+                                fprintf(f, "%*.4f", width, sum);
+                            }
+
+                            fprintf(f, "\n");
+
+                            fclose(f);
+                        }
+
+                        FILE *f1, *f2, *f3;
+                        char fileName1[80], fileName2[80], fileName3[80];
+                        sprintf(fileName1, "%s/%s_uAxl", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f1 = fopen(fileName1, "a");
+                        sprintf(fileName2, "%s/%s_uRad", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f2 = fopen(fileName2, "a");
+                        sprintf(fileName3, "%s/%s_uTan", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f3 = fopen(fileName3, "a");
+                        if(!f1 || !f2 || !f3)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName1);
+                            fatalErrorInFunction("windTurbinesWrite",  error);
+                        }
+                        else
+                        {
+                            int width = 20;
+
+                            fprintf(f1, "%.4f", clock->time);
+                            fprintf(f2, "%.4f", clock->time);
+                            fprintf(f3, "%.4f", clock->time);
+
+                            PetscInt nRad = wt->alm.nRadial;
+                            PetscInt nAz = wt->alm.nAzimuth;
+
+                            PetscInt ri, ai, p;
+                            Cmpnts point_p, r_p;
+                            Cmpnts xb_hat, yb_hat, zb_hat;
+                            PetscReal ub_x, ub_y, ub_z, phi;
+
+                            //average the aoa over the azimuthal points
+                            for(ri=0; ri<nRad; ri++)
+                            {
+                                PetscReal sumAxl = 0.0, sumTan = 0.0, sumRad = 0.0;
+
+                                for(ai=0; ai<nAz; ai++)
+                                {
+                                    p =  nAz*ri + ai;
+
+                                    // save this point locally for speed
+                                    point_p = wt->alm.points[p];
+
+                                    // this point position from COR
+                                    r_p  = nSub(point_p, wt->rotCenter);
+
+                                    if(wt->rotDir == "cw")
+                                    {
+                                        zb_hat = nUnit(r_p);
+                                        xb_hat = nScale(-1.0, farm->wt[t]->rtrAxis);
+                                        yb_hat = nCross(zb_hat, xb_hat);
+                                    }
+                                    else if(wt->rotDir == "ccw")
+                                    {
+                                        zb_hat = nUnit(r_p);
+                                                 mScale(-1.0, zb_hat);
+                                        xb_hat = nScale(-1.0, farm->wt[t]->rtrAxis);
+                                        yb_hat = nCross(zb_hat, xb_hat);
+                                    }
+
+                                    ub_x = nDot(wt->alm.gWind[p], xb_hat);
+                                    ub_y = nDot(wt->alm.gWind[p], yb_hat);
+                                    ub_z = nDot(wt->alm.gWind[p], zb_hat);
+
+                                    sumAxl += ub_x;
+                                    sumTan += ub_y;
+                                    sumRad += ub_z;
+                                }
+
+                                sumAxl/=nAz;
+                                sumTan/=nAz;
+                                sumRad/=nAz;
+
+                                fprintf(f1, "%*.4f", width, sumAxl);
+                                fprintf(f2, "%*.4f", width, sumRad);
+                                fprintf(f3, "%*.4f", width, sumTan);
+                            }
+
+                            fprintf(f1, "\n");
+                            fprintf(f2, "\n");
+                            fprintf(f3, "\n");
+
+                            fclose(f1);
+                            fclose(f2);
+                            fclose(f3);
+                        }
+
+                        sprintf(fileName, "%s/%s_Cl", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f = fopen(fileName, "a");
+
+                        if(!f)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName);
+                            fatalErrorInFunction("windTurbinesWrite",  error);
+                        }
+                        else
+                        {
+                            int width = 20;
+
+                            fprintf(f, "%.4f", clock->time);
+
+                            PetscInt nRad = wt->alm.nRadial;
+                            PetscInt nAz = wt->alm.nAzimuth;
+
+                            PetscInt ri, ai;
+                            //average the aoa over the azimuthal points
+                            for(ri=0; ri<nRad; ri++)
+                            {
+                                PetscReal sum = 0.0;
+
+                                for(ai=0; ai<nAz; ai++)
+                                {
+                                    sum += wt->alm.Cl[nAz*ri + ai];
+                                }
+
+                                sum/=nAz;
+
+                                fprintf(f, "%*.4f", width, sum);
+                            }
+
+                            fprintf(f, "\n");
+
+                            fclose(f);
+                        }
+
+                        sprintf(fileName, "%s/%s_Cd", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f = fopen(fileName, "a");
+
+                        if(!f)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName);
+                            fatalErrorInFunction("windTurbinesWrite",  error);
+                        }
+                        else
+                        {
+                            int width = 20;
+
+                            fprintf(f, "%.4f", clock->time);
+
+                            PetscInt nRad = wt->alm.nRadial;
+                            PetscInt nAz = wt->alm.nAzimuth;
+
+                            PetscInt ri, ai;
+                            //average the aoa over the azimuthal points
+                            for(ri=0; ri<nRad; ri++)
+                            {
+                                PetscReal sum = 0.0;
+
+                                for(ai=0; ai<nAz; ai++)
+                                {
+                                    sum += wt->alm.Cd[nAz*ri + ai];
+                                }
+
+                                sum/=nAz;
+
+                                fprintf(f, "%*.4f", width, sum);
+                            }
+
+                            fprintf(f, "\n");
+
+                            fclose(f);
+                        }
+
+                        sprintf(fileName, "%s/%s_axialF", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f = fopen(fileName, "a");
+
+                        if(!f)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName);
+                            fatalErrorInFunction("windTurbinesWrite",  error);
+                        }
+                        else
+                        {
+                            int width = 20;
+
+                            fprintf(f, "%.4f", clock->time);
+
+                            PetscInt nRad = wt->alm.nRadial;
+                            PetscInt nAz = wt->alm.nAzimuth;
+
+                            PetscInt ri, ai;
+                            //average the aoa over the azimuthal points
+                            for(ri=0; ri<nRad; ri++)
+                            {
+                                PetscReal sum = 0.0;
+
+                                for(ai=0; ai<nAz; ai++)
+                                {
+                                    sum += wt->alm.axialF[nAz*ri + ai];
+                                }
+
+                                sum/=nAz;
+
+                                fprintf(f, "%*.4f", width, sum);
+                            }
+
+                            fprintf(f, "\n");
+
+                            fclose(f);
+                        }
+
+                        sprintf(fileName, "%s/%s_tangF", turbineFolderTimeName.c_str(), (*farm->turbineIds[t]).c_str());
+                        f = fopen(fileName, "a");
+
+                        if(!f)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName);
+                            fatalErrorInFunction("windTurbinesWrite",  error);
+                        }
+                        else
+                        {
+                            int width = 20;
+
+                            fprintf(f, "%.4f", clock->time);
+
+                            PetscInt nRad = wt->alm.nRadial;
+                            PetscInt nAz = wt->alm.nAzimuth;
+
+                            PetscInt ri, ai;
+                            //average the aoa over the azimuthal points
+                            for(ri=0; ri<nRad; ri++)
+                            {
+                                PetscReal sum = 0.0;
+
+                                for(ai=0; ai<nAz; ai++)
+                                {
+                                    sum += wt->alm.tangtF[nAz*ri + ai];
+                                }
+
+                                sum/=nAz;
+
+                                fprintf(f, "%*.4f", width, sum);
+                            }
+
+                            fprintf(f, "\n");
+
+                            fclose(f);
+                        }
+                    }
+
                 }
             }
         }
@@ -5698,6 +6481,7 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
     PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.Cl));
     PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.alpha));
     PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.U));
+    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.gWind));
     PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.B));
     PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.axialF));
     PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.tangtF));
