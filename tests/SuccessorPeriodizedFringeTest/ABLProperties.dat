@@ -85,7 +85,6 @@ xDampingProperties
     xDampingDelta   100
     xDampingAlpha   0.1
     xDampingAlphaControlType alphaFixed
-    advectionDampingType     0
     
     uBarSelectionType 3
     inletFunctionType 4
@@ -98,6 +97,14 @@ xDampingProperties
     cellWidth2 20
     n2Shift    0
     shiftSpeed 1.5
+}
+
+advectionDampingProperties
+{
+	advDampingStart       200
+	advDampingEnd         600
+	advDampingDeltaStart  100
+	advDampingDeltaEnd    100
 }
 
 # perturbations to trigger turbulence 

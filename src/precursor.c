@@ -31,6 +31,7 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isYDampingActive              = 0;
     flags->isKLeftRayleighDampingActive  = 0;
     flags->isKRightRayleighDampingActive = 0;
+    flags->isAdvectionDampingActive      = 0;
     flags->isCanopyActive                = 0;
     flags->isConcurrentPrecursorActive   = 0;
     flags->isPrecursorSpinUp             = 0;
@@ -1229,7 +1230,7 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
                 {
                     MPI_Allreduce(&ycent[0], &ifPtr->ycent[0], mx, MPIU_REAL, MPIU_SUM, ifPtr->IFFCN_COMM);
                 }
-                
+
 			}
         }
         else

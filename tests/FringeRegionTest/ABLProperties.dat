@@ -87,7 +87,6 @@ xDampingProperties
     xDampingEnd     500                     # end coordinate of the fringe region from domain start
     xDampingDelta   200                     # ride/fall distance of the fringe function
     xDampingAlpha   0.001                   # fringe coefficient 
-    advectionDampingType     0
     xDampingAlphaControlType alphaOptimized # control strategy (alphaFixed/alphaOptimized)
     xDampingTimeWindow       60             # time window for integral cumulation of k value
     xDampingLineSamplingYmin 0              # starting y of the sampling line for vBar

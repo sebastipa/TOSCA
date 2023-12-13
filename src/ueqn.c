@@ -86,7 +86,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         VecDuplicate(mesh->lCent, &(ueqn->lViscIBM2));   VecSet(ueqn->lViscIBM2,  0.0);
         VecDuplicate(mesh->lCent, &(ueqn->lViscIBM3));   VecSet(ueqn->lViscIBM3,  0.0);
     }
-	
+
 	if(ueqn->access->flags->isGravityWaveModelingActive)
     {
 		VecDuplicate(mesh->Cent, &(ueqn->dPAGW));        VecSet(ueqn->dPAGW,      0.0);
@@ -4102,23 +4102,16 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt  advectionDamping = 0;
 	PetscReal advDampH = 0;
 
-    if(ueqn->access->flags->isXDampingActive)
+    if(ueqn->access->flags->isAdvectionDampingActive)
     {
-        if(ueqn->access->abl->advectionDampingType == 1)
-        {
-            xS     = ueqn->access->abl->advDampingStart;
-            xE     = ueqn->access->abl->advDampingEnd;
-            xDE    = ueqn->access->abl->advDampingDeltaEnd;
-            xDS    = ueqn->access->abl->advDampingDeltaStart;
+        xS     = ueqn->access->abl->advDampingStart;
+        xE     = ueqn->access->abl->advDampingEnd;
+        xDE    = ueqn->access->abl->advDampingDeltaEnd;
+        xDS    = ueqn->access->abl->advDampingDeltaStart;
 
-            advectionDamping = 1;
+        advectionDamping = 1;
 
-			advDampH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
-        }
-        else
-        {
-            nuD = 1.0;
-        }
+        advDampH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
     }
     else
     {

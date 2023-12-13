@@ -50,7 +50,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
     DMGetCoordinatesLocal(mesh->da, &Coor);
     DMDAVecGetArray(fda, Coor, &coor);
 
-    if(mesh->meshFileType != "cartesian")   
+    if(mesh->meshFileType != "cartesian")
     {
         char error[512];
         sprintf(error, "ABL capabilites only available for cartesian meshes\n");
@@ -598,27 +598,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
             PetscPrintf(mesh->MESH_COMM, "   -> sum of weights = %lf, w1 = %lf, w2 = %lf\n", abl->levelWeightsFringe[0]+abl->levelWeightsFringe[1], abl->levelWeightsFringe[0], abl->levelWeightsFringe[1]);
 
             std::vector<PetscReal> ().swap(absLevelDelta);
-        }
-
-        // read advection term damping type (0: none, 1: LanzilaoMeyers2022 damping)
-        readSubDictInt("ABLProperties.dat", "xDampingProperties", "advectionDampingType", &(abl->advectionDampingType));
-
-        if(abl->advectionDampingType == 0)
-        {
-            // nothing to do: no advection damping
-        }
-        else if(abl->advectionDampingType == 1)
-        {
-            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingStart",            &(abl->advDampingStart));
-            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingEnd",              &(abl->advDampingEnd));
-            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingDeltaStart",       &(abl->advDampingDeltaStart));
-            readSubDictDouble("ABLProperties.dat", "xDampingProperties", "advDampingDeltaEnd",         &(abl->advDampingDeltaEnd));
-        }
-        else
-        {
-            char error[512];
-            sprintf(error, "unknown advectionDampingType in xDampingLayer, available types are:\n        0 : no advection damping\n        1 : vertical advection damping");
-            fatalErrorInFunction("ABLInitialize",  error);
         }
 
         // read type of fringe region in uBarSelectionType
@@ -1311,6 +1290,17 @@ PetscErrorCode InitializeABL(abl_ *abl)
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightPatchDist",      &(abl->kRightPatchDist));
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingAlpha",   &(abl->kRightDampingAlpha));
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingUBar",    &(abl->kRightDampingUBar));
+    }
+
+    // read advection damping properties
+    if(mesh->access->flags->isAdvectionDampingActive)
+    {
+        PetscPrintf(mesh->MESH_COMM, "   reading advection damping properties\n");
+
+        readSubDictDouble("ABLProperties.dat", "advectionDampingProperties", "advDampingStart",            &(abl->advDampingStart));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingProperties", "advDampingEnd",              &(abl->advDampingEnd));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingProperties", "advDampingDeltaStart",       &(abl->advDampingDeltaStart));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingProperties", "advDampingDeltaEnd",         &(abl->advDampingDeltaEnd));
     }
 
     PetscPrintf(mesh->MESH_COMM, "done\n\n");

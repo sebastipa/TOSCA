@@ -1693,8 +1693,8 @@ PetscErrorCode readInflowU(inletFunctionTypes *ifPtr, clock_ *clock)
     if(!fp_1 || !fp_2)
     {
        char error[512];
-        sprintf(error, "cannot open files:\n    %s\n    %s\n", fname_1.c_str(), fname_2.c_str());
-        fatalErrorInFunction("read_inflow_data",  error);
+        sprintf(error, "cannot open files:\n    %s\n    %s\nMaybe wrong -timePrecision in control.dat?\n", fname_1.c_str(), fname_2.c_str());
+        fatalErrorInFunction("readInflowU",  error);
     }
 
     for(j=0; j<m1; j++)
@@ -1843,8 +1843,8 @@ PetscErrorCode readInflowT(inletFunctionTypes *ifPtr, clock_ *clock)
     if(!fp_1 || !fp_2)
     {
         char error[512];
-        sprintf(error, "cannot open files:\n    %s\n    %s\n", fname_1.c_str(), fname_2.c_str());
-        fatalErrorInFunction("read_inflow_data",  error);
+        sprintf(error, "cannot open files:\n    %s\n    %s\nMaybe wrong -timePrecision in control.dat?\n", fname_1.c_str(), fname_2.c_str());
+        fatalErrorInFunction("readInflowT",  error);
     }
 
     for(j=0; j<m1; j++)
@@ -1980,8 +1980,8 @@ PetscErrorCode readInflowNut(inletFunctionTypes *ifPtr, clock_ *clock)
     if(!fp_1 || !fp_2)
     {
        char error[512];
-        sprintf(error, "cannot open files:\n    %s\n    %s\n", fname_1.c_str(), fname_2.c_str());
-        fatalErrorInFunction("read_inflow_data",  error);
+        sprintf(error, "cannot open files:\n    %s\n    %s\nMaybe wrong -timePrecision in control.dat?\n", fname_1.c_str(), fname_2.c_str());
+        fatalErrorInFunction("readInflowNut",  error);
     }
 
     for(j=0; j<m1; j++)
