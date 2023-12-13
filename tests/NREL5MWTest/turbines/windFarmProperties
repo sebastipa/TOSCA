@@ -5,7 +5,7 @@ windFarmName            Piombino
 
 arraySpecification      onebyone
 
-debug                   0
+debug                   1
 
 writeSettings
 {

@@ -83,6 +83,7 @@ typedef struct
 {
     // settings
     word          projectionType;   //!< isotropic or anisotropic (follows chord)
+    word              sampleType;   //!< velocity sampling type ("rotorDisk" or "integral")
 
     // mesh level preoperties
     PetscInt             nPoints;   //!< total number of points
@@ -576,6 +577,9 @@ PetscErrorCode initNacModel(windTurbine *wt, Cmpnts &base);
 
 //! \brief Compute max tip speed and activate CFL control flag
 PetscErrorCode computeMaxTipSpeed(farm_ *farm);
+
+//! \brief Check that the mesh is resolved around the turbine
+PetscErrorCode checkTurbineMesh(farm_ *farm);
 
 // Reading input files functions
 // -----------------------------------------------------------------------------

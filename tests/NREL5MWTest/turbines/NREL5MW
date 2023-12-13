@@ -27,10 +27,11 @@ epsilon             8.0
 debug               0
 initialOmega        10.41
 projection          isotropic
+sampleType          rotorDisk
 
 # Uniform actuator disk parameters
 Ct                  0.783
-sampleType          rotorUpstream
+#sampleType          rotorUpstream
 Uref                9.0
 
 # Tower properties 

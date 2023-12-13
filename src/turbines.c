@@ -7,7 +7,7 @@
 #include "include/inline.h"
 #include "include/turbines.h"
 
-// Two words about our turbine model implementations. Our ADM/ALM models are detailed actuator disk/line
+// Our ADM/ALM models are detailed actuator disk/line
 // models with blade pitch and generator speed controls, blade and airfoil properties
 // linearly interpolated where necessary. UniformADM is a simple AD version, where the
 // thrust is weighted based on the rotor mesh element area. Yaw control
@@ -165,6 +165,9 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
         // initialize turbine and tower sphere cells and see what processor controls which wind turbine
         initControlledCells(farm);
 
+        // ensure best practices with respect to mesh size and turbine dimension are followed
+        checkTurbineMesh(farm);
+
         // initialize sample sphere cells and see what processor controls which sampling rig
         initSampleControlledCells(farm);
 
@@ -185,6 +188,241 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
 
 //***************************************************************************************************************//
 
+PetscErrorCode checkTurbineMesh(farm_ *farm)
+{
+    mesh_            *mesh = farm->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k, t, p, c;
+
+    PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    Cmpnts           ***cent;
+    PetscReal        ***aj;
+    PetscReal        lMaxCell, gMaxCell, lMinCell, gMinCell;
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+    DMDAVecGetArray(da,  mesh->lAj,    &aj);
+
+    // max perturbation amplitude
+    PetscReal maxPerturb  = 1e-10;
+
+    // processor perturbation (changes between processors)
+    PetscReal procContrib = maxPerturb * ((PetscReal)rank + 1) / (PetscReal)nprocs;
+
+    // loop over each wind turbine
+    for(t=0; t<farm->size; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        Cmpnts rtrAxis  = farm->wt[t]->rtrAxis;
+
+        // test if this processor controls this turbine
+        if(wt->turbineControlled)
+        {
+            lMaxCell = 0.0, gMaxCell = 0.0;
+            lMinCell = 1e20, gMinCell = 1e20;
+
+            // loop in sphere points
+            for(c=0; c<wt->nControlled; c++)
+            {
+                // cell indices
+                PetscInt i = wt->controlledCells[c].i,
+                    j = wt->controlledCells[c].j,
+                    k = wt->controlledCells[c].k;
+
+                if(lMaxCell < 1/aj[k][j][i])
+                {
+                    lMaxCell = 1/aj[k][j][i];
+                }
+
+                if(lMinCell > 1/aj[k][j][i])
+                {
+                    lMinCell = 1/aj[k][j][i];
+                }
+
+            }
+
+            MPI_Allreduce(&lMaxCell, &gMaxCell, 1, MPIU_REAL, MPIU_MAX, wt->TRB_COMM);
+            MPI_Allreduce(&lMinCell, &gMinCell, 1, MPIU_REAL, MPIU_MIN, wt->TRB_COMM);
+
+            gMaxCell = std::pow(gMaxCell, 1.0/3.0);
+            gMinCell = std::pow(gMinCell, 1.0/3.0);
+
+            if(2.0 * wt->rTip < 8.0 * gMaxCell)
+            {
+                char error[512];
+                sprintf(error, "turbine diameter (%lf) < 10 mesh cells (%lf), not resolved properly. Revise mesh to improve resolution.\n", 2.0 * wt->rTip, 10.0 * gMaxCell);
+                fatalErrorInFunction("checkTurbineMesh",  error);
+            }
+
+            //additional checks for Advanced actuator line method 
+            if(((*farm->turbineModels[t]) == "ALM"))
+            {
+                if(wt->alm.projectionType == "anisotropic")
+                {
+                    //check that there are enough radial elements 
+                    PetscReal chdMax, chdMin, chdAvg;
+                    
+                    chdMax = wt->alm.chord[0];
+                    chdMin = wt->alm.chord[wt->alm.nPoints-1];
+                    chdAvg = 0.5 * (chdMax + chdMin);
+
+                    PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                    PetscReal drvalOpt = 0.48 *  chdAvg;
+
+                    PetscInt nRadial = PetscInt((wt->rTip - wt->rHub)/drvalOpt) + 1;
+
+                    if(drval > 0.5*chdAvg)
+                    {
+                        char error[512];
+                        sprintf(error, "Not enough radial elements in the Actuator line mesh. Increase the radial resolution to have atleast %ld points\n", nRadial);
+                        fatalErrorInFunction("checkTurbineMesh",  error); 
+                    } 
+
+                    //check the mesh size with respect to the projection radius 
+                                    // number of points in the AL mesh
+                    PetscInt npts_t = wt->alm.nPoints;
+
+                    // create temporary vectors
+                    std::vector<PetscReal> lminDist(npts_t);
+                    std::vector<PetscReal> gminDist(npts_t);
+                    std::vector<Cmpnts> perturb(npts_t);
+
+                    // loop over the AD mesh points
+                    for(p=0; p<npts_t; p++)
+                    {
+                        // initialize min dists to a big value
+                        lminDist[p] = 1e20;
+                        gminDist[p] = 1e20;
+
+                        // set point perturbation
+                        perturb[p].x =  procContrib;
+                        perturb[p].y =  procContrib;
+                        perturb[p].z =  procContrib;
+
+                        // save this point locally for speed
+                        Cmpnts point_p = wt->alm.points[p];
+
+                        // perturb the point position
+                        mSum(point_p, perturb[p]);
+
+                        // find the closest cell center
+                        PetscReal  r_c_minMag = 1e20;
+                        cellIds closestCell;
+
+                        // loop over the sphere cells
+                        for(c=0; c<wt->nControlled; c++)
+                        {
+                            // cell indices
+                            PetscInt i = wt->controlledCells[c].i,
+                                    j = wt->controlledCells[c].j,
+                                    k = wt->controlledCells[c].k;
+
+                            // compute distance from mesh cell to AD point
+                            Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                            // compute magnitude
+                            PetscReal r_c_mag = nMag(r_c);
+
+                            if(r_c_mag < r_c_minMag)
+                            {
+                                r_c_minMag = r_c_mag;
+                                closestCell.i = i;
+                                closestCell.j = j;
+                                closestCell.k = k;
+                            }
+                        }
+
+                        // save closest cell indices
+                        wt->alm.closestCells[p].i = closestCell.i;
+                        wt->alm.closestCells[p].j = closestCell.j;
+                        wt->alm.closestCells[p].k = closestCell.k;
+
+                        // save min dist
+                        lminDist[p] = r_c_minMag;
+                    }
+
+                    MPI_Allreduce(&(lminDist[0]), &(gminDist[0]), wt->alm.nPoints, MPIU_REAL, MPIU_MIN, wt->TRB_COMM);
+
+                    for(p=0; p<npts_t; p++)
+                    {
+                        // point is controlled
+                        if(lminDist[p] == gminDist[p])
+                        {
+                            wt->alm.thisPtControlled[p] = 1;
+                        }
+                        // point is not controlled
+                        else
+                        {
+                            wt->alm.thisPtControlled[p] = 0;
+                        }
+                    }
+
+                    // clean memory
+                    std::vector<PetscReal> ().swap(lminDist);
+                    std::vector<PetscReal> ().swap(gminDist);
+                    std::vector<Cmpnts> ().swap(perturb);
+                    
+                    // loop over the AL mesh points
+                    for(p=0; p<npts_t; p++)
+                    {
+                        if(wt->alm.thisPtControlled[p])
+                        {
+                            // get the closest cell center
+                            PetscInt i = wt->alm.closestCells[p].i,
+                                     j = wt->alm.closestCells[p].j,
+                                     k = wt->alm.closestCells[p].k;
+
+                            PetscReal cellsize = std::pow(1/aj[k][j][i], 1.0/3.0);
+
+                            PetscInt nRadial = PetscInt(0.8 * wt->alm.nRadial);
+
+                            PetscInt radPt = PetscInt (p /wt->alm.nAzimuth);
+                            
+                            PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                            PetscReal eps_x =     wt->alm.chord[p]*wt->eps_x,
+                                      eps_y =     wt->alm.thick[p]*wt->eps_y,
+                                      eps_z =     drval * wt->eps_z;
+
+                            PetscPrintf(PETSC_COMM_SELF, "radial point = %ld, nRadial = %ld, eps_x = %lf \n", radPt, nRadial, eps_x);
+                            // excluding the tip points for this check 
+                            if(radPt <= nRadial)
+                            {
+                                if(eps_x < 1.2 * cellsize)
+                                {
+                                    char error[512];
+                                    sprintf(error, "Fluid Mesh size not optimal for AALM simulation. At radial distance %lf m (%0.2lf %%) from blade root, %lf * chordLength (%lf) < 1.5 * cell size (%lf). Refine mesh or increase epsilonFactor_x (Note: epsilonFactor_x optimal <= 1)\n", drval * radPt, drval * radPt * 100/(wt->rTip - wt->rHub), wt->eps_x, wt->alm.chord[p], cellsize);
+                                    fatalErrorInFunction("checkTurbineMesh",  error); 
+                                }
+                            }
+                        }
+                    }
+                }
+            }           
+
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+
+    return(0);
+}
+//***************************************************************************************************************//
 PetscErrorCode computeRotSpeed(farm_ *farm)
 {
     // turbine and model mesh point indices
@@ -1036,7 +1274,7 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
     PetscInt         t, c, p;
 
-    Cmpnts           ***cent;   // local vector (no ambiguity in this context)
+    Cmpnts           ***cent;  
 
     PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
     PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
@@ -1435,7 +1673,7 @@ PetscErrorCode findControlledPointsSample(farm_ *farm)
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
     PetscInt         t, c, p;
 
-    Cmpnts           ***cent;   // local vector (no ambiguity in this context)
+    Cmpnts           ***cent;  
 
     PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
     PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
@@ -2172,120 +2410,273 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                 // local inflow velocity for this processor
                 std::vector<Cmpnts> lWind(npts_t);
 
-                // loop over the AL mesh points
-                for(p=0; p<npts_t; p++)
+                if(wt->alm.sampleType == "rotorDisk")
                 {
-                    // initialize temporary variables
-                    lU[p].x = 0.0;
-                    lU[p].y = 0.0;
-                    lU[p].z = 0.0;
-
-                    lWind[p].x = 0.0;
-                    lWind[p].y = 0.0;
-                    lWind[p].z = 0.0;
-
-                    // save this point locally for speed
-                    Cmpnts point_p = wt->alm.points[p];
-
-                    // this point position from COR
-                    Cmpnts r_p  = nSub(point_p, wt->rotCenter);
-
-                    // compute this blade point blade velocity
-                    Cmpnts u_p  = nCross(omega_t, r_p);
-
-                    // compute this blade point flow velocity
-                    Cmpnts uf_p = nScale(-1.0, u_p);
-
-                    // get the closest cell center
-                    PetscInt i = wt->alm.closestCells[p].i,
-                             j = wt->alm.closestCells[p].j,
-                             k = wt->alm.closestCells[p].k;
-
-                    if(wt->alm.thisPtControlled[p])
+                    // loop over the AL mesh points
+                    for(p=0; p<npts_t; p++)
                     {
-                        // now we have to sample the velocity at the actuator line point
-                        // from the background mesh, we use trilinear interpolation knowing
-                        // that one of the closest cells to actuator line point is i,j,k
+                        // initialize temporary variables
+                        lU[p].x = 0.0;
+                        lU[p].y = 0.0;
+                        lU[p].z = 0.0;
 
-                        Cmpnts uc_p;
+                        lWind[p].x = 0.0;
+                        lWind[p].y = 0.0;
+                        lWind[p].z = 0.0;
 
-                        // trilinear interpolate
-                        vectorPointLocalVolumeInterpolation
-                        (
-                            mesh,
-                            point_p.x, point_p.y, point_p.z,
-                            i, j, k,
-                            cent, ucat, uc_p
-                        );
+                        // save this point locally for speed
+                        Cmpnts point_p = wt->alm.points[p];
 
-                        // compute the relative velocity at the AL point
-                        Cmpnts ur_p  = nSet(uc_p);
-                                       mSum(ur_p, uf_p);
-                        lU[p]        = nSet(ur_p);
+                        // this point position from COR
+                        Cmpnts r_p  = nSub(point_p, wt->rotCenter);
 
-                        // compute the inflow wind at the AL point
-                        lWind[p]     = nSet(uc_p);
+                        // compute this blade point blade velocity
+                        Cmpnts u_p  = nCross(omega_t, r_p);
+
+                        // compute this blade point flow velocity
+                        Cmpnts uf_p = nScale(-1.0, u_p);
+
+                        if(wt->alm.thisPtControlled[p])
+                        {
+                            // now we have to sample the velocity at the actuator line point
+                            // from the background mesh, we use trilinear interpolation knowing
+                            // that one of the closest cells to actuator line point is i,j,k
+
+
+                            // get the closest cell center
+                            PetscInt i = wt->alm.closestCells[p].i,
+                                     j = wt->alm.closestCells[p].j,
+                                     k = wt->alm.closestCells[p].k;
+
+                            Cmpnts uc_p;
+
+                            // trilinear interpolate
+                            vectorPointLocalVolumeInterpolation
+                            (
+                                mesh,
+                                point_p.x, point_p.y, point_p.z,
+                                i, j, k,
+                                cent, ucat, uc_p
+                            );
+
+                            // compute the relative velocity at the AL point
+                            Cmpnts ur_p  = nSet(uc_p);
+                                        mSum(ur_p, uf_p);
+                            lU[p]        = nSet(ur_p);
+
+                            // compute the inflow wind at the AL point
+                            lWind[p]     = nSet(uc_p);
+                        }
+                    }
+
+                    MPI_Allreduce(&(lU[0]),  &(wt->alm.U[0]),  wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+                    MPI_Allreduce(&(lWind[0]), &(wt->alm.gWind[0]), wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+
+                    PetscReal rtrAvgMagU = 0.0;
+                    PetscReal areaSum    = 0.0;
+
+                    // loop over the AL mesh points
+                    for(p=0; p<npts_t; p++)
+                    {
+                        // save this point locally for speed
+                        Cmpnts point_p = wt->alm.points[p];
+
+                        // this point position from COR
+                        Cmpnts r_p  = nSub(point_p, wt->rotCenter);
+
+                        // build the blade reference frame based on rotation type:
+                        // 1. if counter-clockwise: z from tip to root,
+                        //    x as rotor axis from nacelle cone to back,
+                        //    y blade tangent, directed as wind due to rotation that blade sees.
+                        // 2. if clockwise: z from root to tip,
+                        //    x as rotor axis from nacelle cone to back,
+                        //    y blade tangent, directed as wind due to rotation that blade sees.
+                        // This is done in order to have the wind vector lying in the positive
+                        // quadrant in each case (it is a standard practice).
+
+                        Cmpnts xb_hat, yb_hat, zb_hat;
+
+                        if(wt->rotDir == "cw")
+                        {
+                            zb_hat = nUnit(r_p);
+                            xb_hat = nScale(-1.0, wt->rtrAxis);
+                            yb_hat = nCross(zb_hat, xb_hat);
+                        }
+                        else if(wt->rotDir == "ccw")
+                        {
+                            zb_hat = nUnit(r_p);
+                                    mScale(-1.0, zb_hat);
+                            xb_hat = nScale(-1.0, wt->rtrAxis);
+                            yb_hat = nCross(zb_hat, xb_hat);
+                        }
+
+                        // transform the velocity in the bladed reference frame and
+                        // remove radial (z) component
+                        PetscReal ub_x = nDot(wt->alm.gWind[p], xb_hat);
+                        PetscReal ub_y = nDot(wt->alm.gWind[p], yb_hat);
+
+                        PetscReal dA   = wt->alm.dr[p] * wt->alm.chord[p];
+
+                        rtrAvgMagU += sqrt(ub_x*ub_x + ub_y*ub_y) * dA;
+
+                        areaSum += dA;
+                    }
+
+                    wt->alm.rtrAvgMagU = rtrAvgMagU / areaSum;
+                }
+
+                else if(wt->alm.sampleType == "integral")
+                {
+                    // projection type
+                    PetscInt projectionType = 0;
+
+                    if(wt->alm.projectionType == "anisotropic")
+                    {
+                        projectionType = 1;
+                    }
+
+                    // loop over the AL mesh points
+                    for(p=0; p<npts_t; p++)
+                    {
+                        // initialize temporary variables
+                        lWind[p].x = 0.0;
+                        lWind[p].y = 0.0;
+                        lWind[p].z = 0.0;
+
+                        // save this point locally for speed
+                        Cmpnts point_p = wt->alm.points[p];
+
+                        // this point position from COR
+                        Cmpnts r_p  = nSub(point_p, wt->rotCenter);
+
+                        // loop over the sphere cells
+                        for(c=0; c<wt->nControlled; c++)
+                        {
+                            // cell indices
+                            PetscInt i = wt->controlledCells[c].i,
+                                    j = wt->controlledCells[c].j,
+                                    k = wt->controlledCells[c].k;
+
+                            // compute distance from mesh cell to AL point
+                            Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+
+                            // compute magnitude
+                            PetscReal r_c_mag = nMag(r_c);
+
+                            Cmpnts xb_hat, yb_hat, zb_hat;
+
+                            // define the bladed coordinate system
+                            if(wt->rotDir == "cw")
+                            {
+                                zb_hat = nUnit(r_p);
+                                xb_hat = nScale(-1.0, wt->rtrAxis);
+                                yb_hat = nCross(zb_hat, xb_hat);
+                            }
+                            else if(wt->rotDir == "ccw")
+                            {
+                                zb_hat = nUnit(r_p);
+                                         mScale(-1.0, zb_hat);
+                                xb_hat = nScale(-1.0, wt->rtrAxis);
+                                yb_hat = nCross(zb_hat, xb_hat);
+                            }
+
+                            PetscReal pf, rPrj;
+
+                            if(projectionType==0)
+                            {
+                                // get projection epsilon
+                                PetscReal eps  = wt->eps;
+
+                                // projection parameters
+                                rPrj = eps * wt->prjNSigma;
+
+                                // compute projection factor
+                                pf
+                                =
+                                std::exp
+                                (
+                                    -(r_c_mag / eps)*
+                                     (r_c_mag / eps)
+                                ) /
+                                (
+                                    pow(eps,    3) *
+                                    pow(M_PI, 1.5)
+                                );
+
+                            }
+
+                            if(projectionType==1)
+                            {
+
+                                // radial mesh cell size size
+                                PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+                                // get projection epsilon
+                                PetscReal eps_x =     wt->alm.chord[p] * wt->eps_x,
+                                          eps_y =     wt->alm.thick[p] * wt->eps_y,
+                                          eps_z =     drval * wt->eps_z;
+
+                                // form a reference blade starting from the
+                                // bladed frame, but rotate x and y around z by
+                                // the twist angle
+                                Cmpnts xb_af_hat = nRot(zb_hat, xb_hat,  wt->alm.twist[p]*wt->deg2rad);
+                                Cmpnts yb_af_hat = nRot(zb_hat, yb_hat,  wt->alm.twist[p]*wt->deg2rad);
+
+                                PetscReal rcx = nDot(r_c,xb_af_hat),
+                                          rcy = nDot(r_c,yb_af_hat),
+                                          rcz = nDot(r_c,zb_hat);
+
+                                // projection parameters
+                                rPrj = std::max(std::max(eps_x, eps_y),eps_z) * wt->prjNSigma;
+
+                                // compute projection factor
+                                pf
+                                =
+                                std::exp
+                                (
+                                    -rcx * rcx / (eps_x * eps_x)
+                                    -rcy * rcy / (eps_y * eps_y)
+                                    -rcz * rcz / (eps_z * eps_z)
+                                ) /
+                                (
+                                    eps_x * eps_y * eps_z *
+                                    pow(M_PI, 1.5)
+                                );
+                            }
+
+                            if(r_c_mag<rPrj)
+                            {
+                                mSum(lWind[p], nScale(pf/aj[k][j][i], ucat[k][j][i]));
+                            }
+                        } 
+                    }
+
+                    MPI_Allreduce(&(lWind[0]), &(wt->alm.gWind[0]), wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
+
+                    // loop over the AL mesh points
+                    for(p=0; p<npts_t; p++)
+                    {
+                        // save this point locally for speed
+                        Cmpnts point_p = wt->alm.points[p];
+
+                        // this point position from COR
+                        Cmpnts r_p  = nSub(point_p, wt->rotCenter);
+
+                        // compute this blade point blade velocity
+                        Cmpnts u_p  = nCross(omega_t, r_p);
+
+                        // compute this blade point flow velocity
+                        Cmpnts uf_p = nScale(-1.0, u_p);
+
+                        wt->alm.U[p] = nSum(wt->alm.gWind[p], uf_p);
                     }
                 }
 
-                MPI_Allreduce(&(lU[0]),  &(wt->alm.U[0]),  wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
-                MPI_Allreduce(&(lWind[0]), &(wt->alm.gWind[0]), wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
-
-                PetscReal rtrAvgMagU = 0.0;
-                PetscReal areaSum    = 0.0;
-
-                // loop over the AL mesh points
-                for(p=0; p<npts_t; p++)
-                {
-                    // save this point locally for speed
-                    Cmpnts point_p = wt->alm.points[p];
-
-                    // this point position from COR
-                    Cmpnts r_p  = nSub(point_p, wt->rotCenter);
-
-                    // build the blade reference frame based on rotation type:
-                    // 1. if counter-clockwise: z from tip to root,
-                    //    x as rotor axis from nacelle cone to back,
-                    //    y blade tangent, directed as wind due to rotation that blade sees.
-                    // 2. if clockwise: z from root to tip,
-                    //    x as rotor axis from nacelle cone to back,
-                    //    y blade tangent, directed as wind due to rotation that blade sees.
-                    // This is done in order to have the wind vector lying in the positive
-                    // quadrant in each case (it is a standard practice).
-
-                    Cmpnts xb_hat, yb_hat, zb_hat;
-
-                    if(wt->rotDir == "cw")
-                    {
-                        zb_hat = nUnit(r_p);
-                        xb_hat = nScale(-1.0, wt->rtrAxis);
-                        yb_hat = nCross(zb_hat, xb_hat);
-                    }
-                    else if(wt->rotDir == "ccw")
-                    {
-                        zb_hat = nUnit(r_p);
-                                 mScale(-1.0, zb_hat);
-                        xb_hat = nScale(-1.0, wt->rtrAxis);
-                        yb_hat = nCross(zb_hat, xb_hat);
-                    }
-
-                    // transform the velocity in the bladed reference frame and
-                    // remove radial (z) component
-                    PetscReal ub_x = nDot(wt->alm.gWind[p], xb_hat);
-                    PetscReal ub_y = nDot(wt->alm.gWind[p], yb_hat);
-
-                    PetscReal dA   = wt->alm.dr[p] * wt->alm.chord[p];
-
-                    rtrAvgMagU += sqrt(ub_x*ub_x + ub_y*ub_y) * dA;
-
-                    areaSum += dA;
-                }
-
-                wt->alm.rtrAvgMagU = rtrAvgMagU / areaSum;
-
+                
                 // clean memory
                 std::vector<Cmpnts> ().swap(lU);
                 std::vector<Cmpnts> ().swap(lWind);
+
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
@@ -3628,10 +4019,13 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                             if(projectionType==1)
                             {
 
+                                // radial mesh cell size size
+                                PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
                                 // get projection epsilon
-                                PetscReal eps_x =     wt->alm.chord[p]*wt->eps/2.0,
-                                          eps_y =     wt->alm.thick[p]*wt->eps/2.0,
-                                          eps_z =     wt->eps;
+                                PetscReal eps_x =     wt->alm.chord[p]*wt->eps_x,
+                                          eps_y =     wt->alm.thick[p]*wt->eps_y,
+                                          eps_z =     drval * wt->eps_z;
 
                                 // form a reference blade starting from the
                                 // bladed frame, but rotate x and y around z by
@@ -6429,13 +6823,38 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
     readDictWord(descrFile.c_str(),   "projection", &(wt->alm.projectionType));
     readDictInt(descrFile.c_str(),    "nRadPts", &(wt->alm.nRadial));
     readDictDouble(descrFile.c_str(), "Uref",    &(wt->alm.Uref));
+    readDictWord(descrFile.c_str(),   "sampleType", &(wt->alm.sampleType));
 
-    // validate
+        // check sample type
+    if
+    (
+        wt->alm.sampleType != "rotorDisk" &&
+        wt->alm.sampleType != "integral"
+    )
+    {
+        char error[512];
+        sprintf(error, "unknown velocity sampling type. Available types are rotorDisk or integral");
+        fatalErrorInFunction("initALM",  error);
+    }
+
+    // check projection type
     if(wt->alm.projectionType!="isotropic" && wt->alm.projectionType!="anisotropic")
     {
         char error[512];
         sprintf(error, "unknown ALM projection, available possibilities are:\n    1. isotropic\n    2. anisotropic\n");
         fatalErrorInFunction("initALM",  error);
+    }
+
+    //read projection radius 
+    if(wt->alm.projectionType=="anisotropic")
+    {
+        readDictDouble(descrFile.c_str(), "epsilonFactor_x",     &(wt->eps_x));
+        readDictDouble(descrFile.c_str(), "epsilonFactor_y",     &(wt->eps_y));
+        readDictDouble(descrFile.c_str(), "epsilonFactor_z",     &(wt->eps_z));
+    }
+    else
+    {
+        readDictDouble(descrFile.c_str(), "epsilon",     &(wt->eps));
     }
 
     wt->alm.nAzimuth = wt->nBlades;
@@ -6829,7 +7248,29 @@ PetscErrorCode initControlledCells(farm_ *farm)
 
         if((*farm->turbineModels[t]) != "AFM")
         {
-            radius_t = wt->rTip +  wt->eps * wt->prjNSigma;
+            if((*farm->turbineModels[t]) == "ALM")
+            {
+                if(wt->alm.projectionType == "anisotropic")
+                {
+                    PetscReal drval = (wt->rTip - wt->rHub) / (wt->adm.nRadial - 1);
+                    
+                    PetscReal   eps_x =     wt->alm.chord[0] * wt->eps_x,
+                                eps_y =     wt->alm.thick[0 ]* wt->eps_y,
+                                eps_z =     wt->eps * drval;
+
+                    PetscReal eps = PetscMax( PetscMax( eps_x, eps_y ), eps_z );  
+
+                    radius_t = wt->rTip +  eps * wt->prjNSigma;
+                } 
+                else 
+                {
+                    radius_t = wt->rTip +  wt->eps * wt->prjNSigma;
+                }                
+            }
+            else 
+            {
+                radius_t = wt->rTip +  wt->eps * wt->prjNSigma;
+            }          
         }
         else
         {
@@ -8251,16 +8692,19 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     readDictVector(dictName, "rotorDir",    &(rtrDirVec));
     readDictDouble(dictName, "upTilt",      &(wt->upTilt));
 
-    // read and compute plade projection radius
-    if(modelName != "AFM")
+    if(modelName == "ADM" || modelName == "uniformADM")
     {
         readDictDouble(dictName, "epsilon",     &(wt->eps));
     }
-    else
+    else if(modelName == "AFM")
     {
         readDictDouble(dictName, "epsilon_x",     &(wt->eps_x));
         readDictDouble(dictName, "epsilon_y",     &(wt->eps_y));
         readDictDouble(dictName, "epsilon_z",     &(wt->eps_z));
+    }
+    else if(modelName == "ALM")
+    {
+        //do nothing - read later based on projection type
     }
 
     // set projection confidence interval as number of standard deviations (harcoded to 2.7)
