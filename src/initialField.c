@@ -36,6 +36,35 @@ PetscErrorCode SetInitialField(domain_ *domain)
             readDictWord(filenameNut.c_str(), "internalField", &(domain[d].les->initFieldType));
         }
 
+        // if the startFrom is set to latestTime in control.dat and internalField is not set to readField
+        // give error: the user forgot to switch it
+
+        if(domain[d].clock->startFrom == "latestTime")
+        {
+            if(domain[d].ueqn->initFieldType != "readField")
+            {
+                char error[512];
+                sprintf(error, "-startFrom latestTime only available with readField option in boundary/U");
+                fatalErrorInFunction("SetInitialField", error);
+            }
+
+            if(flags->isTeqnActive)
+            if(domain[d].teqn->initFieldType != "readField")
+            {
+                char error[512];
+                sprintf(error, "-startFrom latestTime only available with readField option in boundary/T");
+                fatalErrorInFunction("SetInitialField", error);
+            }
+
+            if(flags->isLesActive)
+            if(domain[d].les->initFieldType != "readField")
+            {
+                char error[512];
+                sprintf(error, "-startFrom latestTime only available with readField option in boundary/nut");
+                fatalErrorInFunction("SetInitialField", error);
+            }
+        }
+
         SetInitialFieldU(domain[d].ueqn);
 
         if(flags->isTeqnActive)
