@@ -166,6 +166,7 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
         readDictDouble("control.dat", "-timeStep",  &(clock->dt));
     }
 
+
     // read purge write (optional)
     io->purgeWrite     = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-purgeWrite", &(io->purgeWrite), PETSC_NULL);
@@ -182,7 +183,7 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
     if(flags->isTeqnActive)
     {
         teqn_ *teqn = io->access->teqn;
-        if(ueqn->ddtScheme == "backwardEuler")
+        if(teqn->ddtScheme == "backwardEuler")
         {
             PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolT",  &(teqn->absExitTol), PETSC_NULL);
             PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolT",  &(teqn->relExitTol), PETSC_NULL);
@@ -193,6 +194,7 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
     peqn_ *peqn = io->access->peqn;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-poissonIt", &(peqn->poissonIt), PETSC_NULL);
     PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-poissonTol", &(peqn->poissonTol), PETSC_NULL);
+
 
     if(peqn->solverType == "HYPRE")
     {

@@ -5481,7 +5481,7 @@ PetscErrorCode kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, V
 
 //***************************************************************************************************************//
 
-PetscErrorCode ProbesInitialize(domain_ *domain)
+PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
 {
     // indices for domain, rake and probes
     PetscInt       d, r, p;
@@ -5895,14 +5895,43 @@ PetscErrorCode ProbesInitialize(domain_ *domain)
 
                 if(!rank)
                 {
-                    // initialize velocity file
-                    if(probes->rakes[r].Uflag) InitRakeFile(&(probes->rakes[r]), "U");
+                    if(postProcessing)
+                    {
+                        if(domain[0].access.io->averaging)
+                        {
+                            // initialize average velocity file
+                            InitRakeFile(&(probes->rakes[r]), "avgU");
 
-                    // initialize temperature file
-                    if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
+                            // initialize average shear stress file
+                            InitRakeFile(&(probes->rakes[r]), "avgUU");
 
-                    // initialize pressure file
-                    if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
+                            // initialize average pressure file
+                            InitRakeFile(&(probes->rakes[r]), "avgP");
+                        }
+
+                        if(domain[0].access.io->phaseAveraging)
+                        {
+                            // initialize average velocity file
+                            InitRakeFile(&(probes->rakes[r]), "phAvgU");
+
+                            // initialize average shear stress file
+                            InitRakeFile(&(probes->rakes[r]), "phAvgUU");
+
+                            // initialize average pressure file
+                            InitRakeFile(&(probes->rakes[r]), "phAvgP");
+                        }
+                    }
+                    else
+                    {
+                        // initialize velocity file
+                        if(probes->rakes[r].Uflag) InitRakeFile(&(probes->rakes[r]), "U");
+
+                        // initialize temperature file
+                        if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
+
+                        // initialize pressure file
+                        if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
+                    }
 
                 }
 

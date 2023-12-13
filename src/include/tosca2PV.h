@@ -60,6 +60,10 @@ PetscErrorCode postProcessInitializePrecursor(postProcess *pp, clock_ *clock);
 // ---------------------------------------------------------
 PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal time);
 
+//! \broer On the fly probes cration of average and phase average fields only
+PetscErrorCode postProcessWriteProbes(domain_ *domain);
+
+//! \brief gets list of time folders contained in a directory
 PetscErrorCode getTimeList(const char* dataLoc, std::vector<PetscReal> &timeSeries, PetscInt &ntimes);
 
 //! \brief Reads i,j,k - sections info and allocates moemry. Some info are not necessary thus not read.

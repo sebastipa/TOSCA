@@ -73,6 +73,12 @@ int main(int argc, char **argv)
           warningInFunction("main",  warning);
           pp.postProcessFields = 0;
       }
+
+      // do probes acquisition
+      if(flags.isAquisitionActive)
+      {
+          postProcessWriteProbes(domain);
+      }
   }
 
   // write 3D fields into XMF
@@ -211,6 +217,7 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
           PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &(acquisition->isSectionsActive),   PETSC_NULL);
           PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-average3LM",    &(acquisition->isAverage3LMActive), PETSC_NULL);
           PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",    &(acquisition->isPerturbABLActive), PETSC_NULL);
+          PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",        &(acquisition->isProbesActive),     PETSC_NULL);
 
           averageFieldsInitialize(domain[d].acquisition);
           averageKEBudgetsInitialize(domain[d].acquisition);
@@ -221,6 +228,17 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       }
 
       PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
+  }
+
+  // initialize probes
+  if
+  (
+      domain[0].access.io->averaging ||
+      domain[0].access.io->phaseAveraging
+  )
+  {
+      // initialize probes with post processing flag activated
+      ProbesInitialize(domain,1);
   }
 
   //averaging3LMInitialize(domain);
@@ -315,7 +333,7 @@ PetscErrorCode binary3DToXMF(domain_ *domain, postProcess *pp)
       PetscInt dirRes = mkdir(XMFDir.c_str(), 0777);
       if(dirRes != 0 && errno != EEXIST)
       {
-         char error[512];
+          char error[512];
           sprintf(error, "could not create directory %s for XMF\n", XMFDir.c_str());
           fatalErrorInFunction("binary3DToXMF",  error);
       }
@@ -800,7 +818,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             &file_id,
             &dataspace_id,
             time,
-            "pAvgU",
+            "phAvgU",
             acquisition->fields->pAvgU
         );
 
@@ -812,7 +830,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             &file_id,
             &dataspace_id,
             time,
-            "pAvgP",
+            "phAvgP",
             acquisition->fields->pAvgP
         );
 
@@ -824,7 +842,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             &file_id,
             &dataspace_id,
             time,
-            "pAvgUU",
+            "phAvgUU",
             acquisition->fields->pAvgUU
         );
 
@@ -838,7 +856,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                 &file_id,
                 &dataspace_id,
                 time,
-                "pAvgNut",
+                "phAvgNut",
                 acquisition->fields->pAvgNut
             );
 
@@ -850,7 +868,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                 &file_id,
                 &dataspace_id,
                 time,
-                "pAvgCs",
+                "phAvgCs",
                 acquisition->fields->pAvgCs
             );
         }
@@ -865,7 +883,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                 &file_id,
                 &dataspace_id,
                 time,
-                "pAvgOmega",
+                "phAvgOmega",
                 acquisition->fields->pAvgOmega
             );
 
@@ -879,7 +897,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                     &file_id,
                     &dataspace_id,
                     time,
-                    "pAvgPsq",
+                    "phAvgPsq",
                     acquisition->fields->pAvgP2
                 );
 
@@ -891,7 +909,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                     &file_id,
                     &dataspace_id,
                     time,
-                    "pAvgOmegaOmega",
+                    "phAvgOmegaOmega",
                     acquisition->fields->pAvgOmegaOmega
                 );
 
@@ -903,7 +921,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                     &file_id,
                     &dataspace_id,
                     time,
-                    "pAvgUdotGradP",
+                    "phAvgUdotGradP",
                     acquisition->fields->pAvgUdotGradP
                 );
 
@@ -915,7 +933,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                     &file_id,
                     &dataspace_id,
                     time,
-                    "pAvgMagGradU",
+                    "phAvgMagGradU",
                     acquisition->fields->pAvgMagGradU
                 );
 
@@ -927,7 +945,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                     &file_id,
                     &dataspace_id,
                     time,
-                    "pAvgMagUU",
+                    "phAvgMagUU",
                     acquisition->fields->pAvgMagUU
                 );
             }
@@ -4683,7 +4701,7 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
             {
                 char error[512];
                 sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-                fatalErrorInFunction("binary3DToXMF",  error);
+                fatalErrorInFunction("binaryKSectionsToXMF",  error);
             }
 
             if(acquisition->kSections->available)
@@ -4957,7 +4975,11 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
         flags_    flags    = domain[d].flags;
         io_       *io      = domain[d].io;
 
-        if(flags.isAquisitionActive && io->averaging)
+        if
+        (
+            flags.isAquisitionActive &&
+            (io->averaging || io->phaseAveraging)
+        )
         {
             // get pointers
             clock_ *clock = domain[d].clock;
@@ -4991,7 +5013,7 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
             {
               char error[512];
               sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-              fatalErrorInFunction("binaryJSectionsToXMF",  error);
+              fatalErrorInFunction("fieldKSectionsToXMF",  error);
             }
 
             if(acquisition->kSections->available)
@@ -5011,7 +5033,7 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                   if (kplane<1 || kplane>mz-2) continue;
 
                   // get list of available times
-                  word path2times = "./fields/";
+                  word path2times = "./fields/" + mesh->meshName;
 
                   std::vector<PetscReal>        timeSeries;
                   PetscInt                      ntimes;
@@ -5084,82 +5106,58 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                   if(!rank) status = H5Sclose(dataspace_id);
                   if(!rank) status = H5Fclose(file_id);
 
-                  // load average velocity
-                  kSectionLoadVectorFromField(acquisition->fields->avgU, mesh, kSections, kplane, "avgU", timeSeries[ntimes-1]);
-
-                  if(!rank)
+                  if(io->averaging)
                   {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                      // load average velocity
+                      kSectionLoadVectorFromField(acquisition->fields->avgU, mesh, kSections, kplane, "avgU", timeSeries[ntimes-1]);
 
-                      writeKSectionVectorToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ntimes-1],
-                          "avgU",
-                          kSections->vectorSec
-                      );
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                  }
+                          writeKSectionVectorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgU",
+                              kSections->vectorSec
+                          );
 
-                  // load average Reynold stresses
-                  kSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, kSections, kplane, "avgUU", timeSeries[ntimes-1]);
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
 
-                  if(!rank)
-                  {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                      // load average Reynold stresses
+                      kSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, kSections, kplane, "avgUU", timeSeries[ntimes-1]);
 
-                      writeKSectionSymmTensorToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ntimes-1],
-                          "avgUU",
-                          kSections->symmTensorSec
-                      );
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                  }
+                          writeKSectionSymmTensorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgUU",
+                              kSections->symmTensorSec
+                          );
 
-                  // load average pressure
-                  kSectionLoadScalarFromField(acquisition->fields->avgP, mesh, kSections, kplane, "avgP", timeSeries[ntimes-1]);
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
 
-                  if(!rank)
-                  {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                      writeKSectionScalarToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ntimes-1],
-                          "avgP",
-                          kSections->scalarSec
-                      );
-
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                  }
-
-                  if(flags.isLesActive)
-                  {
-                      // load average nut
-                      kSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, kSections, kplane, "avgNut", timeSeries[ntimes-1]);
+                      // load average pressure
+                      kSectionLoadScalarFromField(acquisition->fields->avgP, mesh, kSections, kplane, "avgP", timeSeries[ntimes-1]);
 
                       if(!rank)
                       {
@@ -5174,7 +5172,7 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                               &file_id,
                               &dataspace_id,
                               timeSeries[ntimes-1],
-                              "avgNut",
+                              "avgP",
                               kSections->scalarSec
                           );
 
@@ -5182,8 +5180,117 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                           status = H5Fclose(file_id);
                       }
 
-                      // load average cs
-                      kSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, kSections, kplane, "avgCs", timeSeries[ntimes-1]);
+                      if(flags.isLesActive)
+                      {
+                          // load average nut
+                          kSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, kSections, kplane, "avgNut", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeKSectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "avgNut",
+                                  kSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                          // load average cs
+                          kSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, kSections, kplane, "avgCs", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeKSectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "avgCs",
+                                  kSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                      }
+
+                      // load temperature
+                      if(flags.isTeqnActive)
+                      {
+                          // no fields for now
+                      }
+                  }
+
+                  if(io->phaseAveraging)
+                  {
+                      // load average velocity
+                      kSectionLoadVectorFromField(acquisition->fields->pAvgU, mesh, kSections, kplane, "phAvgU", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeKSectionVectorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "phAvgU",
+                              kSections->vectorSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
+
+                      // load average Reynold stresses
+                      kSectionLoadSymmTensorFromField(acquisition->fields->pAvgUU, mesh, kSections, kplane, "phAvgUU", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeKSectionSymmTensorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "phAvgUU",
+                              kSections->symmTensorSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
+
+                      // load average pressure
+                      kSectionLoadScalarFromField(acquisition->fields->pAvgP, mesh, kSections, kplane, "phAvgP", timeSeries[ntimes-1]);
 
                       if(!rank)
                       {
@@ -5198,7 +5305,7 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                               &file_id,
                               &dataspace_id,
                               timeSeries[ntimes-1],
-                              "avgCs",
+                              "phAvgP",
                               kSections->scalarSec
                           );
 
@@ -5206,12 +5313,63 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                           status = H5Fclose(file_id);
                       }
 
-                  }
+                      if(flags.isLesActive)
+                      {
+                          // load average nut
+                          kSectionLoadScalarFromField(acquisition->fields->pAvgNut, mesh, kSections, kplane, "phAvgNut", timeSeries[ntimes-1]);
 
-                  // load temperature
-                  if(flags.isTeqnActive)
-                  {
-                      // no fields for now
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeKSectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "phAvgNut",
+                                  kSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                          // load average cs
+                          kSectionLoadScalarFromField(acquisition->fields->pAvgCs, mesh, kSections, kplane, "phAvgCs", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeKSectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "phAvgCs",
+                                  kSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                      }
+
+                      // load temperature
+                      if(flags.isTeqnActive)
+                      {
+                          // no fields for now
+                      }
                   }
 
                   // close this time section in the XMF file
@@ -5565,7 +5723,11 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
         flags_    flags    = domain[d].flags;
         io_       *io      = domain[d].io;
 
-        if(flags.isAquisitionActive && io->averaging)
+        if
+        (
+            flags.isAquisitionActive &&
+            (io->averaging || io->phaseAveraging)
+        )
         {
             // get pointers
             clock_ *clock = domain[d].clock;
@@ -5599,7 +5761,7 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
             {
               char error[512];
               sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-              fatalErrorInFunction("binaryJSectionsToXMF",  error);
+              fatalErrorInFunction("fieldJSectionsToXMF",  error);
             }
 
             if(acquisition->jSections->available)
@@ -5619,7 +5781,7 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                   if (jplane<1 || jplane>my-2) continue;
 
                   // get list of available times
-                  word path2times = "./fields/";
+                  word path2times = "./fields/" + mesh->meshName;
 
                   std::vector<PetscReal>        timeSeries;
                   PetscInt                      ntimes;
@@ -5692,82 +5854,58 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                   if(!rank) status = H5Sclose(dataspace_id);
                   if(!rank) status = H5Fclose(file_id);
 
-                  // load average velocity
-                  jSectionLoadVectorFromField(acquisition->fields->avgU, mesh, jSections, jplane, "avgU", timeSeries[ntimes-1]);
-
-                  if(!rank)
+                  if(io->averaging)
                   {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                      // load average velocity
+                      jSectionLoadVectorFromField(acquisition->fields->avgU, mesh, jSections, jplane, "avgU", timeSeries[ntimes-1]);
 
-                      writeJSectionVectorToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ntimes-1],
-                          "avgU",
-                          jSections->vectorSec
-                      );
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                  }
+                          writeJSectionVectorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgU",
+                              jSections->vectorSec
+                          );
 
-                  // load average Reynold stresses
-                  jSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, jSections, jplane, "avgUU", timeSeries[ntimes-1]);
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
 
-                  if(!rank)
-                  {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                      // load average Reynold stresses
+                      jSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, jSections, jplane, "avgUU", timeSeries[ntimes-1]);
 
-                      writeJSectionSymmTensorToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ntimes-1],
-                          "avgUU",
-                          jSections->symmTensorSec
-                      );
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                  }
+                          writeJSectionSymmTensorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgUU",
+                              jSections->symmTensorSec
+                          );
 
-                  // load average pressure
-                  jSectionLoadScalarFromField(acquisition->fields->avgP, mesh, jSections, jplane, "avgP", timeSeries[ntimes-1]);
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
 
-                  if(!rank)
-                  {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                      writeJSectionScalarToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ntimes-1],
-                          "avgP",
-                          jSections->scalarSec
-                      );
-
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                  }
-
-                  if(flags.isLesActive)
-                  {
-                      // load average nut
-                      jSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, jSections, jplane, "avgNut", timeSeries[ntimes-1]);
+                      // load average pressure
+                      jSectionLoadScalarFromField(acquisition->fields->avgP, mesh, jSections, jplane, "avgP", timeSeries[ntimes-1]);
 
                       if(!rank)
                       {
@@ -5782,7 +5920,7 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                               &file_id,
                               &dataspace_id,
                               timeSeries[ntimes-1],
-                              "avgNut",
+                              "avgP",
                               jSections->scalarSec
                           );
 
@@ -5790,8 +5928,117 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                           status = H5Fclose(file_id);
                       }
 
-                      // load average cs
-                      jSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, jSections, jplane, "avgCs", timeSeries[ntimes-1]);
+                      if(flags.isLesActive)
+                      {
+                          // load average nut
+                          jSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, jSections, jplane, "avgNut", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeJSectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "avgNut",
+                                  jSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                          // load average cs
+                          jSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, jSections, jplane, "avgCs", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeJSectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "avgCs",
+                                  jSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                      }
+
+                      // load temperature
+                      if(flags.isTeqnActive)
+                      {
+                          // no fields for now
+                      }
+                  }
+
+                  if(io->phaseAveraging)
+                  {
+                      // load average velocity
+                      jSectionLoadVectorFromField(acquisition->fields->pAvgU, mesh, jSections, jplane, "phAvgU", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeJSectionVectorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "phAvgU",
+                              jSections->vectorSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
+
+                      // load average Reynold stresses
+                      jSectionLoadSymmTensorFromField(acquisition->fields->pAvgUU, mesh, jSections, jplane, "phAvgUU", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeJSectionSymmTensorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "phAvgUU",
+                              jSections->symmTensorSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
+
+                      // load average pressure
+                      jSectionLoadScalarFromField(acquisition->fields->pAvgP, mesh, jSections, jplane, "phAvgP", timeSeries[ntimes-1]);
 
                       if(!rank)
                       {
@@ -5806,7 +6053,7 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                               &file_id,
                               &dataspace_id,
                               timeSeries[ntimes-1],
-                              "avgCs",
+                              "phAvgP",
                               jSections->scalarSec
                           );
 
@@ -5814,12 +6061,63 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                           status = H5Fclose(file_id);
                       }
 
-                  }
+                      if(flags.isLesActive)
+                      {
+                          // load average nut
+                          jSectionLoadScalarFromField(acquisition->fields->pAvgNut, mesh, jSections, jplane, "phAvgNut", timeSeries[ntimes-1]);
 
-                  // load temperature
-                  if(flags.isTeqnActive)
-                  {
-                      // no fields for now
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeJSectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "phAvgNut",
+                                  jSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                          // load average cs
+                          jSectionLoadScalarFromField(acquisition->fields->pAvgCs, mesh, jSections, jplane, "phAvgCs", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeJSectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "phAvgCs",
+                                  jSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                      }
+
+                      // load temperature
+                      if(flags.isTeqnActive)
+                      {
+                          // no fields for now
+                      }
                   }
 
                   // close this time section in the XMF file
@@ -6166,7 +6464,11 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
         flags_    flags    = domain[d].flags;
         io_       *io      = domain[d].io;
 
-        if(flags.isAquisitionActive && io->averaging)
+        if
+        (
+            flags.isAquisitionActive &&
+            (io->averaging || io->phaseAveraging)
+        )
         {
             // get pointers
             clock_ *clock = domain[d].clock;
@@ -6200,7 +6502,7 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
             {
               char error[512];
               sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-              fatalErrorInFunction("binaryJSectionsToXMF",  error);
+              fatalErrorInFunction("fieldISectionsToXMF",  error);
             }
 
             if(acquisition->iSections->available)
@@ -6220,7 +6522,7 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
                   if (iplane<1 || iplane>mx-2) continue;
 
                   // get list of available times
-                  word path2times = "./fields/";
+                  word path2times = "./fields/" + mesh->meshName;
 
                   std::vector<PetscReal>        timeSeries;
                   PetscInt                      ntimes;
@@ -6293,82 +6595,58 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
                   if(!rank) status = H5Sclose(dataspace_id);
                   if(!rank) status = H5Fclose(file_id);
 
-                  // load average velocity
-                  iSectionLoadVectorFromField(acquisition->fields->avgU, mesh, iSections, iplane, "avgU", timeSeries[ntimes-1]);
-
-                  if(!rank)
+                  if(io->averaging)
                   {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                      // load average velocity
+                      iSectionLoadVectorFromField(acquisition->fields->avgU, mesh, iSections, iplane, "avgU", timeSeries[ntimes-1]);
 
-                      writeISectionVectorToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ntimes-1],
-                          "avgU",
-                          iSections->vectorSec
-                      );
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                  }
+                          writeISectionVectorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgU",
+                              iSections->vectorSec
+                          );
 
-                  // load average Reynold stresses
-                  iSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, iSections, iplane, "avgUU", timeSeries[ntimes-1]);
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
 
-                  if(!rank)
-                  {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                      // load average Reynold stresses
+                      iSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, iSections, iplane, "avgUU", timeSeries[ntimes-1]);
 
-                      writeISectionSymmTensorToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ntimes-1],
-                          "avgUU",
-                          iSections->symmTensorSec
-                      );
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                  }
+                          writeISectionSymmTensorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "avgUU",
+                              iSections->symmTensorSec
+                          );
 
-                  // load average pressure
-                  iSectionLoadScalarFromField(acquisition->fields->avgP, mesh, iSections, iplane, "avgP", timeSeries[ntimes-1]);
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
 
-                  if(!rank)
-                  {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                      writeISectionScalarToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ntimes-1],
-                          "avgP",
-                          iSections->scalarSec
-                      );
-
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
-                  }
-
-                  if(flags.isLesActive)
-                  {
-                      // load average nut
-                      iSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, iSections, iplane, "avgNut", timeSeries[ntimes-1]);
+                      // load average pressure
+                      iSectionLoadScalarFromField(acquisition->fields->avgP, mesh, iSections, iplane, "avgP", timeSeries[ntimes-1]);
 
                       if(!rank)
                       {
@@ -6383,7 +6661,7 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
                               &file_id,
                               &dataspace_id,
                               timeSeries[ntimes-1],
-                              "avgNut",
+                              "avgP",
                               iSections->scalarSec
                           );
 
@@ -6391,8 +6669,116 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
                           status = H5Fclose(file_id);
                       }
 
-                      // load average cs
-                      iSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, iSections, iplane, "avgCs", timeSeries[ntimes-1]);
+                      if(flags.isLesActive)
+                      {
+                          // load average nut
+                          iSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, iSections, iplane, "avgNut", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeISectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "avgNut",
+                                  iSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                          // load average cs
+                          iSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, iSections, iplane, "avgCs", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeISectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "avgCs",
+                                  iSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+                      }
+
+                      // load temperature
+                      if(flags.isTeqnActive)
+                      {
+                          // no fields for now
+                      }
+                  }
+
+                  if(io->phaseAveraging)
+                  {
+                      // load average velocity
+                      iSectionLoadVectorFromField(acquisition->fields->pAvgU, mesh, iSections, iplane, "phAvgU", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeISectionVectorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "phAvgU",
+                              iSections->vectorSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
+
+                      // load average Reynold stresses
+                      iSectionLoadSymmTensorFromField(acquisition->fields->pAvgUU, mesh, iSections, iplane, "phAvgUU", timeSeries[ntimes-1]);
+
+                      if(!rank)
+                      {
+                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                          dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                          writeISectionSymmTensorToXMF
+                          (
+                              mesh,
+                              fieldsFileName.c_str(),
+                              hdfileName.c_str(),
+                              &file_id,
+                              &dataspace_id,
+                              timeSeries[ntimes-1],
+                              "phAvgUU",
+                              iSections->symmTensorSec
+                          );
+
+                          status = H5Sclose(dataspace_id);
+                          status = H5Fclose(file_id);
+                      }
+
+                      // load average pressure
+                      iSectionLoadScalarFromField(acquisition->fields->pAvgP, mesh, iSections, iplane, "phAvgP", timeSeries[ntimes-1]);
 
                       if(!rank)
                       {
@@ -6407,19 +6793,70 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
                               &file_id,
                               &dataspace_id,
                               timeSeries[ntimes-1],
-                              "avgCs",
+                              "phAvgP",
                               iSections->scalarSec
                           );
 
                           status = H5Sclose(dataspace_id);
                           status = H5Fclose(file_id);
                       }
-                  }
 
-                  // load temperature
-                  if(flags.isTeqnActive)
-                  {
-                      // no fields for now
+                      if(flags.isLesActive)
+                      {
+                          // load average nut
+                          iSectionLoadScalarFromField(acquisition->fields->pAvgNut, mesh, iSections, iplane, "phAvgNut", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeISectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "phAvgNut",
+                                  iSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+
+                          // load average cs
+                          iSectionLoadScalarFromField(acquisition->fields->pAvgCs, mesh, iSections, iplane, "phAvgCs", timeSeries[ntimes-1]);
+
+                          if(!rank)
+                          {
+                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                              dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                              writeISectionScalarToXMF
+                              (
+                                  mesh,
+                                  fieldsFileName.c_str(),
+                                  hdfileName.c_str(),
+                                  &file_id,
+                                  &dataspace_id,
+                                  timeSeries[ntimes-1],
+                                  "phAvgCs",
+                                  iSections->scalarSec
+                              );
+
+                              status = H5Sclose(dataspace_id);
+                              status = H5Fclose(file_id);
+                          }
+                      }
+
+                      // load temperature
+                      if(flags.isTeqnActive)
+                      {
+                          // no fields for now
+                      }
                   }
 
                   // close this time section in the XMF file
@@ -7413,7 +7850,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 if(flags.isTeqnActive) atLeastOneScalar++;
                 if(flags.isLesActive)  atLeastOneScalar++;
                 if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
-                if(io->averaging) atLeastOneSymmTensor++;
+                if(io->averaging || io->phaseAveraging) atLeastOneSymmTensor++;
 
                 // allocate variables where data are stored
                 if(atLeastOneVector)
@@ -7601,7 +8038,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 if(flags.isTeqnActive) atLeastOneScalar++;
                 if(flags.isLesActive)  atLeastOneScalar++;
                 if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
-                if(io->averaging) atLeastOneSymmTensor++;
+                if(io->averaging || io->phaseAveraging) atLeastOneSymmTensor++;
 
                 // allocate variables where data are stored
                 if(atLeastOneVector)
@@ -7788,7 +8225,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 if(flags.isTeqnActive) atLeastOneScalar++;
                 if(flags.isLesActive)  atLeastOneScalar++;
                 if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
-                if(io->averaging) atLeastOneSymmTensor++;
+                if(io->averaging || io->phaseAveraging) atLeastOneSymmTensor++;
 
                 // allocate variables where data are stored
                 if(atLeastOneVector)
@@ -7845,4 +8282,316 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
     }
 
   return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode postProcessWriteProbes(domain_ *domain)
+{
+    if
+    (
+        domain[0].access.io->averaging ||
+        domain[0].access.io->phaseAveraging
+    )
+    if(domain[0].acquisition->isProbesActive)
+    {
+        PetscInt  nDomains = domain[0].info.nDomains;
+
+        // read the fields corresponding to the last time step on each domain
+        for(PetscInt d=0; d<nDomains; d++)
+        {
+            PetscPrintf(domain[d].mesh->MESH_COMM, "On-the-fly probes extraction for mesh: %s...\n", domain[d].mesh->meshName.c_str());
+            PetscInt     ntimes;
+            word         fieldsPath = "./fields/" + domain[d].mesh->meshName;
+            std::vector<PetscReal> timeSeries;
+            getTimeList(fieldsPath.c_str(), timeSeries, ntimes);
+            readFields(&domain[d], timeSeries[ntimes-1]);
+        }
+
+        PetscInt r, p;
+        rakes  *probes = domain[0].acquisition->probes;
+        clock_ *clock  = domain[0].clock;
+
+        for(r=0; r<probes->nRakes; r++)
+        {
+            // get ptr to this probe rake
+            probeRake *rake = &(probes->rakes[r]);
+
+            PetscMPIInt rakeRank;
+            MPI_Comm_rank(rake->RAKE_COMM, &rakeRank);
+
+            if(rake->thisRakeControlled)
+            {
+                // initialize local vectors
+                std::vector<Cmpnts> lprobeValuesU(rake->probesNumber);
+                std::vector<Cmpnts> gprobeValuesU(rake->probesNumber);
+
+                // initialize local vectors
+                std::vector<symmTensor> lprobeValuesUU(rake->probesNumber);
+                std::vector<symmTensor> gprobeValuesUU(rake->probesNumber);
+
+                // initialize local vectors
+                std::vector<PetscReal> lprobeValuesP(rake->probesNumber);
+                std::vector<PetscReal> gprobeValuesP(rake->probesNumber);
+
+                // initialize local vectors
+                std::vector<Cmpnts> lprobeValuesUph(rake->probesNumber);
+                std::vector<Cmpnts> gprobeValuesUph(rake->probesNumber);
+
+                // initialize local vectors
+                std::vector<symmTensor> lprobeValuesUUph(rake->probesNumber);
+                std::vector<symmTensor> gprobeValuesUUph(rake->probesNumber);
+
+                // initialize local vectors
+                std::vector<PetscReal> lprobeValuesPph(rake->probesNumber);
+                std::vector<PetscReal> gprobeValuesPph(rake->probesNumber);
+
+                for(p=0; p<rake->probesNumber; p++)
+                {
+                    if(rake->domainID[p] != -1)
+                    {
+                        io_               *io = domain[rake->domainID[p]].io;
+                        acquisition_ *acquisition = domain[rake->domainID[p]].acquisition;
+                        avgFields     *fields = acquisition->fields;
+                        mesh_           *mesh = domain[rake->domainID[p]].mesh;
+                        DMDALocalInfo    info = mesh->info;
+                        PetscInt           xs = info.xs, xe = info.xs + info.xm;
+                        PetscInt           ys = info.ys, ye = info.ys + info.ym;
+                        PetscInt           zs = info.zs, ze = info.zs + info.zm;
+                        PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+                        PetscInt           i, j, k;
+                        PetscInt           lxs, lxe, lys, lye, lzs, lze;
+
+                        lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+                        lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+                        lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+                        PetscMPIInt meshRank;
+                        MPI_Comm_rank(mesh->MESH_COMM, &meshRank);
+
+                        if(io->averaging)
+                        {
+                            if(meshRank == rake->owner[p])
+                            {
+                                k = rake->cells[p][0];
+                                j = rake->cells[p][1];
+                                i = rake->cells[p][2];
+
+                                Cmpnts ***uavg;
+                                DMDAVecGetArray(mesh->fda, fields->avgU, &uavg);
+
+                                lprobeValuesU[p].x = uavg[k][j][i].x;
+                                lprobeValuesU[p].y = uavg[k][j][i].y;
+                                lprobeValuesU[p].z = uavg[k][j][i].z;
+
+                                DMDAVecRestoreArray(mesh->fda, fields->avgU, &uavg);
+
+                                symmTensor ***uuavg;
+                                DMDAVecGetArray(mesh->sda, fields->avgUU, &uuavg);
+
+                                lprobeValuesUU[p].xx = uuavg[k][j][i].xx;
+                                lprobeValuesUU[p].yy = uuavg[k][j][i].yy;
+                                lprobeValuesUU[p].zz = uuavg[k][j][i].zz;
+                                lprobeValuesUU[p].xy = uuavg[k][j][i].xy;
+                                lprobeValuesUU[p].xz = uuavg[k][j][i].xz;
+                                lprobeValuesUU[p].yz = uuavg[k][j][i].yz;
+
+                                DMDAVecRestoreArray(mesh->sda, fields->avgUU, &uuavg);
+
+                                PetscReal ***pavg;
+                                DMDAVecGetArray(mesh->da, fields->avgP, &pavg);
+
+                                lprobeValuesP[p] = pavg[k][j][i];
+
+                                DMDAVecRestoreArray(mesh->da, fields->avgP, &pavg);
+                            }
+                        }
+
+                        if(io->phaseAveraging)
+                        {
+                            if(meshRank == rake->owner[p])
+                            {
+                                k = rake->cells[p][0];
+                                j = rake->cells[p][1];
+                                i = rake->cells[p][2];
+
+                                Cmpnts ***uavg;
+                                DMDAVecGetArray(mesh->fda, fields->pAvgU, &uavg);
+
+                                lprobeValuesUph[p].x = uavg[k][j][i].x;
+                                lprobeValuesUph[p].y = uavg[k][j][i].y;
+                                lprobeValuesUph[p].z = uavg[k][j][i].z;
+
+                                DMDAVecRestoreArray(mesh->fda, fields->pAvgU, &uavg);
+
+                                symmTensor ***uuavg;
+                                DMDAVecGetArray(mesh->sda, fields->pAvgUU, &uuavg);
+
+                                lprobeValuesUUph[p].xx = uuavg[k][j][i].xx;
+                                lprobeValuesUUph[p].yy = uuavg[k][j][i].yy;
+                                lprobeValuesUUph[p].zz = uuavg[k][j][i].zz;
+                                lprobeValuesUUph[p].xy = uuavg[k][j][i].xy;
+                                lprobeValuesUUph[p].xz = uuavg[k][j][i].xz;
+                                lprobeValuesUUph[p].yz = uuavg[k][j][i].yz;
+
+                                DMDAVecRestoreArray(mesh->sda, fields->pAvgUU, &uuavg);
+
+                                PetscReal ***pavg;
+                                DMDAVecGetArray(mesh->da, fields->pAvgP, &pavg);
+
+                                lprobeValuesPph[p] = pavg[k][j][i];
+
+                                DMDAVecRestoreArray(mesh->da, fields->pAvgP, &pavg);
+                            }
+                        }
+                    }
+                }
+
+                if(domain[0].access.io->averaging)
+                {
+                    MPI_Reduce(&lprobeValuesU[0], &gprobeValuesU[0], 3*rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
+                    MPI_Reduce(&lprobeValuesUU[0], &gprobeValuesUU[0], 6*rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
+                    MPI_Reduce(&lprobeValuesP[0], &gprobeValuesP[0], rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
+
+                    PetscMPIInt rakeRank;
+                    MPI_Comm_rank(rake->RAKE_COMM, &rakeRank);
+
+                    // only master process writes on the file avgU
+                    if(!rakeRank)
+                    {
+                        FILE *f;
+                        word fileName;
+
+                        // write velocity
+                        fileName = rake->timeName + "/avgU";
+                        f = fopen(fileName.c_str(), "a");
+
+                        fprintf(f, "\t %.3lf\t\t\t\t\t\t", clock->time);
+                        for(p=0; p<rake->probesNumber; p++)
+                        {
+                            if(rake->domainID[p] != -1)
+                            {
+                                fprintf(f, "(%.10lf  %.10lf  %.10lf)\t\t", gprobeValuesU[p].x, gprobeValuesU[p].y, gprobeValuesU[p].z);
+                            }
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+
+                        // write stresses
+                        fileName = rake->timeName + "/avgUU";
+                        f = fopen(fileName.c_str(), "a");
+
+                        fprintf(f, "\t %.3lf\t\t\t\t\t\t", clock->time);
+                        for(p=0; p<rake->probesNumber; p++)
+                        {
+                            if(rake->domainID[p] != -1)
+                            {
+                                fprintf(f, "(%.10lf  %.10lf  %.10lf %.10lf  %.10lf  %.10lf)\t\t", gprobeValuesUU[p].xx, gprobeValuesUU[p].yy, gprobeValuesUU[p].zz, gprobeValuesUU[p].xy, gprobeValuesUU[p].xz, gprobeValuesUU[p].yz);
+                            }
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+
+                        // write pressure
+                        fileName = rake->timeName + "/avgP";
+                        f = fopen(fileName.c_str(), "a");
+
+                        fprintf(f, "\t %.3lf\t\t\t\t\t\t", clock->time);
+                        for(p=0; p<rake->probesNumber; p++)
+                        {
+                            if(rake->domainID[p] != -1)
+                            {
+                                fprintf(f, "%.10lf\t\t", gprobeValuesP[p]);
+                            }
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+                }
+
+                if(domain[0].access.io->phaseAveraging)
+                {
+                    MPI_Reduce(&lprobeValuesUph[0], &gprobeValuesUph[0], 3*rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
+                    MPI_Reduce(&lprobeValuesUUph[0], &gprobeValuesUUph[0], 6*rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
+                    MPI_Reduce(&lprobeValuesPph[0], &gprobeValuesPph[0], rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
+
+                    PetscMPIInt rakeRank;
+                    MPI_Comm_rank(rake->RAKE_COMM, &rakeRank);
+
+                    // only master process writes on the file avgU
+                    if(!rakeRank)
+                    {
+                        FILE *f;
+                        word fileName;
+
+                        // write velocity
+                        fileName = rake->timeName + "/phAvgU";
+                        f = fopen(fileName.c_str(), "a");
+
+                        fprintf(f, "\t %.3lf\t\t\t\t\t\t", clock->time);
+                        for(p=0; p<rake->probesNumber; p++)
+                        {
+                            if(rake->domainID[p] != -1)
+                            {
+                                fprintf(f, "(%.10lf  %.10lf  %.10lf)\t\t", gprobeValuesUph[p].x, gprobeValuesUph[p].y, gprobeValuesUph[p].z);
+                            }
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+
+                        // write stresses
+                        fileName = rake->timeName + "/phAvgUU";
+                        f = fopen(fileName.c_str(), "a");
+
+                        fprintf(f, "\t %.3lf\t\t\t\t\t\t", clock->time);
+                        for(p=0; p<rake->probesNumber; p++)
+                        {
+                            if(rake->domainID[p] != -1)
+                            {
+                                fprintf(f, "(%.10lf  %.10lf  %.10lf %.10lf  %.10lf  %.10lf)\t\t", gprobeValuesUUph[p].xx, gprobeValuesUUph[p].yy, gprobeValuesUUph[p].zz, gprobeValuesUUph[p].xy, gprobeValuesUUph[p].xz, gprobeValuesUUph[p].yz);
+                            }
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+
+                        // write pressure
+                        fileName = rake->timeName + "/phAvgP";
+                        f = fopen(fileName.c_str(), "a");
+
+                        fprintf(f, "\t %.3lf\t\t\t\t\t\t", clock->time);
+                        for(p=0; p<rake->probesNumber; p++)
+                        {
+                            if(rake->domainID[p] != -1)
+                            {
+                                fprintf(f, "%.10lf\t\t", gprobeValuesPph[p]);
+                            }
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+                }
+
+                std::vector<Cmpnts> ().swap(lprobeValuesU);
+                std::vector<Cmpnts> ().swap(gprobeValuesU);
+
+                std::vector<symmTensor> ().swap(lprobeValuesUU);
+                std::vector<symmTensor> ().swap(gprobeValuesUU);
+
+                std::vector<PetscReal> ().swap(lprobeValuesP);
+                std::vector<PetscReal> ().swap(gprobeValuesP);
+
+                std::vector<Cmpnts> ().swap(lprobeValuesUph);
+                std::vector<Cmpnts> ().swap(gprobeValuesUph);
+
+                std::vector<symmTensor> ().swap(lprobeValuesUUph);
+                std::vector<symmTensor> ().swap(gprobeValuesUUph);
+
+                std::vector<PetscReal> ().swap(lprobeValuesPph);
+                std::vector<PetscReal> ().swap(gprobeValuesPph);
+            }
+        }
+    }
+
+    return(0);
 }

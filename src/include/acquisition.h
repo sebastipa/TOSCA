@@ -52,7 +52,7 @@ PetscErrorCode WriteAcquisition(domain_ *domain);
 // ============================================================================================================= //
 
 //! \brief Initializes the array of probe rakes
-PetscErrorCode ProbesInitialize(domain_ *domain);
+PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing=0);
 
 //! \brief Initialize probe rake file
 PetscErrorCode InitRakeFile(probeRake *rake, const char *fieldName);
@@ -111,7 +111,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition);
 //! \brief Compute side force for I/O in cartesian form
 PetscErrorCode computeCanopyForceIO(acquisition_ *acquisition);
 
-//! \brief Compute velocity divergence field for I/O 
+//! \brief Compute velocity divergence field for I/O
 PetscErrorCode computeVelocityDivergence(acquisition_ *acquisition);
 
 // MKE BUDGETS ACQUISITION
