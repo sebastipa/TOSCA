@@ -20,7 +20,7 @@ struct abl_
     PetscReal    hInv;                           //!< inversion height
     PetscReal    dInv;                           //!< inversion width
     PetscReal    gInv;                           //!< delta T across inversion layer
-    PetscReal    gABL;                           //!< temperature gradient below the inversion layer 
+    PetscReal    gABL;                           //!< temperature gradient below the inversion layer
     PetscReal    tRef;                           //!< reference potential temperature
     PetscReal    gTop;                           //!< temperature gradient above the inversion layer
     PetscReal    vkConst;                        //!< von Karman constant
@@ -86,12 +86,16 @@ struct abl_
     // kLeft damping layer
     PetscReal    kLeftPatchDist;                 //!< width of the kLeft Rayleigh damping layer
     PetscReal    kLeftDampingAlpha;              //!< kLeft Rayleigh damping coefficient
-    PetscReal    kLeftDampingUBar;               //!< kLeft bar velocity with respect to which the flow is damped
+    Cmpnts       kLeftDampingUBar;               //!< kLeft bar velocity with respect to which the flow is damped
+    PetscReal    kLeftDampingFilterHeight;       //!< above this height damping is unity (transitions to zero at kLeftDampingFilterHeight - kLeftDampingFilterWidth)
+    PetscReal    kLeftDampingFilterWidth;        //!< width of transition region from no damping to damping
 
     // kRight damping layer
     PetscReal    kRightPatchDist;                 //!< width of the kRight Rayleigh damping layer
     PetscReal    kRightDampingAlpha;              //!< kRight Rayleigh damping coefficient
-    PetscReal    kRightDampingUBar;               //!< kRight bar velocity with respect to which the flow is damped
+    Cmpnts       kRightDampingUBar;               //!< kRight bar velocity with respect to which the flow is damped
+    PetscReal    kRightDampingFilterHeight;       //!< above this height damping is unity (transitions to zero at kRightDampingFilterHeight - kRightDampingFilterWidth)
+    PetscReal    kRightDampingFilterWidth;        //!< width of transition region from no damping to damping
 
     // x damping layer (recycling fringe region)
     PetscReal    xDampingStart;                  //!< starting x of the fringe layer

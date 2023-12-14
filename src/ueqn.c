@@ -2090,6 +2090,12 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 // k Left damping layer
                 if(ueqn->access->flags->isKLeftRayleighDampingActive)
                 {
+                    // compute cell center z at i,j,k and i,j+1,k points
+                    z     = (cent[k][j][i].z   - mesh->bounds.zmin);
+                    zi    = (cent[k][j][i+1].z - mesh->bounds.zmin);
+                    zj    = (cent[k][j+1][i].z - mesh->bounds.zmin);
+                    zk    = (cent[k+1][j][i].z - mesh->bounds.zmin);
+
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     x     = cent[k][j][i].x;
                     xi    = cent[k][j][i+1].x;
@@ -2108,31 +2114,49 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // i-fluxes
                     rhs[k][j][i].x
                     +=
-                    scale * central(nud_x, nudi_x) *
+                    scale * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                     (
-                        (abl->kLeftDampingUBar - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x
+                        (
+                            (abl->kLeftDampingUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                            (abl->kLeftDampingUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                            (abl->kLeftDampingUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                        )
                     );
 
                     // j-fluxes
                     rhs[k][j][i].y
                     +=
-                    scale * central(nud_x, nudj_x) *
+                    scale * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                     (
-                        (abl->kLeftDampingUBar - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x
+                        (
+                            (abl->kLeftDampingUBar.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                            (abl->kLeftDampingUBar.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                            (abl->kLeftDampingUBar.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
+                        )
                     );
 
                     // k-fluxes
                     rhs[k][j][i].z
                     +=
-                    scale * central(nud_x, nudk_x) *
+                    scale * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                     (
-                        (abl->kLeftDampingUBar - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x
+                        (
+                            (abl->kLeftDampingUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                            (abl->kLeftDampingUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                            (abl->kLeftDampingUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                        )
                     );
                 }
 
                 // k Right damping layer
                 if(ueqn->access->flags->isKRightRayleighDampingActive)
                 {
+                    // compute cell center z at i,j,k and i,j+1,k points
+                    z     = (cent[k][j][i].z   - mesh->bounds.zmin);
+                    zi    = (cent[k][j][i+1].z - mesh->bounds.zmin);
+                    zj    = (cent[k][j+1][i].z - mesh->bounds.zmin);
+                    zk    = (cent[k+1][j][i].z - mesh->bounds.zmin);
+
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     x     = cent[k][j][i].x;
                     xi    = cent[k][j][i+1].x;
@@ -2151,25 +2175,37 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // i-fluxes
                     rhs[k][j][i].x
                     +=
-                    scale * central(nud_x, nudi_x) *
+                    scale * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                     (
-                        (abl->kRightDampingUBar - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x
+                        (
+                            (abl->kRightDampingUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                            (abl->kRightDampingUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                            (abl->kRightDampingUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                        )
                     );
 
                     // j-fluxes
                     rhs[k][j][i].y
                     +=
-                    scale * central(nud_x, nudj_x) *
+                    scale * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                     (
-                        (abl->kRightDampingUBar - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x
+                        (
+                            (abl->kRightDampingUBar.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                            (abl->kRightDampingUBar.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                            (abl->kRightDampingUBar.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
+                        )
                     );
 
                     // k-fluxes
                     rhs[k][j][i].z
                     +=
-                    scale * central(nud_x, nudk_x) *
+                    scale * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) * 
                     (
-                        (abl->kRightDampingUBar - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x
+                        (
+                            (abl->kRightDampingUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                            (abl->kRightDampingUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                            (abl->kRightDampingUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                        )
                     );
                 }
             }

@@ -6827,36 +6827,44 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                 if(ueqn->access->flags->isKLeftRayleighDampingActive)
                 {
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    PetscReal x     = cent[k][j][i].x;
+                    PetscReal x     = cent[k][j][i].x,
+                              z     = cent[k][j][i].z - mesh->bounds.zmin;
 
                     PetscReal hs = mesh->bounds.xmin,
                               he = mesh->bounds.xmin+abl->kLeftPatchDist;
 
                     // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     PetscReal nud_kRayleigh   = viscCosDescending(abl->kLeftDampingAlpha, hs, he, x);
+                    PetscReal filter          = scaleHyperTangTop(z, abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth);
 
                     // i-fluxes
                     source[k][j][i].x
                     +=
-                    nud_kRayleigh *
+                    nud_kRayleigh * filter *
                     (
-                        (abl->kLeftDampingUBar - ucat[k][j][i].x) * csi[k][j][i].x
+                        (abl->kLeftDampingUBar.x - ucat[k][j][i].x) * csi[k][j][i].x +
+                        (abl->kLeftDampingUBar.y - ucat[k][j][i].y) * csi[k][j][i].y +
+                        (abl->kLeftDampingUBar.z - ucat[k][j][i].z) * csi[k][j][i].z
                     );
 
                     // j-fluxes
                     source[k][j][i].y
                     +=
-                    nud_kRayleigh *
+                    nud_kRayleigh * filter *
                     (
-                        (abl->kLeftDampingUBar - ucat[k][j][i].x) * eta[k][j][i].x
+                        (abl->kLeftDampingUBar.x - ucat[k][j][i].x) * eta[k][j][i].x +
+                        (abl->kLeftDampingUBar.y - ucat[k][j][i].y) * eta[k][j][i].y +
+                        (abl->kLeftDampingUBar.z - ucat[k][j][i].z) * eta[k][j][i].z
                     );
 
                     // k-fluxes
                     source[k][j][i].z
                     +=
-                    nud_kRayleigh *
+                    nud_kRayleigh * filter *
                     (
-                        (abl->kLeftDampingUBar - ucat[k][j][i].x) * zet[k][j][i].x
+                        (abl->kLeftDampingUBar.x - ucat[k][j][i].x) * zet[k][j][i].x +
+                        (abl->kLeftDampingUBar.y - ucat[k][j][i].y) * zet[k][j][i].y +
+                        (abl->kLeftDampingUBar.z - ucat[k][j][i].z) * zet[k][j][i].z
                     );
                 }
 
@@ -6864,36 +6872,44 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                 if(ueqn->access->flags->isKRightRayleighDampingActive)
                 {
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    PetscReal x     = cent[k][j][i].x;
+                    PetscReal x     = cent[k][j][i].x,
+                              z     = cent[k][j][i].z - mesh->bounds.zmin;
 
                     PetscReal hs = mesh->bounds.xmax-abl->kRightPatchDist,
                               he = mesh->bounds.xmax;
 
                     // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     PetscReal nud_kRayleigh   = viscCosAscending(abl->kRightDampingAlpha, hs, he, x);
+                    PetscReal filter          = scaleHyperTangTop(z, abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth);
 
                     // i-fluxes
                     source[k][j][i].x
                     +=
-                    nud_kRayleigh *
+                    nud_kRayleigh * filter *
                     (
-                        (abl->kRightDampingUBar - ucat[k][j][i].x) * csi[k][j][i].x
+                        (abl->kRightDampingUBar.x - ucat[k][j][i].x) * csi[k][j][i].x +
+                        (abl->kRightDampingUBar.y - ucat[k][j][i].y) * csi[k][j][i].y +
+                        (abl->kRightDampingUBar.z - ucat[k][j][i].z) * csi[k][j][i].z
                     );
 
                     // j-fluxes
                     source[k][j][i].y
                     +=
-                    nud_kRayleigh *
+                    nud_kRayleigh * filter *
                     (
-                        (abl->kRightDampingUBar - ucat[k][j][i].x) * eta[k][j][i].x
+                        (abl->kRightDampingUBar.x - ucat[k][j][i].x) * eta[k][j][i].x +
+                        (abl->kRightDampingUBar.y - ucat[k][j][i].y) * eta[k][j][i].y +
+                        (abl->kRightDampingUBar.z - ucat[k][j][i].z) * eta[k][j][i].z
                     );
 
                     // k-fluxes
                     source[k][j][i].z
                     +=
-                    nud_kRayleigh *
+                    nud_kRayleigh * filter *
                     (
-                        (abl->kRightDampingUBar - ucat[k][j][i].x) * zet[k][j][i].x
+                        (abl->kRightDampingUBar.x - ucat[k][j][i].x) * zet[k][j][i].x +
+                        (abl->kRightDampingUBar.y - ucat[k][j][i].y) * zet[k][j][i].y +
+                        (abl->kRightDampingUBar.z - ucat[k][j][i].z) * zet[k][j][i].z
                     );
                 }
             }

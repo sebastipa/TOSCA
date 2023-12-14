@@ -4180,6 +4180,8 @@ inline void findInterpolationWeigthsWithExtrap(PetscReal *weights, PetscInt *lab
 
 inline PetscReal scaleHyperTangBot(PetscReal h, PetscReal H, PetscReal delta)
 {
+    // the input parameter H is the height at which the function is almost zero.
+    // cb is the center of the smoothing region, i.e. H - 0.5*delta
     PetscReal cb = H - 0.5*delta;
     return
     (
@@ -4194,6 +4196,8 @@ inline PetscReal scaleHyperTangBot(PetscReal h, PetscReal H, PetscReal delta)
 
 inline PetscReal scaleHyperTangTop(PetscReal h, PetscReal H, PetscReal delta)
 {
+    // the input parameter H is the height at which the function is almost one.
+    // cb is the center of the smoothing region, i.e. H - 0.5*delta
     PetscReal cb = H - 0.5*delta;
     return
     (

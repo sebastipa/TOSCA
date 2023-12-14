@@ -1279,7 +1279,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftPatchDist",      &(abl->kLeftPatchDist));
         readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingAlpha",   &(abl->kLeftDampingAlpha));
-        readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingUBar",    &(abl->kLeftDampingUBar));
+        readSubDictVector("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingUBar",    &(abl->kLeftDampingUBar));
+        readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftFilterHeight",   &(abl->kLeftDampingFilterHeight));
+        readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftFilterWidth",    &(abl->kLeftDampingFilterWidth));
     }
 
     // read kRight Rayleigh damping properties
@@ -1289,7 +1291,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightPatchDist",      &(abl->kRightPatchDist));
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingAlpha",   &(abl->kRightDampingAlpha));
-        readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingUBar",    &(abl->kRightDampingUBar));
+        readSubDictVector("ABLProperties.dat", "kRighDampingProperties", "kRightDampingUBar",    &(abl->kRightDampingUBar));
+        readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightFilterHeight",   &(abl->kRightDampingFilterHeight));
+        readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightFilterWidth",    &(abl->kRightDampingFilterWidth));
     }
 
     // read advection damping properties
