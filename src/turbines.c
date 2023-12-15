@@ -260,21 +260,22 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
             gMaxCell = std::pow(gMaxCell, 1.0/3.0);
             gMinCell = std::pow(gMinCell, 1.0/3.0);
 
+
             if(2.0 * wt->rTip < 8.0 * gMaxCell)
             {
-                char error[512];
-                sprintf(error, "turbine diameter (%lf) < 10 mesh cells (%lf), not resolved properly. Revise mesh to improve resolution.\n", 2.0 * wt->rTip, 10.0 * gMaxCell);
-                fatalErrorInFunction("checkTurbineMesh",  error);
+                char warning[512];
+                sprintf(warning, "turbine diameter (%lf) < 10 mesh cells (%lf), not resolved properly. Revise mesh to improve resolution.\n", 2.0 * wt->rTip, 10.0 * gMaxCell);
+                warningInFunction("checkTurbineMesh",  warning);
             }
 
-            //additional checks for Advanced actuator line method 
+            //additional checks for Advanced actuator line method
             if(((*farm->turbineModels[t]) == "ALM"))
             {
                 if(wt->alm.projectionType == "anisotropic")
                 {
-                    //check that there are enough radial elements 
+                    //check that there are enough radial elements
                     PetscReal chdMax, chdMin, chdAvg;
-                    
+
                     chdMax = wt->alm.chord[0];
                     chdMin = wt->alm.chord[wt->alm.nPoints-1];
                     chdAvg = 0.5 * (chdMax + chdMin);
@@ -289,10 +290,10 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
                     {
                         char error[512];
                         sprintf(error, "Not enough radial elements in the Actuator line mesh. Increase the radial resolution to have atleast %ld points\n", nRadial);
-                        fatalErrorInFunction("checkTurbineMesh",  error); 
-                    } 
+                        fatalErrorInFunction("checkTurbineMesh",  error);
+                    }
 
-                    //check the mesh size with respect to the projection radius 
+                    //check the mesh size with respect to the projection radius
                                     // number of points in the AL mesh
                     PetscInt npts_t = wt->alm.nPoints;
 
@@ -375,7 +376,7 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
                     std::vector<PetscReal> ().swap(lminDist);
                     std::vector<PetscReal> ().swap(gminDist);
                     std::vector<Cmpnts> ().swap(perturb);
-                    
+
                     // loop over the AL mesh points
                     for(p=0; p<npts_t; p++)
                     {
@@ -391,28 +392,27 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
                             PetscInt nRadial = PetscInt(0.8 * wt->alm.nRadial);
 
                             PetscInt radPt = PetscInt (p /wt->alm.nAzimuth);
-                            
+
                             PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
 
                             PetscReal eps_x =     wt->alm.chord[p]*wt->eps_x,
                                       eps_y =     wt->alm.thick[p]*wt->eps_y,
                                       eps_z =     drval * wt->eps_z;
 
-                            PetscPrintf(PETSC_COMM_SELF, "radial point = %ld, nRadial = %ld, eps_x = %lf \n", radPt, nRadial, eps_x);
-                            // excluding the tip points for this check 
+                            // excluding the tip points for this check
                             if(radPt <= nRadial)
                             {
                                 if(eps_x < 1.2 * cellsize)
                                 {
                                     char error[512];
                                     sprintf(error, "Fluid Mesh size not optimal for AALM simulation. At radial distance %lf m (%0.2lf %%) from blade root, %lf * chordLength (%lf) < 1.5 * cell size (%lf). Refine mesh or increase epsilonFactor_x (Note: epsilonFactor_x optimal <= 1)\n", drval * radPt, drval * radPt * 100/(wt->rTip - wt->rHub), wt->eps_x, wt->alm.chord[p], cellsize);
-                                    fatalErrorInFunction("checkTurbineMesh",  error); 
+                                    fatalErrorInFunction("checkTurbineMesh",  error);
                                 }
                             }
                         }
                     }
                 }
-            }           
+            }
 
         }
     }
@@ -1274,7 +1274,7 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
     PetscInt         t, c, p;
 
-    Cmpnts           ***cent;  
+    Cmpnts           ***cent;
 
     PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
     PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
@@ -1673,7 +1673,7 @@ PetscErrorCode findControlledPointsSample(farm_ *farm)
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
     PetscInt         t, c, p;
 
-    Cmpnts           ***cent;  
+    Cmpnts           ***cent;
 
     PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
     PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
@@ -2648,7 +2648,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                             {
                                 mSum(lWind[p], nScale(pf/aj[k][j][i], ucat[k][j][i]));
                             }
-                        } 
+                        }
                     }
 
                     MPI_Allreduce(&(lWind[0]), &(wt->alm.gWind[0]), wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
@@ -2672,7 +2672,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                     }
                 }
 
-                
+
                 // clean memory
                 std::vector<Cmpnts> ().swap(lU);
                 std::vector<Cmpnts> ().swap(lWind);
@@ -6845,7 +6845,7 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
         fatalErrorInFunction("initALM",  error);
     }
 
-    //read projection radius 
+    //read projection radius
     if(wt->alm.projectionType=="anisotropic")
     {
         readDictDouble(descrFile.c_str(), "epsilonFactor_x",     &(wt->eps_x));
@@ -7253,24 +7253,24 @@ PetscErrorCode initControlledCells(farm_ *farm)
                 if(wt->alm.projectionType == "anisotropic")
                 {
                     PetscReal drval = (wt->rTip - wt->rHub) / (wt->adm.nRadial - 1);
-                    
+
                     PetscReal   eps_x =     wt->alm.chord[0] * wt->eps_x,
                                 eps_y =     wt->alm.thick[0 ]* wt->eps_y,
                                 eps_z =     wt->eps * drval;
 
-                    PetscReal eps = PetscMax( PetscMax( eps_x, eps_y ), eps_z );  
+                    PetscReal eps = PetscMax( PetscMax( eps_x, eps_y ), eps_z );
 
                     radius_t = wt->rTip +  eps * wt->prjNSigma;
-                } 
-                else 
+                }
+                else
                 {
                     radius_t = wt->rTip +  wt->eps * wt->prjNSigma;
-                }                
+                }
             }
-            else 
+            else
             {
                 radius_t = wt->rTip +  wt->eps * wt->prjNSigma;
-            }          
+            }
         }
         else
         {

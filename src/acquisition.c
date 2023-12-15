@@ -5847,45 +5847,6 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
 
         PetscMPIInt rank;
 
-        // create folders
-        for(r=0; r<probes->nRakes; r++)
-        {
-            // get this processor rank in the global communicator
-            MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
-
-            //create probe folder directory tree using only the rank 0 processor
-            if(!rank)
-            {
-                // create rake folder
-                errno = 0;
-                word rakeFolderName = "./postProcessing/" + probes->rakes[r].rakeName;
-                PetscInt dirRes = mkdir(rakeFolderName.c_str(), 0777);
-                if(dirRes != 0 && errno != EEXIST)
-                {
-                   char error[512];
-                    sprintf(error, "could not create %s directory\n", rakeFolderName.c_str());
-                    fatalErrorInFunction("ProbesInitialize",  error);
-                }
-                else
-                {
-                    // create time folder
-                    errno = 0;
-                    dirRes = mkdir(probes->rakes[r].timeName.c_str(), 0777);
-                    if(dirRes != 0 && errno != EEXIST)
-                    {
-                       char error[512];
-                        sprintf(error, "could not create %s directory\n", probes->rakes[r].timeName.c_str());
-                        fatalErrorInFunction("ProbesInitialize",  error);
-                    }
-                    // if the time name exists remove everything inside
-                    else if(errno == EEXIST)
-                    {
-                        remove_subdirs(probes->rakes[r].RAKE_COMM, probes->rakes[r].timeName.c_str());
-                    }
-                }
-            }
-        }
-
         // initialize probe files in the created folders using the base processor of that probe
         for(r=0; r<probes->nRakes; r++)
         {
@@ -5895,43 +5856,71 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
 
                 if(!rank)
                 {
-                    if(postProcessing)
+					// create rake folder
+                    errno = 0;
+                    word rakeFolderName = "./postProcessing/" + probes->rakes[r].rakeName;
+                    PetscInt dirRes = mkdir(rakeFolderName.c_str(), 0777);
+                    if(dirRes != 0 && errno != EEXIST)
                     {
-                        if(domain[0].access.io->averaging)
-                        {
-                            // initialize average velocity file
-                            InitRakeFile(&(probes->rakes[r]), "avgU");
-
-                            // initialize average shear stress file
-                            InitRakeFile(&(probes->rakes[r]), "avgUU");
-
-                            // initialize average pressure file
-                            InitRakeFile(&(probes->rakes[r]), "avgP");
-                        }
-
-                        if(domain[0].access.io->phaseAveraging)
-                        {
-                            // initialize average velocity file
-                            InitRakeFile(&(probes->rakes[r]), "phAvgU");
-
-                            // initialize average shear stress file
-                            InitRakeFile(&(probes->rakes[r]), "phAvgUU");
-
-                            // initialize average pressure file
-                            InitRakeFile(&(probes->rakes[r]), "phAvgP");
-                        }
+                       char error[512];
+                        sprintf(error, "could not create %s directory\n", rakeFolderName.c_str());
+                        fatalErrorInFunction("ProbesInitialize",  error);
                     }
                     else
                     {
-                        // initialize velocity file
-                        if(probes->rakes[r].Uflag) InitRakeFile(&(probes->rakes[r]), "U");
+                        // create time folder
+                        errno = 0;
+                        dirRes = mkdir(probes->rakes[r].timeName.c_str(), 0777);
+                        if(dirRes != 0 && errno != EEXIST)
+                        {
+                           char error[512];
+                            sprintf(error, "could not create %s directory\n", probes->rakes[r].timeName.c_str());
+                            fatalErrorInFunction("ProbesInitialize",  error);
+                        }
+                        // if the time name exists remove everything inside
+                        else if(errno == EEXIST)
+                        {
+                            remove_subdirs(probes->rakes[r].RAKE_COMM, probes->rakes[r].timeName.c_str());
+                        }
+					
+						if(postProcessing)
+						{
+							if(domain[0].access.io->averaging)
+							{
+								// initialize average velocity file
+								InitRakeFile(&(probes->rakes[r]), "avgU");
 
-                        // initialize temperature file
-                        if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
+								// initialize average shear stress file
+								InitRakeFile(&(probes->rakes[r]), "avgUU");
 
-                        // initialize pressure file
-                        if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
-                    }
+								// initialize average pressure file
+								InitRakeFile(&(probes->rakes[r]), "avgP");
+							}
+
+							if(domain[0].access.io->phaseAveraging)
+							{
+								// initialize average velocity file
+								InitRakeFile(&(probes->rakes[r]), "phAvgU");
+
+								// initialize average shear stress file
+								InitRakeFile(&(probes->rakes[r]), "phAvgUU");
+
+								// initialize average pressure file
+								InitRakeFile(&(probes->rakes[r]), "phAvgP");
+							}
+						}
+						else
+						{
+							// initialize velocity file
+							if(probes->rakes[r].Uflag) InitRakeFile(&(probes->rakes[r]), "U");
+
+							// initialize temperature file
+							if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
+
+							// initialize pressure file
+							if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
+						}
+					}
 
                 }
 
@@ -6032,8 +6021,8 @@ PetscErrorCode InitRakeFile(probeRake *rake, const char *fieldName)
 
     if(!f)
     {
-       char error[530];
-        sprintf(error, "cannot open file %s\n", fileName);
+        char error[530];
+        sprintf(error, "cannot open file %s. Errno = %d (%s)\n", fileName, errno, strerror(errno));
         fatalErrorInFunction("ProbesInitialize",  error);
     }
 
