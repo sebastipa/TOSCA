@@ -235,7 +235,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
     else if (ueqn->initFieldType == "spreadInflow")
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
-        SpreadInletFlowU(ueqn);
+		SpreadInletFlowU(ueqn);
     }
     else
     {
@@ -844,6 +844,7 @@ PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
         // clear the vector indices
         std::vector<std::vector<Cmpnts>> ().swap(lpatchField);
         std::vector<std::vector<Cmpnts>> ().swap(gpatchField);
+		
     }
     else if
     (

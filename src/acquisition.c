@@ -5877,10 +5877,13 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
                             sprintf(error, "could not create %s directory\n", probes->rakes[r].timeName.c_str());
                             fatalErrorInFunction("ProbesInitialize",  error);
                         }
-                        // if the time name exists remove everything inside
+                        // if the time name exists remove everything inside (not in post processing stage)
                         else if(errno == EEXIST)
                         {
-                            remove_subdirs(probes->rakes[r].RAKE_COMM, probes->rakes[r].timeName.c_str());
+							if(!postProcessing)
+							{
+								remove_subdirs(probes->rakes[r].RAKE_COMM, probes->rakes[r].timeName.c_str());
+							}
                         }
 					
 						if(postProcessing)

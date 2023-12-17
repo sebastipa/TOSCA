@@ -399,6 +399,7 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
                                       eps_y =     wt->alm.thick[p]*wt->eps_y,
                                       eps_z =     drval * wt->eps_z;
 
+                            PetscPrintf(PETSC_COMM_SELF, "radial point = %ld, nRadial = %ld, eps_x = %lf \n", radPt, nRadial, eps_x);
                             // excluding the tip points for this check
                             if(radPt <= nRadial)
                             {
