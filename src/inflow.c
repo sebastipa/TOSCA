@@ -881,6 +881,10 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     sprintf(error, "inletFunction type 2 requires the same hInv if active in both U and T");
                     fatalErrorInFunction("SetInflowFunctions",  error);
                 }
+                else 
+                {
+                    ifPtr->hInv = hInv;
+                }
             }
 
             PetscPrintf(mesh->MESH_COMM, "done\n\n");

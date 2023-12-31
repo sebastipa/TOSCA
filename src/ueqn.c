@@ -420,7 +420,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 			abl->geoDampAvgS  = nSum(nScale(m1, abl->geoDampAvgS), nScale(m2, Sc));
             abl->geoDampUBar  = nSetFromComponents(abl->geoDampAvgS.y / (2.0 * abl->fc * abl->geoDampAvgDT), -1.0 * abl->geoDampAvgS.x / (2.0 * abl->fc * abl->geoDampAvgDT), 0.0);
 
-            if(print) PetscPrintf(mesh->MESH_COMM, "                         Filtered geostrophi wind Ug = (%.3lf, %.3lf, 0.00)\n", abl->geoDampUBar.x, abl->geoDampUBar.y);
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         Filtered geostrophic wind Ug = (%.3lf, %.3lf, 0.00)\n", abl->geoDampUBar.x, abl->geoDampUBar.y);
 
             // set damping flag
             if(clock->time > abl->geoDampStart)

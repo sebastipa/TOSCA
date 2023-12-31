@@ -274,22 +274,27 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
                 if(wt->alm.projectionType == "anisotropic")
                 {
                     //check that there are enough radial elements
-                    PetscReal chdMax, chdMin, chdAvg;
+                    PetscReal cellAvg;
 
-                    chdMax = wt->alm.chord[0];
-                    chdMin = wt->alm.chord[wt->alm.nPoints-1];
-                    chdAvg = 0.5 * (chdMax + chdMin);
+                    cellAvg = 0.5 * (gMaxCell + gMinCell);
 
                     PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
 
-                    PetscReal drvalOpt = 0.48 *  chdAvg;
+                    PetscReal drvalOpt = 2.0 *  cellAvg;
 
                     PetscInt nRadial = PetscInt((wt->rTip - wt->rHub)/drvalOpt) + 1;
 
-                    if(drval > 0.5*chdAvg)
+                    if(drval > drvalOpt)
                     {
                         char error[512];
-                        sprintf(error, "Not enough radial elements in the Actuator line mesh. Increase the radial resolution to have atleast %ld points\n", nRadial);
+                        sprintf(error, "Not enough radial elements in the Actuator line mesh. Increase the radial resolution to have %ld points\n", nRadial);
+                        fatalErrorInFunction("checkTurbineMesh",  error);
+                    }
+
+                    if(drval < gMinCell)
+                    {
+                        char error[512];
+                        sprintf(error, "Too many radial elements. Radial element size smaller than mesh size. Decrease the radial resolution to have %ld points\n", nRadial);
                         fatalErrorInFunction("checkTurbineMesh",  error);
                     }
 
@@ -2609,19 +2614,30 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                             if(projectionType==1)
                             {
 
-                                // radial mesh cell size size
-                                PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
-
                                 // get projection epsilon
                                 PetscReal eps_x =     wt->alm.chord[p] * wt->eps_x,
                                           eps_y =     wt->alm.thick[p] * wt->eps_y,
-                                          eps_z =     drval * wt->eps_z;
+                                          eps_z =     0.5 * wt->alm.chord[p];
+
+                                // apply wind farm control
+                                PetscReal wfControlPitch = 0.0;
+
+                                // apply wind farm controller
+                                if(farm->farmControlActive[t])
+                                {
+                                   wfControlPitch = wt->wfControlCollPitch;
+                                }
 
                                 // form a reference blade starting from the
                                 // bladed frame, but rotate x and y around z by
                                 // the twist angle
-                                Cmpnts xb_af_hat = nRot(zb_hat, xb_hat,  wt->alm.twist[p]*wt->deg2rad);
-                                Cmpnts yb_af_hat = nRot(zb_hat, yb_hat,  wt->alm.twist[p]*wt->deg2rad);
+
+                                PetscReal sectionAngle = wt->alm.twist[p]*wt->deg2rad + wt->collPitch + wfControlPitch;
+
+                                sectionAngle = M_PI/2.0 - sectionAngle;
+
+                                Cmpnts xb_af_hat = nRot(zb_hat, xb_hat,  sectionAngle);
+                                Cmpnts yb_af_hat = nRot(zb_hat, yb_hat,  sectionAngle);
 
                                 PetscReal rcx = nDot(r_c,xb_af_hat),
                                           rcy = nDot(r_c,yb_af_hat),
@@ -4024,15 +4040,29 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                                 PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
 
                                 // get projection epsilon
-                                PetscReal eps_x =     wt->alm.chord[p]*wt->eps_x,
-                                          eps_y =     wt->alm.thick[p]*wt->eps_y,
+                                PetscReal eps_x =     wt->alm.chord[p] * wt->eps_x,
+                                          eps_y =     wt->alm.thick[p] * wt->eps_y,
                                           eps_z =     drval * wt->eps_z;
+
+                                // apply wind farm control
+                                PetscReal wfControlPitch = 0.0;
+
+                                // apply wind farm controller
+                                if(farm->farmControlActive[t])
+                                {
+                                   wfControlPitch = wt->wfControlCollPitch;
+                                }
 
                                 // form a reference blade starting from the
                                 // bladed frame, but rotate x and y around z by
                                 // the twist angle
-                                Cmpnts xb_af_hat = nRot(zb_hat, xb_hat,  wt->alm.twist[p]*wt->deg2rad);
-                                Cmpnts yb_af_hat = nRot(zb_hat, yb_hat,  wt->alm.twist[p]*wt->deg2rad);
+
+                                PetscReal sectionAngle = wt->alm.twist[p]*wt->deg2rad + wt->collPitch + wfControlPitch;
+
+                                sectionAngle = M_PI/2.0 - sectionAngle;
+
+                                Cmpnts xb_af_hat = nRot(zb_hat, xb_hat,  sectionAngle);
+                                Cmpnts yb_af_hat = nRot(zb_hat, yb_hat,  sectionAngle);
 
                                 PetscReal rcx = nDot(r_c,xb_af_hat),
                                           rcy = nDot(r_c,yb_af_hat),
@@ -7253,13 +7283,12 @@ PetscErrorCode initControlledCells(farm_ *farm)
             {
                 if(wt->alm.projectionType == "anisotropic")
                 {
-                    PetscReal drval = (wt->rTip - wt->rHub) / (wt->adm.nRadial - 1);
 
                     PetscReal   eps_x =     wt->alm.chord[0] * wt->eps_x,
-                                eps_y =     wt->alm.thick[0 ]* wt->eps_y,
-                                eps_z =     wt->eps * drval;
+                                eps_y =     wt->alm.thick[0 ]* wt->eps_y;
 
-                    PetscReal eps = PetscMax( PetscMax( eps_x, eps_y ), eps_z );
+                    
+                    PetscReal eps = PetscMax( eps_x, eps_y );
 
                     radius_t = wt->rTip +  eps * wt->prjNSigma;
                 }
