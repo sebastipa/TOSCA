@@ -2477,58 +2477,6 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
 
                     MPI_Allreduce(&(lU[0]),  &(wt->alm.U[0]),  wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
                     MPI_Allreduce(&(lWind[0]), &(wt->alm.gWind[0]), wt->alm.nPoints*3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
-
-                    PetscReal rtrAvgMagU = 0.0;
-                    PetscReal areaSum    = 0.0;
-
-                    // loop over the AL mesh points
-                    for(p=0; p<npts_t; p++)
-                    {
-                        // save this point locally for speed
-                        Cmpnts point_p = wt->alm.points[p];
-
-                        // this point position from COR
-                        Cmpnts r_p  = nSub(point_p, wt->rotCenter);
-
-                        // build the blade reference frame based on rotation type:
-                        // 1. if counter-clockwise: z from tip to root,
-                        //    x as rotor axis from nacelle cone to back,
-                        //    y blade tangent, directed as wind due to rotation that blade sees.
-                        // 2. if clockwise: z from root to tip,
-                        //    x as rotor axis from nacelle cone to back,
-                        //    y blade tangent, directed as wind due to rotation that blade sees.
-                        // This is done in order to have the wind vector lying in the positive
-                        // quadrant in each case (it is a standard practice).
-
-                        Cmpnts xb_hat, yb_hat, zb_hat;
-
-                        if(wt->rotDir == "cw")
-                        {
-                            zb_hat = nUnit(r_p);
-                            xb_hat = nScale(-1.0, wt->rtrAxis);
-                            yb_hat = nCross(zb_hat, xb_hat);
-                        }
-                        else if(wt->rotDir == "ccw")
-                        {
-                            zb_hat = nUnit(r_p);
-                                    mScale(-1.0, zb_hat);
-                            xb_hat = nScale(-1.0, wt->rtrAxis);
-                            yb_hat = nCross(zb_hat, xb_hat);
-                        }
-
-                        // transform the velocity in the bladed reference frame and
-                        // remove radial (z) component
-                        PetscReal ub_x = nDot(wt->alm.gWind[p], xb_hat);
-                        PetscReal ub_y = nDot(wt->alm.gWind[p], yb_hat);
-
-                        PetscReal dA   = wt->alm.dr[p] * wt->alm.chord[p];
-
-                        rtrAvgMagU += sqrt(ub_x*ub_x + ub_y*ub_y) * dA;
-
-                        areaSum += dA;
-                    }
-
-                    wt->alm.rtrAvgMagU = rtrAvgMagU / areaSum;
                 }
 
                 else if(wt->alm.sampleType == "integral")
@@ -2689,6 +2637,57 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                     }
                 }
 
+                PetscReal rtrAvgMagU = 0.0;
+                PetscReal areaSum    = 0.0;
+
+                // loop over the AL mesh points
+                for(p=0; p<npts_t; p++)
+                {
+                    // save this point locally for speed
+                    Cmpnts point_p = wt->alm.points[p];
+
+                    // this point position from COR
+                    Cmpnts r_p  = nSub(point_p, wt->rotCenter);
+
+                    // build the blade reference frame based on rotation type:
+                    // 1. if counter-clockwise: z from tip to root,
+                    //    x as rotor axis from nacelle cone to back,
+                    //    y blade tangent, directed as wind due to rotation that blade sees.
+                    // 2. if clockwise: z from root to tip,
+                    //    x as rotor axis from nacelle cone to back,
+                    //    y blade tangent, directed as wind due to rotation that blade sees.
+                    // This is done in order to have the wind vector lying in the positive
+                    // quadrant in each case (it is a standard practice).
+
+                    Cmpnts xb_hat, yb_hat, zb_hat;
+
+                    if(wt->rotDir == "cw")
+                    {
+                        zb_hat = nUnit(r_p);
+                        xb_hat = nScale(-1.0, wt->rtrAxis);
+                        yb_hat = nCross(zb_hat, xb_hat);
+                    }
+                    else if(wt->rotDir == "ccw")
+                    {
+                        zb_hat = nUnit(r_p);
+                                mScale(-1.0, zb_hat);
+                        xb_hat = nScale(-1.0, wt->rtrAxis);
+                        yb_hat = nCross(zb_hat, xb_hat);
+                    }
+
+                    // transform the velocity in the bladed reference frame and
+                    // remove radial (z) component
+                    PetscReal ub_x = nDot(wt->alm.gWind[p], xb_hat);
+                    PetscReal ub_y = nDot(wt->alm.gWind[p], yb_hat);
+
+                    PetscReal dA   = wt->alm.dr[p] * wt->alm.chord[p];
+
+                    rtrAvgMagU += sqrt(ub_x*ub_x + ub_y*ub_y) * dA;
+
+                    areaSum += dA;
+                }
+
+                wt->alm.rtrAvgMagU = rtrAvgMagU / areaSum;
 
                 // clean memory
                 std::vector<Cmpnts> ().swap(lU);

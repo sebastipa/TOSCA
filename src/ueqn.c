@@ -4371,7 +4371,14 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     {
                         if(ueqn->access->ibm->wallShearOn)
                         {
-                            visc1[k][j][i] = nSet(viscIBM1[k][j][i]);
+                            if(isIBMFluidCell(k, j, i, nvert))
+                            {
+                                visc1[k][j][i] = nSet(viscIBM1[k][j][i]);
+                            }
+                            else if(isIBMFluidCell(k, j, i+1, nvert))
+                            {
+                                visc1[k][j][i] = nSet(viscIBM1[k][j][i+1]);
+                            }
 
                             nuEff = 0;
                         }
@@ -4609,8 +4616,16 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     {
                         if(ueqn->access->ibm->wallShearOn)
                         {
-                            visc2[k][j][i] = nSet(viscIBM2[k][j][i]);
 
+                            if(isIBMFluidCell(k, j, i, nvert))
+                            {
+                                visc2[k][j][i] = nSet(viscIBM2[k][j][i]);
+                            }
+                            else if(isIBMFluidCell(k, j+1, i, nvert))
+                            {
+                                visc2[k][j][i] = nSet(viscIBM2[k][j+1][i]);
+                            }
+                           
                             nuEff = 0;
                         }
                         else
@@ -4837,6 +4852,15 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         if(ueqn->access->ibm->wallShearOn)
                         {
                             visc3[k][j][i] = nSet(viscIBM3[k][j][i]);
+
+                            if(isIBMFluidCell(k, j, i, nvert))
+                            {
+                                visc3[k][j][i] = nSet(viscIBM3[k][j][i]);
+                            }
+                            else if(isIBMFluidCell(k+1, j, i, nvert))
+                            {
+                                visc3[k][j][i] = nSet(viscIBM3[k+1][j][i]);
+                            }
 
                             nuEff = 0;
                         }
@@ -5311,6 +5335,11 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
 
     // transform to cartesian
     contravariantToCartesian(ueqn);
+
+    if(ueqn->access->flags->isIBMActive)
+    {
+        UpdateImmersedBCs(ueqn->access->ibm);
+    }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");

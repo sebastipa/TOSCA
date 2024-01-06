@@ -369,6 +369,9 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm);
 //! \brief compute shear stress at faces close to the IBM
 PetscErrorCode findIBMWallShear(ibm_ *ibm);
 
+//! \brief compute shear stress at faces close to the IBM
+PetscErrorCode findIBMWallShearChester(ibm_ *ibm);
+
 // check if a given body exists in the mesh based on the IBMProperties.dat file
 PetscErrorCode checkIBMexists(ibm_ *ibm);
 

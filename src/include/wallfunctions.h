@@ -31,6 +31,13 @@ void      slipBC(PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, C
 void      wallFunctionSchumann(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal roughness,
                                     PetscReal kappa, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
 
+void      wallShearVelocityBC(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal roughness,
+                                    PetscReal kappa, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
+
+void      wallShearVelocityBCQuadratic(PetscReal nu,  PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
+                                    PetscReal kappa, Cmpnts Ua, Cmpnts Ud, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
+
+                                    
 void uStarShumann
 (
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &roughness,
