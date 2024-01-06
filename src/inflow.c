@@ -1733,12 +1733,12 @@ PetscErrorCode readInflowU(inletFunctionTypes *ifPtr, clock_ *clock)
     // update closest indices
     ifPtr->inflowU.currentCloseIdx   = idx_1;
 
-	MPI_Barrier(PETSC_COMM_WORLD);
+	MPI_Barrier(mesh->MESH_COMM);
 
     // print information
-    // PetscPrintf(PETSC_COMM_WORLD, "Selected for reading inflow: Time = %lf, Elapsed Time = %lf s\n", w1 * ifPtr->inflowU.inflowTimes[idx_1] + w2 * ifPtr->inflowU.inflowTimes[idx_2], te-ts);
-    // PetscPrintf(PETSC_COMM_WORLD, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
-    // PetscPrintf(PETSC_COMM_WORLD, "                         closest avail. times : t1 = %lf, t2 = %lf\n", ifPtr->inflowU.inflowTimes[idx_1], ifPtr->inflowU.inflowTimes[idx_2]);
+    // PetscPrintf(mesh->MESH_COMM, "Selected for reading inflow: Time = %lf, Elapsed Time = %lf s\n", w1 * ifPtr->inflowU.inflowTimes[idx_1] + w2 * ifPtr->inflowU.inflowTimes[idx_2], te-ts);
+    // PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+    // PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", ifPtr->inflowU.inflowTimes[idx_1], ifPtr->inflowU.inflowTimes[idx_2]);
 
 	// set i-periodicity
 	for (j=0; j<m1; j++)
