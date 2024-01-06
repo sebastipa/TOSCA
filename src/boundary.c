@@ -4042,6 +4042,11 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                     ucz = (lucat[k][j][i].z + lucat[k][j][i+1].z) * 0.5;
 
                     ucont[k][j][i].x = (ucx * icsi[k][j][i].x + ucy * icsi[k][j][i].y + ucz * icsi[k][j][i].z);
+                    
+                    if(ibm->wallShearOn)
+                    {
+                        ucont[k][j][i].x = 0;
+                    }
                 }
 
                 if (isIBMFluidJFace(k, j, i, j+1, nvert))
@@ -4051,6 +4056,11 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                     ucz = (lucat[k][j+1][i].z + lucat[k][j][i].z) * 0.5;
 
                     ucont[k][j][i].y = (ucx * jeta[k][j][i].x + ucy * jeta[k][j][i].y + ucz * jeta[k][j][i].z);
+
+                    if(ibm->wallShearOn)
+                    {
+                        ucont[k][j][i].y = 0;
+                    }
                 }
 
                 if (isIBMFluidKFace(k, j, i, k+1, nvert))
@@ -4060,6 +4070,11 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                     ucz = (lucat[k+1][j][i].z + lucat[k][j][i].z) * 0.5;
 
                     ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z);
+
+                    if(ibm->wallShearOn)
+                    {
+                        ucont[k][j][i].z = 0;
+                    }
                 }
 
                 if(isIBMSolidIFace(k, j, i, i+1, nvert))
@@ -4081,6 +4096,8 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                 {
                   mSetValue(ucat[k][j][i], 0);
                 }
+
+
             }
         }
     }

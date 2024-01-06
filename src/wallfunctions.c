@@ -565,10 +565,6 @@ void wallFunctionCabot(PetscReal nu, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpn
     (*Ub).y += Ua.y;
     (*Ub).z += Ua.z;
 
-    // (*Ub).x = (sb/sc) * Uc.x + (1.0 - (sb/sc)) * Ua.x;
-    // (*Ub).y= (sb/sc) * Uc.y + (1.0 - (sb/sc)) * Ua.y;
-    // (*Ub).z = (sb/sc) * Uc.z + (1.0 - (sb/sc)) * Ua.z;
-
     return;
 }
 
@@ -601,15 +597,11 @@ void wallFunctionCabotRoughness(PetscReal nu, PetscReal ks, PetscReal sc, PetscR
 	(*Ub).y += Ua.y;
 	(*Ub).z += Ua.z;
 
-    // (*Ub).x = (sb/sc) * Uc.x + (1.0 - (sb/sc)) * Ua.x;
-    // (*Ub).y= (sb/sc) * Uc.y + (1.0 - (sb/sc)) * Ua.y;
-    // (*Ub).z = (sb/sc) * Uc.z + (1.0 - (sb/sc)) * Ua.z;
-
-
     return;
 }
 
 //***************************************************************************************************************//
+
 // Wall function based on the log law model
 void wallFunctionSchumann(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal roughness,
     PetscReal kappa, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
@@ -625,22 +617,77 @@ void wallFunctionSchumann(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal ro
 
     *ustar = ut_mag * kappa / log(sc/roughness);
 
-    // ut_magb = (*ustar/kappa) * log(sb/roughness);
+    ut_magb = (*ustar/kappa) * log(sb/roughness);
 
-    // if (ut_magb < 1.e-10)
-    // {
-    //     ut_magb = 0.0;
-    // }
+    if (ut_magb < 1.e-10)
+    {
+        ut_magb = 0.0;
+    }
+    
+    ut_b  = nScale(ut_magb, et);
+    
+    (*Ub) = nSum(ut_b, nScale( (sb/sc), unc));
+    
+    mSum(*Ub, Ua);
 
-    // ut_b  = nScale(ut_magb, et);
+    return;
+}
 
-    // (*Ub) = nSum(ut_b, nScale( (sb/sc), unc));
+//***************************************************************************************************************//
+// velocity set to match the background fluid velocity.
+void wallShearVelocityBC(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal roughness,
+    PetscReal kappa, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
+{
+    Cmpnts    u_c = nSub(Uc, Ua);
+    Cmpnts    unc  = nScale(nDot(u_c, nf), nf);
+    Cmpnts    utc  = nSub(u_c, unc);
+    Cmpnts    ut_b;
 
-    // mSum(*Ub, Ua);
+    Cmpnts    et  = nUnit(utc);
 
-    (*Ub).x = (sb/sc) * Uc.x + (1.0 - (sb/sc)) * Ua.x;
-    (*Ub).y= (sb/sc) * Uc.y + (1.0 - (sb/sc)) * Ua.y;
-    (*Ub).z = (sb/sc) * Uc.z + (1.0 - (sb/sc)) * Ua.z;
+    PetscReal ut_mag = nMag(utc);
+
+    *ustar = ut_mag * kappa / log(sc/roughness);
+
+    (*Ub) = nSum(utc, nScale( (sb/sc), unc));
+
+	(*Ub).x = (*Ub).x + Ua.x;
+	(*Ub).y = (*Ub).y + Ua.y;
+	(*Ub).z = (*Ub).z + Ua.z;
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+void wallShearVelocityBCQuadratic(PetscReal nu,  PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
+    PetscReal kappa, Cmpnts Ua, Cmpnts Ud, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
+{
+    Cmpnts    u_c = nSub(Uc, Ua);
+    Cmpnts    unc  = nScale(nDot(u_c, nf), nf);
+    Cmpnts    utc  = nSub(u_c, unc);
+
+    Cmpnts    u_d = nSub(Ud, Ua);
+    Cmpnts    und  = nScale(nDot(u_d, nf), nf);
+    Cmpnts    utd  = nSub(u_d, und);    
+    Cmpnts    ut_b;
+
+    Cmpnts    et  = nUnit(utc);
+
+    PetscReal ut_mag = nMag(utc);
+    PetscReal coeff  = (sc - sb)/(sd - sc);
+
+    *ustar = ut_mag * kappa / log(sc/roughness);
+
+    ut_b.x = utc.x - coeff * (utd.x - utc.x);
+    ut_b.y = utc.y - coeff * (utd.y - utc.y);
+    ut_b.z = utc.z - coeff * (utd.z - utc.z);
+
+    (*Ub) = nSum(ut_b, nScale( (sb/sc), unc));
+
+	(*Ub).x = (*Ub).x + Ua.x;
+	(*Ub).y = (*Ub).y + Ua.y;
+	(*Ub).z = (*Ub).z + Ua.z;
 
     return;
 }
@@ -789,8 +836,9 @@ void wallFunctionPowerlawAPG(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal
 
     (*Ub) = nSum(ut_b, nScale( (sb/sc), un));
 
-    mSum(*Ub, Ua);
-
+    (*Ub).x += Ua.x;
+	(*Ub).y += Ua.y;
+	(*Ub).z += Ua.z;
     return;
 }
 
@@ -909,7 +957,9 @@ void wallFunctionLogLawAPG(PetscReal nu, PetscReal sc, PetscReal sb, PetscReal r
 
     (*Ub) = nSum(ut_b, nScale( (sb/sc), un));
 
-    mSum(*Ub, Ua);
+    (*Ub).x += Ua.x;
+	(*Ub).y += Ua.y;
+	(*Ub).z += Ua.z;
 
     return;
 }
@@ -923,7 +973,9 @@ void slipBC(PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpnts Uc, Cmpnts *Ub, Cmpnts
 
     *Ub = nSum(ut, nScale(sb/sc, un));
 
-    mSum(*Ub, Ua);
+    (*Ub).x += Ua.x;
+	(*Ub).y += Ua.y;
+	(*Ub).z += Ua.z;
 
 	return;
 }

@@ -1733,7 +1733,7 @@ PetscErrorCode readInflowU(inletFunctionTypes *ifPtr, clock_ *clock)
     // update closest indices
     ifPtr->inflowU.currentCloseIdx   = idx_1;
 
-	MPI_Barrier(mesh->MESH_COMM);
+	// MPI_Barrier(mesh->MESH_COMM);
 
     // print information
     // PetscPrintf(mesh->MESH_COMM, "Selected for reading inflow: Time = %lf, Elapsed Time = %lf s\n", w1 * ifPtr->inflowU.inflowTimes[idx_1] + w2 * ifPtr->inflowU.inflowTimes[idx_2], te-ts);
