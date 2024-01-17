@@ -2800,6 +2800,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                     {
                         wt->afm.U = nSum(nScale(a, wt->afm.U), nScale(1.0-a, gU));
                     }
+
                 }
                 else if (wt->afm.sampleType == "integral")
                 {
@@ -2842,6 +2843,18 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                     MPI_Allreduce(&lU, &gU, 3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
 
                     wt->afm.U = nSet(gU);
+
+                    PetscReal a = std::exp(-clock->dt * wt->afm.rtrUFilterFreq);
+
+                    if(clock->it == clock->itStart)
+                    {
+                        wt->afm.U = nSet(gU);
+                    }
+                    else
+                    {
+                        wt->afm.U = nSum(nScale(a, wt->afm.U), nScale(1.0-a, gU));
+                    }
+
                 }
             }
         }
@@ -3401,7 +3414,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                         // define the aerodynamic reference frame (x as the flow, y along the blade, z will be lift)
                         Cmpnts xa_hat = nUnit(wt->adm.U[p]);
                         Cmpnts ya_hat = nUnit(r_p);
-                        Cmpnts za_hat = nCross(xa_hat, ya_hat);
+                        Cmpnts za_hat = nUnit(nCross(xa_hat, ya_hat));
 
                         // compute lift and drag vectors in the cartesian frame
                         Cmpnts lift_v = nScale(lift_s, za_hat);
@@ -3626,7 +3639,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                         // define the aerodynamic reference frame (x as the flow, y along the blade, z will be lift)
                         Cmpnts xa_hat = nUnit(wt->alm.U[p]);
                         Cmpnts ya_hat = nUnit(r_p);
-                        Cmpnts za_hat = nCross(xa_hat, ya_hat);
+                        Cmpnts za_hat = nUnit(nCross(xa_hat, ya_hat));
 
                         // compute lift and drag vectors in the cartesian frame
                         Cmpnts lift_v = nScale(lift_s, za_hat);
