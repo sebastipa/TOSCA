@@ -941,8 +941,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     for (i=lxs; i<lxe; i++)
                     {
-                        PetscReal locRatio = (refShift + cent[lzs][lys][i].y) / mesh->bounds.Ly;
-                        PetscReal locShift = (locRatio - floor(locRatio))*mesh->bounds.Ly;
+                        PetscReal locRatio = (refShift + (cent[lzs][lys][i].y - mesh->bounds.ymin)) / mesh->bounds.Ly;
+                        PetscReal locShift = (locRatio - floor(locRatio))*mesh->bounds.Ly + mesh->bounds.ymin;
 
                         PetscReal minDist = 1e20;
                         PetscInt  iClose  = 0;
@@ -2031,8 +2031,8 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
 
                     for (i=lxs; i<lxe; i++)
                     {
-                        PetscReal locRatio = (refShift + cent[lzs][lys][i].y) / mesh->bounds.Ly;
-                        PetscReal locShift = (locRatio - floor(locRatio))*mesh->bounds.Ly;
+                        PetscReal locRatio = (refShift + (cent[lzs][lys][i].y - mesh->bounds.ymin)) / mesh->bounds.Ly;
+                        PetscReal locShift = (locRatio - floor(locRatio))*mesh->bounds.Ly + mesh->bounds.ymin;
 
                         PetscReal minDist = 1e20;
                         PetscInt  iClose  = 0;
@@ -2549,8 +2549,8 @@ PetscErrorCode UpdateNutBCs(les_ *les)
 
                     for (i=lxs; i<lxe; i++)
                     {
-                        PetscReal locRatio = (refShift + cent[lzs][lys][i].y) / mesh->bounds.Ly;
-                        PetscReal locShift = (locRatio - floor(locRatio))*mesh->bounds.Ly;
+                        PetscReal locRatio = (refShift + (cent[lzs][lys][i].y - mesh->bounds.ymin)) / mesh->bounds.Ly;
+                        PetscReal locShift = (locRatio - floor(locRatio))*mesh->bounds.Ly + mesh->bounds.ymin;
 
                         PetscReal minDist = 1e20;
                         PetscInt  iClose  = 0;
