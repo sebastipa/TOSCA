@@ -114,6 +114,30 @@ In order to compile TOSCA on your system, please follow these steps:
   and the post-processing with `./tosca` and `./tosca2PV` respectively. To run in parallel you have to use
   `mpirun -np 'your-number-of-processors' ./tosca`
 
+## Contribute to the TOSCA Project
+
+  The TOSCA repository is open-source, so anyone can download and use the code. If you want to contribute to the project by adding code to TOSCA repository you need to open a pull-request that has to be approved by our team. In order to do so, please use the following steps:
+
+  * Clone the TOSCA package locally on your machine with `git clone https://github.com/sebastipa/TOSCA.git`
+  
+  * Create a new local branch with `git checkout -b your-branch-name`
+
+  * Make the desired changes to the TOSCA code, then check which files have been modified with `git status`
+
+  * Add changes to the git stack with `git add modified-files`
+
+  * Commit the changes using a short but exhaustive comment with `git commit -m "your-commit-description"`
+
+  * Push your local branch online with `git push origin your-branch-name`
+
+  * Go to github, select your branch, click on "Contribute" and open a pull-request describing the motivation of your changes, their effect on the code and the tests you performed.
+
+  * After approval of the pull-request by our team, commits will be added to the main TOSCA version
+
+  * To stay up-to-date, rebase your local master with the your new commits by first checking out in your local master branch with `git checkout master` and then rebase with `git pull --rebase origin master`
+
+  * Delete your local branch as it is not useful anymore with `git branch --delete -d your-branch-name` and operate on the master until you want to make new changes
+
 ## Paraview-Catalyst2 OS-Rendering
 
   TOSCA provides full interface with Paraview-catalyst2 through the USE_CATALYST flag in the makefile. If this is the case, the CATALYST environment variable should point to the catalyst2 installation directory. Paraview-catalyst is optional and can be disabled by setting USE_CATALYST=0
