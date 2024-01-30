@@ -5955,13 +5955,19 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                             for(ri=0; ri<nRad; ri++)
                             {
                                 PetscReal sum = 0.0;
+                                PetscReal sumDr = 0.0;
 
                                 for(ai=0; ai<nAz; ai++)
                                 {
                                     sum += wt->alm.axialF[nAz*ri + ai];
+                                    sumDr += wt->alm.dr[nAz*ri + ai];
                                 }
 
                                 sum/=nAz;
+                                sumDr/=nAz;
+
+                                //to compute the force per unit length divide by element radial length
+                                sum/=sumDr;
 
                                 fprintf(f, "%*.4f", width, sum);
                             }
@@ -5994,14 +6000,20 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                             for(ri=0; ri<nRad; ri++)
                             {
                                 PetscReal sum = 0.0;
+                                PetscReal sumDr = 0.0;
 
                                 for(ai=0; ai<nAz; ai++)
                                 {
                                     sum += wt->alm.tangtF[nAz*ri + ai];
+                                    sumDr += wt->alm.dr[nAz*ri + ai];
                                 }
 
                                 sum/=nAz;
+                                sumDr/=nAz;
 
+                                //to compute the force per unit length divide by element radial length
+                                sum/=sumDr;
+                                                                
                                 fprintf(f, "%*.4f", width, sum);
                             }
 
