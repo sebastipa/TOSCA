@@ -63,6 +63,9 @@ word thisCaseName();
 //! \brief Returns the time list (from folder names) and size contained in a folder
 PetscErrorCode getTimeList(const char* dataLoc, std::vector<PetscReal> &timeSeries, PetscInt &ntimes);
 
+//! \brief Returns the file list (from folder names) and number of files contained in a folder
+PetscErrorCode getFileList(const char* dataLoc, std::vector<word> &fileSeries, PetscInt &nfiles);
+
 //! \brief Finds a word inside a string
 PetscInt foundInString(const char *str, word keyword);
 
@@ -136,6 +139,9 @@ PetscErrorCode readDictDouble(const char *dictName, const char *keyword, PetscRe
 
 //! \brief Read mandatory vector from dictionary
 PetscErrorCode readDictVector(const char *dictName, const char *keyword, Cmpnts *value);
+
+//! \brief Read mandatory 2D vector from dictionary
+PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cmpnts *value);
 
 //! \brief Read mandatory PetscInt from dictionary
 PetscErrorCode readDictInt(const char *dictName, const char *keyword, PetscInt *value);

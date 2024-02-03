@@ -20,6 +20,7 @@ struct acquisition_
     sections      *kSections;                 //!< information about the k-sections
     sections      *jSections;                 //!< information about the j-sections
     sections      *iSections;                 //!< information about the i-sections
+    udSections    *userSections;              //!< information about the user defined sections
     dataABL       *statisticsABL;             //!< ABL statistics
     data3LM       *LM3;                       //!< 3LM statistics
     perturbFields *perturbABL;                //!< ABL perturbation fields for gravity waves

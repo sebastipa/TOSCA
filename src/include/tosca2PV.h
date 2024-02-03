@@ -47,6 +47,9 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain);
 //! \brief Reads k-section data from average fields and writes paraview data into XMF folder
 PetscErrorCode fieldKSectionsToXMF(domain_ *domain);
 
+//! \brief Reads a user defined surface file and writes paraview average field data at the surface points into the XMF folder
+PetscErrorCode fieldUserDefinedPlaneToXMF(domain_ *domain);
+
 //! \brief Reads binary k-section perturbation data and writes paraview data into XMF folder
 PetscErrorCode binaryKSectionsPerturbToXMF(domain_ *domain);
 
@@ -73,6 +76,9 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain);
 PetscErrorCode kSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 PetscErrorCode kSectionLoadVectorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 PetscErrorCode kSectionLoadScalarFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
+PetscErrorCode userSectionLoadVectorFromField(Vec &V, mesh_ *mesh, uSections *uSection, const word &fieldName, PetscReal time);
+PetscErrorCode userSectionLoadScalarFromField(Vec &V, mesh_ *mesh, uSections *uSection, const word &fieldName, PetscReal time);
+
 
 //! \briefReads from k-slices time series and loads the velocity, temperature and nut planes. Important: assumes T and nut databases have the same times of U.
 PetscErrorCode kSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
@@ -247,6 +253,19 @@ PetscErrorCode writeKSectionScalarToXMF
     PetscReal     **field
 );
 
+//! \brief Writes a scalar defined on a user defined section (appends to XMF and creates HDF)
+PetscErrorCode writeUserSectionScalarToXMF
+(
+    mesh_    *mesh,        // user context
+    const char *filexmf,     // name of the XMF file to append
+    const char *hdfilen,     // name of the HDF file to refer
+    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t      *dataspace_id,// id of the HDF dataspace to refer
+    PetscReal     time,         // time
+    const char *fieldName,   // field name as it appears in ParaView
+    uSections  *uSection    // pointer to the user defined section
+);
+
 //! \brief Writes a vector defined on an i-section (appends to XMF and creates HDF)
 PetscErrorCode writeISectionVectorToXMF
 (
@@ -284,6 +303,19 @@ PetscErrorCode writeKSectionVectorToXMF
     PetscReal     time,
     const char *fieldName,
     Cmpnts     **field
+);
+
+//! \brief Writes a vector defined on a user defined section (appends to XMF and creates HDF)
+PetscErrorCode writeUserSectionVectorToXMF
+(
+    mesh_    *mesh,
+    const char *filexmf,
+    const char *hdfilen,
+    hid_t	   *file_id,
+    hid_t      *dataspace_id,
+    PetscReal     time,
+    const char *fieldName,
+    uSections  *uSection
 );
 
 //! \brief Writes a vector defined on an i-section (appends to XMF and creates HDF)
@@ -373,6 +405,18 @@ PetscErrorCode writeKSectionPointsToXMF
     hid_t      *dataspace_id,
     PetscReal     time,
     PetscInt   kIndex
+);
+
+//! \brief Writes 2D user-section mesh (appends to XMF and creates HDF)
+PetscErrorCode writeUserSectionPointsToXMF
+(
+    mesh_      *mesh,        // user context
+    const char *filexmf,     // name of the XMF file to append
+    const char *hdfilen,     // name of the HDF file to refer
+    hid_t	     *file_id,     // id of the HDF file to refer
+    hid_t      *dataspace_id,// id of the HDF dataspace to refer
+    PetscReal     time,         // time
+    uSections  *uSection    // pointer to the user defined section
 );
 
 void setToZero(float *vec, PetscInt n);

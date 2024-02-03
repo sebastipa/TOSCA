@@ -3649,14 +3649,17 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
         DMDAVecGetArray(mesh->da,  mesh->lAj, &aj);
 
         PetscInt iskavail = 0, isjavail = 0, isiavail = 0;
+        PetscInt nSurfaces = 0;
 
-        word dataLoc, kSecName, jSecName, iSecName;
+        word dataLoc, kSecName, jSecName, iSecName, userSecPath, userSecName;
 
         dataLoc = "sampling/surfaces/";
 
-        kSecName = dataLoc + "kSections";
-        jSecName = dataLoc + "jSections";
-        iSecName = dataLoc + "iSections";
+        kSecName    = dataLoc + "kSections";
+        jSecName    = dataLoc + "jSections";
+        iSecName    = dataLoc + "iSections";
+
+        userSecPath = dataLoc + "userSections";
 
         // see which sections are available
         FILE *fp;
@@ -4680,6 +4683,258 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
             // set available to 0
             acquisition->iSections->available = 0;
         }
+
+        // get list of times from the fieldsPath of the current domain
+        std::vector<word> surfaceSeries;
+        getFileList(userSecPath.c_str(), surfaceSeries, nSurfaces);
+
+        // read userDefined Sections input file
+        if(nSurfaces)
+        {
+            acquisition->userSections = new udSections;
+
+            // store number of sections
+            acquisition->userSections->nSections = nSurfaces;
+
+            acquisition->userSections->available = 1;
+
+            acquisition->userSections->uSection = new uSections*[nSurfaces];
+
+            for(PetscInt s=0; s<nSurfaces; s++)
+            {
+
+                PetscInt atLeastOneVector     = 0;
+                PetscInt atLeastOneScalar     = 0;
+
+                //reverses the number of cells in the two surface directions - test feature needs to be removed
+                PetscInt flipIndexOrder;
+
+                // allocate memory
+                acquisition->userSections->uSection[s] = new uSections;
+                
+                uSections *uSection = acquisition->userSections->uSection[s];
+                
+                userSecName = userSecPath + "/" + surfaceSeries[s];
+
+                //set surface name 
+                uSection->sectionName = surfaceSeries[s]; 
+
+                // read acquisition start time and type of interval
+                readDictDouble(userSecName.c_str(), "timeStart", &(uSection->timeStart));
+                readDictWord(userSecName.c_str(),   "intervalType", &(uSection->intervalType));
+                readDictDouble(userSecName.c_str(), "timeInterval", &(uSection->timeInterval));
+                readDictInt(userSecName.c_str(), "flipIndexOrder", &(flipIndexOrder));
+
+                // check if intervalType is known
+                if(uSection->intervalType != "timeStep" && uSection->intervalType != "adjustableTime")
+                {
+                    char error[512];
+                    sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", uSection->intervalType.c_str());
+                    fatalErrorInFunction("sectionsInitialize",  error);
+                }
+
+                // read section indices
+                std::ifstream indata;
+
+                indata.open(userSecName.c_str());
+
+                char buffer[256];
+
+                while(!indata.eof())
+                {
+                    indata >> buffer;
+
+                    if
+                    (
+                        strcmp
+                        (
+                            "meshPoints",
+                            buffer
+                        ) == 0
+                    )
+                    {
+                        indata >> buffer;
+                        std::sscanf(buffer, "%ld", &(uSection->ny));
+
+                        indata >> buffer;
+                        std::sscanf(buffer, "%ld", &(uSection->nx));
+
+                        break;
+                    }
+
+                }
+
+                if(flipIndexOrder == 1)
+                { 
+                    PetscInt tempIndex;
+                    tempIndex = uSection->ny;
+                    uSection->ny = uSection->nx;
+                    uSection->nx = tempIndex;
+                }
+
+                // allocate memory for the co-ordinates of the points in the user defined surface
+                PetscInt nx = uSection->nx, ny = uSection->ny;
+
+                uSection->coor = (Cmpnts **)malloc( sizeof(Cmpnts *) * (ny) );
+
+                for(j=0; j<ny; j++)
+                {
+                    uSection->coor[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * (nx) );
+                }
+
+                for(j=0; j<ny; j++)
+                {
+                    for(i=0; i<nx; i++)
+                    {
+                        indata >> buffer;
+                        std::sscanf(buffer, "%le", &(uSection->coor[j][i].x));
+
+                        indata >> buffer;
+                        std::sscanf(buffer, "%le", &(uSection->coor[j][i].y));
+
+                        indata >> buffer;
+                        std::sscanf(buffer, "%le", &(uSection->coor[j][i].z));
+                    }
+                }
+
+                indata.close();
+
+                //allocate memory 
+                uSection->closestId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
+
+                for(j=0; j<ny; j++)
+                {
+                    uSection->closestId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
+                }
+
+                uSection->hasCoor = (PetscInt **)malloc( sizeof(PetscInt *) * (ny) );
+
+                for(j=0; j<ny; j++)
+                {
+                    uSection->hasCoor[j] = (PetscInt *)malloc( sizeof(PetscInt) * (nx) );
+                }
+
+                cellIds **localId;
+                localId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
+
+                for(j=0; j<ny; j++)
+                {
+                    localId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
+                }
+
+
+
+                for(j=0; j<ny; j++)
+                {
+                    for(i=0; i<nx; i++)
+                    {
+                       localId[j][i].i = -100;
+                       localId[j][i].j = -100;
+                       localId[j][i].k = -100;
+
+                       uSection->hasCoor[j][i] = 0;
+                    }
+                }
+
+
+                for(PetscInt l=0; l<ny; l++)
+                {
+                    for(PetscInt m=0; m<nx; m++)
+                    {
+                        Cmpnts surfacePoint = nSet(uSection->coor[l][m]);
+
+                        PetscReal  lminDist = 1e30,  gminDist = 1e30;
+                        cellIds closestIds;
+
+                        for (k=lzs; k<lze; k++)
+                        {
+                            for (j=lys; j<lye; j++)
+                            {
+                                for (i=lxs; i<lxe; i++)
+                                {
+                                    Cmpnts distVec = nSub(surfacePoint, cent[k][j][i]);
+                                    PetscReal distMag = nMag(distVec) + procContrib;
+
+                                    if(distMag < lminDist)
+                                    {
+                                        lminDist = distMag;
+                                        closestIds.i = i;
+                                        closestIds.j = j;
+                                        closestIds.k = k;
+                                    }
+
+                                }
+                            }
+                        }   
+
+                        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+                        if(lminDist == gminDist)
+                        {
+                            localId[l][m].i = closestIds.i;
+                            localId[l][m].j = closestIds.j;
+                            localId[l][m].k = closestIds.k;
+
+                            PetscReal cellWidth = 5.0*pow(1.0/aj[closestIds.k][closestIds.j][closestIds.i], 1.0/3.0);
+
+                            if(gminDist > cellWidth)
+                            {
+                                char warning[256];
+                                sprintf(warning, "User defined section has parts outside the domain, consider redefining the surface");
+                                warningInFunction("sectionsInitialize",  warning);
+                            }
+
+                            uSection->hasCoor[l][m] = 1;
+                        }
+                    }
+
+                    MPI_Allreduce(&(localId[l][0]), &(uSection->closestId[l][0]), 3*nx, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
+                }
+
+                // free the allocated memory for coorPts
+                for(j = 0; j<ny; j++)
+                {
+                    free(localId[j]);
+                }
+
+                free(localId);  
+
+                atLeastOneVector++;
+                if(flags->isTeqnActive) atLeastOneScalar++;
+                if(flags->isLesActive)  atLeastOneScalar++;
+                if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
+
+                if(atLeastOneVector)
+                {
+                    // allocate memory for scalar and vector variables
+                    uSection->vectorSec = (Cmpnts **)malloc( sizeof(Cmpnts *) * ny );
+
+                    for(j=0; j<ny; j++)
+                    {
+                        uSection->vectorSec[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * nx );
+                    }
+                }
+
+                if(atLeastOneScalar)
+                {
+                    uSection->scalarSec = (PetscReal **)malloc( sizeof(PetscReal *) * ny );
+
+                    for(j=0; j<ny; j++)
+                    {
+                        uSection->scalarSec[j] = (PetscReal *)malloc( sizeof(PetscReal) * nx );
+                    }
+                }
+            }
+            
+        }
+        else
+        {
+            // allocate memory
+            acquisition->userSections = new udSections;
+            // set available to 0
+            acquisition->userSections->available = 0;
+        }
+
 
         DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
         DMDAVecRestoreArray(mesh->da,  mesh->lAj, &aj);
@@ -6018,13 +6273,13 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
 PetscErrorCode InitRakeFile(probeRake *rake, const char *fieldName)
 {
     PetscInt p;
-    char fileName[500];
+    char fileName[450];
     sprintf(fileName, "%s/%s", rake->timeName.c_str(), fieldName);
     FILE *f = fopen(fileName, "w");
 
     if(!f)
     {
-        char error[530];
+        char error[512];
         sprintf(error, "cannot open file %s. Errno = %d (%s)\n", fileName, errno, strerror(errno));
         fatalErrorInFunction("ProbesInitialize",  error);
     }
