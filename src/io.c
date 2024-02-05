@@ -2734,6 +2734,35 @@ word thisCaseName()
 }
 
 //***************************************************************************************************************//
+PetscErrorCode getFileList(const char* dataLoc, std::vector<word> &fileSeries, PetscInt &nfiles)
+{
+    // get file names inside path
+    DIR *dir; struct dirent *diread;
+
+    nfiles = 0;
+
+    if ((dir = opendir(dataLoc)) != nullptr)
+    {
+        while ((diread = readdir(dir)) != nullptr)
+        {
+            char* fileName = diread->d_name;
+            if
+            (
+                strcmp(fileName, ".") !=0 &&
+                strcmp(fileName, "..") !=0
+            )
+            {
+                fileSeries.push_back(fileName);
+                nfiles++;
+            }
+        }
+        closedir (dir);
+    }
+
+    return 0;
+}
+
+//***************************************************************************************************************//
 
 PetscErrorCode getTimeList(const char* dataLoc, std::vector<PetscReal> &timeSeries, PetscInt &ntimes)
 {
@@ -3416,6 +3445,115 @@ PetscErrorCode readDictDouble(const char *dictName, const char *keyword, PetscRe
 
 //***************************************************************************************************************//
 
+PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cmpnts *value)
+{
+    std::ifstream indata;
+
+    char word[256];
+
+    // pointer for stdtod and stdtol
+    char *eptr;
+
+    indata.open(dictName);
+
+    if(!indata)
+    {
+       char error[512];
+        sprintf(error, "could not open %s dictionary\n", dictName);
+        fatalErrorInFunction("readDictVector",  error);
+    }
+    else
+    {
+        while(!indata.eof())
+        {
+            indata >> word;
+
+            if
+            (
+                strcmp
+                (
+                    keyword,
+                    word
+                ) == 0
+            )
+            {
+                // read the first component (contains "(" character)
+                indata >> word;
+
+                std::string first(word);
+                if (first.find ("(") != std::string::npos)
+                {
+                   // remove "("" character from the first component
+                   PetscInt l1 = first.size();
+                   for(PetscInt i=0;i<l1;i++)
+                   {
+                       // save the first component
+                       word[i] = word[i+1];
+                   }
+
+                   value->x = std::strtod(word, &eptr);
+
+                   // check if the first component is a PetscReal, throw error otherwise
+                   std::string cmp1(word);
+
+                   if(!isNumber(cmp1))
+                   {
+                      char error[512];
+                       sprintf(error, "expected number after keyword '%s' in dictionary %s\n", keyword, dictName);
+                       fatalErrorInFunction("readDictVector",  error);
+                   }
+
+                   // read the second component (contains ")" character)
+                   indata >> word;
+
+                   std::string last(word);
+                   if (last.find (")") != std::string::npos)
+                   {
+                       // remove ") character from the last component and store
+                       value->z = std::strtod(word, &eptr);
+
+                       // check if the second component is a PetscReal, throw error otherwise
+                       std::string cmp2(word);
+
+                       if(!isNumber(cmp2))
+                       {
+                          char error[512];
+                           sprintf(error, "expected number in vector defined by keyword '%s' in dictionary %s\n", keyword, dictName);
+                           fatalErrorInFunction("readDictVector",  error);
+                       }
+
+                       // close the file
+                       indata.close();
+
+                       // exit
+                       return(0);
+
+                   }
+                   else
+                   {
+                      char error[512];
+                       sprintf(error, "expected <)>  after vector defined by keyword '%s' in dictionary %s\n", keyword, dictName);
+                       fatalErrorInFunction("readDictVector",  error);
+                   }
+               }
+               else
+               {
+                char error[512];
+                 sprintf(error, "expected <(>  after keyword '%s' in dictionary %s\n", keyword, dictName);
+                 fatalErrorInFunction("readDictVector",  error);
+               }
+            }
+        }
+        indata.close();
+
+       char error[512];
+        sprintf(error, "could not find keyword %s in dictionary %s\n", keyword, dictName);
+        fatalErrorInFunction("readDictVector",  error);
+    }
+
+    return(0);
+}
+//***************************************************************************************************************//
 PetscErrorCode readDictVector(const char *dictName, const char *keyword, Cmpnts *value)
 {
     std::ifstream indata;

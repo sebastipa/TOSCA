@@ -14,7 +14,7 @@
 # Write Data
 # ---------------------------------
 -intervalType              adjustableTime
--timeInterval              10
+-timeInterval              5
 -purgeWrite                0
 
 # Solution
@@ -64,7 +64,7 @@
 #-computeQ                0
 
 -averaging                1
--avgPeriod                5
+-avgPeriod                0.5
 -avgStartTime             0
 
 #-phaseAveraging          3

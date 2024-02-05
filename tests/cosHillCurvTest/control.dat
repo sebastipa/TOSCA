@@ -13,8 +13,8 @@
 
 # Write Data
 # ---------------------------------
--intervalType              timeStep
--timeInterval              10
+-intervalType              adjustableTime
+-timeInterval              1
 -purgeWrite                0
 
 # Solution 
@@ -52,6 +52,9 @@
 # ---------------------------------
 -sections                 1
 
+-averaging                1
+-avgPeriod                0.2
+-avgStartTime             0
 # PostProcessing 
 # ---------------------------------
 -writeRaster              0
