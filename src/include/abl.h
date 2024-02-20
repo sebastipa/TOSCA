@@ -32,7 +32,8 @@ struct abl_
 
     // temperature controller
     PetscReal    *tDes;                          //!< initial temperature to be maintained
-
+    word         controllerTypeT;
+    
     // velocity controller (common)
     word         controllerType;                 //!< velocity controller type: write/read (writes in postProcessing/momentumSource, reads from momentumSource)
     PetscReal    relax;                          //!< source term relaxation factor
@@ -127,6 +128,7 @@ struct abl_
     PetscReal    yDampingEnd;                    //!< ending y of the fringe layer
     PetscReal    yDampingDelta;                  //!< damping raise/decay distance (must be less than 0.5*(yDampingEnd - yDampingStart))
     PetscReal    yDampingAlpha;                  //!< damping paramter
+    PetscInt     yDampingNumPeriods;
     Vec          uBarInstY;                      //!< instantaneous bar velocity for y-fringe region (only used for concurent precursor)
     Vec          tBarInstY;                      //!< instantaneous bar temperature for y-fringe region (only used for concurent precursor)
     PetscInt     **yFringeInterpIDs;             //!< vector of size [Nx, 2] storing the interpolation IDs along x from the concurrent precursor
@@ -152,6 +154,41 @@ struct abl_
     PetscReal    Uperiods;
     PetscReal    Vperiods;
 
+    // mesoscale input parameters
+    PetscReal    *timeV;
+    PetscReal    *hV;
+    PetscReal    *timeT;
+    PetscReal    *hT;
+    Cmpnts       **uMeso;
+    PetscReal    **tMeso;
+
+    PetscInt     numhV;
+    PetscInt     numhT;
+    PetscInt     numtV;
+    PetscInt     numtT;
+
+    PetscInt     **velInterpIdx;
+    PetscReal    **velInterpWts;
+
+    PetscInt     **tempInterpIdx;
+    PetscReal    **tempInterpWts;
+
+    PetscInt     lowestIndV;
+    PetscInt     lowestIndT;
+    PetscInt     highestIndV;
+    PetscInt     highestIndT;
+
+    Cmpnts       *luMean;
+    Cmpnts       *guMean;
+    Cmpnts       *source;
+
+    word         assimilationType;
+    PetscReal    startATime;
+    PetscInt     closestTimeIndV;                        //!< closest index in time for the mesoscale timevarying data
+    PetscReal    closestTimeWtV;
+    PetscInt     closestTimeIndT;                        //!< closest index in time for the mesoscale timevarying data
+    PetscReal    closestTimeWtT;
+    
     // concurrent precursor
     precursor_    *precursor;                    //!< concurrent precursor data structure
 
@@ -166,3 +203,11 @@ PetscErrorCode InitializeABL(abl_ *abl);
 
 //! \brief Evaluate geostrophic speed using Nieuwstadt model
 PetscReal NieuwstadtGeostrophicWind(abl_ *abl);
+
+//! \brief read the mesoscale driving velocity and potential temperature profile
+PetscErrorCode readMesoScaleData(abl_ *abl);
+
+PetscErrorCode findVelocityInterpolationWeights(abl_ *abl);
+
+PetscErrorCode findTemperatureInterpolationWeights(abl_ *abl);
+

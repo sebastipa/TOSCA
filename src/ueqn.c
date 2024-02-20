@@ -267,6 +267,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
     Cmpnts        uDes;
     Cmpnts        s;
+    Cmpnts        *src;
 
     PetscInt      applyGeoDamping = 0;
 
@@ -498,7 +499,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         }
     }
     // compute source terms using the velocity controller
-    if(abl->controllerType=="geostrophic")
+    else if(abl->controllerType=="geostrophic")
     {
         PetscReal     relax = abl->relax;
         PetscReal     alpha = abl->alpha;
@@ -730,6 +731,241 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
 
     }
+    else if(abl->controllerType=="directProfileAssimilation")
+    {
+        PetscReal relax   = abl->relax;
+        PetscInt  nlevels = my-2;
+
+        Cmpnts    *luMean = abl->luMean;
+        Cmpnts    *guMean = abl->guMean;
+        Cmpnts    **uMeso = abl->uMeso;
+        Cmpnts    uDes, uH1, uH2;
+        PetscInt  idxh1, idxh2, idxt1;
+        PetscReal wth1, wth2, wtt1;
+
+        src    = abl->source;
+
+        for(j=0; j<nlevels; j++)
+        {
+            luMean[j] = nSetZero();
+            guMean[j] = nSetZero();
+            src[j]    = nSetZero();
+        }
+
+        DMDAVecGetArray(da, mesh->lAj, &aj);
+
+        //loop through the cells and find the mean at each vertical cell level
+        for (k=lzs; k<lze; k++)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    luMean[j-1].x += ucat[k][j][i].x / aj[k][j][i];
+                    luMean[j-1].y += ucat[k][j][i].y / aj[k][j][i];
+                    luMean[j-1].z += ucat[k][j][i].z / aj[k][j][i];
+                }
+            }
+        }
+
+        DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+        MPI_Allreduce(&(luMean[0]), &(guMean[0]), 3*nlevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+        if(abl->assimilationType == "constantTime")
+        {
+            for(j=0; j<nlevels; j++)
+            {
+
+                mScale(1.0/abl->totVolPerLevel[j], guMean[j]);
+                
+                idxh1 = abl->velInterpIdx[j][0];
+                idxh2 = abl->velInterpIdx[j][1];
+
+                wth1  = abl->velInterpWts[j][0];
+                wth2  = abl->velInterpWts[j][1];
+
+                idxt1 = abl->closestTimeIndV;
+                wtt1 = abl->closestTimeWtV;
+
+                //interpolating in time
+                uH1 = nSum(nScale(wtt1, abl->uMeso[idxh1][idxt1]), nScale(1 - wtt1, abl->uMeso[idxh1][idxt1 + 1]));
+                uH2 = nSum(nScale(wtt1, abl->uMeso[idxh2][idxt1]), nScale(1 - wtt1, abl->uMeso[idxh2][idxt1 + 1]));
+
+                //interpolating in vertical direction 
+                uDes = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+                // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf\n", uDes.x, uDes.y, uDes.z, guMean[j].x, guMean[j].y, guMean[j].z);
+                
+                src[j].x = (uDes.x - guMean[j].x);
+                src[j].y = (uDes.y - guMean[j].y);
+                src[j].z = (uDes.z - guMean[j].z);
+
+                mScale(relax, src[j]);
+            }
+        }
+        else if(abl->assimilationType == "variableTime")
+        {
+            //find the two closest available mesoscale data in time
+            PetscInt idx_1 = abl->closestTimeIndV;
+            PetscInt idx_2 = abl->closestTimeIndV + 1;
+
+            PetscInt lwrBound = 0;
+            PetscInt uprBound = abl->numtV;
+
+            if(clock->it > clock->itStart)
+            {
+                lwrBound = PetscMax(0, (abl->closestTimeIndV - 50));
+                uprBound = PetscMin(abl->numtV, (abl->closestTimeIndV + 50));
+            }
+
+            // build error vector for the time search
+            PetscReal  diff[abl->numtV];
+
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                diff[i] = fabs(abl->timeV[i] - clock->time);
+            }
+
+            // find the two closest times
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                if(diff[i] < diff[idx_1])
+                {
+                    idx_2 = idx_1;
+                    idx_1 = i;
+                }
+                if(diff[i] < diff[idx_2] && i != idx_1)
+                {
+                    idx_2 = i;
+                }
+            }
+
+            // always put the lower time at idx_1 and higher at idx_2
+            if(abl->timeV[idx_2] < abl->timeV[idx_1])
+            {
+                PetscInt idx_tmp = idx_2;
+                idx_2 = idx_1;
+                idx_1 = idx_tmp;
+            }
+
+            // find interpolation weights
+            PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
+            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+            PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading mesoscale data\n", w1 * abl->timeV[idx_1] + w2 * abl->timeV[idx_2]);
+            PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+            PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeV[idx_1], abl->timeV[idx_2]);
+
+            // reset the closest index for nex iteration
+            abl->closestTimeIndV = idx_1;
+
+            for(j=0; j<nlevels; j++)
+            {
+
+                mScale(1.0/abl->totVolPerLevel[j], guMean[j]);
+                
+                idxh1 = abl->velInterpIdx[j][0];
+                idxh2 = abl->velInterpIdx[j][1];
+
+                wth1  = abl->velInterpWts[j][0];
+                wth2  = abl->velInterpWts[j][1];
+
+                //interpolating in time
+                uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+                uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+                //interpolating in vertical direction 
+                uDes = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+                // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf, interpolated from %lf and %lf, wts = %lf %lf\n", uDes.x, uDes.y, uDes.z, guMean[j].x, guMean[j].y, guMean[j].z, abl->timeV[idx_1], abl->timeV[idx_2], w1, w2);
+                
+                src[j].x = (uDes.x - guMean[j].x);
+                src[j].y = (uDes.y - guMean[j].y);
+                src[j].z = (uDes.z - guMean[j].z);
+
+                mScale(relax, src[j]);
+            }
+
+        }
+        else 
+        {
+            char error[512];
+            sprintf(error, "wrong assimilation method chosen. Available options are constantTime or variableTime\n");
+            fatalErrorInFunction("CorrectSourceTerms",  error);
+        }
+
+        // if cellLevels is below the lowest mesoscale data point use the source at the last available height
+        for(j=0; j<nlevels; j++)
+        {
+            if(abl->cellLevels[j] < abl->hV[0])
+            {
+                src[j].x = src[abl->lowestIndV].x;
+                src[j].y = src[abl->lowestIndV].y;
+                src[j].z = src[abl->lowestIndV].z;
+            }
+        }
+
+        //write the source terms 
+        if(!rank)
+        {
+            if(clock->it == clock->itStart)
+            {
+                errno = 0;
+                PetscInt dirRes = mkdir("./postProcessing", 0777);
+                if(dirRes != 0 && errno != EEXIST)
+                {
+                    char error[512];
+                    sprintf(error, "could not create postProcessing directory\n");
+                    fatalErrorInFunction("correctSourceTerm",  error);
+                }
+            }
+
+            word fileName = "postProcessing/momentumSource_" + getStartTimeName(clock);
+            FILE *fp = fopen(fileName.c_str(), "a");
+
+            if(!fp)
+            {
+                char error[512];
+                sprintf(error, "cannot open file postProcessing/momentumSource\n");
+                fatalErrorInFunction("correctSourceTermT",  error);
+            }
+            else
+            {
+
+                PetscInt width = -15;
+
+                if(clock->it == clock->itStart)
+                {
+                    word w1 = "levels";
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w1.c_str());
+
+                    for(j=0; j<nlevels; j++)
+                    {
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, abl->cellLevels[j]);
+                    }
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                    word w2 = "time";
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
+                } 
+
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
+
+                for(j=0; j<nlevels; j++)
+                {
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, src[j].x,  width, src[j].y,  width, src[j].z);
+                }
+
+                PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                fclose(fp);                  
+            
+            }
+        }
+    }
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
@@ -771,6 +1007,12 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                             source[k][j][i].z = 0.0;
                         }
                     }
+                    else if(abl->controllerType=="directProfileAssimilation")
+                    {
+                        source[k][j][i].x = src[j-1].x;
+                        source[k][j][i].y = src[j-1].y;
+                        source[k][j][i].z = 0.0;
+                    } 
                     else
                     {
                         source[k][j][i].x = s.x;
@@ -784,6 +1026,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     source[k][j][i].y = 0.0;
                     source[k][j][i].z = 0.0;
                 }
+
             }
         }
     }

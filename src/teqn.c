@@ -197,12 +197,125 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
         gtMean[j] = gtMean[j] / abl->totVolPerLevel[j];
     }
 
-    // save initial temperature
-    if(clock->it == clock->itStart)
+    if(abl->controllerTypeT == "initial")
     {
+        // save initial temperature
+        if(clock->it == clock->itStart)
+        {
+            for(j=0; j<nLevels; j++)
+            {
+                abl->tDes[j] = gtMean[j];
+            }
+        }
+    }
+    else if(abl->controllerTypeT == "directProfileAssimilation")
+    {
+        PetscInt  idxh1, idxh2, idxt1;
+        PetscReal wth1, wth2, wtt1;
+        PetscReal tH1, tH2;
+
+        if(abl->assimilationType == "constantTime")
+        {
+            for(j=0; j<nLevels; j++)
+            {
+                idxh1 = abl->tempInterpIdx[j][0];
+                idxh2 = abl->tempInterpIdx[j][1];
+
+                wth1  = abl->tempInterpWts[j][0];
+                wth2  = abl->tempInterpWts[j][1];
+
+                idxt1 = abl->closestTimeIndT;
+                wtt1 = abl->closestTimeWtT;
+
+                tH1 = wtt1 * abl->tMeso[idxh1][idxt1] + (1 - wtt1) * abl->tMeso[idxh1][idxt1+ 1];
+                tH2 = wtt1 * abl->tMeso[idxh2][idxt1] + (1 - wtt1) * abl->tMeso[idxh2][idxt1+ 1];
+                abl->tDes[j] = wth1*tH1 + wth2*tH2;
+            }
+        }
+        else if(abl->assimilationType == "variableTime")
+        {
+            //find the two closest available mesoscale data in time
+            PetscInt idx_1 = abl->closestTimeIndT;
+            PetscInt idx_2 = abl->closestTimeIndT + 1;
+
+            PetscInt lwrBound = 0;
+            PetscInt uprBound = abl->numtT;
+
+            if(clock->it > clock->itStart)
+            {
+                lwrBound = PetscMax(0, (abl->closestTimeIndT - 50));
+                uprBound = PetscMin(abl->numtT, (abl->closestTimeIndT + 50));
+            }
+
+            // build error vector for the time search
+            PetscReal  diff[abl->numtT];
+
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                diff[i] = fabs(abl->timeT[i] - clock->time);
+            }
+
+            // find the two closest times
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                if(diff[i] < diff[idx_1])
+                {
+                    idx_2 = idx_1;
+                    idx_1 = i;
+                }
+                if(diff[i] < diff[idx_2] && i != idx_1)
+                {
+                    idx_2 = i;
+                }
+            }
+
+            // always put the lower time at idx_1 and higher at idx_2
+            if(abl->timeT[idx_2] < abl->timeT[idx_1])
+            {
+                PetscInt idx_tmp = idx_2;
+                idx_2 = idx_1;
+                idx_1 = idx_tmp;
+            }
+
+            // find interpolation weights
+            PetscReal idx = (idx_2 - idx_1) / (abl->timeT[idx_2] - abl->timeT[idx_1]) * (clock->time - abl->timeT[idx_1]) + idx_1;
+            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+            // reset the closest index for nex iteration
+            abl->closestTimeIndT = idx_1;
+
+            for(j=0; j<nLevels; j++)
+            {
+                idxh1 = abl->tempInterpIdx[j][0];
+                idxh2 = abl->tempInterpIdx[j][1];
+
+                wth1  = abl->tempInterpWts[j][0];
+                wth2  = abl->tempInterpWts[j][1];
+
+                tH1 = w1 * abl->tMeso[idxh1][idx_1] + (w2) * abl->tMeso[idxh1][idx_2];
+                tH2 = w1 * abl->tMeso[idxh2][idx_1] + (w2) * abl->tMeso[idxh2][idx_2];
+                abl->tDes[j] = wth1*tH1 + wth2*tH2;
+
+                // PetscPrintf(PETSC_COMM_WORLD, "tdes = %lf, gtmean = %lf, interpolated from time:%lf %lf, wts %lf %lf \n", abl->tDes[j], gtMean[j], abl->timeT[idx_1], abl->timeT[idx_2], w1, w2);
+
+            }
+        }
+        else 
+        {
+            char error[512];
+            sprintf(error, "wrong assimilation method chosen. Available options are constantTime or variableTime\n");
+            fatalErrorInFunction("CorrectSourceTermsT",  error);
+        }
+
+        // if cellLevels is below the lowest mesoscale data point use the source at the last available height
         for(j=0; j<nLevels; j++)
         {
-            abl->tDes[j] = gtMean[j];
+            if(abl->cellLevels[j] < abl->hT[0])
+            {
+                abl->tDes[j] = abl->tDes[abl->lowestIndT];
+                gtMean[j] = gtMean[abl->lowestIndT];
+            }
         }
     }
 
