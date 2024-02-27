@@ -77,6 +77,9 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print);
 //! \brief Correct damping source terms
 PetscErrorCode correctDampingSources(ueqn_ *ueqn);
 
+//! \brief finish the mapping of the ydamping source
+PetscErrorCode mapYDamping(ueqn_ *ueqn);
+
 //! \brief Transform velocity from contravariant to cartesian
 PetscErrorCode contravariantToCartesian(ueqn_ *ueqn);
 

@@ -128,6 +128,12 @@ int main(int argc, char **argv)
             // compute pressure gradient term
             GradP(domain[d].peqn);
 
+            // finish the y-damping layer processor mapping 
+            if(flags.isYDampingActive)
+            {
+                mapYDamping(domain[d].ueqn);
+            }
+
             // Predictor Step
             SolveUEqn(domain[d].ueqn);
 

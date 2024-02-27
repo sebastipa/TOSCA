@@ -1170,7 +1170,116 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 }
 
 //***************************************************************************************************************//
+PetscErrorCode mapYDamping(ueqn_ *ueqn)
+{
+    mesh_         *mesh = ueqn->access->mesh;
+    abl_          *abl  = ueqn->access->abl;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
 
+    Cmpnts        ***ubar;
+    Cmpnts        **velMapped = abl->velMapped;
+    PetscInt      numJ, numK, numI;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, p, l;
+    PetscInt      imin, imax, jmin, jmax, kmin, kmax;
+    PetscInt      iminSrc, jminSrc, kminSrc;
+    PetscInt      numDestBounds = abl->yDampingNumPeriods;
+    PetscInt      k_src_left, k_src_right;
+    PetscReal     w_left, w_right;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+    
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    DMDAVecGetArray(fda, abl->uBarInstY, &ubar);
+
+    if(ueqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            PetscPrintf(mesh->MESH_COMM, "Mapping lateral fringe region from sources..\n");
+            for(p=0; p < abl->numSourceProc; p++)
+            {
+                if(abl->isdestProc[p] == 1)
+                {
+                    // Wait for the completion of the non-blocking broadcast performed in CorrectDampingSources function
+                    MPI_Status status;
+                    MPI_Wait(&(abl->mapRequest[p]), &status);
+
+                    numI = abl->srcNumI[p];
+                    numJ = abl->srcNumJ[p];
+                    numK = abl->srcNumK[p];  
+
+                    iminSrc = abl->srcMinInd[p].i;
+                    jminSrc = abl->srcMinInd[p].j;
+                    kminSrc = abl->srcMinInd[p].k;
+
+                    for(l=0; l < numDestBounds; l++)
+                    {
+                        imin = abl->destMinInd[p][l].i;
+                        imax = abl->destMaxInd[p][l].i;
+
+                        jmin = abl->destMinInd[p][l].j;
+                        jmax = abl->destMaxInd[p][l].j;
+
+                        kmin = abl->destMinInd[p][l].k;
+                        kmax = abl->destMaxInd[p][l].k;
+
+                        if(imin == -1 || jmin == -1 || kmin == -1
+                        || imax == -1 || jmax == -1 || kmax == -1)
+                        {
+                            continue;
+                        }
+
+                        //check that the min and max are within the processor boundaries 
+                        if(kmin >= lzs && kmax <= lze && jmin >= lys && jmax <= lye && imin >= lxs && imax <= lxe)
+                        {
+                            for (k=kmin; k<=kmax; k++)
+                            {
+                                for (j=jmin; j<=jmax; j++)
+                                {
+                                    for (i=imin; i<=imax; i++)
+                                    {
+                                        k_src_left    = abl->closestKCell[k][0];
+                                        k_src_right   = abl->closestKCell[k][1];
+                                        w_left        = abl->wtsKCell[k][0];
+                                        w_right       = abl->wtsKCell[k][1];
+
+                                        Cmpnts uLeft  = nSet(velMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)]);
+                                        Cmpnts uRight = nSet(velMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)]);
+
+                                        ubar[k][j][i] = nSum(nScale(w_left, uLeft), nScale(w_right, uRight));
+
+                                        // PetscPrintf(PETSC_COMM_SELF, "ubar[%ld][%ld][%ld] = %lf %lf %lf\n", k, j, i, ubar[k][j][i].x, ubar[k][j][i].y, ubar[k][j][i].z);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, abl->uBarInstY, &ubar);
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    DMLocalToLocalBegin (fda,  abl->uBarInstY, INSERT_VALUES, abl->uBarInstY);
+    DMLocalToLocalEnd   (fda,  abl->uBarInstY, INSERT_VALUES, abl->uBarInstY);
+
+    return(0);
+}
+//***************************************************************************************************************//
 PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 {
     mesh_         *mesh = ueqn->access->mesh;
@@ -1191,6 +1300,9 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+    
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     // update uBar for xDampingLayer (read from inflow data)
     if(ueqn->access->flags->isXDampingActive)
@@ -1852,11 +1964,59 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
     if(ueqn->access->flags->isYDampingActive)
     {
+        cellIds *srcMinInd = abl->srcMinInd, *srcMaxInd = abl->srcMaxInd;
+        Cmpnts  **velMapped = abl->velMapped;
+        PetscInt numJ, numK, numI;
+        PetscInt imin, imax, jmin, jmax, kmin, kmax;
+
+        DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+
         // update the unsteady uBar state
         if(abl->xFringeUBarSelectionType == 3)
         {
 
+            for(PetscInt p=0; p < abl->numSourceProc; p++)
+            {
+                if(rank == abl->sourceProcList[p])
+                {
+                    imin = abl->srcMinInd[p].i;
+                    imax = abl->srcMaxInd[p].i;
+                    jmin = abl->srcMinInd[p].j;
+                    jmax = abl->srcMaxInd[p].j;
+                    kmin = abl->srcMinInd[p].k;
+                    kmax = abl->srcMaxInd[p].k;
+
+                    numI = abl->srcNumI[p];
+                    numJ = abl->srcNumJ[p];
+                    numK = abl->srcNumK[p];
+
+                    //loop through the sub domain of this processor
+                    for (k=kmin; k<=kmax; k++)
+                    {
+                        for (j=jmin; j<=jmax; j++)
+                        {
+                            for (i=imin; i<=imax; i++)
+                            {
+                                velMapped[p][(k-kmin) * numJ * numI + (j-jmin) * numI + (i-imin)] = nSet(ucat[k][j][i]);
+                            }
+                        }
+                    }
+                }
+
+                if(abl->isdestProc[p] == 1)
+                {
+
+                    numI = abl->srcNumI[p];
+                    numJ = abl->srcNumJ[p];
+                    numK = abl->srcNumK[p];
+                    
+                    MPI_Ibcast(velMapped[p], numI * numJ * numK * 3, MPIU_REAL, abl->srcCommLocalRank[p], abl->yDamp_comm[p], &(abl->mapRequest[p]));
+                }
+                
+            }
         }
+
+        DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
     }
 
     // update uBar for zDampingLayer (average at kLeft patch)
@@ -1985,14 +2145,14 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***ucat, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    Cmpnts        ***ucont, ***ucontP;
+    Cmpnts        ***ucont, ***ucontP, ***uBarY;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
 
     precursor_    *precursor;
     domain_       *pdomain;
-    PetscInt      kStart, kEnd;
+    PetscInt      kStart, kEnd, iStart, iEnd;
 	PetscReal     advDampH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
@@ -2021,6 +2181,16 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 kStart = precursor->map.kStart;
                 kEnd   = precursor->map.kEnd;
             }
+        }
+    }
+
+    if(ueqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            DMDAVecGetArray(fda, abl->uBarInstY, &uBarY);
+            iStart = abl->iStart;
+            iEnd = abl->iEnd;
         }
     }
 
@@ -2268,7 +2438,50 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     }
                     else
                     {
-                        // retrieve from concurrent precursor - not yet implemented
+                        PetscReal uBarContK;
+                        PetscReal uBarContJ;
+                        PetscReal uBarContI;
+
+                        if
+                        (
+                            abl->inYFringeRegionOnly && 
+                            i >= iStart && i < iEnd            
+                        )
+                        {
+                            uBarContI = central(uBarY[k][j][i].x, uBarY[k][j][i+1].x) * icsi[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j][i+1].y) * icsi[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j][i+1].z) * icsi[k][j][i].z;
+                            uBarContJ = central(uBarY[k][j][i].x, uBarY[k][j+1][i].x) * jeta[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j+1][i].y) * jeta[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j+1][i].z) * jeta[k][j][i].z;
+                            uBarContK = central(uBarY[k][j][i].x, uBarY[k+1][j][i].x) * kzet[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k+1][j][i].y) * kzet[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k+1][j][i].z) * kzet[k][j][i].z;
+                        }
+                        else 
+                        {
+                            uBarContI = ucont[k][j][i].x;
+                            uBarContJ = ucont[k][j][i].y;
+                            uBarContK = ucont[k][j][i].z;
+                        }
+
+                        // i-fluxes
+                        rhs[k][j][i].x
+                        +=
+                        scale * central(nud_y, nudi_y) *
+                        (
+                            uBarContI - ucont[k][j][i].x
+                        );
+
+                        // j-fluxes
+                        rhs[k][j][i].y
+                        +=
+                        scale * central(nud_y, nudj_y) *
+                        (
+                            uBarContJ - ucont[k][j][i].y
+                        );
+
+                        // k-fluxes
+                        rhs[k][j][i].z
+                        +=
+                        scale * central(nud_y, nudk_y) *
+                        (
+                            uBarContK - ucont[k][j][i].z
+                        );
                     }
                 }
 
@@ -2472,6 +2685,14 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 DMDAVecRestoreArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucontP);
             }
+        }
+    }
+
+    if(ueqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            DMDAVecRestoreArray(fda, abl->uBarInstY, &uBarY);
         }
     }
 
@@ -5532,6 +5753,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     if
     (
         ueqn->access->flags->isXDampingActive ||
+        ueqn->access->flags->isYDampingActive ||
         ueqn->access->flags->isZDampingActive ||
         ueqn->access->flags->isKLeftRayleighDampingActive ||
         ueqn->access->flags->isKRightRayleighDampingActive

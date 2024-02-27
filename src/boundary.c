@@ -1551,27 +1551,6 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                             ucat[k-1][j][i] = nSet(uGhost);
                         }
                     }
-                    // type 8: lid driven cavity flow with smoothing to prevent corner singularity
-                    else if (ifPtr->typeU == 8)
-                    {
-                        PetscReal H = mesh->bounds.zmax - mesh->bounds.zmin;
-                        PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;;
-
-                        if(h/H < 0.25)
-                        {
-                            ucat[k-1][j][i] = nScale((0.5 * (1.0 + std::sin(4.0*M_PI*h/H - M_PI/2.0))), ifPtr->Uref) ;
-                        }
-                        else if(h/H > 0.75)
-                        {
-                            ucat[k-1][j][i] = nScale((0.5 * (1.0 + std::sin(4.0*M_PI*h/H - M_PI/2.0))), ifPtr->Uref) ;
-                        }
-                        else
-                        {
-                            ucat[k-1][j][i] = nSet(ifPtr->Uref);
-                        }
-
-                    }
-
                 }
 
                 // fixedValue boundary condition on i-left patch

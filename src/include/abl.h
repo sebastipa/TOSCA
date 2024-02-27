@@ -32,10 +32,11 @@ struct abl_
 
     // temperature controller
     PetscReal    *tDes;                          //!< initial temperature to be maintained
-    word         controllerTypeT;
+    word         controllerTypeT;                //!< initial or directProfileAssimilation
     
     // velocity controller (common)
     word         controllerType;                 //!< velocity controller type: write/read (writes in postProcessing/momentumSource, reads from momentumSource)
+    word         controllerAction;
     PetscReal    relax;                          //!< source term relaxation factor
     PetscReal    alpha;                          //!< proportional over integral controller action ratio
     PetscReal    timeWindow;                     //!< time window of the integral part
@@ -128,11 +129,29 @@ struct abl_
     PetscReal    yDampingEnd;                    //!< ending y of the fringe layer
     PetscReal    yDampingDelta;                  //!< damping raise/decay distance (must be less than 0.5*(yDampingEnd - yDampingStart))
     PetscReal    yDampingAlpha;                  //!< damping paramter
-    PetscInt     yDampingNumPeriods;
+    PetscInt     yDampingNumPeriods;             //
     Vec          uBarInstY;                      //!< instantaneous bar velocity for y-fringe region (only used for concurent precursor)
     Vec          tBarInstY;                      //!< instantaneous bar temperature for y-fringe region (only used for concurent precursor)
-    PetscInt     **yFringeInterpIDs;             //!< vector of size [Nx, 2] storing the interpolation IDs along x from the concurrent precursor
-    PetscReal    **yFringeInterpWeights;         //!< vector of size [Nx, 2] storing the interpolation weights along x from the concurrent precursor
+   
+    PetscInt     iStart;
+    PetscInt     iEnd;
+    PetscInt     inYFringeRegionOnly;
+    PetscInt     numSourceProc;
+    PetscInt     *sourceProcList;
+    MPI_Comm     *yDamp_comm;
+    PetscMPIInt  *srcCommLocalRank;
+    cellIds      *srcMinInd;
+    cellIds      *srcMaxInd;
+    PetscInt     *isdestProc;
+    cellIds      **destMinInd;
+    cellIds      **destMaxInd;
+    PetscInt      *srcNumI;
+    PetscInt      *srcNumJ;
+    PetscInt      *srcNumK;
+    MPI_Request  *mapRequest;
+    Cmpnts       **velMapped;
+    PetscInt     **closestKCell;
+    PetscReal    **wtsKCell;
 
     // type of uBar computation
     PetscInt     xFringeUBarSelectionType;       //!< read type of fringe region in uBarSelectionType
@@ -205,9 +224,14 @@ PetscErrorCode InitializeABL(abl_ *abl);
 PetscReal NieuwstadtGeostrophicWind(abl_ *abl);
 
 //! \brief read the mesoscale driving velocity and potential temperature profile
-PetscErrorCode readMesoScaleData(abl_ *abl);
+PetscErrorCode readMesoScaleTemperatureData(abl_ *abl);
+
+PetscErrorCode readMesoScaleVelocityData(abl_ *abl);
 
 PetscErrorCode findVelocityInterpolationWeights(abl_ *abl);
 
 PetscErrorCode findTemperatureInterpolationWeights(abl_ *abl);
 
+PetscErrorCode initializeYDampingMapping(abl_ *abl);
+
+PetscErrorCode setWeightsYDamping(abl_ *abl);

@@ -952,7 +952,7 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
-    // due to marblles convention on block structured meshes:
+    // due to tosca convention on block structured meshes:
     // i = y direction
     // j = z direction
     // k = x direction (useles for kLeftPatch)

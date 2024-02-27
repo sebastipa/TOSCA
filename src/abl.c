@@ -164,6 +164,12 @@ PetscErrorCode InitializeABL(abl_ *abl)
         readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
         readDictWord     ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
 
+        if(abl->controllerTypeT == "directProfileAssimilation")
+        {
+            readMesoScaleTemperatureData(abl);
+
+            findTemperatureInterpolationWeights(abl);
+        }
     }
 
     if(abl->controllerActive)
@@ -172,7 +178,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerMaxHeight", &(abl->controllerMaxHeight));
         readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerType",   &(abl->controllerType));
+        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerAction",   &(abl->controllerAction));
 
+        
         // set cumulated sources to zero. They are needed for the integral part of the
         // controller if controllerType is set to 'write' or to store the average
         // sources if controllerType is set to 'average'
@@ -546,12 +554,11 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
             PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
             PetscPrintf(mesh->MESH_COMM, "   -> assimilation type: %s\n", abl->assimilationType.c_str());
-            readMesoScaleData(abl);
+            
+            readMesoScaleVelocityData(abl);
 
             //find the interpolation points and weights for the velocity and temperature fields from the available heights 
             findVelocityInterpolationWeights(abl);
-
-            findTemperatureInterpolationWeights(abl);
 
             // allocate memory for variables
             PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->luMean));
@@ -1142,6 +1149,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
     if(mesh->access->flags->isYDampingActive)
     {
         // assume also x-damping is active (cross checked in SetSimulationFlags)
+        PetscPrintf(mesh->MESH_COMM, "   reading y-damping properties\n");
 
         // read parameters
         readSubDictDouble("ABLProperties.dat", "yDampingProperties", "yDampingStart",   &(abl->yDampingStart));
@@ -1154,72 +1162,80 @@ PetscErrorCode InitializeABL(abl_ *abl)
         {
             //check if the streamwise length is a multiple of the number of periodization 
             PetscReal xDampingLength = std::abs(abl->xDampingEnd - abl->xDampingStart);
-            PetscReal error = mesh->bounds->Lx - xDampingLength*abl->yDampingNumPeriods;
-            if(error > 1e-7)
+            PetscReal error = mesh->bounds.Lx - xDampingLength*abl->yDampingNumPeriods;
+            
+            if(std::abs(error) > 1e-7)
             {
                 char error[512];
-                sprintf(error, "unknown xFringeUBarSelectionType %ld, available types are:\n\t0: log law\n\t1: unsteadyMappedPeriodizedUniform\n\t2: unsteadyInterpPeriodizedUniform\n\t3: concurrentPrecursor\n\t4: Nieuwstadt model\n", abl->xFringeUBarSelectionType);
+                sprintf(error, "error in the yDampingNumPeriods, the sucessor domain length needs to be = xFringe length x yDampingNumPeriods to apply lateral damping \n");
                 fatalErrorInFunction("ABLInitialize",  error);
             }
-            // initialize arrays
-            VecDuplicate(mesh->Cent,  &(abl->uBarInstY));      VecSet(abl->uBarInstY,    0.0);
-            VecDuplicate(mesh->Nvert, &(abl->tBarInstY));      VecSet(abl->tBarInstY,    0.0);
 
-            PetscMalloc(mz*sizeof(PetscInt*), &(abl->yFringeInterpIDs));
-            PetscMalloc(mz*sizeof(PetscReal*), &(abl->yFringeInterpWeights));
-
-            for(k=0; k<mz; k++)
+            if(abl->yDampingEnd != mesh->bounds.ymax)
             {
-                PetscMalloc(2*sizeof(PetscInt), &(abl->yFringeInterpIDs[k]));
-                PetscMalloc(2*sizeof(PetscReal), &(abl->yFringeInterpWeights[k]));
+                char error[512];
+                sprintf(error, "Set yDampingEnd to domain end in y direction. lateral fringe function is currently defined to be in the end of the y direction\n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
 
-                for(i=0; i<2; i++)
+            if(abl->yDampingStart >= abl->yDampingEnd)
+            {
+                char error[512];
+                sprintf(error, "yDampingStart defined greater than yDampingEnd. Correct it in ABLProperties.dat\n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
+
+            if(abl->yDampingNumPeriods == 1)
+            {
+                char error[512];
+                sprintf(error, "sucessor domain length = xfringe length. Are you only simulating a fringe region?, if not increase the sucessor domain size.\n");
+                warningInFunction("ABLInitialize",  error);
+            }
+
+            //x damping end must coincide with a mesh coordinate in the x axis, or will lead to issues when periodization of the cells in x axis
+            PetscInt lEndcheckFlag = 0, gEndCheckFlag = 0;
+            PetscInt lbegincheckFlag = 0, gbeginCheckFlag = 0;
+            for (k=zs; k<lze; k++)
+            {
+                for (j=ys; j<lye; j++)
                 {
-                    abl->yFringeInterpIDs[k][i]     = 0;
-                    abl->yFringeInterpWeights[k][i] = 0.0;
+                    for (i=xs; i<lxe; i++)
+                    {
+                        if(coor[k][j][i].x == abl->xDampingEnd)
+                        {
+                            lEndcheckFlag = 1;
+                        }
+
+                        if(coor[k][j][i].x == abl->xDampingStart)
+                        {
+                            lbegincheckFlag = 1;
+                        }
+                    }
                 }
             }
+            MPI_Allreduce(&lEndcheckFlag, &gEndCheckFlag, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&lbegincheckFlag, &gbeginCheckFlag, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
 
-            // create fictitious line
-            std::vector<PetscReal> lxCoordinates, gxCoordinates;
-
-            // selects those processors which are in the fringe
-            if(abl->access->flags->isConcurrentPrecursorActive)
+            if(gEndCheckFlag == 0)
             {
-                precursor_ *precursor = abl->precursor;
-                domain_    *domain_p  = precursor->domain;
-                mesh_      *mesh_p    = domain_p->mesh;
-
-                DM            da_p   = mesh_p->da, fda_p = mesh_p->fda;
-                DMDALocalInfo info_p = mesh->info;
-                PetscInt      xs_p   = info_p.xs, xe_p = info_p.xs + info_p.xm;
-                PetscInt      ys_p   = info_p.ys, ye_p = info_p.ys + info_p.ym;
-                PetscInt      zs_p   = info_p.zs, ze_p = info_p.zs + info_p.zm;
-                PetscInt      mx_p   = info_p.mx, my_p = info_p.my, mz_p = info_p.mz;
-
-                Cmpnts        ***cent_p;
-
-                PetscReal     gNperiods = 0, lNperiods = std::floor(mesh->bounds.Lx / mesh_p->bounds.Lx);
-
-                PetscInt      k_p, r, lxs_p, lxe_p, lys_p, lye_p, lzs_p, lze_p;
-
-                lxs_p = xs_p; lxe_p = xe_p; if (xs_p==0) lxs_p = xs_p+1; if (xe_p==mx_p) lxe_p = xe_p-1;
-                lys_p = ys_p; lye_p = ye_p; if (ys_p==0) lys_p = ys_p+1; if (ye_p==my_p) lye_p = ye_p-1;
-                lzs_p = zs_p; lze_p = ze_p; if (zs_p==0) lzs_p = zs_p+1; if (ze_p==mz_p) lze_p = ze_p-1;
-
-                PetscMPIInt   rank_p, nProcs_p;
-
-                MPI_Comm_rank(mesh_p->MESH_COMM, &rank_p);
-                MPI_Comm_size(mesh_p->MESH_COMM, &nProcs_p);
-
-                DMDAVecGetArray(fda_p, mesh_p->lCent,  &cent_p);
-                DMDAVecGetArray(fda  , mesh->lCent,    &cent);
-
-
-
-                DMDAVecRestoreArray(fda_p, mesh_p->lCent,  &cent_p);
-                DMDAVecRestoreArray(fda  , mesh->lCent,    &cent);
+                char error[512];
+                sprintf(error, "x fringe region domain end does not coincide with a mesh co-ordinate in the x direction. This will lead to incomplete cells when periodizing along x\n");
+                warningInFunction("ABLInitialize",  error);
             }
+
+            if(gbeginCheckFlag == 0)
+            {
+                char error[512];
+                sprintf(error, "x fringe region domain start does not coincide with a mesh co-ordinate in the x direction. This will lead to incomplete cells when periodizing along x\n");
+                warningInFunction("ABLInitialize",  error);
+            }
+
+            //find the processors controlling the source damping region - this is intersection domain of x and y damping regions
+            initializeYDampingMapping(abl);
+
+            // initialize arrays
+            VecDuplicate(mesh->lCent,  &(abl->uBarInstY));      VecSet(abl->uBarInstY,    0.0);
+            VecDuplicate(mesh->lNvert, &(abl->tBarInstY));      VecSet(abl->tBarInstY,    0.0);
         }
         else
         {
@@ -1369,7 +1385,7 @@ PetscReal NieuwstadtGeostrophicWind(abl_ *abl)
 
 //***************************************************************************************************************//
 
-PetscErrorCode readMesoScaleData(abl_ *abl)
+PetscErrorCode readMesoScaleVelocityData(abl_ *abl)
 {
     word variableName;
     word fileName;
@@ -1377,7 +1393,7 @@ PetscErrorCode readMesoScaleData(abl_ *abl)
 
     PetscInt  dim1, dim2;
 
-    PetscInt  numtV, numhV, numtT, numhT;
+    PetscInt  numtV, numhV;
 
     std::vector<word> fileList;
     PetscInt nFiles = 0;
@@ -1388,10 +1404,10 @@ PetscErrorCode readMesoScaleData(abl_ *abl)
     {
         char error[512];
         sprintf(error, "no file found in folder %s\n", filePath.c_str());
-        fatalErrorInFunction("readMesoScaleData",  error);
+        fatalErrorInFunction("readMesoScaleVelocityData",  error);
     }
     
-    PetscPrintf(PETSC_COMM_WORLD, "   reading mesoscale data\n");
+    PetscPrintf(PETSC_COMM_WORLD, "   reading mesoscale velocity data\n");
 
     for(PetscInt i=0; i<nFiles; i++)
     {
@@ -1404,7 +1420,7 @@ PetscErrorCode readMesoScaleData(abl_ *abl)
         {
             char error[512];
             sprintf(error, "cannot open file %s\n", fileName.c_str());
-            fatalErrorInFunction("readMesoScaleData",  error);
+            fatalErrorInFunction("readMesoScaleVelocityData",  error);
         }
         else
         {
@@ -1461,57 +1477,6 @@ PetscErrorCode readMesoScaleData(abl_ *abl)
                 abl->numhV = numhV;
             }
 
-            if(fileList[i] == "thetaTime")
-            {
-
-                PetscInt arrSize;
-
-                if(dim1 == 1)
-                {
-                    arrSize = dim2; 
-                }
-                else 
-                {
-                    arrSize = dim1;
-                }
-
-                PetscMalloc(sizeof(PetscReal) * arrSize, &(abl->timeT));
-
-                for(PetscInt j=0; j<arrSize; j++)
-                {
-                    indata >> abl->timeT[j];
-                }
-
-                numtT = arrSize;
-                abl->numtT = numtT;
-            }
-
-            if(fileList[i] == "thetaHeight")
-            {
-
-                PetscInt arrSize;
-
-                if(dim1 == 1)
-                {
-                    arrSize = dim2; 
-                }
-                else 
-                {
-                    arrSize = dim1;
-                }
-
-                PetscMalloc(sizeof(PetscReal) * arrSize, &(abl->hT));
-
-                for(PetscInt j=0; j<arrSize; j++)
-                {
-                    indata >> abl->hT[j];
-                }
-
-                numhT = arrSize;
-
-                abl->numhT = numhT;
-            }
-
             indata.close();
         }
     }
@@ -1529,7 +1494,7 @@ PetscErrorCode readMesoScaleData(abl_ *abl)
         {
             char error[512];
             sprintf(error, "cannot open file %s\n", fileName.c_str());
-            fatalErrorInFunction("readMesoScaleData",  error);
+            fatalErrorInFunction("readMesoScaleVelocityData",  error);
         }
         else
         {
@@ -1562,7 +1527,7 @@ PetscErrorCode readMesoScaleData(abl_ *abl)
                     {
                         char error[512];
                         sprintf(error, "number of elements in the height array %ld or time array %ld and the mesoscale velocity field array [%ld x %ld] do not match. recheck file write\n", numhV, numtV, dim1, dim2);
-                        fatalErrorInFunction("readMesoScaleData",  error);
+                        fatalErrorInFunction("readMesoScaleVelocityData",  error);
                     }
 
                     memAllocatedV = 1;
@@ -1693,6 +1658,126 @@ PetscErrorCode readMesoScaleData(abl_ *abl)
                 free(tempArray); 
             }
 
+            indata.close();
+        }
+    }
+    return (0);
+}
+
+//***************************************************************************************************************//
+PetscErrorCode readMesoScaleTemperatureData(abl_ *abl)
+{
+    word variableName;
+    word fileName;
+    word filePath = "inflowDatabase/mesoscaleData";
+
+    PetscInt  dim1, dim2;
+
+    PetscInt  numtT, numhT;
+
+    std::vector<word> fileList;
+    PetscInt nFiles = 0;
+
+    getFileList(filePath.c_str(), fileList, nFiles);
+
+    if(nFiles == 0)
+    {
+        char error[512];
+        sprintf(error, "no file found in folder %s\n", filePath.c_str());
+        fatalErrorInFunction("readMesoScaleTemperatureData",  error);
+    }
+    
+    PetscPrintf(PETSC_COMM_WORLD, "   reading mesoscale temperature data\n");
+
+    for(PetscInt i=0; i<nFiles; i++)
+    {
+        fileName = filePath + "/" + fileList[i];
+
+        std::ifstream indata;
+        indata.open(fileName.c_str());
+
+        if(!indata)
+        {
+            char error[512];
+            sprintf(error, "cannot open file %s\n", fileName.c_str());
+            fatalErrorInFunction("readMesoScaleTemperatureData",  error);
+        }
+        else
+        {
+            indata >> dim1 >> dim2;
+
+            if(fileList[i] == "thetaTime")
+            {
+
+                PetscInt arrSize;
+
+                if(dim1 == 1)
+                {
+                    arrSize = dim2; 
+                }
+                else 
+                {
+                    arrSize = dim1;
+                }
+
+                PetscMalloc(sizeof(PetscReal) * arrSize, &(abl->timeT));
+
+                for(PetscInt j=0; j<arrSize; j++)
+                {
+                    indata >> abl->timeT[j];
+                }
+
+                numtT = arrSize;
+                abl->numtT = numtT;
+            }
+
+            if(fileList[i] == "thetaHeight")
+            {
+
+                PetscInt arrSize;
+
+                if(dim1 == 1)
+                {
+                    arrSize = dim2; 
+                }
+                else 
+                {
+                    arrSize = dim1;
+                }
+
+                PetscMalloc(sizeof(PetscReal) * arrSize, &(abl->hT));
+
+                for(PetscInt j=0; j<arrSize; j++)
+                {
+                    indata >> abl->hT[j];
+                }
+
+                numhT = arrSize;
+
+                abl->numhT = numhT;
+            }
+
+            indata.close();
+        }
+    }
+    
+    for(PetscInt i=0; i<nFiles; i++)
+    {
+        fileName = filePath + "/" + fileList[i];
+
+        std::ifstream indata;
+        indata.open(fileName.c_str());
+
+        if(!indata)
+        {
+            char error[512];
+            sprintf(error, "cannot open file %s\n", fileName.c_str());
+            fatalErrorInFunction("readMesoScaleTemperatureData",  error);
+        }
+        else
+        {
+            indata >> dim1 >> dim2;
+
             if(fileList[i] == "theta")
             {
 
@@ -1752,7 +1837,7 @@ PetscErrorCode readMesoScaleData(abl_ *abl)
                 {
                     char error[512];
                     sprintf(error, "number of elements in the height array %ld and the mesoscale temperature field array [%ld x %ld] do not match. recheck file write\n", numhT, dim1, dim2);
-                    fatalErrorInFunction("readMesoScaleData",  error);
+                    fatalErrorInFunction("readMesoScaleTemperatureData",  error);
                 }
 
                 //delete temp array 
@@ -2126,5 +2211,828 @@ PetscErrorCode findTemperatureInterpolationWeights(abl_ *abl)
         // PetscPrintf(PETSC_COMM_WORLD, "time interp id = %ld %ld, at time = %lf %lf, for time = %lf, wts = %lf %lf\n", abl->closestTimeIndT, (abl->closestTimeIndT) + 1, abl->timeT[idx1], abl->timeT[idx2], tim, abl->closestTimeWtT, 1 - (abl->closestTimeWtT) );
     }
 
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode initializeYDampingMapping(abl_ *abl)
+{
+    mesh_ *mesh = abl->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***cent, ***coor;
+    Vec           Coor;
+    boundingBox   sourceBound, destProcBound, yFringeBound;
+    PetscInt      numSourceProc = 0, sourceBoundFlag = 0;
+    PetscInt      numDestBounds = abl->yDampingNumPeriods;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l, p;
+
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    PetscMPIInt   globalSize;
+    MPI_Comm_size(mesh->MESH_COMM, &globalSize);
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMGetCoordinatesLocal(da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    sourceBound.xmin = abl->xDampingStart;
+    sourceBound.xmax = abl->xDampingEnd;
+    sourceBound.ymin = abl->yDampingStart;
+    sourceBound.ymax = abl->yDampingEnd;
+    sourceBound.zmin = mesh->bounds.zmin;
+    sourceBound.zmax = mesh->bounds.zmax;
+
+    sourceBound.Lx = std::abs(abl->xDampingEnd - abl->xDampingStart);
+    sourceBound.Ly = std::abs(abl->yDampingEnd - abl->yDampingStart);
+    sourceBound.Lz = mesh->bounds.Lz;
+
+    yFringeBound.xmin = abl->xDampingEnd;
+    yFringeBound.xmax = mesh->bounds.xmax;
+    yFringeBound.ymin = abl->yDampingStart;
+    yFringeBound.ymax = abl->yDampingEnd;
+    yFringeBound.zmin = mesh->bounds.zmin;
+    yFringeBound.zmax = mesh->bounds.zmax;
+
+    abl->inYFringeRegionOnly = 0;
+    
+    //find the processors within the lateral fringe region only excluding source region
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(isInsideBoundingBox(cent[k][j][i], yFringeBound))
+                {
+                    abl->inYFringeRegionOnly = 1;
+                    break;
+                }
+
+            }
+            if(abl->inYFringeRegionOnly == 1) break;
+        }
+        if(abl->inYFringeRegionOnly == 1) break;
+    }
+
+    //find processors that control the source bounding box
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(isInsideBoundingBox(cent[k][j][i], sourceBound))
+                {
+                    sourceBoundFlag = 1;
+                    break;
+                }
+
+            }
+            if(sourceBoundFlag == 1) break;
+        }
+        if(sourceBoundFlag == 1) break;
+    }
+
+    //total source processors
+    MPI_Allreduce(&sourceBoundFlag, &numSourceProc, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
+    
+    abl->numSourceProc = numSourceProc;
+
+    //allocate the memory for the abl variables 
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->sourceProcList));
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->srcNumI));
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->srcNumJ));
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->srcNumK));
+
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->srcCommLocalRank));
+    PetscMalloc(numSourceProc * sizeof(cellIds), &(abl->srcMinInd));
+    PetscMalloc(numSourceProc * sizeof(cellIds), &(abl->srcMaxInd));
+    PetscMalloc(numSourceProc * sizeof(MPI_Comm), &(abl->yDamp_comm));
+    PetscMalloc(numSourceProc * sizeof(MPI_Request), &(abl->mapRequest));
+
+
+    PetscMalloc(sizeof(PetscInt)  * numSourceProc, &(abl->isdestProc));
+    PetscMalloc(sizeof(cellIds *)  * numSourceProc, &(abl->destMinInd));
+    PetscMalloc(sizeof(cellIds *)  * numSourceProc, &(abl->destMaxInd));
+
+    for(j=0; j<numSourceProc; j++)
+    {
+        PetscMalloc(sizeof(cellIds)  *  numDestBounds, &(abl->destMinInd[j]));
+        PetscMalloc(sizeof(cellIds)  *  numDestBounds, &(abl->destMaxInd[j]));
+    }
+
+    //create min and max coordinate for each source processor
+    Cmpnts lminCoor[numSourceProc], lmaxCoor[numSourceProc], gminCoor[numSourceProc], gmaxCoor[numSourceProc];
+    cellIds lsrcMinInd[numSourceProc];
+
+    //create list of source processors
+    PetscInt lsrcPrc[numSourceProc], gsrcPrc[numSourceProc];
+
+    for (p = 0; p<numSourceProc; p++)
+    {
+        lminCoor[p] = nSetZero();
+        lmaxCoor[p] = nSetZero();
+        gminCoor[p] = nSetZero();
+        gmaxCoor[p] = nSetZero();
+        lsrcPrc[p] = 0;
+        gsrcPrc[p] = 0;
+
+        lsrcMinInd[p].i = 0;
+        lsrcMinInd[p].j = 0;
+        lsrcMinInd[p].k = 0;
+    }
+
+    if(sourceBoundFlag == 0)
+    {
+        sourceBoundFlag = MPI_UNDEFINED;
+    }
+
+    //local communicator among the source processes 
+    MPI_Comm    SOURCE_BOUND_COMM;
+    MPI_Comm_split(mesh->MESH_COMM, sourceBoundFlag, rank, &(SOURCE_BOUND_COMM));
+
+    PetscMPIInt lsrcRoot = 0, gsrcRoot = 0;
+
+    if(sourceBoundFlag == 1)
+    {
+        PetscMPIInt   srcRank;
+        MPI_Comm_rank(SOURCE_BOUND_COMM, &srcRank);
+
+        //find the co-ordinates and the range of indices that are within this subdomain
+        //co-ordinates will be used to find processors to share with in other subdomains 
+        //range of indices will be used to share the data
+
+        PetscReal xmin = 1e20, xmax = -1e20, ymin = 1e20, ymax = -1e20, zmin = 1e20, zmax = -1e20;
+
+        //finding processor bounding co-ordinates - based on mesh coordinates
+        for (k=lzs; k<lze; k++)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    if(isInsideBoundingBox(cent[k][j][i], sourceBound))
+                    {
+                        if(cent[k][j][i].x <= xmin)
+                        {
+                            xmin = cent[k][j][i].x;
+                        }
+
+                        if(cent[k][j][i].y <= ymin)
+                        {
+                            ymin = cent[k][j][i].y;
+                        }
+
+                        if(cent[k][j][i].z <= zmin)
+                        {
+                            zmin = cent[k][j][i].z;
+                        }
+
+                        if(cent[k][j][i].x >= xmax)
+                        {
+                            xmax = cent[k][j][i].x;
+                        }
+
+                        if(cent[k][j][i].y >= ymax)
+                        {
+                            ymax = cent[k][j][i].y;
+                        }
+
+                        if(cent[k][j][i].z >= zmin)
+                        {
+                            zmax = cent[k][j][i].z;
+                        }
+
+                    }
+                }
+            }
+        }
+
+        lminCoor[srcRank] = nSetFromComponents(xmin, ymin, zmin);
+        lmaxCoor[srcRank] = nSetFromComponents(xmax, ymax, zmax);
+        lsrcPrc [srcRank] = rank;
+
+        xmin = 1e20, xmax = -1e20, ymin = 1e20, ymax = -1e20, zmin = 1e20, zmax = -1e20;
+        PetscInt imin, jmin, kmin, imax, jmax, kmax;
+
+        //finding indexes - based on cell center coordinates
+        for (k=lzs; k<lze; k++)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    if(isInsideBoundingBox(cent[k][j][i], sourceBound))
+                    {
+                        if(cent[k][j][i].x <= xmin)
+                        {
+                            xmin = cent[k][j][i].x;
+                            kmin = k;
+                        }
+
+                        if(cent[k][j][i].y <= ymin)
+                        {
+                            ymin = cent[k][j][i].y;
+                            imin = i;
+                        }
+
+                        if(cent[k][j][i].z <= zmin)
+                        {
+                            zmin = cent[k][j][i].z;
+                            jmin = j;
+                        }
+
+                        if(cent[k][j][i].x >= xmax)
+                        {
+                            xmax = cent[k][j][i].x;
+                            kmax = k;
+                        }
+
+                        if(cent[k][j][i].y >= ymax)
+                        {
+                            ymax = cent[k][j][i].y;
+                            imax = i;
+                        }
+
+                        if(cent[k][j][i].z >= zmin)
+                        {
+                            zmax = cent[k][j][i].z;
+                            jmax = j;
+                        }
+
+                    }
+                }
+            }
+        }
+
+        lsrcMinInd[srcRank].i = imin;
+        lsrcMinInd[srcRank].j = jmin; 
+        lsrcMinInd[srcRank].k = kmin; 
+
+        abl->srcMaxInd[srcRank].i = imax;
+        abl->srcMaxInd[srcRank].j = jmax; 
+        abl->srcMaxInd[srcRank].k = kmax; 
+
+        
+        MPI_Reduce(&(lminCoor[0]), &(gminCoor[0]), numSourceProc * 3, MPIU_REAL, MPIU_SUM, 0, SOURCE_BOUND_COMM);
+        MPI_Reduce(&(lmaxCoor[0]), &(gmaxCoor[0]), numSourceProc * 3, MPIU_REAL, MPIU_SUM,  0, SOURCE_BOUND_COMM);
+        MPI_Reduce(&(lsrcPrc[0]), &(gsrcPrc[0]), numSourceProc, MPIU_INT, MPIU_SUM, 0, SOURCE_BOUND_COMM);
+
+        if(srcRank == 0)
+        {
+            lsrcRoot = rank;
+        }
+    }
+
+    // get the global rank of the sending processor
+    MPI_Allreduce(&(lsrcRoot), &(gsrcRoot), 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
+
+    MPI_Bcast(&(gminCoor[0]), numSourceProc * 3, MPIU_REAL, gsrcRoot, mesh->MESH_COMM);
+    MPI_Bcast(&(gmaxCoor[0]), numSourceProc * 3, MPIU_REAL, gsrcRoot, mesh->MESH_COMM);
+    MPI_Bcast(&(gsrcPrc[0]), numSourceProc, MPIU_INT, gsrcRoot, mesh->MESH_COMM);
+
+    //add buffer to min and max coordinates 
+    for(p=0;p<numSourceProc;p++)
+    {
+        gminCoor[p].x = gminCoor[p].x - 1e-7;
+        gminCoor[p].y = gminCoor[p].y - 1e-7;
+        gminCoor[p].z = gminCoor[p].z - 1e-7;
+        gmaxCoor[p].x = gmaxCoor[p].x + 1e-7;
+        gmaxCoor[p].y = gmaxCoor[p].y + 1e-7;
+        gmaxCoor[p].z = gmaxCoor[p].z + 1e-7;
+    }
+
+    PetscPrintf(mesh->MESH_COMM, "   mapping from source processors:\n");
+
+    for(p=0;p<numSourceProc;p++)
+    {
+        abl->sourceProcList[p] = gsrcPrc[p];
+        PetscPrintf(mesh->MESH_COMM, "      processor %ld: %ld\n", p, gsrcPrc[p]);
+    }
+
+    PetscInt isdestProc[numSourceProc];
+
+    //initialize local arrays
+    for(p=0;p<numSourceProc;p++)
+    {
+        isdestProc[p] = 0;
+    }
+    
+    for(p=0; p<numSourceProc; p++)
+    {
+        //add source processor
+        if(rank == gsrcPrc[p])
+        {
+            isdestProc[p] = 1;
+        }
+
+        for(l=0; l<numDestBounds; l++)
+        {
+            destProcBound.xmin = gminCoor[p].x + (l)*sourceBound.Lx;
+            destProcBound.xmax = gmaxCoor[p].x + (l)*sourceBound.Lx;
+            destProcBound.ymin = gminCoor[p].y;
+            destProcBound.ymax = gmaxCoor[p].y;   
+            destProcBound.zmin = gminCoor[p].z;
+            destProcBound.zmax = gmaxCoor[p].z;  
+
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if(isInsideBoundingBox(cent[k][j][i], destProcBound))
+                        {
+                            isdestProc[p] = 1;
+                            break;
+                        }
+                    }
+                    if(isdestProc[p] == 1) break;
+                }
+                if(isdestProc[p] == 1) break;
+            }
+            
+        }
+    }
+
+    // find the indexes in the destination processors where the mapped data needs to be set
+    // this is local to a given processor. check for bounds when using.
+    for(p=0; p<numSourceProc; p++)
+    {   
+        for(l=0; l<numDestBounds; l++)
+        {
+
+            if(isdestProc[p] == 1)
+            {
+                destProcBound.xmin = gminCoor[p].x + (l)*sourceBound.Lx;
+                destProcBound.xmax = gmaxCoor[p].x + (l)*sourceBound.Lx;
+                destProcBound.ymin = gminCoor[p].y;
+                destProcBound.ymax = gmaxCoor[p].y;   
+                destProcBound.zmin = gminCoor[p].z;
+                destProcBound.zmax = gmaxCoor[p].z;  
+
+                PetscReal xmin = 1e20, xmax = -1e20, ymin = 1e20, ymax = -1e20, zmin = 1e20, zmax = -1e20;
+                PetscInt imin, jmin, kmin, imax, jmax, kmax;
+
+                for (k=lzs; k<lze; k++)
+                {
+                    for (j=lys; j<lye; j++)
+                    {
+                        for (i=lxs; i<lxe; i++)
+                        {
+                            if(isInsideBoundingBox(cent[k][j][i], destProcBound))
+                            {
+                                if(cent[k][j][i].x <= xmin)
+                                {
+                                    xmin = cent[k][j][i].x;
+                                    kmin = k;
+                                }
+
+                                if(cent[k][j][i].y <= ymin)
+                                {
+                                    ymin = cent[k][j][i].y;
+                                    imin = i;
+                                }
+
+                                if(cent[k][j][i].z <= zmin)
+                                {
+                                    zmin = cent[k][j][i].z;
+                                    jmin = j;
+                                }
+
+                                if(cent[k][j][i].x >= xmax)
+                                {
+                                    xmax = cent[k][j][i].x;
+                                    kmax = k;
+                                }
+
+                                if(cent[k][j][i].y >= ymax)
+                                {
+                                    ymax = cent[k][j][i].y;
+                                    imax = i;
+                                }
+
+                                if(cent[k][j][i].z >= zmin)
+                                {
+                                    zmax = cent[k][j][i].z;
+                                    jmax = j;
+                                }
+
+                            }
+                        }
+                    }
+                }
+
+                if(xmin == 1e20) kmin = -1;
+                if(xmax == -1e20)kmax = -1;
+                if(ymin == 1e20) imin = -1;
+                if(ymax == -1e20)imax = -1;
+                if(zmin == 1e20) jmin = -1;
+                if(zmax == -1e20)jmax = -1;
+
+                abl->destMinInd[p][l].i = imin;
+                abl->destMinInd[p][l].j = jmin; 
+                abl->destMinInd[p][l].k = kmin; 
+
+                abl->destMaxInd[p][l].i = imax;
+                abl->destMaxInd[p][l].j = jmax; 
+                abl->destMaxInd[p][l].k = kmax; 
+                
+                // PetscPrintf(PETSC_COMM_SELF, "for processor %ld at periodization = %ld, connected to processor %d: coor = %lf %lf %lf %lf %lf %lf, index = %ld %ld %ld %ld %ld %ld \n", gsrcPrc[p], l, rank, xmin, xmax, ymin, ymax, zmin, zmax, kmin, kmax, imin, imax, jmin, jmax);
+            }
+        }
+    }
+
+    //create communicator between the source and dest processors for each source processor 
+    for(p=0;p<numSourceProc;p++)
+    {
+        abl->isdestProc[p] = isdestProc[p];
+
+        if(isdestProc[p] == 0)
+        {
+            isdestProc[p] = MPI_UNDEFINED;
+        }
+    }
+
+    for(p=0;p<numSourceProc;p++) 
+    {
+        MPI_Comm_split(mesh->MESH_COMM, isdestProc[p], rank, &(abl->yDamp_comm[p]));
+    }
+
+    // make some data global to all the processors of the communicator
+
+    for(p=0; p<numSourceProc; p++)
+    {
+        if(isdestProc[p] == 1) 
+        {
+            PetscMPIInt lsrcLocal = 0, gsrcLocal = 0;
+            PetscInt imin, imax, jmin, jmax, kmin, kmax;
+            PetscInt lnumI=0, lnumJ=0, lnumK=0, gnumI = 0, gnumJ = 0, gnumK = 0;
+
+            //making global the src rank for bradcasts later
+            if(rank == abl->sourceProcList[p])
+            {
+                MPI_Comm_rank(abl->yDamp_comm[p], &lsrcLocal);
+
+                imin = lsrcMinInd[p].i;
+                imax = abl->srcMaxInd[p].i;
+                jmin = lsrcMinInd[p].j;
+                jmax = abl->srcMaxInd[p].j;
+                kmin = lsrcMinInd[p].k;
+                kmax = abl->srcMaxInd[p].k;
+                
+                lnumI = imax - imin + 1;
+                lnumJ = jmax - jmin + 1;
+                lnumK = kmax - kmin + 1;
+            }
+            
+            MPI_Allreduce(&(lsrcLocal), &(gsrcLocal), 1, MPI_INT, MPIU_SUM, abl->yDamp_comm[p]);
+            MPI_Allreduce(&(lnumI), &(gnumI), 1, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
+            MPI_Allreduce(&(lnumJ), &(gnumJ), 1, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
+            MPI_Allreduce(&(lnumK), &(gnumK), 1, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
+            MPI_Allreduce(&(lsrcMinInd[p]), &(abl->srcMinInd[p]), 3, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
+
+            abl->srcCommLocalRank[p] = gsrcLocal;
+            abl->srcNumI[p] = gnumI;
+            abl->srcNumJ[p] = gnumJ;
+            abl->srcNumK[p] = gnumK;
+
+            // PetscPrintf(PETSC_COMM_SELF, "for processor %d, local src rank = %d, num mapped elements = %ld %ld %ld \n", rank, abl->srcCommLocalRank[p], abl->srcNumI[p], abl->srcNumJ[p], abl->srcNumK[p]);
+        }
+    }
+
+
+    /*allocate memory to the mapped one d array within both the src and destination processors 
+     if a destination processor gets data from two src processors, it allocates data for both the src processor velocity arrays depending on their 
+     respective size. */
+
+    PetscMalloc(numSourceProc * sizeof(Cmpnts*), &(abl->velMapped));
+
+    for(p=0; p<numSourceProc; p++)
+    {
+        PetscInt arraySize = abl->srcNumI[p]*abl->srcNumJ[p]*abl->srcNumK[p];
+        
+        if(isdestProc[p] == 1)
+        {
+            PetscMalloc(arraySize * sizeof(Cmpnts), &(abl->velMapped[p]));
+        }
+    }
+
+    //create a fictitious mesh for interpolation in case the mesh is non-uniform 
+    setWeightsYDamping(abl);
+
+
+    //find the min and max i indices of the cells that are inside the y fringe region 
+
+    PetscInt kP = std::floor(mz/2.0);
+    PetscInt jP = std::floor(my/2.0);
+
+        // find min and max fringe k-indices
+    PetscReal lminDistS = 1e30, gminDistS = 1e30;
+    PetscReal lminDistE = 1e30, gminDistE = 1e30;
+    PetscInt lfringeMinI = 0;
+    PetscInt lfringeMaxI = 0;
+
+    // access the line of processors in i that have k and j indices equal to mz/2 and my/2
+    if
+    (
+        (kP < lze && kP >= lzs)
+        &&
+        (jP < lye && jP >= lys)
+    )
+    {
+        for(i=lxs; i<lxe; i++)
+        {
+            //ensure the indices are within the domain 
+            if(cent[kP][jP][i].y < abl->yDampingStart || cent[kP][jP][i].y > abl->yDampingEnd) continue;
+
+            PetscReal distS = fabs(cent[kP][jP][i].y - abl->yDampingStart);
+            PetscReal distE = fabs(cent[kP][jP][i].y - abl->yDampingEnd);
+
+            if(distS < lminDistS)
+            {
+                lminDistS   = distS;
+                lfringeMinI = i;
+            }
+
+            if(distE < lminDistE)
+            {
+                lminDistE   = distE;
+                lfringeMaxI = i;
+            }
+        }
+    }
+
+    MPI_Allreduce(&lminDistS, &gminDistS, 1, MPIU_REAL, MPI_MIN, mesh->MESH_COMM);
+    MPI_Allreduce(&lminDistE, &gminDistE, 1, MPIU_REAL, MPI_MIN, mesh->MESH_COMM);
+
+    // compare to see which processor got the right i
+    if(gminDistS != lminDistS) lfringeMinI = 0;
+    if(gminDistE != lminDistE) lfringeMaxI = 0;
+
+    MPI_Allreduce(&lfringeMinI, &(abl->iStart), 1, MPIU_INT, MPI_MAX, mesh->MESH_COMM);
+    MPI_Allreduce(&lfringeMaxI, &(abl->iEnd), 1, MPIU_INT, MPI_MAX, mesh->MESH_COMM);
+
+    PetscPrintf(PETSC_COMM_WORLD, "start and end index = %ld %ld\n", abl->iStart, abl->iEnd);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(fda, Coor, &coor);
+
+    MPI_Comm_free(&SOURCE_BOUND_COMM);
+    return(0);
+}
+
+PetscErrorCode setWeightsYDamping(abl_ *abl)
+{
+    mesh_ *mesh = abl->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k, b;
+    PetscInt           lxs, lxe, lys, lye, lzs, lze;
+
+    PetscMPIInt   rank, size;
+
+    // declare arrays
+    Cmpnts        ***cent;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    MPI_Comm_size(mesh->MESH_COMM, &size);
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // indices for internal cells
+    lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+    lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+    lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+    PetscMalloc(sizeof(PetscInt *)  * (mz), &(abl->closestKCell));
+    PetscMalloc(sizeof(PetscReal *)  * (mz), &(abl->wtsKCell));
+
+    for(j=0; j<mz; j++)
+    {
+        PetscMalloc(sizeof(PetscInt)  *  2, &(abl->closestKCell[j]));
+        PetscMalloc(sizeof(PetscReal)  *  2, &(abl->wtsKCell[j]));
+    }
+
+    //create fictitious k direction mesh based on the source 
+    std::vector <PetscInt>   lnum(size);                                                // local number of Acceptor cells in each processor
+    std::vector <PetscInt>   gnum(size); 
+
+    PetscInt jInd = 1, iInd = 1, disp = 0, numkCells = 0;
+
+    for (b=0; b < size; b++){
+        lnum[b] = 0;
+        gnum[b] = 0;
+    }
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(j==jInd && i==iInd)
+                {
+                    if(cent[k][jInd][iInd].x > abl->xDampingStart && cent[k][jInd][iInd].x < abl->xDampingEnd)
+                    {
+                        lnum[rank]++;
+                    }
+                }
+            }
+        }
+    }
+
+
+    MPI_Allreduce(&lnum[0], &gnum[0], size, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+    for (b=0; b<rank; b++){
+        disp +=gnum[b];
+    }
+
+    for (b=0; b< size; b++){
+        numkCells +=gnum[b];   
+    }
+
+    std::vector<PetscInt> lkSrcCellInd, gkSrcCellInd;
+    std::vector<PetscReal> lkSrcCellCoor, gkSrcCellCoor;
+    lkSrcCellInd.resize(numkCells);
+    gkSrcCellInd.resize(numkCells);
+    lkSrcCellCoor.resize(numkCells);
+    gkSrcCellCoor.resize(numkCells);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(j==jInd && i==iInd)
+                {
+                    if(cent[k][jInd][iInd].x > abl->xDampingStart && cent[k][jInd][iInd].x < abl->xDampingEnd)
+                    {
+                        lkSrcCellInd[disp] = k;
+                        lkSrcCellCoor[disp] = cent[k][jInd][iInd].x;
+                        disp++;
+                    }
+                }
+            }
+        }
+    }
+
+    MPI_Allreduce(&lkSrcCellInd[0], &(gkSrcCellInd[0]), numkCells, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lkSrcCellCoor[0], &(gkSrcCellCoor[0]), numkCells, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+
+    //find cell centers based on the periodization 
+    std::vector<PetscReal> kDirectionCenters;
+    std::vector<PetscInt> kDirectionOrgIndex;
+
+    PetscInt numK = numkCells*abl->yDampingNumPeriods;
+
+    kDirectionCenters.resize(numK);
+    kDirectionOrgIndex.resize(numK);
+
+    for(i=0;i<numkCells;i++)
+    {
+        for(j=0;j<abl->yDampingNumPeriods;j++)
+        {
+            kDirectionCenters[j*numkCells + i] = gkSrcCellCoor[i] + j*(abl->xDampingEnd - abl->xDampingStart);
+            kDirectionOrgIndex[j*numkCells + i] = gkSrcCellInd[i];
+        }
+    }
+
+    // //now find the closest fictitious k cell centers to each cell 
+    for (k=lzs; k<lze; k++)
+    {
+        PetscReal  minDistMag = 1e20;
+        PetscInt closestkInd;
+        PetscInt dir;
+
+        for(b=0;b<numK;b++)
+        {
+            PetscReal dist = cent[k][lys][lxs].x - kDirectionCenters[b];
+            PetscReal distMag = std::abs(dist);
+
+            if(distMag < minDistMag)
+            {
+                minDistMag = distMag;
+                closestkInd = b;
+
+                if(dist < 0)
+                {
+                    dir = -1;  
+                }
+                else if(dist > 0)
+                {
+                    dir = 1;
+                }
+                else 
+                {
+                    dir = 0;
+                }
+            }
+        }   
+
+        PetscInt    k1, k2;  
+        PetscReal   x1, x2;
+
+        if(closestkInd == 0)
+        {
+            if(dir == -1)
+            {
+                k1 = numK-1;
+                k2 = closestkInd;
+
+                //weights set directly
+            }
+            else 
+            {
+                k1 = closestkInd;
+                k2 = closestkInd+1;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2];
+            }
+        }    
+        else if(closestkInd == numK-1)
+        {
+            if(dir == 1)
+            {
+                k1 = numK-1;
+                k2 = 0;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2] + abl->yDampingNumPeriods*(abl->xDampingEnd - abl->xDampingStart);
+            }
+            else 
+            {
+                k1 = numK-2;
+                k2 = numK-1;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2];
+            }
+        }
+        else 
+        {
+            if(dir == -1)
+            {
+                k1 = closestkInd-1;
+                k2 = closestkInd;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2];
+            }
+            else 
+            {
+                k1 = closestkInd;
+                k2 = closestkInd+1;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2];
+            }
+        }
+
+        abl->closestKCell[k][0] = kDirectionOrgIndex[k1];
+        abl->closestKCell[k][1] = kDirectionOrgIndex[k2];
+
+        PetscReal coeff = (x2 - x1);
+
+        // compute weights
+
+        if(closestkInd == 0)
+        {
+            if(dir == -1)
+            {
+                abl->wtsKCell[k][0] = 0;
+                abl->wtsKCell[k][1] = 1;
+            }   
+            else 
+            {
+                abl->wtsKCell[k][0] = (x2 - cent[k][lys][lxs].x)/coeff;
+                abl->wtsKCell[k][1] = (cent[k][lys][lxs].x - x1)/coeff;
+            }    
+        }
+        else 
+        {
+            abl->wtsKCell[k][0] = (x2 - cent[k][lys][lxs].x)/coeff;
+            abl->wtsKCell[k][1] = (cent[k][lys][lxs].x - x1)/coeff;
+        }
+
+        // PetscPrintf(PETSC_COMM_SELF, "cell k= %ld, cell center = %lf, closest cells = %ld %ld, wts  = %lf %lf, closest cell = %ld, cell coord = %lf %lf, dir = %ld\n", k, cent[k][lys][lxs].x, abl->closestKCell[k][0], abl->closestKCell[k][1], abl->wtsKCell[k][0], abl->wtsKCell[k][1], closestkInd, x1, x2, dir);
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     return (0);
 }
