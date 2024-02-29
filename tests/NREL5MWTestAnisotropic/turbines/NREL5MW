@@ -21,15 +21,15 @@ yawControllerType   fiveRegionsNREL
 # Actuator disk model parameters
 nBlades             3
 rotationDir         cw
-nRadPts             60
+nRadPts             6
 nAziPts             50
 epsilon             8.0
 debug               0
 initialOmega        10.41
 projection          anisotropic
 sampleType	    integral
-epsilonFactor_x	    8.5
-epsilonFactor_y     8.5
+epsilonFactor_x	    10.5
+epsilonFactor_y     10.5
 epsilonFactor_z     8
 
 # Uniform actuator disk parameters

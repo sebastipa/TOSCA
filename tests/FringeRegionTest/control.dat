@@ -25,7 +25,7 @@
 -sideForce                 1
 -computeSources            1
 -precursorSpinUp           1
-
+-advectionDamping          0
 -absTolU                   1e-5
 -poissonIt                 20
 -poissonTol                1e-10

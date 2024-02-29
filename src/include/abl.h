@@ -71,7 +71,8 @@ struct abl_
     // read and average
     PetscInt     currentCloseIdx;                //!< save the current closest index at each iteration to speed up the interpolation search
     PetscReal    sourceAvgStartTime;             //!< if controllerType is 'average', average sources from this time value
-    PetscReal    **preCompSources;               //!< table of given sources [ntimesteps][time|sourceX|sourceY|sourceZ] for velocity controller type = read.
+    PetscReal    **preCompSources;               //!< table of given sources [ntimesteps][time|sourceX|sourceY|sourceZ] for velocity controller type = timeSeries/timeAverageSeries
+    PetscReal    ***timeHtSources;               //!< table of given timeheight sources [time|sourceX|sourceY|sourceZ] at each cell level, controller type = timeHeightSeries
     PetscInt     nSourceTimes;                   //!< number of times in the pre-computed sources
     Cmpnts       cumulatedSource;                //!< cumulated error of the velocity controller (equalt to gradP at steady state)
     PetscReal    avgTimeStep;                    //!< average time step from the momentum source file
@@ -129,29 +130,29 @@ struct abl_
     PetscReal    yDampingEnd;                    //!< ending y of the fringe layer
     PetscReal    yDampingDelta;                  //!< damping raise/decay distance (must be less than 0.5*(yDampingEnd - yDampingStart))
     PetscReal    yDampingAlpha;                  //!< damping paramter
-    PetscInt     yDampingNumPeriods;             //
+    PetscInt     yDampingNumPeriods;             //!< number of periodizations in the streamwise direction of the x fringe region
     Vec          uBarInstY;                      //!< instantaneous bar velocity for y-fringe region (only used for concurent precursor)
     Vec          tBarInstY;                      //!< instantaneous bar temperature for y-fringe region (only used for concurent precursor)
    
-    PetscInt     iStart;
-    PetscInt     iEnd;
-    PetscInt     inYFringeRegionOnly;
-    PetscInt     numSourceProc;
-    PetscInt     *sourceProcList;
-    MPI_Comm     *yDamp_comm;
-    PetscMPIInt  *srcCommLocalRank;
-    cellIds      *srcMinInd;
-    cellIds      *srcMaxInd;
-    PetscInt     *isdestProc;
-    cellIds      **destMinInd;
-    cellIds      **destMaxInd;
-    PetscInt      *srcNumI;
-    PetscInt      *srcNumJ;
-    PetscInt      *srcNumK;
-    MPI_Request  *mapRequest;
-    Cmpnts       **velMapped;
-    PetscInt     **closestKCell;
-    PetscReal    **wtsKCell;
+    PetscInt     iStart;                         //!< start i index of the lateral fringe region (within the lateral fringe domain)
+    PetscInt     iEnd;                           //!< end i index of the lateral fringe region (within the lateral fringe domain)
+    PetscInt     inYFringeRegionOnly;            //!< flag indicating processors within the lateral fringe region excluding the source region which is within the x fringe region
+    PetscInt     numSourceProc;                  //!< global to all procs - number of processors within the source (part of x fringe region within the lateral fringe region)
+    PetscInt     *sourceProcList;                //!< global to all procs - list of processors in the source
+    MPI_Comm     *yDamp_comm;                    //!< communicator that links each source processor to its corresponding periodization processors(destination) in the lateral fringe region - each source processor has a separate communicator for its set of source-destination processors
+    PetscMPIInt  *srcCommLocalRank;              //!< global to communicator procs - local rank of the source processor within the source-destination communicator
+    cellIds      *srcMinInd;                     //!< global to communicator procs - minimum k,j,i index of each processor within the source domain
+    cellIds      *srcMaxInd;                     //!< local to each proc - maximum k,j,i index of each processor within the source domain
+    PetscInt     *isdestProc;                    //!< flag indicating if a given processor is within the destination region of a source processor
+    cellIds      **destMinInd;                   //!< local to each proc - minimum k,j,i index of a processor in the destination domain
+    cellIds      **destMaxInd;                   //!< local to each proc - maximum k,j,i index of a processor in the destination domain
+    PetscInt      *srcNumI;                      //!< global to communicator procs - number of i index for each processor in source
+    PetscInt      *srcNumJ;                      //!< global to communicator procs - number of j index for each processor in source
+    PetscInt      *srcNumK;                      //!< global to communicator procs - number of k index for each processor in source
+    MPI_Request  *mapRequest;                    //!< MPI variable to perform non blocking broadcast operation
+    Cmpnts       **velMapped;                    //!< one d array of the mapped velocity of each source processor
+    PetscInt     **closestKCell;                 //!< closest 2 k index of the fictitious mesh(mapped from source) to the k indexes of the sucessor domain 
+    PetscReal    **wtsKCell;                     //!< weights of the 2 closest k cells based on their distance 
 
     // type of uBar computation
     PetscInt     xFringeUBarSelectionType;       //!< read type of fringe region in uBarSelectionType
@@ -199,7 +200,6 @@ struct abl_
 
     Cmpnts       *luMean;
     Cmpnts       *guMean;
-    Cmpnts       *source;
 
     word         assimilationType;
     PetscReal    startATime;

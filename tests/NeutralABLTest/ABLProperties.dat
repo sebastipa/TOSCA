@@ -36,10 +36,11 @@ smearT 0.5
 coriolisActive 1
 controllerActive 1
 controllerActiveT 1
-
+controllerTypeT   initial
 controllerProperties
 {
-    # Velocity controller type (computed->pressure/geostrphic, given->read/average)
+    # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
+    controllerAction write
     controllerType pressure
 
     # Velocity controller gain factor 
