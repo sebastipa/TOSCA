@@ -426,6 +426,21 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscViewerDestroy(&viewer);
         }
         MPI_Barrier(mesh->MESH_COMM);
+
+        // field = "/yDampU";
+        // fileName = location + field;
+        // fp=fopen(fileName.c_str(), "r");
+
+        // if(fp!=NULL)
+        // {
+        //     fclose(fp);
+
+        //     PetscPrintf(mesh->MESH_COMM, "Reading yDampingField...\n");
+        //     PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        //     VecLoad(acquisition->fields->windFarmForce,viewer);
+        //     PetscViewerDestroy(&viewer);
+        // }
+        // MPI_Barrier(mesh->MESH_COMM);
     }
 
     if(io->sources && flags->isAblActive)
@@ -1898,6 +1913,7 @@ PetscErrorCode VecSymmTensorLocalToGlobalCopy(mesh_ *mesh, Vec &lV, Vec &V)
 PetscErrorCode writeFields(io_ *io)
 {
     mesh_       *mesh  = io->access->mesh;
+    abl_        *abl   = io->access->abl;
     ueqn_       *ueqn  = io->access->ueqn;
     peqn_       *peqn  = io->access->peqn;
     teqn_       *teqn  = io->access->teqn;
@@ -1994,6 +2010,14 @@ PetscErrorCode writeFields(io_ *io)
             VecDestroy(&Bf);
 
             MPI_Barrier(mesh->MESH_COMM);
+
+            // Vec gyDamp;  VecDuplicate(ueqn->Ucat, &gyDamp);  VecSet(gyDamp, 0.);
+            // VecVectorLocalToGlobalCopy(mesh, abl->uBarInstY, gyDamp);
+            
+            // fieldName = timeName + "/yDampU";
+            // writeBinaryField(mesh->MESH_COMM, gyDamp, fieldName.c_str());
+            // VecDestroy(&gyDamp);
+            // MPI_Barrier(mesh->MESH_COMM);
 
         }
 

@@ -43,8 +43,9 @@ controllerActivePrecursorT 0
 
 controllerProperties
 {
-    # Velocity controller type (computed->pressure/geostrphic, given->read/average)
-    controllerType average
+    # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
+    controllerAction read
+    controllerType timeAverageSeries
 
     # Velocity controller gain factor 
     relaxPI 0.7
@@ -98,6 +99,7 @@ xDampingProperties
     n2Inflow 50 
     n1Periods 1
     n2Periods 2 
+    n1Merge   1
     sourceType uniform
     cellWidth1 20
     cellWidth2 20

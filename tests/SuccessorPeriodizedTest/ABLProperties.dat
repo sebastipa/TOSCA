@@ -39,8 +39,9 @@ controllerActiveT 0
 
 controllerProperties
 {
-    # Velocity controller type (computed->pressure/geostrphic, given->read/average)
-    controllerType average
+    # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
+    controllerAction read
+    controllerType timeAverageSeries
 
     # Velocity controller gain factor 
     relaxPI 0.7

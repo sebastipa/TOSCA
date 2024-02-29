@@ -267,6 +267,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
     Cmpnts        uDes;
     Cmpnts        s;
+    Cmpnts        *src;
 
     PetscInt      applyGeoDamping = 0;
 
@@ -285,449 +286,763 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     DMDAVecGetArray(fda, ueqn->sourceU, &source);
     DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
 
-    // compute source terms using the velocity controller
-    if(abl->controllerType=="pressure")
+    if(abl->controllerAction == "write")
     {
-        PetscReal     relax = abl->relax;
-        PetscReal     alpha = abl->alpha;
-        PetscReal     T     = abl->timeWindow;
-
-        // set the wanted velocity
-        uDes.x = abl->uRef;
-        uDes.y = 0.0;
-        uDes.z = 0.0;
-
-        DMDAVecGetArray(da, mesh->lAj, &aj);
-
-        // find the first two closest levels
-        PetscReal nLevels = my-2;
-
-        Cmpnts luMean1; luMean1.x = 0.0; luMean1.y = 0.0; luMean1.z = 0.0;
-        Cmpnts luMean2; luMean2.x = 0.0; luMean2.y = 0.0; luMean2.z = 0.0;
-        Cmpnts guMean1; guMean1.x = 0.0; guMean1.y = 0.0; guMean1.z = 0.0;
-        Cmpnts guMean2; guMean2.x = 0.0; guMean2.y = 0.0; guMean2.z = 0.0;
-
-        for (k=zs; k<lze; k++)
+        if(abl->controllerType=="pressure")
         {
-            for (j=lys; j<lye; j++)
+            PetscReal     relax = abl->relax;
+            PetscReal     alpha = abl->alpha;
+            PetscReal     T     = abl->timeWindow;
+
+            // set the wanted velocity
+            uDes.x = abl->uRef;
+            uDes.y = 0.0;
+            uDes.z = 0.0;
+
+            DMDAVecGetArray(da, mesh->lAj, &aj);
+
+            // find the first two closest levels
+            PetscReal nLevels = my-2;
+
+            Cmpnts luMean1; luMean1.x = 0.0; luMean1.y = 0.0; luMean1.z = 0.0;
+            Cmpnts luMean2; luMean2.x = 0.0; luMean2.y = 0.0; luMean2.z = 0.0;
+            Cmpnts guMean1; guMean1.x = 0.0; guMean1.y = 0.0; guMean1.z = 0.0;
+            Cmpnts guMean2; guMean2.x = 0.0; guMean2.y = 0.0; guMean2.z = 0.0;
+
+            for (k=zs; k<lze; k++)
             {
-                for (i=lxs; i<lxe; i++)
+                for (j=lys; j<lye; j++)
                 {
-                    if(j==abl->closestLabels[0])
+                    for (i=lxs; i<lxe; i++)
                     {
-                        luMean1.x += ucat[k][j][i].x / aj[k][j][i];
-                        luMean1.y += ucat[k][j][i].y / aj[k][j][i];
-                        luMean1.z += ucat[k][j][i].z / aj[k][j][i];
+                        if(j==abl->closestLabels[0])
+                        {
+                            luMean1.x += ucat[k][j][i].x / aj[k][j][i];
+                            luMean1.y += ucat[k][j][i].y / aj[k][j][i];
+                            luMean1.z += ucat[k][j][i].z / aj[k][j][i];
+                        }
+                        else if(j==abl->closestLabels[1])
+                        {
+                            luMean2.x += ucat[k][j][i].x / aj[k][j][i];
+                            luMean2.y += ucat[k][j][i].y / aj[k][j][i];
+                            luMean2.z += ucat[k][j][i].z / aj[k][j][i];
+                        }
                     }
-                    else if(j==abl->closestLabels[1])
+                }
+            }
+
+            DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+            MPI_Allreduce(&luMean1, &guMean1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&luMean2, &guMean2, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+            guMean1.x = guMean1.x / abl->totVolPerLevel[abl->closestLabels[0]-1];
+            guMean1.y = guMean1.y / abl->totVolPerLevel[abl->closestLabels[0]-1];
+            guMean1.z = guMean1.z / abl->totVolPerLevel[abl->closestLabels[0]-1];
+            guMean2.x = guMean2.x / abl->totVolPerLevel[abl->closestLabels[1]-1];
+            guMean2.y = guMean2.y / abl->totVolPerLevel[abl->closestLabels[1]-1];
+            guMean2.z = guMean2.z / abl->totVolPerLevel[abl->closestLabels[1]-1];
+
+            Cmpnts uMean;
+
+            uMean.x = guMean1.x * abl->levelWeights[0] + guMean2.x * abl->levelWeights[1];
+            uMean.y = guMean1.y * abl->levelWeights[0] + guMean2.y * abl->levelWeights[1];
+            uMean.z = guMean1.z * abl->levelWeights[0] + guMean2.z * abl->levelWeights[1];
+
+            if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
+
+            PetscReal magUMean = std::sqrt(uMean.x*uMean.x + uMean.y*uMean.y + uMean.z*uMean.z);
+            PetscReal magUDes  = std::sqrt(uDes.x*uDes.x + uDes.y*uDes.y + uDes.z*uDes.z);
+
+            // compute the error w.r.t reference
+            Cmpnts error;
+            error.x = (uDes.x - uMean.x);
+            error.y = (uDes.y - uMean.y);
+            error.z = (uDes.z - uMean.z);
+
+            // compute relative error for print statement
+            Cmpnts relError;
+            relError.x = error.x / magUDes;
+            relError.y = error.y / magUDes;
+            relError.z = error.z / magUDes;
+
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         avg mag U at hRef = %lf m/s, U desired = %lf m/s\n", magUMean, magUDes);
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         U error in perc. of desired: (%.3f %.3f %.3f)\n", relError.x*100,relError.y*100, relError.z*100);
+
+            // cumulate the error (integral part of the controller)
+            abl->cumulatedSource.x = (1.0 - clock->dt / T) * abl->cumulatedSource.x + (clock->dt / T) * error.x;
+            abl->cumulatedSource.y = (1.0 - clock->dt / T) * abl->cumulatedSource.y + (clock->dt / T) * error.y;
+            abl->cumulatedSource.z = 0.0;
+
+            // compute the uniform source terms (PI controller with adjustable gains)
+            s.x = relax * (alpha * error.x + (1.0-alpha) * abl->cumulatedSource.x) ;
+            s.y = relax * (alpha * error.y + (1.0-alpha) * abl->cumulatedSource.y) ;
+            s.z = 0.0;
+
+            if(abl->geostrophicDampingActive)
+            {
+                // spatially average velocity
+                std::vector<Cmpnts>    lgDes(nLevels);
+
+                // set to zero
+                for(j=0; j<nLevels; j++) lgDes[j] = nSetZero();
+
+                DMDAVecGetArray(da, mesh->lAj, &aj);
+
+                for(j=lys; j<lye; j++)
+                {
+                    for(k=lzs; k<lze; k++)
                     {
-                        luMean2.x += ucat[k][j][i].x / aj[k][j][i];
-                        luMean2.y += ucat[k][j][i].y / aj[k][j][i];
-                        luMean2.z += ucat[k][j][i].z / aj[k][j][i];
+                        for(i=lxs; i<lxe; i++)
+                        {
+                            mSum
+                            (
+                                lgDes[j-1],
+                                nScale(1.0/aj[k][j][i], ucat[k][j][i])
+                            );
+                        }
                     }
+                }
+
+                DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+                MPI_Allreduce(&lgDes[0], &(abl->geoDampU[0]), 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+                // divide by total volume per level
+                for(j=0; j<nLevels; j++)
+                {
+                    mScale(1.0/abl->totVolPerLevel[j], abl->geoDampU[j]);
+                }
+
+                // filter geostrophic wind
+                Cmpnts    Sc      = nSetFromComponents(s.x, s.y, 0.0);
+                PetscReal m1      = (1.0 - clock->dt/abl->geoDampWindow),
+                        m2      = clock->dt/abl->geoDampWindow;
+                abl->geoDampAvgDT = m1 * abl->geoDampAvgDT + m2 * clock->dt;
+                abl->geoDampAvgS  = nSum(nScale(m1, abl->geoDampAvgS), nScale(m2, Sc));
+                abl->geoDampUBar  = nSetFromComponents(abl->geoDampAvgS.y / (2.0 * abl->fc * abl->geoDampAvgDT), -1.0 * abl->geoDampAvgS.x / (2.0 * abl->fc * abl->geoDampAvgDT), 0.0);
+
+                if(print) PetscPrintf(mesh->MESH_COMM, "                         Filtered geostrophic wind Ug = (%.3lf, %.3lf, 0.00)\n", abl->geoDampUBar.x, abl->geoDampUBar.y);
+
+                // set damping flag
+                if(clock->time > abl->geoDampStart)
+                {
+                    applyGeoDamping = 1;
+                }
+
+                if(mesh->access->io->runTimeWrite)
+                {
+                    if(!rank)
+                    {
+                        word location = "./fields/" + mesh->meshName + "/" + getTimeName(clock);
+                        word fileName = location + "/geostrophicDampingInfo";
+
+                        FILE *fp=fopen(fileName.c_str(), "w");
+
+                        if(fp==NULL)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName.c_str());
+                            fatalErrorInFunction("ABLInitialize",  error);
+                        }
+                        else
+                        {
+                            fprintf(fp, "filteredS \t\t(%.6e %.6e %.6e)\n", abl->geoDampAvgS.x, abl->geoDampAvgS.y, 0.0);
+                            fprintf(fp, "filteredDT\t\t %.5lf\n", abl->geoDampAvgDT);
+                            fclose(fp);
+                        }
+                    }
+                }
+            }
+
+            // write the uniform source term
+            if(!rank)
+            {
+                if(clock->it == clock->itStart)
+                {
+                    errno = 0;
+                    PetscInt dirRes = mkdir("./postProcessing", 0777);
+                    if(dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create postProcessing directory\n");
+                        fatalErrorInFunction("correctSourceTerm",  error);
+                    }
+                }
+
+                word fileName = "postProcessing/momentumSource_" + getStartTimeName(clock);
+                FILE *fp = fopen(fileName.c_str(), "a");
+
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s\n", fileName.c_str());
+                    fatalErrorInFunction("correctSourceTerm",  error);
+                }
+                else
+                {
+                    PetscInt width = -15;
+
+                    if(clock->it == clock->itStart)
+                    {
+                        word w1 = "time";
+                        word w2 = "source x [m/s2]";
+                        word w3 = "source y [m/s2]";
+                        word w4 = "source z [m/s2]";
+
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*s\t%*s\t%*s\t%*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str());
+                    }
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.6f\t%*.5e\t%*.5e%*.5e\t\n", width, clock->time, width, s.x, width, s.y, width, s.z);
+
+                    fclose(fp);
                 }
             }
         }
-
-        DMDAVecRestoreArray(da, mesh->lAj, &aj);
-
-        MPI_Allreduce(&luMean1, &guMean1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-        MPI_Allreduce(&luMean2, &guMean2, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-        guMean1.x = guMean1.x / abl->totVolPerLevel[abl->closestLabels[0]-1];
-        guMean1.y = guMean1.y / abl->totVolPerLevel[abl->closestLabels[0]-1];
-        guMean1.z = guMean1.z / abl->totVolPerLevel[abl->closestLabels[0]-1];
-        guMean2.x = guMean2.x / abl->totVolPerLevel[abl->closestLabels[1]-1];
-        guMean2.y = guMean2.y / abl->totVolPerLevel[abl->closestLabels[1]-1];
-        guMean2.z = guMean2.z / abl->totVolPerLevel[abl->closestLabels[1]-1];
-
-        Cmpnts uMean;
-
-        uMean.x = guMean1.x * abl->levelWeights[0] + guMean2.x * abl->levelWeights[1];
-        uMean.y = guMean1.y * abl->levelWeights[0] + guMean2.y * abl->levelWeights[1];
-        uMean.z = guMean1.z * abl->levelWeights[0] + guMean2.z * abl->levelWeights[1];
-
-        if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
-
-        PetscReal magUMean = std::sqrt(uMean.x*uMean.x + uMean.y*uMean.y + uMean.z*uMean.z);
-        PetscReal magUDes  = std::sqrt(uDes.x*uDes.x + uDes.y*uDes.y + uDes.z*uDes.z);
-
-        // compute the error w.r.t reference
-        Cmpnts error;
-        error.x = (uDes.x - uMean.x);
-        error.y = (uDes.y - uMean.y);
-        error.z = (uDes.z - uMean.z);
-
-        // compute relative error for print statement
-        Cmpnts relError;
-        relError.x = error.x / magUDes;
-        relError.y = error.y / magUDes;
-        relError.z = error.z / magUDes;
-
-        if(print) PetscPrintf(mesh->MESH_COMM, "                         avg mag U at hRef = %lf m/s, U desired = %lf m/s\n", magUMean, magUDes);
-        if(print) PetscPrintf(mesh->MESH_COMM, "                         U error in perc. of desired: (%.3f %.3f %.3f)\n", relError.x*100,relError.y*100, relError.z*100);
-
-        // cumulate the error (integral part of the controller)
-        abl->cumulatedSource.x = (1.0 - clock->dt / T) * abl->cumulatedSource.x + (clock->dt / T) * error.x;
-        abl->cumulatedSource.y = (1.0 - clock->dt / T) * abl->cumulatedSource.y + (clock->dt / T) * error.y;
-        abl->cumulatedSource.z = 0.0;
-
-        // compute the uniform source terms (PI controller with adjustable gains)
-        s.x = relax * (alpha * error.x + (1.0-alpha) * abl->cumulatedSource.x) ;
-        s.y = relax * (alpha * error.y + (1.0-alpha) * abl->cumulatedSource.y) ;
-        s.z = 0.0;
-
-		if(abl->geostrophicDampingActive)
+        else if(abl->controllerType=="geostrophic")
         {
-			// spatially average velocity
-			std::vector<Cmpnts>    lgDes(nLevels);
+            PetscReal     relax = abl->relax;
+            PetscReal     alpha = abl->alpha;
+            PetscReal     T     = abl->timeWindow;
 
-			// set to zero
-			for(j=0; j<nLevels; j++) lgDes[j] = nSetZero();
+            DMDAVecGetArray(da, mesh->lAj, &aj);
 
-			DMDAVecGetArray(da, mesh->lAj, &aj);
+            // find the first two closest levels
+            PetscReal nLevels = my-2;
 
-			for(j=lys; j<lye; j++)
-			{
-				for(k=lzs; k<lze; k++)
-				{
-					for(i=lxs; i<lxe; i++)
-					{
-						mSum
-						(
-							lgDes[j-1],
-							nScale(1.0/aj[k][j][i], ucat[k][j][i])
-						);
-					}
-				}
-			}
+            Cmpnts luMean1; luMean1.x = 0.0; luMean1.y = 0.0; luMean1.z = 0.0;
+            Cmpnts luMean2; luMean2.x = 0.0; luMean2.y = 0.0; luMean2.z = 0.0;
+            Cmpnts guMean1; guMean1.x = 0.0; guMean1.y = 0.0; guMean1.z = 0.0;
+            Cmpnts guMean2; guMean2.x = 0.0; guMean2.y = 0.0; guMean2.z = 0.0;
+            Cmpnts luMeanGeo1; luMeanGeo1.x = 0.0; luMeanGeo1.y = 0.0; luMeanGeo1.z = 0.0;
+            Cmpnts luMeanGeo2; luMeanGeo2.x = 0.0; luMeanGeo2.y = 0.0; luMeanGeo2.z = 0.0;
+            Cmpnts guMeanGeo1; guMeanGeo1.x = 0.0; guMeanGeo1.y = 0.0; guMeanGeo1.z = 0.0;
+            Cmpnts guMeanGeo2; guMeanGeo2.x = 0.0; guMeanGeo2.y = 0.0; guMeanGeo2.z = 0.0;
 
-			DMDAVecRestoreArray(da, mesh->lAj, &aj);
-
-			MPI_Allreduce(&lgDes[0], &(abl->geoDampU[0]), 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-			// divide by total volume per level
-			for(j=0; j<nLevels; j++)
-			{
-				mScale(1.0/abl->totVolPerLevel[j], abl->geoDampU[j]);
-			}
-
-            // filter geostrophic wind
-            Cmpnts    Sc      = nSetFromComponents(s.x, s.y, 0.0);
-            PetscReal m1      = (1.0 - clock->dt/abl->geoDampWindow),
-                      m2      = clock->dt/abl->geoDampWindow;
-	        abl->geoDampAvgDT = m1 * abl->geoDampAvgDT + m2 * clock->dt;
-			abl->geoDampAvgS  = nSum(nScale(m1, abl->geoDampAvgS), nScale(m2, Sc));
-            abl->geoDampUBar  = nSetFromComponents(abl->geoDampAvgS.y / (2.0 * abl->fc * abl->geoDampAvgDT), -1.0 * abl->geoDampAvgS.x / (2.0 * abl->fc * abl->geoDampAvgDT), 0.0);
-
-            if(print) PetscPrintf(mesh->MESH_COMM, "                         Filtered geostrophic wind Ug = (%.3lf, %.3lf, 0.00)\n", abl->geoDampUBar.x, abl->geoDampUBar.y);
-
-            // set damping flag
-            if(clock->time > abl->geoDampStart)
+            for (k=zs; k<lze; k++)
             {
-                applyGeoDamping = 1;
-            }
-
-            if(mesh->access->io->runTimeWrite)
-            {
-                if(!rank)
+                for (j=lys; j<lye; j++)
                 {
-                    word location = "./fields/" + mesh->meshName + "/" + getTimeName(clock);
-                    word fileName = location + "/geostrophicDampingInfo";
-
-                    FILE *fp=fopen(fileName.c_str(), "w");
-
-                    if(fp==NULL)
+                    for (i=lxs; i<lxe; i++)
                     {
-                        char error[512];
-                        sprintf(error, "cannot open file %s\n", fileName.c_str());
-                        fatalErrorInFunction("ABLInitialize",  error);
-                    }
-                    else
-                    {
-                        fprintf(fp, "filteredS \t\t(%.6e %.6e %.6e)\n", abl->geoDampAvgS.x, abl->geoDampAvgS.y, 0.0);
-						fprintf(fp, "filteredDT\t\t %.5lf\n", abl->geoDampAvgDT);
-                        fclose(fp);
+                        if(j==abl->closestLabels[0])
+                        {
+                            luMean1.x += ucat[k][j][i].x / aj[k][j][i];
+                            luMean1.y += ucat[k][j][i].y / aj[k][j][i];
+                            luMean1.z += ucat[k][j][i].z / aj[k][j][i];
+                        }
+                        else if(j==abl->closestLabels[1])
+                        {
+                            luMean2.x += ucat[k][j][i].x / aj[k][j][i];
+                            luMean2.y += ucat[k][j][i].y / aj[k][j][i];
+                            luMean2.z += ucat[k][j][i].z / aj[k][j][i];
+                        }
+
+                        if(j==abl->closestLabelsGeo[0])
+                        {
+                            luMeanGeo1.x += ucat[k][j][i].x / aj[k][j][i];
+                            luMeanGeo1.y += ucat[k][j][i].y / aj[k][j][i];
+                            luMeanGeo1.z += ucat[k][j][i].z / aj[k][j][i];
+                        }
+                        else if(j==abl->closestLabelsGeo[1])
+                        {
+                            luMeanGeo2.x += ucat[k][j][i].x / aj[k][j][i];
+                            luMeanGeo2.y += ucat[k][j][i].y / aj[k][j][i];
+                            luMeanGeo2.z += ucat[k][j][i].z / aj[k][j][i];
+                        }
                     }
                 }
             }
-		}
 
-        // write the uniform source term
-        if(!rank)
-        {
-            if(clock->it == clock->itStart)
+            DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+            MPI_Allreduce(&luMean1, &guMean1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&luMean2, &guMean2, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&luMeanGeo1, &guMeanGeo1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&luMeanGeo2, &guMeanGeo2, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+            guMean1.x = guMean1.x / abl->totVolPerLevel[abl->closestLabels[0]-1];
+            guMean1.y = guMean1.y / abl->totVolPerLevel[abl->closestLabels[0]-1];
+            guMean1.z = guMean1.z / abl->totVolPerLevel[abl->closestLabels[0]-1];
+            guMean2.x = guMean2.x / abl->totVolPerLevel[abl->closestLabels[1]-1];
+            guMean2.y = guMean2.y / abl->totVolPerLevel[abl->closestLabels[1]-1];
+            guMean2.z = guMean2.z / abl->totVolPerLevel[abl->closestLabels[1]-1];
+
+            guMeanGeo1.x = guMeanGeo1.x / abl->totVolPerLevel[abl->closestLabelsGeo[0]-1];
+            guMeanGeo1.y = guMeanGeo1.y / abl->totVolPerLevel[abl->closestLabelsGeo[0]-1];
+            guMeanGeo1.z = guMeanGeo1.z / abl->totVolPerLevel[abl->closestLabelsGeo[0]-1];
+            guMeanGeo2.x = guMeanGeo2.x / abl->totVolPerLevel[abl->closestLabelsGeo[1]-1];
+            guMeanGeo2.y = guMeanGeo2.y / abl->totVolPerLevel[abl->closestLabelsGeo[1]-1];
+            guMeanGeo2.z = guMeanGeo2.z / abl->totVolPerLevel[abl->closestLabelsGeo[1]-1];
+
+            Cmpnts uMean, uMeanGeo;
+
+            uMean.x = guMean1.x * abl->levelWeights[0] + guMean2.x * abl->levelWeights[1];
+            uMean.y = guMean1.y * abl->levelWeights[0] + guMean2.y * abl->levelWeights[1];
+            uMean.z = guMean1.z * abl->levelWeights[0] + guMean2.z * abl->levelWeights[1];
+
+            uMeanGeo.x = guMeanGeo1.x * abl->levelWeightsGeo[0] + guMeanGeo2.x * abl->levelWeightsGeo[1];
+            uMeanGeo.y = guMeanGeo1.y * abl->levelWeightsGeo[0] + guMeanGeo2.y * abl->levelWeightsGeo[1];
+            uMeanGeo.z = guMeanGeo1.z * abl->levelWeightsGeo[0] + guMeanGeo2.z * abl->levelWeightsGeo[1];
+
+            if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         U at hRef: (%.3f %.3f %.3f) m/s, U at hGeo: (%.3f %.3f %.3f) m/s\n", uMean.x, uMean.y, uMean.z, uMeanGeo.x, uMeanGeo.y, uMeanGeo.z);
+
+            // compute actual angles
+            PetscReal hubAngle    = std::atan(uMean.y/uMean.x);
+            PetscReal geoAngleNew = std::atan(uMeanGeo.y/uMeanGeo.x);
+
+            // compute filtered hub angle
+            abl->hubAngle = (1.0 - clock->dt / T) * abl->hubAngle + (clock->dt / T) * hubAngle;
+
+            // compute filtered geostrophic angle
+            abl->geoAngle = (1.0 - clock->dt / T) * abl->geoAngle + (clock->dt / T) * geoAngleNew;
+
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         Alpha at hRef: %.3f deg, Alpha at hGeo: %.3f deg\n",abl->hubAngle/M_PI*180, abl->geoAngle/M_PI*180);
+
+            // compute the uniform source terms
+            abl->a.x = -2.0*abl->fc*nMag(abl->uGeoBar)*sin(abl->geoAngle);
+            abl->a.y =  2.0*abl->fc*nMag(abl->uGeoBar)*cos(abl->geoAngle);
+            abl->a.z =  0.0;
+
+            if(!relax)
             {
-                errno = 0;
-                PetscInt dirRes = mkdir("./postProcessing", 0777);
-                if(dirRes != 0 && errno != EEXIST)
-                {
-                    char error[512];
-                    sprintf(error, "could not create postProcessing directory\n");
-                    fatalErrorInFunction("correctSourceTerm",  error);
-                }
-            }
-
-            word fileName = "postProcessing/momentumSource_" + getStartTimeName(clock);
-            FILE *fp = fopen(fileName.c_str(), "a");
-
-            if(!fp)
-            {
-                char error[512];
-                sprintf(error, "cannot open file %s\n", fileName.c_str());
-                fatalErrorInFunction("correctSourceTerm",  error);
+                abl->b.x = 0.0;
+                abl->b.y = 0.0;
+                abl->b.z = 0.0;
             }
             else
             {
-                PetscInt width = -15;
+                // compute previous geostrophic angle and delta angle w.r.t actual
+                PetscReal geoAngleOld = std::atan(abl->uGeoBar.y/abl->uGeoBar.x);
+                PetscReal geoDelta    = geoAngleNew - geoAngleOld;
 
+                // compute rotation angle at hub height
+                PetscReal hubDelta = hubAngle;
+                PetscReal omega    = hubDelta / clock->dt;
+
+                // time constant
+                PetscReal sigma    = clock->dt / 200; // filter hardcoded to 200s
+
+                // compute omega bar
+                abl->omegaBar    = sigma * omega + (1.0 - sigma) * abl->omegaBar;
+
+                // rotate geostrophic speed
+                Cmpnts uGeoBarTmp = nSetZero();
+                uGeoBarTmp.x = std::cos(geoDelta) * abl->uGeoBar.x - std::sin(geoDelta) * abl->uGeoBar.y;
+                uGeoBarTmp.y = std::sin(geoDelta) * abl->uGeoBar.x + std::cos(geoDelta) * abl->uGeoBar.y;
+                mSet(abl->uGeoBar, uGeoBarTmp);
+
+                abl->b.x =   relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
+                abl->b.y = - relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
+                abl->b.z =   0.0;
+            }
+        }
+        else if(abl->controllerType=="directProfileAssimilation")
+        {
+            PetscReal relax   = abl->relax;
+            PetscInt  nlevels = my-2;
+
+            Cmpnts    *luMean = abl->luMean;
+            Cmpnts    *guMean = abl->guMean;
+            Cmpnts    **uMeso = abl->uMeso;
+            Cmpnts    uDes, uH1, uH2;
+            PetscInt  idxh1, idxh2, idxt1;
+            PetscReal wth1, wth2, wtt1;
+
+            PetscMalloc(sizeof(Cmpnts) * (nlevels), &(src));
+
+            for(j=0; j<nlevels; j++)
+            {
+                luMean[j] = nSetZero();
+                guMean[j] = nSetZero();
+                src[j]    = nSetZero();
+            }
+
+            DMDAVecGetArray(da, mesh->lAj, &aj);
+
+            //loop through the cells and find the mean at each vertical cell level
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        luMean[j-1].x += ucat[k][j][i].x / aj[k][j][i];
+                        luMean[j-1].y += ucat[k][j][i].y / aj[k][j][i];
+                        luMean[j-1].z += ucat[k][j][i].z / aj[k][j][i];
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+            MPI_Allreduce(&(luMean[0]), &(guMean[0]), 3*nlevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+            if(abl->assimilationType == "constantTime")
+            {
+                for(j=0; j<nlevels; j++)
+                {
+
+                    mScale(1.0/abl->totVolPerLevel[j], guMean[j]);
+                    
+                    idxh1 = abl->velInterpIdx[j][0];
+                    idxh2 = abl->velInterpIdx[j][1];
+
+                    wth1  = abl->velInterpWts[j][0];
+                    wth2  = abl->velInterpWts[j][1];
+
+                    idxt1 = abl->closestTimeIndV;
+                    wtt1 = abl->closestTimeWtV;
+
+                    //interpolating in time
+                    uH1 = nSum(nScale(wtt1, abl->uMeso[idxh1][idxt1]), nScale(1 - wtt1, abl->uMeso[idxh1][idxt1 + 1]));
+                    uH2 = nSum(nScale(wtt1, abl->uMeso[idxh2][idxt1]), nScale(1 - wtt1, abl->uMeso[idxh2][idxt1 + 1]));
+
+                    //interpolating in vertical direction 
+                    uDes = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+                    // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf\n", uDes.x, uDes.y, uDes.z, guMean[j].x, guMean[j].y, guMean[j].z);
+                    
+                    src[j].x = (uDes.x - guMean[j].x);
+                    src[j].y = (uDes.y - guMean[j].y);
+                    src[j].z = (uDes.z - guMean[j].z);
+
+                    mScale(relax, src[j]);
+                }
+            }
+            else if(abl->assimilationType == "variableTime")
+            {
+                //find the two closest available mesoscale data in time
+                PetscInt idx_1 = abl->closestTimeIndV;
+                PetscInt idx_2 = abl->closestTimeIndV + 1;
+
+                PetscInt lwrBound = 0;
+                PetscInt uprBound = abl->numtV;
+
+                if(clock->it > clock->itStart)
+                {
+                    lwrBound = PetscMax(0, (abl->closestTimeIndV - 50));
+                    uprBound = PetscMin(abl->numtV, (abl->closestTimeIndV + 50));
+                }
+
+                // build error vector for the time search
+                PetscReal  diff[abl->numtV];
+
+                for(PetscInt i=lwrBound; i<uprBound; i++)
+                {
+                    diff[i] = fabs(abl->timeV[i] - clock->time);
+                }
+
+                // find the two closest times
+                for(PetscInt i=lwrBound; i<uprBound; i++)
+                {
+                    if(diff[i] < diff[idx_1])
+                    {
+                        idx_2 = idx_1;
+                        idx_1 = i;
+                    }
+                    if(diff[i] < diff[idx_2] && i != idx_1)
+                    {
+                        idx_2 = i;
+                    }
+                }
+
+                // always put the lower time at idx_1 and higher at idx_2
+                if(abl->timeV[idx_2] < abl->timeV[idx_1])
+                {
+                    PetscInt idx_tmp = idx_2;
+                    idx_2 = idx_1;
+                    idx_1 = idx_tmp;
+                }
+
+                // find interpolation weights
+                PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
+                PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+                PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+                PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading mesoscale data\n", w1 * abl->timeV[idx_1] + w2 * abl->timeV[idx_2]);
+                PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+                PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeV[idx_1], abl->timeV[idx_2]);
+
+                // reset the closest index for nex iteration
+                abl->closestTimeIndV = idx_1;
+
+                for(j=0; j<nlevels; j++)
+                {
+
+                    mScale(1.0/abl->totVolPerLevel[j], guMean[j]);
+                    
+                    idxh1 = abl->velInterpIdx[j][0];
+                    idxh2 = abl->velInterpIdx[j][1];
+
+                    wth1  = abl->velInterpWts[j][0];
+                    wth2  = abl->velInterpWts[j][1];
+
+                    //interpolating in time
+                    uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+                    uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+                    //interpolating in vertical direction 
+                    uDes = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+                    // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf, interpolated from %lf and %lf, wts = %lf %lf\n", uDes.x, uDes.y, uDes.z, guMean[j].x, guMean[j].y, guMean[j].z, abl->timeV[idx_1], abl->timeV[idx_2], w1, w2);
+                    
+                    src[j].x = (uDes.x - guMean[j].x);
+                    src[j].y = (uDes.y - guMean[j].y);
+                    src[j].z = (uDes.z - guMean[j].z);
+
+                    mScale(relax, src[j]);
+                }
+
+            }
+            else 
+            {
+                char error[512];
+                sprintf(error, "wrong assimilation method chosen. Available options are constantTime or variableTime\n");
+                fatalErrorInFunction("CorrectSourceTerms",  error);
+            }
+
+            // if cellLevels is below the lowest mesoscale data point use the source at the last available height
+            for(j=0; j<nlevels; j++)
+            {
+                if(abl->cellLevels[j] < abl->hV[0])
+                {
+                    src[j].x = src[abl->lowestIndV].x;
+                    src[j].y = src[abl->lowestIndV].y;
+                    src[j].z = src[abl->lowestIndV].z;
+                }
+            }
+
+            //write the source terms 
+            if(!rank)
+            {
                 if(clock->it == clock->itStart)
                 {
-                    word w1 = "time";
-                    word w2 = "source x [m/s2]";
-                    word w3 = "source y [m/s2]";
-                    word w4 = "source z [m/s2]";
-
-                    PetscFPrintf(mesh->MESH_COMM, fp, "%*s\t%*s\t%*s\t%*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str());
+                    errno = 0;
+                    PetscInt dirRes = mkdir("./postProcessing", 0777);
+                    if(dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create postProcessing directory\n");
+                        fatalErrorInFunction("correctSourceTerm",  error);
+                    }
                 }
 
-                PetscFPrintf(mesh->MESH_COMM, fp, "%*.6f\t%*.5e\t%*.5e%*.5e\t\n", width, clock->time, width, s.x, width, s.y, width, s.z);
+                word fileName = "postProcessing/momentumSource_" + getStartTimeName(clock);
+                FILE *fp = fopen(fileName.c_str(), "a");
 
-                fclose(fp);
-            }
-        }
-    }
-    // compute source terms using the velocity controller
-    if(abl->controllerType=="geostrophic")
-    {
-        PetscReal     relax = abl->relax;
-        PetscReal     alpha = abl->alpha;
-        PetscReal     T     = abl->timeWindow;
-
-        DMDAVecGetArray(da, mesh->lAj, &aj);
-
-        // find the first two closest levels
-        PetscReal nLevels = my-2;
-
-        Cmpnts luMean1; luMean1.x = 0.0; luMean1.y = 0.0; luMean1.z = 0.0;
-        Cmpnts luMean2; luMean2.x = 0.0; luMean2.y = 0.0; luMean2.z = 0.0;
-        Cmpnts guMean1; guMean1.x = 0.0; guMean1.y = 0.0; guMean1.z = 0.0;
-        Cmpnts guMean2; guMean2.x = 0.0; guMean2.y = 0.0; guMean2.z = 0.0;
-        Cmpnts luMeanGeo1; luMeanGeo1.x = 0.0; luMeanGeo1.y = 0.0; luMeanGeo1.z = 0.0;
-        Cmpnts luMeanGeo2; luMeanGeo2.x = 0.0; luMeanGeo2.y = 0.0; luMeanGeo2.z = 0.0;
-        Cmpnts guMeanGeo1; guMeanGeo1.x = 0.0; guMeanGeo1.y = 0.0; guMeanGeo1.z = 0.0;
-        Cmpnts guMeanGeo2; guMeanGeo2.x = 0.0; guMeanGeo2.y = 0.0; guMeanGeo2.z = 0.0;
-
-        for (k=zs; k<lze; k++)
-        {
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
+                if(!fp)
                 {
-                    if(j==abl->closestLabels[0])
+                    char error[512];
+                    sprintf(error, "cannot open file postProcessing/momentumSource\n");
+                    fatalErrorInFunction("correctSourceTermT",  error);
+                }
+                else
+                {
+
+                    PetscInt width = -15;
+
+                    if(clock->it == clock->itStart)
                     {
-                        luMean1.x += ucat[k][j][i].x / aj[k][j][i];
-                        luMean1.y += ucat[k][j][i].y / aj[k][j][i];
-                        luMean1.z += ucat[k][j][i].z / aj[k][j][i];
-                    }
-                    else if(j==abl->closestLabels[1])
+                        word w1 = "levels";
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w1.c_str());
+
+                        for(j=0; j<nlevels; j++)
+                        {
+                            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, abl->cellLevels[j]);
+                        }
+
+                        PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                        word w2 = "time";
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
+                    } 
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
+
+                    for(j=0; j<nlevels; j++)
                     {
-                        luMean2.x += ucat[k][j][i].x / aj[k][j][i];
-                        luMean2.y += ucat[k][j][i].y / aj[k][j][i];
-                        luMean2.z += ucat[k][j][i].z / aj[k][j][i];
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, src[j].x,  width, src[j].y,  width, src[j].z);
                     }
 
-                    if(j==abl->closestLabelsGeo[0])
-                    {
-                        luMeanGeo1.x += ucat[k][j][i].x / aj[k][j][i];
-                        luMeanGeo1.y += ucat[k][j][i].y / aj[k][j][i];
-                        luMeanGeo1.z += ucat[k][j][i].z / aj[k][j][i];
-                    }
-                    else if(j==abl->closestLabelsGeo[1])
-                    {
-                        luMeanGeo2.x += ucat[k][j][i].x / aj[k][j][i];
-                        luMeanGeo2.y += ucat[k][j][i].y / aj[k][j][i];
-                        luMeanGeo2.z += ucat[k][j][i].z / aj[k][j][i];
-                    }
+                    PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                    fclose(fp);                  
+                
                 }
             }
         }
-
-        DMDAVecRestoreArray(da, mesh->lAj, &aj);
-
-        MPI_Allreduce(&luMean1, &guMean1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-        MPI_Allreduce(&luMean2, &guMean2, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-        MPI_Allreduce(&luMeanGeo1, &guMeanGeo1, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-        MPI_Allreduce(&luMeanGeo2, &guMeanGeo2, 3, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-        guMean1.x = guMean1.x / abl->totVolPerLevel[abl->closestLabels[0]-1];
-        guMean1.y = guMean1.y / abl->totVolPerLevel[abl->closestLabels[0]-1];
-        guMean1.z = guMean1.z / abl->totVolPerLevel[abl->closestLabels[0]-1];
-        guMean2.x = guMean2.x / abl->totVolPerLevel[abl->closestLabels[1]-1];
-        guMean2.y = guMean2.y / abl->totVolPerLevel[abl->closestLabels[1]-1];
-        guMean2.z = guMean2.z / abl->totVolPerLevel[abl->closestLabels[1]-1];
-
-        guMeanGeo1.x = guMeanGeo1.x / abl->totVolPerLevel[abl->closestLabelsGeo[0]-1];
-        guMeanGeo1.y = guMeanGeo1.y / abl->totVolPerLevel[abl->closestLabelsGeo[0]-1];
-        guMeanGeo1.z = guMeanGeo1.z / abl->totVolPerLevel[abl->closestLabelsGeo[0]-1];
-        guMeanGeo2.x = guMeanGeo2.x / abl->totVolPerLevel[abl->closestLabelsGeo[1]-1];
-        guMeanGeo2.y = guMeanGeo2.y / abl->totVolPerLevel[abl->closestLabelsGeo[1]-1];
-        guMeanGeo2.z = guMeanGeo2.z / abl->totVolPerLevel[abl->closestLabelsGeo[1]-1];
-
-        Cmpnts uMean, uMeanGeo;
-
-        uMean.x = guMean1.x * abl->levelWeights[0] + guMean2.x * abl->levelWeights[1];
-        uMean.y = guMean1.y * abl->levelWeights[0] + guMean2.y * abl->levelWeights[1];
-        uMean.z = guMean1.z * abl->levelWeights[0] + guMean2.z * abl->levelWeights[1];
-
-        uMeanGeo.x = guMeanGeo1.x * abl->levelWeightsGeo[0] + guMeanGeo2.x * abl->levelWeightsGeo[1];
-        uMeanGeo.y = guMeanGeo1.y * abl->levelWeightsGeo[0] + guMeanGeo2.y * abl->levelWeightsGeo[1];
-        uMeanGeo.z = guMeanGeo1.z * abl->levelWeightsGeo[0] + guMeanGeo2.z * abl->levelWeightsGeo[1];
-
-        if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
-		if(print) PetscPrintf(mesh->MESH_COMM, "                         U at hRef: (%.3f %.3f %.3f) m/s, U at hGeo: (%.3f %.3f %.3f) m/s\n", uMean.x, uMean.y, uMean.z, uMeanGeo.x, uMeanGeo.y, uMeanGeo.z);
-
-        // compute actual angles
-        PetscReal hubAngle    = std::atan(uMean.y/uMean.x);
-        PetscReal geoAngleNew = std::atan(uMeanGeo.y/uMeanGeo.x);
-
-        // compute filtered hub angle
-        abl->hubAngle = (1.0 - clock->dt / T) * abl->hubAngle + (clock->dt / T) * hubAngle;
-
-        // compute filtered geostrophic angle
-        abl->geoAngle = (1.0 - clock->dt / T) * abl->geoAngle + (clock->dt / T) * geoAngleNew;
-
-		if(print) PetscPrintf(mesh->MESH_COMM, "                         Alpha at hRef: %.3f deg, Alpha at hGeo: %.3f deg\n",abl->hubAngle/M_PI*180, abl->geoAngle/M_PI*180);
-
-        // compute the uniform source terms
-        abl->a.x = -2.0*abl->fc*nMag(abl->uGeoBar)*sin(abl->geoAngle);
-        abl->a.y =  2.0*abl->fc*nMag(abl->uGeoBar)*cos(abl->geoAngle);
-        abl->a.z =  0.0;
-
-        if(!relax)
-        {
-            abl->b.x = 0.0;
-            abl->b.y = 0.0;
-            abl->b.z = 0.0;
-        }
-        else
-        {
-            // compute previous geostrophic angle and delta angle w.r.t actual
-            PetscReal geoAngleOld = std::atan(abl->uGeoBar.y/abl->uGeoBar.x);
-            PetscReal geoDelta    = geoAngleNew - geoAngleOld;
-
-            // compute rotation angle at hub height
-            PetscReal hubDelta = hubAngle;
-            PetscReal omega    = hubDelta / clock->dt;
-
-            // time constant
-            PetscReal sigma    = clock->dt / 200; // filter hardcoded to 200s
-
-            // compute omega bar
-            abl->omegaBar    = sigma * omega + (1.0 - sigma) * abl->omegaBar;
-
-            // rotate geostrophic speed
-            Cmpnts uGeoBarTmp = nSetZero();
-            uGeoBarTmp.x = std::cos(geoDelta) * abl->uGeoBar.x - std::sin(geoDelta) * abl->uGeoBar.y;
-            uGeoBarTmp.y = std::sin(geoDelta) * abl->uGeoBar.x + std::cos(geoDelta) * abl->uGeoBar.y;
-            mSet(abl->uGeoBar, uGeoBarTmp);
-
-            abl->b.x =   relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
-            abl->b.y = - relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
-            abl->b.z =   0.0;
-        }
     }
-    else if(abl->controllerType=="read")
+    else if(abl->controllerAction == "read")
     {
-        // find the two closest times in the pre-computed sources
-        // get the 2 time values closest to the current time
-        PetscInt idx_1 = abl->currentCloseIdx;
-        PetscInt idx_2 = abl->currentCloseIdx + 1;
 
-        PetscInt lwrBound = 0;
-        PetscInt uprBound = abl->nSourceTimes;
-
-        // if past first iteration do the search on a subset to speed up the process
-        if(clock->it > clock->itStart)
+        if(abl->controllerType=="timeSeries")
         {
-            lwrBound = PetscMax(0, (abl->currentCloseIdx - 50));
-            uprBound = PetscMin(abl->nSourceTimes, (abl->currentCloseIdx + 50));
-        }
+            // find the two closest times in the pre-computed sources
+            // get the 2 time values closest to the current time
+            PetscInt idx_1 = abl->currentCloseIdx;
+            PetscInt idx_2 = abl->currentCloseIdx + 1;
 
-        // build error vector for the time search
-        PetscReal  diff[abl->nSourceTimes];
+            PetscInt lwrBound = 0;
+            PetscInt uprBound = abl->nSourceTimes;
 
-        for(PetscInt i=lwrBound; i<uprBound; i++)
-        {
-            diff[i] = fabs(abl->preCompSources[i][0] - clock->time);
-        }
-
-        // find the two closest times
-        for(PetscInt i=lwrBound; i<uprBound; i++)
-        {
-            if(diff[i] < diff[idx_1])
+            // if past first iteration do the search on a subset to speed up the process
+            if(clock->it > clock->itStart)
             {
+                lwrBound = PetscMax(0, (abl->currentCloseIdx - 50));
+                uprBound = PetscMin(abl->nSourceTimes, (abl->currentCloseIdx + 50));
+            }
+
+            // build error vector for the time search
+            PetscReal  diff[abl->nSourceTimes];
+
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                diff[i] = fabs(abl->preCompSources[i][0] - clock->time);
+            }
+
+            // find the two closest times
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                if(diff[i] < diff[idx_1])
+                {
+                    idx_2 = idx_1;
+                    idx_1 = i;
+                }
+                if(diff[i] < diff[idx_2] && i != idx_1)
+                {
+                    idx_2 = i;
+                }
+            }
+
+            // always put the lower time at idx_1 and higher at idx_2
+            if(abl->preCompSources[idx_2][0] < abl->preCompSources[idx_1][0])
+            {
+                PetscInt idx_tmp = idx_2;
                 idx_2 = idx_1;
-                idx_1 = i;
+                idx_1 = idx_tmp;
             }
-            if(diff[i] < diff[idx_2] && i != idx_1)
-            {
-                idx_2 = i;
-            }
-        }
 
-        // always put the lower time at idx_1 and higher at idx_2
-        if(abl->preCompSources[idx_2][0] < abl->preCompSources[idx_1][0])
+            // find interpolation weights
+            PetscReal idx = (idx_2 - idx_1) / (abl->preCompSources[idx_2][0] - abl->preCompSources[idx_1][0]) * (clock->time - abl->preCompSources[idx_1][0]) + idx_1;
+            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+            if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading sources\n", w1 * abl->preCompSources[idx_1][0] + w2 * abl->preCompSources[idx_2][0]);
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->preCompSources[idx_1][0], abl->preCompSources[idx_2][0]);
+
+            // reset the closest index for nex iteration
+            abl->currentCloseIdx = idx_1;
+
+            // get also the dt at the time the source was calculated
+            double dtSource1 = std::max((abl->preCompSources[idx_1+1][0] - abl->preCompSources[idx_1][0]), 1e-5);
+            double dtSource2 = std::max((abl->preCompSources[idx_2+1][0] - abl->preCompSources[idx_2][0]), 1e-5);
+
+            // do not scale with time step
+            // s.x = w1 * abl->preCompSources[idx_1][1] + w2 * abl->preCompSources[idx_2][1];
+            // s.y = w1 * abl->preCompSources[idx_1][2] + w2 * abl->preCompSources[idx_2][2];
+            // s.z = w1 * abl->preCompSources[idx_1][3] + w2 * abl->preCompSources[idx_2][3];
+
+            // scale with time step
+            s.x = (w1 * abl->preCompSources[idx_1][1] / dtSource1 + w2 * abl->preCompSources[idx_2][1] / dtSource2) * clock->dt;
+            s.y = (w1 * abl->preCompSources[idx_1][2] / dtSource1 + w2 * abl->preCompSources[idx_2][2] / dtSource2) * clock->dt;
+            s.z = (w1 * abl->preCompSources[idx_1][3] / dtSource1 + w2 * abl->preCompSources[idx_2][3] / dtSource2) * clock->dt;
+
+
+        }
+        else if(abl->controllerType=="timeAverageSeries")
         {
-            PetscInt idx_tmp = idx_2;
-            idx_2 = idx_1;
-            idx_1 = idx_tmp;
+            // PetscPrintf(mesh->MESH_COMM, "Correcting source terms using source average from time %lf\n", abl->sourceAvgStartTime);
+
+            // do not scale with dt
+            // s.x = abl->cumulatedSource.x;
+            // s.y = abl->cumulatedSource.y;
+            // s.z = abl->cumulatedSource.z;
+
+            // scale with dt
+            PetscReal dtScale = clock->dt / abl->avgTimeStep;
+
+            s.x = abl->cumulatedSource.x * dtScale;
+            s.y = abl->cumulatedSource.y * dtScale;
+            s.z = abl->cumulatedSource.z * dtScale;
         }
+        else if(abl->controllerType=="timeHeightSeries")
+        {
+            PetscInt  nlevels = my-2;
+            PetscMalloc(sizeof(Cmpnts) * (nlevels), &(src));
 
-        // find interpolation weights
-        PetscReal idx = (idx_2 - idx_1) / (abl->preCompSources[idx_2][0] - abl->preCompSources[idx_1][0]) * (clock->time - abl->preCompSources[idx_1][0]) + idx_1;
-        PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
-        PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+            // find the two closest times in the pre-computed sources
+            // get the 2 time values closest to the current time
+            PetscInt idx_1 = abl->currentCloseIdx;
+            PetscInt idx_2 = abl->currentCloseIdx + 1;
 
-        if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading sources\n", w1 * abl->preCompSources[idx_1][0] + w2 * abl->preCompSources[idx_2][0]);
-        if(print) PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
-        if(print) PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->preCompSources[idx_1][0], abl->preCompSources[idx_2][0]);
+            PetscInt lwrBound = 0;
+            PetscInt uprBound = abl->nSourceTimes;
 
-        // reset the closest index for nex iteration
-        abl->currentCloseIdx = idx_1;
+            // if past first iteration do the search on a subset to speed up the process
+            if(clock->it > clock->itStart)
+            {
+                lwrBound = PetscMax(0, (abl->currentCloseIdx - 50));
+                uprBound = PetscMin(abl->nSourceTimes, (abl->currentCloseIdx + 50));
+            }
 
-        // get also the dt at the time the source was calculated
-        double dtSource1 = std::max((abl->preCompSources[idx_1+1][0] - abl->preCompSources[idx_1][0]), 1e-5);
-        double dtSource2 = std::max((abl->preCompSources[idx_2+1][0] - abl->preCompSources[idx_2][0]), 1e-5);
+            // build error vector for the time search
+            PetscReal  diff[abl->nSourceTimes];
 
-        // do not scale with time step
-        // s.x = w1 * abl->preCompSources[idx_1][1] + w2 * abl->preCompSources[idx_2][1];
-        // s.y = w1 * abl->preCompSources[idx_1][2] + w2 * abl->preCompSources[idx_2][2];
-        // s.z = w1 * abl->preCompSources[idx_1][3] + w2 * abl->preCompSources[idx_2][3];
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                diff[i] = fabs(abl->timeHtSources[i][0][0] - clock->time);
+            }
 
-        // scale with time step
-        s.x = (w1 * abl->preCompSources[idx_1][1] / dtSource1 + w2 * abl->preCompSources[idx_2][1] / dtSource2) * clock->dt;
-        s.y = (w1 * abl->preCompSources[idx_1][2] / dtSource1 + w2 * abl->preCompSources[idx_2][2] / dtSource2) * clock->dt;
-        s.z = (w1 * abl->preCompSources[idx_1][3] / dtSource1 + w2 * abl->preCompSources[idx_2][3] / dtSource2) * clock->dt;
+            // find the two closest times
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                if(diff[i] < diff[idx_1])
+                {
+                    idx_2 = idx_1;
+                    idx_1 = i;
+                }
+                if(diff[i] < diff[idx_2] && i != idx_1)
+                {
+                    idx_2 = i;
+                }
+            }
 
+            // always put the lower time at idx_1 and higher at idx_2
+            if(abl->timeHtSources[idx_2][0][0] < abl->timeHtSources[idx_1][0][0])
+            {
+                PetscInt idx_tmp = idx_2;
+                idx_2 = idx_1;
+                idx_1 = idx_tmp;
+            }
 
-    }
-    else if(abl->controllerType=="average")
-    {
-        // PetscPrintf(mesh->MESH_COMM, "Correcting source terms using source average from time %lf\n", abl->sourceAvgStartTime);
+            // find interpolation weights
+            PetscReal idx = (idx_2 - idx_1) / (abl->timeHtSources[idx_2][0][0] - abl->timeHtSources[idx_1][0][0]) * (clock->time - abl->timeHtSources[idx_1][0][0]) + idx_1;
+            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
 
-        // do not scale with dt
-        // s.x = abl->cumulatedSource.x;
-        // s.y = abl->cumulatedSource.y;
-        // s.z = abl->cumulatedSource.z;
+            if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading sources\n", w1 * abl->timeHtSources[idx_1][0][0] + w2 * abl->timeHtSources[idx_2][0][0]);
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeHtSources[idx_1][0][0], abl->timeHtSources[idx_2][0][0]);
 
-        // scale with dt
-        PetscReal dtScale = clock->dt / abl->avgTimeStep;
+            // reset the closest index for nex iteration
+            abl->currentCloseIdx = idx_1;
 
-        s.x = abl->cumulatedSource.x * dtScale;
-        s.y = abl->cumulatedSource.y * dtScale;
-        s.z = abl->cumulatedSource.z * dtScale;
+            // get also the dt at the time the source was calculated
+            double dtSource1 = std::max((abl->timeHtSources[idx_1+1][0][0] - abl->timeHtSources[idx_1][0][0]), 1e-5);
+            double dtSource2 = std::max((abl->timeHtSources[idx_2+1][0][0] - abl->timeHtSources[idx_2][0][0]), 1e-5);
 
+            // scale with time step for each height
+            for(j=0; j<nlevels; j++)
+            {
+                src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][1] / dtSource2) * clock->dt;
+                src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][2] / dtSource2) * clock->dt;
+                src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][3] / dtSource2) * clock->dt;    
+            }           
+ 
+        }
 
     }
 
@@ -742,40 +1057,58 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             {
                 if(cent[k][j][i].z <= abl->controllerMaxHeight)
                 {
-                    if(abl->controllerType=="geostrophic")
+                    if(abl->controllerAction == "write")
                     {
-						// multiply by dt for how TOSCA builds the source RHS
-                        source[k][j][i].x = (abl->a.x + abl->b.x*ucat[k][j][i].y) * clock->dt;
-                        source[k][j][i].y = (abl->a.y + abl->b.y*ucat[k][j][i].x) * clock->dt;
-                        source[k][j][i].z = 0.0;
-                    }
-                    else if(abl->controllerType=="pressure")
-                    {
-                        if(applyGeoDamping)
+                        if(abl->controllerType=="geostrophic")
                         {
-							// multiply by dt for how TOSCA builds the source RHS (only geo damping)
-
-                            PetscReal  height = cent[k][j][i].z - mesh->bounds.zmin;
-                            source[k][j][i].x = s.x +
-                                                scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
-                                                abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x) * clock->dt;
-                            source[k][j][i].y = s.y +
-                                                scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
-                                                abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y) * clock->dt;
+                            // multiply by dt for how TOSCA builds the source RHS
+                            source[k][j][i].x = (abl->a.x + abl->b.x*ucat[k][j][i].y) * clock->dt;
+                            source[k][j][i].y = (abl->a.y + abl->b.y*ucat[k][j][i].x) * clock->dt;
                             source[k][j][i].z = 0.0;
                         }
-                        else
+                        else if(abl->controllerType=="pressure")
+                        {
+                            if(applyGeoDamping)
+                            {
+                                // multiply by dt for how TOSCA builds the source RHS (only geo damping)
+
+                                PetscReal  height = cent[k][j][i].z - mesh->bounds.zmin;
+                                source[k][j][i].x = s.x +
+                                                    scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
+                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x) * clock->dt;
+                                source[k][j][i].y = s.y +
+                                                    scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
+                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y) * clock->dt;
+                                source[k][j][i].z = 0.0;
+                            }
+                            else
+                            {
+                                source[k][j][i].x = s.x;
+                                source[k][j][i].y = s.y;
+                                source[k][j][i].z = 0.0;
+                            }
+                        }
+                        else if(abl->controllerType=="directProfileAssimilation")
+                        {
+                            source[k][j][i].x = src[j-1].x;
+                            source[k][j][i].y = src[j-1].y;
+                            source[k][j][i].z = 0.0;
+                        } 
+                    }
+                    else if(abl->controllerAction == "read")
+                    {
+                        if(abl->controllerType == "timeSeries" || abl->controllerType == "timeAverageSeries")
                         {
                             source[k][j][i].x = s.x;
                             source[k][j][i].y = s.y;
                             source[k][j][i].z = 0.0;
                         }
-                    }
-                    else
-                    {
-                        source[k][j][i].x = s.x;
-                        source[k][j][i].y = s.y;
-                        source[k][j][i].z = 0.0;
+                        else if(abl->controllerType == "timeHeightSeries")
+                        {
+                            source[k][j][i].x = src[j-1].x;
+                            source[k][j][i].y = src[j-1].y;
+                            source[k][j][i].z = 0.0;
+                        }
                     }
                 }
                 else
@@ -784,6 +1117,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     source[k][j][i].y = 0.0;
                     source[k][j][i].z = 0.0;
                 }
+
             }
         }
     }
@@ -927,7 +1261,116 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 }
 
 //***************************************************************************************************************//
+PetscErrorCode mapYDamping(ueqn_ *ueqn)
+{
+    mesh_         *mesh = ueqn->access->mesh;
+    abl_          *abl  = ueqn->access->abl;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
 
+    Cmpnts        ***ubar;
+    Cmpnts        **velMapped = abl->velMapped;
+    PetscInt      numJ, numK, numI;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, p, l;
+    PetscInt      imin, imax, jmin, jmax, kmin, kmax;
+    PetscInt      iminSrc, jminSrc, kminSrc;
+    PetscInt      numDestBounds = abl->yDampingNumPeriods;
+    PetscInt      k_src_left, k_src_right;
+    PetscReal     w_left, w_right;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+    
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    DMDAVecGetArray(fda, abl->uBarInstY, &ubar);
+
+    if(ueqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            PetscPrintf(mesh->MESH_COMM, "Mapping lateral fringe region from sources..\n");
+            for(p=0; p < abl->numSourceProc; p++)
+            {
+                if(abl->isdestProc[p] == 1)
+                {
+                    // Wait for the completion of the non-blocking broadcast performed in CorrectDampingSources function
+                    MPI_Status status;
+                    MPI_Wait(&(abl->mapRequest[p]), &status);
+
+                    numI = abl->srcNumI[p];
+                    numJ = abl->srcNumJ[p];
+                    numK = abl->srcNumK[p];  
+
+                    iminSrc = abl->srcMinInd[p].i;
+                    jminSrc = abl->srcMinInd[p].j;
+                    kminSrc = abl->srcMinInd[p].k;
+
+                    for(l=0; l < numDestBounds; l++)
+                    {
+                        imin = abl->destMinInd[p][l].i;
+                        imax = abl->destMaxInd[p][l].i;
+
+                        jmin = abl->destMinInd[p][l].j;
+                        jmax = abl->destMaxInd[p][l].j;
+
+                        kmin = abl->destMinInd[p][l].k;
+                        kmax = abl->destMaxInd[p][l].k;
+
+                        if(imin == -1 || jmin == -1 || kmin == -1
+                        || imax == -1 || jmax == -1 || kmax == -1)
+                        {
+                            continue;
+                        }
+
+                        //check that the min and max are within the processor boundaries 
+                        if(kmin >= lzs && kmax <= lze && jmin >= lys && jmax <= lye && imin >= lxs && imax <= lxe)
+                        {
+                            for (k=kmin; k<=kmax; k++)
+                            {
+                                for (j=jmin; j<=jmax; j++)
+                                {
+                                    for (i=imin; i<=imax; i++)
+                                    {
+                                        k_src_left    = abl->closestKCell[k][0];
+                                        k_src_right   = abl->closestKCell[k][1];
+                                        w_left        = abl->wtsKCell[k][0];
+                                        w_right       = abl->wtsKCell[k][1];
+
+                                        Cmpnts uLeft  = nSet(velMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)]);
+                                        Cmpnts uRight = nSet(velMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)]);
+
+                                        ubar[k][j][i] = nSum(nScale(w_left, uLeft), nScale(w_right, uRight));
+
+                                        // PetscPrintf(PETSC_COMM_SELF, "ubar[%ld][%ld][%ld] = %lf %lf %lf\n", k, j, i, ubar[k][j][i].x, ubar[k][j][i].y, ubar[k][j][i].z);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, abl->uBarInstY, &ubar);
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    DMLocalToLocalBegin (fda,  abl->uBarInstY, INSERT_VALUES, abl->uBarInstY);
+    DMLocalToLocalEnd   (fda,  abl->uBarInstY, INSERT_VALUES, abl->uBarInstY);
+
+    return(0);
+}
+//***************************************************************************************************************//
 PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 {
     mesh_         *mesh = ueqn->access->mesh;
@@ -948,6 +1391,9 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+    
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     // update uBar for xDampingLayer (read from inflow data)
     if(ueqn->access->flags->isXDampingActive)
@@ -1609,11 +2055,59 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
     if(ueqn->access->flags->isYDampingActive)
     {
+        cellIds *srcMinInd = abl->srcMinInd, *srcMaxInd = abl->srcMaxInd;
+        Cmpnts  **velMapped = abl->velMapped;
+        PetscInt numJ, numK, numI;
+        PetscInt imin, imax, jmin, jmax, kmin, kmax;
+
+        DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+
         // update the unsteady uBar state
         if(abl->xFringeUBarSelectionType == 3)
         {
 
+            for(PetscInt p=0; p < abl->numSourceProc; p++)
+            {
+                if(rank == abl->sourceProcList[p])
+                {
+                    imin = abl->srcMinInd[p].i;
+                    imax = abl->srcMaxInd[p].i;
+                    jmin = abl->srcMinInd[p].j;
+                    jmax = abl->srcMaxInd[p].j;
+                    kmin = abl->srcMinInd[p].k;
+                    kmax = abl->srcMaxInd[p].k;
+
+                    numI = abl->srcNumI[p];
+                    numJ = abl->srcNumJ[p];
+                    numK = abl->srcNumK[p];
+
+                    //loop through the sub domain of this processor
+                    for (k=kmin; k<=kmax; k++)
+                    {
+                        for (j=jmin; j<=jmax; j++)
+                        {
+                            for (i=imin; i<=imax; i++)
+                            {
+                                velMapped[p][(k-kmin) * numJ * numI + (j-jmin) * numI + (i-imin)] = nSet(ucat[k][j][i]);
+                            }
+                        }
+                    }
+                }
+
+                if(abl->isdestProc[p] == 1)
+                {
+
+                    numI = abl->srcNumI[p];
+                    numJ = abl->srcNumJ[p];
+                    numK = abl->srcNumK[p];
+                    
+                    MPI_Ibcast(velMapped[p], numI * numJ * numK * 3, MPIU_REAL, abl->srcCommLocalRank[p], abl->yDamp_comm[p], &(abl->mapRequest[p]));
+                }
+                
+            }
         }
+
+        DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
     }
 
     // update uBar for zDampingLayer (average at kLeft patch)
@@ -1742,14 +2236,14 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***ucat, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    Cmpnts        ***ucont, ***ucontP;
+    Cmpnts        ***ucont, ***ucontP, ***uBarY;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
 
     precursor_    *precursor;
     domain_       *pdomain;
-    PetscInt      kStart, kEnd;
+    PetscInt      kStart, kEnd, iStart, iEnd;
 	PetscReal     advDampH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
@@ -1778,6 +2272,16 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 kStart = precursor->map.kStart;
                 kEnd   = precursor->map.kEnd;
             }
+        }
+    }
+
+    if(ueqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            DMDAVecGetArray(fda, abl->uBarInstY, &uBarY);
+            iStart = abl->iStart;
+            iEnd = abl->iEnd;
         }
     }
 
@@ -2025,7 +2529,50 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     }
                     else
                     {
-                        // retrieve from concurrent precursor - not yet implemented
+                        PetscReal uBarContK;
+                        PetscReal uBarContJ;
+                        PetscReal uBarContI;
+
+                        if
+                        (
+                            abl->inYFringeRegionOnly && 
+                            i >= iStart && i < iEnd            
+                        )
+                        {
+                            uBarContI = central(uBarY[k][j][i].x, uBarY[k][j][i+1].x) * icsi[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j][i+1].y) * icsi[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j][i+1].z) * icsi[k][j][i].z;
+                            uBarContJ = central(uBarY[k][j][i].x, uBarY[k][j+1][i].x) * jeta[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j+1][i].y) * jeta[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j+1][i].z) * jeta[k][j][i].z;
+                            uBarContK = central(uBarY[k][j][i].x, uBarY[k+1][j][i].x) * kzet[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k+1][j][i].y) * kzet[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k+1][j][i].z) * kzet[k][j][i].z;
+                        }
+                        else 
+                        {
+                            uBarContI = ucont[k][j][i].x;
+                            uBarContJ = ucont[k][j][i].y;
+                            uBarContK = ucont[k][j][i].z;
+                        }
+
+                        // i-fluxes
+                        rhs[k][j][i].x
+                        +=
+                        scale * central(nud_y, nudi_y) *
+                        (
+                            uBarContI - ucont[k][j][i].x
+                        );
+
+                        // j-fluxes
+                        rhs[k][j][i].y
+                        +=
+                        scale * central(nud_y, nudj_y) *
+                        (
+                            uBarContJ - ucont[k][j][i].y
+                        );
+
+                        // k-fluxes
+                        rhs[k][j][i].z
+                        +=
+                        scale * central(nud_y, nudk_y) *
+                        (
+                            uBarContK - ucont[k][j][i].z
+                        );
                     }
                 }
 
@@ -2229,6 +2776,14 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 DMDAVecRestoreArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucontP);
             }
+        }
+    }
+
+    if(ueqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            DMDAVecRestoreArray(fda, abl->uBarInstY, &uBarY);
         }
     }
 
@@ -5289,6 +5844,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     if
     (
         ueqn->access->flags->isXDampingActive ||
+        ueqn->access->flags->isYDampingActive ||
         ueqn->access->flags->isZDampingActive ||
         ueqn->access->flags->isKLeftRayleighDampingActive ||
         ueqn->access->flags->isKRightRayleighDampingActive

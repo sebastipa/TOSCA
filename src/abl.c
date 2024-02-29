@@ -162,6 +162,14 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         // read proportional controller relaxation factor (same as the velocity one)
         readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
+        readDictWord     ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
+
+        if(abl->controllerTypeT == "directProfileAssimilation")
+        {
+            readMesoScaleTemperatureData(abl);
+
+            findTemperatureInterpolationWeights(abl);
+        }
     }
 
     if(abl->controllerActive)
@@ -170,370 +178,525 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerMaxHeight", &(abl->controllerMaxHeight));
         readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerType",   &(abl->controllerType));
+        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerAction",   &(abl->controllerAction));
 
-        // set cumulated sources to zero. They are needed for the integral part of the
-        // controller if controllerType is set to 'write' or to store the average
-        // sources if controllerType is set to 'average'
         abl->cumulatedSource.x = 0.0;
         abl->cumulatedSource.y = 0.0;
         abl->cumulatedSource.z = 0.0;
 
         // source terms are computed
-        if(abl->controllerType == "pressure" || abl->controllerType == "geostrophic")
+        if(abl->controllerAction == "write")
         {
-            // read PI controller properties
-            readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
-            readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
-            readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
 
-            PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
-
-            // calculating levels interpolation weights at reference height
+            if(abl->controllerType == "pressure" || abl->controllerType == "geostrophic")
             {
-                PetscMalloc(sizeof(PetscInt)  * 2,       &(abl->closestLabels));
-                PetscMalloc(sizeof(PetscReal) * 2,       &(abl->levelWeights));
-                std::vector<PetscReal> absLevelDelta(nLevels);
+                // read PI controller properties
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
 
-                for(l=0; l<nLevels; l++)
+                PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
+
+                // calculating levels interpolation weights at reference height
                 {
-                    absLevelDelta[l] = std::fabs(abl->cellLevels[l] - abl->hRef);
-                }
+                    PetscMalloc(sizeof(PetscInt)  * 2,       &(abl->closestLabels));
+                    PetscMalloc(sizeof(PetscReal) * 2,       &(abl->levelWeights));
+                    std::vector<PetscReal> absLevelDelta(nLevels);
 
-                for(PetscInt errI=0; errI<2; errI++)
-                {
-                    PetscReal errMin   = 1e20;
-                    PetscReal errValue = 0.0;
-                    PetscInt  minLabel = 0;
-
-                    for(PetscInt errJ = errI; errJ < nLevels; errJ++)
+                    for(l=0; l<nLevels; l++)
                     {
-                        if(absLevelDelta[errJ] < errMin)
-                        {
-                            errValue = absLevelDelta[errJ];
-                            minLabel = errJ;
-                            errMin   = errValue;
-                        }
+                        absLevelDelta[l] = std::fabs(abl->cellLevels[l] - abl->hRef);
                     }
 
-                    // exchange values so that elements are not ovwerwritten
-                    absLevelDelta[minLabel] = absLevelDelta[errI];
-
-                    // put the min value on the unchanged part at the last index of changed part
-                    absLevelDelta[errI] = errValue;
-
-                    // save the label adding one since DMDA labeling starts from physical ghost cells
-                    abl->closestLabels[errI] = minLabel + 1;
-                }
-
-                abl->levelWeights[0] = (abl->cellLevels[abl->closestLabels[1]-1]-abl->hRef) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
-                abl->levelWeights[1] = (abl->hRef-abl->cellLevels[abl->closestLabels[0]-1]) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
-
-                PetscPrintf(mesh->MESH_COMM, "   -> l1 = %lf, l2 = %lf, hRef = %lf\n", abl->cellLevels[abl->closestLabels[0]-1],abl->cellLevels[abl->closestLabels[1]-1], abl->hRef);
-                PetscPrintf(mesh->MESH_COMM, "   -> sum of weights = %lf, w1 = %lf, w2 = %lf\n", abl->levelWeights[0]+abl->levelWeights[1], abl->levelWeights[0], abl->levelWeights[1]);
-
-                std::vector<PetscReal> ().swap(absLevelDelta);
-
-                if(abl->controllerType == "pressure")
-                {
-                    // read if geostrophic damping is active
-                    readSubDictInt("ABLProperties.dat", "controllerProperties", "geostrophicDamping", &(abl->geostrophicDampingActive));
-
-                    if(abl->geostrophicDampingActive)
+                    for(PetscInt errI=0; errI<2; errI++)
                     {
-                        if(!abl->coriolisActive)
+                        PetscReal errMin   = 1e20;
+                        PetscReal errValue = 0.0;
+                        PetscInt  minLabel = 0;
+
+                        for(PetscInt errJ = errI; errJ < nLevels; errJ++)
                         {
-                            readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
-                        }
-
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingAlpha",      &(abl->geoDampAlpha));
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingStartTime",  &(abl->geoDampStart));
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingTimeWindow", &(abl->geoDampWindow));
-
-                        abl->geoDampH     = abl->hInv + 0.5 * abl->dInv;
-                        abl->geoDampDelta = abl->dInv;
-                        abl->geoDampC     = 2.0*(2.0*abl->fc);
-                        abl->geoDampUBar  = nSetZero();
-						abl->geoDampAvgS  = nSetZero();
-						abl->geoDampAvgDT = mesh->access->clock->dt;
-
-						// allocate memory for filtered geostrophic velocity
-                        PetscMalloc(sizeof(Cmpnts)*nLevels, &(abl->geoDampU));
-
-						for(j=0; j<nLevels; j++)
-						{
-							abl->geoDampU[j] = nSetZero();
-						}
-
-                        // see if must read the average
-                        std::stringstream stream;
-                        stream << std::fixed << std::setprecision(mesh->access->clock->timePrecision) << mesh->access->clock->startTime;
-                        word location = "./fields/" + mesh->meshName + "/" + stream.str();
-                        word fileName = location + "/geostrophicDampingInfo";
-
-                        FILE *fp=fopen(fileName.c_str(), "r");
-
-                        if(fp==NULL)
-                        {
-                            // if start time > 0 should find the file
-                            if(mesh->access->clock->startTime != 0.0)
+                            if(absLevelDelta[errJ] < errMin)
                             {
-                                char error[512];
-                                sprintf(error, "cannot open file %s\n", fileName.c_str());
-                                fatalErrorInFunction("ABLInitialize",  error);
+                                errValue = absLevelDelta[errJ];
+                                minLabel = errJ;
+                                errMin   = errValue;
                             }
                         }
-                        else
-                        {
-                            fclose(fp);
-                            readDictVector(fileName.c_str(), "filteredS",   &(abl->geoDampAvgS));
-							readDictDouble(fileName.c_str(), "filteredDT",  &(abl->geoDampAvgDT));
-							abl->geoDampUBar = nScale(1.0 / (2.0 * abl->fc * abl->geoDampAvgDT), nSetFromComponents(abl->geoDampAvgS.y, abl->geoDampAvgS.x, 0.0));
-                            PetscPrintf(mesh->MESH_COMM, "   -> reading filtered geostrophic wind: Ug = (%.3lf, %.3lf, 0.000)\n",abl->geoDampUBar.x, abl->geoDampUBar.y);
-                        }
+
+                        // exchange values so that elements are not ovwerwritten
+                        absLevelDelta[minLabel] = absLevelDelta[errI];
+
+                        // put the min value on the unchanged part at the last index of changed part
+                        absLevelDelta[errI] = errValue;
+
+                        // save the label adding one since DMDA labeling starts from physical ghost cells
+                        abl->closestLabels[errI] = minLabel + 1;
                     }
-                }
-            }
 
-            // calculating geostrophic wind and interpolation weight at geostrophic wind
-            if(abl->controllerType == "geostrophic")
-            {
-                // read geosptrophic height
-                readSubDictDouble("ABLProperties.dat", "controllerProperties", "hGeo",     &(abl->hGeo));
-                readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaGeo", &(abl->geoAngle));
+                    abl->levelWeights[0] = (abl->cellLevels[abl->closestLabels[1]-1]-abl->hRef) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
+                    abl->levelWeights[1] = (abl->hRef-abl->cellLevels[abl->closestLabels[0]-1]) / (abl->cellLevels[abl->closestLabels[1]-1] - abl->cellLevels[abl->closestLabels[0]-1]);
 
-				// read geostrophic speed
-				PetscReal geoWindMag;
-				readSubDictDouble("ABLProperties.dat", "controllerProperties", "uGeoMag", &geoWindMag);
+                    PetscPrintf(mesh->MESH_COMM, "   -> l1 = %lf, l2 = %lf, hRef = %lf\n", abl->cellLevels[abl->closestLabels[0]-1],abl->cellLevels[abl->closestLabels[1]-1], abl->hRef);
+                    PetscPrintf(mesh->MESH_COMM, "   -> sum of weights = %lf, w1 = %lf, w2 = %lf\n", abl->levelWeights[0]+abl->levelWeights[1], abl->levelWeights[0], abl->levelWeights[1]);
 
-                // initial parameters (should be correct at ABL convergence)
-                abl->geoAngle = abl->geoAngle*M_PI/180;
-                abl->hubAngle = 0.0;
-                abl->omegaBar = 0.0;
+                    std::vector<PetscReal> ().swap(absLevelDelta);
 
-                // compute geostrophic speed
-                // abl->uGeoBar  = nSetFromComponents(NieuwstadtGeostrophicWind(abl), 0.0, 0.0);
-				abl->uGeoBar  = nSetFromComponents(geoWindMag, 0.0, 0.0);
-
-                // rotate according to initial angle
-                Cmpnts uGeoBarTmp = nSetZero();
-                uGeoBarTmp.x = std::cos(abl->geoAngle) * abl->uGeoBar.x - std::sin(abl->geoAngle) * abl->uGeoBar.y;
-                uGeoBarTmp.y = std::sin(abl->geoAngle) * abl->uGeoBar.x + std::cos(abl->geoAngle) * abl->uGeoBar.y;
-                mSet(abl->uGeoBar, uGeoBarTmp);
-
-                // printf information
-                PetscPrintf(mesh->MESH_COMM, "   -> Ug = (%f, %f, %f) m/s, UgMag = %f m/s\n", abl->uGeoBar.x, abl->uGeoBar.y, abl->uGeoBar.z, nMag(abl->uGeoBar));
-
-                // compute levels at geostrophic height
-                PetscMalloc(sizeof(PetscInt)  * 2,       &(abl->closestLabelsGeo));
-                PetscMalloc(sizeof(PetscReal) * 2,       &(abl->levelWeightsGeo));
-                std::vector<PetscReal> absLevelDelta(nLevels);
-
-                for(l=0; l<nLevels; l++)
-                {
-                    absLevelDelta[l] = std::fabs(abl->cellLevels[l] - abl->hGeo);
-                }
-
-                for(PetscInt errI=0; errI<2; errI++)
-                {
-                    PetscReal errMin   = 1e20;
-                    PetscReal errValue = 0.0;
-                    PetscInt  minLabel = 0;
-
-                    for(PetscInt errJ = errI; errJ < nLevels; errJ++)
+                    if(abl->controllerType == "pressure")
                     {
-                        if(absLevelDelta[errJ] < errMin)
+                        // read if geostrophic damping is active
+                        readSubDictInt("ABLProperties.dat", "controllerProperties", "geostrophicDamping", &(abl->geostrophicDampingActive));
+
+                        if(abl->geostrophicDampingActive)
                         {
-                            errValue = absLevelDelta[errJ];
-                            minLabel = errJ;
-                            errMin   = errValue;
+                            if(!abl->coriolisActive)
+                            {
+                                readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
+                            }
+
+                            readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingAlpha",      &(abl->geoDampAlpha));
+                            readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingStartTime",  &(abl->geoDampStart));
+                            readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingTimeWindow", &(abl->geoDampWindow));
+
+                            abl->geoDampH     = abl->hInv + 0.5 * abl->dInv;
+                            abl->geoDampDelta = abl->dInv;
+                            abl->geoDampC     = 2.0*(2.0*abl->fc);
+                            abl->geoDampUBar  = nSetZero();
+                            abl->geoDampAvgS  = nSetZero();
+                            abl->geoDampAvgDT = mesh->access->clock->dt;
+
+                            // allocate memory for filtered geostrophic velocity
+                            PetscMalloc(sizeof(Cmpnts)*nLevels, &(abl->geoDampU));
+
+                            for(j=0; j<nLevels; j++)
+                            {
+                                abl->geoDampU[j] = nSetZero();
+                            }
+
+                            // see if must read the average
+                            std::stringstream stream;
+                            stream << std::fixed << std::setprecision(mesh->access->clock->timePrecision) << mesh->access->clock->startTime;
+                            word location = "./fields/" + mesh->meshName + "/" + stream.str();
+                            word fileName = location + "/geostrophicDampingInfo";
+
+                            FILE *fp=fopen(fileName.c_str(), "r");
+
+                            if(fp==NULL)
+                            {
+                                // if start time > 0 should find the file
+                                if(mesh->access->clock->startTime != 0.0)
+                                {
+                                    char error[512];
+                                    sprintf(error, "cannot open file %s\n", fileName.c_str());
+                                    fatalErrorInFunction("ABLInitialize",  error);
+                                }
+                            }
+                            else
+                            {
+                                fclose(fp);
+                                readDictVector(fileName.c_str(), "filteredS",   &(abl->geoDampAvgS));
+                                readDictDouble(fileName.c_str(), "filteredDT",  &(abl->geoDampAvgDT));
+                                abl->geoDampUBar = nScale(1.0 / (2.0 * abl->fc * abl->geoDampAvgDT), nSetFromComponents(abl->geoDampAvgS.y, abl->geoDampAvgS.x, 0.0));
+                                PetscPrintf(mesh->MESH_COMM, "   -> reading filtered geostrophic wind: Ug = (%.3lf, %.3lf, 0.000)\n",abl->geoDampUBar.x, abl->geoDampUBar.y);
+                            }
                         }
                     }
-
-                    // exchange values so that elements are not ovwerwritten
-                    absLevelDelta[minLabel] = absLevelDelta[errI];
-
-                    // put the min value on the unchanged part at the last index of changed part
-                    absLevelDelta[errI] = errValue;
-
-                    // save the label adding one since DMDA labeling starts from physical ghost cells
-                    abl->closestLabelsGeo[errI] = minLabel + 1;
                 }
 
-                abl->levelWeightsGeo[0] = (abl->cellLevels[abl->closestLabelsGeo[1]-1]-abl->hGeo) / (abl->cellLevels[abl->closestLabelsGeo[1]-1] - abl->cellLevels[abl->closestLabelsGeo[0]-1]);
-                abl->levelWeightsGeo[1] = (abl->hGeo-abl->cellLevels[abl->closestLabelsGeo[0]-1]) / (abl->cellLevels[abl->closestLabelsGeo[1]-1] - abl->cellLevels[abl->closestLabelsGeo[0]-1]);
+                // calculating geostrophic wind and interpolation weight at geostrophic wind
+                if(abl->controllerType == "geostrophic")
+                {
+                    // read geosptrophic height
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "hGeo",     &(abl->hGeo));
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaGeo", &(abl->geoAngle));
 
-                PetscPrintf(mesh->MESH_COMM, "   -> l1 = %lf, l2 = %lf, hGeo = %lf\n", abl->cellLevels[abl->closestLabelsGeo[0]-1],abl->cellLevels[abl->closestLabelsGeo[1]-1], abl->hGeo);
-                PetscPrintf(mesh->MESH_COMM, "   -> sum of weights = %lf, w1 = %lf, w2 = %lf\n", abl->levelWeightsGeo[0]+abl->levelWeightsGeo[1], abl->levelWeightsGeo[0], abl->levelWeightsGeo[1]);
+                    // read geostrophic speed
+                    PetscReal geoWindMag;
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "uGeoMag", &geoWindMag);
 
-                std::vector<PetscReal> ().swap(absLevelDelta);
+                    // initial parameters (should be correct at ABL convergence)
+                    abl->geoAngle = abl->geoAngle*M_PI/180;
+                    abl->hubAngle = 0.0;
+                    abl->omegaBar = 0.0;
 
-				// modify uTau to match exact uGeo above inversion (for proper initial condition)
-                abl->uTau = geoWindMag * abl->vkConst / std::log(abl->hInv / abl->hRough);
+                    // compute geostrophic speed
+                    // abl->uGeoBar  = nSetFromComponents(NieuwstadtGeostrophicWind(abl), 0.0, 0.0);
+                    abl->uGeoBar  = nSetFromComponents(geoWindMag, 0.0, 0.0);
+
+                    // rotate according to initial angle
+                    Cmpnts uGeoBarTmp = nSetZero();
+                    uGeoBarTmp.x = std::cos(abl->geoAngle) * abl->uGeoBar.x - std::sin(abl->geoAngle) * abl->uGeoBar.y;
+                    uGeoBarTmp.y = std::sin(abl->geoAngle) * abl->uGeoBar.x + std::cos(abl->geoAngle) * abl->uGeoBar.y;
+                    mSet(abl->uGeoBar, uGeoBarTmp);
+
+                    // printf information
+                    PetscPrintf(mesh->MESH_COMM, "   -> Ug = (%f, %f, %f) m/s, UgMag = %f m/s\n", abl->uGeoBar.x, abl->uGeoBar.y, abl->uGeoBar.z, nMag(abl->uGeoBar));
+
+                    // compute levels at geostrophic height
+                    PetscMalloc(sizeof(PetscInt)  * 2,       &(abl->closestLabelsGeo));
+                    PetscMalloc(sizeof(PetscReal) * 2,       &(abl->levelWeightsGeo));
+                    std::vector<PetscReal> absLevelDelta(nLevels);
+
+                    for(l=0; l<nLevels; l++)
+                    {
+                        absLevelDelta[l] = std::fabs(abl->cellLevels[l] - abl->hGeo);
+                    }
+
+                    for(PetscInt errI=0; errI<2; errI++)
+                    {
+                        PetscReal errMin   = 1e20;
+                        PetscReal errValue = 0.0;
+                        PetscInt  minLabel = 0;
+
+                        for(PetscInt errJ = errI; errJ < nLevels; errJ++)
+                        {
+                            if(absLevelDelta[errJ] < errMin)
+                            {
+                                errValue = absLevelDelta[errJ];
+                                minLabel = errJ;
+                                errMin   = errValue;
+                            }
+                        }
+
+                        // exchange values so that elements are not ovwerwritten
+                        absLevelDelta[minLabel] = absLevelDelta[errI];
+
+                        // put the min value on the unchanged part at the last index of changed part
+                        absLevelDelta[errI] = errValue;
+
+                        // save the label adding one since DMDA labeling starts from physical ghost cells
+                        abl->closestLabelsGeo[errI] = minLabel + 1;
+                    }
+
+                    abl->levelWeightsGeo[0] = (abl->cellLevels[abl->closestLabelsGeo[1]-1]-abl->hGeo) / (abl->cellLevels[abl->closestLabelsGeo[1]-1] - abl->cellLevels[abl->closestLabelsGeo[0]-1]);
+                    abl->levelWeightsGeo[1] = (abl->hGeo-abl->cellLevels[abl->closestLabelsGeo[0]-1]) / (abl->cellLevels[abl->closestLabelsGeo[1]-1] - abl->cellLevels[abl->closestLabelsGeo[0]-1]);
+
+                    PetscPrintf(mesh->MESH_COMM, "   -> l1 = %lf, l2 = %lf, hGeo = %lf\n", abl->cellLevels[abl->closestLabelsGeo[0]-1],abl->cellLevels[abl->closestLabelsGeo[1]-1], abl->hGeo);
+                    PetscPrintf(mesh->MESH_COMM, "   -> sum of weights = %lf, w1 = %lf, w2 = %lf\n", abl->levelWeightsGeo[0]+abl->levelWeightsGeo[1], abl->levelWeightsGeo[0], abl->levelWeightsGeo[1]);
+
+                    std::vector<PetscReal> ().swap(absLevelDelta);
+
+                    // modify uTau to match exact uGeo above inversion (for proper initial condition)
+                    abl->uTau = geoWindMag * abl->vkConst / std::log(abl->hInv / abl->hRough);
+                }
             }
-        }
-        // source terms are read or averaged from available database
-        else if(abl->controllerType=="read" || abl->controllerType=="average")
-        {
-            // use the vector class to append data in the vector (simpler)
-            std::vector<std::vector<PetscReal>> preCompSourcesTmp;
-
-            // word by word read
-            char word[256];
-
-            // buffer for read data
-            PetscReal buffer;
-
-            // time counter
-            PetscInt ntimes;
-
-            // file is located into the main folder
-            std::ifstream indata;
-            indata.open("inflowDatabase/momentumSource");
-
-            if(!indata)
+            else if(abl->controllerType=="directProfileAssimilation")
             {
-                char error[512];
-                sprintf(error, "cannot open file inflowDatabase/momentumSource\n");
-                fatalErrorInFunction("ABLInitialize",  error);
+                // read PI controller properties
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
+                readSubDictWord  ("ABLProperties.dat", "controllerProperties", "assimilationType",   &(abl->assimilationType));
+
+                if(abl->assimilationType == "constantTime")
+                {
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeValue", &(abl->startATime));
+                }
+
+                PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
+                PetscPrintf(mesh->MESH_COMM, "   -> assimilation type: %s\n", abl->assimilationType.c_str());
+                
+                readMesoScaleVelocityData(abl);
+
+                //find the interpolation points and weights for the velocity and temperature fields from the available heights 
+                findVelocityInterpolationWeights(abl);
+
+                // allocate memory for variables
+                PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->luMean));
+                PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->guMean));
             }
             else
             {
-                std::string tmpStr;
+                char error[512];
+                sprintf(error, "unknown controllerType for controller action write, available types are:\n        1 : pressure\n        2 : geostrophic\n        3 : directProfileAssimilation\n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
+        }
+        else if(abl->controllerAction == "read")
+        {
+            // source terms are read or averaged from available database
+            if(abl->controllerType=="timeSeries" || abl->controllerType=="timeAverageSeries")
+            {
+                // use the vector class to append data in the vector (simpler)
+                std::vector<std::vector<PetscReal>> preCompSourcesTmp;
 
-                ntimes = 0;
-                for (int t = 0; std::getline(indata, tmpStr); t++)
-                {
-                    if (!tmpStr.empty())
-                    {
-                        ntimes++;
-                    }
-                }
+                // word by word read
+                char word[256];
 
-                // first line is header
-                ntimes--;
+                // buffer for read data
+                PetscReal buffer;
 
-                // save the number of times
-                abl->nSourceTimes = ntimes;
-                abl->currentCloseIdx = 0;
+                // time counter
+                PetscInt ntimes;
 
-                // go back on top of file
-                indata.close();
+                // file is located into the main folder
+                std::ifstream indata;
                 indata.open("inflowDatabase/momentumSource");
 
-                // skip header line
-                std::getline(indata, tmpStr);
-
-                // resize the source table
-                preCompSourcesTmp.resize(ntimes);
-
-                for(PetscInt t=0; t<ntimes; t++)
-                {
-                    // read along the line: time | sourceX | sourceY | sourceZ
-                    for(PetscInt i=0; i<4; i++)
-                    {
-                        indata >> word;
-                        std::sscanf(word, "%lf", &buffer);
-
-                        preCompSourcesTmp[t].push_back(buffer);
-                    }
-
-                }
-
-                indata.close();
-            }
-
-            // now store the source data into preCompSources and free the temporary variable
-            PetscMalloc(sizeof(PetscReal) * ntimes, &(abl->preCompSources));
-            for(PetscInt t=0; t<ntimes; t++)
-            {
-                PetscMalloc(sizeof(PetscReal) * 4, &(abl->preCompSources[t]));
-            }
-
-            for(PetscInt t=0; t<ntimes; t++)
-            {
-                for(PetscInt i=0; i<4; i++)
-                {
-                   abl->preCompSources[t][i] =  preCompSourcesTmp[t][i];
-                }
-            }
-
-            // clean the temporary variables
-            for(PetscInt t=0; t<ntimes; t++)
-            {
-                std::vector<PetscReal> ().swap(preCompSourcesTmp[t]);
-            }
-
-            // if controllerType is average then average the preCompSources
-            if(abl->controllerType=="average")
-            {
-                readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerAvgStartTime", &(abl->sourceAvgStartTime));
-
-                // check that average start time is in the list
-                if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
+                if(!indata)
                 {
                     char error[512];
-                    sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
-                    fatalErrorInFunction("ABLInitialize",  error);
-                }
-                // check that more than 100 s of history are used to average
-                else if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
-                {
-                   char error[512];
-                    sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average is too poor (less than 100 s)");
+                    sprintf(error, "cannot open file inflowDatabase/momentumSource\n");
                     fatalErrorInFunction("ABLInitialize",  error);
                 }
                 else
                 {
-                    // warn if less then 1000 s of history are used to average
-                    if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 1000.00)
+                    std::string tmpStr;
+
+                    ntimes = 0;
+                    for (int t = 0; std::getline(indata, tmpStr); t++)
                     {
-                       char error[512];
-                        sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average could be too poor (less than 1000 s)");
-                        warningInFunction("ABLInitialize",  error);
-                    }
-
-                    // initialize average counter to zero
-                    PetscInt  nAvgSources = 0;
-                    PetscInt  timeOldSet  = 0;
-                    PetscReal timeOld;
-
-                    abl->avgTimeStep = 0.0;
-
-                    // average source terms
-                    for(PetscInt t=0; t<ntimes; t++)
-                    {
-                        if(abl->preCompSources[t][0] > abl->sourceAvgStartTime)
+                        if (!tmpStr.empty())
                         {
-                            if(!timeOldSet)
-                            {
-                                timeOld    = abl->preCompSources[t][0];
-                                timeOldSet = 1;
-                            }
-
-                            abl->cumulatedSource.x += abl->preCompSources[t][1];
-                            abl->cumulatedSource.y += abl->preCompSources[t][2];
-                            abl->cumulatedSource.z += abl->preCompSources[t][3];
-                            abl->avgTimeStep       += (abl->preCompSources[t][0] - timeOld);
-                            timeOld                =  abl->preCompSources[t][0];
-                            nAvgSources++;
+                            ntimes++;
                         }
                     }
 
-                    // divide by total number of sources used for the average
-                    abl->cumulatedSource.x = abl->cumulatedSource.x / nAvgSources;
-                    abl->cumulatedSource.y = abl->cumulatedSource.y / nAvgSources;
-                    abl->cumulatedSource.z = abl->cumulatedSource.z / nAvgSources;
-                    abl->avgTimeStep       = abl->avgTimeStep       / nAvgSources;
+                    // first line is header
+                    ntimes--;
 
-                    PetscPrintf(mesh->MESH_COMM, "   -> average driving sources = (%e %e %e), average time step = %lf\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z, abl->avgTimeStep);
+                    // save the number of times
+                    abl->nSourceTimes = ntimes;
+                    abl->currentCloseIdx = 0;
+
+                    // go back on top of file
+                    indata.close();
+                    indata.open("inflowDatabase/momentumSource");
+
+                    // skip header line
+                    std::getline(indata, tmpStr);
+
+                    // resize the source table
+                    preCompSourcesTmp.resize(ntimes);
+
+                    for(PetscInt t=0; t<ntimes; t++)
+                    {
+                        // read along the line: time | sourceX | sourceY | sourceZ
+                        for(PetscInt i=0; i<4; i++)
+                        {
+                            indata >> word;
+                            std::sscanf(word, "%lf", &buffer);
+
+                            preCompSourcesTmp[t].push_back(buffer);
+                        }
+
+                    }
+
+                    indata.close();
+                }
+
+                // now store the source data into preCompSources and free the temporary variable
+                PetscMalloc(sizeof(PetscReal *) * ntimes, &(abl->preCompSources));
+                for(PetscInt t=0; t<ntimes; t++)
+                {
+                    PetscMalloc(sizeof(PetscReal) * 4, &(abl->preCompSources[t]));
+                }
+
+                for(PetscInt t=0; t<ntimes; t++)
+                {
+                    for(PetscInt i=0; i<4; i++)
+                    {
+                        abl->preCompSources[t][i] =  preCompSourcesTmp[t][i];
+                    }
+                }
+
+                // clean the temporary variables
+                for(PetscInt t=0; t<ntimes; t++)
+                {
+                    std::vector<PetscReal> ().swap(preCompSourcesTmp[t]);
+                }
+
+                // if controllerReadType is average then average the preCompSources
+                if(abl->controllerType=="timeAverageSeries")
+                {
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerAvgStartTime", &(abl->sourceAvgStartTime));
+
+                    // check that average start time is in the list
+                    if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
+                    {
+                        char error[512];
+                        sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    }
+                    // check that more than 100 s of history are used to average
+                    else if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
+                    {
+                    char error[512];
+                        sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average is too poor (less than 100 s)");
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    }
+                    else
+                    {
+                        // warn if less then 1000 s of history are used to average
+                        if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 1000.00)
+                        {
+                        char error[512];
+                            sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average could be too poor (less than 1000 s)");
+                            warningInFunction("ABLInitialize",  error);
+                        }
+
+                        // initialize average counter to zero
+                        PetscInt  nAvgSources = 0;
+                        PetscInt  timeOldSet  = 0;
+                        PetscReal timeOld;
+
+                        abl->avgTimeStep = 0.0;
+
+                        // average source terms
+                        for(PetscInt t=0; t<ntimes; t++)
+                        {
+                            if(abl->preCompSources[t][0] > abl->sourceAvgStartTime)
+                            {
+                                if(!timeOldSet)
+                                {
+                                    timeOld    = abl->preCompSources[t][0];
+                                    timeOldSet = 1;
+                                }
+
+                                abl->cumulatedSource.x += abl->preCompSources[t][1];
+                                abl->cumulatedSource.y += abl->preCompSources[t][2];
+                                abl->cumulatedSource.z += abl->preCompSources[t][3];
+                                abl->avgTimeStep       += (abl->preCompSources[t][0] - timeOld);
+                                timeOld                =  abl->preCompSources[t][0];
+                                nAvgSources++;
+                            }
+                        }
+
+                        // divide by total number of sources used for the average
+                        abl->cumulatedSource.x = abl->cumulatedSource.x / nAvgSources;
+                        abl->cumulatedSource.y = abl->cumulatedSource.y / nAvgSources;
+                        abl->cumulatedSource.z = abl->cumulatedSource.z / nAvgSources;
+                        abl->avgTimeStep       = abl->avgTimeStep       / nAvgSources;
+
+                        PetscPrintf(mesh->MESH_COMM, "   -> average driving sources = (%e %e %e), average time step = %lf\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z, abl->avgTimeStep);
+                    }
                 }
             }
+
+            else if(abl->controllerType=="timeHeightSeries")
+            {
+                std::vector<std::vector<PetscReal>> preCompSourcesTmp;
+
+                // word by word read
+                char word[256];
+
+                // buffer for read data
+                PetscReal buffer;
+
+                // time counter
+                PetscInt ntimes;
+
+                std::ifstream indata;
+                indata.open("inflowDatabase/momentumSource");
+
+                if(!indata)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file inflowDatabase/momentumSource\n");
+                    fatalErrorInFunction("ABLInitialize",  error);
+                }
+                else 
+                {
+                    std::string tmpStr;
+
+                    ntimes = 0;
+                    for (PetscInt t = 0; std::getline(indata, tmpStr); t++)
+                    {
+                        if (!tmpStr.empty())
+                        {
+                            ntimes++;
+                        }
+                    }  
+
+                    //first three lines are header
+                    ntimes = ntimes-3;
+        
+                    // save the number of times
+                    abl->nSourceTimes = ntimes;
+                    abl->currentCloseIdx = 0;
+
+                    // go back on top of file
+                    indata.close();
+                    indata.open("inflowDatabase/momentumSource");
+                                            
+                    // skip header lines
+                    for (PetscInt t = 0; t<3; t++)
+                    {
+                        std::getline(indata, tmpStr);
+                    }      
+
+                    // resize the source table
+                    preCompSourcesTmp.resize(ntimes);
+
+                    //x,y,z velocity per level + time
+                    PetscInt wPerLine = (my-2) * 3 + 1;
+
+                    for (PetscInt t = 0; t<ntimes; t++)
+                    {
+                        for (PetscInt j = 0; j<wPerLine; j++)
+                        {
+                            indata >> word;
+                            std::sscanf(word, "%lf", &buffer);
+
+                            preCompSourcesTmp[t].push_back(buffer);
+                        }
+                    }                   
+                    
+                    indata.close();
+                }
+                
+                PetscMalloc(sizeof(PetscReal **) * ntimes, &(abl->timeHtSources));
+
+                for(PetscInt t=0; t<ntimes; t++)
+                {
+                    PetscMalloc(sizeof(PetscReal*) * (my-2), &(abl->timeHtSources[t]));
+                }
+
+                for(PetscInt t=0; t<ntimes; t++)
+                {
+                    for(PetscInt j=0; j<(my-2); j++)
+                    {
+                        PetscMalloc(sizeof(PetscReal) * 4, &(abl->timeHtSources[t][j]));
+                    }
+                }
+                
+                //save the time for each height
+                for(PetscInt t=0; t<ntimes; t++)
+                {
+                    for(PetscInt j=0; j<(my-2); j++)
+                    {
+                        abl->timeHtSources[t][j][0] = preCompSourcesTmp[t][0];
+                    }
+                }
+
+                for(PetscInt t=0; t<ntimes; t++)
+                {
+                    for(PetscInt j=0; j<(my-2); j++)
+                    {
+                        abl->timeHtSources[t][j][1] = preCompSourcesTmp[t][3*j + 1];
+                        abl->timeHtSources[t][j][2] = preCompSourcesTmp[t][3*j + 2];
+                        abl->timeHtSources[t][j][3] = preCompSourcesTmp[t][3*j + 3];
+                    }
+                }     
+
+                // clean the temporary variables
+                for(PetscInt t=0; t<ntimes; t++)
+                {
+                    std::vector<PetscReal> ().swap(preCompSourcesTmp[t]);
+                }
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "unknown controllerType for controller action read, available types are:\n        1 : timeSeries\n        2 : timeAverageSeries\n        3 : timeHeightSeries\n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
         }
-        else
+        else 
         {
-            char error[512];
-            sprintf(error, "unknown controllerType, available types are:\n        1 : write\n        2 : read\n        3 : average");
-            fatalErrorInFunction("ABLInitialize",  error);
+                char error[512];
+                sprintf(error, "unknown controllerAction, available types are:\n        1 : write\n        2 : read\n");
+                fatalErrorInFunction("ABLInitialize",  error);
         }
     }
 
@@ -1113,81 +1276,93 @@ PetscErrorCode InitializeABL(abl_ *abl)
     if(mesh->access->flags->isYDampingActive)
     {
         // assume also x-damping is active (cross checked in SetSimulationFlags)
+        PetscPrintf(mesh->MESH_COMM, "   reading y-damping properties\n");
 
         // read parameters
         readSubDictDouble("ABLProperties.dat", "yDampingProperties", "yDampingStart",   &(abl->yDampingStart));
         readSubDictDouble("ABLProperties.dat", "yDampingProperties", "yDampingEnd",     &(abl->yDampingEnd));
         readSubDictDouble("ABLProperties.dat", "yDampingProperties", "yDampingDelta",   &(abl->yDampingDelta));
         readSubDictDouble("ABLProperties.dat", "yDampingProperties", "yDampingAlpha",   &(abl->yDampingAlpha));
+        readSubDictInt   ("ABLProperties.dat", "yDampingProperties", "yDampingNumPeriods",   &(abl->yDampingNumPeriods));
 
-        if(abl->xFringeUBarSelectionType == 0 || abl->xFringeUBarSelectionType == 4)
+        if(abl->xFringeUBarSelectionType == 3)
         {
-            // steady state y-damping
-
-        }
-        else if(abl->xFringeUBarSelectionType == 3)
-        {
-            // time-dependent y-damping
-
-            // initialize arrays
-            VecDuplicate(mesh->Cent,  &(abl->uBarInstY));      VecSet(abl->uBarInstY,    0.0);
-            VecDuplicate(mesh->Nvert, &(abl->tBarInstY));      VecSet(abl->tBarInstY,    0.0);
-
-            PetscMalloc(mz*sizeof(PetscInt*), &(abl->yFringeInterpIDs));
-            PetscMalloc(mz*sizeof(PetscReal*), &(abl->yFringeInterpWeights));
-
-            for(k=0; k<mz; k++)
+            //check if the streamwise length is a multiple of the number of periodization 
+            PetscReal xDampingLength = std::abs(abl->xDampingEnd - abl->xDampingStart);
+            PetscReal error = mesh->bounds.Lx - xDampingLength*abl->yDampingNumPeriods;
+            
+            if(std::abs(error) > 1e-7)
             {
-                PetscMalloc(2*sizeof(PetscInt), &(abl->yFringeInterpIDs[k]));
-                PetscMalloc(2*sizeof(PetscReal), &(abl->yFringeInterpWeights[k]));
+                char error[512];
+                sprintf(error, "error in the yDampingNumPeriods, the sucessor domain length needs to be = xFringe length x yDampingNumPeriods to apply lateral damping \n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
 
-                for(i=0; i<2; i++)
+            if(abl->yDampingEnd != mesh->bounds.ymax)
+            {
+                char error[512];
+                sprintf(error, "Set yDampingEnd to domain end in y direction. lateral fringe function is currently defined to be in the end of the y direction\n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
+
+            if(abl->yDampingStart >= abl->yDampingEnd)
+            {
+                char error[512];
+                sprintf(error, "yDampingStart defined greater than yDampingEnd. Correct it in ABLProperties.dat\n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
+
+            if(abl->yDampingNumPeriods == 1)
+            {
+                char error[512];
+                sprintf(error, "sucessor domain length = xfringe length. Are you only simulating a fringe region?, if not increase the sucessor domain size.\n");
+                warningInFunction("ABLInitialize",  error);
+            }
+
+            //x damping end must coincide with a mesh coordinate in the x axis, or will lead to issues when periodization of the cells in x axis
+            PetscInt lEndcheckFlag = 0, gEndCheckFlag = 0;
+            PetscInt lbegincheckFlag = 0, gbeginCheckFlag = 0;
+            for (k=zs; k<lze; k++)
+            {
+                for (j=ys; j<lye; j++)
                 {
-                    abl->yFringeInterpIDs[k][i]     = 0;
-                    abl->yFringeInterpWeights[k][i] = 0.0;
+                    for (i=xs; i<lxe; i++)
+                    {
+                        if(coor[k][j][i].x == abl->xDampingEnd)
+                        {
+                            lEndcheckFlag = 1;
+                        }
+
+                        if(coor[k][j][i].x == abl->xDampingStart)
+                        {
+                            lbegincheckFlag = 1;
+                        }
+                    }
                 }
             }
+            MPI_Allreduce(&lEndcheckFlag, &gEndCheckFlag, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&lbegincheckFlag, &gbeginCheckFlag, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
 
-            // create fictitious line
-            std::vector<PetscReal> lxCoordinates, gxCoordinates;
-
-            // selects those processors which are in the fringe
-            if(abl->access->flags->isConcurrentPrecursorActive)
+            if(gEndCheckFlag == 0)
             {
-                precursor_ *precursor = abl->precursor;
-                domain_    *domain_p  = precursor->domain;
-                mesh_      *mesh_p    = domain_p->mesh;
-
-                DM            da_p   = mesh_p->da, fda_p = mesh_p->fda;
-                DMDALocalInfo info_p = mesh->info;
-                PetscInt      xs_p   = info_p.xs, xe_p = info_p.xs + info_p.xm;
-                PetscInt      ys_p   = info_p.ys, ye_p = info_p.ys + info_p.ym;
-                PetscInt      zs_p   = info_p.zs, ze_p = info_p.zs + info_p.zm;
-                PetscInt      mx_p   = info_p.mx, my_p = info_p.my, mz_p = info_p.mz;
-
-                Cmpnts        ***cent_p;
-
-                PetscReal     gNperiods = 0, lNperiods = std::floor(mesh->bounds.Lx / mesh_p->bounds.Lx);
-
-                PetscInt      k_p, r, lxs_p, lxe_p, lys_p, lye_p, lzs_p, lze_p;
-
-                lxs_p = xs_p; lxe_p = xe_p; if (xs_p==0) lxs_p = xs_p+1; if (xe_p==mx_p) lxe_p = xe_p-1;
-                lys_p = ys_p; lye_p = ye_p; if (ys_p==0) lys_p = ys_p+1; if (ye_p==my_p) lye_p = ye_p-1;
-                lzs_p = zs_p; lze_p = ze_p; if (zs_p==0) lzs_p = zs_p+1; if (ze_p==mz_p) lze_p = ze_p-1;
-
-                PetscMPIInt   rank_p, nProcs_p;
-
-                MPI_Comm_rank(mesh_p->MESH_COMM, &rank_p);
-                MPI_Comm_size(mesh_p->MESH_COMM, &nProcs_p);
-
-                DMDAVecGetArray(fda_p, mesh_p->lCent,  &cent_p);
-                DMDAVecGetArray(fda  , mesh->lCent,    &cent);
-
-
-
-                DMDAVecRestoreArray(fda_p, mesh_p->lCent,  &cent_p);
-                DMDAVecRestoreArray(fda  , mesh->lCent,    &cent);
+                char error[512];
+                sprintf(error, "x fringe region domain end does not coincide with a mesh co-ordinate in the x direction. This will lead to incomplete cells when periodizing along x\n");
+                warningInFunction("ABLInitialize",  error);
             }
+
+            if(gbeginCheckFlag == 0)
+            {
+                char error[512];
+                sprintf(error, "x fringe region domain start does not coincide with a mesh co-ordinate in the x direction. This will lead to incomplete cells when periodizing along x\n");
+                warningInFunction("ABLInitialize",  error);
+            }
+
+            //find the processors controlling the source damping region - this is intersection domain of x and y damping regions
+            initializeYDampingMapping(abl);
+
+            // initialize arrays
+            VecDuplicate(mesh->lCent,  &(abl->uBarInstY));      VecSet(abl->uBarInstY,    0.0);
+            VecDuplicate(mesh->lNvert, &(abl->tBarInstY));      VecSet(abl->tBarInstY,    0.0);
         }
         else
         {
@@ -1333,4 +1508,1658 @@ PetscReal NieuwstadtGeostrophicWind(abl_ *abl)
               V    = Wg.imag() * abl->uTau;
 
     return(nMag(nSetFromComponents(U,V,0.0)));
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readMesoScaleVelocityData(abl_ *abl)
+{
+    word variableName;
+    word fileName;
+    word filePath = "inflowDatabase/mesoscaleData";
+
+    PetscInt  dim1, dim2;
+
+    PetscInt  numtV, numhV;
+
+    std::vector<word> fileList;
+    PetscInt nFiles = 0;
+
+    getFileList(filePath.c_str(), fileList, nFiles);
+
+    if(nFiles == 0)
+    {
+        char error[512];
+        sprintf(error, "no file found in folder %s\n", filePath.c_str());
+        fatalErrorInFunction("readMesoScaleVelocityData",  error);
+    }
+    
+    PetscPrintf(PETSC_COMM_WORLD, "   reading mesoscale velocity data\n");
+
+    for(PetscInt i=0; i<nFiles; i++)
+    {
+        fileName = filePath + "/" + fileList[i];
+
+        std::ifstream indata;
+        indata.open(fileName.c_str());
+
+        if(!indata)
+        {
+            char error[512];
+            sprintf(error, "cannot open file %s\n", fileName.c_str());
+            fatalErrorInFunction("readMesoScaleVelocityData",  error);
+        }
+        else
+        {
+            indata >> dim1 >> dim2;
+
+            if(fileList[i] == "velTime")
+            {
+                PetscInt arrSize;
+
+                if(dim1 == 1)
+                {
+                    arrSize = dim2; 
+                }
+                else 
+                {
+                    arrSize = dim1;
+                }
+
+                PetscMalloc(sizeof(PetscReal) * arrSize, &(abl->timeV));
+
+                for(PetscInt j=0; j<arrSize; j++)
+                {
+                    indata >> abl->timeV[j];
+                }
+
+                numtV = arrSize;
+
+                abl->numtV = numtV;
+            }
+
+            if(fileList[i] == "velHeight")
+            {
+
+                PetscInt arrSize;
+
+                if(dim1 == 1)
+                {
+                    arrSize = dim2; 
+                }
+                else 
+                {
+                    arrSize = dim1;
+                }
+
+                PetscMalloc(sizeof(PetscReal) * arrSize, &(abl->hV));
+
+                for(PetscInt j=0; j<arrSize; j++)
+                {
+                    indata >> abl->hV[j];
+                }
+
+                numhV = arrSize;
+
+                abl->numhV = numhV;
+            }
+
+            indata.close();
+        }
+    }
+
+    PetscInt memAllocatedV = 0;
+    
+    for(PetscInt i=0; i<nFiles; i++)
+    {
+        fileName = filePath + "/" + fileList[i];
+
+        std::ifstream indata;
+        indata.open(fileName.c_str());
+
+        if(!indata)
+        {
+            char error[512];
+            sprintf(error, "cannot open file %s\n", fileName.c_str());
+            fatalErrorInFunction("readMesoScaleVelocityData",  error);
+        }
+        else
+        {
+            indata >> dim1 >> dim2;
+
+            if(fileList[i] == "uVel" || fileList[i] == "vVel")
+            {
+                if(memAllocatedV == 0)
+                {
+                    if(numhV == dim1 && numtV == dim2)
+                    {
+                        PetscMalloc(sizeof(Cmpnts *) * dim1, &(abl->uMeso));
+
+                        for(PetscInt j=0; j<dim1; j++)
+                        {
+                            PetscMalloc(sizeof(Cmpnts) * dim2, &(abl->uMeso[j]));
+                        }
+                    }
+                    else if(numhV == dim2 && numtV == dim1)
+                    {
+                        // in order to save in the array as variable[dist][time] irrespective of how it was written 
+                        PetscMalloc(sizeof(Cmpnts *) * dim2, &(abl->uMeso));
+
+                        for(PetscInt j=0; j<dim2; j++)
+                        {
+                            PetscMalloc(sizeof(Cmpnts) * dim1, &(abl->uMeso[j]));
+                        }
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "number of elements in the height array %ld or time array %ld and the mesoscale velocity field array [%ld x %ld] do not match. recheck file write\n", numhV, numtV, dim1, dim2);
+                        fatalErrorInFunction("readMesoScaleVelocityData",  error);
+                    }
+
+                    memAllocatedV = 1;
+                }
+
+                //explicitly set the vertical velocity component to zero as it is not read currently
+                if(numhV == dim1)
+                {
+                    // save the array
+                    for(PetscInt j=0; j<dim1; j++)
+                    {
+                        for(PetscInt k=0; k<dim2; k++)
+                        {
+                            abl->uMeso[j][k].z = 0.;
+                        }
+                    }
+                }
+                else if(numhV == dim2)
+                {
+                    for(PetscInt j=0; j<dim2; j++)
+                    {
+                        for(PetscInt k=0; k<dim1; k++)
+                        {
+                            abl->uMeso[j][k].z = 0.;
+                        }
+                    }
+                }
+
+            }
+
+            if(fileList[i] == "uVel")
+            {
+                PetscReal **tempArray;
+
+                PetscMalloc(sizeof(PetscReal *) * dim1, &(tempArray));
+
+                for(PetscInt j=0; j<dim1; j++)
+                {
+                    PetscMalloc(sizeof(PetscReal) * dim2, &(tempArray[j]));
+                }
+
+                for(PetscInt j=0; j<dim1; j++)
+                {
+                    for(PetscInt k=0; k<dim2; k++)
+                    {
+                        indata >> tempArray[j][k];
+                    }
+                }
+
+                if(numhV == dim1)
+                {
+                    // save the array
+                    for(PetscInt j=0; j<dim1; j++)
+                    {
+                        for(PetscInt k=0; k<dim2; k++)
+                        {
+                            abl->uMeso[j][k].x = tempArray[j][k];
+                        }
+                    }
+                }
+                else if(numhV == dim2)
+                {
+                    for(PetscInt j=0; j<dim2; j++)
+                    {
+                        for(PetscInt k=0; k<dim1; k++)
+                        {
+                            abl->uMeso[j][k].x = tempArray[k][j];
+                        }
+                    }
+                }
+
+                //delete temp array 
+                for(PetscInt j=0; j<dim1; j++)
+                {
+                    free(tempArray[j]);
+                }
+
+                free(tempArray); 
+            }
+
+            if(fileList[i] == "vVel")
+            {
+                PetscReal **tempArray;
+
+                PetscMalloc(sizeof(PetscReal *) * dim1, &(tempArray));
+
+                for(PetscInt j=0; j<dim1; j++)
+                {
+                    PetscMalloc(sizeof(PetscReal) * dim2, &(tempArray[j]));
+                }
+
+                for(PetscInt j=0; j<dim1; j++)
+                {
+                    for(PetscInt k=0; k<dim2; k++)
+                    {
+                        indata >> tempArray[j][k];
+                    }
+                }
+
+                if(numhV == dim1)
+                {
+                    // save the array
+                    for(PetscInt j=0; j<dim1; j++)
+                    {
+                        for(PetscInt k=0; k<dim2; k++)
+                        {
+                            abl->uMeso[j][k].y = tempArray[j][k];
+                        }
+                    }
+                }
+                else if(numhV == dim2)
+                {
+                    for(PetscInt j=0; j<dim2; j++)
+                    {
+                        for(PetscInt k=0; k<dim1; k++)
+                        {
+                            abl->uMeso[j][k].y = tempArray[k][j];
+                        }
+                    }
+                }
+
+                //delete temp array 
+                for(PetscInt j=0; j<dim1; j++)
+                {
+                    free(tempArray[j]);
+                }
+
+                free(tempArray); 
+            }
+
+            indata.close();
+        }
+    }
+    return (0);
+}
+
+//***************************************************************************************************************//
+PetscErrorCode readMesoScaleTemperatureData(abl_ *abl)
+{
+    word variableName;
+    word fileName;
+    word filePath = "inflowDatabase/mesoscaleData";
+
+    PetscInt  dim1, dim2;
+
+    PetscInt  numtT, numhT;
+
+    std::vector<word> fileList;
+    PetscInt nFiles = 0;
+
+    getFileList(filePath.c_str(), fileList, nFiles);
+
+    if(nFiles == 0)
+    {
+        char error[512];
+        sprintf(error, "no file found in folder %s\n", filePath.c_str());
+        fatalErrorInFunction("readMesoScaleTemperatureData",  error);
+    }
+    
+    PetscPrintf(PETSC_COMM_WORLD, "   reading mesoscale temperature data\n");
+
+    for(PetscInt i=0; i<nFiles; i++)
+    {
+        fileName = filePath + "/" + fileList[i];
+
+        std::ifstream indata;
+        indata.open(fileName.c_str());
+
+        if(!indata)
+        {
+            char error[512];
+            sprintf(error, "cannot open file %s\n", fileName.c_str());
+            fatalErrorInFunction("readMesoScaleTemperatureData",  error);
+        }
+        else
+        {
+            indata >> dim1 >> dim2;
+
+            if(fileList[i] == "thetaTime")
+            {
+
+                PetscInt arrSize;
+
+                if(dim1 == 1)
+                {
+                    arrSize = dim2; 
+                }
+                else 
+                {
+                    arrSize = dim1;
+                }
+
+                PetscMalloc(sizeof(PetscReal) * arrSize, &(abl->timeT));
+
+                for(PetscInt j=0; j<arrSize; j++)
+                {
+                    indata >> abl->timeT[j];
+                }
+
+                numtT = arrSize;
+                abl->numtT = numtT;
+            }
+
+            if(fileList[i] == "thetaHeight")
+            {
+
+                PetscInt arrSize;
+
+                if(dim1 == 1)
+                {
+                    arrSize = dim2; 
+                }
+                else 
+                {
+                    arrSize = dim1;
+                }
+
+                PetscMalloc(sizeof(PetscReal) * arrSize, &(abl->hT));
+
+                for(PetscInt j=0; j<arrSize; j++)
+                {
+                    indata >> abl->hT[j];
+                }
+
+                numhT = arrSize;
+
+                abl->numhT = numhT;
+            }
+
+            indata.close();
+        }
+    }
+    
+    for(PetscInt i=0; i<nFiles; i++)
+    {
+        fileName = filePath + "/" + fileList[i];
+
+        std::ifstream indata;
+        indata.open(fileName.c_str());
+
+        if(!indata)
+        {
+            char error[512];
+            sprintf(error, "cannot open file %s\n", fileName.c_str());
+            fatalErrorInFunction("readMesoScaleTemperatureData",  error);
+        }
+        else
+        {
+            indata >> dim1 >> dim2;
+
+            if(fileList[i] == "theta")
+            {
+
+                PetscReal **tempArray;
+
+                PetscMalloc(sizeof(PetscReal *) * dim1, &(tempArray));
+
+                for(PetscInt j=0; j<dim1; j++)
+                {
+                    PetscMalloc(sizeof(PetscReal) * dim2, &(tempArray[j]));
+                }
+
+                for(PetscInt j=0; j<dim1; j++)
+                {
+                    for(PetscInt k=0; k<dim2; k++)
+                    {
+                        indata >> tempArray[j][k];
+                    }
+                }
+
+                if(numhT == dim1)
+                {
+                    PetscMalloc(sizeof(PetscReal *) * dim1, &(abl->tMeso));
+
+                    for(PetscInt j=0; j<dim1; j++)
+                    {
+                        PetscMalloc(sizeof(PetscReal) * dim2, &(abl->tMeso[j]));
+                    }
+
+                    // save the array
+                    for(PetscInt j=0; j<dim1; j++)
+                    {
+                        for(PetscInt k=0; k<dim2; k++)
+                        {
+                            abl->tMeso[j][k] = tempArray[j][k];
+                        }
+                    }
+                }
+                else if(numhT == dim2)
+                {
+                    PetscMalloc(sizeof(PetscReal *) * dim2, &(abl->tMeso));
+
+                    for(PetscInt j=0; j<dim2; j++)
+                    {
+                        PetscMalloc(sizeof(PetscReal) * dim1, &(abl->tMeso[j]));
+                    }
+
+                    for(PetscInt j=0; j<dim2; j++)
+                    {
+                        for(PetscInt k=0; k<dim1; k++)
+                        {
+                            abl->tMeso[j][k] = tempArray[k][j];
+                        }
+                    }
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "number of elements in the height array %ld and the mesoscale temperature field array [%ld x %ld] do not match. recheck file write\n", numhT, dim1, dim2);
+                    fatalErrorInFunction("readMesoScaleTemperatureData",  error);
+                }
+
+                //delete temp array 
+                for(PetscInt j=0; j<dim1; j++)
+                {
+                    free(tempArray[j]);
+                }
+
+                free(tempArray); 
+            }
+
+            indata.close();
+        }
+    }
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode findVelocityInterpolationWeights(abl_ *abl)
+{
+    mesh_ *mesh = abl->access->mesh;
+    clock_ *clock = abl->access->clock;
+
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt     i,j, nlevels;
+
+    //local pointers to the abl cellLevels and available mesoscale data levels 
+    PetscReal *cellLevels, *hVel;
+
+    cellLevels  = abl->cellLevels;
+    hVel        = abl->hV;
+    nlevels     = my-2;
+
+    // allocate memory for abl->velInterpPts and abl->velInterpWts [nlevels x 2]
+    PetscMalloc(sizeof(PetscInt *)  * (nlevels), &(abl->velInterpIdx));
+    PetscMalloc(sizeof(PetscReal *) * (nlevels), &(abl->velInterpWts));
+
+    for(j=0; j<nlevels; j++)
+    {
+        PetscMalloc(sizeof(PetscInt)  * 2, &(abl->velInterpIdx[j]));
+        PetscMalloc(sizeof(PetscReal) * 2, &(abl->velInterpWts[j]));
+    }
+
+    //loop through the cell levels
+    for(i=0; i<nlevels; i++)
+    {
+        //local variables 
+        PetscReal wt1, wt2, total;
+        PetscInt  idx1, idx2;
+
+        PetscReal currPt = cellLevels[i];
+
+        idx1 = 0;
+        idx2 = abl->numhV - 1;
+
+        //loop through the mesoscale data points to find the closest points
+        for(j=0; j<abl->numhV; j++)
+        {
+            if (hVel[j] <= currPt && hVel[j] > hVel[idx1]) 
+            {
+                idx1 = j;
+            }
+            if (hVel[j] >= currPt && hVel[j] < hVel[idx2]) 
+            {
+                idx2 = j;
+            }
+        }
+
+        //ensure index are not same
+        if(idx1 == idx2)
+        {
+            idx2 = idx1+1;
+        }
+
+        // Calculate interpolation weights
+        wt1 = currPt - hVel[idx1];
+        wt2 = hVel[idx2] - currPt;
+        total = hVel[idx2] - hVel[idx1];
+        abl->velInterpWts[i][0] = wt2 / total;
+        abl->velInterpWts[i][1] = wt1 / total;
+
+        abl->velInterpIdx[i][0] = idx1;
+        abl->velInterpIdx[i][1] = idx2;
+    }
+
+    // find the lowest and highest cell levels for which data is available 
+    PetscInt lowestInd = 0, highestInd = nlevels-1;
+    
+    i = lowestInd;    
+    while(cellLevels[i] < hVel[0])
+    {
+        lowestInd = i;
+        i++;
+    }
+    lowestInd = i;
+
+    i = highestInd;    
+    while(cellLevels[i] > hVel[abl->numhV - 1])
+    {
+        highestInd = i;
+        i--;
+    }
+    highestInd = i;
+
+    // for cellLevels outside the bounds of hVel, set the weights based on the lowest and highest available levels
+    for(i=0; i<nlevels; i++)
+    {
+        if(cellLevels[i] < hVel[0])
+        {
+            abl->velInterpWts[i][0] = abl->velInterpWts[lowestInd][0];
+            abl->velInterpWts[i][1] = abl->velInterpWts[lowestInd][1];
+
+            abl->velInterpIdx[i][0] = abl->velInterpIdx[lowestInd][0];
+            abl->velInterpIdx[i][1] = abl->velInterpIdx[lowestInd][1];
+        }
+
+        if(cellLevels[i] > hVel[abl->numhV - 1])
+        {
+            abl->velInterpWts[i][0] = abl->velInterpWts[highestInd][0];
+            abl->velInterpWts[i][1] = abl->velInterpWts[highestInd][1];
+
+            abl->velInterpIdx[i][0] = abl->velInterpIdx[highestInd][0];
+            abl->velInterpIdx[i][1] = abl->velInterpIdx[highestInd][1];
+        }
+
+        // PetscPrintf(PETSC_COMM_WORLD, "cell %ld, height = %lf, interp ids = %ld, %ld, wts = %lf %lf\n", i, cellLevels[i], abl->velInterpIdx[i][0], abl->velInterpIdx[i][1], abl->velInterpWts[i][0], abl->velInterpWts[i][1]);
+
+    }
+
+    abl->lowestIndV = lowestInd;
+    abl->highestIndV = highestInd;
+
+    //if constant time assimilation find the time interpolation array index and weights
+    if(abl->assimilationType == "constantTime" || abl->assimilationType == "variableTime")
+    {
+        //local variables 
+        PetscReal tim = abl->startATime;
+
+        if(abl->assimilationType == "variableTime")
+        {
+            tim = clock->startTime;
+        }
+
+        PetscReal wt1, wt2, total;
+        PetscInt  idx1, idx2;
+
+        idx1 = 0;
+        idx2 = abl->numtV - 1;
+
+        if(tim < abl->timeV[0] || tim > abl->timeV[abl->numtV - 1])
+        {
+            char error[512];
+            sprintf(error, "constant time assimilation out of bounds of the available mesoscale time data\n");
+            fatalErrorInFunction("findVelocityInterpolationWeights",  error);
+        }
+
+        for(j=0; j<abl->numtV; j++)
+        {
+            if (abl->timeV[j] <= tim && abl->timeV[j] > abl->timeV[idx1]) 
+            {
+                idx1 = j;
+            }
+            if (abl->timeV[j] >= tim && abl->timeV[j] < abl->timeV[idx2]) 
+            {
+                idx2 = j;
+            }
+        }
+
+        //ensure index are not same
+        if(idx1 == idx2)
+        {
+            idx2 = idx1+1;
+        }
+
+        // Calculate interpolation weights
+        wt1 = tim - abl->timeV[idx1];
+        wt2 = abl->timeV[idx2] - tim;
+        total = abl->timeV[idx2] - abl->timeV[idx1];
+        abl->closestTimeWtV = wt2 / total;
+        abl->closestTimeIndV = idx1;
+
+        //other wt2 = 1-wt1, idx2 = idx1 + 1
+
+        // PetscPrintf(PETSC_COMM_WORLD, "time interp id = %ld %ld, at time = %lf %lf, for time = %lf, wts = %lf %lf\n", abl->closestTimeIndV, (abl->closestTimeIndV) + 1, abl->timeV[idx1], abl->timeV[idx2], tim, abl->closestTimeWtV, 1 - (abl->closestTimeWtV) );
+    }
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode findTemperatureInterpolationWeights(abl_ *abl)
+{
+    mesh_  *mesh  = abl->access->mesh;
+    clock_ *clock = abl->access->clock;
+
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt     i,j, nlevels;
+
+    //local pointers to the abl cellLevels and available mesoscale data levels 
+    PetscReal *cellLevels, *hT;
+
+    cellLevels  = abl->cellLevels;
+    hT          = abl->hT;
+    nlevels     = my-2;
+
+    // allocate memory for abl->velInterpPts and abl->velInterpWts [nlevels x 2]
+    PetscMalloc(sizeof(PetscInt *)  * (nlevels), &(abl->tempInterpIdx));
+    PetscMalloc(sizeof(PetscReal *) * (nlevels), &(abl->tempInterpWts));
+
+    for(j=0; j<nlevels; j++)
+    {
+        PetscMalloc(sizeof(PetscInt)  * 2, &(abl->tempInterpIdx[j]));
+        PetscMalloc(sizeof(PetscReal) * 2, &(abl->tempInterpWts[j]));
+    }
+
+    //loop through the cell levels
+    for(i=0; i<nlevels; i++)
+    {
+        //local variables 
+        PetscReal wt1, wt2, total;
+        PetscInt  idx1, idx2;
+
+        PetscReal currPt = cellLevels[i];
+
+        idx1 = 0;
+        idx2 = abl->numhT - 1;
+
+        //loop through the mesoscale data points to find the closest points
+        for(j=0; j<abl->numhT; j++)
+        {
+            if (hT[j] <= currPt && hT[j] > hT[idx1]) 
+            {
+                idx1 = j;
+            }
+            if (hT[j] >= currPt && hT[j] < hT[idx2]) 
+            {
+                idx2 = j;
+            }
+
+        }
+
+        //ensure index are not same
+        if(idx1 == idx2)
+        {
+            idx2 = idx1+1;
+        }
+
+        // Calculate interpolation weights
+        wt1 = currPt - hT[idx1];
+        wt2 = hT[idx2] - currPt;
+        total = hT[idx2] - hT[idx1];
+        abl->tempInterpWts[i][0] = wt2 / total;
+        abl->tempInterpWts[i][1] = wt1 / total;
+
+        abl->tempInterpIdx[i][0] = idx1;
+        abl->tempInterpIdx[i][1] = idx2;
+    }
+
+    // find the lowest and highest cell levels for which data is available 
+    PetscInt lowestInd = 0, highestInd = nlevels-1;
+    
+    i = lowestInd;    
+    while(cellLevels[i] < hT[0])
+    {
+        lowestInd = i;
+        i++;
+    }
+    lowestInd = i;
+
+    i = highestInd;    
+    while(cellLevels[i] > hT[abl->numhT - 1])
+    {
+        highestInd = i;
+        i--;
+    }
+    highestInd = i;
+
+    // for cellLevels outside the bounds of hT, set the weights based on the lowest and highest available levels
+    for(i=0; i<nlevels; i++)
+    {
+        if(cellLevels[i] < hT[0])
+        {
+            abl->tempInterpWts[i][0] = abl->tempInterpWts[lowestInd][0];
+            abl->tempInterpWts[i][1] = abl->tempInterpWts[lowestInd][1];
+
+            abl->tempInterpIdx[i][0] = abl->tempInterpIdx[lowestInd][0];
+            abl->tempInterpIdx[i][1] = abl->tempInterpIdx[lowestInd][1];
+        }
+
+        if(cellLevels[i] > hT[abl->numhT - 1])
+        {
+            abl->tempInterpWts[i][0] = abl->tempInterpWts[highestInd][0];
+            abl->tempInterpWts[i][1] = abl->tempInterpWts[highestInd][1];
+
+            abl->tempInterpIdx[i][0] = abl->tempInterpIdx[highestInd][0];
+            abl->tempInterpIdx[i][1] = abl->tempInterpIdx[highestInd][1];
+        }
+
+        // PetscPrintf(PETSC_COMM_WORLD, "cell %ld, height = %lf, interp ids = %ld, %ld, wts = %lf %lf\n", i, cellLevels[i], abl->tempInterpIdx[i][0], abl->tempInterpIdx[i][1], abl->tempInterpWts[i][0], abl->tempInterpWts[i][1]);
+
+    }
+
+    abl->lowestIndT = lowestInd;
+    abl->highestIndT = highestInd;
+
+    //if constant time assimilation find the time interpolation array index and weights
+    if(abl->assimilationType == "constantTime" || abl->assimilationType == "variableTime")
+    {
+        //local variables 
+        PetscReal tim = abl->startATime;
+
+        if(abl->assimilationType == "variableTime")
+        {
+            tim = clock->startTime;
+        }
+
+        PetscReal wt1, wt2, total;
+        PetscInt  idx1, idx2;
+
+        idx1 = 0;
+        idx2 = abl->numtT - 1;
+
+        if(tim < abl->timeT[0] || tim > abl->timeT[abl->numtT - 1])
+        {
+            char error[512];
+            sprintf(error, "constant time assimilation out of bounds of the available mesoscale time data\n");
+            fatalErrorInFunction("findVelocityInterpolationWeights",  error);
+        }
+
+        for(j=0; j<abl->numtT; j++)
+        {
+            if (abl->timeT[j] <= tim && abl->timeT[j] > abl->timeT[idx1]) 
+            {
+                idx1 = j;
+            }
+            if (abl->timeT[j] >= tim && abl->timeT[j] < abl->timeT[idx2]) 
+            {
+                idx2 = j;
+            }
+        }
+
+        //ensure index are not same
+        if(idx1 == idx2)
+        {
+            idx2 = idx1+1;
+        }
+
+        // Calculate interpolation weights
+        wt1 = tim - abl->timeT[idx1];
+        wt2 = abl->timeT[idx2] - tim;
+        total = abl->timeT[idx2] - abl->timeT[idx1];
+        abl->closestTimeWtT = wt2 / total;
+        abl->closestTimeIndT = idx1;
+
+        //other wt2 = 1-wt1, idx2 = idx1 + 1
+
+        // PetscPrintf(PETSC_COMM_WORLD, "time interp id = %ld %ld, at time = %lf %lf, for time = %lf, wts = %lf %lf\n", abl->closestTimeIndT, (abl->closestTimeIndT) + 1, abl->timeT[idx1], abl->timeT[idx2], tim, abl->closestTimeWtT, 1 - (abl->closestTimeWtT) );
+    }
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode initializeYDampingMapping(abl_ *abl)
+{
+    mesh_ *mesh = abl->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***cent, ***coor;
+    Vec           Coor;
+    boundingBox   sourceBound, destProcBound, yFringeBound;
+    PetscInt      numSourceProc = 0, sourceBoundFlag = 0;
+    PetscInt      numDestBounds = abl->yDampingNumPeriods;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l, p;
+
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    PetscMPIInt   globalSize;
+    MPI_Comm_size(mesh->MESH_COMM, &globalSize);
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMGetCoordinatesLocal(da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    sourceBound.xmin = abl->xDampingStart;
+    sourceBound.xmax = abl->xDampingEnd;
+    sourceBound.ymin = abl->yDampingStart;
+    sourceBound.ymax = abl->yDampingEnd;
+    sourceBound.zmin = mesh->bounds.zmin;
+    sourceBound.zmax = mesh->bounds.zmax;
+
+    sourceBound.Lx = std::abs(abl->xDampingEnd - abl->xDampingStart);
+    sourceBound.Ly = std::abs(abl->yDampingEnd - abl->yDampingStart);
+    sourceBound.Lz = mesh->bounds.Lz;
+
+    yFringeBound.xmin = abl->xDampingEnd;
+    yFringeBound.xmax = mesh->bounds.xmax;
+    yFringeBound.ymin = abl->yDampingStart;
+    yFringeBound.ymax = abl->yDampingEnd;
+    yFringeBound.zmin = mesh->bounds.zmin;
+    yFringeBound.zmax = mesh->bounds.zmax;
+
+    abl->inYFringeRegionOnly = 0;
+    
+    //find the processors within the lateral fringe region only excluding source region
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(isInsideBoundingBox(cent[k][j][i], yFringeBound))
+                {
+                    abl->inYFringeRegionOnly = 1;
+                    break;
+                }
+
+            }
+            if(abl->inYFringeRegionOnly == 1) break;
+        }
+        if(abl->inYFringeRegionOnly == 1) break;
+    }
+
+    //find processors that control the source bounding box
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(isInsideBoundingBox(cent[k][j][i], sourceBound))
+                {
+                    sourceBoundFlag = 1;
+                    break;
+                }
+
+            }
+            if(sourceBoundFlag == 1) break;
+        }
+        if(sourceBoundFlag == 1) break;
+    }
+
+    //total source processors
+    MPI_Allreduce(&sourceBoundFlag, &numSourceProc, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
+    
+    abl->numSourceProc = numSourceProc;
+
+    //allocate the memory for the abl variables 
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->sourceProcList));
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->srcNumI));
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->srcNumJ));
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->srcNumK));
+
+    PetscMalloc(numSourceProc * sizeof(PetscInt), &(abl->srcCommLocalRank));
+    PetscMalloc(numSourceProc * sizeof(cellIds), &(abl->srcMinInd));
+    PetscMalloc(numSourceProc * sizeof(cellIds), &(abl->srcMaxInd));
+    PetscMalloc(numSourceProc * sizeof(MPI_Comm), &(abl->yDamp_comm));
+    PetscMalloc(numSourceProc * sizeof(MPI_Request), &(abl->mapRequest));
+
+
+    PetscMalloc(sizeof(PetscInt)  * numSourceProc, &(abl->isdestProc));
+    PetscMalloc(sizeof(cellIds *)  * numSourceProc, &(abl->destMinInd));
+    PetscMalloc(sizeof(cellIds *)  * numSourceProc, &(abl->destMaxInd));
+
+    for(j=0; j<numSourceProc; j++)
+    {
+        PetscMalloc(sizeof(cellIds)  *  numDestBounds, &(abl->destMinInd[j]));
+        PetscMalloc(sizeof(cellIds)  *  numDestBounds, &(abl->destMaxInd[j]));
+    }
+
+    //create min and max coordinate for each source processor
+    Cmpnts lminCoor[numSourceProc], lmaxCoor[numSourceProc], gminCoor[numSourceProc], gmaxCoor[numSourceProc];
+    cellIds lsrcMinInd[numSourceProc];
+
+    //create list of source processors
+    PetscInt lsrcPrc[numSourceProc], gsrcPrc[numSourceProc];
+
+    for (p = 0; p<numSourceProc; p++)
+    {
+        lminCoor[p] = nSetZero();
+        lmaxCoor[p] = nSetZero();
+        gminCoor[p] = nSetZero();
+        gmaxCoor[p] = nSetZero();
+        lsrcPrc[p] = 0;
+        gsrcPrc[p] = 0;
+
+        lsrcMinInd[p].i = 0;
+        lsrcMinInd[p].j = 0;
+        lsrcMinInd[p].k = 0;
+    }
+
+    if(sourceBoundFlag == 0)
+    {
+        sourceBoundFlag = MPI_UNDEFINED;
+    }
+
+    //local communicator among the source processes 
+    MPI_Comm    SOURCE_BOUND_COMM;
+    MPI_Comm_split(mesh->MESH_COMM, sourceBoundFlag, rank, &(SOURCE_BOUND_COMM));
+
+    PetscMPIInt lsrcRoot = 0, gsrcRoot = 0;
+
+    if(sourceBoundFlag == 1)
+    {
+        PetscMPIInt   srcRank;
+        MPI_Comm_rank(SOURCE_BOUND_COMM, &srcRank);
+
+        //find the co-ordinates and the range of indices that are within this subdomain
+        //co-ordinates will be used to find processors to share with in other subdomains 
+        //range of indices will be used to share the data
+
+        PetscReal xmin = 1e20, xmax = -1e20, ymin = 1e20, ymax = -1e20, zmin = 1e20, zmax = -1e20;
+
+        //finding processor bounding co-ordinates - based on mesh coordinates
+        for (k=lzs; k<lze; k++)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    if(isInsideBoundingBox(cent[k][j][i], sourceBound))
+                    {
+                        if(cent[k][j][i].x <= xmin)
+                        {
+                            xmin = cent[k][j][i].x;
+                        }
+
+                        if(cent[k][j][i].y <= ymin)
+                        {
+                            ymin = cent[k][j][i].y;
+                        }
+
+                        if(cent[k][j][i].z <= zmin)
+                        {
+                            zmin = cent[k][j][i].z;
+                        }
+
+                        if(cent[k][j][i].x >= xmax)
+                        {
+                            xmax = cent[k][j][i].x;
+                        }
+
+                        if(cent[k][j][i].y >= ymax)
+                        {
+                            ymax = cent[k][j][i].y;
+                        }
+
+                        if(cent[k][j][i].z >= zmin)
+                        {
+                            zmax = cent[k][j][i].z;
+                        }
+
+                    }
+                }
+            }
+        }
+
+        lminCoor[srcRank] = nSetFromComponents(xmin, ymin, zmin);
+        lmaxCoor[srcRank] = nSetFromComponents(xmax, ymax, zmax);
+        lsrcPrc [srcRank] = rank;
+
+        xmin = 1e20, xmax = -1e20, ymin = 1e20, ymax = -1e20, zmin = 1e20, zmax = -1e20;
+        PetscInt imin, jmin, kmin, imax, jmax, kmax;
+
+        //finding indexes - based on cell center coordinates
+        for (k=lzs; k<lze; k++)
+        {
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    if(isInsideBoundingBox(cent[k][j][i], sourceBound))
+                    {
+                        if(cent[k][j][i].x <= xmin)
+                        {
+                            xmin = cent[k][j][i].x;
+                            kmin = k;
+                        }
+
+                        if(cent[k][j][i].y <= ymin)
+                        {
+                            ymin = cent[k][j][i].y;
+                            imin = i;
+                        }
+
+                        if(cent[k][j][i].z <= zmin)
+                        {
+                            zmin = cent[k][j][i].z;
+                            jmin = j;
+                        }
+
+                        if(cent[k][j][i].x >= xmax)
+                        {
+                            xmax = cent[k][j][i].x;
+                            kmax = k;
+                        }
+
+                        if(cent[k][j][i].y >= ymax)
+                        {
+                            ymax = cent[k][j][i].y;
+                            imax = i;
+                        }
+
+                        if(cent[k][j][i].z >= zmin)
+                        {
+                            zmax = cent[k][j][i].z;
+                            jmax = j;
+                        }
+
+                    }
+                }
+            }
+        }
+
+        lsrcMinInd[srcRank].i = imin;
+        lsrcMinInd[srcRank].j = jmin; 
+        lsrcMinInd[srcRank].k = kmin; 
+
+        abl->srcMaxInd[srcRank].i = imax;
+        abl->srcMaxInd[srcRank].j = jmax; 
+        abl->srcMaxInd[srcRank].k = kmax; 
+
+        
+        MPI_Reduce(&(lminCoor[0]), &(gminCoor[0]), numSourceProc * 3, MPIU_REAL, MPIU_SUM, 0, SOURCE_BOUND_COMM);
+        MPI_Reduce(&(lmaxCoor[0]), &(gmaxCoor[0]), numSourceProc * 3, MPIU_REAL, MPIU_SUM,  0, SOURCE_BOUND_COMM);
+        MPI_Reduce(&(lsrcPrc[0]), &(gsrcPrc[0]), numSourceProc, MPIU_INT, MPIU_SUM, 0, SOURCE_BOUND_COMM);
+
+        if(srcRank == 0)
+        {
+            lsrcRoot = rank;
+        }
+    }
+
+    // get the global rank of the sending processor
+    MPI_Allreduce(&(lsrcRoot), &(gsrcRoot), 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
+
+    MPI_Bcast(&(gminCoor[0]), numSourceProc * 3, MPIU_REAL, gsrcRoot, mesh->MESH_COMM);
+    MPI_Bcast(&(gmaxCoor[0]), numSourceProc * 3, MPIU_REAL, gsrcRoot, mesh->MESH_COMM);
+    MPI_Bcast(&(gsrcPrc[0]), numSourceProc, MPIU_INT, gsrcRoot, mesh->MESH_COMM);
+
+    //add buffer to min and max coordinates 
+    for(p=0;p<numSourceProc;p++)
+    {
+        gminCoor[p].x = gminCoor[p].x - 1e-7;
+        gminCoor[p].y = gminCoor[p].y - 1e-7;
+        gminCoor[p].z = gminCoor[p].z - 1e-7;
+        gmaxCoor[p].x = gmaxCoor[p].x + 1e-7;
+        gmaxCoor[p].y = gmaxCoor[p].y + 1e-7;
+        gmaxCoor[p].z = gmaxCoor[p].z + 1e-7;
+    }
+
+    PetscPrintf(mesh->MESH_COMM, "   mapping from source processors:\n");
+
+    for(p=0;p<numSourceProc;p++)
+    {
+        abl->sourceProcList[p] = gsrcPrc[p];
+        PetscPrintf(mesh->MESH_COMM, "      processor %ld: %ld\n", p, gsrcPrc[p]);
+    }
+
+    PetscInt isdestProc[numSourceProc];
+
+    //initialize local arrays
+    for(p=0;p<numSourceProc;p++)
+    {
+        isdestProc[p] = 0;
+    }
+    
+    for(p=0; p<numSourceProc; p++)
+    {
+        //add source processor
+        if(rank == gsrcPrc[p])
+        {
+            isdestProc[p] = 1;
+        }
+
+        for(l=0; l<numDestBounds; l++)
+        {
+            destProcBound.xmin = gminCoor[p].x + (l)*sourceBound.Lx;
+            destProcBound.xmax = gmaxCoor[p].x + (l)*sourceBound.Lx;
+            destProcBound.ymin = gminCoor[p].y;
+            destProcBound.ymax = gmaxCoor[p].y;   
+            destProcBound.zmin = gminCoor[p].z;
+            destProcBound.zmax = gmaxCoor[p].z;  
+
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if(isInsideBoundingBox(cent[k][j][i], destProcBound))
+                        {
+                            isdestProc[p] = 1;
+                            break;
+                        }
+                    }
+                    if(isdestProc[p] == 1) break;
+                }
+                if(isdestProc[p] == 1) break;
+            }
+            
+        }
+    }
+
+    // find the indexes in the destination processors where the mapped data needs to be set
+    // this is local to a given processor. check for bounds when using.
+    for(p=0; p<numSourceProc; p++)
+    {   
+        for(l=0; l<numDestBounds; l++)
+        {
+
+            if(isdestProc[p] == 1)
+            {
+                destProcBound.xmin = gminCoor[p].x + (l)*sourceBound.Lx;
+                destProcBound.xmax = gmaxCoor[p].x + (l)*sourceBound.Lx;
+                destProcBound.ymin = gminCoor[p].y;
+                destProcBound.ymax = gmaxCoor[p].y;   
+                destProcBound.zmin = gminCoor[p].z;
+                destProcBound.zmax = gmaxCoor[p].z;  
+
+                PetscReal xmin = 1e20, xmax = -1e20, ymin = 1e20, ymax = -1e20, zmin = 1e20, zmax = -1e20;
+                PetscInt imin, jmin, kmin, imax, jmax, kmax;
+
+                for (k=lzs; k<lze; k++)
+                {
+                    for (j=lys; j<lye; j++)
+                    {
+                        for (i=lxs; i<lxe; i++)
+                        {
+                            if(isInsideBoundingBox(cent[k][j][i], destProcBound))
+                            {
+                                if(cent[k][j][i].x <= xmin)
+                                {
+                                    xmin = cent[k][j][i].x;
+                                    kmin = k;
+                                }
+
+                                if(cent[k][j][i].y <= ymin)
+                                {
+                                    ymin = cent[k][j][i].y;
+                                    imin = i;
+                                }
+
+                                if(cent[k][j][i].z <= zmin)
+                                {
+                                    zmin = cent[k][j][i].z;
+                                    jmin = j;
+                                }
+
+                                if(cent[k][j][i].x >= xmax)
+                                {
+                                    xmax = cent[k][j][i].x;
+                                    kmax = k;
+                                }
+
+                                if(cent[k][j][i].y >= ymax)
+                                {
+                                    ymax = cent[k][j][i].y;
+                                    imax = i;
+                                }
+
+                                if(cent[k][j][i].z >= zmin)
+                                {
+                                    zmax = cent[k][j][i].z;
+                                    jmax = j;
+                                }
+
+                            }
+                        }
+                    }
+                }
+
+                if(xmin == 1e20) kmin = -1;
+                if(xmax == -1e20)kmax = -1;
+                if(ymin == 1e20) imin = -1;
+                if(ymax == -1e20)imax = -1;
+                if(zmin == 1e20) jmin = -1;
+                if(zmax == -1e20)jmax = -1;
+
+                abl->destMinInd[p][l].i = imin;
+                abl->destMinInd[p][l].j = jmin; 
+                abl->destMinInd[p][l].k = kmin; 
+
+                abl->destMaxInd[p][l].i = imax;
+                abl->destMaxInd[p][l].j = jmax; 
+                abl->destMaxInd[p][l].k = kmax; 
+                
+                // PetscPrintf(PETSC_COMM_SELF, "for processor %ld at periodization = %ld, connected to processor %d: coor = %lf %lf %lf %lf %lf %lf, index = %ld %ld %ld %ld %ld %ld \n", gsrcPrc[p], l, rank, xmin, xmax, ymin, ymax, zmin, zmax, kmin, kmax, imin, imax, jmin, jmax);
+            }
+        }
+    }
+
+    //create communicator between the source and dest processors for each source processor 
+    for(p=0;p<numSourceProc;p++)
+    {
+        abl->isdestProc[p] = isdestProc[p];
+
+        if(isdestProc[p] == 0)
+        {
+            isdestProc[p] = MPI_UNDEFINED;
+        }
+    }
+
+    for(p=0;p<numSourceProc;p++) 
+    {
+        MPI_Comm_split(mesh->MESH_COMM, isdestProc[p], rank, &(abl->yDamp_comm[p]));
+    }
+
+    // make some data global to all the processors of the communicator
+
+    for(p=0; p<numSourceProc; p++)
+    {
+        if(isdestProc[p] == 1) 
+        {
+            PetscMPIInt lsrcLocal = 0, gsrcLocal = 0;
+            PetscInt imin, imax, jmin, jmax, kmin, kmax;
+            PetscInt lnumI=0, lnumJ=0, lnumK=0, gnumI = 0, gnumJ = 0, gnumK = 0;
+
+            //making global the src rank for bradcasts later
+            if(rank == abl->sourceProcList[p])
+            {
+                MPI_Comm_rank(abl->yDamp_comm[p], &lsrcLocal);
+
+                imin = lsrcMinInd[p].i;
+                imax = abl->srcMaxInd[p].i;
+                jmin = lsrcMinInd[p].j;
+                jmax = abl->srcMaxInd[p].j;
+                kmin = lsrcMinInd[p].k;
+                kmax = abl->srcMaxInd[p].k;
+                
+                lnumI = imax - imin + 1;
+                lnumJ = jmax - jmin + 1;
+                lnumK = kmax - kmin + 1;
+            }
+            
+            MPI_Allreduce(&(lsrcLocal), &(gsrcLocal), 1, MPI_INT, MPIU_SUM, abl->yDamp_comm[p]);
+            MPI_Allreduce(&(lnumI), &(gnumI), 1, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
+            MPI_Allreduce(&(lnumJ), &(gnumJ), 1, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
+            MPI_Allreduce(&(lnumK), &(gnumK), 1, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
+            MPI_Allreduce(&(lsrcMinInd[p]), &(abl->srcMinInd[p]), 3, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
+
+            abl->srcCommLocalRank[p] = gsrcLocal;
+            abl->srcNumI[p] = gnumI;
+            abl->srcNumJ[p] = gnumJ;
+            abl->srcNumK[p] = gnumK;
+
+            // PetscPrintf(PETSC_COMM_SELF, "for processor %d, local src rank = %d, num mapped elements = %ld %ld %ld \n", rank, abl->srcCommLocalRank[p], abl->srcNumI[p], abl->srcNumJ[p], abl->srcNumK[p]);
+        }
+    }
+
+
+    /*allocate memory to the mapped one d array within both the src and destination processors 
+     if a destination processor gets data from two src processors, it allocates data for both the src processor velocity arrays depending on their 
+     respective size. */
+
+    PetscMalloc(numSourceProc * sizeof(Cmpnts*), &(abl->velMapped));
+
+    for(p=0; p<numSourceProc; p++)
+    {
+        PetscInt arraySize = abl->srcNumI[p]*abl->srcNumJ[p]*abl->srcNumK[p];
+        
+        if(isdestProc[p] == 1)
+        {
+            PetscMalloc(arraySize * sizeof(Cmpnts), &(abl->velMapped[p]));
+        }
+    }
+
+    //create a fictitious mesh for interpolation in case the mesh is non-uniform 
+    setWeightsYDamping(abl);
+
+
+    //find the min and max i indices of the cells that are inside the y fringe region 
+
+    PetscInt kP = std::floor(mz/2.0);
+    PetscInt jP = std::floor(my/2.0);
+
+        // find min and max fringe k-indices
+    PetscReal lminDistS = 1e30, gminDistS = 1e30;
+    PetscReal lminDistE = 1e30, gminDistE = 1e30;
+    PetscInt lfringeMinI = 0;
+    PetscInt lfringeMaxI = 0;
+
+    // access the line of processors in i that have k and j indices equal to mz/2 and my/2
+    if
+    (
+        (kP < lze && kP >= lzs)
+        &&
+        (jP < lye && jP >= lys)
+    )
+    {
+        for(i=lxs; i<lxe; i++)
+        {
+            //ensure the indices are within the domain 
+            if(cent[kP][jP][i].y < abl->yDampingStart || cent[kP][jP][i].y > abl->yDampingEnd) continue;
+
+            PetscReal distS = fabs(cent[kP][jP][i].y - abl->yDampingStart);
+            PetscReal distE = fabs(cent[kP][jP][i].y - abl->yDampingEnd);
+
+            if(distS < lminDistS)
+            {
+                lminDistS   = distS;
+                lfringeMinI = i;
+            }
+
+            if(distE < lminDistE)
+            {
+                lminDistE   = distE;
+                lfringeMaxI = i;
+            }
+        }
+    }
+
+    MPI_Allreduce(&lminDistS, &gminDistS, 1, MPIU_REAL, MPI_MIN, mesh->MESH_COMM);
+    MPI_Allreduce(&lminDistE, &gminDistE, 1, MPIU_REAL, MPI_MIN, mesh->MESH_COMM);
+
+    // compare to see which processor got the right i
+    if(gminDistS != lminDistS) lfringeMinI = 0;
+    if(gminDistE != lminDistE) lfringeMaxI = 0;
+
+    MPI_Allreduce(&lfringeMinI, &(abl->iStart), 1, MPIU_INT, MPI_MAX, mesh->MESH_COMM);
+    MPI_Allreduce(&lfringeMaxI, &(abl->iEnd), 1, MPIU_INT, MPI_MAX, mesh->MESH_COMM);
+
+    PetscPrintf(PETSC_COMM_WORLD, "start and end index = %ld %ld\n", abl->iStart, abl->iEnd);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(fda, Coor, &coor);
+
+    MPI_Comm_free(&SOURCE_BOUND_COMM);
+    return(0);
+}
+
+PetscErrorCode setWeightsYDamping(abl_ *abl)
+{
+    mesh_ *mesh = abl->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k, b;
+    PetscInt           lxs, lxe, lys, lye, lzs, lze;
+
+    PetscMPIInt   rank, size;
+
+    // declare arrays
+    Cmpnts        ***cent;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    MPI_Comm_size(mesh->MESH_COMM, &size);
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // indices for internal cells
+    lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+    lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+    lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+    PetscMalloc(sizeof(PetscInt *)  * (mz), &(abl->closestKCell));
+    PetscMalloc(sizeof(PetscReal *)  * (mz), &(abl->wtsKCell));
+
+    for(j=0; j<mz; j++)
+    {
+        PetscMalloc(sizeof(PetscInt)  *  2, &(abl->closestKCell[j]));
+        PetscMalloc(sizeof(PetscReal)  *  2, &(abl->wtsKCell[j]));
+    }
+
+    //create fictitious k direction mesh based on the source 
+    std::vector <PetscInt>   lnum(size);                                                // local number of Acceptor cells in each processor
+    std::vector <PetscInt>   gnum(size); 
+
+    PetscInt jInd = 1, iInd = 1, disp = 0, numkCells = 0;
+
+    for (b=0; b < size; b++){
+        lnum[b] = 0;
+        gnum[b] = 0;
+    }
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(j==jInd && i==iInd)
+                {
+                    if(cent[k][jInd][iInd].x > abl->xDampingStart && cent[k][jInd][iInd].x < abl->xDampingEnd)
+                    {
+                        lnum[rank]++;
+                    }
+                }
+            }
+        }
+    }
+
+
+    MPI_Allreduce(&lnum[0], &gnum[0], size, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+    for (b=0; b<rank; b++){
+        disp +=gnum[b];
+    }
+
+    for (b=0; b< size; b++){
+        numkCells +=gnum[b];   
+    }
+
+    std::vector<PetscInt> lkSrcCellInd, gkSrcCellInd;
+    std::vector<PetscReal> lkSrcCellCoor, gkSrcCellCoor;
+    lkSrcCellInd.resize(numkCells);
+    gkSrcCellInd.resize(numkCells);
+    lkSrcCellCoor.resize(numkCells);
+    gkSrcCellCoor.resize(numkCells);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(j==jInd && i==iInd)
+                {
+                    if(cent[k][jInd][iInd].x > abl->xDampingStart && cent[k][jInd][iInd].x < abl->xDampingEnd)
+                    {
+                        lkSrcCellInd[disp] = k;
+                        lkSrcCellCoor[disp] = cent[k][jInd][iInd].x;
+                        disp++;
+                    }
+                }
+            }
+        }
+    }
+
+    MPI_Allreduce(&lkSrcCellInd[0], &(gkSrcCellInd[0]), numkCells, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lkSrcCellCoor[0], &(gkSrcCellCoor[0]), numkCells, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+
+    //find cell centers based on the periodization 
+    std::vector<PetscReal> kDirectionCenters;
+    std::vector<PetscInt> kDirectionOrgIndex;
+
+    PetscInt numK = numkCells*abl->yDampingNumPeriods;
+
+    kDirectionCenters.resize(numK);
+    kDirectionOrgIndex.resize(numK);
+
+    for(i=0;i<numkCells;i++)
+    {
+        for(j=0;j<abl->yDampingNumPeriods;j++)
+        {
+            kDirectionCenters[j*numkCells + i] = gkSrcCellCoor[i] + j*(abl->xDampingEnd - abl->xDampingStart);
+            kDirectionOrgIndex[j*numkCells + i] = gkSrcCellInd[i];
+        }
+    }
+
+    // //now find the closest fictitious k cell centers to each cell 
+    for (k=lzs; k<lze; k++)
+    {
+        PetscReal  minDistMag = 1e20;
+        PetscInt closestkInd;
+        PetscInt dir;
+
+        for(b=0;b<numK;b++)
+        {
+            PetscReal dist = cent[k][lys][lxs].x - kDirectionCenters[b];
+            PetscReal distMag = std::abs(dist);
+
+            if(distMag < minDistMag)
+            {
+                minDistMag = distMag;
+                closestkInd = b;
+
+                if(dist < 0)
+                {
+                    dir = -1;  
+                }
+                else if(dist > 0)
+                {
+                    dir = 1;
+                }
+                else 
+                {
+                    dir = 0;
+                }
+            }
+        }   
+
+        PetscInt    k1, k2;  
+        PetscReal   x1, x2;
+
+        if(closestkInd == 0)
+        {
+            if(dir == -1)
+            {
+                k1 = numK-1;
+                k2 = closestkInd;
+
+                //weights set directly
+            }
+            else 
+            {
+                k1 = closestkInd;
+                k2 = closestkInd+1;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2];
+            }
+        }    
+        else if(closestkInd == numK-1)
+        {
+            if(dir == 1)
+            {
+                k1 = numK-1;
+                k2 = 0;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2] + abl->yDampingNumPeriods*(abl->xDampingEnd - abl->xDampingStart);
+            }
+            else 
+            {
+                k1 = numK-2;
+                k2 = numK-1;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2];
+            }
+        }
+        else 
+        {
+            if(dir == -1)
+            {
+                k1 = closestkInd-1;
+                k2 = closestkInd;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2];
+            }
+            else 
+            {
+                k1 = closestkInd;
+                k2 = closestkInd+1;
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2];
+            }
+        }
+
+        abl->closestKCell[k][0] = kDirectionOrgIndex[k1];
+        abl->closestKCell[k][1] = kDirectionOrgIndex[k2];
+
+        PetscReal coeff = (x2 - x1);
+
+        // compute weights
+
+        if(closestkInd == 0)
+        {
+            if(dir == -1)
+            {
+                abl->wtsKCell[k][0] = 0;
+                abl->wtsKCell[k][1] = 1;
+            }   
+            else 
+            {
+                abl->wtsKCell[k][0] = (x2 - cent[k][lys][lxs].x)/coeff;
+                abl->wtsKCell[k][1] = (cent[k][lys][lxs].x - x1)/coeff;
+            }    
+        }
+        else 
+        {
+            abl->wtsKCell[k][0] = (x2 - cent[k][lys][lxs].x)/coeff;
+            abl->wtsKCell[k][1] = (cent[k][lys][lxs].x - x1)/coeff;
+        }
+
+        // PetscPrintf(PETSC_COMM_SELF, "cell k= %ld, cell center = %lf, closest cells = %ld %ld, wts  = %lf %lf, closest cell = %ld, cell coord = %lf %lf, dir = %ld\n", k, cent[k][lys][lxs].x, abl->closestKCell[k][0], abl->closestKCell[k][1], abl->wtsKCell[k][0], abl->wtsKCell[k][1], closestkInd, x1, x2, dir);
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    return (0);
 }

@@ -264,7 +264,7 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
             if(2.0 * wt->rTip < 8.0 * gMaxCell)
             {
                 char warning[512];
-                sprintf(warning, "turbine diameter (%lf) < 10 mesh cells (%lf), not resolved properly. Revise mesh to improve resolution.\n", 2.0 * wt->rTip, 10.0 * gMaxCell);
+                sprintf(warning, "turbine diameter (%lf) < 8 mesh cells (%lf), not resolved properly. Revise mesh to improve resolution.\n", 2.0 * wt->rTip, 10.0 * gMaxCell);
                 warningInFunction("checkTurbineMesh",  warning);
             }
 
@@ -294,7 +294,7 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
                     if(drval < gMinCell)
                     {
                         char error[512];
-                        sprintf(error, "Too many radial elements. Radial element size smaller than mesh size. Decrease the radial resolution to have %ld points\n", nRadial);
+                        sprintf(error, "Too many radial elements. Radial element size smaller than mesh size. Decrease the radial resolution to have %ld points or make the mesh finer\n", nRadial);
                         fatalErrorInFunction("checkTurbineMesh",  error);
                     }
 
@@ -404,7 +404,7 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
                                       eps_y =     wt->alm.thick[p]*wt->eps_y,
                                       eps_z =     drval * wt->eps_z;
 
-                            PetscPrintf(PETSC_COMM_SELF, "radial point = %ld, nRadial = %ld, eps_x = %lf \n", radPt, nRadial, eps_x);
+                            // PetscPrintf(PETSC_COMM_SELF, "radial point = %ld, nRadial = %ld, eps_x = %lf \n", radPt, nRadial, eps_x);
                             // excluding the tip points for this check
                             if(radPt <= nRadial)
                             {

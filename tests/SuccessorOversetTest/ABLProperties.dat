@@ -42,8 +42,9 @@ fCoriolis 5.156303966e-5
 
 controllerProperties
 {
-    # Velocity controller type (computed->pressure/geostrphic, given->read/average)
-    controllerType average
+    # Velocity controller type (write->pressure/geostrophic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
+    controllerAction read
+    controllerType timeAverageSeries
 
     # Velocity controller gain factor 
     relaxPI 0.7
