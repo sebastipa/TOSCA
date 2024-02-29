@@ -1,0 +1,10 @@
+probesNumber 2
+timeStart    0
+intervalType adjustableTime
+timeInterval 2.0
+fields       U
+
+locations
+
+20.0 20.0 20.0
+23.1 45.1 45.9

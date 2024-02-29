@@ -1,0 +1,9 @@
+turbineLevelProperties
+{
+    rtrDir             (-1.000000 0.000000 0.000000)
+    rtrAxis            (-1.000000 0.000000 0.000000)
+    yawAngle           -0.000000
+    flowAngle          -0.050657
+    yawError           -0.050657
+}
+

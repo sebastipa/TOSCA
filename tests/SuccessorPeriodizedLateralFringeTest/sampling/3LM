@@ -1,0 +1,26 @@
+nstw         20
+nspw         20
+upDir        (0.0 0.0 1.0)
+streamDir    (1.0 0.0 0.0)
+xSample      500
+
+avgStartTime 0.0
+avgPeriod    1.5
+
+level1
+{
+    hStart   0.0
+    hEnd     180.0
+}
+
+level2 
+{
+    hStart   180.0
+    hEnd     260.0
+}
+
+level3
+{
+    hStart   260.0
+    hEnd     1000.0
+}
