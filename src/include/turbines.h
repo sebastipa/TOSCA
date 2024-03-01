@@ -58,6 +58,7 @@ typedef struct
     PetscReal               Uref;   //!< reference velocity to compute CtInf (only used for data writing)
     PetscReal                 Ct;   //!< imposed thrust coefficient
 
+    word          projectionType;   //!< gaussexp or anisotropic
     word              sampleType;   //!< velocity sampling type ("rotorDisk" or "givenVelocity")
     PetscReal     rtrUFilterFreq;   //!< frequency of the single-pole low pass filter for the rotor wind velocity (if sampling type is "rotorDisk")
 
@@ -109,7 +110,7 @@ typedef struct
     PetscReal                *Cl;   //!< lift coefficient at each point of the AL
     PetscReal             *alpha;   //!< angle of attack at each point of the AL
     Cmpnts                    *U;   //!< flow velocity at each point of the AL (relative to the blade)
-    Cmpnts                *gWind;   //!< sampled velocity at each point of the AL 
+    Cmpnts                *gWind;   //!< sampled velocity at each point of the AL
     Cmpnts                    *B;   //!< body force at each point of the AL mesh
     PetscReal            *axialF;   //!< rotor axial force at each point of the AL mesh
     PetscReal            *tangtF;   //!< rotor tangential force at each point of the AL mesh
@@ -399,9 +400,12 @@ typedef struct
     cellIds     *controlledCells;   //!< labels of the background mesh cells influenced by this turbine in this processor
     PetscInt         nControlled;   //!< size of controlledCells
     PetscReal                eps;   //!< spreading width of the gaussian projection function (good is 0.035 * dBlade)
-    PetscReal              eps_x;   //!< x spreading width of the gaussian projection function (for AFM)
-    PetscReal              eps_y;   //!< y spreading width of the gaussian projection function (for AFM)
-    PetscReal              eps_z;   //!< z spreading width of the gaussian projection function (for AFM)
+    PetscReal              eps_x;   //!< x spreading width of the gaussian projection function (for AFM and AALM)
+    PetscReal              eps_y;   //!< y spreading width of the gaussian projection function (for AFM and AALM)
+    PetscReal              eps_z;   //!< z spreading width of the gaussian projection function (for AFM and AALM)
+    PetscReal               flat;   //!< flatness parameter for gaussexp AFM projection
+    PetscReal                r12;   //!< half decay radius for gaussexp AFM projection
+    PetscReal                  I;   //!< normalization factor for gaussexp AFM projection
     PetscReal          prjNSigma;   //!< confidence interval as number of std deviations for the projection function (hardcoded to 2.7)
 
     // debug switch

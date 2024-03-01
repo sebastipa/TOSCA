@@ -60,6 +60,9 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     // find which sample points this processor controls
     findControlledPointsSample(farm);
 
+    // compute wind velocity at the sample mesh points
+    computeWindVectorsSample(farm);
+
     // compute wind velocity at the rotor mesh points
     computeWindVectorsRotor(farm);
 
@@ -68,9 +71,6 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
 
     // compute wind velocity at the nacelle mesh point
     computeWindVectorsNacelle(farm);
-
-    // compute wind velocity at the sample mesh points
-    computeWindVectorsSample(farm);
 
     // compute aerodynamic forces at the turbine mesh points
     computeBladeForce(farm);
@@ -261,7 +261,11 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
             gMinCell = std::pow(gMinCell, 1.0/3.0);
 
 
-            if(2.0 * wt->rTip < 8.0 * gMaxCell)
+            if
+            (
+                (*farm->turbineModels[t]) != "AFM" &&
+                2.0 * wt->rTip < 8.0 * gMaxCell
+            )
             {
                 char warning[512];
                 sprintf(warning, "turbine diameter (%lf) < 8 mesh cells (%lf), not resolved properly. Revise mesh to improve resolution.\n", 2.0 * wt->rTip, 10.0 * gMaxCell);
@@ -791,7 +795,7 @@ PetscErrorCode controlNacYaw(farm_ *farm)
     //       has different yaw angles depending on the processor, and only the controlling processor will have
     //       the true yaw angle. They are put back in sync only on the master node, which is the one who writes
     //       the wind turbine .inp file, but only when runTimeWrite is one (when the actual file must be written).
-    //       This strongly reduces the parallel communications only on those processors which control the turbines.
+    //       This strongly reduces the parallel communications, performed only on the turbine controlling processors.
 
     mesh_ *mesh = farm->access->mesh;
 
@@ -998,7 +1002,7 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                             }
                             else if((*farm->turbineModels[t]) == "AFM")
                             {
-                                // nothing to do
+                                // nothing to do (nothing to rotate)
                             }
 
                             // rotate up-sampling points
@@ -1495,7 +1499,7 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                 std::vector<Cmpnts> ().swap(perturb);
 
             }
-            // actuator line model
+            // actuator line model (always do this as blades rotate)
             else if((*farm->turbineModels[t]) == "ALM")
             {
                 // number of points in the AL mesh
@@ -2804,13 +2808,29 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                 }
                 else if (wt->afm.sampleType == "integral")
                 {
-                    // projection distance
-                    PetscReal eps_x  = wt->eps_x,
-                              eps_y  = wt->eps_y,
-                              eps_z  = wt->eps_z;
+                    // projection type
+                    PetscInt projectionType;
+
+                    if(wt->afm.projectionType == "anisotropic")
+                    {
+                        projectionType = 0;
+                    }
+                    else if(wt->afm.projectionType == "gaussexp")
+                    {
+                        projectionType = 1;
+                    }
 
                     // save this point locally for speed
-                    Cmpnts point_p    = wt->afm.point;
+                    Cmpnts point_p = wt->afm.point;
+
+                    // define local reference frame where
+                    // xa_hat is aligned with the wind
+                    // za_hat is vertical
+                    // ya_hat defined to form right handed frame
+                    Cmpnts xa_hat, ya_hat, za_hat;
+                    xa_hat = nScale(-1.0, wt->rtrAxis);
+                    za_hat = wt->twrDir;
+                    ya_hat = nCross(za_hat, xa_hat);
 
                     // loop in sphere points
                     for(c=0; c<wt->nControlled; c++)
@@ -2821,40 +2841,60 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                                  k = wt->controlledCells[c].k;
 
                         // compute distance from mesh cell to AF point
-                        Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+                        Cmpnts r_c;
+                        r_c.x = nDot(nSub(point_p, cent[k][j][i]), xa_hat);
+                        r_c.y = nDot(nSub(point_p, cent[k][j][i]), ya_hat);
+                        r_c.z = nDot(nSub(point_p, cent[k][j][i]), za_hat);
 
                         // compute projection factor
-                        PetscReal pf
-                        =
-                        std::exp
-                        (
-                            -r_c.x * r_c.x / (eps_x * eps_x)
-                            -r_c.y * r_c.y / (eps_y * eps_y)
-                            -r_c.z * r_c.z / (eps_z * eps_z)
-                        ) /
-                        (
-                            eps_x * eps_y * eps_z *
-                            pow(M_PI, 1.5)
-                        );
+                        PetscReal pf;
+
+                        if(projectionType==0)
+                        {
+                            pf
+                            =
+                            std::exp
+                            (
+                                -r_c.x * r_c.x / (wt->eps_x * wt->eps_x)
+                                -r_c.y * r_c.y / (wt->eps_y * wt->eps_y)
+                                -r_c.z * r_c.z / (wt->eps_z * wt->eps_z)
+                            ) /
+                            (
+                                wt->eps_x * wt->eps_y * wt->eps_z *
+                                pow(M_PI, 1.5)
+                            );
+                        }
+                        else if(projectionType==1)
+                        {
+                            pf
+                            =
+                            (
+                                std::exp(-r_c.x * r_c.x / (wt->eps_x * wt->eps_x)) /
+                                (
+                                    std::exp
+                                    (
+                                        (
+                                            sqrt(r_c.y*r_c.y + r_c.z*r_c.z) - wt->r12
+                                        ) / wt->flat
+                                    ) + 1.0
+                                )
+                            )/wt->I;
+                        }
 
                         mSum(lU, nScale(pf/aj[k][j][i], ucat[k][j][i]));
                     }
 
                     MPI_Allreduce(&lU, &gU, 3, MPIU_REAL, MPIU_SUM, wt->TRB_COMM);
 
-                    wt->afm.U = nSet(gU);
-
-                    PetscReal a = std::exp(-clock->dt * wt->afm.rtrUFilterFreq);
-
-                    if(clock->it == clock->itStart)
+                    if(clock->it != clock->itStart)
                     {
-                        wt->afm.U = nSet(gU);
+                        PetscReal a = std::exp(-clock->dt * wt->afm.rtrUFilterFreq);
+                        wt->afm.U   = nSum(nScale(a, wt->afm.U), nScale(1.0-a, gU));
                     }
                     else
                     {
-                        wt->afm.U = nSum(nScale(a, wt->afm.U), nScale(1.0-a, gU));
+                        wt->afm.U = nSet(gU);
                     }
-
                 }
             }
         }
@@ -3716,7 +3756,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             // electric power (only for AD/AL models)
             if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
             {
-                // second test inside because this variable is not defined for UADM
+                // second test inside because this variable is not defined for UADM and AFM
                 if(wt->genControllerType != "none")
                 {
                     wt->genPwr = wt->genTorque * (wt->rtrOmega * wt->gbxRatioG2R) * wt->genEff;
@@ -3824,17 +3864,6 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                                 // compute projection factor
                                 PetscReal pf
                                 =
-                                /*
-                                std::exp
-                                (
-                                    -(r_c_mag *r_c_mag) /
-                                     (2.0 * eps * eps)
-                                ) /
-                                (
-                                    pow(eps,    3) *
-                                    pow(2.0*M_PI, 1.5)
-                                );
-                                */
                                 std::exp
                                 (
                                     -(r_c_mag / eps)*
@@ -3921,17 +3950,6 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                                 // compute projection factor
                                 PetscReal pf
                                 =
-                                /*
-                                std::exp
-                                (
-                                    -(r_c_mag *r_c_mag) /
-                                     (2.0 * eps * eps)
-                                ) /
-                                (
-                                    pow(eps,    3) *
-                                    pow(2.0*M_PI, 1.5)
-                                );
-                                */
                                 std::exp
                                 (
                                     -(r_c_mag / eps)*
@@ -4122,13 +4140,29 @@ PetscErrorCode projectBladeForce(farm_ *farm)
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
-                // projection distance
-                PetscReal eps_x  = wt->eps_x,
-                          eps_y  = wt->eps_y,
-                          eps_z  = wt->eps_z;
+                // projection type
+                PetscInt projectionType;
+
+                if(wt->afm.projectionType == "anisotropic")
+                {
+                    projectionType = 0;
+                }
+                else if(wt->afm.projectionType == "gaussexp")
+                {
+                    projectionType = 1;
+                }
 
                 // save this point locally for speed
                 Cmpnts point_p    = wt->afm.point;
+
+                // define local reference frame where
+                // xa_hat is aligned with the wind
+                // za_hat is vertical
+                // ya_hat defined to form right handed frame
+                Cmpnts xa_hat, ya_hat, za_hat;
+                xa_hat = nScale(-1.0, wt->rtrAxis);
+                za_hat = wt->twrDir;
+                ya_hat = nCross(za_hat, xa_hat);
 
                 // loop in sphere points
                 for(c=0; c<wt->nControlled; c++)
@@ -4139,38 +4173,59 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                              k = wt->controlledCells[c].k;
 
                     // compute distance from mesh cell to AF point
-                    Cmpnts r_c = nSub(point_p, cent[k][j][i]);
+                    Cmpnts r_c;
+                    r_c.x = nDot(nSub(point_p, cent[k][j][i]), xa_hat);
+                    r_c.y = nDot(nSub(point_p, cent[k][j][i]), ya_hat);
+                    r_c.z = nDot(nSub(point_p, cent[k][j][i]), za_hat);
 
-                    //if(r_c_mag < 2.0*wt->rTip)
+                    // compute projection factor
+                    PetscReal pf;
+
+                    if(projectionType==0)
                     {
-                        // compute projection factor
-                        PetscReal pf
+                        pf
                         =
                         std::exp
                         (
-                            -r_c.x * r_c.x / (eps_x * eps_x)
-                            -r_c.y * r_c.y / (eps_y * eps_y)
-                            -r_c.z * r_c.z / (eps_z * eps_z)
+                            -r_c.x * r_c.x / (wt->eps_x * wt->eps_x)
+                            -r_c.y * r_c.y / (wt->eps_y * wt->eps_y)
+                            -r_c.z * r_c.z / (wt->eps_z * wt->eps_z)
                         ) /
                         (
-                            eps_x * eps_y * eps_z *
+                            wt->eps_x * wt->eps_y * wt->eps_z *
                             pow(M_PI, 1.5)
                         );
-
-                        Cmpnts bfCell = nScale(pf, wt->afm.B);
-
-                        sCat[k][j][i].x += bfCell.x;
-                        sCat[k][j][i].y += bfCell.y;
-                        sCat[k][j][i].z += bfCell.z;
-
-                        // cumulate wind farm BF for projection error
-                        PetscReal vCell = 1.0 / aj[k][j][i];
-                        Cmpnts thrustBF = nScale(vCell*constants->rho, bfCell);
-
-                        // cumulate contribution from this AF point at this cell
-                        lThrustBFSum += nDot(thrustBF, wt->rtrAxis);
-                        lTorqueBFSum += 0.0;
                     }
+                    else if(projectionType==1)
+                    {
+                        pf
+                        =
+                        (
+                            std::exp(-r_c.x * r_c.x / (wt->eps_x * wt->eps_x)) /
+                            (
+                                std::exp
+                                (
+                                    (
+                                        sqrt(r_c.y*r_c.y + r_c.z*r_c.z) - wt->r12
+                                    ) / wt->flat
+                                ) + 1.0
+                            )
+                        )/wt->I;
+                    }
+
+                    Cmpnts bfCell = nScale(pf, wt->afm.B);
+
+                    sCat[k][j][i].x += bfCell.x;
+                    sCat[k][j][i].y += bfCell.y;
+                    sCat[k][j][i].z += bfCell.z;
+
+                    // cumulate wind farm BF for projection error
+                    PetscReal vCell = 1.0 / aj[k][j][i];
+                    Cmpnts thrustBF = nScale(vCell*constants->rho, bfCell);
+
+                    // cumulate contribution from this AF point at this cell
+                    lThrustBFSum += nDot(thrustBF, wt->rtrAxis);
+                    lTorqueBFSum += 0.0;
                 }
             }
         }
@@ -4599,17 +4654,6 @@ PetscErrorCode projectNacelleForce(farm_ *farm)
                         // compute projection factor
                         PetscReal pf
                         =
-                        /*
-                        std::exp
-                        (
-                            -(r_c_mag *r_c_mag) /
-                             (2.0 * eps * eps)
-                        ) /
-                        (
-                            pow(eps,    3) *
-                            pow(2.0*M_PI, 1.5)
-                        );
-                        */
                         std::exp
                         (
                             -(r_c_mag / eps)*
@@ -4983,7 +5027,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
 
                     if(!f)
                     {
-                       char error[512];
+                        char error[512];
                         sprintf(error, "cannot open file %s\n", fileName);
                         fatalErrorInFunction("windTurbinesWrite",  error);
                     }
@@ -5367,7 +5411,6 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                         fclose(f);
                     }
                 }
-
             }
         }
     }
@@ -6013,7 +6056,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
 
                                 //to compute the force per unit length divide by element radial length
                                 sum/=sumDr;
-                                                                
+
                                 fprintf(f, "%*.4f", width, sum);
                             }
 
@@ -7115,7 +7158,33 @@ PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base, const word meshName)
 
     readDictDouble(descrFile.c_str(), "Ct",         &(wt->afm.Ct));
     readDictDouble(descrFile.c_str(), "Uref",       &(wt->afm.Uref));
+    readDictWord(descrFile.c_str(),   "projection", &(wt->afm.projectionType));
     readDictWord(descrFile.c_str(),   "sampleType", &(wt->afm.sampleType));
+
+    // check projection type
+    if(wt->afm.projectionType!="gaussexp" && wt->afm.projectionType!="anisotropic")
+    {
+        char error[512];
+        sprintf(error, "unknown AFM projection, available possibilities are:\n    1. gaussexp\n    2. anisotropic\n");
+        fatalErrorInFunction("initAFM",  error);
+    }
+
+    //read projection radius
+    if(wt->afm.projectionType=="anisotropic")
+    {
+        readDictDouble(descrFile.c_str(), "epsilon_x",     &(wt->eps_x));
+        readDictDouble(descrFile.c_str(), "epsilon_y",     &(wt->eps_y));
+        readDictDouble(descrFile.c_str(), "epsilon_z",     &(wt->eps_z));
+    }
+    else if(wt->afm.projectionType=="gaussexp")
+    {
+        readDictDouble(descrFile.c_str(), "gaussexp_x",     &(wt->eps_x));
+        readDictDouble(descrFile.c_str(), "gaussexp_r",     &(wt->r12));
+        readDictDouble(descrFile.c_str(), "gaussexp_f",     &(wt->flat));
+
+        // compute normalization factor
+        wt->I = - 2.0*wt->eps_x*pow(M_PI,3.0/2.0)*wt->flat*wt->flat*polyLog2(-std::exp(wt->r12/wt->flat));
+    }
 
     // check sample type
     if
@@ -7311,7 +7380,7 @@ PetscErrorCode initControlledCells(farm_ *farm)
                     PetscReal   eps_x =     wt->alm.chord[0] * wt->eps_x,
                                 eps_y =     wt->alm.thick[0 ]* wt->eps_y;
 
-                    
+
                     PetscReal eps = PetscMax( eps_x, eps_y );
 
                     radius_t = wt->rTip +  eps * wt->prjNSigma;
@@ -7328,7 +7397,14 @@ PetscErrorCode initControlledCells(farm_ *farm)
         }
         else
         {
-            radius_t = PetscMax(wt->eps_x, PetscMax(wt->eps_y, wt->eps_z)) * wt->prjNSigma;
+            if(wt->afm.projectionType == "anisotropic")
+            {
+                radius_t = PetscMax(wt->eps_x, PetscMax(wt->eps_y, wt->eps_z)) * wt->prjNSigma;
+            }
+            else if(wt->afm.projectionType == "gaussexp")
+            {
+                radius_t = PetscMax(wt->eps_x*wt->prjNSigma, 2.0*wt->r12);
+            }
         }
 
         // this turbine rotor center
@@ -7346,7 +7422,7 @@ PetscErrorCode initControlledCells(farm_ *farm)
             PetscReal distMag = nMag(dist);
 
             // test if inside sphere
-            if(distMag < radius_t)
+            if(distMag <= radius_t)
             {
                 cellIds thisCell;
 
@@ -8752,13 +8828,11 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     }
     else if(modelName == "AFM")
     {
-        readDictDouble(dictName, "epsilon_x",     &(wt->eps_x));
-        readDictDouble(dictName, "epsilon_y",     &(wt->eps_y));
-        readDictDouble(dictName, "epsilon_z",     &(wt->eps_z));
+        // do nothing - read later in initAFM based on projection type
     }
     else if(modelName == "ALM")
     {
-        //do nothing - read later based on projection type
+        // do nothing - read later in initALM based on projection type
     }
 
     // set projection confidence interval as number of standard deviations (harcoded to 2.7)
