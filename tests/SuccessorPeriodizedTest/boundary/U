@@ -26,6 +26,7 @@ kLeft   inletFunction
             n2Inflow 50 
             n1Periods 1
             n2Periods 2 
+            interpolation spline
             sourceType uniform 
             cellWidth1 20
             cellWidth2 20

@@ -939,7 +939,10 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
             MPI_Comm_split(mesh->MESH_COMM, commColor, rank, &(ifPtr->IFFCN_COMM));
 
             // read if source mesh is uniform or grading
-            readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
+            readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",   &(ifPtr->sourceType));
+
+            // read interpolation method
+            readSubDictWord("ABLProperties.dat", "xDampingProperties", "interpolation",&(ifPtr->interpMethod));
 
             readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Inflow",   &(ifPtr->n1));
             readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Inflow",   &(ifPtr->n2));
@@ -1765,10 +1768,10 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
                     PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
                     PetscPrintf(mesh->MESH_COMM, "   -> assimilation type: %s\n", abl->assimilationType.c_str());
-                    
+
                     readMesoScaleVelocityData(abl);
 
-                    //find the interpolation points and weights for the velocity and temperature fields from the available heights 
+                    //find the interpolation points and weights for the velocity and temperature fields from the available heights
                     findVelocityInterpolationWeights(abl);
 
                     // allocate memory for variables
@@ -1959,7 +1962,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                         sprintf(error, "cannot open file inflowDatabase/momentumSource\n");
                         fatalErrorInFunction("ABLInitialize",  error);
                     }
-                    else 
+                    else
                     {
                         std::string tmpStr;
 
@@ -1970,11 +1973,11 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                             {
                                 ntimes++;
                             }
-                        }  
+                        }
 
                         //first three lines are header
                         ntimes = ntimes-3;
-            
+
                         // save the number of times
                         abl->nSourceTimes = ntimes;
                         abl->currentCloseIdx = 0;
@@ -1982,12 +1985,12 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                         // go back on top of file
                         indata.close();
                         indata.open("inflowDatabase/momentumSource");
-                                                
+
                         // skip header lines
                         for (PetscInt t = 0; t<3; t++)
                         {
                             std::getline(indata, tmpStr);
-                        }      
+                        }
 
                         // resize the source table
                         preCompSourcesTmp.resize(ntimes);
@@ -2004,11 +2007,11 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
                                 preCompSourcesTmp[t].push_back(buffer);
                             }
-                        }                   
-                        
+                        }
+
                         indata.close();
                     }
-                    
+
                     PetscMalloc(sizeof(PetscReal **) * ntimes, &(abl->timeHtSources));
 
                     for(PetscInt t=0; t<ntimes; t++)
@@ -2023,7 +2026,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                             PetscMalloc(sizeof(PetscReal) * 4, &(abl->timeHtSources[t][j]));
                         }
                     }
-                    
+
                     //save the time for each height
                     for(PetscInt t=0; t<ntimes; t++)
                     {
@@ -2041,7 +2044,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                             abl->timeHtSources[t][j][2] = preCompSourcesTmp[t][3*j + 2];
                             abl->timeHtSources[t][j][3] = preCompSourcesTmp[t][3*j + 3];
                         }
-                    }     
+                    }
 
                     // clean the temporary variables
                     for(PetscInt t=0; t<ntimes; t++)
@@ -2055,9 +2058,9 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     sprintf(error, "unknown controllerType for controller action read, available types are:\n        1 : timeSeries\n        2 : timeAverageSeries\n        3 : timeHeightSeries\n");
                     fatalErrorInFunction("ABLInitialize",  error);
                 }
-            
+
             }
-            else 
+            else
             {
                     char error[512];
                     sprintf(error, "unknown controllerAction, available types are:\n        1 : write\n        2 : read\n");

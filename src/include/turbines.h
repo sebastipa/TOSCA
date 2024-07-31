@@ -466,7 +466,7 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm);
 PetscErrorCode computeRotSpeed(farm_ *farm);
 
 //! \brief Rotate blades (only for ALM)
-PetscErrorCode rotateBlades(windTurbine *wt, PetscReal angle);
+PetscErrorCode rotateBlades(windTurbine *wt, PetscReal angle, PetscInt updateAzimuth);
 
 //! \brief Compute generator torque with 5-regions control system model
 PetscErrorCode controlGenSpeed(farm_ *farm);

@@ -83,7 +83,12 @@ struct inletFunctionTypes
 
     PetscReal     ***inflowWeights;           //!< array of 4 weights for each cell center (ordered as a 2D plane array)
     cellIds       ***closestCells;            //!< array of 4 closest cells for each cell center
+    PetscReal     ***inflowWeights_1;         //!< array of 6 weights for each cell center (ordered as a 2D plane array) - j spline interp
+    cellIds       ***closestCells_1;          //!< array of 6 closest cells for each cell center - j spline interp
+    PetscReal     ***inflowWeights_2;         //!< array of 6 weights for each cell center (ordered as a 2D plane array) - i spline interp
+    cellIds       ***closestCells_2;          //!< array of 6 closest cells for each cell center - i spline interp
     word          sourceType;                 //!< source mesh type (uniform or grading)
+    word          interpMethod;               //!< interpolation method (linear or nullDiv)
     PetscReal     width1;                     //!< inflow cell width in the 1st direction
     PetscReal     width2;                     //!< inflow cell width in the 2nd direction
     PetscReal     inflowHeigth;               //!< inflow height for gradient extrapolation aloft

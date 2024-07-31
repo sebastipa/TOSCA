@@ -509,8 +509,9 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                 // rotate points if turbine model is ALM
                 if((*farm->turbineModels[t]) == "ALM")
                 {
-                    PetscReal angle = clock->dt * wt->rtrOmega;
-                    rotateBlades(wt, angle);
+                    PetscReal angle        = clock->dt * wt->rtrOmega;
+                    PetscInt updateAzimuth = 1;
+                    rotateBlades(wt, angle, updateAzimuth);
                 }
             }
             else
@@ -549,8 +550,9 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                 // rotate turbines
                 if(!rank)
                 {
-                    PetscReal angle = (gazimuth - wt->alm.azimuth) * wt->deg2rad;
-                    rotateBlades(wt, angle);
+                    PetscReal angle        = (gazimuth - wt->alm.azimuth) * wt->deg2rad;
+                    PetscInt updateAzimuth = 1;
+                    rotateBlades(wt, angle, updateAzimuth);
                 }
             }
         }
@@ -561,7 +563,7 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
 
 //***************************************************************************************************************//
 
-PetscErrorCode rotateBlades(windTurbine *wt, PetscReal angle)
+PetscErrorCode rotateBlades(windTurbine *wt, PetscReal angle, PetscInt updateAzimuth)
 {
     // number of points in the AL mesh
     PetscInt p, npts_t = wt->alm.nPoints;
@@ -582,12 +584,15 @@ PetscErrorCode rotateBlades(windTurbine *wt, PetscReal angle)
         mSum(wt->alm.points[p], wt->rotCenter);
     }
 
-    wt->alm.azimuth += angle * wt->rad2deg;
-
-    // bound azimuth between 360 and 0
-    if(wt->alm.azimuth >= 360.0)
+    if(updateAzimuth)
     {
-        wt->alm.azimuth -= 360.0;
+        wt->alm.azimuth += angle * wt->rad2deg;
+
+        // bound azimuth between 360 and 0
+        if(wt->alm.azimuth >= 360.0)
+        {
+            wt->alm.azimuth -= 360.0;
+        }
     }
 
     return(0);
@@ -6427,7 +6432,8 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
             // rotate blades
             if((*farm->turbineModels[t]) == "ALM")
             {
-                rotateBlades(wt, wt->alm.azimuth * wt->deg2rad);
+                PetscInt updateAzimuth = 0;
+                rotateBlades(wt, wt->alm.azimuth * wt->deg2rad, updateAzimuth);
             }
         }
     }

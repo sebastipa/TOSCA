@@ -94,6 +94,7 @@ xDampingProperties
     n1Periods 1
     n2Periods 2
     n1Merge   0 
+    interpolation spline
     sourceType uniform
     cellWidth1 20
     cellWidth2 20

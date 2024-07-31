@@ -419,6 +419,9 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             // read if source mesh is uniform or grading
             readSubDictWord(fileName.c_str(), "inletFunction", "sourceType",  &(ifPtr->sourceType));
 
+            // read interpolation method
+            readSubDictWord(fileName.c_str(), "inletFunction", "interpolation",  &(ifPtr->interpMethod));
+
             // read number of cells and periods
             readSubDictInt   (fileName.c_str(), "inletFunction", "n1Inflow",   &(ifPtr->n1));
             readSubDictInt   (fileName.c_str(), "inletFunction", "n2Inflow",   &(ifPtr->n2));
@@ -881,7 +884,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     sprintf(error, "inletFunction type 2 requires the same hInv if active in both U and T");
                     fatalErrorInFunction("SetInflowFunctions",  error);
                 }
-                else 
+                else
                 {
                     ifPtr->hInv = hInv;
                 }
@@ -917,22 +920,45 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
     lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
     lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
 
-    // allocate space for weights and closest cell ids (global)
+    // weights and cell for tri-linear and k-spline
     ifPtr->closestCells  = (cellIds***)malloc(my*sizeof(cellIds**));
     ifPtr->inflowWeights = (PetscReal***)malloc(my*sizeof(PetscReal**));
+    // weights and cell for j-spline
+    ifPtr->closestCells_1  = (cellIds***)malloc(my*sizeof(cellIds**));
+    ifPtr->inflowWeights_1 = (PetscReal***)malloc(my*sizeof(PetscReal**));
+    // weights and cell for i-spline
+    ifPtr->closestCells_2  = (cellIds***)malloc(my*sizeof(cellIds**));
+    ifPtr->inflowWeights_2 = (PetscReal***)malloc(my*sizeof(PetscReal**));
 
-    // temporary variables (per processor)
-    // initialize nut temporary local planes in each process
+    // temporary variables
     std::vector<std::vector<std::vector<  cellIds>>> closestCells_tmp(my);
     std::vector<std::vector<std::vector<PetscReal>>> inflowWeights_tmp(my);
+    std::vector<std::vector<std::vector<  cellIds>>> closestCells_tmp_1(my);
+    std::vector<std::vector<std::vector<PetscReal>>> inflowWeights_tmp_1(my);
+    std::vector<std::vector<std::vector<  cellIds>>> closestCells_tmp_2(my);
+    std::vector<std::vector<std::vector<PetscReal>>> inflowWeights_tmp_2(my);
 
     for(j=0; j<my; j++)
     {
-        ifPtr->closestCells[j]  = (cellIds**)malloc(mx*sizeof(cellIds*));
-        ifPtr->inflowWeights[j] = (PetscReal**)malloc(mx*sizeof(PetscReal*));
+        ifPtr->closestCells[j]    = (cellIds**)malloc(mx*sizeof(cellIds*));
+        ifPtr->inflowWeights[j]   = (PetscReal**)malloc(mx*sizeof(PetscReal*));
 
-        closestCells_tmp[j]. resize(mx);
-        inflowWeights_tmp[j].resize(mx);
+        closestCells_tmp[j].   resize(mx);
+        inflowWeights_tmp[j].  resize(mx);
+
+        if (ifPtr->interpMethod == "spline")
+        {
+
+            ifPtr->closestCells_1[j]  = (cellIds**)malloc(mx*sizeof(cellIds*));
+            ifPtr->inflowWeights_1[j] = (PetscReal**)malloc(mx*sizeof(PetscReal*));
+            ifPtr->closestCells_2[j]  = (cellIds**)malloc(mx*sizeof(cellIds*));
+            ifPtr->inflowWeights_2[j] = (PetscReal**)malloc(mx*sizeof(PetscReal*));
+
+            closestCells_tmp_1[j]. resize(mx);
+            inflowWeights_tmp_1[j].resize(mx);
+            closestCells_tmp_2[j]. resize(mx);
+            inflowWeights_tmp_2[j].resize(mx);
+        }
 
         for (i=0; i<mx; i++)
         {
@@ -941,12 +967,19 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
 
             closestCells_tmp[j][i]. resize(4);
             inflowWeights_tmp[j][i].resize(4);
-            /*
-            ifPtr->closestCells[j][i][0].i = ifPtr->closestCells[j][i][0].j = ifPtr->closestCells[j][i][0].k = 0;
-            ifPtr->closestCells[j][i][1].i = ifPtr->closestCells[j][i][1].j = ifPtr->closestCells[j][i][1].k = 0;
-            ifPtr->closestCells[j][i][2].i = ifPtr->closestCells[j][i][2].j = ifPtr->closestCells[j][i][2].k = 0;
-            ifPtr->closestCells[j][i][3].i = ifPtr->closestCells[j][i][3].j = ifPtr->closestCells[j][i][3].k = 0;
-            */
+
+            if (ifPtr->interpMethod == "spline")
+            {
+                ifPtr->closestCells_1[j][i]  = (cellIds*)malloc(6*sizeof(cellIds));
+                ifPtr->inflowWeights_1[j][i] = (PetscReal*)malloc(6*sizeof(PetscReal));
+                ifPtr->closestCells_2[j][i]  = (cellIds*)malloc(6*sizeof(cellIds));
+                ifPtr->inflowWeights_2[j][i] = (PetscReal*)malloc(6*sizeof(PetscReal));
+
+                closestCells_tmp_1[j][i]. resize(6);
+                inflowWeights_tmp_1[j][i].resize(6);
+                closestCells_tmp_2[j][i]. resize(6);
+                inflowWeights_tmp_2[j][i].resize(6);
+            }
         }
     }
 
@@ -985,9 +1018,10 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
             }
         }
     }
+    // read structured mesh points from infloMesh.xyz
     else if(ifPtr->sourceType == "grading")
     {
-        // we have to actually read the points, numbering goes on as TOSCA indexing
+        // numbering goes on as TOSCA indexing
         // so 1 = j, 2 = i for k-normal slices.
 
         std::vector<PetscReal>  Ycart, Zcart;
@@ -1072,7 +1106,7 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
 
     PetscPrintf(mesh->MESH_COMM, "   -> calculating inflow bilinear interpolation weigths...");
     // now do the search and, for each cell center on the kLeftPatch, find its
-    // 4 closest cell centers belonging to the fictitious inflow plane
+    // 4 (linear) or 6 (spline) closest cell centers belonging to the fictitious inflow plane
 
     // select processors on the k-left patch
     if(zs==0)
@@ -1109,7 +1143,7 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
                 }
 
                 PetscInt    j_n, j_s, i_w, i_e;
-                PetscReal z1, z2, y1, y2;
+                PetscReal   z1, z2, y1, y2;
 
                 if(closestCell.i == 1)
                 {
@@ -1183,10 +1217,10 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
                 inflowWeights_tmp[j][i][3]  = (cent[lzs][j][i].y - y1) * (cent[lzs][j][i].z - z1) / coeff;
 
                 /*
-                if(ifPtr->inflowWeights[j][i][0]+ifPtr->inflowWeights[j][i][1]+ifPtr->inflowWeights[j][i][2]+ifPtr->inflowWeights[j][i][3] != 1.0)
+                if(inflowWeights_tmp[j][i][0]+inflowWeights_tmp[j][i][1]+inflowWeights_tmp[j][i][2]+inflowWeights_tmp[j][i][3] != 1.0)
                 {
-                    PetscPrintf(mesh->MESH_COMM, " --> Warning in function: non-normal weights at P = (0.0, %lf, %lf)\n", cent[lzs][j][i].y, cent[lzs][j][i].z);
-                    PetscPrintf(mesh->MESH_COMM, "W1 = %lf, W2 = %lf, W3 = %lf, W4 = %lf, SUM = %lf\n", ifPtr->inflowWeights[j][i][0], ifPtr->inflowWeights[j][i][1], ifPtr->inflowWeights[j][i][2], ifPtr->inflowWeights[j][i][3],  ifPtr->inflowWeights[j][i][0]+ifPtr->inflowWeights[j][i][1]+ifPtr->inflowWeights[j][i][2]+ifPtr->inflowWeights[j][i][3]);
+                    PetscPrintf(mesh->MESH_COMM, " --> Warning in function: linear non-normal weights at P = (0.0, %lf, %lf)\n", cent[lzs][j][i].y, cent[lzs][j][i].z);
+                    PetscPrintf(mesh->MESH_COMM, "W1 = %lf, W2 = %lf, W3 = %lf, W4 = %lf, SUM = %lf\n", inflowWeights_tmp[j][i][0], inflowWeights_tmp[j][i][1], inflowWeights_tmp[j][i][2], inflowWeights_tmp[j][i][3], inflowWeights_tmp[j][i][0]+inflowWeights_tmp[j][i][1]+inflowWeights_tmp[j][i][2]+inflowWeights_tmp[j][i][3]);
                 }
                 */
 
@@ -1243,6 +1277,386 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
                     closestCells_tmp[j][i][2].i = ifPtr->n2;
                     closestCells_tmp[j][i][3].i = ifPtr->n2;
                 }
+
+                if(ifPtr->interpMethod == "spline")
+                {
+                    PetscInt    j_n, j_c, j_s, i_w, i_c, i_e;
+                    PetscReal   z_n, z_c, z_s, y_w, y_c, y_e,
+                                dz_n, dz_c, dz_s, dy_w, dy_c, dy_e;
+                    PetscReal   dir;
+
+                    // (j-direction): the point is always located in the middle of a 3x2 cell stencil
+                    // 4---5
+                    // :   :
+                    // 2---3
+                    // :   :
+                    // 0---1
+                    // the numbering corresponds to the access order for weights and cells
+
+                    j_s = closestCell.j-1;
+                    j_c = closestCell.j;
+                    j_n = closestCell.j+1;
+
+                    z_c = inflowCellCenters[closestCell.j][closestCell.i].z;
+
+                    // correct for boundaries and compute coordinates
+                    if(j_c == 1)
+                    {
+                        j_s  = 1; // zero gradient
+                        z_s  = 2.0*z_c - inflowCellCenters[closestCell.j+1][closestCell.i].z;
+                        z_n  = inflowCellCenters[closestCell.j+1][closestCell.i].z;
+                        dz_c = 0.5*(z_n - z_s);
+                        dz_n = 0.5*(inflowCellCenters[closestCell.j+2][closestCell.i].z - z_c);
+                        dz_s = dz_n;
+                    }
+                    else if(j_c == jN-1)
+                    {
+                        j_n  = jN-1; // zero gradient
+                        z_s  = inflowCellCenters[closestCell.j-1][closestCell.i].z;
+                        z_n  = 2.0*z_c - inflowCellCenters[closestCell.j-1][closestCell.i].z;
+                        dz_c = 0.5*(z_n - z_s);
+                        dz_s = 0.5*(z_c - inflowCellCenters[closestCell.j-2][closestCell.i].z);
+                        dz_n = dz_s;
+                    }
+                    else
+                    {
+                        z_s = inflowCellCenters[closestCell.j-1][closestCell.i].z;
+                        z_n = inflowCellCenters[closestCell.j+1][closestCell.i].z;
+                        dz_c = 0.5*( z_n - z_s);
+                        dz_s = 2.0*((z_c - z_s) - 0.5*dz_c);
+                        dz_n = 2.0*((z_n - z_c) - 0.5*dz_c);
+                    }
+
+                    // find surrounding points for bilinear interpolation
+                    dir = cent[lzs][j][i].y - inflowCellCenters[closestCell.j][closestCell.i].y;
+
+                    if(dir >= 0)
+                    {
+                        i_w = closestCell.i;
+                        i_e = closestCell.i+1;
+                    }
+                    else
+                    {
+                        i_w = closestCell.i-1;
+                        i_e = closestCell.i;
+                    }
+
+                    // correct for boundaries
+                    if(i_e == 1)
+                    {
+                        i_w = jN-2; // periodic
+                        y_e  = inflowCellCenters[closestCell.j][i_e].y;
+                        y_w  = 2.0*inflowCellCenters[closestCell.j][i_e].y - inflowCellCenters[closestCell.j][i_e+1].y;
+                        dy_e = 0.5*(inflowCellCenters[closestCell.j][i_e+1].y - y_w);
+                        dy_w = 2.0*((y_e - y_w) - 0.5*dy_e);
+                    }
+                    else if(i_w == iN-1)
+                    {
+                        i_e = 1; // periodic
+                        y_e = 2.0*inflowCellCenters[closestCell.j][i_w].y - inflowCellCenters[closestCell.j][i_w-1].y;
+                        y_w = inflowCellCenters[closestCell.j][i_w].y;
+                        dy_w = 0.5*(y_e - inflowCellCenters[closestCell.j][i_w-1].y);
+                        dy_e = 2.0*((y_e - y_w) - 0.5*dy_w);
+                    }
+                    else
+                    {
+                        y_e  = inflowCellCenters[closestCell.j][i_e].y;
+                        y_w  = inflowCellCenters[closestCell.j][i_w].y;
+                        if(i_e==iN-1)
+                        {
+                            dy_w = 0.5*(y_e - inflowCellCenters[closestCell.j][i_w-1].y);
+                            dy_e = 2.0*((y_e - y_w) - 0.5*dy_w);
+                        }
+                        else if(i_w==1)
+                        {
+                            dy_e = 0.5*(inflowCellCenters[closestCell.j][i_e+1].y - y_w);
+                            dy_w = 2.0*((y_e - y_w) - 0.5*dy_e);
+                        }
+                        else
+                        {
+                            dy_e = 0.5*(inflowCellCenters[closestCell.j][i_e+1].y - y_w);
+                            dy_w = 0.5*(y_e - inflowCellCenters[closestCell.j][i_w-1].y);
+                        }
+                    }
+
+                    // compute weights
+                    inflowWeights_tmp_1[j][i][0]  = splineB2((cent[lzs][j][i].z - z_s)/dz_s)*splineB1((cent[lzs][j][i].y - y_w)/dy_w);
+                    inflowWeights_tmp_1[j][i][1]  = splineB2((cent[lzs][j][i].z - z_s)/dz_s)*splineB1((cent[lzs][j][i].y - y_e)/dy_e);
+                    inflowWeights_tmp_1[j][i][2]  = splineB2((cent[lzs][j][i].z - z_c)/dz_c)*splineB1((cent[lzs][j][i].y - y_w)/dy_w);
+                    inflowWeights_tmp_1[j][i][3]  = splineB2((cent[lzs][j][i].z - z_c)/dz_c)*splineB1((cent[lzs][j][i].y - y_e)/dy_e);
+                    inflowWeights_tmp_1[j][i][4]  = splineB2((cent[lzs][j][i].z - z_n)/dz_n)*splineB1((cent[lzs][j][i].y - y_w)/dy_w);
+                    inflowWeights_tmp_1[j][i][5]  = splineB2((cent[lzs][j][i].z - z_n)/dz_n)*splineB1((cent[lzs][j][i].y - y_e)/dy_e);
+
+                    /*
+                    if(inflowWeights_tmp_1[j][i][0]+inflowWeights_tmp_1[j][i][1]+inflowWeights_tmp_1[j][i][2]+inflowWeights_tmp_1[j][i][3]+inflowWeights_tmp_1[j][i][4]+inflowWeights_tmp_1[j][i][5] != 1.0)
+                    {
+                        PetscPrintf(mesh->MESH_COMM, " --> Warning in function: j-spline non-normal weights at P = (0.0, %lf, %lf)\n", cent[lzs][j][i].y, cent[lzs][j][i].z);
+                        PetscPrintf(mesh->MESH_COMM, "W1 = %lf, W2 = %lf, W3 = %lf, W4 = %lf, W5 = %lf, W6 = %lf, SUM = %lf\n", inflowWeights_tmp_1[j][i][0], inflowWeights_tmp_1[j][i][1], inflowWeights_tmp_1[j][i][2], inflowWeights_tmp_1[j][i][3], inflowWeights_tmp_1[j][i][4], inflowWeights_tmp_1[j][i][5], inflowWeights_tmp_1[j][i][0]+inflowWeights_tmp_1[j][i][1]+inflowWeights_tmp_1[j][i][2]+inflowWeights_tmp_1[j][i][3]+inflowWeights_tmp_1[j][i][4]+inflowWeights_tmp_2[j][i][5]);
+                        PetscPrintf(mesh->MESH_COMM, "z_n  = %lf, z_c  = %lf, z_s  = %lf\n",z_n, z_c, z_s);
+                        PetscPrintf(mesh->MESH_COMM, "j_n  = %ld, j_c  = %ld, j_s  = %ld\n",j_n, j_c, j_s);
+                        PetscPrintf(mesh->MESH_COMM, "dz_n = %lf, dz_c = %lf, dz_s = %lf\n", dz_n, dz_c, dz_s);
+                        PetscPrintf(mesh->MESH_COMM, "y_w  = %lf, y_e  = %lf\n", y_w, y_e);
+                        PetscPrintf(mesh->MESH_COMM, "i_w  = %ld, i_e  = %ld\n", i_w, i_e);
+                        PetscPrintf(mesh->MESH_COMM, "dy_w = %lf, dy_e = %lf\n", dy_w, dy_e);
+                    }
+                    */
+
+                    // compute indices with periodicization
+
+                    // j south index periodicization
+                    if(j_s<=ifPtr->n1*ifPtr->prds1)
+                    {
+                        closestCells_tmp_1[j][i][0].j = j_s % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
+                        closestCells_tmp_1[j][i][1].j = j_s % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_1[j][i][0].j = ifPtr->n1;
+                        closestCells_tmp_1[j][i][1].j = ifPtr->n1;
+                    }
+
+                    // j center index periodicization
+                    if(j_s<=ifPtr->n1*ifPtr->prds1)
+                    {
+                        closestCells_tmp_1[j][i][2].j = j_c % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
+                        closestCells_tmp_1[j][i][3].j = j_c % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_1[j][i][2].j = ifPtr->n1;
+                        closestCells_tmp_1[j][i][3].j = ifPtr->n1;
+                    }
+
+                    // j north index periodicization
+                    if(j_n<=ifPtr->n1*ifPtr->prds1)
+                    {
+                        closestCells_tmp_1[j][i][4].j = j_n % ifPtr->n1 == 0 ? ifPtr->n1 : j_n % ifPtr->n1;
+                        closestCells_tmp_1[j][i][5].j = j_n % ifPtr->n1 == 0 ? ifPtr->n1 : j_n % ifPtr->n1;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_1[j][i][4].j = ifPtr->n1;
+                        closestCells_tmp_1[j][i][5].j = ifPtr->n1;
+                    }
+
+                    // i west index periodicization
+                    if(i_w<=ifPtr->n2*ifPtr->prds2)
+                    {
+                        closestCells_tmp_1[j][i][0].i = i_w % ifPtr->n2 == 0 ? ifPtr->n2 : i_w % ifPtr->n2;
+                        closestCells_tmp_1[j][i][2].i = i_w % ifPtr->n2 == 0 ? ifPtr->n2 : i_w % ifPtr->n2;
+                        closestCells_tmp_1[j][i][4].i = i_w % ifPtr->n2 == 0 ? ifPtr->n2 : i_w % ifPtr->n2;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_1[j][i][0].i = ifPtr->n2;
+                        closestCells_tmp_1[j][i][2].i = ifPtr->n2;
+                        closestCells_tmp_1[j][i][4].i = ifPtr->n2;
+                    }
+
+                    // i east index periodicization
+                    if(i_e<=ifPtr->n2*ifPtr->prds2)
+                    {
+                        closestCells_tmp_1[j][i][1].i = i_e % ifPtr->n2 == 0 ? ifPtr->n2 : i_e % ifPtr->n2;
+                        closestCells_tmp_1[j][i][3].i = i_e % ifPtr->n2 == 0 ? ifPtr->n2 : i_e % ifPtr->n2;
+                        closestCells_tmp_1[j][i][5].i = i_e % ifPtr->n2 == 0 ? ifPtr->n2 : i_e % ifPtr->n2;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_1[j][i][1].i = ifPtr->n2;
+                        closestCells_tmp_1[j][i][3].i = ifPtr->n2;
+                        closestCells_tmp_1[j][i][5].i = ifPtr->n2;
+                    }
+
+                    // (i-direction): the point is always located in the middle of a 2x3 cell stencil
+                    // 1---3---5
+                    // :   :   :
+                    // 0---2---4
+                    // the numbering corresponds to the access order for weights and cells
+
+                    i_w = closestCell.i-1;
+                    i_c = closestCell.i;
+                    i_e = closestCell.i+1;
+
+                    y_c = inflowCellCenters[closestCell.j][closestCell.i].y;
+
+                    // correct for boundaries and compute coordinates
+                    if(i_c == 1)
+                    {
+                        i_w = iN-1; // periodic
+                        y_w = 2.0*y_c - inflowCellCenters[closestCell.j][closestCell.i+1].y;
+                        y_e = inflowCellCenters[closestCell.j][closestCell.i+1].y;
+                        dy_c = 0.5*(y_e - y_w);
+                        dy_e = 0.5*(inflowCellCenters[closestCell.j][closestCell.i+2].y - y_c);
+                        dy_w = dy_e;
+                    }
+                    else if(i_c == iN-1)
+                    {
+                        i_e = 1; // periodic
+                        y_w = inflowCellCenters[closestCell.j][closestCell.i-1].y;
+                        y_e = 2.0*y_c - inflowCellCenters[closestCell.j][closestCell.i-1].y;
+                        dy_c = 0.5*(y_e - y_w);
+                        dy_w = 0.5*(y_c - inflowCellCenters[closestCell.j][closestCell.i-2].y);
+                        dy_e = dy_w;
+                    }
+                    else
+                    {
+                        y_w = inflowCellCenters[closestCell.j][closestCell.i-1].y;
+                        y_e = inflowCellCenters[closestCell.j][closestCell.i+1].y;
+                        dy_c = 0.5*( y_e - y_w);
+                        dy_w = 2.0*((y_c - y_w) - 0.5*dy_c);
+                        dy_e = 2.0*((y_e - y_c) - 0.5*dy_c);
+                    }
+
+                    // find surrounding points for bilinear interpolation
+                    dir = cent[lzs][j][i].z - inflowCellCenters[closestCell.j][closestCell.i].z;
+
+                    if(dir >= 0)
+                    {
+                        j_s = closestCell.j;
+                        j_n = closestCell.j+1;
+                    }
+                    else
+                    {
+                        j_s = closestCell.j-1;
+                        j_n = closestCell.j;
+                    }
+
+                    // correct for boundaries
+                    if(j_n == 1)
+                    {
+                        j_s = 1; // zero gradient
+                        z_n = inflowCellCenters[j_n][closestCell.i].z;
+                        z_s = 2.0*inflowCellCenters[j_n][closestCell.i].z - inflowCellCenters[j_n+1][closestCell.i].z;
+                        dz_n = 0.5*(inflowCellCenters[j_n+1][closestCell.i].z - z_s);
+                        dz_s = 2.0*((z_n - z_s) - 0.5*dz_n);
+                    }
+                    else if(j_s == jN-1)
+                    {
+                        j_n = jN-1; // periodic
+                        z_n = 2.0*inflowCellCenters[j_s][closestCell.i].z - inflowCellCenters[j_s-1][closestCell.i].z;
+                        z_s = inflowCellCenters[j_s][closestCell.i].z;
+                        dz_s = 0.5*(z_n - inflowCellCenters[j_s-1][closestCell.i].z);
+                        dz_n = 2.0*((z_n - z_s) - 0.5*dz_s);
+                    }
+                    else
+                    {
+                        z_n = inflowCellCenters[j_n][closestCell.i].z;
+                        z_s = inflowCellCenters[j_s][closestCell.i].z;
+                        if(j_n==jN-1)
+                        {
+                            dz_s = 0.5*(z_n - inflowCellCenters[j_s-1][closestCell.i].z);
+                            dz_n = 2.0*((z_n - z_s) - 0.5*dz_s);
+                        }
+                        else if(j_s==1)
+                        {
+                            dz_n = 0.5*(inflowCellCenters[j_n+1][closestCell.i].z - z_s);
+                            dz_s = 2.0*((z_n - z_s) - 0.5*dz_n);
+                        }
+                        else
+                        {
+                            dz_n = 0.5*(inflowCellCenters[j_n+1][closestCell.i].z - z_s);
+                            dz_s = 0.5*(z_n - inflowCellCenters[j_s-1][closestCell.i].z);
+                        }
+                    }
+
+                    // compute weights
+                    inflowWeights_tmp_2[j][i][0]  = splineB2((cent[lzs][j][i].y - y_w)/dy_w)*splineB1((cent[lzs][j][i].z - z_s)/dz_s);
+                    inflowWeights_tmp_2[j][i][1]  = splineB2((cent[lzs][j][i].y - y_w)/dy_w)*splineB1((cent[lzs][j][i].z - z_n)/dz_n);
+                    inflowWeights_tmp_2[j][i][2]  = splineB2((cent[lzs][j][i].y - y_c)/dy_c)*splineB1((cent[lzs][j][i].z - z_s)/dz_s);
+                    inflowWeights_tmp_2[j][i][3]  = splineB2((cent[lzs][j][i].y - y_c)/dy_c)*splineB1((cent[lzs][j][i].z - z_n)/dz_n);
+                    inflowWeights_tmp_2[j][i][4]  = splineB2((cent[lzs][j][i].y - y_e)/dy_e)*splineB1((cent[lzs][j][i].z - z_s)/dz_s);
+                    inflowWeights_tmp_2[j][i][5]  = splineB2((cent[lzs][j][i].y - y_e)/dy_e)*splineB1((cent[lzs][j][i].z - z_n)/dz_n);
+
+                    /*
+                    if(inflowWeights_tmp_2[j][i][0]+inflowWeights_tmp_2[j][i][1]+inflowWeights_tmp_2[j][i][2]+inflowWeights_tmp_2[j][i][3]+inflowWeights_tmp_2[j][i][4]+inflowWeights_tmp_2[j][i][5] != 1.0)
+                    {
+                        PetscPrintf(mesh->MESH_COMM, " --> Warning in function: i-spline non-normal weights at P = (0.0, %lf, %lf)\n", cent[lzs][j][i].y, cent[lzs][j][i].z);
+                        PetscPrintf(mesh->MESH_COMM, "W1 = %lf, W2 = %lf, W3 = %lf, W4 = %lf, W5 = %lf, W6 = %lf, SUM = %lf\n", inflowWeights_tmp_2[j][i][0], inflowWeights_tmp_2[j][i][1], inflowWeights_tmp_2[j][i][2], inflowWeights_tmp_2[j][i][3], inflowWeights_tmp_2[j][i][4], inflowWeights_tmp_2[j][i][5], inflowWeights_tmp_2[j][i][0]+inflowWeights_tmp_2[j][i][1]+inflowWeights_tmp_2[j][i][2]+inflowWeights_tmp_2[j][i][3]+inflowWeights_tmp_2[j][i][4]+inflowWeights_tmp_2[j][i][5]);
+                        PetscPrintf(mesh->MESH_COMM, "z_n  = %lf, z_s  = %lf\n",z_n, z_s);
+                        PetscPrintf(mesh->MESH_COMM, "j_n  = %ld, j_s  = %ld\n",j_n, j_s);
+                        PetscPrintf(mesh->MESH_COMM, "dz_n = %lf, dz_s = %lf\n",dz_n, dz_s);
+                        PetscPrintf(mesh->MESH_COMM, "y_w  = %lf, y_c  = %lf, y_e  = %lf\n", y_w, y_c, y_e);
+                        PetscPrintf(mesh->MESH_COMM, "i_w  = %ld, i_c  = %ld, i_e  = %ld\n", i_w, i_c, i_e);
+                        PetscPrintf(mesh->MESH_COMM, "dy_w = %lf, dy_c = %lf, dy_e = %lf\n", dy_w, dy_c, dy_e);
+                    }
+                    */
+
+                    // compute indices with periodicization
+
+                    // j south index periodicization
+                    if(j_s<=ifPtr->n1*ifPtr->prds1)
+                    {
+                        closestCells_tmp_2[j][i][0].j = j_s % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
+                        closestCells_tmp_2[j][i][2].j = j_s % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
+                        closestCells_tmp_2[j][i][4].j = j_s % ifPtr->n1 == 0 ? ifPtr->n1 : j_s % ifPtr->n1;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_2[j][i][0].j = ifPtr->n1;
+                        closestCells_tmp_2[j][i][2].j = ifPtr->n1;
+                        closestCells_tmp_2[j][i][4].j = ifPtr->n1;
+                    }
+
+                    // j north index periodicization
+                    if(j_n<=ifPtr->n1*ifPtr->prds1)
+                    {
+                        closestCells_tmp_2[j][i][1].j = j_n % ifPtr->n1 == 0 ? ifPtr->n1 : j_n % ifPtr->n1;
+                        closestCells_tmp_2[j][i][3].j = j_n % ifPtr->n1 == 0 ? ifPtr->n1 : j_n % ifPtr->n1;
+                        closestCells_tmp_2[j][i][5].j = j_n % ifPtr->n1 == 0 ? ifPtr->n1 : j_n % ifPtr->n1;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_2[j][i][1].j = ifPtr->n1;
+                        closestCells_tmp_2[j][i][3].j = ifPtr->n1;
+                        closestCells_tmp_2[j][i][5].j = ifPtr->n1;
+                    }
+
+                    // i west index periodicization
+                    if(i_w<=ifPtr->n2*ifPtr->prds2)
+                    {
+                        closestCells_tmp_2[j][i][0].i = i_w % ifPtr->n2 == 0 ? ifPtr->n2 : i_w % ifPtr->n2;
+                        closestCells_tmp_2[j][i][1].i = i_w % ifPtr->n2 == 0 ? ifPtr->n2 : i_w % ifPtr->n2;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_2[j][i][0].i = ifPtr->n2;
+                        closestCells_tmp_2[j][i][1].i = ifPtr->n2;
+                    }
+
+                    // i center index periodicization
+                    if(i_c<=ifPtr->n2*ifPtr->prds2)
+                    {
+                        closestCells_tmp_2[j][i][2].i = i_c % ifPtr->n2 == 0 ? ifPtr->n2 : i_c % ifPtr->n2;
+                        closestCells_tmp_2[j][i][3].i = i_c % ifPtr->n2 == 0 ? ifPtr->n2 : i_c % ifPtr->n2;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_2[j][i][2].i = ifPtr->n2;
+                        closestCells_tmp_2[j][i][3].i = ifPtr->n2;
+                    }
+
+                    // i east index periodicization
+                    if(i_e<=ifPtr->n2*ifPtr->prds2)
+                    {
+                        closestCells_tmp_2[j][i][4].i = i_e % ifPtr->n2 == 0 ? ifPtr->n2 : i_e % ifPtr->n2;
+                        closestCells_tmp_2[j][i][5].i = i_e % ifPtr->n2 == 0 ? ifPtr->n2 : i_e % ifPtr->n2;
+                    }
+                    // padding outside of periods (shouldn't end up here)
+                    else
+                    {
+                        closestCells_tmp_2[j][i][4].i = ifPtr->n2;
+                        closestCells_tmp_2[j][i][5].i = ifPtr->n2;
+                    }
+                }
             }
         }
 
@@ -1251,11 +1665,24 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
 		{
 			for (i=1; i<mx-1; i++)
 			{
-				MPI_Allreduce(&(closestCells_tmp[j][i][0]),  &(ifPtr->closestCells [j][i][0]), 12, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
-				MPI_Allreduce(&(inflowWeights_tmp[j][i][0]), &(ifPtr->inflowWeights[j][i][0]), 4, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
+                MPI_Allreduce(&(closestCells_tmp[j][i][0]),  &(ifPtr->closestCells [j][i][0]), 12, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
+                MPI_Allreduce(&(inflowWeights_tmp[j][i][0]), &(ifPtr->inflowWeights[j][i][0]), 4, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
 
-				//std::vector<  cellIds> ().swap(closestCells_tmp[j][i]);
-				//std::vector<PetscReal> ().swap(inflowWeights_tmp[j][i]);
+                std::vector<  cellIds> ().swap(closestCells_tmp[j][i]);
+				std::vector<PetscReal> ().swap(inflowWeights_tmp[j][i]);
+
+                if(ifPtr->interpMethod == "spline")
+                {
+                    MPI_Allreduce(&(closestCells_tmp_1[j][i][0]),  &(ifPtr->closestCells_1 [j][i][0]), 18, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
+                    MPI_Allreduce(&(inflowWeights_tmp_1[j][i][0]), &(ifPtr->inflowWeights_1[j][i][0]), 6, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
+                    MPI_Allreduce(&(closestCells_tmp_2[j][i][0]),  &(ifPtr->closestCells_2 [j][i][0]), 18, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
+                    MPI_Allreduce(&(inflowWeights_tmp_2[j][i][0]), &(ifPtr->inflowWeights_2[j][i][0]), 6, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
+
+                    std::vector<  cellIds> ().swap(closestCells_tmp_1[j][i]);
+    				std::vector<PetscReal> ().swap(inflowWeights_tmp_1[j][i]);
+                    std::vector<  cellIds> ().swap(closestCells_tmp_2[j][i]);
+    				std::vector<PetscReal> ().swap(inflowWeights_tmp_2[j][i]);
+                }
 			}
 		}
 
@@ -1268,6 +1695,18 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
 
 			ifPtr->inflowWeights [j][0]    = ifPtr->inflowWeights [j][mx-2];
 			ifPtr->inflowWeights [j][mx-1] = ifPtr->inflowWeights [j][1];
+
+            ifPtr->closestCells_1 [j][0]    = ifPtr->closestCells_1 [j][mx-2];
+			ifPtr->closestCells_1 [j][mx-1] = ifPtr->closestCells_1 [j][1];
+
+			ifPtr->inflowWeights_1 [j][0]    = ifPtr->inflowWeights_1 [j][mx-2];
+			ifPtr->inflowWeights_1 [j][mx-1] = ifPtr->inflowWeights_1 [j][1];
+
+            ifPtr->closestCells_2 [j][0]    = ifPtr->closestCells_2 [j][mx-2];
+			ifPtr->closestCells_2 [j][mx-1] = ifPtr->closestCells_2 [j][1];
+
+			ifPtr->inflowWeights_2 [j][0]    = ifPtr->inflowWeights_2 [j][mx-2];
+			ifPtr->inflowWeights_2 [j][mx-1] = ifPtr->inflowWeights_2 [j][1];
 		}
     }
 
