@@ -349,8 +349,24 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         clock->dt = clock->endTime - clock->time;
     }
 
-    clock->time = clock->time + clock->dt;
-
+    if(flags->isAdjustableTime)
+    {
+        clock->time = clock->time + clock->dt;
+    }
+    else 
+    {
+        //to exit when reaching end time 
+        if(clock->time + clock->dt > clock->endTime)
+        {
+            clock->time = clock->time + clock->dt;
+        }
+        else 
+        {
+            // this ensures there is no floating point addition error
+            clock->time = clock->startTime + (clock->it + 1) * clock->dt;
+        }
+    }
+    
     cfl = clock->dt / dxByU_min;
 
     PetscPrintf(PETSC_COMM_WORLD, "\n\nTime: %lf\n\n", clock->time);
