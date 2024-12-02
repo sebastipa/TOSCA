@@ -261,64 +261,43 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
 
         ibmObject   *ibmBody = ibm->ibmBody[i];
 
-        // read wall model
-        readSubDictWord("./IBM/IBMProperties.dat", objectName, "wallModelU", &(ibmBody->wallModelU));
-
         // read wall model properties
-        readSubDictWord("./IBM/IBMProperties.dat", objectName, "wallModelUProp", &(ibmBody->wallModelUProp));
+        readSubDictWord("./IBM/IBMProperties.dat", objectName, "velocityBCSetType", &(ibmBody->uBCSetType));
 
         //copy the wall model properties from the U boundary condition
-        if(ibmBody->wallModelUProp == "matchUiLeft")
+        if(ibmBody->uBCSetType == "matchUiLeft")
         {
             //check that the iLeft has a wall model bc
             if (mesh->boundaryU.iLeft == "velocityWallFunction")
             {
-                PetscInt wallModelType;
+                ibmBody->velocityBC = mesh->boundaryU.iLeft;
 
-                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(ibmBody->wallFunctionTypeU));
 
                 // allocate memory and connect pointers
-                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
 
-                if(wallModelType == -1)
+                //cabot model
+                if(ibmBody->wallFunctionTypeU == -1)
                 {
-                    if(ibmBody->wallModelU == "Cabot")
-                    {
-                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
 
-                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
 
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
-
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U iLeft bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
                 }
-                else if (wallModelType == -3)
+                else if (ibmBody->wallFunctionTypeU == -3)
                 {
-                    if(ibmBody->wallModelU == "Schumann")
-                    {
-                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
 
-                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
 
-                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U iLeft bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
                 }
                 else
                 {
@@ -328,64 +307,54 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 }
 
             }
+            else if (mesh->boundaryU.iLeft == "slip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.iLeft;
+            }
+            else if (mesh->boundaryU.iLeft == "noSlip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.iLeft;
+            }
             else
             {
                 char error[512];
-                sprintf(error, "wall model prop = %s. But U iLeft bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
-                fatalErrorInFunction("setIBMWallModels", error);
+                sprintf(error, "Cannot match BC set in iLeft to IBM boundary, set BC in IBM file\n");
+                fatalErrorInFunction("SetWallModels", error);
             }
         }
-        else if(ibmBody->wallModelUProp == "matchUiRight")
+        else if(ibmBody->uBCSetType == "matchUiRight")
         {
             //check that the iLeft has a wall model bc
             if (mesh->boundaryU.iRight == "velocityWallFunction")
             {
-                PetscInt wallModelType;
+                ibmBody->velocityBC = mesh->boundaryU.iRight;
 
-                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(ibmBody->wallFunctionTypeU));
 
                 // allocate memory and connect pointers
-                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
 
-                if(wallModelType == -1)
+                //cabot model
+                if(ibmBody->wallFunctionTypeU == -1)
                 {
-                    if(ibmBody->wallModelU == "Cabot")
-                    {
-                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
 
-                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
 
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
-
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U iRight bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
                 }
-                else if (wallModelType == -3)
+                else if (ibmBody->wallFunctionTypeU == -3)
                 {
-                    if(ibmBody->wallModelU == "Schumann")
-                    {
-                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
 
-                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
 
-                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U iRight bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
                 }
                 else
                 {
@@ -395,64 +364,54 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 }
 
             }
+            else if (mesh->boundaryU.iRight == "slip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.iRight;
+            }
+            else if (mesh->boundaryU.iRight == "noSlip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.iRight;
+            }
             else
             {
                 char error[512];
-                sprintf(error, "wall model prop = %s. But U iRight bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
-                fatalErrorInFunction("setIBMWallModels", error);
+                sprintf(error, "Cannot match BC set in iRight to IBM boundary, set BC in IBM file\n");
+                fatalErrorInFunction("SetWallModels", error);
             }
         }
-        else if(ibmBody->wallModelUProp == "matchUjLeft")
+        else if(ibmBody->uBCSetType == "matchUjLeft")
         {
             //check that the iLeft has a wall model bc
             if (mesh->boundaryU.jLeft == "velocityWallFunction")
             {
-                PetscInt wallModelType;
+                ibmBody->velocityBC = mesh->boundaryU.jLeft;
 
-                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(ibmBody->wallFunctionTypeU));
 
                 // allocate memory and connect pointers
-                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
 
-                if(wallModelType == -1)
+                //cabot model
+                if(ibmBody->wallFunctionTypeU == -1)
                 {
-                    if(ibmBody->wallModelU == "Cabot")
-                    {
-                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
 
-                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
 
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
-
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U jLeft bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
                 }
-                else if (wallModelType == -3)
+                else if (ibmBody->wallFunctionTypeU == -3)
                 {
-                    if(ibmBody->wallModelU == "Schumann")
-                    {
-                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
 
-                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
 
-                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U jLeft bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
                 }
                 else
                 {
@@ -462,64 +421,54 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 }
 
             }
+            else if (mesh->boundaryU.jLeft == "slip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.jLeft;
+            }
+            else if (mesh->boundaryU.jLeft == "noSlip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.jLeft;
+            }
             else
             {
                 char error[512];
-                sprintf(error, "wall model prop = %s. But U jLeft bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
-                fatalErrorInFunction("setIBMWallModels", error);
+                sprintf(error, "Cannot match BC set in jLeft to IBM boundary, set BC in IBM file\n");
+                fatalErrorInFunction("SetWallModels", error);
             }
         }
-        else if(ibmBody->wallModelUProp == "matchUjRight")
+        else if(ibmBody->uBCSetType == "matchUjRight")
         {
             //check that the iLeft has a wall model bc
             if (mesh->boundaryU.jRight == "velocityWallFunction")
             {
-                PetscInt wallModelType;
+                ibmBody->velocityBC = mesh->boundaryU.jRight;
 
-                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(ibmBody->wallFunctionTypeU));
 
                 // allocate memory and connect pointers
-                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
 
-                if(wallModelType == -1)
+                //cabot model
+                if(ibmBody->wallFunctionTypeU == -1)
                 {
-                    if(ibmBody->wallModelU == "Cabot")
-                    {
-                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
 
-                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
 
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
-
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U jRight bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
                 }
-                else if (wallModelType == -3)
+                else if (ibmBody->wallFunctionTypeU == -3)
                 {
-                    if(ibmBody->wallModelU == "Schumann")
-                    {
-                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
 
-                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
 
-                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U jRight bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
                 }
                 else
                 {
@@ -529,71 +478,493 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 }
 
             }
+            else if (mesh->boundaryU.jRight == "slip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.jRight;
+            }
+            else if (mesh->boundaryU.jRight == "noSlip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.jRight;
+            }
             else
             {
                 char error[512];
-                sprintf(error, "wall model prop = %s. But U jRight bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
+                sprintf(error, "Cannot match BC set in jRight to IBM boundary, set BC in IBM file\n");
+                fatalErrorInFunction("SetWallModels", error);
+            }
+        }
+        else if (ibmBody->uBCSetType == "setHere")
+        {
+            readSubDictWord("./IBM/IBMProperties.dat", objectName, "velocityBC", &(ibmBody->velocityBC));
+
+            if (ibmBody->velocityBC == "velocityWallFunction")
+            {
+
+                //set theta wall function type
+                readSubDictInt("./IBM/IBMProperties.dat", objectName, "wallFunctionTypeU", &(ibmBody->wallFunctionTypeU));
+
+                // allocate memory and connect pointers
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
+
+                if (ibmBody->wallFunctionTypeU == -1)
+                {
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
+
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
+
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                }
+                else if (ibmBody->wallFunctionTypeU == -3)
+                {
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
+
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
+
+                    readSubDictWord  ("./IBM/IBMProperties.dat", objectName, "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",     &(wm->kappa));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "gammaM",    &(wm->gammaM));
+                }
+                else if (ibmBody->wallFunctionTypeU == -4)
+                {
+                    PetscMalloc(sizeof(PowerLawAPG), &(ibmBody->ibmWallModelU->wmPowerLawAPG));
+
+                    PowerLawAPG *wm = ibmBody->ibmWallModelU->wmPowerLawAPG;
+
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                }
+                else if (ibmBody->wallFunctionTypeU == -5)
+                {
+                    PetscMalloc(sizeof(LogLawAPG), &(ibmBody->ibmWallModelU->wmLogLawAPG));
+
+                    LogLawAPG *wm = ibmBody->ibmWallModelU->wmLogLawAPG;
+
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+                    fatalErrorInFunction("setIBMWallModels", error); 
+                }
+            }
+
+            else if (ibmBody->velocityBC == "slip")
+            {
+
+            }
+            else if (ibmBody->velocityBC == "noSlip")
+            {
+
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "invalid velocity boundary condition chosen. Please use option velocityWallFunction or slip/noSlip conditions\n");
                 fatalErrorInFunction("setIBMWallModels", error);
             }
         }
-        else if (ibmBody->wallModelUProp == "setHere")
+
+        if(flags->isTeqnActive)
         {
-            // allocate memory and connect pointers
-            PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+            //read temperature BC set type
+            readSubDictWord("./IBM/IBMProperties.dat", objectName, "temperatureBCSetType", &(ibmBody->tBCSetType));
 
-            if(ibmBody->wallModelU == "Cabot")
+            //copy the temperature BC type from the temperature boundary file
+            if(ibmBody->tBCSetType == "matchTiLeft")
             {
-                PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                if (mesh->boundaryT.iLeft == "thetaWallFunction")
+                {
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-                Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    ibmBody->tempBC = mesh->boundaryT.iLeft;
 
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                    //set theta wall function type
+                    readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(ibmBody->wallFunctionTypeT));
 
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(mesh->boundaryT.iLeft == "zeroGradient")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iLeft;
+                }
+                else if(mesh->boundaryT.iLeft == "fixedValue")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iLeft;
+                    ibmBody->fixedTemp = mesh->boundaryT.iLval;
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Cannot match BC set in iLeft to IBM boundary, set BC in IBM file\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
-            else if (ibmBody->wallModelU == "Schumann")
+            else if(ibmBody->tBCSetType == "matchTiRight")
             {
-                PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                if (mesh->boundaryT.iRight == "thetaWallFunction")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iRight;
 
-                Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-                readSubDictWord  ("./IBM/IBMProperties.dat", objectName, "uStarEval", &(wm->wfEvalType));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",     &(wm->kappa));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "thetaRef",  &(wm->thetaRef));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness",    &(wm->roughness));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "gammaM",    &(wm->gammaM));
+                    //set theta wall function type
+                    readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(ibmBody->wallFunctionTypeT));
+
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(mesh->boundaryT.iRight == "zeroGradient")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iRight;
+                }
+                else if(mesh->boundaryT.iRight == "fixedValue")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iRight;
+                    ibmBody->fixedTemp = mesh->boundaryT.iRval;
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Cannot match BC set in iRight to IBM boundary, set BC in IBM file\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
-            else if (ibmBody->wallModelU == "PowerLawAPG")
+            else if(ibmBody->tBCSetType == "matchTjLeft")
             {
-                PetscMalloc(sizeof(PowerLawAPG), &(ibmBody->ibmWallmodel->wmPowerLawAPG));
+                if (mesh->boundaryT.jLeft == "thetaWallFunction")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jLeft;
 
-                PowerLawAPG *wm = ibmBody->ibmWallmodel->wmPowerLawAPG;
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                    //set theta wall function type
+                    readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(ibmBody->wallFunctionTypeT));
+
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -4)
+                    {
+
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+
+                        //read the surface temp and Obhukhov length 
+                        readSurfaceTempData(wm);
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3, -4 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(mesh->boundaryT.jLeft == "zeroGradient")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jLeft;
+                }
+                else if(mesh->boundaryT.jLeft == "fixedValue")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jLeft;
+                    ibmBody->fixedTemp = mesh->boundaryT.jLval;
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Cannot match BC set in jLeft to IBM boundary, set BC in IBM file\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
-            else if (ibmBody->wallModelU == "LogLawAPG")
+            else if(ibmBody->tBCSetType == "matchTjRight")
             {
-                PetscMalloc(sizeof(LogLawAPG), &(ibmBody->ibmWallmodel->wmLogLawAPG));
+                if (mesh->boundaryT.jRight == "thetaWallFunction")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jRight;
 
-                LogLawAPG *wm = ibmBody->ibmWallmodel->wmLogLawAPG;
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                    //set theta wall function type
+                    readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(ibmBody->wallFunctionTypeT));
+
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(mesh->boundaryT.jRight == "zeroGradient")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jRight;
+                }
+                else if(mesh->boundaryT.jRight == "fixedValue")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jRight;
+                    ibmBody->fixedTemp = mesh->boundaryT.jRval;
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Cannot match BC set in jRight to IBM boundary, set BC in IBM file\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
-            else if (ibmBody->wallModelU == "slip")
+            else if(ibmBody->tBCSetType == "setHere")
             {
+                readSubDictWord("./IBM/IBMProperties.dat", objectName, "temperatureBC", &(ibmBody->tempBC));
 
-            }
-            else if (ibmBody->wallModelU == "noSlip")
-            {
+                if (ibmBody->tempBC == "thetaWallFunction")
+                {
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-            }
-            else
-            {
-                char error[512];
-                sprintf(error, "invalid wall model chosen. Please use option Cabot or Schumann \n");
-                fatalErrorInFunction("setIBMWallModels", error);
+                    //set theta wall function type
+                    readSubDictInt("./IBM/IBMProperties.dat", objectName, "wallFunctionTypeT", &(ibmBody->wallFunctionTypeT));
+
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -4)
+                    {
+
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+
+                        //read the surface temp and Obhukhov length 
+                        readSurfaceTempData(wm);
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3, -4 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(ibmBody->tempBC == "zeroGradient")
+                {
+                }
+                else if(ibmBody->tempBC == "fixedValue")
+                {
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "fixedValueT", &(ibmBody->fixedTemp));
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Invalid temperature BC type, use temperatureWallFunction, zeroGradient or fixedValue\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
         }
     }
@@ -971,12 +1342,12 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
                     Cmpnts tauWall = nSetZero();
 
-                    if(ibmBody->wallModelU != "slip")
+                    if(ibmBody->velocityBC != "slip")
                     {
                         //friction velocity
                         ustar = uTauCabot(cst->nu, ut, sc, 0.01, 0);
 
-                        if(ibmBody->wallModelU == "noSlip")
+                        if(ibmBody->velocityBC == "noSlip")
                         {
                             tauWall = nScale(eA * cst->rho * cst->nu * ut/sc, nUnit(utV));
                         }
@@ -991,7 +1362,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     //sum total pressure and viscous force
                     mSum(lPForce[b], ibmBody->ibmPForce[e]);
 
-                    if(ibmBody->wallModelU != "Slip")
+                    if(ibmBody->velocityBC != "Slip")
                     {
                         mSum(lVForce[b], tauWall);
                     }
@@ -1005,7 +1376,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
                         Cmpnts pressureMoment = nCross(rvec, ibmBody->ibmPForce[e]), viscousMoment;
 
-                        if(ibmBody->wallModelU != "slip")
+                        if(ibmBody->velocityBC != "slip")
                         {
                             viscousMoment  = nCross(rvec, tauWall);
                         }
@@ -3233,32 +3604,35 @@ PetscErrorCode CurvibInterpolationTriangular(ibm_ *ibm)
         sb = nDot(nSub(cent[k][j][i], ibF[c].pMin), eNorm);
         sc = nDot(nSub(bPt, ibF[c].pMin), eNorm);
 
-        if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
         {
-            Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot;
-
-            if(wm->roughness > 1.0e-12)
+            if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
             {
-                wallFunctionCabotRoughness(cst->nu, wm->roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+                Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot;
+
+                if(wm->roughness > 1.0e-12)
+                {
+                    wallFunctionCabotRoughness(cst->nu, wm->roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+                }
+                else
+                {
+                    wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+                }
             }
-            else
+            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
             {
-                wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
-            }
-        }
-        else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
-        {
-            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
+                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
 
-            wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                                    bPtVel, &ucat[k][j][i], &ustar, eNorm);
+                wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                                        bPtVel, &ucat[k][j][i], &ustar, eNorm);
 
+            } 
         }
-        else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "slip")
+        else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "slip")
         {
             slipBC(sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], eNorm);
         }
-        else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "noSlip")
+        else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "noSlip")
         {
             ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
             ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
@@ -3909,7 +4283,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     PetscReal     ***lt, ***temp, ***aj, ***nvert, ***lp, ***p;
     Cmpnts        bPt, bPtInit;
     Cmpnts        bPtVel, ibmPtVel, ibmPtVelPrev;
-    PetscReal     nfMag, cellSize, bPtTemp, bPtPres;
+    PetscReal     nfMag, cellSize, bPtTemp, bPtPres, elemDist;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
     DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
@@ -3947,7 +4321,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         PetscReal  roughness;
 
         // background mesh projection point is taken 0.5 cell distance along the normal directional of the closest ibm mesh element
-        cellSize = 1.0 * ibF[c].minDist;
+        elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
+        cellSize = 1.0 * elemDist;
         bPt = nScale(cellSize, eNorm);
         mSum(bPt, cent[k][j][i]);
 
@@ -4189,20 +4564,15 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                          + ibMsh->nUPrev[n3].z * ibF[c].cs3;
 
          //find the distance from the wall of points b and c along the element normal
-         sb = ibF[c].minDist;
+         sb = elemDist;
          sc = sb + cellSize;
 
-         if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+         if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
          {
-             Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot;
+            if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+            {
+                Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot;
 
-            if(ibm->wallShearOn)
-            {
-                wallShearVelocityBC(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                            bPtVel, &ucat[k][j][i], &ustar, eNorm);
-            }
-            else
-            {
                 if(roughness > 1.0e-12)
                 {
                     wallFunctionCabotRoughness(cst->nu, wm->roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
@@ -4212,96 +4582,97 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                     wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
                 }
             }
+            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -4 || ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -5)
+            {
+                PetscReal roughness, kappa;
+
+                if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -4)
+                {
+                    roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmPowerLawAPG->roughness;
+                    kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmPowerLawAPG->kappa;
+                }
+
+                if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -5)
+                {
+                    roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmLogLawAPG->roughness;
+                    kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmLogLawAPG->kappa;
+                }
+
+                //find the pressure gradient in the tangential direction
+                PetscReal dpdc, dpde, dpdz;
+                PetscReal dp_dx, dp_dy, dp_dz;
+
+                PetscReal csi0 = csi[k][j][i].x,
+                        csi1 = csi[k][j][i].y,
+                        csi2 = csi[k][j][i].z;
+                PetscReal eta0 = eta[k][j][i].x,
+                        eta1 = eta[k][j][i].y,
+                        eta2 = eta[k][j][i].z;
+                PetscReal zet0 = zet[k][j][i].x,
+                        zet1 = zet[k][j][i].y,
+                        zet2 = zet[k][j][i].z;
+                PetscReal ajc  = aj[k][j][i];
+
+                Compute_dscalar_center
+                (
+                    mesh,
+                    i, j, k, mx, my, mz, lp, nvert, &dpdc, &dpde, &dpdz
+                );
+
+                Compute_dscalar_dxyz
+                (
+                    mesh,
+                    csi0, csi1, csi2, eta0, eta1, eta2,
+                    zet0, zet1, zet2, ajc, dpdc, dpde, dpdz, &dp_dx,
+                    &dp_dy, &dp_dz
+                );
+
+                if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -4)
+                {
+                    wallFunctionPowerlawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
+                                            bPtVel, &ucat[k][j][i], &ustar, eNorm,
+                                            dp_dx, dp_dy, dp_dz);
+                }
+
+                if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -5)
+                {
+                    wallFunctionLogLawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
+                                            bPtVel, &ucat[k][j][i], &ustar, eNorm,
+                                            dp_dx, dp_dy, dp_dz);
+                }
+            }
+            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+            {
+                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
+
+                wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                                bPtVel, &ucat[k][j][i], &ustar, eNorm);
+
+            }
          }
-         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
-         {
-             PetscReal roughness, kappa;
-
-             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG")
-             {
-                 roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmPowerLawAPG->roughness;
-                 kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmPowerLawAPG->kappa;
-             }
-
-             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
-             {
-                 roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmLogLawAPG->roughness;
-                 kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmLogLawAPG->kappa;
-             }
-
-             //find the pressure gradient in the tangential direction
-             PetscReal dpdc, dpde, dpdz;
-             PetscReal dp_dx, dp_dy, dp_dz;
-
-             PetscReal csi0 = csi[k][j][i].x,
-                       csi1 = csi[k][j][i].y,
-                       csi2 = csi[k][j][i].z;
-             PetscReal eta0 = eta[k][j][i].x,
-                       eta1 = eta[k][j][i].y,
-                       eta2 = eta[k][j][i].z;
-             PetscReal zet0 = zet[k][j][i].x,
-                       zet1 = zet[k][j][i].y,
-                       zet2 = zet[k][j][i].z;
-             PetscReal ajc  = aj[k][j][i];
-
-             Compute_dscalar_center
-             (
-                 mesh,
-                 i, j, k, mx, my, mz, lp, nvert, &dpdc, &dpde, &dpdz
-             );
-
-             Compute_dscalar_dxyz
-             (
-                 mesh,
-                 csi0, csi1, csi2, eta0, eta1, eta2,
-                 zet0, zet1, zet2, ajc, dpdc, dpde, dpdz, &dp_dx,
-                 &dp_dy, &dp_dz
-             );
-
-             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG")
-             {
-                 wallFunctionPowerlawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
-                                         bPtVel, &ucat[k][j][i], &ustar, eNorm,
-                                         dp_dx, dp_dy, dp_dz);
-             }
-
-             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
-             {
-                 wallFunctionLogLawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
-                                         bPtVel, &ucat[k][j][i], &ustar, eNorm,
-                                         dp_dx, dp_dy, dp_dz);
-             }
-         }
-         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "slip")
+         else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "slip")
          {
              slipBC(sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], eNorm);
          }
-         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "noSlip")
+         else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "noSlip")
          {
              ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
              ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
              ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
          }
-         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
-         {
-            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
 
-            if(ibm->wallShearOn)
-            {
-                wallShearVelocityBC(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                            bPtVel, &ucat[k][j][i], &ustar, eNorm);
-            }
-            else
-            {
-                wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                            bPtVel, &ucat[k][j][i], &ustar, eNorm);
-            }
-
-         }
 
          if (flags->isTeqnActive)
          {
-             temp[k][j][i] =  bPtTemp;
+            if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "zeroGradient" || ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
+            {
+                //apply zerogradient boundary condition. effect of boundary through heat flux bc
+                temp[k][j][i] =  bPtTemp;
+            }
+            else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "fixedValue")
+            {
+                temp[k][j][i] =  ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
+            }
          }
 
          // save the element acceleration term (dudt . elementNormal)
@@ -4367,7 +4738,7 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
     PetscReal     ***lt, ***temp, ***aj, ***nvert, ***lp, ***p;
     Cmpnts        bPt1, bPt2, bPtInit;
     Cmpnts        bPt1Vel, bPt2Vel, ibmPtVel, ibmPtVelPrev;
-    PetscReal     nfMag, cellSize, bPt1Temp, bPt2Temp, ibmPtTemp, bPt1Pres, bPt2Pres, ibmPtPres;
+    PetscReal     nfMag, cellSize, bPt1Temp, bPt2Temp, ibmPtTemp, bPt1Pres, bPt2Pres, ibmPtPres, elemDist;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
     DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
@@ -4408,8 +4779,11 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
             Interpolation of the first background point field
         /*******************************************************************************************************/
 
+        // distance from cell to the IBM element
+        elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
+
         // background mesh projection point
-        cellSize = 1.0 * ibF[c].minDist;
+        cellSize = 1.0 * elemDist;
         bPt1 = nScale(cellSize, eNorm);
         mSum(bPt1, cent[k][j][i]);
 
@@ -4802,11 +5176,11 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
         /*******************************************************************************************************/
 
          //find the distance from the wall of points b and c along the element normal
-         sb = ibF[c].minDist;
+         sb = elemDist;
          sc = sb + nMag(nSub(bPt1, cent[k][j][i]));
          sd = sc + nMag(nSub(bPt2, bPt1));
 
-        if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "noSlip")
+        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "noSlip")
         {
             //find quadratic interpolation coefficients a and b
             PetscReal a1, a2, a3, b1, b2, b3, denom;
@@ -4840,32 +5214,19 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
             }
 
         }
-        else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
+        else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
         {
-            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
+            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+            {
+                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
 
-            if(ibm->wallShearOn)
-            {
-                wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                        bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
-            }
-            else 
-            {
                 wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                    bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
+                        bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
             }
-        }
-        else if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
-        {
-            Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot;
+            else if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+            {
+                Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot;
 
-            if(ibm->wallShearOn)
-            {
-                wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                        bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
-            }
-            else
-            {
                 if(roughness > 1.0e-12)
                 {
                     wallFunctionCabotRoughness(cst->nu, wm->roughness, sc, sb, ibmPtVel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
@@ -4876,6 +5237,7 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
                 }
             }
         }
+
 
          //pressure and temperature boundary condition - neumann
          PetscReal aTemp, bTemp, cTemp, aP, bP, cP;
@@ -4895,18 +5257,31 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
 
          if (flags->isTeqnActive)
          {
-             bTemp = 0.0;
-             aTemp = (bPt2Temp - bPt1Temp)/(sd*sd - sc*sc);
-             cTemp = bPt1Temp - aTemp*sc*sc;
-
-             if(intFlag == 2 || (intFlag == 1 && ibmCellCtr > 0))
-             {
+            if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "zeroGradient" || ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
+            {
+                //apply zerogradient boundary condition. effect of boundary through heat flux bc
                 temp[k][j][i] =  bPt1Temp;
-             }
-             else
-             {
-                temp[k][j][i] = aTemp * sb * sb + cTemp;
-             }
+            }
+            else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "fixedValue")
+            {
+                temp[k][j][i] =  ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
+            }
+            // interpolated from the two background cells
+            // else 
+            // {
+            //     bTemp = 0.0;
+            //     aTemp = (bPt2Temp - bPt1Temp)/(sd*sd - sc*sc);
+            //     cTemp = bPt1Temp - aTemp*sc*sc;
+
+            //     if(intFlag == 2 || (intFlag == 1 && ibmCellCtr > 0))
+            //     {
+            //         temp[k][j][i] =  bPt1Temp;
+            //     }
+            //     else
+            //     {
+            //         temp[k][j][i] = aTemp * sb * sb + cTemp;
+            //     }
+            // }
          }
     }
 
@@ -4942,9 +5317,11 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
 {
     mesh_         *mesh  = ibm->access->mesh;
     ueqn_         *ueqn  = ibm->access->ueqn;
+    teqn_         *teqn  = ibm->access->teqn;
     les_          *les   = ibm->access->les;
     clock_        *clock = ibm->access->clock;
     constants_    *cst   = ibm->access->constants;
+    flags_        *flags = ibm->access->flags;
 
     DM            da    = mesh->da, fda = mesh->fda;
     DMDALocalInfo info  = mesh->info;
@@ -4963,7 +5340,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     PetscReal     dxdc, dxde, dxdz, dydc, dyde, dydz, dzdc, dzde, dzdz;
     PetscReal     dudc, dude, dudz, dvdc, dvde, dvdz, dwdc, dwde, dwdz;      // velocity der. w.r.t. curvil. coords
 
-    PetscReal     nu = cst->nu, nut, uTmag, ustar, cellSize;
+    PetscReal     nu = cst->nu, nut, uTmag, ustar, cellSize, elemDist;
     PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2, ajc;      // surface area vectors components
 
     PetscReal     g11, g21, g31;                                             // metric tensor components
@@ -4979,7 +5356,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     cellIds       initCp;
     Vec           Coor;
     Cmpnts        ***coor, ***ucat, ***cent, ibmPtVel;
-    Cmpnts        ***visc1, ***visc2, ***visc3;
+    Cmpnts        ***visc1, ***visc2, ***visc3, ***viscT;
 
     Cmpnts	      ***icsi, ***ieta, ***izet;
 	Cmpnts	      ***jcsi, ***jeta, ***jzet;
@@ -4988,7 +5365,8 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     Cmpnts        uC, uN, uT, uB;                          // background point velocity, its normal and tangential components
     Cmpnts        bPtVel, bPt, bPtInit;
     Cmpnts        eN, eT1, eT2;                          // local wall normal co-ordinate system
-    PetscReal     ***nvert, ***iaj, ***jaj, ***kaj, ***aj, ***lnu_t;
+    PetscReal     ***nvert, ***iaj, ***jaj, ***kaj, ***aj, ***lt, ***lnu_t;
+    PetscReal     bPtTemp;
 
     //local pointer for ibmFluidCells
     ibmFluidCell  *ibF = ibm->ibmFCells;
@@ -5006,6 +5384,11 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     VecSet(ueqn->lViscIBM2,  0.0);
     VecSet(ueqn->lViscIBM3,  0.0);
 
+    if(flags->isTeqnActive)
+    {
+        VecSet(teqn->lViscIBMT,  0.0);
+    }
+
     DMGetCoordinatesLocal(da, &Coor);
     DMDAVecGetArray(fda, Coor, &coor);
 
@@ -5017,6 +5400,12 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     DMDAVecGetArray(fda, ueqn->lViscIBM1, &visc1);
     DMDAVecGetArray(fda, ueqn->lViscIBM2, &visc2);
     DMDAVecGetArray(fda, ueqn->lViscIBM3, &visc3);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecGetArray(fda, teqn->lViscIBMT, &viscT);
+        DMDAVecGetArray(da, teqn->lTmprt, &lt);
+    }
 
     DMDAVecGetArray(fda, mesh->lICsi, &icsi);
 	DMDAVecGetArray(fda, mesh->lIEta, &ieta);
@@ -5054,13 +5443,18 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
         PetscInt      cElem = ibF[c].closestElem;
         Cmpnts	      eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
-        PetscReal     tauWall, sb;
+        PetscReal     tauWall, sb, qWall = 0;
+        Cmpnts        qFlux;
 
         //find the distance from the wall where velocity is interpolated
         //a uniform distance from the wall is chosen for all ibm fluid points to prevent instabilities due to the stair step structure
-        cellSize = pow( 1./aj[k][j][i], 1./3.);
-        bPt = nScale(2.0 * cellSize, eNorm);
-        mSum(bPt, ibF[c].pMin);
+        cellSize = ibm->interpDist;
+
+        // distance from cell to the IBM element
+        elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
+
+        bPt = nScale(cellSize + elemDist, eNorm);
+        mSum(bPt, cent[k][j][i]);
 
         //check the neighbourhood of current ibm fluid cell for fluid cells
         //find the fluid - ibm fluid cell interface faces
@@ -5177,7 +5571,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                     {
                         char error[512];
                         sprintf(error, "no closest fluid cell to ibm fluid %ld %ld %ld\n", k, j, i);
-                        fatalErrorInFunction("findIBMWallShear",  error);
+                        fatalErrorInFunction("findIBMWallShearChester",  error);
                     }  
 
                     PetscInt intId[6];
@@ -5299,6 +5693,19 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                                     ucat,
                                     bPtVel
                             );
+
+                            if(flags->isTeqnActive)
+                            {
+                                scalarPointLocalVolumeInterpolation
+                                (
+                                        mesh,
+                                        bPt.x, bPt.y, bPt.z,
+                                        ic, jc, kc,
+                                        cent,
+                                        lt,
+                                        bPtTemp
+                                );
+                            }
                         }
                     }
 
@@ -5307,13 +5714,19 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                     {
                         bPtVel = nSet(ucat[initCp.k][initCp.j][initCp.i]);
 
+                        if(flags->isTeqnActive)
+                        {
+                            bPtTemp = lt[initCp.k][initCp.j][initCp.i];
+                        }
+
                         bPt = nSet(bPtInit);
 
                         ic = initCp.i;
                         jc = initCp.j;
                         kc = initCp.k;
                     }
-
+                    
+                    // distance of background point from the wall
                     sb = nDot(nSub(bPt, ibF[c].pMin), eNorm);
 
                     //velocity in local co-ordinate system
@@ -5322,25 +5735,90 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                     uT = nSub(bPtVel, uN);
                     uTmag = nMag(uT);
 
-                    if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                    if (flags->isTeqnActive)
                     {
-                        PetscReal roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot->roughness;
-
-                        if(roughness > 1.0e-12)
+                        if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
                         {
-                            ustar = uTauCabotRoughness(nu, uTmag, sb, 0.01, 0, roughness);
+                            if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -3)
+                            {
 
-                        }
-                        else
-                        {
-                            ustar = uTauCabot(nu, uTmag, sb, 0.01, 0);
+                            }
+                            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -2)
+                            {
+                                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
+
+                                qWall  = wm->qWall;
+                            }
+                            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -4)
+                            {
+
+                                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
+                                
+                                // find interpolation weights for surface temp
+                                PetscReal w[2];
+                                PetscInt  l[2];
+
+                                findInterpolationWeights(w, l, wm->timeVec, wm->numT, clock->time);
+
+                                //interpolate the surface temperature from closest available mesoscale times
+                                PetscReal surfaceTemp = w[0] * wm->surfTemp[l[0]] + w[1] * wm->surfTemp[l[1]];
+                                PetscReal surfaceL;
+
+                                PetscReal deltaTheta = bPtTemp - surfaceTemp;
+                                PetscReal phiM, phiH;
+                                
+                                qWallShumann
+                                (
+                                    uTmag, sb, wm->roughness,
+                                    wm->gammaM, wm->gammaH, wm->alphaH,
+                                    wm->thetaRef, deltaTheta, wm->kappa,
+                                    qWall, ustar, phiM, phiH, surfaceL
+                                );
+
+                                // if(i  == 5 && k == 5 && j == 5)
+                                //     PetscPrintf(PETSC_COMM_SELF, "surfTemp = %lf, L = %lf, bPtTemp = %lf, deltaTheta = %lf, qWall = %lf, ustar = %lf, utmag = %lf, walldist = %lf, wts = %lf %lf, ind = %ld\n", surfaceTemp, surfaceL, bPtTemp, deltaTheta, qWall, ustar, uTmag, sb, w[0], w[1], l[0]);
+                            }
                         }
                     }
-                    else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
-                    {
-                        Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
 
-                        ustar = uTmag * wm->kappa / std::log(sb/wm->roughness);
+                    if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
+                    {
+                        if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                        {
+                            PetscReal roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot->roughness;
+
+                            if(roughness > 1.0e-12)
+                            {
+                                ustar = uTauCabotRoughness(nu, uTmag, sb, 0.01, 0, roughness);
+
+                            }
+                            else
+                            {
+                                ustar = uTauCabot(nu, uTmag, sb, 0.01, 0);
+                            }
+                        }
+                        else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+                        {
+                            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
+                            PetscReal phiM, L;
+
+                            uStarShumann
+                            (
+                                uTmag, sb, wm->roughness,
+                                wm->gammaM, wm->kappa, qWall, wm->thetaRef,
+                                ustar, phiM, L
+                            );
+
+                            // if(i  == 5 && k == 5 && j == 5)
+                            //     PetscPrintf(PETSC_COMM_SELF, "qWall = %lf, ustar = %lf, utmag = %lf, walldist = %lf\n", qWall, ustar, uTmag, sb);
+
+                        }
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall shear model is on but velocity BC is not set to velocityWallFunction\n");
+                        fatalErrorInFunction("findIBMWallShearChester", error);
                     }
 
                     //local co-ordinate system
@@ -5374,18 +5852,36 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                         visc3[k][j][i].x = tau11* kzet[k1][j1][i1].x + tau12 * kzet[k1][j1][i1].y + tau13 * kzet[k1][j1][i1].z;
                         visc3[k][j][i].y = tau21* kzet[k1][j1][i1].x + tau22 * kzet[k1][j1][i1].y + tau23 * kzet[k1][j1][i1].z;
                         visc3[k][j][i].z = tau31* kzet[k1][j1][i1].x + tau32 * kzet[k1][j1][i1].y + tau33 * kzet[k1][j1][i1].z;
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].z = qFlux.x * kzet[k1][j1][i1].x + qFlux.y * kzet[k1][j1][i1].y + qFlux.z * kzet[k1][j1][i1].z;
+                        }
                     }
                     else if(isFace == 3 || isFace == 4)
                     {
                         visc2[k][j][i].x = tau11* jeta[k1][j1][i1].x + tau12 * jeta[k1][j1][i1].y + tau13 * jeta[k1][j1][i1].z;
                         visc2[k][j][i].y = tau21* jeta[k1][j1][i1].x + tau22 * jeta[k1][j1][i1].y + tau23 * jeta[k1][j1][i1].z;
                         visc2[k][j][i].z = tau31* jeta[k1][j1][i1].x + tau32 * jeta[k1][j1][i1].y + tau33 * jeta[k1][j1][i1].z;
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].y = qFlux.x * jeta[k1][j1][i1].x + qFlux.y * jeta[k1][j1][i1].y + qFlux.z * jeta[k1][j1][i1].z;
+                        }
                     }
                     else if(isFace == 5 || isFace == 6)
                     {
                         visc1[k][j][i].x = tau11* icsi[k1][j1][i1].x + tau12 * icsi[k1][j1][i1].y + tau13 * icsi[k1][j1][i1].z;
                         visc1[k][j][i].y = tau21* icsi[k1][j1][i1].x + tau22 * icsi[k1][j1][i1].y + tau23 * icsi[k1][j1][i1].z;
                         visc1[k][j][i].z = tau31* icsi[k1][j1][i1].x + tau32 * icsi[k1][j1][i1].y + tau33 * icsi[k1][j1][i1].z;
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].x = qFlux.x * icsi[k1][j1][i1].x + qFlux.y * icsi[k1][j1][i1].y + qFlux.z * icsi[k1][j1][i1].z;
+                        }
                     }
 
                 }
@@ -5426,6 +5922,14 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
         DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
     }
 
+    if (flags->isTeqnActive)
+    {
+        DMDAVecRestoreArray(fda, teqn->lViscIBMT, &viscT);
+        DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+        DMLocalToLocalBegin(fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);
+        DMLocalToLocalEnd  (fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);
+    }
+
     DMLocalToLocalBegin(fda, ueqn->lViscIBM1, INSERT_VALUES, ueqn->lViscIBM1);
     DMLocalToLocalEnd  (fda, ueqn->lViscIBM1, INSERT_VALUES, ueqn->lViscIBM1);
     DMLocalToLocalBegin(fda, ueqn->lViscIBM2, INSERT_VALUES, ueqn->lViscIBM2);
@@ -5441,9 +5945,11 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 {
     mesh_         *mesh  = ibm->access->mesh;
     ueqn_         *ueqn  = ibm->access->ueqn;
+    teqn_         *teqn  = ibm->access->teqn;
     les_          *les   = ibm->access->les;
     clock_        *clock = ibm->access->clock;
     constants_    *cst   = ibm->access->constants;
+    flags_        *flags = ibm->access->flags;
 
     DM            da    = mesh->da, fda = mesh->fda;
     DMDALocalInfo info  = mesh->info;
@@ -5462,7 +5968,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     PetscReal     dxdc, dxde, dxdz, dydc, dyde, dydz, dzdc, dzde, dzdz;
     PetscReal     dudc, dude, dudz, dvdc, dvde, dvdz, dwdc, dwde, dwdz;      // velocity der. w.r.t. curvil. coords
 
-    PetscReal     nu = cst->nu, nut, uTmag, ustar, cellSize;
+    PetscReal     nu = cst->nu, nut, uTmag, ustar, cellSize, elemDist;
     PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2, ajc;      // surface area vectors components
 
     PetscReal     g11, g21, g31;                                             // metric tensor components
@@ -5478,7 +5984,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     cellIds       initCp;
     Vec           Coor;
     Cmpnts        ***coor, ***ucat, ***cent, ibmPtVel;
-    Cmpnts        ***visc1, ***visc2, ***visc3;
+    Cmpnts        ***visc1, ***visc2, ***visc3, ***viscT;
 
     Cmpnts	      ***icsi, ***ieta, ***izet;
 	Cmpnts	      ***jcsi, ***jeta, ***jzet;
@@ -5487,7 +5993,8 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     Cmpnts        uC, uN, uT, uB;                          // background point velocity, its normal and tangential components
     Cmpnts        bPtVel, bPt, bPtInit;
     Cmpnts        eN, eT1, eT2;                          // local wall normal co-ordinate system
-    PetscReal     ***nvert, ***iaj, ***jaj, ***kaj, ***aj, ***lnu_t;
+    PetscReal     ***nvert, ***iaj, ***jaj, ***kaj, ***aj, ***lt, ***lnu_t;
+    PetscReal     bPtTemp;
 
     //local pointer for ibmFluidCells
     ibmFluidCell  *ibF = ibm->ibmFCells;
@@ -5505,6 +6012,11 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     VecSet(ueqn->lViscIBM2,  0.0);
     VecSet(ueqn->lViscIBM3,  0.0);
 
+    if(flags->isTeqnActive)
+    {
+        VecSet(teqn->lViscIBMT,  0.0);
+    }
+
     DMGetCoordinatesLocal(da, &Coor);
     DMDAVecGetArray(fda, Coor, &coor);
 
@@ -5516,6 +6028,12 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     DMDAVecGetArray(fda, ueqn->lViscIBM1, &visc1);
     DMDAVecGetArray(fda, ueqn->lViscIBM2, &visc2);
     DMDAVecGetArray(fda, ueqn->lViscIBM3, &visc3);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecGetArray(fda, teqn->lViscIBMT, &viscT);
+        DMDAVecGetArray(da, teqn->lTmprt, &lt);
+    }
 
     DMDAVecGetArray(fda, mesh->lICsi, &icsi);
 	DMDAVecGetArray(fda, mesh->lIEta, &ieta);
@@ -5553,13 +6071,18 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
         PetscInt      cElem = ibF[c].closestElem;
         Cmpnts	      eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
-        PetscReal     tauWall, sb;
+        PetscReal     tauWall, sb, qWall = 0;
+        Cmpnts        qFlux;
 
         //find the distance from the wall where velocity is interpolated
         //a uniform distance from the wall is chosen for all ibm fluid points to prevent instabilities due to the stair step structure
-        cellSize = pow( 1./aj[k][j][i], 1./3.);
-        bPt = nScale(2.0 * cellSize, eNorm);
-        mSum(bPt, ibF[c].pMin);
+        cellSize = ibm->interpDist;
+
+        // distance from cell to the IBM element
+        elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
+
+        bPt = nScale(cellSize + elemDist, eNorm);        
+        mSum(bPt, cent[k][j][i]);
 
         //check the neighbourhood of current ibm fluid cell for fluid cells
         //find the fluid - ibm fluid cell interface faces
@@ -5798,6 +6321,19 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                                     ucat,
                                     bPtVel
                             );
+
+                            if(flags->isTeqnActive)
+                            {
+                                scalarPointLocalVolumeInterpolation
+                                (
+                                        mesh,
+                                        bPt.x, bPt.y, bPt.z,
+                                        ic, jc, kc,
+                                        cent,
+                                        lt,
+                                        bPtTemp
+                                );
+                            }
                         }
                     }
 
@@ -5806,6 +6342,11 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                     {
                         bPtVel = nSet(ucat[initCp.k][initCp.j][initCp.i]);
 
+                        if(flags->isTeqnActive)
+                        {
+                            bPtTemp = lt[initCp.k][initCp.j][initCp.i];
+                        }
+
                         bPt = nSet(bPtInit);
 
                         ic = initCp.i;
@@ -5813,6 +6354,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                         kc = initCp.k;
                     }
 
+                    // distance of background point from the wall
                     sb = nDot(nSub(bPt, ibF[c].pMin), eNorm);
 
                     //velocity in local co-ordinate system
@@ -5821,26 +6363,83 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                     uT = nSub(bPtVel, uN);
                     uTmag = nMag(uT);
 
-
-                    if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                    if (flags->isTeqnActive)
                     {
-                        PetscReal roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot->roughness;
-
-                        if(roughness > 1.0e-12)
+                        if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
                         {
-                            ustar = uTauCabotRoughness(nu, uTmag, sb, 0.01, 0, roughness);
+                            if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -3)
+                            {
 
-                        }
-                        else
-                        {
-                            ustar = uTauCabot(nu, uTmag, sb, 0.01, 0);
+                            }
+                            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -2)
+                            {
+                                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
+
+                                qWall  = wm->qWall;
+                            }
+                            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -4)
+                            {
+
+                                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
+
+                                // find interpolation weights for surface temp
+                                PetscReal w[2];
+                                PetscInt  l[2];
+
+                                findInterpolationWeights(w, l, wm->timeVec, wm->numT, clock->time);
+
+                                //interpolate the surface temperature from closest available mesoscale times
+                                PetscReal surfaceTemp = w[0] * wm->surfTemp[l[0]] + w[1] * wm->surfTemp[l[1]];
+                                PetscReal surfaceL;
+
+                                PetscReal deltaTheta = bPtTemp - surfaceTemp;
+                                PetscReal phiM, phiH;
+                                
+                                qWallShumann
+                                (
+                                    uTmag, sb, wm->roughness,
+                                    wm->gammaM, wm->gammaH, wm->alphaH,
+                                    wm->thetaRef, deltaTheta, wm->kappa,
+                                    qWall, ustar, phiM, phiH, surfaceL
+                                );
+                            }
                         }
                     }
-                    else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
-                    {
-                        Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
 
-                        ustar = uTmag * wm->kappa / std::log(sb/wm->roughness);
+                    if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
+                    {
+                        if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                        {
+                            PetscReal roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot->roughness;
+
+                            if(roughness > 1.0e-12)
+                            {
+                                ustar = uTauCabotRoughness(nu, uTmag, sb, 0.01, 0, roughness);
+
+                            }
+                            else
+                            {
+                                ustar = uTauCabot(nu, uTmag, sb, 0.01, 0);
+                            }
+                        }
+                        else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+                        {
+                            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
+                            PetscReal phiM, L;
+
+                            uStarShumann
+                            (
+                                uTmag, sb, wm->roughness,
+                                wm->gammaM, wm->kappa, qWall, wm->thetaRef,
+                                ustar, phiM, L
+                            );
+                        }
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall shear model is on but velocity BC is not set to velocityWallFunction\n");
+                        fatalErrorInFunction("findIBMWallShear", error);
                     }
 
                     //local co-ordinate system
@@ -5890,11 +6489,15 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
                         nut = lnu_t[k11][j11][i11];
 
-                        if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
                         {
-                            //replace dut1dn
-                            dut1dn = tauWall/(nu + nut) ;
+                            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3 || ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                            {
+                                //replace dut1dn
+                                dut1dn = tauWall/(nu + nut) ;
+                            }
                         }
+
 
                         //compute the transformation jacobian
                         Comput_JacobTensor_i
@@ -5933,6 +6536,13 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                         visc1[k][j][i].x = (g11 * dudc + g21 * dude + g31 * dudz + r11 * csi0 + r21 * csi1 + r31 * csi2) * ajc * (nut + nu);
                         visc1[k][j][i].y = (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * csi0 + r22 * csi1 + r32 * csi2) * ajc * (nut + nu);
                         visc1[k][j][i].z = (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nut + nu);
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].x = qFlux.x * icsi[k1][j1][i1].x + qFlux.y * icsi[k1][j1][i1].y + qFlux.z * icsi[k1][j1][i1].z;
+                        }
+
                     }
                     else if(isFace == 3 || isFace == 4)
                     {
@@ -5974,10 +6584,13 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
                         nut = lnu_t[k11][j11][i11];
 
-                        if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
                         {
-                            //replace dut1dn
-                            dut1dn = tauWall/(nu + nut);
+                            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3 || ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                            {
+                                //replace dut1dn
+                                dut1dn = tauWall/(nu + nut) ;
+                            }
                         }
 
                         //compute the transformation jacobian
@@ -6017,6 +6630,12 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                         visc2[k][j][i].x = (g11 * dudc + g21 * dude + g31 * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nut + nu);
                         visc2[k][j][i].y = (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nut + nu);
                         visc2[k][j][i].z = (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nut + nu);
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].y = qFlux.x * jeta[k1][j1][i1].x + qFlux.y * jeta[k1][j1][i1].y + qFlux.z * jeta[k1][j1][i1].z;
+                        }
 
                     }
                     else if(isFace == 1 || isFace == 2)
@@ -6059,10 +6678,13 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
                         nut = lnu_t[k11][j11][i11];
 
-                        if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
                         {
-                            //replace dut1dn
-                            dut1dn = tauWall/(nu + nut);
+                            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3 || ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                            {
+                                //replace dut1dn
+                                dut1dn = tauWall/(nu + nut) ;
+                            }
                         }
 
                         //compute the transformation jacobian
@@ -6102,6 +6724,12 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                         visc3[k][j][i].x = (g11 * dudc + g21 * dude + g31 * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nut + nu);
                         visc3[k][j][i].y = (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nut + nu);
                         visc3[k][j][i].z = (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nut + nu);
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].z = qFlux.x * kzet[k1][j1][i1].x + qFlux.y * kzet[k1][j1][i1].y + qFlux.z * kzet[k1][j1][i1].z;
+                        }
                     }
 
 
@@ -6142,6 +6770,15 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     {
         DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
     }
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecRestoreArray(fda, teqn->lViscIBMT, &viscT);
+        DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+        DMLocalToLocalBegin(fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);
+        DMLocalToLocalEnd  (fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);
+    }
+
 
     DMLocalToLocalBegin(fda, ueqn->lViscIBM1, INSERT_VALUES, ueqn->lViscIBM1);
     DMLocalToLocalEnd  (fda, ueqn->lViscIBM1, INSERT_VALUES, ueqn->lViscIBM1);
@@ -6784,11 +7421,12 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
 
   Cmpnts        ***ucat, ***lucat, ***cent, dist;
   PetscReal     ***lt, ***temp;
-  PetscReal     A[4][4]={0.}, inv_A[4][4]={0.};
+
   PetscInt      n = 0, nsupport=0;
 
   PetscReal     dis;
   PetscReal     *W, *PHI, **P, **B, *Ux, *Uy, *Uz, *tmp;
+  PetscReal     **A, **inv_A;
 
   DMDAVecGetArray(fda, mesh->lCent, &cent);
   DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
@@ -6835,6 +7473,15 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
     Ux = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
     Uy = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
     Uz = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
+
+    PetscMalloc(sizeof(PetscReal *)  * (4), &(A));
+    PetscMalloc(sizeof(PetscReal *)  * (4), &(inv_A));
+
+    for(n=0; n<4; n++)
+    {
+        PetscMalloc(sizeof(PetscReal)  * (4), &(A[n]));
+        PetscMalloc(sizeof(PetscReal)  * (4), &(inv_A[n]));
+    }
 
     if (flags->isTeqnActive)
     {
@@ -6952,7 +7599,7 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
         }
     }
 
-    inv_4by4(A, inv_A);
+    inv_4by4(A, inv_A, 4);
 
     // get the values of the shape function PHI on the support points
     mult_mats3_lin(inv_A, B, nsupport, PHI);
@@ -6982,6 +7629,8 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
     for( n = 0; n < 4; n++)
     {
         free(B[n]);
+        free(A[n]);
+        free(inv_A[n]);
     }
 
     for(n = 0; n < 4; n++)
@@ -6996,6 +7645,8 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
     free(Ux);
     free(Uy);
     free(Uz);
+    free(A);
+    free(inv_A);
 
     if(flags->isTeqnActive)
     {
@@ -7288,7 +7939,7 @@ PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm)
             if(ibMesh->halfEdges[i].twin==NULL)
             {
                 char error[512];
-                sprintf(error, "IBM body: %s is not a closed body.\n", ibm->ibmBody[b]->bodyName.c_str());
+                sprintf(error, "IBM body: %s is not a closed body. If you are sure it is, then the issue could be that the element normals are not pointing outwards. Enable checkNormal in IBMProperties\n", ibm->ibmBody[b]->bodyName.c_str());
                 fatalErrorInFunction("createHalfEdgeDataStructure",  error);
             }
         }
@@ -8945,7 +9596,7 @@ PetscErrorCode findSearchCellDim(ibm_ *ibm)
     for (j = lys; j < lye; j++)
     for (i = lxs; i < lxe; i++)
     {
-      lcellSize += pow( 1./aj[k][j][i], 1./3.);
+      lcellSize += pow( 1.0/aj[k][j][i], 1./3.);
       lsum ++ ;
     }
 
