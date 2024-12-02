@@ -877,9 +877,9 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     if
                     (
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
-                        i != mx-2        ||
+                        (i != mx-2       ||
                         mesh->i_periodic ||
-                        mesh->ii_periodic
+                        mesh->ii_periodic) && isFluidCell(k,j,i+1,nvert)
 
                     )
                     {
@@ -890,7 +890,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // dpde{i} = ({p_{i+1,j+1} + p{i, j+1} - p{i+1, j-1} - p{i, j-1}) * 0.25 * g12[k][j][i]
 
                         // j-right boundary -> use upwind
-                        if(j == my-2)
+                        if( (j == my-2) || isIBMIFace(k, j+1, i, i+1, nvert))
                         {
                             // upwind differencing
                             vol[CP] += g12[k][j][i] * 0.5 / r; // i, j, k
@@ -899,7 +899,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SE] -= g12[k][j][i] * 0.5 / r; // i+1, j-1, k
                         }
                         // j-left boundary -> use upwind
-                        else if(j == 1)
+                        else if((j == 1) || isIBMIFace(k, j-1, i, i+1, nvert))
                         {
                             // upwind differencing
                             vol[NP] += g12[k][j][i] * 0.5 / r; // i, j+1, k
@@ -919,7 +919,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // dpdz{i}=(p_{i,k+1} + p{i+1,k+1} - p{i, k-1} - p{i+1, k-1}) * 0.25 / r * g13[k][j][i]
 
                         // k-right boundary -> use upwind
-                        if(k==mz-2)
+                        if((k==mz-2) || isIBMIFace(k+1, j, i, i+1, nvert))
                         {
                             // upwind differencing
                             vol[CP] += g13[k][j][i] * 0.5 / r; // i, j, k
@@ -928,7 +928,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BE] -= g13[k][j][i] * 0.5 / r; // i+1, j, k-1
                         }
                         // k-left boundary  -> use upwind
-                        else if(k==1)
+                        else if((k==1) || isIBMIFace(k-1, j, i, i+1, nvert))
                         {
                             // upwind differencing
                             vol[TP] += g13[k][j][i] * 0.5 / r; // i, j, k+1
@@ -950,9 +950,9 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     if
                     (
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
-                        i != 1 ||
+                        (i != 1 ||
                         mesh->i_periodic ||
-                        mesh->ii_periodic
+                        mesh->ii_periodic) && isFluidCell(k, j, i-1, nvert)
                     )
                     {
                         // -dpdc{i-1} = -(p_{i} - p_{i-1}) * g11_{i}
@@ -962,7 +962,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // -dpde{i-1} = -({p_{i,j+1}+p{i-1, j+1} - p{i, j-1}-p{i-1, j-1}) * 0.25 / r * g12[k][j][i-1]
 
                         // j-right boundary -> use upwind
-                        if(j==my-2)
+                        if((j==my-2) || isIBMIFace(k, j+1, i, i-1, nvert))
                         {
                             // upwind differencing
                             vol[CP] -= g12[k][j][i-1] * 0.5 / r; // i, j, k
@@ -971,7 +971,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SW] += g12[k][j][i-1] * 0.5 / r; // i-1, j-1, k
                         }
                         // j-left boundary -> use upwind
-                        else if(j==1)
+                        else if((j==1) || isIBMIFace(k, j-1, i, i-1, nvert))
                         {
                             // upwind differencing
                             vol[NP] -= g12[k][j][i-1] * 0.5 / r; // i, j+1, k
@@ -991,7 +991,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // -dpdz{i-1}=-(p_{i,k+1}+p{i-1,k+1} - p{i, k-1}-p{i-1, k-1}) * 0.25 / r * g13[k][j][i]
 
                         // k-right boundary -> use upwind
-                        if(k==mz-2)
+                        if((k==mz-2) || isIBMIFace(k+1, j, i, i-1, nvert))
                         {
                             // upwind differencing
                             vol[CP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k
@@ -1000,7 +1000,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BW] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k-1
                         }
                         // k-left boundary  -> use upwind
-                        else if(k==1)
+                        else if((k==1) || isIBMIFace(k-1, j, i, i-1, nvert))
                         {
                             // upwind differencing
                             vol[TP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k+1
@@ -1022,15 +1022,15 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     if
                     (
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
-                        j != my-2  ||
+                        (j != my-2  ||
                         mesh->j_periodic ||
-                        mesh->jj_periodic
+                        mesh->jj_periodic) && isFluidCell(k, j+1, i, nvert)
                     )
                     {
                         // dpdc{j} = (p_{i+1,j}+p{i+1,j+1} - p{i-1,j}-p{i-1,j+1}) * 0.25
 
                         // i-right boundary -> use upwind
-                        if(i==mx-2)
+                        if((i==mx-2) || isIBMJFace(k, j, i+1, j+1, nvert))
                         {
                             // upwind differencing
                             vol[CP] += g21[k][j][i] * 0.5 / r; // i, j, k
@@ -1039,7 +1039,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[NW] -= g21[k][j][i] * 0.5 / r; // i-1, j+1, k
                         }
                         // i-left boundary -> use upwind
-                        else if(i==1)
+                        else if((i==1) || isIBMJFace(k, j, i-1, j+1, nvert))
                         {
                             // upwind differencing
                             vol[EP] += g21[k][j][i] * 0.5 / r; // i+1, j, k
@@ -1063,7 +1063,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // dpdz{j} = (p{j, k+1}+p{j+1,k+1} - p{j,k-1}-p{j+1,k-1}) *0.25
 
                         // k-right boundary -> use upwind
-                        if(k==mz-2)
+                        if((k==mz-2) || isIBMJFace(k+1, j, i, j+1, nvert))
                         {
                             // upwind differencing
                             vol[CP] += g23[k][j][i] * 0.5 / r; //i,j,k
@@ -1072,7 +1072,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BN] -= g23[k][j][i] * 0.5 / r;//i, j+1, k-1
                         }
                         // k-left boundary -> use upwind
-                        else if(k==1)
+                        else if((k==1) || isIBMJFace(k-1, j, i, j+1, nvert))
                         {
                             // upwind differencing
                             vol[TP] += g23[k][j][i] * 0.5 / r; //i, j, k+1
@@ -1094,15 +1094,15 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     if
                     (
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
-                        j!=1       ||
+                        (j!=1       ||
                         mesh->j_periodic ||
-                        mesh->jj_periodic
+                        mesh->jj_periodic) && isFluidCell(k, j-1, i, nvert)
                     )
                     {
                         // -dpdc{j-1} = -(p_{i+1,j}+p{i+1,j-1} - p{i-1,j}-p{i-1,j-1}) * 0.25
 
                         // i-right boundary -> use upwind
-                        if(i==mx-2)
+                        if((i==mx-2) || isIBMJFace(k, j, i+1, j-1, nvert))
                         {
                             // upwind differencing
                             vol[CP] -= g21[k][j-1][i] * 0.5 / r; // i, j, k
@@ -1111,7 +1111,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SW] += g21[k][j-1][i] * 0.5 / r; // i-1, j-1, k
                         }
                         // i-left boundary -> use upwind
-                        else if(i==1)
+                        else if((i==1) || isIBMJFace(k, j, i-1, j-1, nvert))
                         {
                             // upwind differencing
                             vol[EP] -= g21[k][j-1][i] * 0.5 / r; // i+1, j, k
@@ -1135,7 +1135,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // -dpdz{j-1} = -(p{j,k+1}+p{j-1,k+1} - p{j,k-1}-p{j-1,k-1}) * 0.25
 
                         // k-right boundary -> use upwind
-                        if(k==mz-2)
+                        if((k==mz-2) || isIBMJFace(k+1, j, i, j-1, nvert))
                         {
                             // upwind differencing
                             vol[CP] -= g23[k][j-1][i] * 0.5 / r; //i, j, k
@@ -1144,7 +1144,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BS] += g23[k][j-1][i] * 0.5 / r; //i, j-1, k-1
                         }
                         // k-left boundary -> use upwind
-                        else if(k==1)
+                        else if((k==1) || isIBMJFace(k-1, j, i, j-1, nvert))
                         {
                             // upwind differencing
                             vol[TP] -= g23[k][j-1][i] * 0.5 / r; // i, j, k+1
@@ -1166,15 +1166,15 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     if
                     (
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
-                        k != mz-2  ||
+                        (k != mz-2  ||
                         mesh->k_periodic ||
-                        mesh->kk_periodic
+                        mesh->kk_periodic) && isFluidCell(k+1, j, i, nvert)
                     )
                     {
                         // dpdc{k} = (p{i+1,k}+p{i+1,k+1} - p{i-1,k}-p{i-1,k+1}) * 0.25
 
                         // i-right boundary -> use upwind
-                        if(i==mx-2)
+                        if((i==mx-2) || isIBMKFace(k, j, i+1, k+1, nvert))
                         {
                             // upwind differencing
                             vol[CP] += g31[k][j][i] * 0.5 / r; // i, j, k
@@ -1183,7 +1183,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[TW] -= g31[k][j][i] * 0.5 / r; // i-1, j, k+1
                         }
                         // i-left boundary -> use upwind
-                        else if(i==1)
+                        else if((i==1) || isIBMKFace(k, j, i-1, k+1, nvert))
                         {
                             // upwind differencing
                             vol[EP] += g31[k][j][i] * 0.5 / r; // i+1, j, k
@@ -1203,7 +1203,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // dpde{k} = (p{j+1, k}+p{j+1,k+1} - p{j-1, k}-p{j-1,k+1}) * 0.25
 
                         // j-right boundary -> use upwind
-                        if(j==my-2)
+                        if((j==my-2) || isIBMKFace(k, j+1, i, k+1, nvert))
                         {
                             // upwind differencing
                             vol[CP] += g32[k][j][i] * 0.5 / r; // i, j,k
@@ -1212,7 +1212,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[TS] -= g32[k][j][i] * 0.5 / r; // i, j-1, k+1
                         }
                         // j-left boundary -> use upwind
-                        else if(j==1)
+                        else if((j==1) || isIBMKFace(k, j-1, i, k+1, nvert))
                         {
                             // upwind differencing
                             vol[NP] += g32[k][j][i] * 0.5 / r; // i, j+1, k
@@ -1238,15 +1238,15 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     if
                     (
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
-                        k != 1     ||
+                        (k != 1     ||
                         mesh->k_periodic ||
-                        mesh->kk_periodic
+                        mesh->kk_periodic) &&  isFluidCell(k-1, j, i, nvert)
                     )
                     {
                         // -dpdc{k-1} = -(p{i+1,k}+p{i+1,k-1} - p{i-1,k}-p{i-1,k-1}) * 0.25
 
                         // i-right boundary -> use upwind
-                        if(i==mx-2)
+                        if((i==mx-2) || isIBMKFace(k, j, i+1, k-1, nvert))
                         {
                             // upwind differencing
                             vol[CP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k
@@ -1255,7 +1255,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BW] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k-1
                         }
                         // i-left boundary -> use upwind
-                        else if(i==1)
+                        else if((i==1) || isIBMKFace(k, j, i-1, k-1, nvert))
                         {
                             // upwind differencing
                             vol[EP] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k
@@ -1275,7 +1275,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // -dpde{k-1} = -(p{j+1, k}+p{j+1,k-1} - p{j-1, k}-p{j-1,k-1}) *  0.25 / r * g32[k-1][j][i]
 
                         // j-right boundary -> use upwind
-                        if(j==my-2)
+                        if((j==my-2) || isIBMKFace(k, j+1, i, k-1, nvert))
                         {
                             // upwind differencing
                             vol[CP] -= g32[k-1][j][i] * 0.5 / r; // i, j,k
@@ -1284,7 +1284,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BS] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k-1
                         }
                         // j-left boundary -> use upwind
-                        else if(j==1)
+                        else if((j==1) || isIBMKFace(k, j-1, i, k-1, nvert))
                         {
                             // upwind differencing
                             vol[NP] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k
@@ -2431,7 +2431,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // j-right boundary -> use upwind
                         (
                             j==my-2
-                        )
+                        ) || isIBMIFace(k, j+1, i, i+1, nvert)
                     )
                     {
                         dpde = (phi[k][j][i] + phi[k][j][i + 1] - phi[k][j - 1][i] - phi[k][j - 1][i + 1]) * 0.5;
@@ -2441,7 +2441,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // j-left boundary -> use upwind
                         (
                             j == 1
-                        )
+                        ) || isIBMIFace(k, j-1, i, i+1, nvert)
                      )
                      {
                          dpde = (phi[k][j+1][i] + phi[k][j+1][i+1] - phi[k][j][i] - phi[k][j][i+1])* 0.5;
@@ -2457,7 +2457,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // k-right boundary -> use upwind
                         (
                             k == mz - 2
-                        )
+                        ) || isIBMIFace(k+1, j, i, i+1, nvert)
                     )
                     {
                         dpdz = (phi[k][j][i] + phi[k][j][i+1] - phi[k-1][j][i] - phi[k-1][j][i+1]) * 0.5;
@@ -2467,7 +2467,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // k-left boundary  -> use upwind
                         (
                             k == 1
-                        )
+                        ) || isIBMIFace(k-1, j, i, i+1, nvert)
                     )
                     {
                         dpdz = (phi[k+1][j][i] + phi[k+1][j][i+1]- phi[k][j][i] - phi[k][j][i+1]) * 0.5;
@@ -2521,7 +2521,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // i-right boundary -> use upwind
                         (
                             i == mx-2
-                        )
+                        ) || isIBMJFace(k, j, i+1, j+1, nvert)
                     )
                     {
                         dpdc = (phi[k][j][i] + phi[k][j+1][i] - phi[k][j][i-1] - phi[k][j+1][i-1]) * 0.5;
@@ -2531,7 +2531,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // i-left boundary -> use upwind
                         (
                             i == 1
-                        )
+                        ) || isIBMJFace(k, j, i-1, j+1, nvert)
                     )
                     {
                         dpdc = (phi[k][j][i+1] + phi[k][j+1][i+1] - phi[k][j][i] - phi[k][j+1][i]) * 0.5;
@@ -2549,7 +2549,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // k-right boundary -> use upwind
                         (
                             k == mz-2
-                        )
+                        ) || isIBMJFace(k+1, j, i, j+1, nvert)
                     )
                     {
                         dpdz = (phi[k][j][i] + phi[k][j+1][i] - phi[k-1][j][i] - phi[k - 1][j + 1][i]) * 0.5;
@@ -2559,7 +2559,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // k-left boundary -> use upwind
                         (
                             k == 1
-                        )
+                        ) || isIBMJFace(k-1, j, i, j+1, nvert)
                     )
                     {
                         dpdz = (phi[k + 1][j][i] + phi[k + 1][j + 1][i] - phi[k][j][i] - phi[k][j + 1][i]) * 0.5;
@@ -2614,7 +2614,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // i-right boundary -> use upwind
                         (
                             i == mx - 2
-                        )
+                        ) || isIBMKFace(k, j, i+1, k+1, nvert)
                     )
                     {
                         dpdc = (phi[k][j][i] + phi[k+1][j][i] - phi[k][j][i-1] - phi[k+1][j][i-1]) * 0.5;
@@ -2624,7 +2624,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // i-left boundary -> use upwind
                         (
                             i == 1
-                        )
+                        ) || isIBMKFace(k, j, i-1, k+1, nvert)
                     )
                     {
                         dpdc = (phi[k][j][i+1] + phi[k+1][j][i+1] - phi[k][j][i] - phi[k+1][j][i])* 0.5;
@@ -2639,7 +2639,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // j-right boundary -> use upwind
                         (
                             j == my - 2
-                        )
+                        ) || isIBMKFace(k, j+1, i, k+1, nvert)
                     )
                     {
                         dpde = (phi[k][j][i] + phi[k+1][j][i] - phi[k][j-1][i] - phi[k+1][j-1][i]) * 0.5;
@@ -2649,7 +2649,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // j-left boundary -> use upwind
                         (
                             j == 1
-                        )
+                        ) || isIBMKFace(k, j-1, i, k+1, nvert)
                     )
                     {
                         dpde = (phi[k][j+1][i] + phi[k+1][j+1][i] - phi[k][j][i] - phi[k+1][j][i]) * 0.5;
@@ -3473,18 +3473,23 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn)
                     lmaxu = nMag(ucat[k][j][i]);
                 }
 
-                if
-                (
-                    nvert[k  ][j  ][i  ] +
-                    nvert[k+1][j  ][i  ] +
-                    nvert[k-1][j  ][i  ] +
-                    nvert[k  ][j+1][i  ] +
-                    nvert[k  ][j-1][i  ] +
-                    nvert[k  ][j  ][i+1] +
-                    nvert[k  ][j  ][i-1] > 0.1
-                )
+                // if
+                // (
+                //     nvert[k  ][j  ][i  ] +
+                //     nvert[k+1][j  ][i  ] +
+                //     nvert[k-1][j  ][i  ] +
+                //     nvert[k  ][j+1][i  ] +
+                //     nvert[k  ][j-1][i  ] +
+                //     nvert[k  ][j  ][i+1] +
+                //     nvert[k  ][j  ][i-1] > 0.1
+                // )
+                // {
+                //     maxdiv = 0.;
+                // }
+
+                if(isIBMCell(k, j, i, nvert))
                 {
-                    maxdiv = 0.;
+                    maxdiv = 0;
                 }
 
                 div[k][j][i] = maxdiv;
@@ -3597,22 +3602,26 @@ PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn)
                     )*aj[k][j][i]
                 );
 
-                if
-                (
-                    nvert[k  ][j  ][i  ] +
-                    nvert[k+1][j  ][i  ] +
-                    nvert[k-1][j  ][i  ] +
-                    nvert[k  ][j+1][i  ] +
-                    nvert[k  ][j-1][i  ] +
-                    nvert[k  ][j  ][i+1] +
-                    nvert[k  ][j  ][i-1] > 0.1
-                )
+                // if
+                // (
+                //     nvert[k  ][j  ][i  ] +
+                //     nvert[k+1][j  ][i  ] +
+                //     nvert[k-1][j  ][i  ] +
+                //     nvert[k  ][j+1][i  ] +
+                //     nvert[k  ][j-1][i  ] +
+                //     nvert[k  ][j  ][i+1] +
+                //     nvert[k  ][j  ][i-1] > 0.1
+                // )
+                // {
+                //     div = 0.;
+                // }
+
+                if(isIBMCell(k, j, i, nvert))
                 {
-                    div = 0.;
+                    div = 0;
                 }
 
                 if(div > lmaxdiv) lmaxdiv = div;
-
             }
         }
     }

@@ -62,6 +62,7 @@ int main(int argc, char **argv)
             // reset flags based on domain preferences
             flags = domain[d].flags;
 
+            //update the IBM position and interpolate based on it before the start of solution
             if(flags.isIBMActive)
             {
                 UpdateIBM(domain[d].ibm);
@@ -87,6 +88,18 @@ int main(int argc, char **argv)
                 UpdateFluxLimiter(domain[d].ueqn);
             }
 
+            if(flags.isAblActive)
+            {
+                if(domain[d].abl->controllerActive)
+                {
+                    CorrectSourceTerms(domain[d].ueqn, 1);
+                }
+                if(domain[d].abl->controllerActiveT && flags.isTeqnActive)
+                {
+                    CorrectSourceTermsT(domain[d].teqn, 1);
+                }
+            }
+
             if(flags.isLesActive)
             {
                 UpdateCs (domain[d].les);
@@ -97,20 +110,8 @@ int main(int argc, char **argv)
                 {
                     if(domain[d].ibm->wallShearOn)
                     {
-                        findIBMWallShear(domain[d].ibm);
+                        findIBMWallShearChester(domain[d].ibm);
                     }
-                }
-            }
-
-            if(flags.isAblActive)
-            {
-                if(domain[d].abl->controllerActive)
-                {
-                    CorrectSourceTerms(domain[d].ueqn, 1);
-                }
-                if(domain[d].abl->controllerActiveT && flags.isTeqnActive)
-                {
-                    CorrectSourceTermsT(domain[d].teqn, 1);
                 }
             }
 
@@ -164,39 +165,53 @@ int main(int argc, char **argv)
             {
                 VecSet(domain[d].ueqn->Rhs_o, 0.0);
 
+                //interpolate IBM cells before computing the forces and moments on the IBM
                 if(flags.isIBMActive)
                 {
-                    //interpolate the ibm fluid cells
-                    if(domain[d].ibm->curvibType == "CurvibTrilinear")
+
+                    if (domain[d].ibm->IBInterpolationModel == "CURVIB")
                     {
-                        if(domain[d].ibm->curvibOrder == "linear")
+
+                        if(domain[d].ibm->wallShearOn)
                         {
-                            CurvibInterpolation(domain[d].ibm);
+                            CurvibInterpolationInternalCell(domain[d].ibm);
                         }
-                        else if(domain[d].ibm->curvibOrder == "quadratic")
+                        else 
                         {
-                            CurvibInterpolationQuadratic(domain[d].ibm);
+                            if(domain[d].ibm->curvibType == "CurvibTrilinear")
+                            {
+                                if(domain[d].ibm->curvibOrder == "linear")
+                                {
+                                    CurvibInterpolation(domain[d].ibm);
+                                }
+                                else if(domain[d].ibm->curvibOrder == "quadratic")
+                                {
+                                    CurvibInterpolationQuadratic(domain[d].ibm);
+                                }
+                                else
+                                {
+                                    char error[512];
+                                    sprintf(error, "wrong interpolation order chosen. Available options are linear and quadratic\n");
+                                    fatalErrorInFunction("main",  error);
+                                }
+                            }
+                            else if(domain[d].ibm->curvibType == "CurvibTriangular")
+                            {
+                                CurvibInterpolationTriangular(domain[d].ibm);
+                            }
+                            else
+                            {
+                                char error[512];
+                                sprintf(error, "wrong curvib interpolation type\n");
+                                fatalErrorInFunction("main", error);
+                            }
                         }
-                        else
-                        {
-                            char error[512];
-                            sprintf(error, "wrong interpolation order chosen. Available options are linear and quadratic\n");
-                            fatalErrorInFunction("readIBMProperties",  error);
-                        }
-                    }
-                    else if(domain[d].ibm->curvibType == "CurvibTriangular")
-                    {
-                        CurvibInterpolationTriangular(domain[d].ibm);
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wrong curvib interpolation type\n");
-                        fatalErrorInFunction("main", error);
                     }
 
                     if(domain[d].ibm->wallShearOn)
-                        findIBMWallShear(domain[d].ibm);
+                    {
+                        findIBMWallShearChester(domain[d].ibm);
+                    }
 
                     UpdateImmersedBCs(domain[d].ibm);
                 }

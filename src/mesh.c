@@ -2039,6 +2039,9 @@ PetscErrorCode SetBoundingBox(mesh_ *mesh)
     PetscPrintf(mesh->MESH_COMM, "                      zmin = %lf, zmax = %lf\n", zmin, zmax);
     PetscPrintf(mesh->MESH_COMM, "Domain size         : Lx = %lf, Ly = %lf, Lz = %lf\n\n", Lx, Ly, Lz);
 
+    //set ground level 
+    mesh->grndLevel = mesh->bounds.zmin;
+    
     return(0);
 }
 
