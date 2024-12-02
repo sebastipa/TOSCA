@@ -3417,12 +3417,12 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                         PetscInt  l[2];
 
                         // interpolate coeffs for the first airfoil
-                        findInterpolationWeigths(w, l, an1, s1, wt->adm.alpha[p]);
+                        findInterpolationWeights(w, l, an1, s1, wt->adm.alpha[p]);
                         PetscReal cl_1 = w[0]*cl1[l[0]] + w[1]*cl1[l[1]];
                         PetscReal cd_1 = w[0]*cd1[l[0]] + w[1]*cd1[l[1]];
 
                         // interpolate coeffs for the second airfoil
-                        findInterpolationWeigths(w, l, an2, s2, wt->adm.alpha[p]);
+                        findInterpolationWeights(w, l, an2, s2, wt->adm.alpha[p]);
                         PetscReal cl_2 = w[0]*cl2[l[0]] + w[1]*cl2[l[1]];
                         PetscReal cd_2 = w[0]*cd2[l[0]] + w[1]*cd2[l[1]];
 
@@ -3642,12 +3642,12 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                         PetscInt  l[2];
 
                         // interpolate coeffs for the first airfoil
-                        findInterpolationWeigths(w, l, an1, s1, wt->alm.alpha[p]);
+                        findInterpolationWeights(w, l, an1, s1, wt->alm.alpha[p]);
                         PetscReal cl_1 = w[0]*cl1[l[0]] + w[1]*cl1[l[1]];
                         PetscReal cd_1 = w[0]*cd1[l[0]] + w[1]*cd1[l[1]];
 
                         // interpolate coeffs for the second airfoil
-                        findInterpolationWeigths(w, l, an2, s2, wt->alm.alpha[p]);
+                        findInterpolationWeights(w, l, an2, s2, wt->alm.alpha[p]);
                         PetscReal cl_2 = w[0]*cl2[l[0]] + w[1]*cl2[l[1]];
                         PetscReal cd_2 = w[0]*cd2[l[0]] + w[1]*cd2[l[1]];
 
@@ -6579,7 +6579,7 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
         PetscReal  weights[2];
         PetscInt   labels[2];
 
-        findInterpolationWeigths(weights, labels, wt->blade.radius, wt->blade.size, rMag);
+        findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
 
         for(PetscInt ai=0; ai<wt->adm.nAzimuth; ai++)
         {
@@ -7093,7 +7093,7 @@ PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
         PetscInt   labels[2];
 
 
-        findInterpolationWeigths(weights, labels, wt->blade.radius, wt->blade.size, rMag);
+        findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
 
         for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
         {

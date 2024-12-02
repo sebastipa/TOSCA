@@ -190,9 +190,6 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       // initialize i/o controls and initialization type
       InitializeIO(domain[d].io);
 
-      // initialize ibm
-      InitializeIBM(domain[d].ibm);
-
       // momentum equation initialize
       InitializeUEqn(domain[d].ueqn);
 
@@ -633,6 +630,18 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             time,
             "CanopyForce",
             acquisition->fields->CanopyForce
+        );
+
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "yDampU",
+            acquisition->fields->yDampMappedU
         );
     }
 

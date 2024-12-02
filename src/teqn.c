@@ -25,7 +25,8 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
     if(teqn != NULL)
     {
         // set pointer to mesh
-        mesh_ *mesh = teqn->access->mesh;
+        mesh_  *mesh  = teqn->access->mesh;
+        flags_ *flags = teqn->access->flags;
 
         // input file
         PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
@@ -50,6 +51,11 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         {
             VecDuplicate(mesh->lAj,   &(teqn->lRhoK));       VecSet(teqn->lRhoK,   0.0);
             VecDuplicate(mesh->Cent,  &(teqn->ghGradRhok));  VecSet(teqn->ghGradRhok,   0.0);
+        }
+
+        if(flags->isIBMActive)
+        {
+            VecDuplicate(mesh->lCent, &(teqn->lViscIBMT));   VecSet(teqn->lViscIBMT,  0.0);
         }
 
         // read time discretization scheme
@@ -168,6 +174,8 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
     std::vector<PetscReal> ltMean(nLevels);
     std::vector<PetscReal> gtMean(nLevels);
+    std::vector<PetscReal> tD(nLevels);
+    std::vector<PetscReal> tM(nLevels);
 
     for(j=0; j<nLevels; j++)
     {
@@ -177,9 +185,9 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
     DMDAVecGetArray(da, mesh->lAj, &aj);
 
-    for(j=lys; j<lye; j++)
+    for (k=lzs; k<lze; k++)
     {
-        for(k=zs; k<lze; k++)
+        for (j=lys; j<lye; j++)
         {
             for (i=lxs; i<lxe; i++)
             {
@@ -195,6 +203,7 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
     for(j=0; j<nLevels; j++)
     {
         gtMean[j] = gtMean[j] / abl->totVolPerLevel[j];
+        tM[j]     = gtMean[j];
     }
 
     if(abl->controllerTypeT == "initial")
@@ -208,113 +217,127 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             }
         }
     }
-    else if(abl->controllerTypeT == "directProfileAssimilation")
+    else if((abl->controllerTypeT == "directProfileAssimilation") || (abl->controllerTypeT == "indirectProfileAssimilation"))
     {
         PetscInt  idxh1, idxh2, idxt1;
         PetscReal wth1, wth2, wtt1;
         PetscReal tH1, tH2;
 
-        if(abl->assimilationType == "constantTime")
+        //find the two closest available mesoscale data in time
+        PetscInt idx_1 = abl->closestTimeIndT;
+        PetscInt idx_2 = abl->closestTimeIndT + 1;
+
+        PetscInt lwrBound = 0;
+        PetscInt uprBound = abl->numtT;
+
+        if(clock->it > clock->itStart)
         {
-            for(j=0; j<nLevels; j++)
-            {
-                idxh1 = abl->tempInterpIdx[j][0];
-                idxh2 = abl->tempInterpIdx[j][1];
-
-                wth1  = abl->tempInterpWts[j][0];
-                wth2  = abl->tempInterpWts[j][1];
-
-                idxt1 = abl->closestTimeIndT;
-                wtt1 = abl->closestTimeWtT;
-
-                tH1 = wtt1 * abl->tMeso[idxh1][idxt1] + (1 - wtt1) * abl->tMeso[idxh1][idxt1+ 1];
-                tH2 = wtt1 * abl->tMeso[idxh2][idxt1] + (1 - wtt1) * abl->tMeso[idxh2][idxt1+ 1];
-                abl->tDes[j] = wth1*tH1 + wth2*tH2;
-            }
+            lwrBound = PetscMax(0, (abl->closestTimeIndT - 50));
+            uprBound = PetscMin(abl->numtT, (abl->closestTimeIndT + 50));
         }
-        else if(abl->assimilationType == "variableTime")
+
+        // build error vector for the time search
+        PetscReal  diff[abl->numtT];
+
+        for(PetscInt i=lwrBound; i<uprBound; i++)
         {
-            //find the two closest available mesoscale data in time
-            PetscInt idx_1 = abl->closestTimeIndT;
-            PetscInt idx_2 = abl->closestTimeIndT + 1;
+            diff[i] = fabs(abl->timeT[i] - clock->time);
+        }
 
-            PetscInt lwrBound = 0;
-            PetscInt uprBound = abl->numtT;
-
-            if(clock->it > clock->itStart)
+        // find the two closest times
+        for(PetscInt i=lwrBound; i<uprBound; i++)
+        {
+            if(diff[i] < diff[idx_1])
             {
-                lwrBound = PetscMax(0, (abl->closestTimeIndT - 50));
-                uprBound = PetscMin(abl->numtT, (abl->closestTimeIndT + 50));
-            }
-
-            // build error vector for the time search
-            PetscReal  diff[abl->numtT];
-
-            for(PetscInt i=lwrBound; i<uprBound; i++)
-            {
-                diff[i] = fabs(abl->timeT[i] - clock->time);
-            }
-
-            // find the two closest times
-            for(PetscInt i=lwrBound; i<uprBound; i++)
-            {
-                if(diff[i] < diff[idx_1])
-                {
-                    idx_2 = idx_1;
-                    idx_1 = i;
-                }
-                if(diff[i] < diff[idx_2] && i != idx_1)
-                {
-                    idx_2 = i;
-                }
-            }
-
-            // always put the lower time at idx_1 and higher at idx_2
-            if(abl->timeT[idx_2] < abl->timeT[idx_1])
-            {
-                PetscInt idx_tmp = idx_2;
                 idx_2 = idx_1;
-                idx_1 = idx_tmp;
+                idx_1 = i;
             }
-
-            // find interpolation weights
-            PetscReal idx = (idx_2 - idx_1) / (abl->timeT[idx_2] - abl->timeT[idx_1]) * (clock->time - abl->timeT[idx_1]) + idx_1;
-            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
-            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
-
-            // reset the closest index for nex iteration
-            abl->closestTimeIndT = idx_1;
-
-            for(j=0; j<nLevels; j++)
+            if(diff[i] < diff[idx_2] && i != idx_1)
             {
-                idxh1 = abl->tempInterpIdx[j][0];
-                idxh2 = abl->tempInterpIdx[j][1];
-
-                wth1  = abl->tempInterpWts[j][0];
-                wth2  = abl->tempInterpWts[j][1];
-
-                tH1 = w1 * abl->tMeso[idxh1][idx_1] + (w2) * abl->tMeso[idxh1][idx_2];
-                tH2 = w1 * abl->tMeso[idxh2][idx_1] + (w2) * abl->tMeso[idxh2][idx_2];
-                abl->tDes[j] = wth1*tH1 + wth2*tH2;
-
-                // PetscPrintf(PETSC_COMM_WORLD, "tdes = %lf, gtmean = %lf, interpolated from time:%lf %lf, wts %lf %lf \n", abl->tDes[j], gtMean[j], abl->timeT[idx_1], abl->timeT[idx_2], w1, w2);
-
+                idx_2 = i;
             }
         }
-        else 
+
+        // always put the lower time at idx_1 and higher at idx_2
+        if(abl->timeT[idx_2] < abl->timeT[idx_1])
         {
-            char error[512];
-            sprintf(error, "wrong assimilation method chosen. Available options are constantTime or variableTime\n");
-            fatalErrorInFunction("CorrectSourceTermsT",  error);
+            PetscInt idx_tmp = idx_2;
+            idx_2 = idx_1;
+            idx_1 = idx_tmp;
         }
 
-        // if cellLevels is below the lowest mesoscale data point use the source at the last available height
+        // find interpolation weights
+        PetscReal idx = (idx_2 - idx_1) / (abl->timeT[idx_2] - abl->timeT[idx_1]) * (clock->time - abl->timeT[idx_1]) + idx_1;
+        PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+        PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+        // reset the closest index for next iteration
+        abl->closestTimeIndT = idx_1;
+
         for(j=0; j<nLevels; j++)
         {
-            if(abl->cellLevels[j] < abl->hT[0])
+            idxh1 = abl->tempInterpIdx[j][0];
+            idxh2 = abl->tempInterpIdx[j][1];
+
+            wth1  = abl->tempInterpWts[j][0];
+            wth2  = abl->tempInterpWts[j][1];
+
+            tH1 = w1 * abl->tMeso[idxh1][idx_1] + (w2) * abl->tMeso[idxh1][idx_2];
+            tH2 = w1 * abl->tMeso[idxh2][idx_1] + (w2) * abl->tMeso[idxh2][idx_2];
+            tD[j] = wth1*tH1 + wth2*tH2;
+            abl->tDes[j] = tD[j];
+            // PetscPrintf(PETSC_COMM_WORLD, "tdes = %lf, gtmean = %lf, interpolated from time:%lf %lf, wts %lf %lf \n", abl->tDes[j], gtMean[j], abl->timeT[idx_1], abl->timeT[idx_2], w1, w2);
+        }
+
+        // for(j=0; j<nLevels; j++)
+        // {
+        //     // if cellLevels is below the lowest mesoscale data point use the source at the last available height
+        //     if(abl->cellLevels[j] < abl->lowestSrcHt)
+        //     {
+        //         abl->tDes[j] = abl->tDes[abl->lowestIndT];
+        //         gtMean[j] = gtMean[abl->lowestIndT];
+        //         tD[j]     = tD[abl->lowestIndT];
+        //         tM[j]     = tM[abl->lowestIndT];
+        //     }
+
+        //     if(abl->cellLevels[i] > abl->hT[abl->numhT - 1])
+        //     {
+        //         abl->tDes[j] = abl->tDes[abl->highestIndT];
+        //         gtMean[j] = gtMean[abl->highestIndT];
+        //         tD[j]     = tD[abl->highestIndT];
+        //         tM[j]     = tM[abl->highestIndT];
+        //     }
+        // }
+
+        if((abl->controllerTypeT == "indirectProfileAssimilation"))
+        {
+            //smooth the source based on the polynomial interpolation 
+            for (PetscInt iCtr = 0; iCtr < nLevels; iCtr++) 
             {
-                abl->tDes[j] = abl->tDes[abl->lowestIndT];
-                gtMean[j] = gtMean[abl->lowestIndT];
+                PetscReal dotProduct1 = 0.0, dotProduct2 = 0.0;
+
+                for (PetscInt kCtr = 0; kCtr < nLevels; kCtr++) 
+                {
+                    dotProduct1 += abl->polyCoeffM[iCtr][kCtr] * tD[kCtr];
+                    dotProduct2 += abl->polyCoeffM[iCtr][kCtr] * tM[kCtr];
+                }
+                abl->tDes[iCtr] = dotProduct1;
+                gtMean[iCtr]    = dotProduct2;
+            }   
+
+            for(j=0; j<nLevels; j++)    
+            {
+                if(abl->cellLevels[j] < abl->lowestSrcHt)
+                {
+                    abl->tDes[j] = abl->tDes[abl->lowestIndT];
+                    gtMean[j] = gtMean[abl->lowestIndT];
+                }
+
+                if(abl->cellLevels[i] > abl->hT[abl->numhT - 1])
+                {
+                    abl->tDes[j] = abl->tDes[abl->highestIndT];
+                    gtMean[j] = gtMean[abl->highestIndT];
+                }
             }
         }
     }
@@ -328,25 +351,28 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
     // apply source and compute error
     PetscReal lrelError = 0.0, grelError = 0.0;
+    PetscInt lcells = 0, gcells = 0;
 
-    for(j=lys; j<lye; j++)
+    for (k=lzs; k<lze; k++)
     {
-        for(k=zs; k<lze; k++)
+        for (j=lys; j<lye; j++)
         {
             for (i=lxs; i<lxe; i++)
             {
                 source[k][j][i]  = lsource[j-lys];
                 lrelError += lsource[j-lys] / abl->tDes[j-1];
+                lcells++;
             }
         }
     }
 
     MPI_Allreduce(&lrelError, &grelError, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lcells, &gcells, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
 
     DMDAVecRestoreArray(da, teqn->sourceT, &source);
     DMDAVecRestoreArray(da, teqn->lTmprt,  &t);
 
-    if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: global error on theta = %.2f percent\n", grelError*100);
+    if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: global avg error on theta = %.5f percent\n", grelError*100/gcells);
 
     // write source terms to file (radiative fluxes)
     // write the uniform source term
@@ -409,7 +435,8 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
     std::vector<PetscReal> ().swap(ltMean);
     std::vector<PetscReal> ().swap(gtMean);
     std::vector<PetscReal> ().swap(lsource);
-
+    std::vector<PetscReal> ().swap(tD);
+    std::vector<PetscReal> ().swap(tM);
     return(0);
 }
 
@@ -783,6 +810,102 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
 }
 
 //***************************************************************************************************************//
+PetscErrorCode correctDampingSourcesT(teqn_ *teqn)
+{
+    mesh_         *mesh = teqn->access->mesh;
+    abl_          *abl  = teqn->access->abl;
+
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***cent;
+
+    PetscReal     ***tP;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+    
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    if(teqn->access->flags->isYDampingActive)
+    {
+        cellIds     *srcMinInd = abl->srcMinInd, *srcMaxInd = abl->srcMaxInd;
+        PetscReal   **tMapped = abl->tMapped;
+        PetscInt    numJ, numK, numI;
+        PetscInt    imin, imax, jmin, jmax, kmin, kmax;
+        precursor_  *precursor;
+        domain_     *pdomain;
+
+        // update the unsteady uBar state
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            precursor = abl->precursor;
+            pdomain   = precursor->domain;
+
+            if(precursor->thisProcessorInFringe)
+            {
+                DMDAVecGetArray(pdomain->mesh->da, pdomain->teqn->lTmprt,  &tP);
+            } 
+
+            for(PetscInt p=0; p < abl->numSourceProc; p++)
+            {
+                if(rank == abl->sourceProcList[p])
+                {
+
+                    imin = abl->srcMinInd[p].i;
+                    imax = abl->srcMaxInd[p].i;
+                    jmin = abl->srcMinInd[p].j;
+                    jmax = abl->srcMaxInd[p].j;
+                    kmin = abl->srcMinInd[p].k;
+                    kmax = abl->srcMaxInd[p].k;
+
+                    numI = abl->srcNumI[p];
+                    numJ = abl->srcNumJ[p];
+                    numK = abl->srcNumK[p];
+
+                    //loop through the sub domain of this processor
+                    for (k=kmin; k<=kmax; k++)
+                    {
+                        for (j=jmin; j<=jmax; j++)
+                        {
+                            for (i=imin; i<=imax; i++)
+                            {
+                                tMapped[p][(k-kmin) * numJ * numI + (j-jmin) * numI + (i-imin)] = tP[k][j][i];
+                            }
+                        }
+                    }
+                }
+
+                if(abl->isdestProc[p] == 1)
+                {
+
+                    numI = abl->srcNumI[p];
+                    numJ = abl->srcNumJ[p];
+                    numK = abl->srcNumK[p];
+                    
+                    MPI_Ibcast(tMapped[p], numI * numJ * numK, MPIU_REAL, abl->srcCommLocalRank[p], abl->yDamp_comm[p], &(abl->mapRequest[p]));
+                }
+                
+            }
+
+            if(precursor->thisProcessorInFringe)
+            {
+                DMDAVecRestoreArray(pdomain->mesh->da, pdomain->teqn->lTmprt,  &tP);
+            }
+        }
+    }
+    return (0);
+}
+//***************************************************************************************************************//
 
 PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 {
@@ -801,7 +924,7 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
     Cmpnts        ***cent;
-    PetscReal     ***rhs, ***t, ***tP;
+    PetscReal     ***rhs, ***t, ***tP, ***tBarY;
 
     precursor_    *precursor;
     domain_       *pdomain;
@@ -831,11 +954,26 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
         }
     }
 
+    if(teqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            DMDAVecGetArray(da, abl->tBarInstY, &tBarY);
+        }
+    }
+
     // x damping layer
     PetscReal alphaX = abl->xDampingAlpha;
     PetscReal xS     = abl->xDampingStart;
     PetscReal xE     = abl->xDampingEnd;
     PetscReal xD     = abl->xDampingDelta;
+
+    // y damping layer
+    PetscReal alphaY = abl->yDampingAlpha;
+    PetscReal yS     = abl->yDampingStart;
+    PetscReal yE     = abl->yDampingEnd;
+    PetscReal yD     = abl->yDampingDelta;
+    
 
     // loop over internal cell faces
     for (k=lzs; k<lze; k++)
@@ -883,6 +1021,32 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
                     rhs[k][j][i] += scale * nud_x * (tBarInstX - t[k][j][i]);
                 }
+
+                if(teqn->access->flags->isYDampingActive)
+                {
+                    PetscReal y = cent[k][j][i].y;
+                    PetscReal x = cent[k][j][i].x;
+                    
+                    PetscReal nud_y  = viscNordstrom(alphaY, yS, yE, yD, y);
+                    PetscReal fAsc_x = viscNordstromNoVertFilter(xS, xE, xD, x);
+
+                    if
+                    (
+                        abl->xFringeUBarSelectionType == 0 ||
+                        abl->xFringeUBarSelectionType == 1 ||
+                        abl->xFringeUBarSelectionType == 2 ||
+                        abl->xFringeUBarSelectionType == 4
+                    )
+                    {
+
+                    }
+                    else if(abl->xFringeUBarSelectionType == 3)
+                    {
+                        rhs[k][j][i] += scale * nud_y * fAsc_x * (tBarY[k][j][i] - t[k][j][i]);
+                    }
+
+                }
+
             }
         }
     }
@@ -899,6 +1063,14 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
             {
                 DMDAVecRestoreArray(pdomain->mesh->da, pdomain->teqn->lTmprt,  &tP);
             }
+        }
+    }
+
+    if(teqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            DMDAVecRestoreArray(da, abl->tBarInstY, &tBarY);
         }
     }
 
@@ -962,6 +1134,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     ueqn_         *ueqn  = teqn->access->ueqn;
     les_          *les   = teqn->access->les;
     constants_    *cst   = teqn->access->constants;
+    flags_        *flags = teqn->access->flags;
     DM            da     = mesh->da, fda = mesh->fda;
     DMDALocalInfo info   = mesh->info;
     PetscInt      xs     = info.xs, xe = info.xs + info.xm;
@@ -981,7 +1154,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
     PetscReal     ***tmprt, ***rhs, ***nvert;
 
-    Cmpnts        ***div, ***visc;                                                // divergence and viscous terms
+    Cmpnts        ***div, ***visc, ***viscIBM;                                                // divergence and viscous terms
     Cmpnts        ***limiter;                                                     // flux limiter
     PetscReal     ***aj, ***iaj, ***jaj, ***kaj;                                  // cell and face jacobians
     PetscReal     ***lnu_t, ***Sabs, ***lch, ***lcs;
@@ -1021,6 +1194,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lCent,       &cent);
     DMDAVecGetArray(da,  mesh->lNvert,      &nvert);
     DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
+
+    if(flags->isIBMActive)
+    {
+        DMDAVecGetArray(fda, teqn->lViscIBMT, &viscIBM);
+    }
 
     VecSet(teqn->lDivT,  0.0);
     VecSet(teqn->lViscT, 0.0);;
@@ -1074,54 +1252,19 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    iL, iR;
                 PetscReal denom;
-                getFace2Cell4StencilCsi(mesh, i, mx, &iL, &iR, &denom);
+                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert);
 
-                if( isIBMIFace(k, j, iL, iR, nvert) )
-                {
-                    iL = i;
-                    iR = i+1;
-                }
-
-                PetscReal ucon = ucont[k][j][i].x;
-
-                PetscReal up = 0.5 * ( ucon + fabs(ucon) );
-                PetscReal um = 0.5 * ( ucon - fabs(ucon) );
-
-                //IBM active and on the right face of the IBM fluid cell
-                // Use second order if positive flux and quick if negative flux
-                if(teqn->access->flags->isIBMActive && i!=mx-2 && isIBMCell(k, j, i, nvert))
-
-                {
-                    div[k][j][i].x =
-                            -um * (0.125 * (-    tmprt[k][j][i+2] - 2. * tmprt[k][j][i+1] + 3. * tmprt[k][j][i]) + tmprt[k][j][i+1]) +
-                            -up * (0.125 * (-    tmprt[k][j][i] -  2. * tmprt[k][j][i] +  3. * tmprt[k][j][i+1]) +  tmprt[k][j][i]);
-
-                }
-
-                //IBM active and on the left face of the IBM fluid cell
-                // Use second order if negative flux and quickDiv if positive flux
-
-                else if (teqn->access->flags->isIBMActive && i!=0 && isIBMCell(k, j, i+1, nvert))
-                {
-                    div[k][j][i].x =
-                            -um * (0.125 * (-    tmprt[k][j][i+1] -  2. * tmprt[k][j][i+1] +  3. * tmprt[k][j][i]) + tmprt[k][j][i+1]) +
-                            -up * (0.125 * (-    tmprt[k][j][i-1] -  2. * tmprt[k][j][i] +  3. * tmprt[k][j][i+1]) + tmprt[k][j][i]);
-
-                }
-                else
-                {
-                    div[k][j][i].x =
-                    - ucon
-                    * centralUpwind
-                    (
-                        tmprt[k][j][iL],
-                        tmprt[k][j][i],
-                        tmprt[k][j][i+1],
-                        tmprt[k][j][iR],
-                        ucont[k][j][i].x
-                        ,limiter[k][j][i].x
-                    );
-                }
+                div[k][j][i].x =
+                - ucont[k][j][i].x
+                * centralUpwind
+                (
+                    tmprt[k][j][iL],
+                    tmprt[k][j][i],
+                    tmprt[k][j][i+1],
+                    tmprt[k][j][iR],
+                    ucont[k][j][i].x
+                    ,limiter[k][j][i].x
+                );
 
                 PetscReal nu = cst->nu, nut;
                 PetscReal kappaEff;
@@ -1132,20 +1275,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
+                    nu = 0;
+
                     if(teqn->access->flags->isLesActive != 2)
                     {
-                        if(isIBMCell(k, j, i, nvert))
-                        {
-                            nut = lnu_t[k][j][i+1];
-                        }
-                        else if (isIBMCell(k, j, i+1, nvert))
-                        {
-                            nut = lnu_t[k][j][i];
-                        }
-                        else
-                        {
-                            nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
-                        }
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
 
                         // compute stability dependent turbulent Prandtl number
                         PetscReal gradTdotG = dtde*(-9.81);
@@ -1165,22 +1299,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     }
                     else
                     {
-                        if(isIBMCell(k, j, i, nvert))
-                        {
-                            kappaEff = (nu / cst->Pr) + lch[k][j][i+1] / 0.1 * Sabs[k][j][i+1] * lcs[k][j][i+1] * pow(1.0 / ajc, 1.0/3.0);
-                        }
-                        else if (isIBMCell(k, j, i+1, nvert))
-                        {
-                            kappaEff = (nu / cst->Pr) + lch[k][j][i] / 0.1 * Sabs[k][j][i] * lcs[k][j][i] * pow(1.0 / ajc, 1.0/3.0);
-                        }
-                        else
-                        {
-                            kappaEff = (nu / cst->Pr) + 0.5 *
-                            (
-                                lch[k][j][i+1] / 0.1 * Sabs[k][j][i+1] * lcs[k][j][i+1] +
-                                lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
-                            ) * pow(1.0 / ajc, 1.0/3.0);
-                        }
+                        kappaEff = (nu / cst->Pr) + 0.5 *
+                        (
+                            lch[k][j][i+1] / 0.1 * Sabs[k][j][i+1] * lcs[k][j][i+1] +
+                            lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
+                        ) * pow(1.0 / ajc, 1.0/3.0);
                     }
 
                     // wall model i-left/right patch
@@ -1193,7 +1316,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                         PetscReal signQ =  1.0;
                         if(i==0)  signQ = -1.0;
 
-                        visc[k][j][i].y
+                        visc[k][j][i].x
                         =
                         signQ *
                         (
@@ -1204,6 +1327,26 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
                         kappaEff = 0.0;
                     }
+
+                    //IBM wall model 
+                    if(isIBMFluidIFace(k, j, i, i+1, nvert))
+                    {
+                        if(teqn->access->ibm->wallShearOn && teqn->access->ibm->ibmBody[0]->tempBC == "thetaWallFunction")
+                        {
+                            if(isIBMFluidCell(k, j, i, nvert))
+                            {
+                                visc[k][j][i].x = viscIBM[k][j][i].x;
+                            }
+                            else if(isIBMFluidCell(k, j, i+1, nvert))
+                            {
+                                visc[k][j][i].x = viscIBM[k][j][i+1].x;
+                            }
+
+                            kappaEff = 0;
+                        }
+                    }
+
+
                 }
                 else
                 {
@@ -1243,54 +1386,19 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    jL, jR;
                 PetscReal denom;
-                getFace2Cell4StencilEta(mesh, j, my, &jL, &jR, &denom);
+                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert);
 
-                if( isIBMJFace(k, jL, i, jR, nvert) )
-                {
-                    jL = j;
-                    jR = j+1;
-                }
-
-                PetscReal ucon = ucont[k][j][i].y;
-
-                PetscReal up = 0.5 * ( ucon + fabs(ucon) );
-                PetscReal um = 0.5 * ( ucon - fabs(ucon) );
-
-                //IBM active and on the right face of the IBM fluid cell
-                // Use second order if positive flux and quick if negative flux
-                if ( teqn->access->flags->isIBMActive &&  j!=my-2 && isIBMCell(k, j, i, nvert) )
-                {
-                    div[k][j][i].y =
-                            -um * (0.125 * (-    tmprt[k][j+2][i] -  2. * tmprt[k][j+1][i] +  3. * tmprt[k][j  ][i]) +  tmprt[k][j+1][i]) +
-                            -up * (0.125 * (-    tmprt[k][j  ][i] -  2. * tmprt[k][j  ][i] +  3. * tmprt[k][j+1][i]) +  tmprt[k][j][i  ]);
-
-                }
-
-                //IBM active and on the left face of the IBM fluid cell
-                // Use second order if negative flux and quickDiv if positive flux
-
-                else if ( teqn->access->flags->isIBMActive &&  j!=0 && isIBMCell(k, j+1, i, nvert) )
-                {
-                    div[k][j][i].y =
-                            -um * (0.125 * (-    tmprt[k][j+1][i] -  2. * tmprt[k][j+1][i] +  3. * tmprt[k][j  ][i]) + tmprt[k][j+1][i]) +
-                            -up * (0.125 * (-    tmprt[k][j-1][i] -  2. * tmprt[k][j  ][i] +  3. * tmprt[k][j+1][i]) + tmprt[k][j][i  ]);
-
-                }
-
-                else
-                {
-                    div[k][j][i].y =
-                    - ucon
-                    * centralUpwind
-                    (
-                        tmprt[k][jL][i],
-                        tmprt[k][j][i],
-                        tmprt[k][j+1][i],
-                        tmprt[k][jR][i],
-                        ucont[k][j][i].y
-                        ,limiter[k][j][i].y
-                    );
-                }
+                div[k][j][i].y =
+                - ucont[k][j][i].y
+                * centralUpwind
+                (
+                    tmprt[k][jL][i],
+                    tmprt[k][j][i],
+                    tmprt[k][j+1][i],
+                    tmprt[k][jR][i],
+                    ucont[k][j][i].y
+                    ,limiter[k][j][i].y
+                );
 
                 PetscReal nu = cst->nu, nut;
                 PetscReal kappaEff;
@@ -1300,20 +1408,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
+                    nu = 0;
+
                     if(teqn->access->flags->isLesActive != 2)
                     {
-                        if(isIBMCell(k, j, i, nvert))
-                        {
-                            nut = lnu_t[k][j+1][i];
-                        }
-                        else if (isIBMCell(k, j+1, i, nvert))
-                        {
-                            nut = lnu_t[k][j][i];
-                        }
-                        else
-                        {
-                            nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
-                        }
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
 
                         // compute stability depentend turbulent Prandtl number
                         PetscReal gradTdotG = dtde*(-9.81);
@@ -1333,22 +1432,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     }
                     else
                     {
-                        if(isIBMCell(k, j, i, nvert))
-                        {
-                            kappaEff = (nu / cst->Pr) + lch[k][j+1][i] / 0.1 * Sabs[k][j+1][i] * lcs[k][j+1][i] * pow(1.0 / ajc, 1.0/3.0);
-                        }
-                        else if (isIBMCell(k, j+1, i, nvert))
-                        {
-                            kappaEff = (nu / cst->Pr) + lch[k][j][i] / 0.1 * Sabs[k][j][i] * lcs[k][j][i] * pow(1.0 / ajc, 1.0/3.0);
-                        }
-                        else
-                        {
-                            kappaEff = (nu / cst->Pr) + 0.5 *
-                            (
-                                lch[k][j+1][i] / 0.1 * Sabs[k][j+1][i] * lcs[k][j+1][i] +
-                                lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
-                            ) * pow(1.0 / ajc, 1.0/3.0);
-                        }
+                        kappaEff = (nu / cst->Pr) + 0.5 *
+                        (
+                            lch[k][j+1][i] / 0.1 * Sabs[k][j+1][i] * lcs[k][j+1][i] +
+                            lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
+                        ) * pow(1.0 / ajc, 1.0/3.0);
                     }
 
                     // wall model j-left patch
@@ -1371,6 +1459,25 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                         );
 
                         kappaEff = 0.0;
+                    }
+
+                    if(isIBMFluidJFace(k, j, i, j+1, nvert) && teqn->access->ibm->ibmBody[0]->tempBC == "thetaWallFunction")
+                    {
+                        if(teqn->access->ibm->wallShearOn)
+                        {
+
+                            if(isIBMFluidCell(k, j, i, nvert))
+                            {
+                                visc[k][j][i].y = viscIBM[k][j][i].y;
+                            }
+                            else if(isIBMFluidCell(k, j+1, i, nvert))
+                            {
+                                visc[k][j][i].y = viscIBM[k][j+1][i].y;
+                            }
+                           
+                            kappaEff = 0;
+                        }
+
                     }
                 }
                 else
@@ -1411,55 +1518,19 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    kL, kR;
                 PetscReal denom;
-                getFace2Cell4StencilZet(mesh, k, mz, &kL, &kR, &denom);
+                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert);
 
-                if( isIBMKFace(kL, j, i, kR, nvert) )
-                {
-                    kL = k;
-                    kR=k+1;
-                    denom=1.;
-                }
-
-                PetscReal ucon = ucont[k][j][i].z;
-
-                PetscReal up = 0.5 * ( ucon + fabs(ucon) );
-                PetscReal um = 0.5 * ( ucon - fabs(ucon) );
-
-                //IBM active and on the right face of the IBM fluid cell
-                // Use second order if positive flux and quick if negative flux
-                if ( teqn->access->flags->isIBMActive && k!=mz-2 && isIBMCell(k, j, i, nvert) )
-                {
-                    div[k][j][i].z =
-                            -um * (0.125 * (-    tmprt[k+2][j][i] -  2. * tmprt[k+1][j][i] +  3. * tmprt[k  ][j][i]) + tmprt[k+1][j][i])   +
-                            -up * (0.125 * (-    tmprt[k  ][j][i] -  2. * tmprt[k  ][j][i] +  3. * tmprt[k+1][j][i]) +  tmprt[k][j][i  ]);
-
-                }
-
-                //IBM active and on the left face of the IBM fluid cell
-                // Use second order if negative flux and quickDiv if positive flux
-
-                else if ( teqn->access->flags->isIBMActive &&  k!=0 && isIBMCell(k+1, j, i, nvert) )
-                {
-                    div[k][j][i].z =
-                            -um * (0.125 * (-    tmprt[k+1][j][i] -  2. * tmprt[k+1][j][i] +  3. * tmprt[k  ][j][i]) + tmprt[k+1][j][i])   +
-                            -up * (0.125 * (-    tmprt[k-1][j][i] -  2. * tmprt[k  ][j][i] +  3. * tmprt[k+1][j][i]) +  tmprt[k][j][i  ]);
-
-                }
-
-                else
-                {
-                    div[k][j][i].z =
-                    - ucon
-                    * centralUpwind
-                    (
-                        tmprt[kL][j][i],
-                        tmprt[k][j][i],
-                        tmprt[k+1][j][i],
-                        tmprt[kR][j][i],
-                        ucont[k][j][i].z
-                        ,limiter[k][j][i].z
-                    );
-                }
+                div[k][j][i].z =
+                - ucont[k][j][i].z
+                * centralUpwind
+                (
+                    tmprt[kL][j][i],
+                    tmprt[k][j][i],
+                    tmprt[k+1][j][i],
+                    tmprt[kR][j][i],
+                    ucont[k][j][i].z
+                    ,limiter[k][j][i].z
+                );
 
                 PetscReal nu = cst->nu, nut;
                 PetscReal kappaEff;
@@ -1469,21 +1540,12 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
+                    nu = 0;
+                    
                     if(teqn->access->flags->isLesActive != 2)
                     {
-                        if(isIBMCell(k, j, i, nvert))
-                        {
-                            nut = lnu_t[k+1][j][i];
-                        }
-                        else if (isIBMCell(k+1, j, i, nvert))
-                        {
-                            nut = lnu_t[k][j][i];
-                        }
-                        else
-                        {
-                            nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
-                        }
-
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
+                        
                         // compute stability depentend turbulent Prandtl number
                         PetscReal gradTdotG = dtde*(-9.81);
                         PetscReal l, delta = pow( 1./ajc, 1./3. );
@@ -1502,21 +1564,27 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     }
                     else
                     {
-                        if(isIBMCell(k, j, i, nvert))
+                        kappaEff = (nu / cst->Pr) + 0.5 *
+                        (
+                            lch[k+1][j][i] / 0.1 * Sabs[k+1][j][i] * lcs[k+1][j][i] +
+                            lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
+                        ) * pow(1.0 / ajc, 1.0/3.0);
+                    }
+
+                    if(isIBMFluidKFace(k, j, i, k+1, nvert) && teqn->access->ibm->ibmBody[0]->tempBC == "thetaWallFunction")
+                    {
+                        if(teqn->access->ibm->wallShearOn)
                         {
-                            kappaEff = (nu / cst->Pr) + lch[k+1][j][i] / 0.1 * Sabs[k+1][j][i] * lcs[k+1][j][i] * pow(1.0 / ajc, 1.0/3.0);
-                        }
-                        else if (isIBMCell(k+1, j, i, nvert))
-                        {
-                            kappaEff = (nu / cst->Pr) + lch[k][j][i] / 0.1 * Sabs[k][j][i] * lcs[k][j][i] * pow(1.0 / ajc, 1.0/3.0);
-                        }
-                        else
-                        {
-                            kappaEff = (nu / cst->Pr) + 0.5 *
-                            (
-                                lch[k+1][j][i] / 0.1 * Sabs[k+1][j][i] * lcs[k+1][j][i] +
-                                lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
-                            ) * pow(1.0 / ajc, 1.0/3.0);
+                            if(isIBMFluidCell(k, j, i, nvert))
+                            {
+                                visc[k][j][i].z = viscIBM[k][j][i].z;
+                            }
+                            else if(isIBMFluidCell(k+1, j, i, nvert))
+                            {
+                                visc[k][j][i].z = viscIBM[k+1][j][i].z;
+                            }
+
+                            kappaEff = 0;
                         }
                     }
                 }
@@ -1533,6 +1601,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
     DMDAVecRestoreArray(fda, teqn->lDivT, &div);
     DMDAVecRestoreArray(fda, teqn->lViscT, &visc);
+
+    if(flags->isIBMActive)
+    {
+        DMDAVecRestoreArray(fda, teqn->lViscIBMT, &viscIBM);
+    }
 
     DMLocalToLocalBegin(fda, teqn->lDivT,  INSERT_VALUES, teqn->lDivT);
     DMLocalToLocalEnd  (fda, teqn->lDivT,  INSERT_VALUES, teqn->lDivT);
@@ -1555,25 +1628,17 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if (isIBMCell(k, j, i, nvert))
-                {
-                    rhs[k][j][i] = 0;
-                }
-                else
-                {
-                    rhs[k][j][i]
-                    =
-                    scale *
-                    (
-                         div[k][j][i].x  - div[k  ][j  ][i-1].x       +
-                         div[k][j][i].y  - div[k  ][j-1][i  ].y       +
-                         div[k][j][i].z  - div[k-1][j  ][i  ].z       +
-                         visc[k][j][i].x - visc[k  ][j  ][i-1].x      +
-                         visc[k][j][i].y - visc[k  ][j-1][i  ].y      +
-                         visc[k][j][i].z - visc[k-1][j  ][i  ].z
-                    ) * aj[k][j][i];
-                }
-
+                rhs[k][j][i]
+                =
+                scale *
+                (
+                        div[k][j][i].x  - div[k  ][j  ][i-1].x       +
+                        div[k][j][i].y  - div[k  ][j-1][i  ].y       +
+                        div[k][j][i].z  - div[k-1][j  ][i  ].z       +
+                        visc[k][j][i].x - visc[k  ][j  ][i-1].x      +
+                        visc[k][j][i].y - visc[k  ][j-1][i  ].y      +
+                        visc[k][j][i].z - visc[k-1][j  ][i  ].z
+                ) * aj[k][j][i];
             }
         }
     }
@@ -1744,7 +1809,7 @@ PetscErrorCode TeqnRK4(teqn_ *teqn)
 
     PetscReal dt = clock->dt;
 
-    // Ucont_o contribution
+    // Tmprt_o contribution
     VecCopy(teqn->Tmprt_o, teqn->TmprtTmp);
 
     // contribution from K2, K3, K4
