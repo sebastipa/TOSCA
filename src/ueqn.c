@@ -276,6 +276,11 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
 
+    PetscReal     lrelError = 0.0, grelError = 0.0;
+    PetscInt      lcells = 0, gcells = 0;
+    std::vector<Cmpnts> uMeso(my-2);
+
+
     PetscMPIInt   rank;
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
@@ -638,17 +643,22 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 abl->b.z =   0.0;
             }
         }
-        else if(abl->controllerType=="directProfileAssimilation")
+        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
         {
-            PetscReal relax   = abl->relax;
+            PetscReal relax = abl->relax;
+            PetscReal alpha = abl->alpha;
+            PetscReal T     = abl->timeWindow;
             PetscInt  nlevels = my-2;
 
             Cmpnts    *luMean = abl->luMean;
             Cmpnts    *guMean = abl->guMean;
-            Cmpnts    **uMeso = abl->uMeso;
-            Cmpnts    uDes, uH1, uH2;
+            Cmpnts    *srcPA  = abl->srcPA;
+
+            Cmpnts    uH1, uH2;
             PetscInt  idxh1, idxh2, idxt1;
             PetscReal wth1, wth2, wtt1;
+
+            PetscReal aN, m1, m2;
 
             PetscMalloc(sizeof(Cmpnts) * (nlevels), &(src));
 
@@ -657,6 +667,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 luMean[j] = nSetZero();
                 guMean[j] = nSetZero();
                 src[j]    = nSetZero();
+                srcPA[j]    = nSetZero();
             }
 
             DMDAVecGetArray(da, mesh->lAj, &aj);
@@ -679,138 +690,183 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
             MPI_Allreduce(&(luMean[0]), &(guMean[0]), 3*nlevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-            if(abl->assimilationType == "constantTime")
-            {
-                for(j=0; j<nlevels; j++)
-                {
-
-                    mScale(1.0/abl->totVolPerLevel[j], guMean[j]);
-                    
-                    idxh1 = abl->velInterpIdx[j][0];
-                    idxh2 = abl->velInterpIdx[j][1];
-
-                    wth1  = abl->velInterpWts[j][0];
-                    wth2  = abl->velInterpWts[j][1];
-
-                    idxt1 = abl->closestTimeIndV;
-                    wtt1 = abl->closestTimeWtV;
-
-                    //interpolating in time
-                    uH1 = nSum(nScale(wtt1, abl->uMeso[idxh1][idxt1]), nScale(1 - wtt1, abl->uMeso[idxh1][idxt1 + 1]));
-                    uH2 = nSum(nScale(wtt1, abl->uMeso[idxh2][idxt1]), nScale(1 - wtt1, abl->uMeso[idxh2][idxt1 + 1]));
-
-                    //interpolating in vertical direction 
-                    uDes = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
-
-                    // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf\n", uDes.x, uDes.y, uDes.z, guMean[j].x, guMean[j].y, guMean[j].z);
-                    
-                    src[j].x = (uDes.x - guMean[j].x);
-                    src[j].y = (uDes.y - guMean[j].y);
-                    src[j].z = (uDes.z - guMean[j].z);
-
-                    mScale(relax, src[j]);
-                }
-            }
-            else if(abl->assimilationType == "variableTime")
-            {
-                //find the two closest available mesoscale data in time
-                PetscInt idx_1 = abl->closestTimeIndV;
-                PetscInt idx_2 = abl->closestTimeIndV + 1;
-
-                PetscInt lwrBound = 0;
-                PetscInt uprBound = abl->numtV;
-
-                if(clock->it > clock->itStart)
-                {
-                    lwrBound = PetscMax(0, (abl->closestTimeIndV - 50));
-                    uprBound = PetscMin(abl->numtV, (abl->closestTimeIndV + 50));
-                }
-
-                // build error vector for the time search
-                PetscReal  diff[abl->numtV];
-
-                for(PetscInt i=lwrBound; i<uprBound; i++)
-                {
-                    diff[i] = fabs(abl->timeV[i] - clock->time);
-                }
-
-                // find the two closest times
-                for(PetscInt i=lwrBound; i<uprBound; i++)
-                {
-                    if(diff[i] < diff[idx_1])
-                    {
-                        idx_2 = idx_1;
-                        idx_1 = i;
-                    }
-                    if(diff[i] < diff[idx_2] && i != idx_1)
-                    {
-                        idx_2 = i;
-                    }
-                }
-
-                // always put the lower time at idx_1 and higher at idx_2
-                if(abl->timeV[idx_2] < abl->timeV[idx_1])
-                {
-                    PetscInt idx_tmp = idx_2;
-                    idx_2 = idx_1;
-                    idx_1 = idx_tmp;
-                }
-
-                // find interpolation weights
-                PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
-                PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
-                PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
-
-                PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading mesoscale data\n", w1 * abl->timeV[idx_1] + w2 * abl->timeV[idx_2]);
-                PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
-                PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeV[idx_1], abl->timeV[idx_2]);
-
-                // reset the closest index for nex iteration
-                abl->closestTimeIndV = idx_1;
-
-                for(j=0; j<nlevels; j++)
-                {
-
-                    mScale(1.0/abl->totVolPerLevel[j], guMean[j]);
-                    
-                    idxh1 = abl->velInterpIdx[j][0];
-                    idxh2 = abl->velInterpIdx[j][1];
-
-                    wth1  = abl->velInterpWts[j][0];
-                    wth2  = abl->velInterpWts[j][1];
-
-                    //interpolating in time
-                    uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
-                    uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
-
-                    //interpolating in vertical direction 
-                    uDes = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
-
-                    // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf, interpolated from %lf and %lf, wts = %lf %lf\n", uDes.x, uDes.y, uDes.z, guMean[j].x, guMean[j].y, guMean[j].z, abl->timeV[idx_1], abl->timeV[idx_2], w1, w2);
-                    
-                    src[j].x = (uDes.x - guMean[j].x);
-                    src[j].y = (uDes.y - guMean[j].y);
-                    src[j].z = (uDes.z - guMean[j].z);
-
-                    mScale(relax, src[j]);
-                }
-
-            }
-            else 
-            {
-                char error[512];
-                sprintf(error, "wrong assimilation method chosen. Available options are constantTime or variableTime\n");
-                fatalErrorInFunction("CorrectSourceTerms",  error);
-            }
-
-            // if cellLevels is below the lowest mesoscale data point use the source at the last available height
             for(j=0; j<nlevels; j++)
             {
-                if(abl->cellLevels[j] < abl->hV[0])
+                mScale(1.0/abl->totVolPerLevel[j], guMean[j]);
+            }
+
+            //find the two closest available mesoscale data in time
+            PetscInt idx_1 = abl->closestTimeIndV;
+            PetscInt idx_2 = abl->closestTimeIndV + 1;
+
+            PetscInt lwrBound = 0;
+            PetscInt uprBound = abl->numtV;
+
+            if(clock->it > clock->itStart)
+            {
+                lwrBound = PetscMax(0, (abl->closestTimeIndV - 50));
+                uprBound = PetscMin(abl->numtV, (abl->closestTimeIndV + 50));
+            }
+
+            // build error vector for the time search
+            PetscReal  diff[abl->numtV];
+
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                diff[i] = fabs(abl->timeV[i] - clock->time);
+            }
+
+            // find the two closest times
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                if(diff[i] < diff[idx_1])
                 {
-                    src[j].x = src[abl->lowestIndV].x;
-                    src[j].y = src[abl->lowestIndV].y;
-                    src[j].z = src[abl->lowestIndV].z;
+                    idx_2 = idx_1;
+                    idx_1 = i;
+                }
+                if(diff[i] < diff[idx_2] && i != idx_1)
+                {
+                    idx_2 = i;
+                }
+            }
+
+            // always put the lower time at idx_1 and higher at idx_2
+            if(abl->timeV[idx_2] < abl->timeV[idx_1])
+            {
+                PetscInt idx_tmp = idx_2;
+                idx_2 = idx_1;
+                idx_1 = idx_tmp;
+            }
+
+            // find interpolation weights
+            PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
+            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+            PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading mesoscale data\n", w1 * abl->timeV[idx_1] + w2 * abl->timeV[idx_2]);
+            PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+            PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeV[idx_1], abl->timeV[idx_2]);
+
+            // reset the closest index for next iteration
+            abl->closestTimeIndV = idx_1;
+
+            for(j=0; j<nlevels; j++)
+            {                
+                idxh1 = abl->velInterpIdx[j][0];
+                idxh2 = abl->velInterpIdx[j][1];
+
+                wth1  = abl->velInterpWts[j][0];
+                wth2  = abl->velInterpWts[j][1];
+
+                //interpolating in time
+                uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+                uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+                //interpolating in vertical direction 
+                uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+                // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf, interpolated from %lf and %lf, wts = %lf %lf\n", uDes.x, uDes.y, uDes.z, guMean[j].x, guMean[j].y, guMean[j].z, abl->timeV[idx_1], abl->timeV[idx_2], w1, w2);
+
+                // cumulate the error (integral part of the controller)
+                abl->cumulatedSourceHt[j].x = (1.0 - clock->dt / T) * abl->cumulatedSourceHt[j].x + (clock->dt / T) * (uMeso[j].x - guMean[j].x);
+                abl->cumulatedSourceHt[j].y = (1.0 - clock->dt / T) * abl->cumulatedSourceHt[j].y + (clock->dt / T) * (uMeso[j].y - guMean[j].y);
+                abl->cumulatedSourceHt[j].z = 0.0;
+                
+                src[j].x = relax * (alpha * (uMeso[j].x - guMean[j].x) + (1.0-alpha) * abl->cumulatedSourceHt[j].x);
+                src[j].y = relax * (alpha * (uMeso[j].y - guMean[j].y) + (1.0-alpha) * abl->cumulatedSourceHt[j].y) ;
+                src[j].z = 0.0;
+                
+            }
+        
+        //to be performed after all values of src are set
+        // set the source terms outside the provided range of mesoscale data. this is set incorrectly above so corrected here
+        for(j=0; j<nlevels; j++)
+        {
+            if(abl->cellLevels[j] < abl->hV[0])
+            {
+                src[j].x = src[abl->lMesoIndV].x;
+                src[j].y = src[abl->lMesoIndV].y;
+                src[j].z = src[abl->lMesoIndV].z;
+            }
+            
+            if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
+            {
+                src[j].x = src[abl->hMesoIndV].x;
+                src[j].y = src[abl->hMesoIndV].y;
+                src[j].z = src[abl->hMesoIndV].z;
+            }
+
+            srcPA[j] = nSet(src[j]);
+
+            if(abl->averageSource && abl->controllerType=="directProfileAssimilation")
+            {
+                if((abl->currAvgtime < abl->tAvgWindow) && (j == 0))
+                {
+                    abl->currAvgtime = abl->currAvgtime + clock->dt;
+                }
+
+                aN = (PetscReal)abl->currAvgtime;
+                m1 = aN  / (aN + clock->dt);
+                m2 = clock->dt / (aN + clock->dt);
+
+                abl->avgsrc[j].x = m1*abl->avgsrc[j].x + m2*srcPA[j].x;
+                abl->avgsrc[j].y = m1*abl->avgsrc[j].y + m2*srcPA[j].y;
+                abl->avgsrc[j].z = m1*abl->avgsrc[j].z + m2*srcPA[j].z;
+            }
+        }
+
+            if (abl->controllerType=="indirectProfileAssimilation")
+            {
+                for (j=0; j<nlevels; j++) 
+                {
+                    PetscReal dotProductx = 0.0, dotProducty = 0.0, dotProductz = 0.0;
+
+                    for (k = 0; k < nlevels; k++) 
+                    {
+                        dotProductx += abl->polyCoeffM[j][k] * src[k].x;
+                        dotProducty += abl->polyCoeffM[j][k] * src[k].y;
+                        dotProductz += abl->polyCoeffM[j][k] * src[k].z;
+                    }
+
+                    srcPA[j].x = dotProductx;
+                    srcPA[j].y = dotProducty;
+                    srcPA[j].z = dotProductz;
+                }
+
+                for (j=0; j<nlevels; j++) 
+                {              
+                    if(abl->cellLevels[j] < abl->lowestSrcHt)
+                    {
+                        srcPA[j].x = srcPA[abl->lowestIndV].x;
+                        srcPA[j].y = srcPA[abl->lowestIndV].y;
+                        srcPA[j].z = srcPA[abl->lowestIndV].z;
+                    }
+                    
+                    if(abl->cellLevels[j] > abl->highestSrcHt)
+                    {
+                        srcPA[j].x = srcPA[abl->highestIndV].x;
+                        srcPA[j].y = srcPA[abl->highestIndV].y;
+                        srcPA[j].z = srcPA[abl->highestIndV].z;
+                    }
+
+                    if(abl->averageSource)
+                    {
+                        if((abl->currAvgtime < abl->tAvgWindow) && (j == 0))
+                        {
+                            abl->currAvgtime = abl->currAvgtime + clock->dt;
+                        }
+
+                        aN = (PetscReal)abl->currAvgtime;
+                        m1 = aN  / (aN + clock->dt);
+                        m2 = clock->dt / (aN + clock->dt);
+
+                        abl->avgsrc[j].x = m1*abl->avgsrc[j].x + m2*srcPA[j].x;
+                        abl->avgsrc[j].y = m1*abl->avgsrc[j].y + m2*srcPA[j].y;
+                        abl->avgsrc[j].z = m1*abl->avgsrc[j].z + m2*srcPA[j].z;
+                        
+                    }
+
+                    // PetscPrintf(PETSC_COMM_WORLD, "src[%ld] = %lf %lf %lf, avgsrc[%ld] = %lf %lf %lf\n", j, srcPA[j].x, srcPA[j].y, srcPA[j].z);
                 }
             }
 
@@ -861,9 +917,19 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
                     PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
 
-                    for(j=0; j<nlevels; j++)
+                    if(abl->averageSource)
                     {
-                        PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, src[j].x,  width, src[j].y,  width, src[j].z);
+                        for(j=0; j<nlevels; j++)
+                        {
+                            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, abl->avgsrc[j].x,  width, abl->avgsrc[j].y,  width, abl->avgsrc[j].z);
+                        }                       
+                    }
+                    else 
+                    {
+                        for(j=0; j<nlevels; j++)
+                        {
+                            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, srcPA[j].x,  width, srcPA[j].y,  width, srcPA[j].z);
+                        }
                     }
 
                     PetscFPrintf(mesh->MESH_COMM, fp, "\n");
@@ -929,6 +995,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
             PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
 
+            
             if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading sources\n", w1 * abl->preCompSources[idx_1][0] + w2 * abl->preCompSources[idx_2][0]);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->preCompSources[idx_1][0], abl->preCompSources[idx_2][0]);
@@ -970,7 +1037,11 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         }
         else if(abl->controllerType=="timeHeightSeries")
         {
-            PetscInt  nlevels = my-2;
+            PetscInt   nlevels = my-2;
+            PetscReal  uT1, uT2;
+            PetscReal  wth1, wth2;
+            PetscInt   idxh1, idxh2;
+
             PetscMalloc(sizeof(Cmpnts) * (nlevels), &(src));
 
             // find the two closest times in the pre-computed sources
@@ -1022,7 +1093,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             PetscReal idx = (idx_2 - idx_1) / (abl->timeHtSources[idx_2][0][0] - abl->timeHtSources[idx_1][0][0]) * (clock->time - abl->timeHtSources[idx_1][0][0]) + idx_1;
             PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
             PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
-
+            
             if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading sources\n", w1 * abl->timeHtSources[idx_1][0][0] + w2 * abl->timeHtSources[idx_2][0][0]);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeHtSources[idx_1][0][0], abl->timeHtSources[idx_2][0][0]);
@@ -1037,9 +1108,36 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             // scale with time step for each height
             for(j=0; j<nlevels; j++)
             {
-                src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][1] / dtSource2) * clock->dt;
-                src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][2] / dtSource2) * clock->dt;
-                src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][3] / dtSource2) * clock->dt;    
+                if(abl->numhV != nlevels)
+                {
+                    //interpolating in height for each time
+                    idxh1 = abl->velInterpIdx[j][0];
+                    idxh2 = abl->velInterpIdx[j][1];
+
+                    wth1  = abl->velInterpWts[j][0];
+                    wth2  = abl->velInterpWts[j][1];
+                    
+                    uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][1] + wth2 * abl->timeHtSources[idx_1][idxh2][1];
+                    uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][1] + wth2 * abl->timeHtSources[idx_2][idxh2][1];
+
+                    src[j].x = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
+
+                    uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][2] + wth2 * abl->timeHtSources[idx_1][idxh2][2];
+                    uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][2] + wth2 * abl->timeHtSources[idx_2][idxh2][2];
+
+                    src[j].y = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
+
+                    uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][3] + wth2 * abl->timeHtSources[idx_1][idxh2][3];
+                    uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][3] + wth2 * abl->timeHtSources[idx_2][idxh2][3];
+
+                    src[j].z = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt; 
+                }
+                else 
+                {
+                    src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][1] / dtSource2) * clock->dt;
+                    src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][2] / dtSource2) * clock->dt;
+                    src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][3] / dtSource2) * clock->dt; 
+                } 
             }           
  
         }
@@ -1072,7 +1170,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                             {
                                 // multiply by dt for how TOSCA builds the source RHS (only geo damping)
 
-                                PetscReal  height = cent[k][j][i].z - mesh->bounds.zmin;
+                                PetscReal  height = cent[k][j][i].z - mesh->grndLevel;
                                 source[k][j][i].x = s.x +
                                                     scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
                                                     abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x) * clock->dt;
@@ -1088,11 +1186,32 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                                 source[k][j][i].z = 0.0;
                             }
                         }
-                        else if(abl->controllerType=="directProfileAssimilation")
+                        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
                         {
-                            source[k][j][i].x = src[j-1].x;
-                            source[k][j][i].y = src[j-1].y;
-                            source[k][j][i].z = 0.0;
+                            if(abl->averageSource)
+                            {
+                                source[k][j][i].x = abl->avgsrc[j-1].x;
+                                source[k][j][i].y = abl->avgsrc[j-1].y;
+                                source[k][j][i].z = 0.0;  
+
+                                if((abl->cellLevels[j] > abl->lowestSrcHt) && (abl->cellLevels[i] < abl->highestSrcHt))
+                                {
+                                    lrelError += std::pow(abl->avgsrc[j-1].x*abl->avgsrc[j-1].x + abl->avgsrc[j-1].y*abl->avgsrc[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
+                                    lcells ++;
+                                }                              
+                            }
+                            else
+                            {
+                                source[k][j][i].x = abl->srcPA[j-1].x;
+                                source[k][j][i].y = abl->srcPA[j-1].y;
+                                source[k][j][i].z = 0.0;
+                                                                
+                                if((abl->cellLevels[j] > abl->lowestSrcHt) && (abl->cellLevels[i] < abl->highestSrcHt))
+                                {
+                                    lrelError += std::pow(src[j-1].x*src[j-1].x + src[j-1].y*src[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
+                                    lcells ++;
+                                } 
+                            }
                         } 
                     }
                     else if(abl->controllerAction == "read")
@@ -1122,6 +1241,13 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         }
     }
 
+    MPI_Allreduce(&lrelError, &grelError, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lcells, &gcells, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
+
+    if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+    {
+        if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: global avg error on velocity = %.5f percent\n", grelError*100/gcells);
+    }
 	// apply zero-gradient boundary conditions
 	for (k=zs; k<ze; k++)
 	{
@@ -1147,6 +1273,23 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 			}
 		}
 	}
+
+    if(abl->controllerAction == "write")
+    {
+        if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+        {
+            free(src);
+        }
+    }
+    else if(abl->controllerAction == "read")
+    {
+        if (abl->controllerType=="timeHeightSeries")
+        {
+            free(src);
+        }       
+    }
+
+    std::vector<Cmpnts> ().swap(uMeso);
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     DMDAVecRestoreArray(fda, ueqn->sourceU, &source);
@@ -1265,6 +1408,7 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
 {
     mesh_         *mesh = ueqn->access->mesh;
     abl_          *abl  = ueqn->access->abl;
+    flags_        *flags= ueqn->access->flags;
     DM            da    = mesh->da, fda = mesh->fda;
     DMDALocalInfo info  = mesh->info;
     PetscInt      xs    = info.xs, xe = info.xs + info.xm;
@@ -1273,7 +1417,9 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
     PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
 
     Cmpnts        ***ubar;
+    PetscReal     ***tbar;
     Cmpnts        **velMapped = abl->velMapped;
+    PetscReal     **tMapped   = abl->tMapped;
     PetscInt      numJ, numK, numI;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
@@ -1284,6 +1430,13 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
     PetscInt      k_src_left, k_src_right;
     PetscReal     w_left, w_right;
 
+    VecCopy(ueqn->lUcat, abl->uBarInstY);
+    
+    if(flags->isTeqnActive)
+    {
+        VecCopy(ueqn->access->teqn->lTmprt, abl->tBarInstY);
+    }
+
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
@@ -1293,7 +1446,12 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
 
     DMDAVecGetArray(fda, abl->uBarInstY, &ubar);
 
-    if(ueqn->access->flags->isYDampingActive)
+    if(flags->isTeqnActive)
+    {
+        DMDAVecGetArray(da, abl->tBarInstY, &tbar);
+    }
+
+    if(flags->isYDampingActive)
     {
         if(abl->xFringeUBarSelectionType == 3)
         {
@@ -1350,6 +1508,13 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
 
                                         ubar[k][j][i] = nSum(nScale(w_left, uLeft), nScale(w_right, uRight));
 
+                                        if(flags->isTeqnActive)
+                                        {
+                                            PetscReal tLeft  = tMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)];
+                                            PetscReal tRight = tMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)];
+
+                                            tbar[k][j][i] = w_left * tLeft + w_right * tRight;    
+                                        }
                                         // PetscPrintf(PETSC_COMM_SELF, "ubar[%ld][%ld][%ld] = %lf %lf %lf\n", k, j, i, ubar[k][j][i].x, ubar[k][j][i].y, ubar[k][j][i].z);
                                     }
                                 }
@@ -1363,11 +1528,21 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
 
     DMDAVecRestoreArray(fda, abl->uBarInstY, &ubar);
 
+    if(flags->isTeqnActive)
+    {
+        DMDAVecRestoreArray(da, abl->tBarInstY, &tbar);
+    }
+
     MPI_Barrier(mesh->MESH_COMM);
 
     DMLocalToLocalBegin (fda,  abl->uBarInstY, INSERT_VALUES, abl->uBarInstY);
     DMLocalToLocalEnd   (fda,  abl->uBarInstY, INSERT_VALUES, abl->uBarInstY);
 
+    if(flags->isTeqnActive)
+    {
+        DMLocalToLocalBegin (da,  abl->tBarInstY, INSERT_VALUES, abl->tBarInstY);
+        DMLocalToLocalEnd   (da,  abl->tBarInstY, INSERT_VALUES, abl->tBarInstY);
+    }
     return(0);
 }
 //***************************************************************************************************************//
@@ -1490,7 +1665,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     // steady prescribed ubar
                     if (ifPtr->typeU == 0)
                     {
-                        PetscReal h = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                        PetscReal h = cent[k_idx][j][i].z - mesh->grndLevel;
                         PetscReal uMag;
 
                         if(h <= ifPtr->hInv)
@@ -1528,11 +1703,11 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             i<=ifPtr->n2*ifPtr->prds2
                         )
                         {
-                            PetscReal height = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                            PetscReal height = cent[k_idx][j][i].z - mesh->grndLevel;
                             PetscInt  IDs[2];
                             PetscReal Wg [2];
 
-                            findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
+                            findInterpolationWeightsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
                             luBarInstX[j][i].x = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                                                  ifPtr->ucat_plane[jif][iif].x +
@@ -1575,11 +1750,11 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     // unsteady mapped interpolated
                     else if (ifPtr->typeU == 2)
                     {
-                        PetscReal height = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                        PetscReal height = cent[k_idx][j][i].z - mesh->grndLevel;
                         PetscInt  IDs[2];
                         PetscReal Wg [2];
 
-                        findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
+                        findInterpolationWeightsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
                         luBarInstX[j][i].x
                         =
@@ -1644,7 +1819,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     else if (ifPtr->typeU == 4)
                     {
 						// get cell height
-                        PetscReal h      = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                        PetscReal h      = cent[k_idx][j][i].z - mesh->grndLevel;
 
                         luBarInstX[j][i] = nSet(NieuwstadtInflowEvaluate(ifPtr, h));
                     }
@@ -1656,7 +1831,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         {
                             PetscReal b      = abl->smear * abl->gTop * abl->dInv;
                             PetscReal a      = abl->gInv - b;
-                            PetscReal h      = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                            PetscReal h      = cent[k_idx][j][i].z - mesh->grndLevel;
                             PetscReal etaLim = abl->hInv / abl->smear / abl->dInv;
 
                             // non dimensional height eta
@@ -1695,11 +1870,11 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                                 i<=ifPtr->n2*ifPtr->prds2
                             )
                             {
-                                PetscReal height = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                                PetscReal height = cent[k_idx][j][i].z - mesh->grndLevel;
                                 PetscInt  IDs[2];
                                 PetscReal Wg [2];
 
-                                findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
+                                findInterpolationWeightsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
 
                                 ltBarInstX[j][i] = scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
@@ -1728,11 +1903,11 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         else if (ifPtr->typeT == 2)
                         {
                             PetscReal delta  = PetscMax(0.0, cent[k_idx][j][i].z - gdataHeight);
-                            PetscReal height = cent[k_idx][j][i].z - mesh->bounds.zmin;
+                            PetscReal height = cent[k_idx][j][i].z - mesh->grndLevel;
 
                             PetscInt  IDs[2];
                             PetscReal Wg [2];
-                            findInterpolationWeigthsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
+                            findInterpolationWeightsWithExtrap(Wg, IDs, ifPtr->avgTopPointCoords, 10, height);
 
                             ltBarInstX[j][i]
                             =
@@ -2053,23 +2228,32 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 		DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
     }
 
+    // update uBar for yDamping layer (start mapping from the streamwise fringe region)
     if(ueqn->access->flags->isYDampingActive)
     {
         cellIds *srcMinInd = abl->srcMinInd, *srcMaxInd = abl->srcMaxInd;
         Cmpnts  **velMapped = abl->velMapped;
         PetscInt numJ, numK, numI;
         PetscInt imin, imax, jmin, jmax, kmin, kmax;
-
-        DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+        precursor_    *precursor;
+        domain_       *pdomain;
 
         // update the unsteady uBar state
         if(abl->xFringeUBarSelectionType == 3)
         {
+            precursor = abl->precursor;
+            pdomain   = precursor->domain;
+
+            if(precursor->thisProcessorInFringe)
+            {
+                DMDAVecGetArray(pdomain->mesh->fda, pdomain->ueqn->lUcat,  &ucatP);
+            }
 
             for(PetscInt p=0; p < abl->numSourceProc; p++)
             {
                 if(rank == abl->sourceProcList[p])
                 {
+
                     imin = abl->srcMinInd[p].i;
                     imax = abl->srcMaxInd[p].i;
                     jmin = abl->srcMinInd[p].j;
@@ -2088,7 +2272,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         {
                             for (i=imin; i<=imax; i++)
                             {
-                                velMapped[p][(k-kmin) * numJ * numI + (j-jmin) * numI + (i-imin)] = nSet(ucat[k][j][i]);
+                                velMapped[p][(k-kmin) * numJ * numI + (j-jmin) * numI + (i-imin)] = nSet(ucatP[k][j][i]);
                             }
                         }
                     }
@@ -2105,9 +2289,18 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 }
                 
             }
-        }
 
-        DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+            if(precursor->thisProcessorInFringe)
+            {
+                DMDAVecRestoreArray(pdomain->mesh->fda, pdomain->ueqn->lUcat,  &ucatP);
+            }
+        }
+    }
+
+    //update tBar for yDamping layer
+    if(ueqn->access->flags->isTeqnActive)
+    {
+        correctDampingSourcesT(ueqn->access->teqn);
     }
 
     // update uBar for zDampingLayer (average at kLeft patch)
@@ -2243,7 +2436,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     precursor_    *precursor;
     domain_       *pdomain;
-    PetscInt      kStart, kEnd, iStart, iEnd;
+    PetscInt      kStart, kEnd;
 	PetscReal     advDampH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
@@ -2280,8 +2473,6 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         if(abl->xFringeUBarSelectionType == 3)
         {
             DMDAVecGetArray(fda, abl->uBarInstY, &uBarY);
-            iStart = abl->iStart;
-            iEnd = abl->iEnd;
         }
     }
 
@@ -2295,6 +2486,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal yS     = abl->yDampingStart;
     PetscReal yE     = abl->yDampingEnd;
     PetscReal yD     = abl->yDampingDelta;
+    
 
     // x damping layer
     PetscReal alphaX = abl->xDampingAlpha;
@@ -2310,6 +2502,9 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     // Nordstrom viscosities
     PetscReal nud_x, nudi_x, nudj_x, nudk_x;
     PetscReal nud_y, nudi_y, nudj_y, nudk_y;
+    
+    // ascend function factor
+    PetscReal fAsc_x, fAsc_xi, fAsc_xj, fAsc_xk;
 
     // Rayleigh viscosities
     PetscReal nud_z, nudi_z, nudj_z, nudk_z;
@@ -2477,55 +2672,26 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     yj    = cent[k][j+1][i].y;
                     yk    = cent[k+1][j][i].y;
 
+                    x     = cent[k][j][i].x;
+                    xi    = cent[k][j][i+1].x;
+                    xj    = cent[k][j+1][i].x;
+                    xk    = cent[k+1][j][i].x;
+
                     // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     nud_y   = viscNordstrom(alphaY, yS, yE, yD, y);
                     nudi_y  = viscNordstrom(alphaY, yS, yE, yD, yi);
                     nudj_y  = viscNordstrom(alphaY, yS, yE, yD, yj);
                     nudk_y  = viscNordstrom(alphaY, yS, yE, yD, yk);
 
+                    //scaling factor to ensure that there is no lateral fringe region in the streamfringe region domain.
+                    fAsc_x  = viscNordstromNoVertFilter(xS, xE, xD, x);
+                    fAsc_xi = viscNordstromNoVertFilter(xS, xE, xD, xi);
+                    fAsc_xj = viscNordstromNoVertFilter(xS, xE, xD, xj);
+                    fAsc_xk = viscNordstromNoVertFilter(xS, xE, xD, xk);
+
                     if(isInflowSpreadType)
                     {
-
-                        // retrieve from fringe region inflow slice
-                        Cmpnts uBarInstY  = nSet(abl->uBarInstX[j][i]);
-                        Cmpnts uBarInstYi = nSet(abl->uBarInstX[j][i+1]);
-                        Cmpnts uBarInstYj = nSet(abl->uBarInstX[j+1][i]);
-
-                        // i-fluxes
-                        rhs[k][j][i].x
-                        +=
-                        scale * central(nud_y, nudi_y) *
-                        (
-                            (
-                                (central(uBarInstY.x, uBarInstYi.x) - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
-                                (central(uBarInstY.y, uBarInstYi.y) - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
-                                (central(uBarInstY.z, uBarInstYi.z) - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
-                            )
-                        );
-
-                        // j-fluxes
-                        rhs[k][j][i].y
-                        +=
-                        scale * central(nud_y, nudj_y) *
-                        (
-                            (
-                                (central(uBarInstY.x, uBarInstYj.x) - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
-                                (central(uBarInstY.y, uBarInstYj.y) - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
-                                (central(uBarInstY.z, uBarInstYj.z) - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
-                            )
-                        );
-
-                        // k-fluxes
-                        rhs[k][j][i].z
-                        +=
-                        scale * central(nud_y, nudk_y) *
-                        (
-                            (
-                                (uBarInstY.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
-                                (uBarInstY.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
-                                (uBarInstY.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
-                            )
-                        );
+                        //lateral damping not defined
                     }
                     else
                     {
@@ -2533,27 +2699,14 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         PetscReal uBarContJ;
                         PetscReal uBarContI;
 
-                        if
-                        (
-                            abl->inYFringeRegionOnly && 
-                            i >= iStart && i < iEnd            
-                        )
-                        {
-                            uBarContI = central(uBarY[k][j][i].x, uBarY[k][j][i+1].x) * icsi[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j][i+1].y) * icsi[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j][i+1].z) * icsi[k][j][i].z;
-                            uBarContJ = central(uBarY[k][j][i].x, uBarY[k][j+1][i].x) * jeta[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j+1][i].y) * jeta[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j+1][i].z) * jeta[k][j][i].z;
-                            uBarContK = central(uBarY[k][j][i].x, uBarY[k+1][j][i].x) * kzet[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k+1][j][i].y) * kzet[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k+1][j][i].z) * kzet[k][j][i].z;
-                        }
-                        else 
-                        {
-                            uBarContI = ucont[k][j][i].x;
-                            uBarContJ = ucont[k][j][i].y;
-                            uBarContK = ucont[k][j][i].z;
-                        }
+                        uBarContI = central(uBarY[k][j][i].x, uBarY[k][j][i+1].x) * icsi[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j][i+1].y) * icsi[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j][i+1].z) * icsi[k][j][i].z;
+                        uBarContJ = central(uBarY[k][j][i].x, uBarY[k][j+1][i].x) * jeta[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j+1][i].y) * jeta[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j+1][i].z) * jeta[k][j][i].z;
+                        uBarContK = central(uBarY[k][j][i].x, uBarY[k+1][j][i].x) * kzet[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k+1][j][i].y) * kzet[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k+1][j][i].z) * kzet[k][j][i].z;
 
                         // i-fluxes
                         rhs[k][j][i].x
                         +=
-                        scale * central(nud_y, nudi_y) *
+                        scale * central(nud_y, nudi_y) * central(fAsc_x, fAsc_xi) * 
                         (
                             uBarContI - ucont[k][j][i].x
                         );
@@ -2561,7 +2714,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // j-fluxes
                         rhs[k][j][i].y
                         +=
-                        scale * central(nud_y, nudj_y) *
+                        scale * central(nud_y, nudj_y) * central(fAsc_x, fAsc_xj) * 
                         (
                             uBarContJ - ucont[k][j][i].y
                         );
@@ -2569,7 +2722,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // k-fluxes
                         rhs[k][j][i].z
                         +=
-                        scale * central(nud_y, nudk_y) *
+                        scale * central(nud_y, nudk_y) * central(fAsc_x, fAsc_xk) *
                         (
                             uBarContK - ucont[k][j][i].z
                         );
@@ -2580,8 +2733,8 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 if(ueqn->access->flags->isZDampingActive)
                 {
                     // compute cell center z at i,j,k and i,j+1,k points
-                    z     = (cent[k][j][i].z   - mesh->bounds.zmin);
-                    zj    = (cent[k][j+1][i].z - mesh->bounds.zmin);
+                    z     = (cent[k][j][i].z   - mesh->grndLevel);
+                    zj    = (cent[k][j+1][i].z - mesh->grndLevel);
 
                     // compute Rayleigh viscosity at i,j,k and i,j+1,k points
                     nud_z   = viscRayleigh(alphaZ, zS, zE, z);
@@ -2591,8 +2744,8 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     if(abl->zDampingAlsoXY)
                     {
                         // compute cell center z at i+1,j,k and i,j,k+1 points
-                        zi    = (cent[k][j][i+1].z - mesh->bounds.zmin);
-                        zk    = (cent[k+1][j][i].z - mesh->bounds.zmin);
+                        zi    = (cent[k][j][i+1].z - mesh->grndLevel);
+                        zk    = (cent[k+1][j][i].z - mesh->grndLevel);
 
                         // compute Rayleigh viscosity at i+1,j,k and i,j,k+1 points
                         nudi_z  = viscRayleigh(alphaZ, zS, zE, zi);
@@ -2638,10 +2791,10 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 if(ueqn->access->flags->isKLeftRayleighDampingActive)
                 {
                     // compute cell center z at i,j,k and i,j+1,k points
-                    z     = (cent[k][j][i].z   - mesh->bounds.zmin);
-                    zi    = (cent[k][j][i+1].z - mesh->bounds.zmin);
-                    zj    = (cent[k][j+1][i].z - mesh->bounds.zmin);
-                    zk    = (cent[k+1][j][i].z - mesh->bounds.zmin);
+                    z     = (cent[k][j][i].z   - mesh->grndLevel);
+                    zi    = (cent[k][j][i+1].z - mesh->grndLevel);
+                    zj    = (cent[k][j+1][i].z - mesh->grndLevel);
+                    zk    = (cent[k+1][j][i].z - mesh->grndLevel);
 
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     x     = cent[k][j][i].x;
@@ -2699,10 +2852,10 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 if(ueqn->access->flags->isKRightRayleighDampingActive)
                 {
                     // compute cell center z at i,j,k and i,j+1,k points
-                    z     = (cent[k][j][i].z   - mesh->bounds.zmin);
-                    zi    = (cent[k][j][i+1].z - mesh->bounds.zmin);
-                    zj    = (cent[k][j+1][i].z - mesh->bounds.zmin);
-                    zk    = (cent[k+1][j][i].z - mesh->bounds.zmin);
+                    z     = (cent[k][j][i].z   - mesh->grndLevel);
+                    zi    = (cent[k][j][i+1].z - mesh->grndLevel);
+                    zj    = (cent[k][j+1][i].z - mesh->grndLevel);
+                    zk    = (cent[k+1][j][i].z - mesh->grndLevel);
 
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     x     = cent[k][j][i].x;
@@ -3474,7 +3627,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
 
     Cmpnts           ***ucont, ***lucont,
                      ***coor;
-    PetscReal        epsilon = 1.e-10;
+    PetscReal        epsilon = 1.e-10, ***nvert;
 
     PetscScalar      ratio;
     PetscScalar      lFluxIn = 0.0, lFluxOut = 0.0,
@@ -3486,6 +3639,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
 
     DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
     DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
 
     if
     (
@@ -3505,7 +3659,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].z) > epsilon){
+                    if(fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k+1, j, i, nvert)) ){
                         lFluxIn   +=  ucont[k][j][i].z;
 
                     }
@@ -3531,7 +3685,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].z) > epsilon){
+                    if(fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k, j, i, nvert)) ){
                         lFluxOut   +=  ucont[k][j][i].z;
 
                     }
@@ -3563,7 +3717,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].y) > epsilon){
+                    if(fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j+1, i, nvert)) ){
                         lFluxIn   +=  ucont[k][j][i].y;
                     }
                     else
@@ -3588,7 +3742,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].y) > epsilon){
+                    if(fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j, i, nvert)) ){
                         lFluxOut   +=  ucont[k][j][i].y;
                     }
                     else
@@ -3619,7 +3773,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].x) > epsilon)
+                    if(fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i+1, nvert)) )
                     {
                         lFluxIn   +=  ucont[k][j][i].x;
                     }
@@ -3645,7 +3799,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].x) > epsilon){
+                    if(fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i, nvert)) ){
                         lFluxOut   +=  ucont[k][j][i].x;
                     }
                     else
@@ -3691,7 +3845,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     for (i=lxs; i<lxe; i++)
                     {
-                        if (fabs(ucont[k][j][i].z) > epsilon)
+                        if (fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k, j, i, nvert)) )
                         {
                             // correct contrav. vel. at boundary faces
                             ucont[k][j][i].z *= ratio;
@@ -3701,23 +3855,23 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 }
             }
 
-            if (zs==0  && (mesh->boundaryU.kLeft!="inletFunction") && (mesh->boundaryU.kLeft!="fixedValue"))
-            {
-                k = 0;
+            // if (zs==0  && (mesh->boundaryU.kLeft!="inletFunction") && (mesh->boundaryU.kLeft!="fixedValue"))
+            // {
+            //     k = 0;
 
-                for (j=lys; j<lye; j++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        if (fabs(ucont[k][j][i].z) > epsilon)
-                        {
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].z /= ratio;
+            //     for (j=lys; j<lye; j++)
+            //     {
+            //         for (i=lxs; i<lxe; i++)
+            //         {
+            //             if (fabs(ucont[k][j][i].z) > epsilon)
+            //             {
+            //                 // correct contrav. vel. at boundary faces
+            //                 ucont[k][j][i].z /= ratio;
 
-                        }
-                    }
-                }
-            }
+            //             }
+            //         }
+            //     }
+            // }
 
     }
 
@@ -3737,7 +3891,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     for (i=lxs; i<lxe; i++)
                     {
-                        if (fabs(ucont[k][j][i].y) > epsilon)
+                        if (fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j, i, nvert)) )
                         {
 
                             // correct contrav. vel. at boundary faces
@@ -3748,24 +3902,24 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 }
             }
 
-            if (ys==0  && (mesh->boundaryU.jLeft!="inletFunction") && (mesh->boundaryU.jLeft!="fixedValue"))
-            {
-                j = 0;
+            // if (ys==0  && (mesh->boundaryU.jLeft!="inletFunction") && (mesh->boundaryU.jLeft!="fixedValue"))
+            // {
+            //     j = 0;
 
-                for (k=lzs; k<lze; k++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        if (fabs(ucont[k][j][i].y) > epsilon)
-                        {
+            //     for (k=lzs; k<lze; k++)
+            //     {
+            //         for (i=lxs; i<lxe; i++)
+            //         {
+            //             if (fabs(ucont[k][j][i].y) > epsilon)
+            //             {
 
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].y /= ratio;
+            //                 // correct contrav. vel. at boundary faces
+            //                 ucont[k][j][i].y /= ratio;
 
-                        }
-                    }
-                }
-            }
+            //             }
+            //         }
+            //     }
+            // }
 
     }
 
@@ -3785,7 +3939,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    if (fabs(ucont[k][j][i].x) > epsilon)
+                    if (fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i, nvert)) )
                     {
 
                         // correct contrav. vel. at boundary faces
@@ -3795,23 +3949,23 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             }
         }
 
-        if (xs==0  && (mesh->boundaryU.iLeft!="inletFunction") && (mesh->boundaryU.iLeft!="fixedValue"))
-        {
-            i = 0;
+        // if (xs==0  && (mesh->boundaryU.iLeft!="inletFunction") && (mesh->boundaryU.iLeft!="fixedValue"))
+        // {
+        //     i = 0;
 
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    if (fabs(ucont[k][j][i].x) > epsilon)
-                    {
+        //     for (k=lzs; k<lze; k++)
+        //     {
+        //         for (j=lys; j<lye; j++)
+        //         {
+        //             if (fabs(ucont[k][j][i].x) > epsilon)
+        //             {
 
-                        // correct contrav. vel. at boundary faces
-                        ucont[k][j][i].x /= ratio;
-                    }
-                }
-            }
-        }
+        //                 // correct contrav. vel. at boundary faces
+        //                 ucont[k][j][i].x /= ratio;
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     // Recalculate flux to check if corrected
@@ -3997,6 +4151,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
 
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
     // scatter new contravariant velocity values
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
@@ -4751,136 +4906,79 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    iL, iR;
                 PetscReal denom;
-                getFace2Cell4StencilCsi(mesh, i, mx, &iL, &iR, &denom);
+                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert);
 
-                if(isIBMIFace(k, j, iL, iR, nvert) )
+                // test: inviscid flow or weno3Div
+                if(ueqn->inviscid || ueqn->weno3Div)
                 {
-                    iL = i;
-                    iR = i+1;
+                    div1[k][j][i] = nScale
+                    (
+                        - ucont[k][j][i].x,
+                        weno3Vec
+                        (
+                            ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                            ucont[k][j][i].x
+                        )
+                    );
                 }
-
-                if(ueqn->centralDiv)
-                {
-                    iL = i, iR=i+1;
-                    denom=1.;
-                }
-
-                PetscReal ucon = ucont[k][j][i].x;
-
-                PetscReal up = 0.5 * ( ucon + fabs(ucon) );
-                PetscReal um = 0.5 * ( ucon - fabs(ucon) );
-
-                // test: IBM active and not on the i-right boundary face
-                if (i!=mx-2 && isIBMCell(k, j, i, nvert))
-                {
-                  div1[k][j][i].x
-                  =
-                  -um * (0.125 * (-    ucat[k][j][i+2].x - 2. * ucat[k][j][i+1].x + 3. * ucat[k][j][i  ].x) + ucat[k][j][i+1].x) +
-                  -up * (0.125 * (-    ucat[k][j][i  ].x -  2. * ucat[k][j][i  ].x +  3. * ucat[k][j][i+1].x) +  ucat[k][j][i  ].x);
-
-                  div1[k][j][i].y
-                  =
-                  -um * (0.125 * (-    ucat[k][j][i+2].y -  2. * ucat[k][j][i+1].y +  3. * ucat[k][j][i  ].y) +  ucat[k][j][i+1].y) +
-                  -up * (0.125 * (-    ucat[k][j][i  ].y -  2. * ucat[k][j][i  ].y +  3. * ucat[k][j][i+1].y) +  ucat[k][j][i  ].y);
-
-                  div1[k][j][i].z
-                  =
-                  -um * (0.125 * (-    ucat[k][j][i+2].z -  2. * ucat[k][j][i+1].z +  3. * ucat[k][j][i  ].z) + ucat[k][j][i+1].z) +
-                  -up * (0.125 * (-    ucat[k][j][i  ].z -  2. * ucat[k][j][i  ].z +  3. * ucat[k][j][i+1].z) +  ucat[k][j][i  ].z);
-                }
-                // test: IBM active and not on the i-left boundary face
-                else if (i!=0 && isIBMCell(k, j, i+1, nvert) )
-                {
-                  div1[k][j][i].x
-                  =
-                  -um * (0.125 * (-    ucat[k][j][i+1].x -  2. * ucat[k][j][i+1].x +  3. * ucat[k][j][i  ].x) + ucat[k][j][i+1].x) +
-                  -up * (0.125 * (-    ucat[k][j][i-1].x -  2. * ucat[k][j][i  ].x +  3. * ucat[k][j][i+1].x) + ucat[k][j][i  ].x);
-
-                  div1[k][j][i].y
-                  =
-                  -um * (0.125 * (-    ucat[k][j][i+1].y -  2. * ucat[k][j][i+1].y +  3. * ucat[k][j][i  ].y) + ucat[k][j][i+1].y) +
-                  -up * (0.125 * (-    ucat[k][j][i-1].y -  2. * ucat[k][j][i  ].y +  3. * ucat[k][j][i+1].y) + ucat[k][j][i  ].y);
-
-                  div1[k][j][i].z
-                  =
-                  -um * (0.125 * (-    ucat[k][j][i+1].z -  2. * ucat[k][j][i+1].z +  3. * ucat[k][j][i  ].z) + ucat[k][j][i+1].z) +
-                  -up * (0.125 * (-    ucat[k][j][i-1].z -  2. * ucat[k][j][i  ].z +  3. * ucat[k][j][i+1].z) + ucat[k][j][i  ].z);
-                }
-                // not IBM
                 else
                 {
-                    // test: inviscid flow or weno3Div
-                    if(ueqn->inviscid || ueqn->weno3Div)
+                    // central scheme
+                    if(ueqn->centralDiv)
+                    {
+                        // ucat is interpolated at the face
+                        div1[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].x,
+                            centralVec
+                            (
+                                ucat[k][j][i], ucat[k][j][i+1]
+                            )
+                        );
+                    }
+                    else if(ueqn->centralUpwindDiv)
                     {
                         div1[k][j][i] = nScale
                         (
                             - ucont[k][j][i].x,
-                            weno3Vec
+                            centralUpwindVec
+                            (
+                                ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                                ucont[k][j][i].x, limiter[k][j][i].x
+                            )
+                        );
+                    }
+                    else if(ueqn->centralUpwindWDiv)
+                    {
+                        // compute cell widths
+                        PetscReal d0 = 1.0 / (aj[k][j][iL ] * nMag(csi[k][j][iL ]));
+                        PetscReal d1 = 1.0 / (aj[k][j][i  ] * nMag(csi[k][j][i  ]));
+                        PetscReal d2 = 1.0 / (aj[k][j][i+1] * nMag(csi[k][j][i+1]));
+                        PetscReal d3 = 1.0 / (aj[k][j][iR ] * nMag(csi[k][j][iR ]));
+
+                        div1[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].x,
+                            wCentralUpwindVec
+                            (
+                                ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                                d0, d1, d2, d3,
+                                ucont[k][j][i].x, limiter[k][j][i].x
+                            )
+                        );
+                    }
+                    // quickDiv scheme (3rd order upwind)
+                    else if(ueqn->quickDiv)
+                    {
+                        div1[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].x,
+                            quadraticUpwindVec
                             (
                                 ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
                                 ucont[k][j][i].x
                             )
                         );
-                    }
-                    else
-                    {
-                        // central scheme
-                        if(ueqn->centralDiv)
-                        {
-                            // ucat is interpolated at the face
-                            div1[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].x,
-                                centralVec
-                                (
-                                    ucat[k][j][i], ucat[k][j][i+1]
-                                )
-                            );
-                        }
-                        else if(ueqn->centralUpwindDiv)
-                        {
-                            div1[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].x,
-                                centralUpwindVec
-                                (
-                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                                    ucont[k][j][i].x, limiter[k][j][i].x
-                                )
-                            );
-                        }
-                        else if(ueqn->centralUpwindWDiv)
-                        {
-                            // compute cell widths
-                            PetscReal d0 = 1.0 / (aj[k][j][iL ] * nMag(csi[k][j][iL ]));
-                            PetscReal d1 = 1.0 / (aj[k][j][i  ] * nMag(csi[k][j][i  ]));
-                            PetscReal d2 = 1.0 / (aj[k][j][i+1] * nMag(csi[k][j][i+1]));
-                            PetscReal d3 = 1.0 / (aj[k][j][iR ] * nMag(csi[k][j][iR ]));
-
-                            div1[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].x,
-                                wCentralUpwindVec
-                                (
-                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                                    d0, d1, d2, d3,
-                                    ucont[k][j][i].x, limiter[k][j][i].x
-                                )
-                            );
-                        }
-                        // quickDiv scheme (3rd order upwind)
-                        else if(ueqn->quickDiv)
-                        {
-                            div1[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].x,
-                                quadraticUpwindVec
-                                (
-                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                                    ucont[k][j][i].x
-                                )
-                            );
-                        }
                     }
                 }
 
@@ -4998,135 +5096,78 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    jL, jR;
                 PetscReal denom;
-                getFace2Cell4StencilEta(mesh, j, my, &jL, &jR, &denom);
+                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert);
 
-                if( isIBMJFace(k, jL, i, jR, nvert) )
+                // test: inviscid flow or weno3Div
+                if( ueqn->inviscid || ueqn->weno3Div)
                 {
-                    jL = j;
-                    jR = j+1;
+                    div2[k][j][i] = nScale
+                    (
+                        - ucont[k][j][i].y,
+                        weno3Vec
+                        (
+                            ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                            ucont[k][j][i].y
+                        )
+                    );
                 }
-
-                if(ueqn->centralDiv)
-                {
-                    jL = j, jR=j+1;
-                    denom=1.;
-                }
-
-                PetscReal ucon = ucont[k][j][i].y;
-
-                PetscReal up = 0.5 * ( ucon + fabs(ucon) );
-                PetscReal um = 0.5 * ( ucon - fabs(ucon) );
-
-                // test: IBM active and not on the j-right boundary face
-                if (j!=my-2 && isIBMCell(k, j, i, nvert) )
-                {
-                  div2[k][j][i].x
-                  =
-                  -um * (0.125 * (-    ucat[k][j+2][i].x -  2. * ucat[k][j+1][i].x +  3. * ucat[k][j  ][i].x) +  ucat[k][j+1][i].x) +
-                  -up * (0.125 * (-    ucat[k][j  ][i].x -  2. * ucat[k][j  ][i].x +  3. * ucat[k][j+1][i].x) +  ucat[k][j][i  ].x);
-
-                  div2[k][j][i].y
-                  =
-                  -um * (0.125 * (-    ucat[k][j+2][i].y -  2. * ucat[k][j+1][i].y +  3. * ucat[k][j  ][i].y) + ucat[k][j+1][i].y) +
-                  -up * (0.125 * (-    ucat[k][j  ][i].y -  2. * ucat[k][j  ][i].y +  3. * ucat[k][j+1][i].y) +  ucat[k][j][i  ].y);
-
-                  div2[k][j][i].z
-                  =
-                  -um * (0.125 * (-    ucat[k][j+2][i].z -  2. * ucat[k][j+1][i].z +  3. * ucat[k][j  ][i].z) +  ucat[k][j+1][i].z) +
-                  -up * (0.125 * (-    ucat[k][j  ][i].z -  2. * ucat[k][j  ][i].z +  3. * ucat[k][j+1][i].z) + ucat[k][j][i  ].z);
-                }
-                // test: IBM active and not on the j-left boundary face
-                else if (j!=0 && isIBMCell(k, j+1, i, nvert) )
-                {
-                  div2[k][j][i].x
-                  =
-                  -um * (0.125 * (-    ucat[k][j+1][i].x -  2. * ucat[k][j+1][i].x +  3. * ucat[k][j  ][i].x) + ucat[k][j+1][i].x) +
-                  -up * (0.125 * (-    ucat[k][j-1][i].x -  2. * ucat[k][j  ][i].x +  3. * ucat[k][j+1][i].x) + ucat[k][j][i  ].x);
-
-                  div2[k][j][i].y
-                  =
-                  -um * (0.125 * (-    ucat[k][j+1][i].y -  2. * ucat[k][j+1][i].y +  3. * ucat[k][j  ][i].y) + ucat[k][j+1][i].y) +
-                  -up * (0.125 * (-    ucat[k][j-1][i].y -  2. * ucat[k][j  ][i].y +  3. * ucat[k][j+1][i].y) + ucat[k][j][i  ].y);
-
-                  div2[k][j][i].z
-                  =
-                  -um * (0.125 * (-    ucat[k][j+1][i].z -  2. * ucat[k][j+1][i].z +  3. * ucat[k][j  ][i].z) +  ucat[k][j+1][i].z) +
-                  -up * (0.125 * (-    ucat[k][j-1][i].z -  2. * ucat[k][j  ][i].z +  3. * ucat[k][j+1][i].z) +  ucat[k][j][i  ].z);
-                }
-                // not IBM
                 else
                 {
-                    // test: inviscid flow or weno3Div
-                    if( ueqn->inviscid || ueqn->weno3Div)
+                    // second order divergence scheme
+                    if(ueqn->centralDiv)
                     {
                         div2[k][j][i] = nScale
                         (
                             - ucont[k][j][i].y,
-                            weno3Vec
+                            centralVec
+                            (
+                                ucat[k][j][i], ucat[k][j+1][i]
+                            )
+                        );
+                    }
+                    else if(ueqn->centralUpwindDiv)
+                    {
+                        div2[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].y,
+                            centralUpwindVec
+                            (
+                                ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                                ucont[k][j][i].y, limiter[k][j][i].y
+                            )
+                        );
+                    }
+                    else if(ueqn->centralUpwindWDiv)
+                    {
+                        // compute cell widths
+                        PetscReal d0 = 1.0 / (aj[k][jL ][i] * nMag(eta[k][jL ][i]));
+                        PetscReal d1 = 1.0 / (aj[k][j  ][i] * nMag(eta[k][j  ][i]));
+                        PetscReal d2 = 1.0 / (aj[k][j+1][i] * nMag(eta[k][j+1][i]));
+                        PetscReal d3 = 1.0 / (aj[k][jR ][i] * nMag(eta[k][jR ][i]));
+
+                        div2[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].y,
+                            wCentralUpwindVec
+                            (
+                                ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                                d0, d1, d2, d3,
+                                ucont[k][j][i].y, limiter[k][j][i].y
+                            )
+                        );
+                    }
+                    // quickDiv scheme (3rd order upwind)
+                    else if(ueqn->quickDiv)
+                    {
+                        div2[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].y,
+                            quadraticUpwindVec
                             (
                                 ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
                                 ucont[k][j][i].y
                             )
                         );
-                    }
-                    else
-                    {
-                        // second order divergence scheme
-                        if(ueqn->centralDiv)
-                        {
-                            div2[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].y,
-                                centralVec
-                                (
-                                    ucat[k][j][i], ucat[k][j+1][i]
-                                )
-                            );
-                        }
-                        else if(ueqn->centralUpwindDiv)
-                        {
-                            div2[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].y,
-                                centralUpwindVec
-                                (
-                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                                    ucont[k][j][i].y, limiter[k][j][i].y
-                                )
-                            );
-                        }
-                        else if(ueqn->centralUpwindWDiv)
-                        {
-                            // compute cell widths
-                            PetscReal d0 = 1.0 / (aj[k][jL ][i] * nMag(eta[k][jL ][i]));
-                            PetscReal d1 = 1.0 / (aj[k][j  ][i] * nMag(eta[k][j  ][i]));
-                            PetscReal d2 = 1.0 / (aj[k][j+1][i] * nMag(eta[k][j+1][i]));
-                            PetscReal d3 = 1.0 / (aj[k][jR ][i] * nMag(eta[k][jR ][i]));
-
-                            div2[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].y,
-                                wCentralUpwindVec
-                                (
-                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                                    d0, d1, d2, d3,
-                                    ucont[k][j][i].y, limiter[k][j][i].y
-                                )
-                            );
-                        }
-                        // quickDiv scheme (3rd order upwind)
-                        else if(ueqn->quickDiv)
-                        {
-                            div2[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].y,
-                                quadraticUpwindVec
-                                (
-                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                                    ucont[k][j][i].y
-                                )
-                            );
-                        }
                     }
                 }
 
@@ -5245,137 +5286,79 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    kL, kR;
                 PetscReal denom;
-                getFace2Cell4StencilZet(mesh, k, mz, &kL, &kR, &denom);
+                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert);
 
-                if( isIBMKFace(kL, j, i, kR, nvert) )
+                // inviscid flow or weno3Div
+                if(ueqn->inviscid || ueqn->weno3Div)
                 {
-                    kL = k;
-                    kR=k+1;
-                    denom=1.;
+                    div3[k][j][i] = nScale
+                    (
+                        - ucont[k][j][i].z,
+                        weno3Vec
+                        (
+                            ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                            ucont[k][j][i].z
+                        )
+                    );
                 }
-
-                if(ueqn->centralDiv)
-                {
-                    kL = k, kR=k+1;
-                    denom=1.;
-                }
-
-                PetscReal ucon = ucont[k][j][i].z;
-
-                PetscReal up = 0.5 * ( ucon + fabs(ucon) );
-                PetscReal um = 0.5 * ( ucon - fabs(ucon) );
-
-                // test: IBM active and not on the k-right boundary face
-                if (k!=mz-2 && isIBMCell(k, j, i, nvert))
-                {
-                  div3[k][j][i].x
-                  =
-                  -um * (0.125 * (-    ucat[k+2][j][i].x -  2. * ucat[k+1][j][i].x +  3. * ucat[k  ][j][i].x) + ucat[k+1][j][i].x)   +
-                  -up * (0.125 * (-    ucat[k  ][j][i].x -  2. * ucat[k  ][j][i].x +  3. * ucat[k+1][j][i].x) +  ucat[k][j][i  ].x);
-
-                  div3[k][j][i].y
-                  =
-                  -um * (0.125 * (-    ucat[k+2][j][i].y -  2. * ucat[k+1][j][i].y +  3. * ucat[k  ][j][i].y) + ucat[k+1][j][i].y)   +
-                  -up * (0.125 * (-    ucat[k  ][j][i].y -  2. * ucat[k  ][j][i].y +  3. * ucat[k+1][j][i].y) +  ucat[k][j][i  ].y);
-
-                  div3[k][j][i].z
-                  =
-                  -um * (0.125 * (-    ucat[k+2][j][i].z -  2. * ucat[k+1][j][i].z +  3. * ucat[k  ][j][i].z) + ucat[k+1][j][i].z)   +
-                  -up * (0.125 * (-    ucat[k  ][j][i].z -  2. * ucat[k  ][j][i].z +  3. * ucat[k+1][j][i].z) + ucat[k][j][i  ].z);
-                }
-                // test: IBM active and not on the k-left boundary face
-                else if (k!=0 && isIBMCell(k+1, j, i, nvert) )
-                {
-                  div3[k][j][i].x
-                  =
-                  -um * (0.125 * (-    ucat[k+1][j][i].x -  2. * ucat[k+1][j][i].x +  3. * ucat[k  ][j][i].x) + ucat[k+1][j][i].x)   +
-                  -up * (0.125 * (-    ucat[k-1][j][i].x -  2. * ucat[k  ][j][i].x +  3. * ucat[k+1][j][i].x) +  ucat[k][j][i  ].x);
-
-                  div3[k][j][i].y
-                  =
-                  -um * (0.125 * (-    ucat[k+1][j][i].y -  2. * ucat[k+1][j][i].y +  3. * ucat[k  ][j][i].y) +  ucat[k+1][j][i].y)   +
-                  -up * (0.125 * (-    ucat[k-1][j][i].y -  2. * ucat[k  ][j][i].y +  3. * ucat[k+1][j][i].y) + ucat[k][j][i  ].y);
-
-                  div3[k][j][i].z
-                  =
-                  -um * (0.125 * (-    ucat[k+1][j][i].z -  2. * ucat[k+1][j][i].z +  3. * ucat[k  ][j][i].z) + ucat[k+1][j][i].z)   +
-                  -up * (0.125 * (-    ucat[k-1][j][i].z -  2. * ucat[k  ][j][i].z +  3. * ucat[k+1][j][i].z) + ucat[k][j][i  ].z);
-                }
-                // not IBM
                 else
                 {
-                    // inviscid flow or weno3Div
-                    if(ueqn->inviscid || ueqn->weno3Div)
+                    // second order divergence scheme
+                    if(ueqn->centralDiv)
+                    {
+                        // ucat is interpolated at the face
+                        div3[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].z,
+                            centralVec
+                            (
+                                ucat[k][j][i], ucat[k+1][j][i]
+                            )
+                        );
+                    }
+                    else if(ueqn->centralUpwindDiv)
                     {
                         div3[k][j][i] = nScale
                         (
                             - ucont[k][j][i].z,
-                            weno3Vec
+                            centralUpwindVec
+                            (
+                                ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                                ucont[k][j][i].z, limiter[k][j][i].z
+                            )
+                        );
+                    }
+                    else if(ueqn->centralUpwindWDiv)
+                    {
+                        // compute cell widths
+                        PetscReal d0 = 1.0 / (aj[kL ][j][i] * nMag(zet[kL ][j][i]));
+                        PetscReal d1 = 1.0 / (aj[k  ][j][i] * nMag(zet[k  ][j][i]));
+                        PetscReal d2 = 1.0 / (aj[k+1][j][i] * nMag(zet[k+1][j][i]));
+                        PetscReal d3 = 1.0 / (aj[kR ][j][i] * nMag(zet[kR ][j][i]));
+
+                        div3[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].z,
+                            wCentralUpwindVec
+                            (
+                                ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                                d0, d1, d2, d3,
+                                ucont[k][j][i].z, limiter[k][j][i].z
+                            )
+                        );
+                    }
+                    // quickDiv scheme (3rd order upwind)
+                    else if(ueqn->quickDiv)
+                    {
+                        div3[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].z,
+                            quadraticUpwindVec
                             (
                                 ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
                                 ucont[k][j][i].z
                             )
                         );
-                    }
-                    else
-                    {
-                        // second order divergence scheme
-                        if(ueqn->centralDiv)
-                        {
-                            // ucat is interpolated at the face
-                            div3[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].z,
-                                centralVec
-                                (
-                                    ucat[k][j][i], ucat[k+1][j][i]
-                                )
-                            );
-                        }
-                        else if(ueqn->centralUpwindDiv)
-                        {
-                            div3[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].z,
-                                centralUpwindVec
-                                (
-                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                                    ucont[k][j][i].z, limiter[k][j][i].z
-                                )
-                            );
-                        }
-                        else if(ueqn->centralUpwindWDiv)
-                        {
-                            // compute cell widths
-                            PetscReal d0 = 1.0 / (aj[kL ][j][i] * nMag(zet[kL ][j][i]));
-                            PetscReal d1 = 1.0 / (aj[k  ][j][i] * nMag(zet[k  ][j][i]));
-                            PetscReal d2 = 1.0 / (aj[k+1][j][i] * nMag(zet[k+1][j][i]));
-                            PetscReal d3 = 1.0 / (aj[kR ][j][i] * nMag(zet[kR ][j][i]));
-
-                            div3[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].z,
-                                wCentralUpwindVec
-                                (
-                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                                    d0, d1, d2, d3,
-                                    ucont[k][j][i].z, limiter[k][j][i].z
-                                )
-                            );
-                        }
-                        // quickDiv scheme (3rd order upwind)
-                        else if(ueqn->quickDiv)
-                        {
-                            div3[k][j][i] = nScale
-                            (
-                                - ucont[k][j][i].z,
-                                quadraticUpwindVec
-                                (
-                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                                    ucont[k][j][i].z
-                                )
-                            );
-                        }
                     }
                 }
 
@@ -5406,8 +5389,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     {
                         if(ueqn->access->ibm->wallShearOn)
                         {
-                            visc3[k][j][i] = nSet(viscIBM3[k][j][i]);
-
                             if(isIBMFluidCell(k, j, i, nvert))
                             {
                                 visc3[k][j][i] = nSet(viscIBM3[k][j][i]);
@@ -5527,7 +5508,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 				// compute Stipa viscosity at i,j,k,  point
 				if(advectionDamping)
 				{
-					PetscReal height = cent[k][j][i].z - mesh->bounds.zmin;
+					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
 					nuD              = viscStipaDelta(xS, xE, xDS, xDE, cent[k][j][i].x, height, advDampH);
 					fp[k][j][i].z    = nuD * fp[k][j][i].z;
 				}
@@ -5633,9 +5614,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 PetscInt    iL, iR;
                 PetscInt    jL, jR;
                 PetscInt    kL, kR;
-                getFace2Cell4StencilCsi(mesh, i, mx, &iL, &iR, &denom);
-                getFace2Cell4StencilEta(mesh, j, my, &jL, &jR, &denom);
-                getFace2Cell4StencilZet(mesh, k, mz, &kL, &kR, &denom);
+                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert);
+                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert);
+                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert);
 
                 PetscReal v0, v1, v2, v3;
                 PetscReal d0, d1, d2, d3;
@@ -6112,6 +6093,12 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
 
     // reset periodic fluxes to be consistent if the flow is periodic
     resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
+
+    // apply IBM boundary condition to reset fluxes at IBM interface
+    if(ueqn->access->flags->isIBMActive)
+    {
+        UpdateImmersedBCs(ueqn->access->ibm);
+    }
 
     // adjust inflow/outflow fluxes to ensure mass conservation
     if(ueqn->access->flags->isOversetActive && *(ueqn->access->domainID) != 0)
