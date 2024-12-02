@@ -110,15 +110,7 @@ PetscErrorCode SetInitialFieldPrecursor(abl_ *abl)
     clock_     *clock     = domain->clock;
 
     // set IB markup to zero
-    VecSet(mesh->Nvert,       0.0);
-    VecSet(mesh->Nvert_o,     0.0);
     VecSet(mesh->fluxLimiter, 0.5);
-
-    // scatter local to local
-    DMGlobalToLocalBegin(mesh->da, mesh->Nvert,   INSERT_VALUES, mesh->lNvert  );
-    DMGlobalToLocalEnd  (mesh->da, mesh->Nvert,   INSERT_VALUES, mesh->lNvert  );
-    DMGlobalToLocalBegin(mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
-    DMGlobalToLocalEnd  (mesh->da, mesh->Nvert_o, INSERT_VALUES, mesh->lNvert_o);
 
     // set initial fields: spread inflow
     if(flags->isPrecursorSpinUp==1)
@@ -383,7 +375,7 @@ PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef, PetscInt &addPerturba
 
                 if(addPerturbations)
                 {
-                    PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                    PetscReal h = cent[k][j][i].z - mesh->grndLevel;
                     PetscReal x = cent[k][j][i].x;
                     PetscReal y = cent[k][j][i].y;
                     PetscReal z = cent[k][j][i].z;
@@ -563,7 +555,7 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
             for(i=lxs; i<lxe; i++)
             {
 
-                PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                PetscReal h = cent[k][j][i].z - mesh->grndLevel;
                 PetscReal x = cent[k][j][i].x;
                 PetscReal y = cent[k][j][i].y;
                 PetscReal z = cent[k][j][i].z;
@@ -1232,7 +1224,7 @@ PetscErrorCode SetLinearFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse)
         {
             for(i=lxs; i<lxe; i++)
             {
-                PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                PetscReal h = cent[k][j][i].z - mesh->grndLevel;
 
                 temp[k][j][i] = tRef + h*tLapse;
             }
@@ -1302,7 +1294,7 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn)
         {
             for(i=lxs; i<lxe; i++)
             {
-                PetscReal h = cent[k][j][i].z - mesh->bounds.zmin;
+                PetscReal h = cent[k][j][i].z - mesh->grndLevel;
 
                 // non dimensional height eta
                 PetscReal eta = (h - hInv) / smearing / deltaInv;

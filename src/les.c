@@ -17,7 +17,10 @@ PetscErrorCode InitializeLES(les_ *les)
     // 1. standard Smagorinsky
     // 2. stability dependent
     // 3. dynamic Smagorinsky with box averaging
-    // 4. dynamic Smagorinsky with lagrangian averaging
+    // 4. dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
+    // 5. dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
+    // 6. dynamic smagorinsky scale dependent with plane averaging (PASD)
+
 
     if(les != NULL)
     {
@@ -50,15 +53,27 @@ PetscErrorCode InitializeLES(les_ *les)
                     VecDuplicate(mesh->Nvert,&(les->L));   VecSet(les->L,0.);
                 }
 
-                if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4)
+                if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
                 {
                     VecDuplicate(mesh->lAj, &(les->lLM));  VecSet(les->lLM,0.);
                     VecDuplicate(mesh->lAj, &(les->lMM));  VecSet(les->lMM,0.);
 
-                    if (les->access->flags->isLesActive == 4)
+                    if (les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5)
                     {
                         VecDuplicate(mesh->lAj, &(les->lLM_old));   VecSet(les->lLM_old,0.);
                         VecDuplicate(mesh->lAj, &(les->lMM_old));   VecSet(les->lMM_old,0.);
+                    }
+
+                    if (les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+                    {
+                        VecDuplicate(mesh->lAj, &(les->lQN));  VecSet(les->lQN,0.);
+                        VecDuplicate(mesh->lAj, &(les->lNN));  VecSet(les->lNN,0.);
+
+                        if(les->access->flags->isLesActive == 5)
+                        {
+                            VecDuplicate(mesh->lAj, &(les->lQN_old));   VecSet(les->lQN_old,0.);
+                            VecDuplicate(mesh->lAj, &(les->lNN_old));   VecSet(les->lNN_old,0.);
+                        }
                     }
                 }
             }
@@ -106,7 +121,7 @@ PetscErrorCode UpdateCs (les_ *les)
     PetscReal     ***nvert, ***Cs;
 
     Cmpnts        ***Ax, ***Ay, ***Az, ***cent;
-    PetscReal     ***LM, ***MM;
+    PetscReal     ***LM, ***MM, ***QN, ***NN;
     PetscReal     ***Sabs, ***n, ***lch, ***scale;
 
     PetscReal     ajc;
@@ -270,7 +285,7 @@ PetscErrorCode UpdateCs (les_ *les)
     resetCellPeriodicFluxes(mesh, les->lSz, les->lSz, "vector", "localToLocal");
     resetCellPeriodicFluxes(mesh, les->lS,  les->lS,  "scalar", "localToLocal");
 
-    // 2 - loop over cells and compute specific model parameters (LijMij and MijMij for dynamic model and N for scale dep. model)
+    // 2 - loop over cells and compute specific model parameters (LijMij and MijMij for dynamic model and N for stability dep. model)
     if(les->access->flags->isLesActive == 2)
     {
         DMDAVecGetArray(da,  les->lN, &n);
@@ -324,18 +339,20 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da, les->lN, INSERT_VALUES, les->lN);
         DMLocalToLocalEnd  (da, les->lN, INSERT_VALUES, les->lN);
     }
-    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4)
+    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
     {
         // get arrays
         DMDAVecGetArray(fda, les->lSx, &Ax);
         DMDAVecGetArray(fda, les->lSy, &Ay);
         DMDAVecGetArray(fda, les->lSz, &Az);
         DMDAVecGetArray(da,  les->lS,  &Sabs);
-        DMDAVecGetArray(da,  les->lLM, &LM);
-        DMDAVecGetArray(da,  les->lMM, &MM);
+
         VecSet(les->lLM, 0.0);
         VecSet(les->lMM, 0.0);
+        DMDAVecGetArray(da,  les->lLM, &LM);
+        DMDAVecGetArray(da,  les->lMM, &MM);
 
+        //first test filter - compute Lij and Mij
         for (k=lzs; k<lze; k++)
         for (j=lys; j<lye; j++)
         for (i=lxs; i<lxe; i++)
@@ -364,7 +381,6 @@ PetscErrorCode UpdateCs (les_ *les)
                       S_hat,                                       // scalar |S| = sqrt(2*Sij*Sij)
                       SSij_hat[3][3],                              // filtered |S|*S tensor
                       Mij[3][3],                                   // Mij tensor
-                      Nij[3][3],                                   // Nij tensor
                       Lij_cat[3][3],                               // cartesian Germano tensor
                       Mij_cat[3][3];                               // cartesian Mij tensor
 
@@ -393,6 +409,14 @@ PetscErrorCode UpdateCs (les_ *les)
             {
                 PetscInt R = r+1, Q = q+1, P = p+1;                  // local stencil labeling: putting data
                 PetscInt K = k+r, J = j+q, I = i+p;                  // mesh cell labeling    : getting data
+
+                // //mirroring ghost node values
+                // if(K == 0) K = 1;
+                // if(K == mz-1) K = mz-2;
+                // if(J == 0) J = 1;
+                // if(J == my-1) J = my-2;
+                // if(I == 0) I = 1;
+                // if(I == mx-1) I = mx-2;
 
                 // cartesian velocity
                 u[R][Q][P] = ucat[K][J][I].x;
@@ -452,6 +476,7 @@ PetscErrorCode UpdateCs (les_ *les)
                 SS11[R][Q][P] = S11[R][Q][P]*S[R][Q][P], SS12[R][Q][P] = S12[R][Q][P]*S[R][Q][P], SS13[R][Q][P] = S13[R][Q][P]*S[R][Q][P];
                 SS21[R][Q][P] = S21[R][Q][P]*S[R][Q][P], SS22[R][Q][P] = S22[R][Q][P]*S[R][Q][P], SS23[R][Q][P] = S23[R][Q][P]*S[R][Q][P];
                 SS31[R][Q][P] = S31[R][Q][P]*S[R][Q][P], SS32[R][Q][P] = S32[R][Q][P]*S[R][Q][P], SS33[R][Q][P] = S33[R][Q][P]*S[R][Q][P];
+
             }
 
             // 2.2 - Build the filters
@@ -483,6 +508,14 @@ PetscErrorCode UpdateCs (les_ *les)
                 PetscInt R = r+1, Q = q+1, P = p+1;                  // local stencil labeling: putting data
                 PetscInt K = k+r, J = j+q, I = i+p;                  // mesh cell labeling    : getting data
 
+                // //mirroring ghost node values
+                // if(K == 0) K = 1;
+                // if(K == mz-1) K = mz-2;
+                // if(J == 0) J = 1;
+                // if(J == my-1) J = my-2;
+                // if(I == 0) I = 1;
+                // if(I == mx-1) I = mx-2;
+
                 // fluid
                 if
                 (
@@ -501,7 +534,10 @@ PetscErrorCode UpdateCs (les_ *les)
                     // where variables is undefined
                     weight[R][Q][P] = 0;
                 }
+
+
             }
+
 
             // filter dimension is cell volume cubic root
             filter      = pow( 1./aj[k][j][i], 1./3.);
@@ -659,11 +695,373 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da, les->lMM, INSERT_VALUES, les->lMM);
         DMLocalToLocalEnd  (da, les->lMM, INSERT_VALUES, les->lMM);
 
-        PetscReal ***LM_old, ***MM_old;
+        //second test filter - compute Qij and Nij
+        if(les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+        {
+            VecSet(les->lQN, 0.0);
+            VecSet(les->lNN, 0.0);
+            DMDAVecGetArray(da,  les->lQN, &QN);
+            DMDAVecGetArray(da,  les->lNN, &NN);
+
+            for (k=lzs; k<lze; k++)
+            for (j=lys; j<lye; j++)
+            for (i=lxs; i<lxe; i++)
+            {
+                // set to zero if solid and skip
+                if(isIBMSolidCell(k, j, i, nvert))
+                {
+                    QN[k][j][i] = NN[k][j][i] = 0;
+                    continue;
+                }
+
+                // 2.1 - Build the variables to be test-filtered
+
+                // get cell metrics
+                ajc = aj[k][j][i];
+                PetscReal csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+                PetscReal eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+                PetscReal zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+
+                // indices for 2-nd rank tensor labeling
+                PetscInt    a, b;
+
+                // local tensors after the test-filtering
+                PetscReal Qij[3][3],                                   // Germano tensor projected on generalized coordinates
+                        Sij_hat[3][3],                               // filtered strain rate tensor S projected on generalized coordinates
+                        S_hat,                                       // scalar |S| = sqrt(2*Sij*Sij)
+                        SSij_hat[3][3],                              // filtered |S|*S tensor
+                        Nij[3][3],                                   // Nij tensor
+                        Qij_cat[3][3],                               // cartesian Germano tensor
+                        Nij_cat[3][3];                               // cartesian Nij tensor
+
+                PetscReal filter, test_filter;                         // grid filter and dynamic model filter
+
+                // local tensors before the test-filtering (5x5x5 cell stencil)
+                PetscReal S[5][5][5];                                  // scalar |S| = sqrt(2*Sij*Sij)
+                PetscReal u[5][5][5] ,   v[5][5][5] ,   w[5][5][5] ,   // cartesian velocity
+                        d[5][5][5];
+                PetscReal U[5][5][5]   , V[5][5][5]   , W[5][5][5]   ; // contravariant fluxes
+                PetscReal Uu[5][5][5]  , Uv[5][5][5]  , Uw[5][5][5]  ; //         |Uu Uv Uw|
+                PetscReal Vu[5][5][5]  , Vv[5][5][5]  , Vw[5][5][5]  ; // tensor: |Vu Vv Vw|
+                PetscReal Wu[5][5][5]  , Wv[5][5][5]  , Ww[5][5][5]  ; //         |Wu Wv Ww|
+                PetscReal S11[5][5][5] , S12[5][5][5] , S13[5][5][5] , // strain rate tensor
+                        S21[5][5][5] , S22[5][5][5] , S23[5][5][5],
+                        S31[5][5][5] , S32[5][5][5] , S33[5][5][5] ;
+                PetscReal SS11[5][5][5], SS12[5][5][5], SS13[5][5][5], // |S|*S tensor
+                        SS21[5][5][5], SS22[5][5][5], SS23[5][5][5],
+                        SS31[5][5][5], SS32[5][5][5], SS33[5][5][5];
+
+                // creating variables to be test-filtered
+                PetscInt p,q,r;
+                for(p=-2; p<=2; p++)
+                for(q=-2; q<=2; q++)
+                for(r=-2; r<=2; r++)
+                {
+                    PetscInt R = r+2, Q = q+2, P = p+2;                  // local stencil labeling: putting data
+                    PetscInt K = k+r, J = j+q, I = i+p;                  // mesh cell labeling    : getting data
+
+                    // // ghost node values are mirrored
+                    // if(K <= 0) K = 1;
+                    // if(K >= mz-1) K = mz-2;
+                    // if(J <= 0) J = 1;
+                    // if(J >= my-1) J = my-2;
+                    // if(I <= 0) I = 1;
+                    // if(I >= mx-1) I = mx-2; 
+
+                    // cartesian velocity
+                    u[R][Q][P] = ucat[K][J][I].x;
+                    v[R][Q][P] = ucat[K][J][I].y;
+                    w[R][Q][P] = ucat[K][J][I].z;
+
+                    // contravariant fluxes
+                    U[R][Q][P] = u[R][Q][P]*csi[K][J][I].x + v[R][Q][P]*csi[K][J][I].y + w[R][Q][P]*csi[K][J][I].z;
+                    V[R][Q][P] = u[R][Q][P]*eta[K][J][I].x + v[R][Q][P]*eta[K][J][I].y + w[R][Q][P]*eta[K][J][I].z;
+                    W[R][Q][P] = u[R][Q][P]*zet[K][J][I].x + v[R][Q][P]*zet[K][J][I].y + w[R][Q][P]*zet[K][J][I].z;
+
+                    // Uu tensor components
+                    Uu[R][Q][P] = U[R][Q][P] * u[R][Q][P];
+                    Uv[R][Q][P] = U[R][Q][P] * v[R][Q][P];
+                    Uw[R][Q][P] = U[R][Q][P] * w[R][Q][P];
+
+                    Vu[R][Q][P] = V[R][Q][P] * u[R][Q][P];
+                    Vv[R][Q][P] = V[R][Q][P] * v[R][Q][P];
+                    Vw[R][Q][P] = V[R][Q][P] * w[R][Q][P];
+
+                    Wu[R][Q][P] = W[R][Q][P] * u[R][Q][P];
+                    Wv[R][Q][P] = W[R][Q][P] * v[R][Q][P];
+                    Ww[R][Q][P] = W[R][Q][P] * w[R][Q][P];
+
+                    // strain rate tensor S
+                    const PetscReal du_dx = Ax[K][J][I].x,
+                                    du_dy = Ax[K][J][I].y,
+                                    du_dz = Ax[K][J][I].z;
+                    const PetscReal dv_dx = Ay[K][J][I].x,
+                                    dv_dy = Ay[K][J][I].y,
+                                    dv_dz = Ay[K][J][I].z;
+                    const PetscReal dw_dx = Az[K][J][I].x,
+                                    dw_dy = Az[K][J][I].y,
+                                    dw_dz = Az[K][J][I].z;
+
+                    PetscReal Sxx = 0.5*(du_dx + du_dx),
+                            Sxy = 0.5*(du_dy + dv_dx),
+                            Sxz = 0.5*(du_dz + dw_dx);
+
+                    PetscReal Syx = Sxy,
+                            Syy = 0.5*(dv_dy + dv_dy),
+                            Syz = 0.5*(dv_dz + dw_dy);
+                    PetscReal Szx = Sxz,
+                            Szy=Syz,
+                            Szz = 0.5*(dw_dz + dw_dz);
+
+
+                    // Mohammad: the model is expressed in cartesian coordinates
+                    S11[R][Q][P]  = Sxx, S12[R][Q][P] = Sxy, S13[R][Q][P] = Sxz;
+                    S21[R][Q][P]  = Syx, S22[R][Q][P] = Syy, S23[R][Q][P] = Syz;
+                    S31[R][Q][P]  = Szx, S32[R][Q][P] = Szy, S33[R][Q][P] = Szz;
+
+                    // |S|
+                    S[R][Q][P]    = Sabs[K][J][I];
+
+                    // |S|*S
+                    SS11[R][Q][P] = S11[R][Q][P]*S[R][Q][P], SS12[R][Q][P] = S12[R][Q][P]*S[R][Q][P], SS13[R][Q][P] = S13[R][Q][P]*S[R][Q][P];
+                    SS21[R][Q][P] = S21[R][Q][P]*S[R][Q][P], SS22[R][Q][P] = S22[R][Q][P]*S[R][Q][P], SS23[R][Q][P] = S23[R][Q][P]*S[R][Q][P];
+                    SS31[R][Q][P] = S31[R][Q][P]*S[R][Q][P], SS32[R][Q][P] = S32[R][Q][P]*S[R][Q][P], SS33[R][Q][P] = S33[R][Q][P]*S[R][Q][P];
+                }
+
+                // 2.2 - Build the filters
+
+                // filter kernel
+                PetscReal coef[5][5][5]=
+                {
+                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378,
+                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
+                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378,
+
+                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
+                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
+                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
+                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+
+                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
+                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
+                    0.56529725, 2.5334865, 4.17701308, 2.5334865, 0.56529725,
+                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
+                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
+
+                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
+                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
+                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
+                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+
+                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378,
+                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
+                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378
+
+                };
+
+                // cell volume times stencil integration coeff. and fluid/body weight
+                PetscReal weight[5][5][5];
+                PetscReal sum_vol    = 0;
+
+                for(p=-2; p<=2; p++)
+                for(q=-2; q<=2; q++)
+                for(r=-2; r<=2; r++)
+                {
+                    PetscInt R = r+2, Q = q+2, P = p+2;                  // local stencil labeling: putting data
+                    PetscInt K = k+r, J = j+q, I = i+p;                  // mesh cell labeling    : getting data
+
+                    // //ghost node values are mirrored
+                    // if(K <= 0) K = 1;
+                    // if(K >= mz-1) K = mz-2;
+                    // if(J <= 0) J = 1;
+                    // if(J >= my-1) J = my-2;
+                    // if(I <= 0) I = 1;
+                    // if(I >= mx-1) I = mx-2; 
+
+                    // fluid
+                    if
+                    (
+                        (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                        //!isOnCornerCellCenters(I, J, K, mesh->info) <- use also ghost? Not for now
+                        (I>0 && I<mx-1 && J>0 && J<my-1 && K>0 && K<mz-1)
+                    )
+                    {
+                        sum_vol += 1./aj[K][J][I] * coef[R][Q][P];
+                        weight[R][Q][P] = 1;
+                    }
+                    // body or physical ghost nodes
+                    else
+                    {
+                        // note: we could use physical ghost, but not certanely the corner points,
+                        // where variables is undefined
+                        weight[R][Q][P] = 0;
+                    }
+                }
+
+                // filter dimension is cell volume cubic root
+                filter      = pow( 1./aj[k][j][i], 1./3.);
+
+                // use the cubic root of total weighted volume
+                test_filter = pow( sum_vol, 1./3. );
+
+                // apply test-filtering
+                PetscReal _U = integrateTestfilterSimpson5x5(U, weight);
+                PetscReal _V = integrateTestfilterSimpson5x5(V, weight);
+                PetscReal _W = integrateTestfilterSimpson5x5(W, weight);
+
+                PetscReal _u = integrateTestfilterSimpson5x5(u, weight);
+                PetscReal _v = integrateTestfilterSimpson5x5(v, weight);
+                PetscReal _w = integrateTestfilterSimpson5x5(w, weight);
+                PetscReal _d = 1;
+
+                Qij[0][0] = integrateTestfilterSimpson5x5(Uu, weight) - _U*_u;
+                Qij[0][1] = integrateTestfilterSimpson5x5(Uv, weight) - _U*_v;
+                Qij[0][2] = integrateTestfilterSimpson5x5(Uw, weight) - _U*_w;
+                Qij[1][0] = integrateTestfilterSimpson5x5(Vu, weight) - _V*_u;
+                Qij[1][1] = integrateTestfilterSimpson5x5(Vv, weight) - _V*_v;
+                Qij[1][2] = integrateTestfilterSimpson5x5(Vw, weight) - _V*_w;
+                Qij[2][0] = integrateTestfilterSimpson5x5(Wu, weight) - _W*_u;
+                Qij[2][1] = integrateTestfilterSimpson5x5(Wv, weight) - _W*_v;
+                Qij[2][2] = integrateTestfilterSimpson5x5(Ww, weight) - _W*_w;
+
+                Sij_hat[0][0] = integrateTestfilterSimpson5x5(S11, weight);
+                Sij_hat[0][1] = integrateTestfilterSimpson5x5(S12, weight);
+                Sij_hat[0][2] = integrateTestfilterSimpson5x5(S13, weight);
+                Sij_hat[1][0] = integrateTestfilterSimpson5x5(S21, weight);
+                Sij_hat[1][1] = integrateTestfilterSimpson5x5(S22, weight);
+                Sij_hat[1][2] = integrateTestfilterSimpson5x5(S23, weight);
+                Sij_hat[2][0] = integrateTestfilterSimpson5x5(S31, weight);
+                Sij_hat[2][1] = integrateTestfilterSimpson5x5(S32, weight);
+                Sij_hat[2][2] = integrateTestfilterSimpson5x5(S33, weight);
+
+                S_hat = 0;
+
+                for(a=0; a<3; a++)
+                {
+                    for(b=0; b<3; b++)
+                    {
+                        S_hat += pow( Sij_hat[a][b], 2. );
+                    }
+                }
+
+                S_hat = sqrt ( 2 * S_hat );
+
+                SSij_hat[0][0] = integrateTestfilterSimpson5x5(SS11, weight);
+                SSij_hat[0][1] = integrateTestfilterSimpson5x5(SS12, weight);
+                SSij_hat[0][2] = integrateTestfilterSimpson5x5(SS13, weight);
+                SSij_hat[1][0] = integrateTestfilterSimpson5x5(SS21, weight);
+                SSij_hat[1][1] = integrateTestfilterSimpson5x5(SS22, weight);
+                SSij_hat[1][2] = integrateTestfilterSimpson5x5(SS23, weight);
+                SSij_hat[2][0] = integrateTestfilterSimpson5x5(SS31, weight);
+                SSij_hat[2][1] = integrateTestfilterSimpson5x5(SS32, weight);
+                SSij_hat[2][2] = integrateTestfilterSimpson5x5(SS33, weight);
+
+
+                PetscReal gg[3][3], ggc[3][3], G[3][3];
+                PetscReal xcsi, xeta, xzet,
+                        ycsi, yeta, yzet,
+                        zcsi, zeta, zzet;
+
+                // contravariant base matrix
+                gg[0][0] = csi0, gg[0][1] = csi1, gg[0][2] = csi2;
+                gg[1][0] = eta0, gg[1][1] = eta1, gg[1][2] = eta2;
+                gg[2][0] = zet0, gg[2][1] = zet1, gg[2][2] = zet2;
+
+                // covariant base matrix
+                Calculate_Covariant_metrics(gg, ggc);
+
+                // covariant base vectors
+                xcsi = ggc[0][0], xeta = ggc[0][1], xzet = ggc[0][2];
+                ycsi = ggc[1][0], yeta = ggc[1][1], yzet = ggc[1][2];
+                zcsi = ggc[2][0], zeta = ggc[2][1], zzet = ggc[2][2];
+
+                // covariant metric tensor
+                G[0][0] = xcsi * xcsi + ycsi * ycsi + zcsi * zcsi;
+                G[1][1] = xeta * xeta + yeta * yeta + zeta * zeta;
+                G[2][2] = xzet * xzet + yzet * yzet + zzet * zzet;
+                G[0][1] = G[1][0] = xeta * xcsi + yeta * ycsi + zeta * zcsi;
+                G[0][2] = G[2][0] = xzet * xcsi + yzet * ycsi + zzet * zcsi;
+                G[1][2] = G[2][1] = xeta * xzet + yeta * yzet + zeta * zzet;
+
+                // compute cartesian Mij tensor
+                for(a=0; a<3; a++)
+                for(b=0; b<3; b++)
+                {
+                    // Mohammad: Nij first defined in cartesian and then transformed
+                    Nij_cat[a][b]
+
+                    // Seba: Mij readily defined in curvilinear coordinates
+                    //Mij[a][b]
+                    =
+                    (
+                        - pow( test_filter, 2. ) * S_hat * Sij_hat[a][b]
+                        + pow( filter, 2. ) * SSij_hat[a][b]
+                    );
+
+                }
+                // Mohammad: project the Mij
+                Nij[0][0] = Nij_cat[0][0] * csi0 + Nij_cat[0][1] * csi1 + Nij_cat[0][2] * csi2;
+                Nij[0][1] = Nij_cat[0][0] * eta0 + Nij_cat[0][1] * eta1 + Nij_cat[0][2] * eta2;
+                Nij[0][2] = Nij_cat[0][0] * zet0 + Nij_cat[0][1] * zet1 + Nij_cat[0][2] * zet2;
+                Nij[1][0] = Nij_cat[1][0] * csi0 + Nij_cat[1][1] * csi1 + Nij_cat[1][2] * csi2;
+                Nij[1][1] = Nij_cat[1][0] * eta0 + Nij_cat[1][1] * eta1 + Nij_cat[1][2] * eta2;
+                Nij[1][2] = Nij_cat[1][0] * zet0 + Nij_cat[1][1] * zet1 + Nij_cat[1][2] * zet2;
+                Nij[2][0] = Nij_cat[2][0] * csi0 + Nij_cat[2][1] * csi1 + Nij_cat[2][2] * csi2;
+                Nij[2][1] = Nij_cat[2][0] * eta0 + Nij_cat[2][1] * eta1 + Nij_cat[2][2] * eta2;
+                Nij[2][2] = Nij_cat[2][0] * zet0 + Nij_cat[2][1] * zet1 + Nij_cat[2][2] * zet2;
+
+                PetscReal num = 0, num1 = 0, denom = 0;
+                PetscInt  m, n, l;
+
+                // compute numerator
+                for(q=0; q<3; q++)
+                for(a=0; a<3; a++)
+                for(b=0; b<3; b++)
+                {
+                    // this contraction is given by
+                    // Q G N = Qba * (Naq * Gbq)
+                    // Note: for how tensors are build the matrix producti is row by row and
+                    //       not row by colums as usual. In both products.
+                    num += Qij[b][a] * Nij[a][q] * G[b][q];
+                }
+
+                // compute denominator
+                for(m=0; m<3; m++)
+                for(n=0; n<3; n++)
+                for(l=0; l<3; l++)
+                {
+                    // this contraction is given by
+                    // N G N = Nnm * (Nnl * Gml)
+                    // Note: matrix product is row by row in the product between parenthesis
+                    //       and row by column between the first matrix and the result of previous one.
+                    denom += Nij[n][m] * Nij[n][l] * G[m][l];
+
+                }
+
+                // store in LM and MM
+                QN[k][j][i] = num;
+                NN[k][j][i] = denom;
+            }
+
+            DMDAVecRestoreArray(da,  les->lQN, &QN);
+            DMDAVecRestoreArray(da,  les->lNN, &NN);
+
+            DMLocalToLocalBegin(da, les->lQN, INSERT_VALUES, les->lQN);
+            DMLocalToLocalEnd  (da, les->lQN, INSERT_VALUES, les->lQN);
+            DMLocalToLocalBegin(da, les->lNN, INSERT_VALUES, les->lNN);
+            DMLocalToLocalEnd  (da, les->lNN, INSERT_VALUES, les->lNN);
+        }
+
+        PetscReal ***LM_old, ***MM_old, ***QN_old, ***NN_old;
 
         // local convective weighting
-        // local convective weighting
-        if(les->access->flags->isLesActive==4)
+        if(les->access->flags->isLesActive==4 || les->access->flags->isLesActive==5)
         {
             PetscInt initializeLes4;
             if (clock->it <= clock->itStart + 1) initializeLes4 = 1;
@@ -706,18 +1104,18 @@ PetscErrorCode UpdateCs (les_ *les)
                     // value, which in turn could be clipped at zero. Hence we have noisier fields.
 
                     // Meneveau time scale
-                    PetscReal T_scale
-                    =
-                    PetscMax
-                    (
-                        2.0*filter*
-                        pow
-                        (
-                            fabs(LM_old[k][j][i]),
-                            -1./4.
-                        ),
-                        1e-20
-                    );
+                    // PetscReal T_scale
+                    // =
+                    // PetscMax
+                    // (
+                    //     2.0*filter*
+                    //     pow
+                    //     (
+                    //         fabs(LM_old[k][j][i]),
+                    //         -1./4.
+                    //     ),
+                    //     1e-20
+                    // );
 
                     // Piomelli time scale
                     /*
@@ -735,8 +1133,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     );
                     */
 
-                    // Mohammad time scale
-                    /*
+                    // Bou-Zaid scale dependent model time scale
                     PetscReal T_scale
                     =
                     1.5*filter*
@@ -747,7 +1144,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         -1.0/8.0
                     ) +
                     1.e-19;
-                    */
+                    
 
                     PetscReal LM_new, MM_new;
 
@@ -940,8 +1337,290 @@ PetscErrorCode UpdateCs (les_ *les)
             DMLocalToLocalBegin(da, les->lMM_old, INSERT_VALUES, les->lMM_old);
             DMLocalToLocalEnd  (da, les->lMM_old, INSERT_VALUES, les->lMM_old);
 
-            // only calculate LM and MM then return with standard Cs
-            if(initializeLes4) return(0);
+        }
+
+        if(les->access->flags->isLesActive==5)
+        {
+            PetscInt initializeLes4;
+            if (clock->it <= clock->itStart + 1) initializeLes4 = 1;
+            else                                 initializeLes4 = 0;
+
+            DMDAVecGetArray(da, les->lQN, &QN);
+            DMDAVecGetArray(da, les->lNN, &NN);
+
+            DMDAVecGetArray(da, les->lQN_old, &QN_old);
+            DMDAVecGetArray(da, les->lNN_old, &NN_old);
+
+            // use standard Smagorinsky for first iteration (since need old values of QN and NN)
+            if(initializeLes4)
+            {
+                for (k=lzs; k<lze; k++)
+                {
+                    for (j=lys; j<lye; j++)
+                    {
+                        for (i=lxs; i<lxe; i++)
+                        {
+                            QN_old[k][j][i] = std_cs*NN[k][j][i];
+                            NN_old[k][j][i] = NN[k][j][i];
+                        }
+                    }
+                }
+
+                VecSet(les->lCs, std_cs);
+            }
+            else
+            {
+                for (k=lzs; k<lze; k++)
+                for (j=lys; j<lye; j++)
+                for (i=lxs; i<lxe; i++)
+                {
+                    // filter dimension
+                    PetscReal filter = pow( 1./aj[k][j][i], 1./3. );
+
+                    // The higher the time scale, the strongest the lagrangian scmoothing.
+                    // To low time scales could result in weighting too much the new
+                    // value, which in turn could be clipped at zero. Hence we have noisier fields.
+
+                    // Meneveau time scale
+                    // PetscReal T_scale
+                    // =
+                    // PetscMax
+                    // (
+                    //     2.0*filter*
+                    //     pow
+                    //     (
+                    //         fabs(QN_old[k][j][i]),
+                    //         -1./4.
+                    //     ),
+                    //     1e-20
+                    // );
+
+                    // Piomelli time scale
+                    /*
+                    PetscReal T_scale
+                    =
+                    PetscMax
+                    (
+                        1.5*filter*
+                        pow
+                        (
+                            8.*fabs(QN_old[k][j][i]*NN_old[k][j][i]),
+                            -1./8.
+                        ),
+                        1e-15
+                    );
+                    */
+
+                    // Bou-Zaid scale dependent model time scale
+                    PetscReal T_scale
+                    =
+                    1.5*filter*
+                    pow
+                    (
+                        fabs(QN_old[k][j][i]*NN_old[k][j][i]) +
+                        1.e-19,
+                        -1.0/8.0
+                    ) +
+                    1.e-19;
+                    
+
+                    PetscReal QN_new, NN_new;
+
+                    QN_new = QN[k][j][i];
+                    NN_new = NN[k][j][i];
+
+                    // find the coordinate where old values will be gahtered
+                    Cmpnts X_new, X_old;
+
+                    X_new = cent[k][j][i];
+
+                    X_old.x = X_new.x - ucat[k][j][i].x * clock->dt;
+                    X_old.y = X_new.y - ucat[k][j][i].y * clock->dt;
+                    X_old.z = X_new.z - ucat[k][j][i].z * clock->dt;
+
+                    PetscInt    i1, j1, k1;
+                    PetscReal dmin = 10e6, d;
+                    PetscInt    i_old, j_old, k_old;
+
+                    i_old = i; j_old = j; k_old = k;
+
+                    // must be close due to CFL so don't loop over all cells
+                    for (k1=k-2; k1<k+3; k1++)
+                    for (j1=j-2; j1<j+3; j1++)
+                    for (i1=i-2; i1<i+3; i1++)
+                    {
+                        // clip the search on internal cells. Must update values if
+                        // periodic after that otherwise inlet values are not advected
+                        // from outlet
+                        if
+                        ((
+                            k1>=1 && k1<mz-1 &&
+                            j1>=1 && j1<my-1 &&
+                            i1>=1 && i1<mx-1
+                        ) && (!isIBMSolidCell(k1, j1, i1, nvert)) )
+                        {
+                            d = pow((X_old.x - cent[k1][j1][i1].x), 2) +
+                                pow((X_old.y - cent[k1][j1][i1].y), 2) +
+                                pow((X_old.z - cent[k1][j1][i1].z), 2);
+
+                            if
+                            (
+                                d < dmin
+                            )
+                            {
+                                dmin  = d;
+                                i_old = i1;
+                                j_old = j1;
+                                k_old = k1;
+                            }
+                        }
+                    }
+
+                    PetscReal _QN_old, _NN_old;
+
+                    // interpolate the value at the exact old point (slower)
+                    // if there is an IBM or overset cell around the given cell, use nearest cell
+                    if(isBoxIBMCell(k_old, j_old, i_old, nvert))
+                    {
+                        PetscInt intId[6];
+                        PetscInt ibmCellCtr = 0;
+
+                        // get the trilinear interpolation cells
+                        PointInterpolationCells
+                        (
+                                mesh,
+                                X_old.x, X_old.y, X_old.z,
+                                i_old, j_old, k_old,
+                                cent,
+                                intId
+                        );
+
+                        //see if any one of the trilinear interpolation cells is ibmSolid
+                        for (PetscInt kk = 0; kk<2; kk++)
+                        for (PetscInt jj = 0; jj<2; jj++)
+                        for (PetscInt ii = 0; ii<2; ii++)
+                        {
+                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                            {
+                                ibmCellCtr ++;
+                            }
+
+                        }
+
+                        if(ibmCellCtr)
+                        {
+                            //use the value at the closest cell
+                            _QN_old = QN_old[k_old][j_old][i_old];
+                            _NN_old = NN_old[k_old][j_old][i_old];
+                        }
+                        else
+                        {
+                            //safe to trilinear interpolate
+                            scalarPointLocalVolumeInterpolation
+                            (
+                                mesh,
+                                X_old.x, X_old.y, X_old.z,
+                                i_old, j_old, k_old,
+                                cent,
+                                QN_old,
+                                _QN_old
+                            );
+
+                            scalarPointLocalVolumeInterpolation
+                            (
+                                mesh,
+                                X_old.x, X_old.y, X_old.z,
+                                i_old, j_old, k_old,
+                                cent,
+                                NN_old,
+                                _NN_old
+                            );
+                        }
+                    }
+                    else
+                    {
+                      if(lagrangianAverageCs == "trilinear")
+                      {
+                          scalarPointLocalVolumeInterpolation
+                          (
+                              mesh,
+                              X_old.x, X_old.y, X_old.z,
+                              i_old, j_old, k_old,
+                              cent,
+                              QN_old,
+                              _QN_old
+                          );
+
+                          scalarPointLocalVolumeInterpolation
+                          (
+                              mesh,
+                              X_old.x, X_old.y, X_old.z,
+                              i_old, j_old, k_old,
+                              cent,
+                              NN_old,
+                              _NN_old
+                          );
+                      }
+                      else if(lagrangianAverageCs == "nearestPoint")
+                      {
+                          // take the closest cell value (faster, but a lot of cs clipping from below)
+                          _QN_old = QN_old[k_old][j_old][i_old];
+                          _NN_old = NN_old[k_old][j_old][i_old];
+                      }
+
+                    }
+
+                    // interpolation weights depend on the time scale.
+                    // if dt >> T_scale new value is used
+                    // if dt << T_scale old value is used
+                    PetscReal eps = (clock->dt/T_scale) / (1.0 + clock->dt/T_scale);
+
+                    // apply lagrangian weighting (relaxation)
+                    QN[k][j][i]
+                    =
+                    PetscMax
+                    (
+                        (
+                            (1-eps) * _QN_old +
+                            eps * QN_new
+                        ),
+                        0.0
+                    );
+
+                    NN[k][j][i]
+                    =
+                    (1-eps) * _NN_old +
+                    eps * NN_new;
+                }
+
+                // store QN and NN old values
+                for (k=lzs; k<lze; k++)
+                for (j=lys; j<lye; j++)
+                for (i=lxs; i<lxe; i++)
+                {
+                    QN_old[k][j][i] = QN[k][j][i];
+                    NN_old[k][j][i] = NN[k][j][i];
+                }
+            }
+
+            DMDAVecRestoreArray(da, les->lQN, &QN);
+            DMDAVecRestoreArray(da, les->lNN, &NN);
+            DMDAVecRestoreArray(da, les->lQN_old, &QN_old);
+            DMDAVecRestoreArray(da, les->lNN_old, &NN_old);
+
+            DMLocalToLocalBegin(da, les->lQN_old, INSERT_VALUES, les->lQN_old);
+            DMLocalToLocalEnd  (da, les->lQN_old, INSERT_VALUES, les->lQN_old);
+            DMLocalToLocalBegin(da, les->lNN_old, INSERT_VALUES, les->lNN_old);
+            DMLocalToLocalEnd  (da, les->lNN_old, INSERT_VALUES, les->lNN_old);
+
+            // update ghost values
+            DMLocalToLocalBegin(da, les->lQN, INSERT_VALUES, les->lQN);
+            DMLocalToLocalEnd  (da, les->lQN, INSERT_VALUES, les->lQN);
+            DMLocalToLocalBegin(da, les->lNN, INSERT_VALUES, les->lNN);
+            DMLocalToLocalEnd  (da, les->lNN, INSERT_VALUES, les->lNN);
+
+            resetCellPeriodicFluxes(mesh, les->lQN, les->lQN, "scalar", "localToLocal");
+            resetCellPeriodicFluxes(mesh, les->lNN, les->lNN, "scalar", "localToLocal");
         }
 
         // update ghost values
@@ -970,10 +1649,16 @@ PetscErrorCode UpdateCs (les_ *les)
         DMDAVecGetArray(da,  les->lCh, &lch);
         DMDAVecGetArray(da,  les->L,   &scale);
     }
-    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4)
+    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
     {
         DMDAVecGetArray(da, les->lLM, &LM);
         DMDAVecGetArray(da, les->lMM, &MM);
+
+        if(les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+        {
+            DMDAVecGetArray(da,  les->lQN, &QN);
+            DMDAVecGetArray(da,  les->lNN, &NN);
+        }
     }
 
     // loop over internal cells
@@ -989,9 +1674,9 @@ PetscErrorCode UpdateCs (les_ *les)
         }
 
         // Cs value at current point
-        PetscReal C;
+        PetscReal C = 0.0;
 
-        // scale dependent model
+        // stability dependent model
         if(les->access->flags->isLesActive == 2)
         {
             // model coefficients
@@ -1041,7 +1726,7 @@ PetscErrorCode UpdateCs (les_ *les)
             // save ch value for temperature equation
             lch[k][j][i] = ch;
 
-            // scave scale for visualization
+            // save scale for visualization
             scale[k][j][i] = l;
 
             // compute C coefficient
@@ -1149,6 +1834,19 @@ PetscErrorCode UpdateCs (les_ *les)
             // set Smagorinsky coefficient
             C = 0.5 * LM_avg / (MM_avg + 1e-10);
         }
+        else if(les->access->flags->isLesActive == 5)
+        {
+            PetscReal num, denom, beta;
+
+            num   = LM[k][j][i]/(MM[k][j][i] + 1e-12);
+
+            //ratio of Cs^2 at different scale
+            beta  = (QN[k][j][i] * MM[k][j][i])/(NN[k][j][i] * LM[k][j][i] + 1e-12);
+
+            denom = PetscMin(PetscMax(0.125, beta), 100.0);
+
+            C = 0.5 * num/denom;
+        }
 
         // set Cs to zero if solid or on box corners
         if( isIBMSolidCell(k, j, i, nvert) )
@@ -1163,6 +1861,77 @@ PetscErrorCode UpdateCs (les_ *les)
         }
     }
 
+    if(les->access->flags->isLesActive == 6)
+    {
+        std::vector<PetscInt> count, total_count;
+        std::vector<PetscReal> J_LM(my), J_MM(my), J_QN(my), J_NN(my), LM_tmp(my), MM_tmp(my), QN_tmp(my), NN_tmp(my);
+        
+        count.resize(my);
+        total_count.resize(my);
+        
+        for(j=0; j<my; j++) 
+        {
+            LM_tmp[j] = 0;
+            MM_tmp[j] = 0;
+            QN_tmp[j] = 0;
+            NN_tmp[j] = 0;
+            count[j]  = 0;
+            total_count[j] = 0;
+        }
+
+        // loop over internal cells
+        for (k=lzs; k<lze; k++)
+        for (j=lys; j<lye; j++)
+        for (i=lxs; i<lxe; i++)
+        {
+            if(isFluidCell(k,j,i, nvert)) 
+            {
+                LM_tmp[j] += LM[k][j][i];
+                MM_tmp[j] += MM[k][j][i];
+                QN_tmp[j] += QN[k][j][i];
+                NN_tmp[j] += NN[k][j][i];            
+                count[j] ++;
+            }
+        }
+        
+        MPI_Allreduce( &LM_tmp[0], &J_LM[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+        MPI_Allreduce( &MM_tmp[0], &J_MM[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+        MPI_Allreduce( &QN_tmp[0], &J_QN[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+        MPI_Allreduce( &NN_tmp[0], &J_NN[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+        MPI_Allreduce( &count[0], &total_count[0], my, MPIU_INT, MPI_SUM, mesh->MESH_COMM);	
+        
+        for(j=0; j<my; j++) 
+        {
+            if( total_count[j]>0) 
+            {
+                J_LM[j] = J_LM[j]/total_count[j];
+                J_MM[j] = J_MM[j]/total_count[j];
+                J_QN[j] = J_QN[j]/total_count[j];
+                J_NN[j] = J_NN[j]/total_count[j];
+            }
+        }
+        
+        PetscReal beta;
+        // loop over internal cells
+        for (k=lzs; k<lze; k++)
+        for (j=lys; j<lye; j++)
+        for (i=lxs; i<lxe; i++)
+        {
+            // body
+            if(isIBMSolidCell(k, j, i, nvert))
+            {
+                Cs[k][j][i] = 0.0;
+                continue;
+            }
+
+            beta = (J_QN[j] * J_MM[j])/(J_NN[j] * J_LM[j] +  1e-10);
+            Cs[k][j][i] = 0.5 * (J_LM[j] / ( J_MM[j] + 1e-10))/beta;
+
+            // clip Cs between upper and lower bound
+            Cs[k][j][i] = PetscMin( PetscMax(Cs[k][j][i], 0.0), les->maxCs);
+        }
+    }
+
     if(les->access->flags->isLesActive == 2)
     {
         DMDAVecRestoreArray(da,  les->lS,  &Sabs);
@@ -1173,10 +1942,16 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da,  les->lCh,  INSERT_VALUES, les->lCh);
         DMLocalToLocalEnd  (da,  les->lCh,  INSERT_VALUES, les->lCh);
     }
-    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4)
+    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
     {
-        DMDAVecRestoreArray(da,  les->lLM, &LM);
-        DMDAVecRestoreArray(da,  les->lMM, &MM);
+        DMDAVecRestoreArray(da, les->lLM, &LM);
+        DMDAVecRestoreArray(da, les->lMM, &MM);
+
+        if(les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+        {
+            DMDAVecRestoreArray(da,  les->lQN, &QN);
+            DMDAVecRestoreArray(da,  les->lNN, &NN);
+        }
     }
 
     // restore numerator and denominator of the model coefficient

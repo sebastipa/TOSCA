@@ -206,7 +206,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     {
                         for (i=lxs; i<lxe; i++)
                         {
-                            lLevels[j-1]  += (cent[k][j][i].z - mesh->bounds.zmin);
+                            lLevels[j-1]  += (cent[k][j][i].z - mesh->grndLevel);
                             lCells[j-1]++;
                         }
                     }
