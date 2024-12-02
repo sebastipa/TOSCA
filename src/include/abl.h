@@ -75,6 +75,7 @@ struct abl_
     PetscReal    ***timeHtSources;               //!< table of given timeheight sources [time|sourceX|sourceY|sourceZ] at each cell level, controller type = timeHeightSeries
     PetscInt     nSourceTimes;                   //!< number of times in the pre-computed sources
     Cmpnts       cumulatedSource;                //!< cumulated error of the velocity controller (equalt to gradP at steady state)
+    Cmpnts       *cumulatedSourceHt;              //!< cumulated error of the velocity controller for every mesh level
     PetscReal    avgTimeStep;                    //!< average time step from the momentum source file
 
     // z damping layer (Rayleigh damping)
@@ -134,9 +135,6 @@ struct abl_
     Vec          uBarInstY;                      //!< instantaneous bar velocity for y-fringe region (only used for concurent precursor)
     Vec          tBarInstY;                      //!< instantaneous bar temperature for y-fringe region (only used for concurent precursor)
    
-    PetscInt     iStart;                         //!< start i index of the lateral fringe region (within the lateral fringe domain)
-    PetscInt     iEnd;                           //!< end i index of the lateral fringe region (within the lateral fringe domain)
-    PetscInt     inYFringeRegionOnly;            //!< flag indicating processors within the lateral fringe region excluding the source region which is within the x fringe region
     PetscInt     numSourceProc;                  //!< global to all procs - number of processors within the source (part of x fringe region within the lateral fringe region)
     PetscInt     *sourceProcList;                //!< global to all procs - list of processors in the source
     MPI_Comm     *yDamp_comm;                    //!< communicator that links each source processor to its corresponding periodization processors(destination) in the lateral fringe region - each source processor has a separate communicator for its set of source-destination processors
@@ -151,6 +149,7 @@ struct abl_
     PetscInt      *srcNumK;                      //!< global to communicator procs - number of k index for each processor in source
     MPI_Request  *mapRequest;                    //!< MPI variable to perform non blocking broadcast operation
     Cmpnts       **velMapped;                    //!< one d array of the mapped velocity of each source processor
+    PetscReal    **tMapped;
     PetscInt     **closestKCell;                 //!< closest 2 k index of the fictitious mesh(mapped from source) to the k indexes of the sucessor domain 
     PetscReal    **wtsKCell;                     //!< weights of the 2 closest k cells based on their distance 
 
@@ -197,17 +196,31 @@ struct abl_
     PetscInt     lowestIndT;
     PetscInt     highestIndV;
     PetscInt     highestIndT;
+    PetscInt     lMesoIndV;
+    PetscInt     hMesoIndV;
+    PetscReal    lowestSrcHt;
+    PetscReal    highestSrcHt;
 
     Cmpnts       *luMean;
     Cmpnts       *guMean;
-
-    word         assimilationType;
-    PetscReal    startATime;
+    Cmpnts       *srcPA;
+    
     PetscInt     closestTimeIndV;                        //!< closest index in time for the mesoscale timevarying data
     PetscReal    closestTimeWtV;
     PetscInt     closestTimeIndT;                        //!< closest index in time for the mesoscale timevarying data
     PetscReal    closestTimeWtT;
     
+    PetscInt     polyOrder;
+    word         wtDist;
+    PetscReal    **polyCoeffM;
+
+    //averaging 
+    PetscInt     averageSource;
+    PetscReal    currAvgtime;
+    PetscReal    tAvgWindow;
+    Cmpnts       *avgsrc;
+    Cmpnts       *avgVel;
+
     // concurrent precursor
     precursor_    *precursor;                    //!< concurrent precursor data structure
 
@@ -235,3 +248,8 @@ PetscErrorCode findTemperatureInterpolationWeights(abl_ *abl);
 PetscErrorCode initializeYDampingMapping(abl_ *abl);
 
 PetscErrorCode setWeightsYDamping(abl_ *abl);
+
+PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl);
+
+PetscErrorCode findTimeHeightSeriesInterpolationWts(abl_ *abl);
+

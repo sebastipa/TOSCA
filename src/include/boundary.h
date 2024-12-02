@@ -174,3 +174,6 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn);
 
 //! \brief Update wall model for specified wall heat flux
 PetscErrorCode UpdateWallModelsT(teqn_ *teqn);
+
+//! \brief read surface temperature and obhukhov length data 
+PetscErrorCode readSurfaceTempData(Shumann *wm);

@@ -172,9 +172,20 @@ typedef struct
     word          fileType;
 
     //ibm wall model properties
-    word          wallModelU;
-    word          wallModelUProp;
-    wallModel     *ibmWallmodel;
+    wallModel     *ibmWallModelU;
+    wallModel     *ibmWallModelT;
+    
+    //ibm velocity bc
+    word          velocityBC;
+    word          uBCSetType;
+    PetscInt      wallFunctionTypeU;
+
+    //ibm temp bc
+    word          tempBC;
+    word          tBCSetType;
+    PetscInt      wallFunctionTypeT;
+    PetscReal     fixedTemp;
+
 
     //ibm motion variables
     Cmpnts         baseLocation;
@@ -269,7 +280,9 @@ struct ibm_
     PetscInt       averageNormal;
     PetscInt         wallShearOn;
     PetscInt            writeSTL;
+    PetscInt              ibmABL;
 
+    PetscReal         interpDist;
     // output parameters
     PetscReal          timeStart;                    //!< start time of acquisition system
     word            intervalType;                    //!< timeStep: sample at every (timeInterval) iter, adjustableTime sample at every (timeInterval) seconds
@@ -339,6 +352,8 @@ PetscErrorCode ibmSearch(ibm_ *ibm);
 //! \brief find the closest ibm mesh element to a IBM fluid node
 PetscErrorCode findClosestIBMElement(ibm_ *ibm);
 
+PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm);
+
 //! \brief find the interceptionPoint on the background mesh plane for curvib interpolation
 PetscErrorCode findInterceptionPoint(ibm_ *ibm);
 
@@ -363,6 +378,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm);
 PetscErrorCode CurvibInterpolationTriangular(ibm_ *ibm);
 
 PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm);
+
+PetscErrorCode CurvibInterpolationInternalCell(ibm_ *ibm);
 
 PetscErrorCode ComputeForceMoment(ibm_ *ibm);
 

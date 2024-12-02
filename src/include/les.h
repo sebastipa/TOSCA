@@ -12,7 +12,9 @@ struct les_
     // Dynamic Smagorisnky
     Vec           lSx, lSy, lSz, lS;
     Vec           lLM, lMM;
+    Vec           lQN, lNN;
     Vec           lLM_old, lMM_old;
+    Vec           lQN_old, lNN_old;
     Vec           lCs;
 
     // Scale dependent model
