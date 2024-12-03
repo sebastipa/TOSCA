@@ -4,17 +4,18 @@
 NumberofBodies                      1
 
 InterpolationMethod                 CURVIB
-CURVIBInterpolationType		        CurvibTrilinear
-interpolationOrder		            linear
+CURVIBInterpolationType		    CurvibTrilinear
+interpolationOrder		    linear
 
 debug                               0
 dynamic                             1
 checkNormal                         1
-averageNormal			            0
-computeForce                        0
+averageNormal			    0
+computeForce                        1
 writeSTL                            0
-wallShear			                0
-pressureBC			                0
+wallShear			    0
+pressureBC			    0
+abl				    0
 
 writeSettings
 {
@@ -46,8 +47,9 @@ object0
     procBoundSize                   (2.0 5.0 5.0)
 
     #wall model
-    wallModelU                      Cabot
-    wallModelUProp                  setHere
+    velocityBCSetType               setHere
+    velocityBC                      velocityWallFunction
+    wallFunctionTypeU               -1
     roughness                       0.00
     kappa                           0.4
 

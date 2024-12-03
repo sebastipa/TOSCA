@@ -42,19 +42,21 @@ controllerProperties
 {
     # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
     controllerAction    write
-    controllerType 	directProfileAssimilation
+    controllerType 	indirectProfileAssimilation
+    avgSources          0
+    movingAvgWindow     20
+    polynomialOrder     5
+    lowestSrcHeight     40
+    highestSrcHeight    9000
     
-    # assimilation types available - constantTime/variableTime
-    assimilationType    variableTime
-    timeValue		0.0
     # Velocity controller gain factor 
-    relaxPI 0.7
+    relaxPI 0.2
 
     # Velocity controller proportional over integral contribution ratio
     alphaPI 0.9
 
     # Velocity controller time filter
-    timeWindowPI 3600
+    timeWindowPI 600
     
     # Perform geostrophic damping (only pressure controller)
     geostrophicDamping 0
