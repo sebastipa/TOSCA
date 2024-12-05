@@ -18,7 +18,7 @@ struct teqn_
     Vec           TmprtTmp;                   //!< temporary solution
     Vec           Tmprt, lTmprt,
                   Tmprt_o, lTmprt_o;
-    Vec           lDivT, lViscT;              //!< viscous and divergence temperature equation fluxes
+    Vec           lDivT, lViscT, lViscIBMT;              //!< viscous and divergence temperature equation fluxes
     Vec           sourceT;                    //!< temperature sources
 
     Vec           lRhoK;                      //!< rhok / rho0 field
@@ -77,3 +77,6 @@ PetscErrorCode TeqnRK4(teqn_ *teqn);
 
 //! \brief Computed RHS of temperature equation using current lTmprt (updates Rhs), data put in ueqn->Rhs
 PetscErrorCode FormExplicitRhsT(teqn_ *teqn);
+
+//! \brief Compute tBar state for lateral damping region
+PetscErrorCode correctDampingSourcesT(teqn_ *teqn);

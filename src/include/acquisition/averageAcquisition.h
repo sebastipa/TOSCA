@@ -17,7 +17,7 @@ struct avgFields
     Vec           CanopyForce;                //!< side force for fringe region testing
 
     Vec           windFarmForce;              //!< wind farm body force
-
+    Vec           yDampMappedU;               //!< y damping mapped velocity
     // turbulence criterions
     Vec           Q;                          //!< Q criterion field
     Vec           L2;                         //!< L2 criterion field (not yet implemented)

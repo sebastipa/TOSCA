@@ -310,6 +310,7 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
             VecDuplicate(mesh->Cent, &(avg->Driving));  VecSet(avg->Driving,  0.);
             VecDuplicate(mesh->Cent, &(avg->xDamping)); VecSet(avg->xDamping, 0.);
             VecDuplicate(mesh->Cent, &(avg->CanopyForce));VecSet(avg->CanopyForce,0.);
+            VecDuplicate(mesh->Cent, &(avg->yDampMappedU));VecSet(avg->yDampMappedU,0.);
         }
 
         if(io->continuity)
@@ -6865,7 +6866,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
     PetscInt      zs   = info.zs, ze = info.zs + info.zm;
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
-    Cmpnts        ***source, ***ucat, ***ucatP, ***cent;
+    Cmpnts        ***source, ***ucat, ***ucatP, ***cent, ***uBarY;
     Cmpnts        ***csi, ***eta, ***zet;
     Cmpnts        ***ucont;
 
@@ -6874,7 +6875,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
 
     precursor_    *precursor;
     domain_       *pdomain;
-    PetscInt      kStart;
+    PetscInt      kStart, kEnd;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -6902,7 +6903,16 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
             {
                 DMDAVecGetArray(pdomain->mesh->fda, pdomain->ueqn->lUcat,  &ucatP);
                 kStart = precursor->map.kStart;
+                kEnd   = precursor->map.kEnd;
             }
+        }
+    }
+
+    if(ueqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            DMDAVecGetArray(fda, abl->uBarInstY, &uBarY);
         }
     }
 
@@ -6917,6 +6927,12 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
     PetscReal xE     = abl->xDampingEnd;
     PetscReal xD     = abl->xDampingDelta;
 
+    // y damping layer
+    PetscReal alphaY = abl->yDampingAlpha;
+    PetscReal yS     = abl->yDampingStart;
+    PetscReal yE     = abl->yDampingEnd;
+    PetscReal yD     = abl->yDampingDelta;
+    
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
@@ -6978,7 +6994,11 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                     {
                         Cmpnts uBar;
 
-                        if(precursor->thisProcessorInFringe)
+                        if
+                        (
+                            precursor->thisProcessorInFringe && // is this processor in the fringe?
+                            k >= kStart && k <= kEnd            // is this face in the fringe?
+                        )
                         {
                             uBar = nSet(ucatP[k-kStart][j][i]);
                         }
@@ -6987,31 +7007,74 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                             uBar = nSet(ucat[k][j][i]);
                         }
 
+                        // source[k][j][i].x
+                        // +=
+                        // nu_fringe *
+                        // (
+                        //     (uBar.x - ucat[k][j][i].x) * csi[k][j][i].x +
+                        //     (uBar.y - ucat[k][j][i].y) * csi[k][j][i].y +
+                        //     (uBar.z - ucat[k][j][i].z) * csi[k][j][i].z
+                        // );
+
+                        // source[k][j][i].y
+                        // +=
+                        // nu_fringe *
+                        // (
+                        //     (uBar.x - ucat[k][j][i].x) * eta[k][j][i].x +
+                        //     (uBar.y - ucat[k][j][i].y) * eta[k][j][i].y +
+                        //     (uBar.z - ucat[k][j][i].z) * eta[k][j][i].z
+                        // );
+
+                        // source[k][j][i].z
+                        // +=
+                        // nu_fringe *
+                        // (
+                        //     (uBar.x - ucat[k][j][i].x) * zet[k][j][i].x +
+                        //     (uBar.y - ucat[k][j][i].y) * zet[k][j][i].y +
+                        //     (uBar.z - ucat[k][j][i].z) * zet[k][j][i].z
+                        // );
+                    }
+                }
+
+                // y damping layer
+                if(ueqn->access->flags->isYDampingActive)
+                {
+                    // compute cell center y at i,j,k
+                    PetscReal y = cent[k][j][i].y;
+                    PetscReal x = cent[k][j][i].x;
+
+                    // compute Nordstrom viscosity at i,j,k
+                    PetscReal nu_fringe = viscNordstrom(alphaY, yS, yE, yD, y);
+
+                    PetscReal nu_scale = viscNordstromNoVertFilter(xS, xE, xD, x);
+
+                    if(abl->xFringeUBarSelectionType == 3)
+                    {
                         source[k][j][i].x
-                        +=
-                        nu_fringe *
+                        += 
+                        nu_fringe * nu_scale * 
                         (
-                            (uBar.x - ucat[k][j][i].x) * csi[k][j][i].x +
-                            (uBar.y - ucat[k][j][i].y) * csi[k][j][i].y +
-                            (uBar.z - ucat[k][j][i].z) * csi[k][j][i].z
+                            (uBarY[k][j][i].x - ucat[k][j][i].x) * csi[k][j][i].x +
+                            (uBarY[k][j][i].y - ucat[k][j][i].y) * csi[k][j][i].y +
+                            (uBarY[k][j][i].z - ucat[k][j][i].z) * csi[k][j][i].z
                         );
 
                         source[k][j][i].y
-                        +=
-                        nu_fringe *
+                        += 
+                        nu_fringe * nu_scale * 
                         (
-                            (uBar.x - ucat[k][j][i].x) * eta[k][j][i].x +
-                            (uBar.y - ucat[k][j][i].y) * eta[k][j][i].y +
-                            (uBar.z - ucat[k][j][i].z) * eta[k][j][i].z
+                            (uBarY[k][j][i].x - ucat[k][j][i].x) * eta[k][j][i].x +
+                            (uBarY[k][j][i].y - ucat[k][j][i].y) * eta[k][j][i].y +
+                            (uBarY[k][j][i].z - ucat[k][j][i].z) * eta[k][j][i].z
                         );
 
                         source[k][j][i].z
-                        +=
-                        nu_fringe *
+                        += 
+                        nu_fringe * nu_scale * 
                         (
-                            (uBar.x - ucat[k][j][i].x) * zet[k][j][i].x +
-                            (uBar.y - ucat[k][j][i].y) * zet[k][j][i].y +
-                            (uBar.z - ucat[k][j][i].z) * zet[k][j][i].z
+                            (uBarY[k][j][i].x - ucat[k][j][i].x) * zet[k][j][i].x +
+                            (uBarY[k][j][i].y - ucat[k][j][i].y) * zet[k][j][i].y +
+                            (uBarY[k][j][i].z - ucat[k][j][i].z) * zet[k][j][i].z
                         );
                     }
                 }
@@ -7021,7 +7084,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                 if(ueqn->access->flags->isZDampingActive)
                 {
                     // compute cell center z at i,j,k
-                    PetscReal z = (cent[k][j][i].z   - mesh->bounds.zmin);
+                    PetscReal z = (cent[k][j][i].z   - mesh->grndLevel);
 
                     // compute Rayleigh viscosity at i,j,k and i,j+1,k points
                     PetscReal nud_rayleigh = viscRayleigh(alphaZ, zS, zE, z);
@@ -7075,7 +7138,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                 {
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     PetscReal x     = cent[k][j][i].x,
-                              z     = cent[k][j][i].z - mesh->bounds.zmin;
+                              z     = cent[k][j][i].z - mesh->grndLevel;
 
                     PetscReal hs = mesh->bounds.xmin,
                               he = mesh->bounds.xmin+abl->kLeftPatchDist;
@@ -7120,7 +7183,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                 {
                     // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     PetscReal x     = cent[k][j][i].x,
-                              z     = cent[k][j][i].z - mesh->bounds.zmin;
+                              z     = cent[k][j][i].z - mesh->grndLevel;
 
                     PetscReal hs = mesh->bounds.xmax-abl->kRightPatchDist,
                               he = mesh->bounds.xmax;
@@ -7180,6 +7243,14 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
             {
                 DMDAVecRestoreArray(pdomain->mesh->fda, pdomain->ueqn->lUcat,  &ucatP);
             }
+        }
+    }
+
+    if(ueqn->access->flags->isYDampingActive)
+    {
+        if(abl->xFringeUBarSelectionType == 3)
+        {
+            DMDAVecRestoreArray(fda, abl->uBarInstY, &uBarY);
         }
     }
 
@@ -9332,7 +9403,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    lLevels[j-1]  += (cent[k][j][i].z - mesh->bounds.zmin);
+                    lLevels[j-1]  += (cent[k][j][i].z - mesh->grndLevel);
                     lVolumes[j-1] += 1 / aj[k][j][i];
                     lCells[j-1]++;
                 }
@@ -9900,7 +9971,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
         PetscReal timeIntervalAvg = ablStat->avgPrd;
 
         // check if must accumulate averaged fields
-        if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg) || clock->it == clock->itStart)
+        if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg) || (clock->it == clock->itStart) )
         {
             accumulateAvg = 1;
         }

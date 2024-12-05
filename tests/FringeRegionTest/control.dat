@@ -64,7 +64,7 @@
 #-averagingABL            1
 -avgABLPeriod             5
 -avgABLStartTime          0
--average3LM               1
+-average3LM               0
 
 #-computeQ                1
 

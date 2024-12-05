@@ -11,13 +11,17 @@ struct Shumann
     PetscReal        gammaM;                  //!< momentum gammaM from Paulson 1970 (stable BL)
     PetscReal        betaM;                   //!< momentum betaM from Pauslon 1970 (unstable BL)
     PetscReal        gammaH;                  //!< pot. temp. gammaH from Paulson 1970 (stable BL)
-    PetscReal        betaH;                   //!< pot. temp. betaH from Paulson 1970 (stable BL)
+    PetscReal        betaH;                   //!< pot. temp. betaH from Paulson 1970 (unstable BL)
     PetscReal        alphaH;                  //!< pot. temp. alphaH from Paulson 1970 (stable BL)
     PetscReal        tLast;                   //!< time at which the last theta update was done
     PetscReal        heatingRate;             //!< surface heating rate
     PetscReal        **surfaceTheta;          //!< surface temperature
     PetscInt         surfaceThetaSet;         //!< surface temperature has been initialized
-
+    PetscReal        qWall;                   //!< prescribed wall heat flux
+    PetscReal        *surfTemp;
+    PetscReal        *surfL;
+    PetscReal        *timeVec;
+    PetscInt         numT;
 };
 
 //! \brief structure storing the Shumann wall models information

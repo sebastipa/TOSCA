@@ -4,6 +4,7 @@
 #ifndef _MESH_H_
 #define _MESH_H_
 
+#include "wallmodel.h"
 #include "boundary.h"
 
 //! \brief Structure defining the domain bounding box (easy access to xmin, xmax, ymin, ymax, zmin, zmax)
@@ -27,7 +28,8 @@ struct mesh_
     word           meshFileType;               //!< type of mesh file
 
     boundingBox    bounds;                     //!< domain extensions and lengths information
-
+    PetscReal      grndLevel;                  //!< the ground level height - would be = bounds->zmin for normal simulation, but could change if using IBM
+      
     PetscInt       IM, JM, KM;                 //!< ncells in the GCC directions
 
     // distributed arrays

@@ -42,9 +42,9 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
         createHalfEdgeDataStructure(ibm);
 
         // ibm search algorithm
-        PetscPrintf(PETSC_COMM_WORLD, "IBM search algorithm...");
+        PetscPrintf(mesh->MESH_COMM, "IBM search algorithm...");
         ibmSearch(ibm);
-        PetscPrintf(PETSC_COMM_WORLD, "done\n");
+        PetscPrintf(mesh->MESH_COMM, "done\n");
 
         MPI_Barrier(mesh->MESH_COMM);
 
@@ -74,7 +74,14 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
         initElementProcs(ibm);
 
         //find the closest normal projection element to every ibm fluid cell
-        findClosestIBMElement(ibm);
+        if(ibm->wallShearOn)
+        {
+            findClosestIBMElement2Solid(ibm);
+        }
+        else 
+        {
+            findClosestIBMElement(ibm);
+        }
 
         if (ibm->IBInterpolationModel == "CURVIB")
         {
@@ -184,36 +191,40 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
     }
     else if (ibm->IBInterpolationModel == "CURVIB")
     {
-
-        if(ibm->curvibType == "CurvibTrilinear")
+        if(ibm->wallShearOn)
         {
-            if(ibm->curvibOrder == "linear")
+            CurvibInterpolationInternalCell(ibm);
+        }
+        else 
+        {
+            if(ibm->curvibType == "CurvibTrilinear")
             {
-                CurvibInterpolation(ibm);
+                if(ibm->curvibOrder == "linear")
+                {
+                    CurvibInterpolation(ibm);
+                }
+                else if(ibm->curvibOrder == "quadratic")
+                {
+                    CurvibInterpolationQuadratic(ibm);
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "wrong interpolation order chosen. Available options are linear and quadratic\n");
+                    fatalErrorInFunction("readIBMProperties",  error);
+                }
             }
-            else if(ibm->curvibOrder == "quadratic")
+            else if(ibm->curvibType == "CurvibTriangular")
             {
-                CurvibInterpolationQuadratic(ibm);
+                CurvibInterpolationTriangular(ibm);
             }
             else
             {
                 char error[512];
-                sprintf(error, "wrong interpolation order chosen. Available options are linear and quadratic\n");
-                fatalErrorInFunction("readIBMProperties",  error);
+                sprintf(error, "wrong curvib interpolation type\n");
+                fatalErrorInFunction("UpdateIBM", error);
             }
         }
-        else if(ibm->curvibType == "CurvibTriangular")
-        {
-            CurvibInterpolationTriangular(ibm);
-        }
-        else
-        {
-            char error[512];
-            sprintf(error, "wrong curvib interpolation type\n");
-            fatalErrorInFunction("UpdateIBM", error);
-        }
-
-        MPI_Barrier(mesh->MESH_COMM);
 
         MPI_Barrier(mesh->MESH_COMM);
     }
@@ -226,7 +237,7 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
     MPI_Barrier(mesh->MESH_COMM);
 
     PetscTime(&solutionTimeEnd);
-    PetscPrintf(PETSC_COMM_WORLD, "IBM Update time = %lf s\n", solutionTimeEnd - solutionTimeStart);
+    PetscPrintf(mesh->MESH_COMM, "IBM Update time = %lf s\n", solutionTimeEnd - solutionTimeStart);
 
     return 0;
 }
@@ -239,8 +250,9 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
     flags_        *flags = ibm->access->flags;
 
     word          fileNameU = "./boundary/" + mesh->meshName + "/U";
+    word          fileNameT = "./boundary/" + mesh->meshName + "/T";
 
-    PetscPrintf(mesh->MESH_COMM, "\nReading IBM wall model...");
+    PetscPrintf(mesh->MESH_COMM, "\nReading IBM Boundary conditions...");
 
     for (PetscInt i=0; i < ibm->numBodies; i++)
     {
@@ -249,64 +261,43 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
 
         ibmObject   *ibmBody = ibm->ibmBody[i];
 
-        // read wall model
-        readSubDictWord("./IBM/IBMProperties.dat", objectName, "wallModelU", &(ibmBody->wallModelU));
-
         // read wall model properties
-        readSubDictWord("./IBM/IBMProperties.dat", objectName, "wallModelUProp", &(ibmBody->wallModelUProp));
+        readSubDictWord("./IBM/IBMProperties.dat", objectName, "velocityBCSetType", &(ibmBody->uBCSetType));
 
         //copy the wall model properties from the U boundary condition
-        if(ibmBody->wallModelUProp == "matchUiLeft")
+        if(ibmBody->uBCSetType == "matchUiLeft")
         {
             //check that the iLeft has a wall model bc
             if (mesh->boundaryU.iLeft == "velocityWallFunction")
             {
-                PetscInt wallModelType;
+                ibmBody->velocityBC = mesh->boundaryU.iLeft;
 
-                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(ibmBody->wallFunctionTypeU));
 
                 // allocate memory and connect pointers
-                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
 
-                if(wallModelType == -1)
+                //cabot model
+                if(ibmBody->wallFunctionTypeU == -1)
                 {
-                    if(ibmBody->wallModelU == "Cabot")
-                    {
-                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
 
-                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
 
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
-
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U iLeft bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
                 }
-                else if (wallModelType == -3)
+                else if (ibmBody->wallFunctionTypeU == -3)
                 {
-                    if(ibmBody->wallModelU == "Schumann")
-                    {
-                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
 
-                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
 
-                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U iLeft bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
                 }
                 else
                 {
@@ -316,64 +307,54 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 }
 
             }
+            else if (mesh->boundaryU.iLeft == "slip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.iLeft;
+            }
+            else if (mesh->boundaryU.iLeft == "noSlip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.iLeft;
+            }
             else
             {
                 char error[512];
-                sprintf(error, "wall model prop = %s. But U iLeft bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
-                fatalErrorInFunction("setIBMWallModels", error);
+                sprintf(error, "Cannot match BC set in iLeft to IBM boundary, set BC in IBM file\n");
+                fatalErrorInFunction("SetWallModels", error);
             }
         }
-        else if(ibmBody->wallModelUProp == "matchUiRight")
+        else if(ibmBody->uBCSetType == "matchUiRight")
         {
             //check that the iLeft has a wall model bc
             if (mesh->boundaryU.iRight == "velocityWallFunction")
             {
-                PetscInt wallModelType;
+                ibmBody->velocityBC = mesh->boundaryU.iRight;
 
-                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(ibmBody->wallFunctionTypeU));
 
                 // allocate memory and connect pointers
-                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
 
-                if(wallModelType == -1)
+                //cabot model
+                if(ibmBody->wallFunctionTypeU == -1)
                 {
-                    if(ibmBody->wallModelU == "Cabot")
-                    {
-                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
 
-                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
 
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
-
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U iRight bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
                 }
-                else if (wallModelType == -3)
+                else if (ibmBody->wallFunctionTypeU == -3)
                 {
-                    if(ibmBody->wallModelU == "Schumann")
-                    {
-                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
 
-                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
 
-                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U iRight bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
                 }
                 else
                 {
@@ -383,64 +364,54 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 }
 
             }
+            else if (mesh->boundaryU.iRight == "slip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.iRight;
+            }
+            else if (mesh->boundaryU.iRight == "noSlip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.iRight;
+            }
             else
             {
                 char error[512];
-                sprintf(error, "wall model prop = %s. But U iRight bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
-                fatalErrorInFunction("setIBMWallModels", error);
+                sprintf(error, "Cannot match BC set in iRight to IBM boundary, set BC in IBM file\n");
+                fatalErrorInFunction("SetWallModels", error);
             }
         }
-        else if(ibmBody->wallModelUProp == "matchUjLeft")
+        else if(ibmBody->uBCSetType == "matchUjLeft")
         {
             //check that the iLeft has a wall model bc
             if (mesh->boundaryU.jLeft == "velocityWallFunction")
             {
-                PetscInt wallModelType;
+                ibmBody->velocityBC = mesh->boundaryU.jLeft;
 
-                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(ibmBody->wallFunctionTypeU));
 
                 // allocate memory and connect pointers
-                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
 
-                if(wallModelType == -1)
+                //cabot model
+                if(ibmBody->wallFunctionTypeU == -1)
                 {
-                    if(ibmBody->wallModelU == "Cabot")
-                    {
-                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
 
-                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
 
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
-
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U jLeft bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
                 }
-                else if (wallModelType == -3)
+                else if (ibmBody->wallFunctionTypeU == -3)
                 {
-                    if(ibmBody->wallModelU == "Schumann")
-                    {
-                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
 
-                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
 
-                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U jLeft bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
                 }
                 else
                 {
@@ -450,64 +421,54 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 }
 
             }
+            else if (mesh->boundaryU.jLeft == "slip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.jLeft;
+            }
+            else if (mesh->boundaryU.jLeft == "noSlip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.jLeft;
+            }
             else
             {
                 char error[512];
-                sprintf(error, "wall model prop = %s. But U jLeft bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
-                fatalErrorInFunction("setIBMWallModels", error);
+                sprintf(error, "Cannot match BC set in jLeft to IBM boundary, set BC in IBM file\n");
+                fatalErrorInFunction("SetWallModels", error);
             }
         }
-        else if(ibmBody->wallModelUProp == "matchUjRight")
+        else if(ibmBody->uBCSetType == "matchUjRight")
         {
             //check that the iLeft has a wall model bc
             if (mesh->boundaryU.jRight == "velocityWallFunction")
             {
-                PetscInt wallModelType;
+                ibmBody->velocityBC = mesh->boundaryU.jRight;
 
-                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(wallModelType));
+                readSubDictInt(fileNameU.c_str(), "velocityWallFunction", "type", &(ibmBody->wallFunctionTypeU));
 
                 // allocate memory and connect pointers
-                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
 
-                if(wallModelType == -1)
+                //cabot model
+                if(ibmBody->wallFunctionTypeU == -1)
                 {
-                    if(ibmBody->wallModelU == "Cabot")
-                    {
-                        PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
 
-                        Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
 
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
-
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U jRight bc is not Cabot model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",  &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",   &(wm->kappa));
                 }
-                else if (wallModelType == -3)
+                else if (ibmBody->wallFunctionTypeU == -3)
                 {
-                    if(ibmBody->wallModelU == "Schumann")
-                    {
-                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
 
-                        Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
 
-                        readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
-                        readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
-                    }
-                    else
-                    {
-                        char error[512];
-                        sprintf(error, "wall model type = %s. But U jRight bc is not Schumann model\n", ibmBody->wallModelUProp.c_str());
-                        fatalErrorInFunction("setIBMWallModels", error);
-                    }
+                    readSubDictWord  (fileNameU.c_str(), "velocityWallFunction", "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kappa",     &(wm->kappa));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "kRough",    &(wm->roughness));
+                    readSubDictDouble(fileNameU.c_str(), "velocityWallFunction", "gammaM",    &(wm->gammaM));
                 }
                 else
                 {
@@ -517,71 +478,493 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 }
 
             }
+            else if (mesh->boundaryU.jRight == "slip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.jRight;
+            }
+            else if (mesh->boundaryU.jRight == "noSlip")
+            {
+                ibmBody->velocityBC = mesh->boundaryU.jRight;
+            }
             else
             {
                 char error[512];
-                sprintf(error, "wall model prop = %s. But U jRight bc is not a wall model\n", ibmBody->wallModelUProp.c_str());
+                sprintf(error, "Cannot match BC set in jRight to IBM boundary, set BC in IBM file\n");
+                fatalErrorInFunction("SetWallModels", error);
+            }
+        }
+        else if (ibmBody->uBCSetType == "setHere")
+        {
+            readSubDictWord("./IBM/IBMProperties.dat", objectName, "velocityBC", &(ibmBody->velocityBC));
+
+            if (ibmBody->velocityBC == "velocityWallFunction")
+            {
+
+                //set theta wall function type
+                readSubDictInt("./IBM/IBMProperties.dat", objectName, "wallFunctionTypeU", &(ibmBody->wallFunctionTypeU));
+
+                // allocate memory and connect pointers
+                PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelU));
+
+                if (ibmBody->wallFunctionTypeU == -1)
+                {
+                    PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallModelU->wmCabot));
+
+                    Cabot *wm = ibmBody->ibmWallModelU->wmCabot;
+
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                }
+                else if (ibmBody->wallFunctionTypeU == -3)
+                {
+                    PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelU->wmShumann));
+
+                    Shumann *wm = ibmBody->ibmWallModelU->wmShumann;
+
+                    readSubDictWord  ("./IBM/IBMProperties.dat", objectName, "uStarEval", &(wm->wfEvalType));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",     &(wm->kappa));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "thetaRef",  &(wm->thetaRef));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "gammaM",    &(wm->gammaM));
+                }
+                else if (ibmBody->wallFunctionTypeU == -4)
+                {
+                    PetscMalloc(sizeof(PowerLawAPG), &(ibmBody->ibmWallModelU->wmPowerLawAPG));
+
+                    PowerLawAPG *wm = ibmBody->ibmWallModelU->wmPowerLawAPG;
+
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                }
+                else if (ibmBody->wallFunctionTypeU == -5)
+                {
+                    PetscMalloc(sizeof(LogLawAPG), &(ibmBody->ibmWallModelU->wmLogLawAPG));
+
+                    LogLawAPG *wm = ibmBody->ibmWallModelU->wmLogLawAPG;
+
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+                    fatalErrorInFunction("setIBMWallModels", error); 
+                }
+            }
+
+            else if (ibmBody->velocityBC == "slip")
+            {
+
+            }
+            else if (ibmBody->velocityBC == "noSlip")
+            {
+
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "invalid velocity boundary condition chosen. Please use option velocityWallFunction or slip/noSlip conditions\n");
                 fatalErrorInFunction("setIBMWallModels", error);
             }
         }
-        else if (ibmBody->wallModelUProp == "setHere")
+
+        if(flags->isTeqnActive)
         {
-            // allocate memory and connect pointers
-            PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallmodel));
+            //read temperature BC set type
+            readSubDictWord("./IBM/IBMProperties.dat", objectName, "temperatureBCSetType", &(ibmBody->tBCSetType));
 
-            if(ibmBody->wallModelU == "Cabot")
+            //copy the temperature BC type from the temperature boundary file
+            if(ibmBody->tBCSetType == "matchTiLeft")
             {
-                PetscMalloc(sizeof(Cabot), &(ibmBody->ibmWallmodel->wmCabot));
+                if (mesh->boundaryT.iLeft == "thetaWallFunction")
+                {
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-                Cabot *wm = ibmBody->ibmWallmodel->wmCabot;
+                    ibmBody->tempBC = mesh->boundaryT.iLeft;
 
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                    //set theta wall function type
+                    readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(ibmBody->wallFunctionTypeT));
 
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(mesh->boundaryT.iLeft == "zeroGradient")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iLeft;
+                }
+                else if(mesh->boundaryT.iLeft == "fixedValue")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iLeft;
+                    ibmBody->fixedTemp = mesh->boundaryT.iLval;
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Cannot match BC set in iLeft to IBM boundary, set BC in IBM file\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
-            else if (ibmBody->wallModelU == "Schumann")
+            else if(ibmBody->tBCSetType == "matchTiRight")
             {
-                PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallmodel->wmShumann));
+                if (mesh->boundaryT.iRight == "thetaWallFunction")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iRight;
 
-                Shumann *wm = ibmBody->ibmWallmodel->wmShumann;
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-                readSubDictWord  ("./IBM/IBMProperties.dat", objectName, "uStarEval", &(wm->wfEvalType));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",     &(wm->kappa));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "thetaRef",  &(wm->thetaRef));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness",    &(wm->roughness));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "gammaM",    &(wm->gammaM));
+                    //set theta wall function type
+                    readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(ibmBody->wallFunctionTypeT));
+
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(mesh->boundaryT.iRight == "zeroGradient")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iRight;
+                }
+                else if(mesh->boundaryT.iRight == "fixedValue")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.iRight;
+                    ibmBody->fixedTemp = mesh->boundaryT.iRval;
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Cannot match BC set in iRight to IBM boundary, set BC in IBM file\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
-            else if (ibmBody->wallModelU == "PowerLawAPG")
+            else if(ibmBody->tBCSetType == "matchTjLeft")
             {
-                PetscMalloc(sizeof(PowerLawAPG), &(ibmBody->ibmWallmodel->wmPowerLawAPG));
+                if (mesh->boundaryT.jLeft == "thetaWallFunction")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jLeft;
 
-                PowerLawAPG *wm = ibmBody->ibmWallmodel->wmPowerLawAPG;
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                    //set theta wall function type
+                    readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(ibmBody->wallFunctionTypeT));
+
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -4)
+                    {
+
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+
+                        //read the surface temp and Obhukhov length 
+                        readSurfaceTempData(wm);
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3, -4 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(mesh->boundaryT.jLeft == "zeroGradient")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jLeft;
+                }
+                else if(mesh->boundaryT.jLeft == "fixedValue")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jLeft;
+                    ibmBody->fixedTemp = mesh->boundaryT.jLval;
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Cannot match BC set in jLeft to IBM boundary, set BC in IBM file\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
-            else if (ibmBody->wallModelU == "LogLawAPG")
+            else if(ibmBody->tBCSetType == "matchTjRight")
             {
-                PetscMalloc(sizeof(LogLawAPG), &(ibmBody->ibmWallmodel->wmLogLawAPG));
+                if (mesh->boundaryT.jRight == "thetaWallFunction")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jRight;
 
-                LogLawAPG *wm = ibmBody->ibmWallmodel->wmLogLawAPG;
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "roughness", &(wm->roughness));
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, "kappa",  &(wm->kappa));
+                    //set theta wall function type
+                    readSubDictInt(fileNameT.c_str(), "thetaWallFunction", "type", &(ibmBody->wallFunctionTypeT));
+
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(mesh->boundaryT.jRight == "zeroGradient")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jRight;
+                }
+                else if(mesh->boundaryT.jRight == "fixedValue")
+                {
+                    ibmBody->tempBC = mesh->boundaryT.jRight;
+                    ibmBody->fixedTemp = mesh->boundaryT.jRval;
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Cannot match BC set in jRight to IBM boundary, set BC in IBM file\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
-            else if (ibmBody->wallModelU == "slip")
+            else if(ibmBody->tBCSetType == "setHere")
             {
+                readSubDictWord("./IBM/IBMProperties.dat", objectName, "temperatureBC", &(ibmBody->tempBC));
 
-            }
-            else if (ibmBody->wallModelU == "noSlip")
-            {
+                if (ibmBody->tempBC == "thetaWallFunction")
+                {
+                    if(ibmBody->velocityBC != "velocityWallFunction" && ibmBody->wallFunctionTypeU !=-3)
+                    {
+                        char error[512];
+                        sprintf(error, "thetaWallFunction can be used currently only for velocity BC = velocityWallFunction and type = -3 (Schumann Model)\n");
+                        fatalErrorInFunction("SetIBMWallModels", error);   
+                    }
 
-            }
-            else
-            {
-                char error[512];
-                sprintf(error, "invalid wall model chosen. Please use option Cabot or Schumann \n");
-                fatalErrorInFunction("setIBMWallModels", error);
+                    //set theta wall function type
+                    readSubDictInt("./IBM/IBMProperties.dat", objectName, "wallFunctionTypeT", &(ibmBody->wallFunctionTypeT));
+
+                    // allocate memory and connect pointers
+                    PetscMalloc(sizeof(wallModel), &(ibmBody->ibmWallModelT));
+
+                    if (ibmBody->wallFunctionTypeT == -3)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
+
+                        char error[512];
+                        sprintf(error, "thetaWallFunction type -3 is not yet implemented for IBM\n");
+                        fatalErrorInFunction("SetIBMWallModels", error); 
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -2)
+                    {
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "qWall",       &(wm->qWall));
+                    }
+                    else if(ibmBody->wallFunctionTypeT == -4)
+                    {
+
+                        PetscMalloc(sizeof(Shumann), &(ibmBody->ibmWallModelT->wmShumann));
+
+                        Shumann *wm = ibmBody->ibmWallModelT->wmShumann;
+                        readSubDictWord  (fileNameT.c_str(), "thetaWallFunction", "uStarEval",   &(wm->wfEvalType));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kappa",       &(wm->kappa));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
+                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
+                        readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
+
+                        //read the surface temp and Obhukhov length 
+                        readSurfaceTempData(wm);
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "invalid wall model chosen. Please use option -3, -4 or -2\n");
+                        fatalErrorInFunction("SetWallModels", error);
+                    } 
+                }
+                else if(ibmBody->tempBC == "zeroGradient")
+                {
+                }
+                else if(ibmBody->tempBC == "fixedValue")
+                {
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, "fixedValueT", &(ibmBody->fixedTemp));
+                }
+                else 
+                {
+                    char error[512];
+                    sprintf(error, "Invalid temperature BC type, use temperatureWallFunction, zeroGradient or fixedValue\n");
+                    fatalErrorInFunction("SetWallModels", error);
+                }
             }
         }
     }
@@ -959,12 +1342,12 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
                     Cmpnts tauWall = nSetZero();
 
-                    if(ibmBody->wallModelU != "slip")
+                    if(ibmBody->velocityBC != "slip")
                     {
                         //friction velocity
                         ustar = uTauCabot(cst->nu, ut, sc, 0.01, 0);
 
-                        if(ibmBody->wallModelU == "noSlip")
+                        if(ibmBody->velocityBC == "noSlip")
                         {
                             tauWall = nScale(eA * cst->rho * cst->nu * ut/sc, nUnit(utV));
                         }
@@ -979,7 +1362,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     //sum total pressure and viscous force
                     mSum(lPForce[b], ibmBody->ibmPForce[e]);
 
-                    if(ibmBody->wallModelU != "Slip")
+                    if(ibmBody->velocityBC != "Slip")
                     {
                         mSum(lVForce[b], tauWall);
                     }
@@ -993,7 +1376,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
                         Cmpnts pressureMoment = nCross(rvec, ibmBody->ibmPForce[e]), viscousMoment;
 
-                        if(ibmBody->wallModelU != "slip")
+                        if(ibmBody->velocityBC != "slip")
                         {
                             viscousMoment  = nCross(rvec, tauWall);
                         }
@@ -2500,6 +2883,313 @@ PetscErrorCode interceptionPt(Cmpnts pCoor, Cmpnts pc[9], Cmpnts eNorm, ibmFluid
     return(0);
 }
 //***************************************************************************************************************//
+
+PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
+{
+    mesh_         *mesh = ibm->access->mesh;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      b, c;
+    Cmpnts        ***cent, dist;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    PetscMPIInt        nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt        rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    //local pointer for ibmFluidCells
+    ibmFluidCell *ibF = ibm->ibmFCells;
+
+    // loop through the ibm bodies
+    for(b = 0; b < ibm->numBodies; b++)
+    {
+        // smallest bounding sphere algorithm
+        elementBoundingSphere(ibm->ibmBody[b]);
+    }
+
+    for(c = 0; c < ibm->numIBMFluid; c++)
+    {
+        //cell indices
+        i = ibF[c].cellId.i;
+        j = ibF[c].cellId.j;
+        k = ibF[c].cellId.k;
+
+        PetscInt      n1, n2, n3, vertexId;
+        PetscInt      cellMin = -100;
+        Cmpnts        dis, elemNorm, p1, p2, p3;
+        PetscReal     d_center, dmin = 1.0e20, d, t, tmin;
+        Cmpnts        pmin, po, pj;
+        PetscReal     normProj;                             // normal projection of point to ibm mesh element
+        PetscInt      bodyID;
+        word          closestType;
+
+        // loop through the ibm bodies
+        for (b = 0; b < ibm->numBodies; b++)
+        {
+            ibmObject     *ibmBody = ibm->ibmBody[b];
+            boundingBox   *ibBox   = ibmBody->bound;                         // bounding box of the ibm body
+            ibmMesh       *ibMsh   = ibmBody->ibMsh;                         // pointer to the ibm body mesh
+            elementBox    *eBox    = ibmBody->eBox;
+
+            Cmpnts        *qvec   = ibMsh->eQVec;
+            PetscReal     *rvec   = ibMsh->eRVec;
+
+            PetscInt      *nv1   = ibMsh->nID1, *nv2  = ibMsh->nID2, *nv3  = ibMsh->nID3;
+            Cmpnts        *eN    = ibMsh->eN;
+            Cmpnts        *nCoor = ibMsh->nCoor;
+
+            //check if processor controls this ibm body
+            if(ibmBody->ibmControlled)
+            {
+                //loop through the IBM elements
+                for(PetscInt e = 0; e < ibMsh->elems; e++)
+                {
+                    //this processor controls this ibm element
+                    if(eBox->thisElemControlled[e])
+                    {
+                        n1 = nv1[e];
+                        n2 = nv2[e];
+                        n3 = nv3[e];
+
+                        elemNorm = eN[e];
+
+                        p1 = nCoor[n1];
+                        p2 = nCoor[n2];
+                        p3 = nCoor[n3];
+
+                        dis = nSub(cent[k][j][i], p1);
+                        normProj = nDot(dis, elemNorm);
+
+                        if (fabs(normProj) < 1.e-10) normProj = 1.e-10;
+
+                        if(normProj < 0)
+                        {
+                            //find the element whose bounding sphere is closest to cent[k][j][i]
+                            d_center = nMag(nSub(cent[k][j][i], qvec[e]));
+
+                            if(d_center - rvec[e] < dmin)
+                            {
+                                dmin = d_center - rvec[e];
+                                cellMin = e;
+                                bodyID  = b;
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+
+        //no ibm elements within the processor buffer zone, do full search
+        if (cellMin == -100)
+        {
+            char error[512];
+            sprintf(error, "Rank %d, total ibm fluid cells = %ld, Nearest Cell Searching Error for cell %ld %ld %ld, coordinate %lf %lf %lf\n",rank, ibm->numIBMFluid, k, j, i, cent[k][j][i].x, cent[k][j][i].y, cent[k][j][i].z);
+            fatalErrorInFunction("findClosestIBMElement",  error);
+        }
+
+        //for that element find if cent[k][j][i] is closest to the element face, edge or vertex
+        ibmObject     *ibmBody = ibm->ibmBody[bodyID];
+        boundingBox   *ibBox   = ibmBody->bound;                         // bounding box of the ibm body
+        ibmMesh       *ibMsh   = ibmBody->ibMsh;                         // pointer to the ibm body mesh
+        elementBox    *eBox    = ibmBody->eBox;
+
+        PetscInt      *nv1   = ibMsh->nID1, *nv2  = ibMsh->nID2, *nv3  = ibMsh->nID3;
+        Cmpnts        *eN    = ibMsh->eN;
+        Cmpnts        *nCoor = ibMsh->nCoor;
+        dmin = 1.0e20;
+
+        //check if processor controls this ibm body
+        if(ibmBody->ibmControlled)
+        {
+            //this processor controls this ibm element
+            if(eBox->thisElemControlled[cellMin])
+            {
+                n1 = nv1[cellMin];
+                n2 = nv2[cellMin];
+                n3 = nv3[cellMin];
+
+                elemNorm = eN[cellMin];
+
+                p1 = nCoor[n1];
+                p2 = nCoor[n2];
+                p3 = nCoor[n3];
+
+                dis = nSub(cent[k][j][i], p1);
+                normProj = nDot(dis, elemNorm);
+
+                if (fabs(normProj) < 1.e-10) normProj = 1.e-10;
+
+                if(normProj < 0)
+                {
+                    dis = nScale(normProj, elemNorm);
+                    pj  = nSub(cent[k][j][i], dis);
+
+                    // The projected point is inside the triangle
+                    if(isPointInTriangle(pj, p1, p2, p3, elemNorm) == 1)
+                    {
+                        pmin        = pj;
+                        dmin        = fabs(normProj);
+                        closestType = "face";
+                    }
+                    // The projected point is outside the triangle
+                    else
+                    {
+                        // po is the approximated projected point and d is the distance to that point from cent[k][j][i]
+                        disP2Line(cent[k][j][i], p1, p2, &po, &d, &t);
+
+                        if (d < dmin)
+                        {
+                            dmin = d;
+                            pmin = po;
+                            tmin = t;
+
+                            if(t < 1)
+                            {
+                                vertexId = n1;
+                            }
+                            else
+                            {
+                                vertexId = n2;
+                            }
+                        }
+
+                        disP2Line(cent[k][j][i], p2, p3, &po, &d, &t);
+
+                        if (d < dmin)
+                        {
+                            dmin = d;
+                            pmin = po;
+                            tmin = t;
+
+                            if(t < 1)
+                            {
+                                vertexId = n2;
+                            }
+                            else
+                            {
+                                vertexId = n3;
+                            }
+                        }
+
+                        disP2Line(cent[k][j][i], p3, p1, &po, &d, &t);
+
+                        if (d < dmin)
+                        {
+                            dmin = d;
+                            pmin = po;
+                            tmin = t;
+
+                            if(t < 1)
+                            {
+                                vertexId = n3;
+                            }
+                            else
+                            {
+                                vertexId = n1;
+                            }
+                        }
+
+                        closestType = "edgeVertex";
+                    }
+                }
+            }
+        }
+
+        //set the closest ibm mesh element to the ibm fluid cell
+        ibF[c].closestElem = cellMin;
+        ibF[c].pMin = pmin;
+        ibF[c].minDist = dmin;
+        ibF[c].bodyID = bodyID;
+
+        // compute the element normal based on the closestType
+        if(closestType == "face")
+        {
+            ibF[c].normal = nSet(ibMsh->eN[cellMin]);
+        }
+        else if(closestType == "edgeVertex")
+        {
+            //compute the angle averaged normal
+            if(tmin <=0 || tmin >=1)
+            {
+                ibF[c].normal = nSet(computeVertexAverageNormal(ibMsh, vertexId));
+            }
+            else
+            {
+                ibF[c].normal = nSet(computeEdgeAverageNormal(ibMsh, vertexId, cellMin));
+            }
+
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "closestType not set. possible parallelization error");
+            fatalErrorInFunction("findClosestIBMElement",  error);
+        }
+
+        Cpt2D     pjp, pj1, pj2, pj3;
+
+        elemNorm  = ibMsh->eN[cellMin];
+        n1        = ibMsh->nID1[cellMin];
+        n2        = ibMsh->nID2[cellMin];
+        n3        = ibMsh->nID3[cellMin];
+
+        p1        = ibMsh->nCoor[n1];
+        p2        = ibMsh->nCoor[n2];
+        p3        = ibMsh->nCoor[n3];
+
+        // to find the ibm interpolation coefficient of the projected point from the ibm element nodes
+        if (fabs(elemNorm.x) >= fabs(elemNorm.y) && fabs(elemNorm.x) >= fabs(elemNorm.z))
+        {
+            pjp.x = pmin.y;
+            pjp.y = pmin.z;
+            pj1.x = p1.y;
+            pj1.y = p1.z;
+            pj2.x = p2.y;
+            pj2.y = p2.z;
+            pj3.x = p3.y;
+            pj3.y = p3.z;
+            triangleIntp(pjp, pj1, pj2, pj3, &(ibF[c]));
+        }
+        else if (fabs(elemNorm.y) >= fabs(elemNorm.x) && fabs(elemNorm.y) >= fabs(elemNorm.z))
+        {
+            pjp.x = pmin.x;
+            pjp.y = pmin.z;
+            pj1.x = p1.x;
+            pj1.y = p1.z;
+            pj2.x = p2.x;
+            pj2.y = p2.z;
+            pj3.x = p3.x;
+            pj3.y = p3.z;
+            triangleIntp(pjp, pj1, pj2, pj3, &(ibF[c]));
+        }
+        else if (fabs(elemNorm.z) >= fabs(elemNorm.y) && fabs(elemNorm.z) >= fabs(elemNorm.x))
+        {
+            pjp.x = pmin.y;
+            pjp.y = pmin.x;
+            pj1.x = p1.y;
+            pj1.y = p1.x;
+            pj2.x = p2.y;
+            pj2.y = p2.x;
+            pj3.x = p3.y;
+            pj3.y = p3.x;
+            triangleIntp(pjp, pj1, pj2, pj3, &(ibF[c]));
+        }
+
+    }
+
+    MPI_Barrier(mesh->MESH_COMM);
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode findClosestIBMElement(ibm_ *ibm)
 {
     mesh_         *mesh = ibm->access->mesh;
@@ -2914,32 +3604,35 @@ PetscErrorCode CurvibInterpolationTriangular(ibm_ *ibm)
         sb = nDot(nSub(cent[k][j][i], ibF[c].pMin), eNorm);
         sc = nDot(nSub(bPt, ibF[c].pMin), eNorm);
 
-        if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
         {
-            Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot;
-
-            if(wm->roughness > 1.0e-12)
+            if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
             {
-                wallFunctionCabotRoughness(cst->nu, wm->roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+                Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot;
+
+                if(wm->roughness > 1.0e-12)
+                {
+                    wallFunctionCabotRoughness(cst->nu, wm->roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+                }
+                else
+                {
+                    wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
+                }
             }
-            else
+            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
             {
-                wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
-            }
-        }
-        else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
-        {
-            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
+                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
 
-            wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                                    bPtVel, &ucat[k][j][i], &ustar, eNorm);
+                wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                                        bPtVel, &ucat[k][j][i], &ustar, eNorm);
 
+            } 
         }
-        else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "slip")
+        else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "slip")
         {
             slipBC(sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], eNorm);
         }
-        else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "noSlip")
+        else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "noSlip")
         {
             ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
             ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
@@ -2964,6 +3657,603 @@ PetscErrorCode CurvibInterpolationTriangular(ibm_ *ibm)
 
     return (0);
 }
+//***************************************************************************************************************//
+
+PetscErrorCode CurvibInterpolationInternalCell(ibm_ *ibm)
+{
+    mesh_         *mesh  = ibm->access->mesh;
+    ueqn_         *ueqn  = ibm->access->ueqn;
+    teqn_         *teqn  = ibm->access->teqn;
+    peqn_         *peqn  = ibm->access->peqn;
+    flags_        *flags = ibm->access->flags;
+    constants_    *cst   = ibm->access->constants;
+    clock_        *clock = ibm->access->clock;
+
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+    PetscInt      gxs   = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt      gys   = info.gys, gye = info.gys + info.gym;
+    PetscInt      gzs   = info.gzs, gze = info.gzs + info.gzm;
+
+    PetscInt      i, j, k, ii, kk, jj;
+    PetscInt      b, c, s;
+    cellIds       initCp;
+    Cmpnts        ***ucat, ***lucat, ***cent, ***csi, ***eta, ***zet;
+    PetscReal     ***lt, ***temp, ***aj, ***nvert, ***lp, ***p;
+    Cmpnts        bPt1, bPt2, bPtInit;
+    Cmpnts        bPt1Vel, bPt2Vel, ibmPtVel, ibmPtVelPrev;
+    PetscReal     nfMag, cellSize, bPt1Temp, bPt2Temp, ibmPtTemp, bPt1Pres, bPt2Pres, ibmPtPres, elemDist;
+
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+    DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
+    DMDAVecGetArray(fda, ueqn->Ucat, &ucat);
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, peqn->lP, &lp);
+    DMDAVecGetArray(da, peqn->P, &p);
+    DMDAVecGetArray(fda, mesh->lCsi,   &csi);
+    DMDAVecGetArray(fda, mesh->lEta,   &eta);
+    DMDAVecGetArray(fda, mesh->lZet,   &zet);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecGetArray(da, teqn->lTmprt, &lt);
+        DMDAVecGetArray(da, teqn->Tmprt, &temp);
+    }
+
+    //local pointer for ibmFluidCells
+    ibmFluidCell *ibF = ibm->ibmFCells;
+
+    PetscReal    sc, sb, sd, ustar;
+
+    for(c = 0; c < ibm->numIBMFluid; c++)
+    {
+        //cell indices
+        i = ibF[c].cellId.i;
+        j = ibF[c].cellId.j;
+        k = ibF[c].cellId.k;
+
+        ibmMesh   *ibMsh = ibm->ibmBody[ibF[c].bodyID]->ibMsh;
+        PetscInt   cElem = ibF[c].closestElem;
+        Cmpnts	   eNorm = ibF[c].normal;
+        PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
+        PetscReal  roughness;
+
+        /********************************************************************************************************
+            Interpolation of the first background point field
+        /*******************************************************************************************************/
+
+        // background mesh projection point
+        cellSize = ibm->interpDist;
+
+        // distance from cell to the IBM element
+        elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
+
+        bPt1 = nScale(cellSize + elemDist, eNorm);
+        mSum(bPt1, cent[k][j][i]);
+
+        // search for the closest background mesh cell center (it will be close to current ibm fluid cell k,j,i)
+        PetscInt    i1, j1, k1;
+        PetscReal   dmin = 10e10, d;
+        PetscInt    ic, jc, kc, setFlag = 0;
+
+        // must be close so don't loop over all cells
+        for (k1=k-1; k1<k+2; k1++)
+        for (j1=j-1; j1<j+2; j1++)
+        for (i1=i-1; i1<i+2; i1++)
+        {
+
+            if
+            (
+                (
+                    k1>=1 && k1<mz-1 &&
+                    j1>=1 && j1<my-1 &&
+                    i1>=1 && i1<mx-1
+                ) && (isFluidCell(k1, j1, i1, nvert))
+            )
+            {
+                d = pow((bPt1.x - cent[k1][j1][i1].x), 2) +
+                    pow((bPt1.y - cent[k1][j1][i1].y), 2) +
+                    pow((bPt1.z - cent[k1][j1][i1].z), 2);
+
+                if
+                (
+                    d < dmin
+                )
+                {
+                    dmin  = d;
+                    ic = i1;
+                    jc = j1;
+                    kc = k1;
+                    setFlag = 1;
+                }
+            }
+        }
+
+        if(setFlag == 0)
+        {
+            char error[512];
+            sprintf(error, "no closest fluid cell to ibm fluid %ld %ld %ld\n", k, j, i);
+            fatalErrorInFunction("CurvibInterpolation",  error);
+        }
+
+        PetscInt intId[6];
+        PetscInt intFlag = 1;
+
+        // get the trilinear interpolation cells
+        PointInterpolationCells
+        (
+                mesh,
+                bPt1.x, bPt1.y, bPt1.z,
+                ic, jc, kc,
+                cent,
+                intId
+        );
+
+        // save the initial closest cell and background point
+        initCp.i = ic; initCp.j = jc; initCp.k = kc;
+        bPtInit  = nSet(bPt1);
+
+        // ensure none of the interpolation cells are solid cells.
+        PetscReal sumDel = 0.0;
+
+        while ( (intFlag == 1) && isInsideBoundingBox(bPt1, mesh->bounds) && (sumDel <= 1.5*cellSize))
+        {
+            PetscInt ibmCellCtr = 0;
+            PetscInt icc, jcc, kcc, setFlag = 0;
+
+            for (PetscInt kk = 0; kk<2; kk++)
+            for (PetscInt jj = 0; jj<2; jj++)
+            for (PetscInt ii = 0; ii<2; ii++)
+            {
+                if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                {
+                    ibmCellCtr ++;
+                }
+
+            }
+
+            if (ibmCellCtr > 0)
+            {
+                Cmpnts del =  nScale(0.2 * cellSize, eNorm);
+                mSum(bPt1, del);
+                dmin = 10e10;
+
+                sumDel += nMag(del);
+
+                for (k1=kc-1; k1<kc+2; k1++)
+                {
+                    //check processor ghost bounds
+                    if (k1 < gzs || k1 >= gze) {intFlag = 2; break;}
+                    for (j1=jc-1; j1<jc+2; j1++)
+                    {
+                        if (j1 < gys || j1 >= gye) {intFlag = 2; break;}
+                        for (i1=ic-1; i1<ic+2; i1++)
+                        {
+                            if (i1 < gxs || i1 >= gxe) {intFlag = 2; break;}
+
+                            if
+                            (
+                                (
+                                    k1>=1 && k1<mz-1 &&
+                                    j1>=1 && j1<my-1 &&
+                                    i1>=1 && i1<mx-1
+                                ) && (isFluidCell(k1, j1, i1, nvert))
+                            )
+                            {
+                                d = pow((bPt1.x - cent[k1][j1][i1].x), 2) +
+                                    pow((bPt1.y - cent[k1][j1][i1].y), 2) +
+                                    pow((bPt1.z - cent[k1][j1][i1].z), 2);
+
+                                if
+                                (
+                                    d < dmin
+                                )
+                                {
+                                    dmin  = d;
+                                    icc = i1;
+                                    jcc = j1;
+                                    kcc = k1;
+                                    setFlag = 1;
+                                }
+                            }
+
+                        }
+                    }
+                }
+
+                if(setFlag == 0)
+                {
+                    //closest point not set, do not interpolate
+                    intFlag = 2;
+                }
+
+                if(intFlag == 1)
+                {
+                    kc = kcc; jc = jcc; ic = icc;
+
+                    PointInterpolationCells
+                    (
+                            mesh,
+                            bPt1.x, bPt1.y, bPt1.z,
+                            ic, jc, kc,
+                            cent,
+                            intId
+                    );
+                }
+
+            }
+            else
+            {
+                intFlag = 0;
+
+                // trilinear interpolate the velocity at this point
+                vectorPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        bPt1.x, bPt1.y, bPt1.z,
+                        ic, jc, kc,
+                        cent,
+                        lucat,
+                        bPt1Vel
+                );
+
+                if (flags->isTeqnActive)
+                {
+                    scalarPointLocalVolumeInterpolation
+                    (
+                            mesh,
+                            bPt1.x, bPt1.y, bPt1.z,
+                            ic, jc, kc,
+                            cent,
+                            lt,
+                            bPt1Temp
+                    );
+                }
+
+                scalarPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        bPt1.x, bPt1.y, bPt1.z,
+                        ic, jc, kc,
+                        cent,
+                        lp,
+                        bPt1Pres
+                );
+
+            }
+        }
+
+        // while loop fails
+        if(intFlag > 0)
+        {
+            bPt1Vel = nSet(lucat[initCp.k][initCp.j][initCp.i]);
+
+            bPt1Pres = lp[initCp.k][initCp.j][initCp.i];
+
+            if (flags->isTeqnActive)
+            {
+                bPt1Temp = lt[initCp.k][initCp.j][initCp.i];
+            }
+
+            bPt1 = nSet(bPtInit);
+
+            ic = initCp.i;
+            jc = initCp.j;
+            kc = initCp.k;
+        }
+
+         /********************************************************************************************************
+             Interpolation of the second background point field
+         /*******************************************************************************************************/
+
+         bPt2 = nScale(2.0 * cellSize, eNorm);
+         mSum(bPt2, bPt1);
+
+         // search for the closest background mesh cell center (it will be close to current closest fluid cell kc,jc,ic)
+         dmin = 10e10; setFlag = 0;
+         PetscInt    ic2, jc2, kc2;
+
+         // must be close so don't loop over all cells
+         for (k1=kc-1; k1<kc+2; k1++)
+         for (j1=jc-1; j1<jc+2; j1++)
+         for (i1=ic-1; i1<ic+2; i1++)
+         {
+
+             if
+             (
+                 (
+                     k1>=1 && k1<mz-1 &&
+                     j1>=1 && j1<my-1 &&
+                     i1>=1 && i1<mx-1
+                 ) && (isFluidCell(k1, j1, i1, nvert))
+             )
+             {
+                 d = pow((bPt2.x - cent[k1][j1][i1].x), 2) +
+                     pow((bPt2.y - cent[k1][j1][i1].y), 2) +
+                     pow((bPt2.z - cent[k1][j1][i1].z), 2);
+
+                 if
+                 (
+                     d < dmin
+                 )
+                 {
+                     dmin  = d;
+                     ic2 = i1;
+                     jc2 = j1;
+                     kc2 = k1;
+                     setFlag = 1;
+                 }
+             }
+         }
+
+         if(setFlag == 0)
+         {
+             char error[512];
+             sprintf(error, "no closest fluid cell to background point 2\n");
+             fatalErrorInFunction("CurvibInterpolation",  error);
+         }
+
+         //check for the processor bound
+         intFlag = 1;
+
+         if (kc2 < gzs || kc2 >= gze) {intFlag = 2;}
+         if (jc2 < gys || jc2 >= gye) {intFlag = 2;}
+         if (ic2 < gxs || ic2 >= gxe) {intFlag = 2;}
+
+         PetscInt ibmCellCtr = 0;
+
+         if(intFlag == 1)
+         {
+             // get the trilinear interpolation cells
+             PointInterpolationCells
+             (
+                     mesh,
+                     bPt2.x, bPt2.y, bPt2.z,
+                     ic2, jc2, kc2,
+                     cent,
+                     intId
+             );
+
+             //check that the interpolation cells are not ibm solid
+             for (PetscInt kk = 0; kk<2; kk++)
+             for (PetscInt jj = 0; jj<2; jj++)
+             for (PetscInt ii = 0; ii<2; ii++)
+             {
+                 if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                 {
+                     ibmCellCtr ++;
+                 }
+
+             }
+         }
+
+         if(intFlag == 2)
+         {
+             bPt2Vel = nSet(bPt1Vel);
+
+             bPt2Pres =  bPt1Pres;
+             if (flags->isTeqnActive)
+             {
+                 bPt2Temp = bPt1Temp;
+             }
+         }
+         else if(intFlag == 1 && ibmCellCtr > 0)
+         {
+             bPt2Vel = nSet(lucat[kc2][jc2][ic2]);
+             
+             bPt2Pres = lp[kc2][jc2][ic2];
+             
+             if (flags->isTeqnActive)
+             {
+                 bPt2Temp = lt[kc2][jc2][ic2];
+             }
+         }
+         else
+         {
+             // trilinear interpolate the velocity at this point
+             vectorPointLocalVolumeInterpolation
+             (
+                     mesh,
+                     bPt2.x, bPt2.y, bPt2.z,
+                     ic2, jc2, kc2,
+                     cent,
+                     lucat,
+                     bPt2Vel
+             );
+
+             scalarPointLocalVolumeInterpolation
+             (
+                     mesh,
+                     bPt2.x, bPt2.y, bPt2.z,
+                     ic2, jc2, kc2,
+                     cent,
+                     lp,
+                     bPt2Pres
+             );
+
+             if (flags->isTeqnActive)
+             {
+                 scalarPointLocalVolumeInterpolation
+                 (
+                         mesh,
+                         bPt2.x, bPt2.y, bPt2.z,
+                         ic2, jc2, kc2,
+                         cent,
+                         lt,
+                         bPt2Temp
+                 );
+             }
+         }
+
+         /********************************************************************************************************
+             Interpolation of the IBM surface field
+         /*******************************************************************************************************/
+
+        // interpolate the velocity of the projected point on the IBM solid element from its nodes
+        ibmPtVel.x =   ibMsh->nU[n1].x * ibF[c].cs1
+                  + ibMsh->nU[n2].x * ibF[c].cs2
+                  + ibMsh->nU[n3].x * ibF[c].cs3;
+
+        ibmPtVel.y =   ibMsh->nU[n1].y * ibF[c].cs1
+                  + ibMsh->nU[n2].y * ibF[c].cs2
+                  + ibMsh->nU[n3].y * ibF[c].cs3;
+
+        ibmPtVel.z =   ibMsh->nU[n1].z * ibF[c].cs1
+                  + ibMsh->nU[n2].z * ibF[c].cs2
+                  + ibMsh->nU[n3].z * ibF[c].cs3;
+
+         // interpolate the previous velocity
+         ibmPtVelPrev.x =   ibMsh->nUPrev[n1].x * ibF[c].cs1
+                          + ibMsh->nUPrev[n2].x * ibF[c].cs2
+                          + ibMsh->nUPrev[n3].x * ibF[c].cs3;
+
+         ibmPtVelPrev.y =   ibMsh->nUPrev[n1].y * ibF[c].cs1
+                          + ibMsh->nUPrev[n2].y * ibF[c].cs2
+                          + ibMsh->nUPrev[n3].y * ibF[c].cs3;
+
+         ibmPtVelPrev.z =   ibMsh->nUPrev[n1].z * ibF[c].cs1
+                          + ibMsh->nUPrev[n2].z * ibF[c].cs2
+                          + ibMsh->nUPrev[n3].z * ibF[c].cs3;
+
+        /********************************************************************************************************
+            Interpolation of the IBM fluid cell field
+        /*******************************************************************************************************/
+         // point placement b.......wall........c.......d
+         //find the distance from the points b and c along the element normal
+         sb = -elemDist;
+         sc = nDot(nSub(bPt1, cent[k][j][i]), eNorm) - elemDist;
+         sd = sc + nDot(nSub(bPt2, bPt1), eNorm); 
+
+        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
+        {
+            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+            {
+                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
+
+                wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                            bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
+            }
+            else if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+            {
+                Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot;
+
+                wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                            bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
+            }
+        }
+        else 
+        {
+            char error[512];
+            sprintf(error, "wall shear model is on, however velocity BC is not velocityWallfunction \n");
+            fatalErrorInFunction("CurvibInterpolationInternalCell", error);
+        }
+
+        
+         //pressure and temperature boundary condition - neumann
+         PetscReal aTemp, bTemp, cTemp, aP, bP, cP;
+
+         bP = nDot(nScale(-1.0/clock->dtOld, nSub(ibmPtVel, ibmPtVelPrev)), eNorm);
+         aP = (bPt2Pres - bPt1Pres - bP * cellSize)/(sd*sd - sc*sc);
+         cP = bPt1Pres - aP*sc*sc - bP*sc;
+
+        //  if(intFlag == 2 || (intFlag == 1 && ibmCellCtr > 0))
+        //  {
+        //      p[k][j][i] = bP * (sb - sc) + bPt1Pres;
+        //  }
+        //  else
+        //  {
+        //      p[k][j][i] = aP * sb * sb + bP * sb + cP;
+        //  }
+
+         p[k][j][i] = bP * (sb - sc) + bPt1Pres;
+         
+         if (flags->isTeqnActive)
+         {
+
+            if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "zeroGradient")
+            {
+                //apply zerogradient boundary condition. effect of boundary through heat flux bc
+                temp[k][j][i] =  bPt1Temp;
+            }
+            else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "fixedValue")
+            {
+                temp[k][j][i] =  ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
+            }
+            else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
+            {
+                if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT==-4)
+                {
+                    if(teqn->access->clock->it==teqn->access->clock->itStart)
+                    {
+                        temp[k][j][i] =  bPt1Temp;
+                    }
+                    else 
+                    {
+                        Shumann *wm  = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
+
+                        // find interpolation weights for surface temp
+                        PetscReal w[2];
+                        PetscInt  l[2];
+
+                        findInterpolationWeights(w, l, wm->timeVec, wm->numT, clock->time);
+
+                        PetscReal surfaceTemp = w[0] * wm->surfTemp[l[0]] + w[1] * wm->surfTemp[l[1]];
+
+                        temp[k][j][i] = 2.0*surfaceTemp - bPt1Temp;
+                    }
+                }
+                else 
+                {
+                    temp[k][j][i] =  bPt1Temp;
+                }
+            }
+            //  bTemp = 0.0;
+            //  aTemp = (bPt2Temp - bPt1Temp)/(sd*sd - sc*sc);
+            //  cTemp = bPt1Temp - aTemp*sc*sc;
+
+            //  if(intFlag == 2 || (intFlag == 1 && ibmCellCtr > 0))
+            //  {
+            //     temp[k][j][i] =  bPt1Temp;
+            //  }
+            //  else
+            //  {
+            //     temp[k][j][i] = aTemp * sb * sb + cTemp;
+            //  }
+         }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(fda, ueqn->lUcat, &lucat);
+    DMDAVecRestoreArray(fda, ueqn->Ucat, &ucat);
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, peqn->lP, &lp);
+    DMDAVecRestoreArray(da, peqn->P, &p);
+    DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+        DMDAVecRestoreArray(da, teqn->Tmprt, &temp);
+        DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+        DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    }
+
+    DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+    DMGlobalToLocalEnd(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+    DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
+    DMGlobalToLocalEnd(da, peqn->P, INSERT_VALUES, peqn->lP);
+    return(0);
+}
+
 //***************************************************************************************************************//
 
 PetscErrorCode CurvibInterpolation(ibm_ *ibm)
@@ -2993,7 +4283,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     PetscReal     ***lt, ***temp, ***aj, ***nvert, ***lp, ***p;
     Cmpnts        bPt, bPtInit;
     Cmpnts        bPtVel, ibmPtVel, ibmPtVelPrev;
-    PetscReal     nfMag, cellSize, bPtTemp, bPtPres;
+    PetscReal     nfMag, cellSize, bPtTemp, bPtPres, elemDist;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
     DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
@@ -3031,7 +4321,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         PetscReal  roughness;
 
         // background mesh projection point is taken 0.5 cell distance along the normal directional of the closest ibm mesh element
-        cellSize = 1.0 * ibF[c].minDist;
+        elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
+        cellSize = 1.0 * elemDist;
         bPt = nScale(cellSize, eNorm);
         mSum(bPt, cent[k][j][i]);
 
@@ -3273,20 +4564,15 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                          + ibMsh->nUPrev[n3].z * ibF[c].cs3;
 
          //find the distance from the wall of points b and c along the element normal
-         sb = ibF[c].minDist;
+         sb = elemDist;
          sc = sb + cellSize;
 
-         if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+         if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
          {
-             Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot;
+            if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+            {
+                Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot;
 
-            if(ibm->wallShearOn)
-            {
-                wallShearVelocityBC(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                            bPtVel, &ucat[k][j][i], &ustar, eNorm);
-            }
-            else
-            {
                 if(roughness > 1.0e-12)
                 {
                     wallFunctionCabotRoughness(cst->nu, wm->roughness, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
@@ -3296,96 +4582,97 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                     wallFunctionCabot(cst->nu, sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], &ustar, eNorm);
                 }
             }
+            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -4 || ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -5)
+            {
+                PetscReal roughness, kappa;
+
+                if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -4)
+                {
+                    roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmPowerLawAPG->roughness;
+                    kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmPowerLawAPG->kappa;
+                }
+
+                if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -5)
+                {
+                    roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmLogLawAPG->roughness;
+                    kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmLogLawAPG->kappa;
+                }
+
+                //find the pressure gradient in the tangential direction
+                PetscReal dpdc, dpde, dpdz;
+                PetscReal dp_dx, dp_dy, dp_dz;
+
+                PetscReal csi0 = csi[k][j][i].x,
+                        csi1 = csi[k][j][i].y,
+                        csi2 = csi[k][j][i].z;
+                PetscReal eta0 = eta[k][j][i].x,
+                        eta1 = eta[k][j][i].y,
+                        eta2 = eta[k][j][i].z;
+                PetscReal zet0 = zet[k][j][i].x,
+                        zet1 = zet[k][j][i].y,
+                        zet2 = zet[k][j][i].z;
+                PetscReal ajc  = aj[k][j][i];
+
+                Compute_dscalar_center
+                (
+                    mesh,
+                    i, j, k, mx, my, mz, lp, nvert, &dpdc, &dpde, &dpdz
+                );
+
+                Compute_dscalar_dxyz
+                (
+                    mesh,
+                    csi0, csi1, csi2, eta0, eta1, eta2,
+                    zet0, zet1, zet2, ajc, dpdc, dpde, dpdz, &dp_dx,
+                    &dp_dy, &dp_dz
+                );
+
+                if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -4)
+                {
+                    wallFunctionPowerlawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
+                                            bPtVel, &ucat[k][j][i], &ustar, eNorm,
+                                            dp_dx, dp_dy, dp_dz);
+                }
+
+                if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -5)
+                {
+                    wallFunctionLogLawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
+                                            bPtVel, &ucat[k][j][i], &ustar, eNorm,
+                                            dp_dx, dp_dy, dp_dz);
+                }
+            }
+            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+            {
+                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
+
+                wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                                bPtVel, &ucat[k][j][i], &ustar, eNorm);
+
+            }
          }
-         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
-         {
-             PetscReal roughness, kappa;
-
-             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG")
-             {
-                 roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmPowerLawAPG->roughness;
-                 kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmPowerLawAPG->kappa;
-             }
-
-             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
-             {
-                 roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmLogLawAPG->roughness;
-                 kappa     = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmLogLawAPG->kappa;
-             }
-
-             //find the pressure gradient in the tangential direction
-             PetscReal dpdc, dpde, dpdz;
-             PetscReal dp_dx, dp_dy, dp_dz;
-
-             PetscReal csi0 = csi[k][j][i].x,
-                       csi1 = csi[k][j][i].y,
-                       csi2 = csi[k][j][i].z;
-             PetscReal eta0 = eta[k][j][i].x,
-                       eta1 = eta[k][j][i].y,
-                       eta2 = eta[k][j][i].z;
-             PetscReal zet0 = zet[k][j][i].x,
-                       zet1 = zet[k][j][i].y,
-                       zet2 = zet[k][j][i].z;
-             PetscReal ajc  = aj[k][j][i];
-
-             Compute_dscalar_center
-             (
-                 mesh,
-                 i, j, k, mx, my, mz, lp, nvert, &dpdc, &dpde, &dpdz
-             );
-
-             Compute_dscalar_dxyz
-             (
-                 mesh,
-                 csi0, csi1, csi2, eta0, eta1, eta2,
-                 zet0, zet1, zet2, ajc, dpdc, dpde, dpdz, &dp_dx,
-                 &dp_dy, &dp_dz
-             );
-
-             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "PowerLawAPG")
-             {
-                 wallFunctionPowerlawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
-                                         bPtVel, &ucat[k][j][i], &ustar, eNorm,
-                                         dp_dx, dp_dy, dp_dz);
-             }
-
-             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
-             {
-                 wallFunctionLogLawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
-                                         bPtVel, &ucat[k][j][i], &ustar, eNorm,
-                                         dp_dx, dp_dy, dp_dz);
-             }
-         }
-         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "slip")
+         else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "slip")
          {
              slipBC(sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], eNorm);
          }
-         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "noSlip")
+         else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "noSlip")
          {
              ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
              ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
              ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
          }
-         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
-         {
-            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
 
-            if(ibm->wallShearOn)
-            {
-                wallShearVelocityBC(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                            bPtVel, &ucat[k][j][i], &ustar, eNorm);
-            }
-            else
-            {
-                wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                            bPtVel, &ucat[k][j][i], &ustar, eNorm);
-            }
-
-         }
 
          if (flags->isTeqnActive)
          {
-             temp[k][j][i] =  bPtTemp;
+            if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "zeroGradient" || ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
+            {
+                //apply zerogradient boundary condition. effect of boundary through heat flux bc
+                temp[k][j][i] =  bPtTemp;
+            }
+            else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "fixedValue")
+            {
+                temp[k][j][i] =  ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
+            }
          }
 
          // save the element acceleration term (dudt . elementNormal)
@@ -3451,7 +4738,7 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
     PetscReal     ***lt, ***temp, ***aj, ***nvert, ***lp, ***p;
     Cmpnts        bPt1, bPt2, bPtInit;
     Cmpnts        bPt1Vel, bPt2Vel, ibmPtVel, ibmPtVelPrev;
-    PetscReal     nfMag, cellSize, bPt1Temp, bPt2Temp, ibmPtTemp, bPt1Pres, bPt2Pres, ibmPtPres;
+    PetscReal     nfMag, cellSize, bPt1Temp, bPt2Temp, ibmPtTemp, bPt1Pres, bPt2Pres, ibmPtPres, elemDist;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
     DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
@@ -3492,8 +4779,11 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
             Interpolation of the first background point field
         /*******************************************************************************************************/
 
+        // distance from cell to the IBM element
+        elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
+
         // background mesh projection point
-        cellSize = 1.0 * ibF[c].minDist;
+        cellSize = 1.0 * elemDist;
         bPt1 = nScale(cellSize, eNorm);
         mSum(bPt1, cent[k][j][i]);
 
@@ -3886,11 +5176,11 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
         /*******************************************************************************************************/
 
          //find the distance from the wall of points b and c along the element normal
-         sb = ibF[c].minDist;
+         sb = elemDist;
          sc = sb + nMag(nSub(bPt1, cent[k][j][i]));
          sd = sc + nMag(nSub(bPt2, bPt1));
 
-        if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "noSlip")
+        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "noSlip")
         {
             //find quadratic interpolation coefficients a and b
             PetscReal a1, a2, a3, b1, b2, b3, denom;
@@ -3924,32 +5214,19 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
             }
 
         }
-        else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
+        else if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
         {
-            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
+            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+            {
+                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
 
-            if(ibm->wallShearOn)
-            {
-                wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                        bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
-            }
-            else 
-            {
                 wallFunctionSchumann(cst->nu, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                    bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
+                        bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
             }
-        }
-        else if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
-        {
-            Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot;
+            else if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+            {
+                Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot;
 
-            if(ibm->wallShearOn)
-            {
-                wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                        bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
-            }
-            else
-            {
                 if(roughness > 1.0e-12)
                 {
                     wallFunctionCabotRoughness(cst->nu, wm->roughness, sc, sb, ibmPtVel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
@@ -3960,6 +5237,7 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
                 }
             }
         }
+
 
          //pressure and temperature boundary condition - neumann
          PetscReal aTemp, bTemp, cTemp, aP, bP, cP;
@@ -3979,18 +5257,31 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
 
          if (flags->isTeqnActive)
          {
-             bTemp = 0.0;
-             aTemp = (bPt2Temp - bPt1Temp)/(sd*sd - sc*sc);
-             cTemp = bPt1Temp - aTemp*sc*sc;
-
-             if(intFlag == 2 || (intFlag == 1 && ibmCellCtr > 0))
-             {
+            if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "zeroGradient" || ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
+            {
+                //apply zerogradient boundary condition. effect of boundary through heat flux bc
                 temp[k][j][i] =  bPt1Temp;
-             }
-             else
-             {
-                temp[k][j][i] = aTemp * sb * sb + cTemp;
-             }
+            }
+            else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "fixedValue")
+            {
+                temp[k][j][i] =  ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
+            }
+            // interpolated from the two background cells
+            // else 
+            // {
+            //     bTemp = 0.0;
+            //     aTemp = (bPt2Temp - bPt1Temp)/(sd*sd - sc*sc);
+            //     cTemp = bPt1Temp - aTemp*sc*sc;
+
+            //     if(intFlag == 2 || (intFlag == 1 && ibmCellCtr > 0))
+            //     {
+            //         temp[k][j][i] =  bPt1Temp;
+            //     }
+            //     else
+            //     {
+            //         temp[k][j][i] = aTemp * sb * sb + cTemp;
+            //     }
+            // }
          }
     }
 
@@ -4026,9 +5317,11 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
 {
     mesh_         *mesh  = ibm->access->mesh;
     ueqn_         *ueqn  = ibm->access->ueqn;
+    teqn_         *teqn  = ibm->access->teqn;
     les_          *les   = ibm->access->les;
     clock_        *clock = ibm->access->clock;
     constants_    *cst   = ibm->access->constants;
+    flags_        *flags = ibm->access->flags;
 
     DM            da    = mesh->da, fda = mesh->fda;
     DMDALocalInfo info  = mesh->info;
@@ -4047,7 +5340,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     PetscReal     dxdc, dxde, dxdz, dydc, dyde, dydz, dzdc, dzde, dzdz;
     PetscReal     dudc, dude, dudz, dvdc, dvde, dvdz, dwdc, dwde, dwdz;      // velocity der. w.r.t. curvil. coords
 
-    PetscReal     nu = cst->nu, nut, uTmag, ustar, cellSize;
+    PetscReal     nu = cst->nu, nut, uTmag, ustar, cellSize, elemDist;
     PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2, ajc;      // surface area vectors components
 
     PetscReal     g11, g21, g31;                                             // metric tensor components
@@ -4063,7 +5356,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     cellIds       initCp;
     Vec           Coor;
     Cmpnts        ***coor, ***ucat, ***cent, ibmPtVel;
-    Cmpnts        ***visc1, ***visc2, ***visc3;
+    Cmpnts        ***visc1, ***visc2, ***visc3, ***viscT;
 
     Cmpnts	      ***icsi, ***ieta, ***izet;
 	Cmpnts	      ***jcsi, ***jeta, ***jzet;
@@ -4072,7 +5365,8 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     Cmpnts        uC, uN, uT, uB;                          // background point velocity, its normal and tangential components
     Cmpnts        bPtVel, bPt, bPtInit;
     Cmpnts        eN, eT1, eT2;                          // local wall normal co-ordinate system
-    PetscReal     ***nvert, ***iaj, ***jaj, ***kaj, ***aj, ***lnu_t;
+    PetscReal     ***nvert, ***iaj, ***jaj, ***kaj, ***aj, ***lt, ***lnu_t;
+    PetscReal     bPtTemp;
 
     //local pointer for ibmFluidCells
     ibmFluidCell  *ibF = ibm->ibmFCells;
@@ -4090,6 +5384,11 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     VecSet(ueqn->lViscIBM2,  0.0);
     VecSet(ueqn->lViscIBM3,  0.0);
 
+    if(flags->isTeqnActive)
+    {
+        VecSet(teqn->lViscIBMT,  0.0);
+    }
+
     DMGetCoordinatesLocal(da, &Coor);
     DMDAVecGetArray(fda, Coor, &coor);
 
@@ -4101,6 +5400,12 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     DMDAVecGetArray(fda, ueqn->lViscIBM1, &visc1);
     DMDAVecGetArray(fda, ueqn->lViscIBM2, &visc2);
     DMDAVecGetArray(fda, ueqn->lViscIBM3, &visc3);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecGetArray(fda, teqn->lViscIBMT, &viscT);
+        DMDAVecGetArray(da, teqn->lTmprt, &lt);
+    }
 
     DMDAVecGetArray(fda, mesh->lICsi, &icsi);
 	DMDAVecGetArray(fda, mesh->lIEta, &ieta);
@@ -4138,13 +5443,18 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
         PetscInt      cElem = ibF[c].closestElem;
         Cmpnts	      eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
-        PetscReal     tauWall, sb;
+        PetscReal     tauWall, sb, qWall = 0;
+        Cmpnts        qFlux;
 
         //find the distance from the wall where velocity is interpolated
         //a uniform distance from the wall is chosen for all ibm fluid points to prevent instabilities due to the stair step structure
-        cellSize = pow( 1./aj[k][j][i], 1./3.);
-        bPt = nScale(2.0 * cellSize, eNorm);
-        mSum(bPt, ibF[c].pMin);
+        cellSize = ibm->interpDist;
+
+        // distance from cell to the IBM element
+        elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
+
+        bPt = nScale(cellSize + elemDist, eNorm);
+        mSum(bPt, cent[k][j][i]);
 
         //check the neighbourhood of current ibm fluid cell for fluid cells
         //find the fluid - ibm fluid cell interface faces
@@ -4261,7 +5571,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                     {
                         char error[512];
                         sprintf(error, "no closest fluid cell to ibm fluid %ld %ld %ld\n", k, j, i);
-                        fatalErrorInFunction("findIBMWallShear",  error);
+                        fatalErrorInFunction("findIBMWallShearChester",  error);
                     }  
 
                     PetscInt intId[6];
@@ -4383,6 +5693,19 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                                     ucat,
                                     bPtVel
                             );
+
+                            if(flags->isTeqnActive)
+                            {
+                                scalarPointLocalVolumeInterpolation
+                                (
+                                        mesh,
+                                        bPt.x, bPt.y, bPt.z,
+                                        ic, jc, kc,
+                                        cent,
+                                        lt,
+                                        bPtTemp
+                                );
+                            }
                         }
                     }
 
@@ -4391,13 +5714,19 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                     {
                         bPtVel = nSet(ucat[initCp.k][initCp.j][initCp.i]);
 
+                        if(flags->isTeqnActive)
+                        {
+                            bPtTemp = lt[initCp.k][initCp.j][initCp.i];
+                        }
+
                         bPt = nSet(bPtInit);
 
                         ic = initCp.i;
                         jc = initCp.j;
                         kc = initCp.k;
                     }
-
+                    
+                    // distance of background point from the wall
                     sb = nDot(nSub(bPt, ibF[c].pMin), eNorm);
 
                     //velocity in local co-ordinate system
@@ -4406,25 +5735,90 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                     uT = nSub(bPtVel, uN);
                     uTmag = nMag(uT);
 
-                    if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                    if (flags->isTeqnActive)
                     {
-                        PetscReal roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot->roughness;
-
-                        if(roughness > 1.0e-12)
+                        if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
                         {
-                            ustar = uTauCabotRoughness(nu, uTmag, sb, 0.01, 0, roughness);
+                            if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -3)
+                            {
 
-                        }
-                        else
-                        {
-                            ustar = uTauCabot(nu, uTmag, sb, 0.01, 0);
+                            }
+                            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -2)
+                            {
+                                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
+
+                                qWall  = wm->qWall;
+                            }
+                            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -4)
+                            {
+
+                                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
+                                
+                                // find interpolation weights for surface temp
+                                PetscReal w[2];
+                                PetscInt  l[2];
+
+                                findInterpolationWeights(w, l, wm->timeVec, wm->numT, clock->time);
+
+                                //interpolate the surface temperature from closest available mesoscale times
+                                PetscReal surfaceTemp = w[0] * wm->surfTemp[l[0]] + w[1] * wm->surfTemp[l[1]];
+                                PetscReal surfaceL;
+
+                                PetscReal deltaTheta = bPtTemp - surfaceTemp;
+                                PetscReal phiM, phiH;
+                                
+                                qWallShumann
+                                (
+                                    uTmag, sb, wm->roughness,
+                                    wm->gammaM, wm->gammaH, wm->alphaH,
+                                    wm->thetaRef, deltaTheta, wm->kappa,
+                                    qWall, ustar, phiM, phiH, surfaceL
+                                );
+
+                                // if(i  == 5 && k == 5 && j == 5)
+                                //     PetscPrintf(PETSC_COMM_SELF, "surfTemp = %lf, L = %lf, bPtTemp = %lf, deltaTheta = %lf, qWall = %lf, ustar = %lf, utmag = %lf, walldist = %lf, wts = %lf %lf, ind = %ld\n", surfaceTemp, surfaceL, bPtTemp, deltaTheta, qWall, ustar, uTmag, sb, w[0], w[1], l[0]);
+                            }
                         }
                     }
-                    else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
-                    {
-                        Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
 
-                        ustar = uTmag * wm->kappa / std::log(sb/wm->roughness);
+                    if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
+                    {
+                        if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                        {
+                            PetscReal roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot->roughness;
+
+                            if(roughness > 1.0e-12)
+                            {
+                                ustar = uTauCabotRoughness(nu, uTmag, sb, 0.01, 0, roughness);
+
+                            }
+                            else
+                            {
+                                ustar = uTauCabot(nu, uTmag, sb, 0.01, 0);
+                            }
+                        }
+                        else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+                        {
+                            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
+                            PetscReal phiM, L;
+
+                            uStarShumann
+                            (
+                                uTmag, sb, wm->roughness,
+                                wm->gammaM, wm->kappa, qWall, wm->thetaRef,
+                                ustar, phiM, L
+                            );
+
+                            // if(i  == 5 && k == 5 && j == 5)
+                            //     PetscPrintf(PETSC_COMM_SELF, "qWall = %lf, ustar = %lf, utmag = %lf, walldist = %lf\n", qWall, ustar, uTmag, sb);
+
+                        }
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall shear model is on but velocity BC is not set to velocityWallFunction\n");
+                        fatalErrorInFunction("findIBMWallShearChester", error);
                     }
 
                     //local co-ordinate system
@@ -4458,18 +5852,36 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                         visc3[k][j][i].x = tau11* kzet[k1][j1][i1].x + tau12 * kzet[k1][j1][i1].y + tau13 * kzet[k1][j1][i1].z;
                         visc3[k][j][i].y = tau21* kzet[k1][j1][i1].x + tau22 * kzet[k1][j1][i1].y + tau23 * kzet[k1][j1][i1].z;
                         visc3[k][j][i].z = tau31* kzet[k1][j1][i1].x + tau32 * kzet[k1][j1][i1].y + tau33 * kzet[k1][j1][i1].z;
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].z = qFlux.x * kzet[k1][j1][i1].x + qFlux.y * kzet[k1][j1][i1].y + qFlux.z * kzet[k1][j1][i1].z;
+                        }
                     }
                     else if(isFace == 3 || isFace == 4)
                     {
                         visc2[k][j][i].x = tau11* jeta[k1][j1][i1].x + tau12 * jeta[k1][j1][i1].y + tau13 * jeta[k1][j1][i1].z;
                         visc2[k][j][i].y = tau21* jeta[k1][j1][i1].x + tau22 * jeta[k1][j1][i1].y + tau23 * jeta[k1][j1][i1].z;
                         visc2[k][j][i].z = tau31* jeta[k1][j1][i1].x + tau32 * jeta[k1][j1][i1].y + tau33 * jeta[k1][j1][i1].z;
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].y = qFlux.x * jeta[k1][j1][i1].x + qFlux.y * jeta[k1][j1][i1].y + qFlux.z * jeta[k1][j1][i1].z;
+                        }
                     }
                     else if(isFace == 5 || isFace == 6)
                     {
                         visc1[k][j][i].x = tau11* icsi[k1][j1][i1].x + tau12 * icsi[k1][j1][i1].y + tau13 * icsi[k1][j1][i1].z;
                         visc1[k][j][i].y = tau21* icsi[k1][j1][i1].x + tau22 * icsi[k1][j1][i1].y + tau23 * icsi[k1][j1][i1].z;
                         visc1[k][j][i].z = tau31* icsi[k1][j1][i1].x + tau32 * icsi[k1][j1][i1].y + tau33 * icsi[k1][j1][i1].z;
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].x = qFlux.x * icsi[k1][j1][i1].x + qFlux.y * icsi[k1][j1][i1].y + qFlux.z * icsi[k1][j1][i1].z;
+                        }
                     }
 
                 }
@@ -4510,6 +5922,14 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
         DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
     }
 
+    if (flags->isTeqnActive)
+    {
+        DMDAVecRestoreArray(fda, teqn->lViscIBMT, &viscT);
+        DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+        DMLocalToLocalBegin(fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);
+        DMLocalToLocalEnd  (fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);
+    }
+
     DMLocalToLocalBegin(fda, ueqn->lViscIBM1, INSERT_VALUES, ueqn->lViscIBM1);
     DMLocalToLocalEnd  (fda, ueqn->lViscIBM1, INSERT_VALUES, ueqn->lViscIBM1);
     DMLocalToLocalBegin(fda, ueqn->lViscIBM2, INSERT_VALUES, ueqn->lViscIBM2);
@@ -4525,9 +5945,11 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 {
     mesh_         *mesh  = ibm->access->mesh;
     ueqn_         *ueqn  = ibm->access->ueqn;
+    teqn_         *teqn  = ibm->access->teqn;
     les_          *les   = ibm->access->les;
     clock_        *clock = ibm->access->clock;
     constants_    *cst   = ibm->access->constants;
+    flags_        *flags = ibm->access->flags;
 
     DM            da    = mesh->da, fda = mesh->fda;
     DMDALocalInfo info  = mesh->info;
@@ -4546,7 +5968,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     PetscReal     dxdc, dxde, dxdz, dydc, dyde, dydz, dzdc, dzde, dzdz;
     PetscReal     dudc, dude, dudz, dvdc, dvde, dvdz, dwdc, dwde, dwdz;      // velocity der. w.r.t. curvil. coords
 
-    PetscReal     nu = cst->nu, nut, uTmag, ustar, cellSize;
+    PetscReal     nu = cst->nu, nut, uTmag, ustar, cellSize, elemDist;
     PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2, ajc;      // surface area vectors components
 
     PetscReal     g11, g21, g31;                                             // metric tensor components
@@ -4562,7 +5984,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     cellIds       initCp;
     Vec           Coor;
     Cmpnts        ***coor, ***ucat, ***cent, ibmPtVel;
-    Cmpnts        ***visc1, ***visc2, ***visc3;
+    Cmpnts        ***visc1, ***visc2, ***visc3, ***viscT;
 
     Cmpnts	      ***icsi, ***ieta, ***izet;
 	Cmpnts	      ***jcsi, ***jeta, ***jzet;
@@ -4571,7 +5993,8 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     Cmpnts        uC, uN, uT, uB;                          // background point velocity, its normal and tangential components
     Cmpnts        bPtVel, bPt, bPtInit;
     Cmpnts        eN, eT1, eT2;                          // local wall normal co-ordinate system
-    PetscReal     ***nvert, ***iaj, ***jaj, ***kaj, ***aj, ***lnu_t;
+    PetscReal     ***nvert, ***iaj, ***jaj, ***kaj, ***aj, ***lt, ***lnu_t;
+    PetscReal     bPtTemp;
 
     //local pointer for ibmFluidCells
     ibmFluidCell  *ibF = ibm->ibmFCells;
@@ -4589,6 +6012,11 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     VecSet(ueqn->lViscIBM2,  0.0);
     VecSet(ueqn->lViscIBM3,  0.0);
 
+    if(flags->isTeqnActive)
+    {
+        VecSet(teqn->lViscIBMT,  0.0);
+    }
+
     DMGetCoordinatesLocal(da, &Coor);
     DMDAVecGetArray(fda, Coor, &coor);
 
@@ -4600,6 +6028,12 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     DMDAVecGetArray(fda, ueqn->lViscIBM1, &visc1);
     DMDAVecGetArray(fda, ueqn->lViscIBM2, &visc2);
     DMDAVecGetArray(fda, ueqn->lViscIBM3, &visc3);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecGetArray(fda, teqn->lViscIBMT, &viscT);
+        DMDAVecGetArray(da, teqn->lTmprt, &lt);
+    }
 
     DMDAVecGetArray(fda, mesh->lICsi, &icsi);
 	DMDAVecGetArray(fda, mesh->lIEta, &ieta);
@@ -4637,13 +6071,18 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
         PetscInt      cElem = ibF[c].closestElem;
         Cmpnts	      eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
-        PetscReal     tauWall, sb;
+        PetscReal     tauWall, sb, qWall = 0;
+        Cmpnts        qFlux;
 
         //find the distance from the wall where velocity is interpolated
         //a uniform distance from the wall is chosen for all ibm fluid points to prevent instabilities due to the stair step structure
-        cellSize = pow( 1./aj[k][j][i], 1./3.);
-        bPt = nScale(2.0 * cellSize, eNorm);
-        mSum(bPt, ibF[c].pMin);
+        cellSize = ibm->interpDist;
+
+        // distance from cell to the IBM element
+        elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
+
+        bPt = nScale(cellSize + elemDist, eNorm);        
+        mSum(bPt, cent[k][j][i]);
 
         //check the neighbourhood of current ibm fluid cell for fluid cells
         //find the fluid - ibm fluid cell interface faces
@@ -4882,6 +6321,19 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                                     ucat,
                                     bPtVel
                             );
+
+                            if(flags->isTeqnActive)
+                            {
+                                scalarPointLocalVolumeInterpolation
+                                (
+                                        mesh,
+                                        bPt.x, bPt.y, bPt.z,
+                                        ic, jc, kc,
+                                        cent,
+                                        lt,
+                                        bPtTemp
+                                );
+                            }
                         }
                     }
 
@@ -4890,6 +6342,11 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                     {
                         bPtVel = nSet(ucat[initCp.k][initCp.j][initCp.i]);
 
+                        if(flags->isTeqnActive)
+                        {
+                            bPtTemp = lt[initCp.k][initCp.j][initCp.i];
+                        }
+
                         bPt = nSet(bPtInit);
 
                         ic = initCp.i;
@@ -4897,6 +6354,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                         kc = initCp.k;
                     }
 
+                    // distance of background point from the wall
                     sb = nDot(nSub(bPt, ibF[c].pMin), eNorm);
 
                     //velocity in local co-ordinate system
@@ -4905,26 +6363,83 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                     uT = nSub(bPtVel, uN);
                     uTmag = nMag(uT);
 
-
-                    if (ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                    if (flags->isTeqnActive)
                     {
-                        PetscReal roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmCabot->roughness;
-
-                        if(roughness > 1.0e-12)
+                        if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
                         {
-                            ustar = uTauCabotRoughness(nu, uTmag, sb, 0.01, 0, roughness);
+                            if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -3)
+                            {
 
-                        }
-                        else
-                        {
-                            ustar = uTauCabot(nu, uTmag, sb, 0.01, 0);
+                            }
+                            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -2)
+                            {
+                                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
+
+                                qWall  = wm->qWall;
+                            }
+                            else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT == -4)
+                            {
+
+                                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
+
+                                // find interpolation weights for surface temp
+                                PetscReal w[2];
+                                PetscInt  l[2];
+
+                                findInterpolationWeights(w, l, wm->timeVec, wm->numT, clock->time);
+
+                                //interpolate the surface temperature from closest available mesoscale times
+                                PetscReal surfaceTemp = w[0] * wm->surfTemp[l[0]] + w[1] * wm->surfTemp[l[1]];
+                                PetscReal surfaceL;
+
+                                PetscReal deltaTheta = bPtTemp - surfaceTemp;
+                                PetscReal phiM, phiH;
+                                
+                                qWallShumann
+                                (
+                                    uTmag, sb, wm->roughness,
+                                    wm->gammaM, wm->gammaH, wm->alphaH,
+                                    wm->thetaRef, deltaTheta, wm->kappa,
+                                    qWall, ustar, phiM, phiH, surfaceL
+                                );
+                            }
                         }
                     }
-                    else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
-                    {
-                        Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
 
-                        ustar = uTmag * wm->kappa / std::log(sb/wm->roughness);
+                    if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
+                    {
+                        if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                        {
+                            PetscReal roughness = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot->roughness;
+
+                            if(roughness > 1.0e-12)
+                            {
+                                ustar = uTauCabotRoughness(nu, uTmag, sb, 0.01, 0, roughness);
+
+                            }
+                            else
+                            {
+                                ustar = uTauCabot(nu, uTmag, sb, 0.01, 0);
+                            }
+                        }
+                        else if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+                        {
+                            Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
+                            PetscReal phiM, L;
+
+                            uStarShumann
+                            (
+                                uTmag, sb, wm->roughness,
+                                wm->gammaM, wm->kappa, qWall, wm->thetaRef,
+                                ustar, phiM, L
+                            );
+                        }
+                    }
+                    else
+                    {
+                        char error[512];
+                        sprintf(error, "wall shear model is on but velocity BC is not set to velocityWallFunction\n");
+                        fatalErrorInFunction("findIBMWallShear", error);
                     }
 
                     //local co-ordinate system
@@ -4974,11 +6489,15 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
                         nut = lnu_t[k11][j11][i11];
 
-                        if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
                         {
-                            //replace dut1dn
-                            dut1dn = tauWall/(nu + nut) ;
+                            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3 || ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                            {
+                                //replace dut1dn
+                                dut1dn = tauWall/(nu + nut) ;
+                            }
                         }
+
 
                         //compute the transformation jacobian
                         Comput_JacobTensor_i
@@ -5017,6 +6536,13 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                         visc1[k][j][i].x = (g11 * dudc + g21 * dude + g31 * dudz + r11 * csi0 + r21 * csi1 + r31 * csi2) * ajc * (nut + nu);
                         visc1[k][j][i].y = (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * csi0 + r22 * csi1 + r32 * csi2) * ajc * (nut + nu);
                         visc1[k][j][i].z = (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nut + nu);
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].x = qFlux.x * icsi[k1][j1][i1].x + qFlux.y * icsi[k1][j1][i1].y + qFlux.z * icsi[k1][j1][i1].z;
+                        }
+
                     }
                     else if(isFace == 3 || isFace == 4)
                     {
@@ -5058,10 +6584,13 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
                         nut = lnu_t[k11][j11][i11];
 
-                        if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
                         {
-                            //replace dut1dn
-                            dut1dn = tauWall/(nu + nut);
+                            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3 || ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                            {
+                                //replace dut1dn
+                                dut1dn = tauWall/(nu + nut) ;
+                            }
                         }
 
                         //compute the transformation jacobian
@@ -5101,6 +6630,12 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                         visc2[k][j][i].x = (g11 * dudc + g21 * dude + g31 * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nut + nu);
                         visc2[k][j][i].y = (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nut + nu);
                         visc2[k][j][i].z = (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nut + nu);
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].y = qFlux.x * jeta[k1][j1][i1].x + qFlux.y * jeta[k1][j1][i1].y + qFlux.z * jeta[k1][j1][i1].z;
+                        }
 
                     }
                     else if(isFace == 1 || isFace == 2)
@@ -5143,10 +6678,13 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
                         nut = lnu_t[k11][j11][i11];
 
-                        if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann" || ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Cabot")
+                        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
                         {
-                            //replace dut1dn
-                            dut1dn = tauWall/(nu + nut);
+                            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3 || ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+                            {
+                                //replace dut1dn
+                                dut1dn = tauWall/(nu + nut) ;
+                            }
                         }
 
                         //compute the transformation jacobian
@@ -5186,6 +6724,12 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                         visc3[k][j][i].x = (g11 * dudc + g21 * dude + g31 * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nut + nu);
                         visc3[k][j][i].y = (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nut + nu);
                         visc3[k][j][i].z = (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nut + nu);
+
+                        if (flags->isTeqnActive)
+                        {
+                            qFlux = nScale(-qWall, eNorm);
+                            viscT[k][j][i].z = qFlux.x * kzet[k1][j1][i1].x + qFlux.y * kzet[k1][j1][i1].y + qFlux.z * kzet[k1][j1][i1].z;
+                        }
                     }
 
 
@@ -5227,6 +6771,15 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
         DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
     }
 
+    if (flags->isTeqnActive)
+    {
+        DMDAVecRestoreArray(fda, teqn->lViscIBMT, &viscT);
+        DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+        DMLocalToLocalBegin(fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);
+        DMLocalToLocalEnd  (fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);
+    }
+
+
     DMLocalToLocalBegin(fda, ueqn->lViscIBM1, INSERT_VALUES, ueqn->lViscIBM1);
     DMLocalToLocalEnd  (fda, ueqn->lViscIBM1, INSERT_VALUES, ueqn->lViscIBM1);
     DMLocalToLocalBegin(fda, ueqn->lViscIBM2, INSERT_VALUES, ueqn->lViscIBM2);
@@ -5240,492 +6793,614 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 //***************************************************************************************************************//
 PetscErrorCode ibmSearch(ibm_ *ibm)
 {
-  mesh_         *mesh = ibm->access->mesh;
-  clock_        *clock = ibm->access->clock;
-  DM            da    = mesh->da, fda = mesh->fda;
-  DMDALocalInfo info  = mesh->info;
-  PetscInt      xs    = info.xs, xe = info.xs + info.xm;
-  PetscInt      ys    = info.ys, ye = info.ys + info.ym;
-  PetscInt      zs    = info.zs, ze = info.zs + info.zm;
-  PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+    mesh_         *mesh = ibm->access->mesh;
+    clock_        *clock = ibm->access->clock;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
 
-  PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
-  PetscInt      i, j, k, b, k1, j1, i1;
-  PetscInt      ip, im, jp, jm, kp, km;
-  PetscInt      ii, jj, kk;
-  PetscMPIInt   rank, nProcs;
+    PetscInt      i, j, k, b, k1, j1, i1;
+    PetscInt      ip, im, jp, jm, kp, km;
+    PetscInt      ii, jj, kk;
+    PetscMPIInt   rank, nProcs;
 
-  cellIds       sCell;
+    cellIds       sCell;
 
-  Vec           lCoor;
+    Vec           lCoor;
 
-  PetscReal     ***nvert, ***nvert_o, ***gnvert, ***nvertFixed;
-  Cmpnts        ***cent, ***coor;
+    PetscReal     ***nvert, ***nvert_o, ***gnvert, ***nvertFixed;
+    Cmpnts        ***cent, ***coor;
 
-  lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
-  lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
-  lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
 
-  MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
-  MPI_Comm_size(PETSC_COMM_WORLD, &nProcs);
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    MPI_Comm_size(mesh->MESH_COMM, &nProcs);
 
-  // loop through the ibm bodies
-  for(b = 0; b < ibm->numBodies; b++)
-  {
-
-    boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
-    ibmMesh       *ibMsh = ibm->ibmBody[b]->ibMsh;                         // pointer to the ibm body mesh
-
-    searchBox *sBox           = &(ibm->sBox[b]);
-    list      *searchCellList = ibm->ibmBody[b]->searchCellList;
-
-    if(ibm->ibmBody[b]->thinBody)
+    // loop through the ibm bodies
+    for(b = 0; b < ibm->numBodies; b++)
     {
-        DMDAVecGetArray(fda, mesh->lCent, &cent);
-        DMDAVecGetArray(da, mesh->lNvert, &nvert);
-        DMDAVecGetArray(da, mesh->lNvert_o, &nvert_o);
 
-        // get mesh coordinates
-        DMGetCoordinatesLocal(da, &lCoor);
-        DMDAVecGetArray(fda, lCoor, &coor);
+        boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
+        ibmMesh       *ibMsh = ibm->ibmBody[b]->ibMsh;                         // pointer to the ibm body mesh
 
-        for (k = lzs; k < lze; k++)
-        for (j = lys; j < lye; j++)
-        for (i = lxs; i < lxe; i++)
+        searchBox *sBox           = &(ibm->sBox[b]);
+        list      *searchCellList = ibm->ibmBody[b]->searchCellList;
+
+        if(ibm->ibmBody[b]->thinBody)
         {
+            DMDAVecGetArray(fda, mesh->lCent, &cent);
+            DMDAVecGetArray(da, mesh->lNvert, &nvert);
+            DMDAVecGetArray(da, mesh->lNvert_o, &nvert_o);
 
-            PetscInt checkCell = 0;
+            // get mesh coordinates
+            DMGetCoordinatesLocal(da, &lCoor);
+            DMDAVecGetArray(fda, lCoor, &coor);
 
-            //loop through the co-ordinates of the cell
-            for (k1 = k-1; k1 < k+1; k1++)
-            for (j1 = j-1; j1 < j+1; j1++)
-            for (i1 = i-1; i1 < i+1; i1++)
+            for (k = lzs; k < lze; k++)
+            for (j = lys; j < lye; j++)
+            for (i = lxs; i < lxe; i++)
             {
-                // Only if the fluid mesh cell center coordinates are in the IBM bounding box
-                // a fluid mesh cell can be inside the bounding box and still not be inside the IBM body due to its shape
-                if(   coor[k1][j1][i1].x > ibBox->xmin
-                   && coor[k1][j1][i1].x < ibBox->xmax
-                   && coor[k1][j1][i1].y > ibBox->ymin
-                   && coor[k1][j1][i1].y < ibBox->ymax
-                   && coor[k1][j1][i1].z > ibBox->zmin
-                   && coor[k1][j1][i1].z < ibBox->zmax )
-                   {
-                       checkCell = 1;
-                   }
-            }
 
-            if(checkCell == 1)
-            {
-                // index of the cells neighbouring the cell i,j,k
-                ip = (i < mx - 2 ? (i + 1) : (i));
-                im = (i > 1 ? (i - 1) : (i));
+                PetscInt checkCell = 0;
 
-                jp = (j < my - 2 ? (j + 1) : (j));
-                jm = (j > 1 ? (j - 1) : (j));
-
-                kp = (k < mz - 2 ? (k + 1) : (k));
-                km = (k > 1 ? (k - 1) : (k));
-
-                PetscInt dosearch = 0, sign = 0;
-
-                //do a search if there is a change in the nvert value between the i,j,k cell and its neighbours due to IBM movement
-                for (kk = km; kk <= kp; kk++)
-                for (jj = jm; jj <= jp; jj++)
-                for (ii = im; ii <= ip; ii++)
+                //loop through the co-ordinates of the cell
+                for (k1 = k-1; k1 < k+1; k1++)
+                for (j1 = j-1; j1 < j+1; j1++)
+                for (i1 = i-1; i1 < i+1; i1++)
                 {
-                    PetscReal sign = nvert_o[k][j][i] - nvert_o[kk][jj][ii];
-                    if (fabs(sign) > 1.e-6)
+                    // Only if the fluid mesh cell center coordinates are in the IBM bounding box
+                    // a fluid mesh cell can be inside the bounding box and still not be inside the IBM body due to its shape
+                    if(   coor[k1][j1][i1].x > ibBox->xmin
+                    && coor[k1][j1][i1].x < ibBox->xmax
+                    && coor[k1][j1][i1].y > ibBox->ymin
+                    && coor[k1][j1][i1].y < ibBox->ymax
+                    && coor[k1][j1][i1].z > ibBox->zmin
+                    && coor[k1][j1][i1].z < ibBox->zmax )
                     {
-                      dosearch += 1;
+                        checkCell = 1;
                     }
                 }
 
-               if ( (dosearch && ibm->ibmBody[b]->bodyMotion != "static") || (clock->it == clock->itStart))
-               {
+                if(checkCell == 1)
+                {
+                    // index of the cells neighbouring the cell i,j,k
+                    ip = (i < mx - 2 ? (i + 1) : (i));
+                    im = (i > 1 ? (i - 1) : (i));
 
-                    PetscReal val = 0, valPrev = 0;
-                    PetscInt  ctr = 1;
-                    PetscInt  bdaryCell = 0;
+                    jp = (j < my - 2 ? (j + 1) : (j));
+                    jm = (j > 1 ? (j - 1) : (j));
 
-                    // do the ray casting test to check if a cell is inside or outside an IBM body
-                    //ray casting for all the co-ordinates of the cell borders
-                    //loop through the co-ordinates of the cell
-                    for (k1 = k-1; k1 < k+1; k1++)
+                    kp = (k < mz - 2 ? (k + 1) : (k));
+                    km = (k > 1 ? (k - 1) : (k));
+
+                    PetscInt dosearch = 0, sign = 0;
+
+                    //do a search if there is a change in the nvert value between the i,j,k cell and its neighbours due to IBM movement
+                    for (kk = km; kk <= kp; kk++)
+                    for (jj = jm; jj <= jp; jj++)
+                    for (ii = im; ii <= ip; ii++)
                     {
-                        for (j1 = j-1; j1 < j+1; j1++)
+                        PetscReal sign = nvert_o[k][j][i] - nvert_o[kk][jj][ii];
+                        if (fabs(sign) > 1.e-6)
                         {
-                            for (i1 = i-1; i1 < i+1; i1++)
+                        dosearch += 1;
+                        }
+                    }
+
+                if ( (dosearch && ibm->ibmBody[b]->bodyMotion != "static") || (clock->it == clock->itStart))
+                {
+
+                        PetscReal val = 0, valPrev = 0;
+                        PetscInt  ctr = 1;
+                        PetscInt  bdaryCell = 0;
+
+                        // do the ray casting test to check if a cell is inside or outside an IBM body
+                        //ray casting for all the co-ordinates of the cell borders
+                        //loop through the co-ordinates of the cell
+                        for (k1 = k-1; k1 < k+1; k1++)
+                        {
+                            for (j1 = j-1; j1 < j+1; j1++)
                             {
-                                // find the search cell were the fluid node is located
-                                sCell.i = floor((coor[k1][j1][i1].x - ibBox->xmin) / sBox->dcx);
-                                sCell.j = floor((coor[k1][j1][i1].y - ibBox->ymin) / sBox->dcy);
-                                sCell.k = floor((coor[k1][j1][i1].z - ibBox->zmin) / sBox->dcz);
-
-
-                                if(sCell.i < 0) sCell.i = 0;
-                                if(sCell.i > sBox->ncx-1) sCell.i = sBox->ncx-1;
-                                if(sCell.j < 0) sCell.j = 0;
-                                if(sCell.j > sBox->ncy-1) sCell.j = sBox->ncy-1;
-                                if(sCell.k < 0) sCell.k = 0;
-                                if(sCell.k > sBox->ncz-1) sCell.k = sBox->ncz-1;
-
-                                //save previous value
-                                valPrev = val;
-
-                                val = rayCastingTest(coor[k1][j1][i1], ibMsh, sCell, sBox, ibBox, searchCellList);
-
-                                //skip initial iteration of loop
-                                if(ctr != 1)
+                                for (i1 = i-1; i1 < i+1; i1++)
                                 {
-                                    //if one of the co-ordinates is outside and other is inside the body, then it is a boundary cell
-                                    if(valPrev!=val)
+                                    // find the search cell were the fluid node is located
+                                    sCell.i = floor((coor[k1][j1][i1].x - ibBox->xmin) / sBox->dcx);
+                                    sCell.j = floor((coor[k1][j1][i1].y - ibBox->ymin) / sBox->dcy);
+                                    sCell.k = floor((coor[k1][j1][i1].z - ibBox->zmin) / sBox->dcz);
+
+
+                                    if(sCell.i < 0) sCell.i = 0;
+                                    if(sCell.i > sBox->ncx-1) sCell.i = sBox->ncx-1;
+                                    if(sCell.j < 0) sCell.j = 0;
+                                    if(sCell.j > sBox->ncy-1) sCell.j = sBox->ncy-1;
+                                    if(sCell.k < 0) sCell.k = 0;
+                                    if(sCell.k > sBox->ncz-1) sCell.k = sBox->ncz-1;
+
+                                    //save previous value
+                                    valPrev = val;
+
+                                    val = rayCastingTest(coor[k1][j1][i1], ibMsh, sCell, sBox, ibBox, searchCellList);
+
+                                    //skip initial iteration of loop
+                                    if(ctr != 1)
                                     {
-                                        bdaryCell = 1;
-                                        break;
+                                        //if one of the co-ordinates is outside and other is inside the body, then it is a boundary cell
+                                        if(valPrev!=val)
+                                        {
+                                            bdaryCell = 1;
+                                            break;
+                                        }
                                     }
+
+                                    ctr++;
                                 }
 
-                                ctr++;
+                                if(bdaryCell) break;
                             }
 
                             if(bdaryCell) break;
                         }
 
-                        if(bdaryCell) break;
+
+                        if(bdaryCell)
+                        {
+                            // find the search cell were the fluid node is located
+                            sCell.i = floor((cent[k][j][i].x - ibBox->xmin) / sBox->dcx);
+                            sCell.j = floor((cent[k][j][i].y - ibBox->ymin) / sBox->dcy);
+                            sCell.k = floor((cent[k][j][i].z - ibBox->zmin) / sBox->dcz);
+
+
+                            if(sCell.i < 0) sCell.i = 0;
+                            if(sCell.i > sBox->ncx-1) sCell.i = sBox->ncx-1;
+                            if(sCell.j < 0) sCell.j = 0;
+                            if(sCell.j > sBox->ncy-1) sCell.j = sBox->ncy-1;
+                            if(sCell.k < 0) sCell.k = 0;
+                            if(sCell.k > sBox->ncz-1) sCell.k = sBox->ncz-1;
+
+                            //check again now for the cell center
+                            val = rayCastingTest(cent[k][j][i], ibMsh, sCell, sBox, ibBox, searchCellList);
+
+                            if(val == 4.0)
+                            {
+                                //boundary cell is solid
+                            }
+                            else
+                            {
+                                //boundary cell is fluid. set to ibm fluid
+                                val = 2.0;
+                            }
+                        }
+
+                        nvert[k][j][i] = PetscMax(nvert[k][j][i], val);
+                }
+                else
+                {   // set nvert to old value
+                        nvert[k][j][i] = nvert_o[k][j][i];
+
+                        if (PetscInt (nvert[k][j][i]+0.5) ==3)
+                            nvert[k][j][i] = 4;             // only inside solid is set, here = 4
+                        if (PetscInt (nvert[k][j][i]+0.5) ==1)
+                            nvert[k][j][i] = 2;             // near boundary values are set to 0 and need to be recalculated
+
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+            DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+            DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
+
+            MPI_Barrier(mesh->MESH_COMM);
+
+            DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+            DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+
+            DMDAVecRestoreArray(fda, lCoor, &coor);
+
+        }
+        else
+        {
+            DMDAVecGetArray(fda, mesh->lCent, &cent);
+            DMDAVecGetArray(da, mesh->lNvert, &nvert);
+            DMDAVecGetArray(da, mesh->lNvert_o, &nvert_o);
+            DMDAVecGetArray(da, ibm->lNvertFixed, &nvertFixed);
+
+            for (k = lzs; k < lze; k++)
+            for (j = lys; j < lye; j++)
+            for (i = lxs; i < lxe; i++)
+            {
+
+            // Only if the fluid mesh cell center coordinates are in the IBM bounding box
+            // a fluid mesh cell can be inside the bounding box and still not be inside the IBM body due to its shape
+            if(cent[k][j][i].x > ibBox->xmin
+                && cent[k][j][i].x < ibBox->xmax
+                && cent[k][j][i].y > ibBox->ymin
+                && cent[k][j][i].y < ibBox->ymax
+                && cent[k][j][i].z > ibBox->zmin
+                && cent[k][j][i].z < ibBox->zmax )
+                {
+
+                    // index of the cells neighbouring the cell i,j,k
+                    ip = (i < mx - 2 ? (i + 1) : (i));
+                    im = (i > 1 ? (i - 1) : (i));
+
+                    jp = (j < my - 2 ? (j + 1) : (j));
+                    jm = (j > 1 ? (j - 1) : (j));
+
+                    kp = (k < mz - 2 ? (k + 1) : (k));
+                    km = (k > 1 ? (k - 1) : (k));
+
+                    PetscInt dosearch = 0, sign = 0;
+
+                    //do a search if there is a change in the nvert value between the i,j,k cell and its neighbours due to IBM movement
+                    for (kk = km; kk <= kp; kk++)
+                    for (jj = jm; jj <= jp; jj++)
+                    for (ii = im; ii <= ip; ii++)
+                    {
+                        PetscReal sign = nvert_o[k][j][i] - nvert_o[kk][jj][ii];
+                        if (fabs(sign) > 1.e-6)
+                        {
+                        dosearch += 1;
+                        }
                     }
 
-
-                    if(bdaryCell)
-                    {
+                if ( (dosearch && ibm->ibmBody[b]->bodyMotion != "static") || (clock->it == clock->itStart))
+                {
                         // find the search cell were the fluid node is located
                         sCell.i = floor((cent[k][j][i].x - ibBox->xmin) / sBox->dcx);
                         sCell.j = floor((cent[k][j][i].y - ibBox->ymin) / sBox->dcy);
                         sCell.k = floor((cent[k][j][i].z - ibBox->zmin) / sBox->dcz);
 
-
-                        if(sCell.i < 0) sCell.i = 0;
-                        if(sCell.i > sBox->ncx-1) sCell.i = sBox->ncx-1;
-                        if(sCell.j < 0) sCell.j = 0;
-                        if(sCell.j > sBox->ncy-1) sCell.j = sBox->ncy-1;
-                        if(sCell.k < 0) sCell.k = 0;
-                        if(sCell.k > sBox->ncz-1) sCell.k = sBox->ncz-1;
-
-                        //check again now for the cell center
+                        // do the ray casting test to check if a cell is inside or outside an IBM body
+                        PetscReal val;
                         val = rayCastingTest(cent[k][j][i], ibMsh, sCell, sBox, ibBox, searchCellList);
+                        nvert[k][j][i] = PetscMax(nvert[k][j][i], val);
 
-                        if(val == 4.0)
+                        //save the nvert for static bodies
+                        if( (clock->it == clock->itStart) && (ibm->ibmBody[b]->bodyMotion == "static"))
                         {
-                            //boundary cell is solid
+                            nvertFixed[k][j][i] = PetscMax(nvertFixed[k][j][i], val);
+                        }
+
+                }
+                else
+                    {
+                        if(ibm->ibmBody[b]->bodyMotion == "static")
+                        {
+                            nvert[k][j][i] = PetscMax(nvertFixed[k][j][i], nvert[k][j][i]);
                         }
                         else
                         {
-                            //boundary cell is fluid. set to ibm fluid
-                            val = 2.0;
+                            nvert[k][j][i] = nvert_o[k][j][i];
+                        }
+
+                        if (PetscInt (nvert[k][j][i]+0.5) ==3)
+                            nvert[k][j][i] = 4;             // only inside solid is set, here = 4
+                        if (PetscInt (nvert[k][j][i]+0.5) ==1)
+                            nvert[k][j][i] = 0;             // near boundary values are set to 0 and need to be recalculated
+
+                }
+                }
+            }
+
+            DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+            DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+            DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
+            DMDAVecRestoreArray(da, ibm->lNvertFixed, &nvertFixed);
+
+            MPI_Barrier(mesh->MESH_COMM);
+
+            DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+            DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+        }
+
+        // set nvert at solid fluid intersection IB Nodes
+        DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+        if(ibm->wallShearOn)
+        {
+            for (k = lzs; k < lze; k++)
+            for (j = lys; j < lye; j++)
+            for (i = lxs; i < lxe; i++)
+            {
+
+                if (nvert[k][j][i] < 0)
+                {
+                    nvert[k][j][i] = 0;
+                }
+
+                ip = (i < mx - 1 ? (i + 1) : (i));
+                im = (i > 0 ? (i - 1) : (i));
+
+                jp = (j < my - 1 ? (j + 1) : (j));
+                jm = (j > 0 ? (j - 1) : (j));
+
+                kp = (k < mz - 1 ? (k + 1) : (k));
+                km = (k > 0 ? (k - 1) : (k));
+
+                //only cells that share a face with ibm solid are made ibm fluid
+                if ((PetscInt) (nvert[k][j][i] + 0.5) != 0)
+                {
+                    for (kk = km; kk < kp + 1; kk++)
+                    for (jj = jm; jj < jp + 1; jj++)
+                    for (ii = im; ii < ip + 1; ii++)
+                    {
+                        if ((PetscInt) (nvert[kk][jj][ii] + 0.5) == 0)
+                        {
+                            if(kk == k+1 && jj == j && ii == i)
+                            {
+                                nvert[k][j][i] = 2.0;
+                            }
+                            else if(kk == k-1 && jj == j && ii == i)
+                            {
+                                nvert[k][j][i] = 2.0;
+                            }
+                            else if(kk == k && jj == j+1 && ii == i)
+                            {
+                                nvert[k][j][i] = 2.0;
+                            }
+                            else if(kk == k && jj == j-1 && ii == i)
+                            {
+                                nvert[k][j][i] = 2.0;
+                            }
+                            else if(kk == k && jj == j && ii == i+1)
+                            {
+                                nvert[k][j][i] = 2.0;
+                            }
+                            else if(kk == k && jj == j && ii == i-1)
+                            {
+                                nvert[k][j][i] = 2.0;
+                            }
                         }
                     }
-
-                    nvert[k][j][i] = PetscMax(nvert[k][j][i], val);
-               }
-               else
-               {   // set nvert to old value
-                    nvert[k][j][i] = nvert_o[k][j][i];
-
-                    if (PetscInt (nvert[k][j][i]+0.5) ==3)
-                        nvert[k][j][i] = 4;             // only inside solid is set, here = 4
-                    if (PetscInt (nvert[k][j][i]+0.5) ==1)
-                        nvert[k][j][i] = 2;             // near boundary values are set to 0 and need to be recalculated
-
                 }
             }
         }
+        else
+        {
+            for (k = lzs; k < lze; k++)
+            for (j = lys; j < lye; j++)
+            for (i = lxs; i < lxe; i++)
+            {
 
-        DMDAVecRestoreArray(fda, mesh->lCent, &cent);
-        DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-        DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
+                if (nvert[k][j][i] < 0)
+                {
+                    nvert[k][j][i] = 0;
+                }
 
-        MPI_Barrier(mesh->MESH_COMM);
+                ip = (i < mx - 1 ? (i + 1) : (i));
+                im = (i > 0 ? (i - 1) : (i));
 
-        DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
-        DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+                jp = (j < my - 1 ? (j + 1) : (j));
+                jm = (j > 0 ? (j - 1) : (j));
 
-        DMDAVecRestoreArray(fda, lCoor, &coor);
+                kp = (k < mz - 1 ? (k + 1) : (k));
+                km = (k > 0 ? (k - 1) : (k));
 
-    }
-    else
-    {
-        DMDAVecGetArray(fda, mesh->lCent, &cent);
-        DMDAVecGetArray(da, mesh->lNvert, &nvert);
+                //only cells that share a face with ibm solid are made ibm fluid
+                if ((PetscInt) (nvert[k][j][i] + 0.5) != 4)
+                {
+                    for (kk = km; kk < kp + 1; kk++)
+                    for (jj = jm; jj < jp + 1; jj++)
+                    for (ii = im; ii < ip + 1; ii++)
+                    {
+                        if ((PetscInt) (nvert[kk][jj][ii] + 0.5) == 4)
+                        {
+                            if(kk == k+1 && jj == j && ii == i)
+                            {
+                                nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
+                            }
+                            else if(kk == k-1 && jj == j && ii == i)
+                            {
+                                nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
+                            }
+                            else if(kk == k && jj == j+1 && ii == i)
+                            {
+                                nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
+                            }
+                            else if(kk == k && jj == j-1 && ii == i)
+                            {
+                                nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
+                            }
+                            else if(kk == k && jj == j && ii == i+1)
+                            {
+                                nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
+                            }
+                            else if(kk == k && jj == j && ii == i-1)
+                            {
+                                nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
+                            }
+                        }
+                    }
+                }
+
+                // if ((PetscInt) (nvert[k][j][i] + 0.5) != 4)
+                // {
+                //     for (kk = km; kk < kp + 1; kk++)
+                //     for (jj = jm; jj < jp + 1; jj++)
+                //     for (ii = im; ii < ip + 1; ii++)
+                //     {
+                //         if ((PetscInt) (nvert[kk][jj][ii] + 0.5) == 4)
+                //         {
+                //             nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
+                //         }
+                //     }
+                // }
+            }
+        }
+
         DMDAVecGetArray(da, mesh->lNvert_o, &nvert_o);
-        DMDAVecGetArray(da, ibm->lNvertFixed, &nvertFixed);
 
+        //check for cells that change phase (solid to fluid or viceversa) without being an ibm fluid cell
+        if(b == ibm->numBodies-1)
+        {
+            for (k = lzs; k < lze; k++)
+            for (j = lys; j < lye; j++)
+            for (i = lxs; i < lxe; i++)
+            {
+                if (nvert_o[k][j][i] > 2.5 && nvert[k][j][i] < 0.5)
+                {
+                    //PetscPrintf(PETSC_COMM_SELF, "phase change for element %ld %ld %ld - nvert_o = %lf, nvert = %lf\n", k, j, i, nvert_o[k][j][i], nvert[k][j][i]);
+                    nvert[k][j][i]=2;
+                }
+            }
+        }
+
+        DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
+        DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+        DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+        DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
+
+        // nvert values of 4 for solid and 2 for IB fluid nodes where used for the current body
+        // to differentiate it from other bodies.
+        // reset back to nvert values of 3 for solid and 1 for IB fluid
+        DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+        // Back to the old nvert 3 and 1
         for (k = lzs; k < lze; k++)
         for (j = lys; j < lye; j++)
         for (i = lxs; i < lxe; i++)
         {
-
-        // Only if the fluid mesh cell center coordinates are in the IBM bounding box
-        // a fluid mesh cell can be inside the bounding box and still not be inside the IBM body due to its shape
-         if(cent[k][j][i].x > ibBox->xmin
-            && cent[k][j][i].x < ibBox->xmax
-            && cent[k][j][i].y > ibBox->ymin
-            && cent[k][j][i].y < ibBox->ymax
-            && cent[k][j][i].z > ibBox->zmin
-            && cent[k][j][i].z < ibBox->zmax )
+            if ((PetscInt) (nvert[k][j][i] + 0.5) == 2)
             {
-
-                // index of the cells neighbouring the cell i,j,k
-                ip = (i < mx - 2 ? (i + 1) : (i));
-                im = (i > 1 ? (i - 1) : (i));
-
-                jp = (j < my - 2 ? (j + 1) : (j));
-                jm = (j > 1 ? (j - 1) : (j));
-
-                kp = (k < mz - 2 ? (k + 1) : (k));
-                km = (k > 1 ? (k - 1) : (k));
-
-                PetscInt dosearch = 0, sign = 0;
-
-                //do a search if there is a change in the nvert value between the i,j,k cell and its neighbours due to IBM movement
-                for (kk = km; kk <= kp; kk++)
-                for (jj = jm; jj <= jp; jj++)
-                for (ii = im; ii <= ip; ii++)
-                {
-                    PetscReal sign = nvert_o[k][j][i] - nvert_o[kk][jj][ii];
-                    if (fabs(sign) > 1.e-6)
-                    {
-                      dosearch += 1;
-                    }
-                }
-
-               if ( (dosearch && ibm->ibmBody[b]->bodyMotion != "static") || (clock->it == clock->itStart))
-               {
-                    // find the search cell were the fluid node is located
-                    sCell.i = floor((cent[k][j][i].x - ibBox->xmin) / sBox->dcx);
-                    sCell.j = floor((cent[k][j][i].y - ibBox->ymin) / sBox->dcy);
-                    sCell.k = floor((cent[k][j][i].z - ibBox->zmin) / sBox->dcz);
-
-                    // do the ray casting test to check if a cell is inside or outside an IBM body
-                    PetscReal val;
-                    val = rayCastingTest(cent[k][j][i], ibMsh, sCell, sBox, ibBox, searchCellList);
-                    nvert[k][j][i] = PetscMax(nvert[k][j][i], val);
-
-                    //save the nvert for static bodies
-                    if( (clock->it == clock->itStart) && (ibm->ibmBody[b]->bodyMotion == "static"))
-                    {
-                        nvertFixed[k][j][i] = PetscMax(nvertFixed[k][j][i], val);
-                    }
-
-               }
-               else
-                {
-                    if(ibm->ibmBody[b]->bodyMotion == "static")
-                    {
-                        nvert[k][j][i] = PetscMax(nvertFixed[k][j][i], nvert[k][j][i]);
-                    }
-                    else
-                    {
-                        nvert[k][j][i] = nvert_o[k][j][i];
-                    }
-
-                    if (PetscInt (nvert[k][j][i]+0.5) ==3)
-                        nvert[k][j][i] = 4;             // only inside solid is set, here = 4
-                    if (PetscInt (nvert[k][j][i]+0.5) ==1)
-                        nvert[k][j][i] = 0;             // near boundary values are set to 0 and need to be recalculated
-
-               }
+                nvert[k][j][i] = 1;
             }
+            if ((PetscInt) (nvert[k][j][i] + 0.5) == 4)
+            {
+                nvert[k][j][i] = 3;
+            }
+
         }
 
-        DMDAVecRestoreArray(fda, mesh->lCent, &cent);
-        DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-        DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
-        DMDAVecRestoreArray(da, ibm->lNvertFixed, &nvertFixed);
 
-        MPI_Barrier(mesh->MESH_COMM);
+        DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
         DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
         DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
     }
 
-    // set nvert at solid fluid intersection IB Nodes
+    //ibm nvert cleanup - make solid, ibm fluid cells that dont have even one fluid cell around it
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->Nvert, &gnvert);
 
-    for (k = zs; k < ze; k++)
-    for (j = ys; j < ye; j++)
-    for (i = xs; i < xe; i++)
-    {
-
-        if (nvert[k][j][i] < 0)
-        {
-          nvert[k][j][i] = 0;
-        }
-
-        ip = (i < mx - 1 ? (i + 1) : (i));
-        im = (i > 0 ? (i - 1) : (i));
-
-        jp = (j < my - 1 ? (j + 1) : (j));
-        jm = (j > 0 ? (j - 1) : (j));
-
-        kp = (k < mz - 1 ? (k + 1) : (k));
-        km = (k > 0 ? (k - 1) : (k));
-
-        //only cells that share a face with ibm solid are made ibm fluid
-        if ((PetscInt) (nvert[k][j][i] + 0.5) != 4)
-        {
-            for (kk = km; kk < kp + 1; kk++)
-            for (jj = jm; jj < jp + 1; jj++)
-            for (ii = im; ii < ip + 1; ii++)
-            {
-                if ((PetscInt) (nvert[kk][jj][ii] + 0.5) == 4)
-                {
-                    if(kk == k+1 && jj == j && ii == i)
-                    {
-                        nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
-                    }
-                    else if(kk == k-1 && jj == j && ii == i)
-                    {
-                        nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
-                    }
-                    else if(kk == k && jj == j+1 && ii == i)
-                    {
-                        nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
-                    }
-                    else if(kk == k && jj == j-1 && ii == i)
-                    {
-                        nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
-                    }
-                    else if(kk == k && jj == j && ii == i+1)
-                    {
-                        nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
-                    }
-                    else if(kk == k && jj == j && ii == i-1)
-                    {
-                        nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
-                    }
-                }
-            }
-        }
-
-        // if ((PetscInt) (nvert[k][j][i] + 0.5) != 4)
-        // {
-        //     for (kk = km; kk < kp + 1; kk++)
-        //     for (jj = jm; jj < jp + 1; jj++)
-        //     for (ii = im; ii < ip + 1; ii++)
-        //     {
-        //         if ((PetscInt) (nvert[kk][jj][ii] + 0.5) == 4)
-        //         {
-        //             nvert[k][j][i] = PetscMax(2.0, nvert[k][j][i]);
-        //         }
-        //     }
-        // }
-
-    }
-
-    DMDAVecGetArray(da, mesh->lNvert_o, &nvert_o);
-
-    //check for cells that change phase (solid to fluid or viceversa) without being an ibm fluid cell
-    if(b == ibm->numBodies-1)
-    {
-        for (k = lzs; k < lze; k++)
-        for (j = lys; j < lye; j++)
-        for (i = lxs; i < lxe; i++)
-        {
-            if (nvert_o[k][j][i] > 2.5 && nvert[k][j][i] < 0.5)
-            {
-                //PetscPrintf(PETSC_COMM_SELF, "phase change for element %ld %ld %ld - nvert_o = %lf, nvert = %lf\n", k, j, i, nvert_o[k][j][i], nvert[k][j][i]);
-                nvert[k][j][i]=2;
-            }
-        }
-    }
-
-    DMDAVecRestoreArray(da, mesh->lNvert_o, &nvert_o);
-    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-
-    DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
-    DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
-
-    // nvert values of 4 for solid and 2 for IB fluid nodes where used for the current body
-    // to differentiate it from other bodies.
-    // reset back to nvert values of 3 for solid and 1 for IB fluid
-    DMDAVecGetArray(da, mesh->lNvert, &nvert);
-
-    // Back to the old nvert 3 and 1
     for (k = lzs; k < lze; k++)
     for (j = lys; j < lye; j++)
     for (i = lxs; i < lxe; i++)
     {
-        if ((PetscInt) (nvert[k][j][i] + 0.5) == 2)
+        PetscInt ctr = 0;
+
+        ip = (i < mx - 2 ? (i + 1) : (i));
+        im = (i > 1 ? (i - 1) : (i));
+
+        jp = (j < my - 2 ? (j + 1) : (j));
+        jm = (j > 1 ? (j - 1) : (j));
+
+        kp = (k < mz - 2 ? (k + 1) : (k));
+        km = (k > 1 ? (k - 1) : (k));
+
+        if (isIBMFluidCell(k, j, i, nvert))
         {
-            nvert[k][j][i] = 1;
-        }
-        if ((PetscInt) (nvert[k][j][i] + 0.5) == 4)
-        {
-            nvert[k][j][i] = 3;
+
+            for (kk = km; kk < kp + 1; kk++)
+            for (jj = jm; jj < jp + 1; jj++)
+            for (ii = im; ii < ip + 1; ii++)
+            {
+                if (isFluidCell(kk, jj, ii, nvert))
+                {
+                    ctr ++;
+                }
+            }
+
+            if(ctr == 0)
+            {
+                nvert[k][j][i] = 3.0;
+            }
         }
 
+        //set the global nvert
+        gnvert[k][j][i] = nvert[k][j][i];
     }
 
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->Nvert, &gnvert);
+
+    DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+    DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+
+    //apply periodicity or ghost node values
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->Nvert, &gnvert);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                PetscInt a=i, b=j, c=k, flag=0;
+
+                if(i==0)
+                {
+                    if(mesh->i_periodic)       a=mx-2, flag=1;
+                    else if(mesh->ii_periodic) a=-2, flag=1;
+                    else                      a=1, flag=1;
+                }
+                if(i==mx-1)
+                {
+                    if(mesh->i_periodic)       a=1, flag=1;
+                    else if(mesh->ii_periodic) a=mx+1, flag=1;
+                    else                      a=mx-2, flag=1;
+                }
+                if(j==0)
+                {
+                    if(mesh->j_periodic)       b=my-2, flag=1;
+                    else if(mesh->jj_periodic) b=-2, flag=1;
+                    else                      b=1, flag=1;
+                }
+                if(j==my-1)
+                {
+                    if(mesh->j_periodic)       b=1, flag=1;
+                    else if(mesh->jj_periodic) b=my+1, flag=1;
+                    else                      b=my-2, flag=1;
+                }
+                if(k==0)
+                {
+                    if(mesh->k_periodic)       c=mz-2, flag=1;
+                    else if(mesh->kk_periodic) c=-2, flag=1;
+                    else                      c=1, flag=1;
+                }
+                if(k==mz-1)
+                {
+                    if(mesh->k_periodic)       c=1, flag=1;
+                    else if(mesh->kk_periodic) c=mz+1, flag=1;
+                    else                      c=mz-2, flag=1;
+                }
+
+                if(flag)
+                {
+                    gnvert[k][j][i] = nvert[c][b][a];
+                }
+            }
+        }
+    }
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->Nvert, &gnvert);
 
-    DMLocalToLocalBegin(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
-    DMLocalToLocalEnd(da, mesh->lNvert, INSERT_VALUES, mesh->lNvert);
-  }
+    DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
+    DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
 
-  //ibm nvert cleanup - make solid, ibm fluid cells that dont have even one fluid cell around it
-  DMDAVecGetArray(da, mesh->lNvert, &nvert);
-  DMDAVecGetArray(da, mesh->Nvert, &gnvert);
-
-  for (k = lzs; k < lze; k++)
-  for (j = lys; j < lye; j++)
-  for (i = lxs; i < lxe; i++)
-  {
-      PetscInt ctr = 0;
-
-      ip = (i < mx - 2 ? (i + 1) : (i));
-      im = (i > 1 ? (i - 1) : (i));
-
-      jp = (j < my - 2 ? (j + 1) : (j));
-      jm = (j > 1 ? (j - 1) : (j));
-
-      kp = (k < mz - 2 ? (k + 1) : (k));
-      km = (k > 1 ? (k - 1) : (k));
-
-      if (isIBMFluidCell(k, j, i, nvert))
-      {
-
-          for (kk = km; kk < kp + 1; kk++)
-          for (jj = jm; jj < jp + 1; jj++)
-          for (ii = im; ii < ip + 1; ii++)
-          {
-              if (isFluidCell(kk, jj, ii, nvert))
-              {
-                  ctr ++;
-              }
-          }
-
-          if(ctr == 0)
-          {
-              nvert[k][j][i] = 3.0;
-          }
-      }
-
-      //set the global nvert
-      gnvert[k][j][i] = nvert[k][j][i];
-  }
-
-  DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-  DMDAVecRestoreArray(da, mesh->Nvert, &gnvert);
-
-  DMGlobalToLocalBegin(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
-  DMGlobalToLocalEnd(da, mesh->Nvert, INSERT_VALUES, mesh->lNvert);
-
-  MPI_Barrier(mesh->MESH_COMM);
-
-  //save global nvert vector for output
-
-  return 0;
+    MPI_Barrier(mesh->MESH_COMM);
+    
+    return 0;
 }
 
 //***************************************************************************************************************//
@@ -5746,11 +7421,12 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
 
   Cmpnts        ***ucat, ***lucat, ***cent, dist;
   PetscReal     ***lt, ***temp;
-  PetscReal     A[4][4]={0.}, inv_A[4][4]={0.};
+
   PetscInt      n = 0, nsupport=0;
 
   PetscReal     dis;
   PetscReal     *W, *PHI, **P, **B, *Ux, *Uy, *Uz, *tmp;
+  PetscReal     **A, **inv_A;
 
   DMDAVecGetArray(fda, mesh->lCent, &cent);
   DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
@@ -5797,6 +7473,15 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
     Ux = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
     Uy = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
     Uz = (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
+
+    PetscMalloc(sizeof(PetscReal *)  * (4), &(A));
+    PetscMalloc(sizeof(PetscReal *)  * (4), &(inv_A));
+
+    for(n=0; n<4; n++)
+    {
+        PetscMalloc(sizeof(PetscReal)  * (4), &(A[n]));
+        PetscMalloc(sizeof(PetscReal)  * (4), &(inv_A[n]));
+    }
 
     if (flags->isTeqnActive)
     {
@@ -5914,7 +7599,7 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
         }
     }
 
-    inv_4by4(A, inv_A);
+    inv_4by4(A, inv_A, 4);
 
     // get the values of the shape function PHI on the support points
     mult_mats3_lin(inv_A, B, nsupport, PHI);
@@ -5944,6 +7629,8 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
     for( n = 0; n < 4; n++)
     {
         free(B[n]);
+        free(A[n]);
+        free(inv_A[n]);
     }
 
     for(n = 0; n < 4; n++)
@@ -5958,6 +7645,8 @@ PetscErrorCode MLSInterpolation(ibm_ *ibm)
     free(Ux);
     free(Uy);
     free(Uz);
+    free(A);
+    free(inv_A);
 
     if(flags->isTeqnActive)
     {
@@ -6250,7 +7939,7 @@ PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm)
             if(ibMesh->halfEdges[i].twin==NULL)
             {
                 char error[512];
-                sprintf(error, "IBM body: %s is not a closed body.\n", ibm->ibmBody[b]->bodyName.c_str());
+                sprintf(error, "IBM body: %s is not a closed body. If you are sure it is, then the issue could be that the element normals are not pointing outwards. Enable checkNormal in IBMProperties\n", ibm->ibmBody[b]->bodyName.c_str());
                 fatalErrorInFunction("createHalfEdgeDataStructure",  error);
             }
         }
@@ -7907,7 +9596,7 @@ PetscErrorCode findSearchCellDim(ibm_ *ibm)
     for (j = lys; j < lye; j++)
     for (i = lxs; i < lxe; i++)
     {
-      lcellSize += pow( 1./aj[k][j][i], 1./3.);
+      lcellSize += pow( 1.0/aj[k][j][i], 1./3.);
       lsum ++ ;
     }
 

@@ -57,13 +57,65 @@ inline PetscInt mustWrite(PetscReal time, PetscReal startTime, PetscReal timeInt
                 (time - startTime) / timeInterval + 1e-10
             ) < 1e-10
         ) &&
-        time >= startTime
+        (time >= startTime)
     );
 }
 
 // MATH FUNCTIONS
 // ============================================================================================================= //
 
+//find the matrix product of two matrices 
+
+inline void matMatProduct(PetscReal **A, PetscReal **B, PetscReal **C, PetscInt numRowA, PetscInt numColA, PetscInt numRowB, PetscInt numColB)
+{
+    if( numColA != numRowB )
+    {
+        char error[512];
+        sprintf(error, "number of columns of matrix 1 not equal to number of rows of matrix 2\n");
+        fatalErrorInFunction("matMatProduct",  error);
+    }
+
+        for (PetscInt i = 0; i < numRowA; i++) 
+        {
+            for (PetscInt j = 0; j < numColB; j++) 
+            {
+                PetscReal dotProduct = 0.0;
+
+                for (PetscInt k = 0; k < numColA; k++) 
+                {
+                    dotProduct += A[i][k] * B[k][j];
+                }
+                C[i][j] = dotProduct;
+            }
+        }
+
+    return;
+}
+
+inline void matVecProduct(PetscReal **A, PetscReal *b, PetscReal *c, PetscInt numRowA, PetscInt numColA, PetscInt numRowB)
+{
+    if( numColA != numRowB )
+    {
+        char error[512];
+        sprintf(error, "number of columns of matrix 1 not equal to number of rows of vector 2\n");
+        fatalErrorInFunction("matVecProduct",  error);
+    }
+
+    for (PetscInt i = 0; i < numRowA; i++) 
+    {
+        PetscReal dotProduct = 0.0;
+
+        for (PetscInt k = 0; k < numColA; k++) 
+        {
+            dotProduct += A[i][k] * b[k];
+        }
+        c[i] = dotProduct;
+    }
+
+    return;
+}
+
+//=============================================================================================================
 //check for duplicates in an integer array
 inline PetscInt isPresent(PetscInt arr[], PetscInt n, PetscInt elem)
 {
@@ -1102,7 +1154,7 @@ inline bool isIBMSolidIFace (PetscInt k, PetscInt j, PetscInt iL, PetscInt iR, P
 
 //***************************************************************************************************************//
 
-//! \brief Resets the value at the non-solved faces to zero except for zeroGradient, overset and periodic
+//! \brief Resets the value at the non-solved centers to zero 
 inline void resetNonResolvedCellCentersScalar(mesh_ *mesh,  Vec &V)
 {
     DMDALocalInfo    info = mesh->info;
@@ -1129,7 +1181,6 @@ inline void resetNonResolvedCellCentersScalar(mesh_ *mesh,  Vec &V)
         {
             for (i=xs; i<xe; i++)
             {
-                //iface
                 if
                 (
                     i==0 ||
@@ -1192,7 +1243,7 @@ inline void ContravariantToCartesianPoint(Cmpnts &csi, Cmpnts &eta, Cmpnts &zet,
 };
 
 //***************************************************************************************************************//
-
+//! \brief Resets the value at the non-solved faces to zero except for zeroGradient, overset and periodic
 inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
 {
     DMDALocalInfo    info = mesh->info;
@@ -1678,8 +1729,10 @@ inline void getCell2Cell3StencilZet(mesh_ *mesh, PetscInt k, PetscInt mz, PetscI
     return;
 }
 
+//***************************************************************************************************************//
+
 //! \brief Get outmost cell's idxs of a 4 cell-sencil in csi direction given the face idx
-inline void getFace2Cell4StencilCsi(mesh_ *mesh, PetscInt i, PetscInt mx, PetscInt *iL, PetscInt *iR, PetscReal *denom)
+inline void getFace2Cell4StencilCsi(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, PetscInt mx, PetscInt *iL, PetscInt *iR, PetscReal *denom, PetscReal ***nvert)
 {
     // if on non-periodic boundary return 2 cell-stencil extrema idxs, if periodic
     // get the right data.
@@ -1719,7 +1772,18 @@ inline void getFace2Cell4StencilCsi(mesh_ *mesh, PetscInt i, PetscInt mx, PetscI
           }
         }
     }
-
+    else if(isIBMCell(k, j, i, nvert))
+    {
+        *iL = i;
+        *iR = i + 2;
+        *denom = 3.; 
+    }
+    else if(isIBMCell(k, j, i+1, nvert))
+    {
+        *iL = i-1;
+        *iR = i + 1;
+        *denom = 3.;
+    }
     else
     {
         *iL = i-1, *iR = i+2;
@@ -1732,7 +1796,7 @@ inline void getFace2Cell4StencilCsi(mesh_ *mesh, PetscInt i, PetscInt mx, PetscI
 //***************************************************************************************************************//
 
 //! \brief Get outmost cell's idxs of a 4 cell-sencil in eta direction given the face idx
-inline void getFace2Cell4StencilEta(mesh_ *mesh, PetscInt j, PetscInt my, PetscInt *jL, PetscInt *jR, PetscReal *denom)
+inline void getFace2Cell4StencilEta(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, PetscInt my, PetscInt *jL, PetscInt *jR, PetscReal *denom, PetscReal ***nvert)
 {
     // if on non-periodic boundary return 2 cell-stencil extrema idxs, if periodic
     // get the right data.
@@ -1772,7 +1836,18 @@ inline void getFace2Cell4StencilEta(mesh_ *mesh, PetscInt j, PetscInt my, PetscI
           }
         }
     }
-
+    else if(isIBMCell(k, j, i, nvert))
+    {
+        *jL = j;
+        *jR = j + 2;
+        *denom = 3.; 
+    }
+    else if(isIBMCell(k, j+1, i, nvert))
+    {
+        *jL = j-1;
+        *jR = j + 1;
+        *denom = 3.;
+    }
     else
     {
         *jL = j-1, *jR = j+2;
@@ -1785,7 +1860,7 @@ inline void getFace2Cell4StencilEta(mesh_ *mesh, PetscInt j, PetscInt my, PetscI
 //***************************************************************************************************************//
 
 //! \brief Get outmost cell's idxs of a 4 cell-sencil in zet direction given the face idx
-inline void getFace2Cell4StencilZet(mesh_ *mesh, PetscInt k, PetscInt mz, PetscInt *kL, PetscInt *kR, PetscReal *denom)
+inline void getFace2Cell4StencilZet(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, PetscInt mz, PetscInt *kL, PetscInt *kR, PetscReal *denom, PetscReal ***nvert)
 {
     // if on non-periodic boundary return 2 cell-stencil extrema idxs, if periodic
     // get the right data.
@@ -1825,7 +1900,18 @@ inline void getFace2Cell4StencilZet(mesh_ *mesh, PetscInt k, PetscInt mz, PetscI
           }
         }
     }
-
+    else if(isIBMCell(k, j, i, nvert))
+    {
+        *kL = k;
+        *kR = k + 2;
+        *denom = 3.; 
+    }
+    else if(isIBMCell(k+1, j, i, nvert))
+    {
+        *kL = k-1;
+        *kR = k + 1;
+        *denom = 3.;
+    }
     else
     {
         *kL = k-1, *kR = k+2;
@@ -2312,6 +2398,10 @@ inline void Compute_du_center
         *dude = ( ucat[k][j+1][i].x - ucat[k][j][i].x );
         *dvde = ( ucat[k][j+1][i].y - ucat[k][j][i].y );
         *dwde = ( ucat[k][j+1][i].z - ucat[k][j][i].z );
+
+        // *dude = ( 4.0 * ucat[k][j+1][i].x - 3.0 * ucat[k][j][i].x - ucat[k][j+2][i].x) * 0.5;
+        // *dvde = ( 4.0 * ucat[k][j+1][i].y - 3.0 * ucat[k][j][i].y - ucat[k][j+2][i].y) * 0.5;
+        // *dwde = ( 4.0 * ucat[k][j+1][i].z - 3.0 * ucat[k][j][i].z - ucat[k][j+2][i].z) * 0.5;
     }
     else
     {
@@ -2407,8 +2497,6 @@ inline void Compute_dscalar_center
 
 inline PetscReal integrateTestfilterSimpson(PetscReal val[3][3][3], PetscReal w[3][3][3])
 {
-    PetscReal v1, v2, v3, v4, v5, v6, v7, v8;
-    PetscReal w1, w2, w3, w4, w5, w6, w7, w8;
 
     PetscReal wsum=0, valsum=0;
 
@@ -2420,6 +2508,26 @@ inline PetscReal integrateTestfilterSimpson(PetscReal val[3][3][3], PetscReal w[
         if(i==1) simpson_w *= 4.;
         if(j==1) simpson_w *= 4.;
         if(k==1) simpson_w *= 4.;
+
+        wsum   += simpson_w * w[i][j][k];
+        valsum += simpson_w * w[i][j][k] * val[i][j][k];
+    }
+
+    return valsum / wsum;
+};
+
+inline PetscReal integrateTestfilterSimpson5x5(PetscReal val[5][5][5], PetscReal w[5][5][5])
+{
+    PetscReal wsum=0, valsum=0;
+
+    for(PetscInt i=0; i<5; i++)
+    for(PetscInt j=0; j<5; j++)
+    for(PetscInt k=0; k<5; k++)
+    {
+        PetscReal simpson_w = 1.0;
+        simpson_w *= (i == 0 || i == 4) ? 1 : (i % 2 == 0 ? 2 : 4);
+        simpson_w *= (j == 0 || j == 4) ? 1 : (j % 2 == 0 ? 2 : 4);
+        simpson_w *= (k == 0 || k == 4) ? 1 : (k % 2 == 0 ? 2 : 4);
 
         wsum   += simpson_w * w[i][j][k];
         valsum += simpson_w * w[i][j][k] * val[i][j][k];
@@ -4015,7 +4123,6 @@ inline PetscReal viscCosDescending(PetscReal &alpha, PetscReal &hS, PetscReal &h
 }
 
 //***************************************************************************************************************//
-
 inline PetscReal viscNordstrom(PetscReal &alpha, PetscReal &hS, PetscReal &hE, PetscReal &delta, PetscReal &h)
 {
     // make sure delta is positive and strictly greater than zero
@@ -4058,6 +4165,53 @@ inline PetscReal viscNordstrom(PetscReal &alpha, PetscReal &hS, PetscReal &hE, P
     }
 
     viscosity = alpha * (s1 - s2);
+
+    return(viscosity);
+}
+
+//***************************************************************************************************************//
+
+inline double viscNordstromNoVertFilter(double hS, double hE, double &delta, double &h)
+{
+    // make sure delta is positive and strictly greater than zero
+    delta = std::max(fabs(delta), 1e-5);
+
+    double h1_hat = (h-hS)/delta;
+    double h2_hat = (h-hE)/delta + 1.0;
+
+    double viscosity;
+
+    double s1, s2;
+
+    // compute smoothing function rise component
+    if(h1_hat <= 0.0)
+    {
+        s1 = 0.0;
+    }
+    else if(h1_hat >= 1.0)
+    {
+        s1 = 1.0;
+    }
+    else
+    {
+        s1 = 1.0 / (1.0 + std::exp(1.0/(h1_hat - 1.0) + 1.0 / h1_hat));
+    }
+
+    // compute smoothing function falling component
+    if(h2_hat <= 0.0)
+    {
+        s2 = 0.0;
+    }
+    else if(h2_hat >= 1.0)
+    {
+        s2 = 1.0;
+    }
+    else
+    {
+        s2 = 1.0 / (1.0 + std::exp(1.0/(h2_hat - 1.0) + 1.0 / h2_hat));
+    }
+
+	viscosity = 1.0 - (s1 - s2);
 
     return(viscosity);
 }
@@ -4173,7 +4327,7 @@ inline double viscStipaDelta(double &hS, double &hE, double &deltaS, double &del
 
 //***************************************************************************************************************//
 
-inline void findInterpolationWeigths(PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)
+inline void findInterpolationWeights(PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)
 {
     // equality tolerance: if equal data points up to re-tol = 1e-5 are found,
     // that interpolation point is skipped because it does not provide information
@@ -4187,7 +4341,7 @@ inline void findInterpolationWeigths(PetscReal *weights, PetscInt *labels, Petsc
     // {
     //    char error[512];
     //     sprintf(error, "query point %lf outside of bounds [%lf - %lf]... was told not to extrapolate\n", pval, pvec[0]-eps, pvec[npts-1]+eps);
-    //     fatalErrorInFunction("findInterpolationWeigths",  error);
+    //     fatalErrorInFunction("findInterpolationWeights",  error);
     // }
 
     PetscReal diff[npts];
@@ -4243,7 +4397,7 @@ inline void findInterpolationWeigths(PetscReal *weights, PetscInt *labels, Petsc
 
 //***************************************************************************************************************//
 
-inline void findInterpolationWeigthsWithExtrap(PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)
+inline void findInterpolationWeightsWithExtrap(PetscReal *weights, PetscInt *labels, PetscReal *pvec, PetscInt npts, PetscReal pval)
 {
     if(pval >= pvec[npts-1])
     {
@@ -4263,7 +4417,7 @@ inline void findInterpolationWeigthsWithExtrap(PetscReal *weights, PetscInt *lab
     }
     else
     {
-        findInterpolationWeigths(weights, labels, pvec, npts, pval);
+        findInterpolationWeights(weights, labels, pvec, npts, pval);
     }
 
     return;
@@ -5739,8 +5893,118 @@ inline void destroyCellList(cellList *ilist)
 //***************************************************************************************************************//
 // inverse matrix functions
 
-//invert a 4 by 4 matrix
-inline void inv_4by4(PetscReal A[4][4], PetscReal inv_A[][4]){
+//***************************************************************************************************************//
+
+inline void reorderMatrix(PetscReal **A, PetscReal **B, PetscInt N, PetscInt pivot)
+{
+    PetscInt  maxrow=pivot;
+    PetscInt  row,col;
+    PetscReal temp;
+
+    for (row=pivot+1;row<N;row++)
+    {
+        if ( fabs(A[row][pivot]) > fabs(A[maxrow][pivot]) ) maxrow = row;
+    }
+        
+
+   if (fabs(A[maxrow][pivot])<1.e-11)
+   {
+        char error[512];
+        sprintf(error, "matrix inverse reorder algorithm failed\n");
+        fatalErrorInFunction("reorderMatrix",  error);
+   }
+       
+    if (maxrow != pivot)
+    {
+        for (col=0; col<N; col++)
+        {
+            temp           = A[maxrow][col];
+            A[maxrow][col] = A[pivot][col];
+            A[pivot][col]  = temp;
+
+            temp           = B[maxrow][col];
+            B[maxrow][col] = B[pivot][col];
+            B[pivot][col]  = temp;
+        }
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+inline void elimJordanAlg(PetscReal **A, PetscReal **B, PetscInt N, PetscInt pivot)
+{
+    
+    PetscInt row,col;
+
+    for (col=pivot+1; col<N; col++)
+    {
+        A[pivot][col] = A[pivot][col]/A[pivot][pivot];
+    } 
+
+    for (col=0; col<N; col++)
+    {
+        B[pivot][col] = B[pivot][col]/A[pivot][pivot];
+    }
+        
+    A[pivot][pivot]=1.;
+
+    for (row=0; row<N; row++)
+    {
+        if (row == pivot) continue;
+
+        for (col=pivot+1; col<N; col++) A[row][col] -= A[row][pivot]*A[pivot][col];
+        for (col=0; col<N; col++)       B[row][col] -= A[row][pivot]*B[pivot][col];
+        A[row][pivot]=0.;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+// inverse of generic matrix of any order 
+inline void inverseMatrix(PetscReal **A, PetscReal **inv_A, PetscInt size)
+{
+    PetscInt i,j,k;
+
+    for (i=0; i<size; i++)
+    {
+        for (j=0; j<size; j++)
+        {
+            inv_A[i][j]=0.;
+        }
+    }
+        
+    for (i=0; i<size; i++)
+    {
+        inv_A[i][i]=1.0;
+    } 
+
+    PetscInt pivot=0;
+
+    while (pivot < size)
+    {
+        reorderMatrix(A, inv_A, size, pivot);
+        elimJordanAlg(A, inv_A, size, pivot);
+
+        pivot++;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+//invert a 4 by 4 matrix  -- faster
+inline void inv_4by4(PetscReal **A, PetscReal **inv_A, PetscInt size)
+{
+
+    if( size!= 4 )
+    {
+        char error[512];
+        sprintf(error, "expected array of size 4\n");
+        fatalErrorInFunction("inv_4by4",  error);
+    }
 
     PetscReal A2323 = A[2][2] * A[3][3] - A[2][3] * A[3][2] ;
     PetscReal A1323 = A[2][1] * A[3][3] - A[2][3] * A[3][1] ;
@@ -5789,8 +6053,40 @@ inline void inv_4by4(PetscReal A[4][4], PetscReal inv_A[][4]){
 }
 
 //***************************************************************************************************************//
+//invert a 3 by 3 matrix
+inline void inv_3by3(PetscReal **A, PetscReal **inv_A, PetscInt size)
+{
+    if( size!= 3 )
+    {
+        char error[512];
+        sprintf(error, "expected array of size 3\n");
+        fatalErrorInFunction("inv_3by3",  error);
+    }
 
-inline void reorder_20(PetscReal A[][20], PetscReal B[][20],PetscInt N,PetscInt pivot){
+    PetscReal det = A[0][0] * (A[1][1] * A[2][2] - A[2][1] * A[1][2]) -
+                    A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) +
+                    A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+
+    det = 1 / det;
+
+    // Compute elements of the inverse matrix
+    inv_A[0][0] = (A[1][1] * A[2][2] - A[2][1] * A[1][2]) * det;
+    inv_A[0][1] = (A[0][2] * A[2][1] - A[0][1] * A[2][2]) * det;
+    inv_A[0][2] = (A[0][1] * A[1][2] - A[0][2] * A[1][1]) * det;
+    inv_A[1][0] = (A[1][2] * A[2][0] - A[1][0] * A[2][2]) * det;
+    inv_A[1][1] = (A[0][0] * A[2][2] - A[0][2] * A[2][0]) * det;
+    inv_A[1][2] = (A[1][0] * A[0][2] - A[0][0] * A[1][2]) * det;
+    inv_A[2][0] = (A[1][0] * A[2][1] - A[2][0] * A[1][1]) * det;
+    inv_A[2][1] = (A[2][0] * A[0][1] - A[0][0] * A[2][1]) * det;
+    inv_A[2][2] = (A[0][0] * A[1][1] - A[1][0] * A[0][1]) * det;
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+inline void reorder_20(PetscReal A[][20], PetscReal B[][20],PetscInt N,PetscInt pivot)
+{
     PetscInt maxrow=pivot;
     PetscInt row,col;
     PetscReal temp;
@@ -5849,7 +6145,7 @@ inline void inv_20(PetscReal A[20][20], PetscReal inv_A[][20],PetscInt N){
 
 //***************************************************************************************************************//
 
-inline void reorder(PetscReal A[][10], PetscReal B[][10],PetscInt N,PetscInt pivot){
+inline void reorder_10(PetscReal A[][10], PetscReal B[][10],PetscInt N,PetscInt pivot){
     PetscInt maxrow=pivot;
     PetscInt row,col;
     PetscReal temp;
@@ -5872,7 +6168,7 @@ inline void reorder(PetscReal A[][10], PetscReal B[][10],PetscInt N,PetscInt piv
 
 //***************************************************************************************************************//
 
-inline void elim_jordan(PetscReal A[][10], PetscReal B[][10],PetscInt N,PetscInt pivot){
+inline void elim_jordan_10(PetscReal A[][10], PetscReal B[][10],PetscInt N,PetscInt pivot){
     PetscInt row,col;
     for (col=pivot+1;col<N;col++) A[pivot][col]=A[pivot][col]/A[pivot][pivot];
     for (col=0;col<N;col++)
@@ -5890,7 +6186,7 @@ inline void elim_jordan(PetscReal A[][10], PetscReal B[][10],PetscInt N,PetscInt
 
 //***************************************************************************************************************//
 
-inline void inv(PetscReal A[10][10], PetscReal inv_A[][10],PetscInt N){
+inline void inv_10(PetscReal A[10][10], PetscReal inv_A[][10],PetscInt N){
     PetscInt i,j,k;
     for (i=0;i<N;i++)
         for (j=0;j<N;j++)
@@ -5898,8 +6194,8 @@ inline void inv(PetscReal A[10][10], PetscReal inv_A[][10],PetscInt N){
     for (i=0;i<N;i++) inv_A[i][i]=1.;
     PetscInt pivot=0;
     while (pivot<N){
-        reorder(A, inv_A, N, pivot);
-        elim_jordan(A,inv_A,N,pivot);
+        reorder_10(A, inv_A, N, pivot);
+        elim_jordan_10(A,inv_A,N,pivot);
         pivot++;
     }
 
@@ -5908,7 +6204,7 @@ inline void inv(PetscReal A[10][10], PetscReal inv_A[][10],PetscInt N){
 
 //***************************************************************************************************************//
 
-inline void mult_mats3_lin(PetscReal inv_A[4][4],PetscReal **B,PetscInt nsupport,PetscReal *PHI){
+inline void mult_mats3_lin(PetscReal **inv_A,PetscReal **B,PetscInt nsupport,PetscReal *PHI){
 
   for (PetscInt i=0;i<nsupport;i++) {
     PHI[i]=0.;

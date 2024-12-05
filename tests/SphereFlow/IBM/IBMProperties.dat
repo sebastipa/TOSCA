@@ -3,18 +3,19 @@ NumberofBodies                      1
 
 InterpolationMethod                 CURVIB
 CURVIBInterpolationType             CurvibTrilinear
-interpolationOrder		            quadratic
+interpolationOrder		    quadratic
 
 debug                               0
 dynamic                             0
-checkNormal			                1
-averageNormal			            0
+checkNormal			    1
+averageNormal			    0
 computeForce                        1
 checkNormal                         1
-writeSTL			                0
+writeSTL			    0
 wallShear                           0
 pressureBC                          0
 averageNormal                       0
+abl				    0
 
 writeSettings
 {
@@ -36,8 +37,9 @@ object0
     baseLocation                    (0.0 0.0 0.0)
 
     #wall model
-    wallModelU                      Cabot
-    wallModelUProp                  setHere
+    velocityBCSetType               setHere
+    velocityBC                      velocityWallFunction
+    wallFunctionTypeU               -1
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized

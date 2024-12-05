@@ -11,7 +11,6 @@
 #include "mesh.h"
 #include "overset.h"
 #include "acquisition.h"
-#include "wallmodel.h"
 #include "ibm.h"
 #include "ueqn.h"
 #include "peqn.h"

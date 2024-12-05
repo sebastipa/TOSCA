@@ -1365,8 +1365,8 @@ PetscErrorCode getLSWeights(mesh_ *meshP, mesh_ *mesh){
 
     PetscInt         i, j, k, ii, jj, kk, b, n, m;
     PetscInt         nsupport = 0;
-    PetscReal        *W, *PHI, **P, **B;
-    PetscReal        A[4][4]={0.}, inv_A[4][4]={0.}, lA1[16] = {0.}, A1[16] = {0.};
+    PetscReal        *W, *PHI, **P, **B, **A, **inv_A;
+    PetscReal        lA1[16] = {0.}, A1[16] = {0.};
 
     Cmpnts           ***cent1, ***cent0;
     PetscReal        ***nvert, ds, dist;
@@ -1411,6 +1411,15 @@ PetscErrorCode getLSWeights(mesh_ *meshP, mesh_ *mesh){
         W =  (PetscReal* ) malloc(nsupport*sizeof(PetscReal));
 
         PHI =(PetscReal* ) malloc(nsupport*sizeof(PetscReal));
+
+        PetscMalloc(sizeof(PetscReal *)  * (4), &(A));
+        PetscMalloc(sizeof(PetscReal *)  * (4), &(inv_A));
+
+        for(n=0; n<4; n++)
+        {
+            PetscMalloc(sizeof(PetscReal)  * (4), &(A[n]));
+            PetscMalloc(sizeof(PetscReal)  * (4), &(inv_A[n]));
+        }
 
         //initialise matrix and vectors
         for (ii=0; ii<4; ii++)
@@ -1495,7 +1504,7 @@ PetscErrorCode getLSWeights(mesh_ *meshP, mesh_ *mesh){
         }
 
         //invert matrix A
-        inv_4by4(A, inv_A);
+        inv_4by4(A, inv_A, 4);
 
         for(m = 0; m < nsupport; m++){
             for (ii=0; ii<4; ii++)
@@ -1511,6 +1520,8 @@ PetscErrorCode getLSWeights(mesh_ *meshP, mesh_ *mesh){
         for(PetscInt ind=0; ind<4; ind++)
         {
             free(B[ind]);
+            free(A[ind]);
+            free(inv_A[ind]);
         }
 
         for(PetscInt ind=0; ind<nsupport; ind++)
@@ -1519,6 +1530,8 @@ PetscErrorCode getLSWeights(mesh_ *meshP, mesh_ *mesh){
         }
 
         free(B);
+        free(A);
+        free(inv_A);
         free(P);
         free(W);
         free(PHI);
@@ -1678,7 +1691,7 @@ PetscErrorCode getLSWeights_2nd(mesh_ *meshP, mesh_ *mesh)
         }
 
         //invert matrix A
-        inv(A,inv_A,10);
+        inv_10(A,inv_A,10);
 
         for(m = 0; m < nsupport; m++){
             for (ii=0; ii<10; ii++)

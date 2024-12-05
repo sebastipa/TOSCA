@@ -18,7 +18,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
 
   MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
-  PetscPrintf(PETSC_COMM_WORLD, "\nIBM initialization...\n");
+  PetscPrintf(mesh->MESH_COMM, "\nIBM initialization...\n");
 
   // read debug switch
   readDictInt("./IBM/IBMProperties.dat", "debug", &(ibm->dbg));
@@ -38,6 +38,17 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
   // set wall shear force from wall model
   readDictInt("./IBM/IBMProperties.dat", "wallShear", &(ibm->wallShearOn));
 
+  readDictInt("./IBM/IBMProperties.dat", "abl", &(ibm->ibmABL));
+
+  if(ibm->ibmABL)
+  {
+    readDictDouble("./IBM/IBMProperties.dat", "groundLevel",      &(mesh->grndLevel));
+  }
+  
+  if(ibm->wallShearOn)
+  {
+    readDictDouble("./IBM/IBMProperties.dat", "interpolationDistance", &(ibm->interpDist));
+  }
   // write stl flag
   readDictInt("./IBM/IBMProperties.dat", "writeSTL", &(ibm->writeSTL));
 
@@ -49,12 +60,18 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
 
   if(ibm->IBInterpolationModel == "CURVIB")
   {
-      readDictWord("./IBM/IBMProperties.dat", "CURVIBInterpolationType", &(ibm->curvibType));
+    readDictWord("./IBM/IBMProperties.dat", "CURVIBInterpolationType", &(ibm->curvibType));
 
-      if(ibm->curvibType == "CurvibTrilinear")
-      {
-          readDictWord("./IBM/IBMProperties.dat", "interpolationOrder", &(ibm->curvibOrder));
-      }
+    if(ibm->curvibType == "CurvibTrilinear")
+    {
+        readDictWord("./IBM/IBMProperties.dat", "interpolationOrder", &(ibm->curvibOrder));
+    }
+    if(ibm->wallShearOn == 1 && ibm->curvibType == "CurvibTriangular")
+    {
+        char error[512];
+        sprintf(error, "IBM wall shear model currently available only with CURVIB trilinear interpolation\n");
+        fatalErrorInFunction("readIBMProperties",  error);
+    }
   }
 
   // read the write settings
@@ -498,8 +515,9 @@ ibmNode* initializeIBMNodes(PetscInt numNodes)
 
 PetscErrorCode nodeElementConnectivity(ibm_ *ibm)
 {
-    PetscMPIInt   nprocs; MPI_Comm_size(PETSC_COMM_WORLD, &nprocs);
-    PetscMPIInt   rank;   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    mesh_         *mesh = ibm->access->mesh;
+    PetscMPIInt   nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt   rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     for (PetscInt b = 0; b < ibm->numBodies; b++)
     {
@@ -565,7 +583,7 @@ PetscErrorCode nodeElementConnectivity(ibm_ *ibm)
 
             for (PetscInt source = 1; source < nprocs; source++)
             {
-                MPI_Recv(tempNodes, totNodes * sizeof(ibmNode), MPI_BYTE, source, 0, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(tempNodes, totNodes * sizeof(ibmNode), MPI_BYTE, source, 0, mesh->MESH_COMM, MPI_STATUS_IGNORE);
 
                 for (PetscInt i = 0; i < totNodes; i++)
                 {
@@ -588,10 +606,10 @@ PetscErrorCode nodeElementConnectivity(ibm_ *ibm)
         }
         else
         {
-            MPI_Send(ibmNodes, totNodes * sizeof(ibmNode), MPI_BYTE, 0, 0, PETSC_COMM_WORLD);
+            MPI_Send(ibmNodes, totNodes * sizeof(ibmNode), MPI_BYTE, 0, 0, mesh->MESH_COMM);
         }
 
-        MPI_Bcast(ibmNodes, totNodes * sizeof(ibmNode), MPI_BYTE, 0, PETSC_COMM_WORLD);
+        MPI_Bcast(ibmNodes, totNodes * sizeof(ibmNode), MPI_BYTE, 0, mesh->MESH_COMM);
     }
 
     return 0;
@@ -1995,7 +2013,7 @@ PetscErrorCode writeSTLFile(ibm_ *ibm, PetscInt b)
     ibmObject   *ibmBody = ibm->ibmBody[b];
     ibmMesh     *ibMesh   = ibmBody->ibMsh;
 
-    PetscMPIInt rank;   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    PetscMPIInt rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
     PetscInt    n1, n2, n3;
 
     // write flags for current time step
