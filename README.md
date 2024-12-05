@@ -2,6 +2,17 @@
 
 Toolbox fOr Stratified Convective Atmospheres
 
+## Recent Highlights/Additions
+
+    - Direct/Indirect profile assimilation techniques to drive LES with observations/mesoscale models 
+    - New scale-dependent LES model
+    - New stability dependent wall model for IBM 
+    - IBM also for concurrent precursor (to model terrain features)
+    - Lateral fringe region. 
+    
+Now we can simulate real cases, wind rotating 360 degs, with terrain and turbines, all while damping gravity waves in all directions !!
+    
+
 ## Executables
 
     - tosca    : transient solver for stratified incompressible flows. Temperature stratification is accounted via Boussinesq approximation.
