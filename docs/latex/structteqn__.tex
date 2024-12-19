@@ -13,7 +13,7 @@ struct storing temperature equation
 \begin{DoxyCompactItemize}
 \item 
 \mbox{\Hypertarget{structteqn___a2865fe0e750ba802a6c12f60be2dda16}\label{structteqn___a2865fe0e750ba802a6c12f60be2dda16}} 
-S\+N\+ES \mbox{\hyperlink{structteqn___a2865fe0e750ba802a6c12f60be2dda16}{snesT}}
+SNES \mbox{\hyperlink{structteqn___a2865fe0e750ba802a6c12f60be2dda16}{snesT}}
 \begin{DoxyCompactList}\small\item\em non linear matrix free context \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___a03b1113ce97d47de49c716ca3dc6d9a8}\label{structteqn___a03b1113ce97d47de49c716ca3dc6d9a8}} 
 Mat \mbox{\hyperlink{structteqn___a03b1113ce97d47de49c716ca3dc6d9a8}{JT}}
@@ -25,7 +25,7 @@ Mat {\bfseries AT}
 Mat {\bfseries CT}
 \item 
 \mbox{\Hypertarget{structteqn___a583644edf19caad4402dd19a6e1a7b9e}\label{structteqn___a583644edf19caad4402dd19a6e1a7b9e}} 
-K\+SP \mbox{\hyperlink{structteqn___a583644edf19caad4402dd19a6e1a7b9e}{ksp}}
+KSP \mbox{\hyperlink{structteqn___a583644edf19caad4402dd19a6e1a7b9e}{ksp}}
 \begin{DoxyCompactList}\small\item\em linear krylov-\/subspace context \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___a06266f906507b4270abbce2879119e0a}\label{structteqn___a06266f906507b4270abbce2879119e0a}} 
 PC {\bfseries pc}
@@ -55,7 +55,10 @@ Vec {\bfseries l\+Tmprt\+\_\+o}
 Vec {\bfseries l\+DivT}
 \item 
 \mbox{\Hypertarget{structteqn___aa92ade1ea0f970ac0a5a15823885e10d}\label{structteqn___aa92ade1ea0f970ac0a5a15823885e10d}} 
-Vec \mbox{\hyperlink{structteqn___aa92ade1ea0f970ac0a5a15823885e10d}{l\+ViscT}}
+Vec {\bfseries l\+ViscT}
+\item 
+\mbox{\Hypertarget{structteqn___a6b967959292b1b84a4787df47abec87a}\label{structteqn___a6b967959292b1b84a4787df47abec87a}} 
+Vec \mbox{\hyperlink{structteqn___a6b967959292b1b84a4787df47abec87a}{l\+Visc\+IBMT}}
 \begin{DoxyCompactList}\small\item\em viscous and divergence temperature equation fluxes \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___a97958d42832a6fae314d6554cd2256d8}\label{structteqn___a97958d42832a6fae314d6554cd2256d8}} 
 Vec \mbox{\hyperlink{structteqn___a97958d42832a6fae314d6554cd2256d8}{sourceT}}
@@ -76,16 +79,16 @@ Petsc\+Real \mbox{\hyperlink{structteqn___a58f4daea64a4af85adb457275300ad7f}{rel
 word \mbox{\hyperlink{structteqn___aaa59e54999e6a82c3be430be46827521}{ddt\+Scheme}}
 \begin{DoxyCompactList}\small\item\em time derivative scheme \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd}\label{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd}} 
-\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd}{i\+L\+WM}}
+\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd}{i\+LWM}}
 \begin{DoxyCompactList}\small\item\em wall model on the i-\/left patch \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___a250a5c3086987e57dd0465adf283b6fc}\label{structteqn___a250a5c3086987e57dd0465adf283b6fc}} 
-\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___a250a5c3086987e57dd0465adf283b6fc}{i\+R\+WM}}
+\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___a250a5c3086987e57dd0465adf283b6fc}{i\+RWM}}
 \begin{DoxyCompactList}\small\item\em wall model on the i-\/right patch \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___abd50b696b61ef432378b52a61d3400da}\label{structteqn___abd50b696b61ef432378b52a61d3400da}} 
-\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___abd50b696b61ef432378b52a61d3400da}{j\+L\+WM}}
+\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___abd50b696b61ef432378b52a61d3400da}{j\+LWM}}
 \begin{DoxyCompactList}\small\item\em wall model on the j-\/left patch \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___a6258db96c7be61a905b6db6c07705c25}\label{structteqn___a6258db96c7be61a905b6db6c07705c25}} 
-\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___a6258db96c7be61a905b6db6c07705c25}{j\+R\+WM}}
+\mbox{\hyperlink{structwallModel}{wall\+Model}} $\ast$ \mbox{\hyperlink{structteqn___a6258db96c7be61a905b6db6c07705c25}{j\+RWM}}
 \begin{DoxyCompactList}\small\item\em wall model on the j-\/right patch \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structteqn___ae9c973020f5d893ee693463cb9225f26}\label{structteqn___ae9c973020f5d893ee693463cb9225f26}} 
 Petsc\+Int \mbox{\hyperlink{structteqn___ae9c973020f5d893ee693463cb9225f26}{p\+Tilde\+Formulation}}

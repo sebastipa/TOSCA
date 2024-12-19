@@ -14,45 +14,51 @@ Contains Immersed boundary method input and read function definitions.
 \begin{DoxyCompactItemize}
 \item 
 \mbox{\Hypertarget{ibmInput_8c_a4d0a60456cf8c581c6dce0d839fcc13c}\label{ibmInput_8c_a4d0a60456cf8c581c6dce0d839fcc13c}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a4d0a60456cf8c581c6dce0d839fcc13c}{read\+I\+B\+M\+Properties}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
-\begin{DoxyCompactList}\small\item\em read the I\+B\+M\+Properties.\+dat file , I\+BM mesh files and allocate memory for the objects \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{ibmInput_8c_ac480fdaab958713a36034cc7cd212d88}\label{ibmInput_8c_ac480fdaab958713a36034cc7cd212d88}} 
-Petsc\+Error\+Code {\bfseries read\+I\+B\+M\+Object\+Mesh} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a4d0a60456cf8c581c6dce0d839fcc13c}{read\+IBMProperties}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\begin{DoxyCompactList}\small\item\em read the IBMProperties.\+dat file , IBM mesh files and allocate memory for the objects \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibmInput_8c_a6630386722124427c558ee993f928207}\label{ibmInput_8c_a6630386722124427c558ee993f928207}} 
+Petsc\+Error\+Code {\bfseries create\+Half\+Edge\+Data\+Structure} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
 \item 
+\mbox{\Hypertarget{ibmInput_8c_ac480fdaab958713a36034cc7cd212d88}\label{ibmInput_8c_ac480fdaab958713a36034cc7cd212d88}} 
+Petsc\+Error\+Code {\bfseries read\+IBMObject\+Mesh} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
+\item 
+\mbox{\Hypertarget{ibmInput_8c_a20af0077761531066bf33ea351b13c40}\label{ibmInput_8c_a20af0077761531066bf33ea351b13c40}} 
+\mbox{\hyperlink{structibmNode}{ibm\+Node}} $\ast$ {\bfseries initialize\+IBMNodes} (Petsc\+Int num\+Nodes)
+\item 
+\mbox{\Hypertarget{ibmInput_8c_a8c050c48038bc044abf6ca45361877cb}\label{ibmInput_8c_a8c050c48038bc044abf6ca45361877cb}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a8c050c48038bc044abf6ca45361877cb}{node\+Element\+Connectivity}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\begin{DoxyCompactList}\small\item\em find the reverse connectivity which lists the elements connected to a node. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibmInput_8c_a283c306be3a7a0e0faa4b5f713f870fd}\label{ibmInput_8c_a283c306be3a7a0e0faa4b5f713f870fd}} 
 Petsc\+Error\+Code {\bfseries combine\+Mesh} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
 \item 
-\mbox{\Hypertarget{ibmInput_8c_acbdad9d724a0e35c5b9e68c51bfc783a}\label{ibmInput_8c_acbdad9d724a0e35c5b9e68c51bfc783a}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_acbdad9d724a0e35c5b9e68c51bfc783a}{read\+I\+B\+M\+Body\+File\+S\+TL}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
-\begin{DoxyCompactList}\small\item\em read the ibm mesh in stl format \end{DoxyCompactList}\item 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a772491326a1d5f3625ec88871be0ad89}{read\+I\+B\+M\+Surface\+File\+S\+TL}} (\mbox{\hyperlink{structsurface}{surface}} $\ast$ibm\+Surface)
-\begin{DoxyCompactList}\small\item\em read the ibm mesh in stl format \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibmInput_8c_a6fc92b587f6f2775ff4840b0df41d42d}\label{ibmInput_8c_a6fc92b587f6f2775ff4840b0df41d42d}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a6fc92b587f6f2775ff4840b0df41d42d}{read\+I\+B\+M\+Body\+File\+Abaqus\+Inp}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a6fc92b587f6f2775ff4840b0df41d42d}{read\+IBMBody\+File\+Abaqus\+Inp}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
 \begin{DoxyCompactList}\small\item\em read the ibm mesh in abaqus inp format \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{ibmInput_8c_a68a8a8cf95b8fec76bbf9cb287835a2e}\label{ibmInput_8c_a68a8a8cf95b8fec76bbf9cb287835a2e}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a68a8a8cf95b8fec76bbf9cb287835a2e}{read\+I\+B\+M\+Surface\+File\+Abaqus\+Inp}} (\mbox{\hyperlink{structsurface}{surface}} $\ast$ibm\+Surface)
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a68a8a8cf95b8fec76bbf9cb287835a2e}{read\+IBMSurface\+File\+Abaqus\+Inp}} (\mbox{\hyperlink{structsurface}{surface}} $\ast$ibm\+Surface)
 \begin{DoxyCompactList}\small\item\em read the ibm mesh in abaqus inp format \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{ibmInput_8c_aa2800f1cc539197a9e28696bf85eb036}\label{ibmInput_8c_aa2800f1cc539197a9e28696bf85eb036}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_aa2800f1cc539197a9e28696bf85eb036}{read\+I\+B\+M\+Body\+File\+A\+S\+C\+I\+I\+Raster}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
-\begin{DoxyCompactList}\small\item\em read the ibm mesh in A\+S\+C\+II format \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{ibmInput_8c_ad0303ee1015107461d5cf3b94d70f517}\label{ibmInput_8c_ad0303ee1015107461d5cf3b94d70f517}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_ad0303ee1015107461d5cf3b94d70f517}{read\+I\+B\+M\+Surface\+File\+A\+S\+C\+I\+I\+Raster}} (\mbox{\hyperlink{structsurface}{surface}} $\ast$ibm\+Surface)
-\begin{DoxyCompactList}\small\item\em read the ibm mesh in A\+S\+C\+II format \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{ibmInput_8c_acad7883ddebbe61a885530b6c4b8d641}\label{ibmInput_8c_acad7883ddebbe61a885530b6c4b8d641}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_acad7883ddebbe61a885530b6c4b8d641}{write\+S\+T\+L\+File}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
-\begin{DoxyCompactList}\small\item\em write the S\+TL mesh \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibmInput_8c_ace540f83da349b20e122eb75d467819b}\label{ibmInput_8c_ace540f83da349b20e122eb75d467819b}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_ace540f83da349b20e122eb75d467819b}{read\+IBMBody\+File\+ASCII}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
+\begin{DoxyCompactList}\small\item\em read the ibm mesh in ASCII format \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibmInput_8c_af498fbf1d0606159f2302a98ab46a0c8}\label{ibmInput_8c_af498fbf1d0606159f2302a98ab46a0c8}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_af498fbf1d0606159f2302a98ab46a0c8}{read\+IBMBody\+File\+GRD}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
+\begin{DoxyCompactList}\small\item\em read the ibm mesh in GRD format \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibmInput_8c_ae516608c88bc425b7da590b599e40277}\label{ibmInput_8c_ae516608c88bc425b7da590b599e40277}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_ae516608c88bc425b7da590b599e40277}{read\+IBMSurface\+File\+GRD}} (\mbox{\hyperlink{structsurface}{surface}} $\ast$ibm\+Surface)
+\begin{DoxyCompactList}\small\item\em read the ibm mesh in .grd format \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibmInput_8c_a96e088da0c631a87e4c054c4f5fdc40d}\label{ibmInput_8c_a96e088da0c631a87e4c054c4f5fdc40d}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a96e088da0c631a87e4c054c4f5fdc40d}{write\+STLFile}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
+\begin{DoxyCompactList}\small\item\em write the STL mesh \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibmInput_8c_a6cdf787216645ac4b36eb20bb7b41623}\label{ibmInput_8c_a6cdf787216645ac4b36eb20bb7b41623}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a6cdf787216645ac4b36eb20bb7b41623}{read\+I\+B\+M\+Body\+File\+U\+CD}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a6cdf787216645ac4b36eb20bb7b41623}{read\+IBMBody\+File\+UCD}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
 \begin{DoxyCompactList}\small\item\em read the ibm mesh in ucd format \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibmInput_8c_a26144c20fceb54b25e5167d9dd3d5152}\label{ibmInput_8c_a26144c20fceb54b25e5167d9dd3d5152}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a26144c20fceb54b25e5167d9dd3d5152}{read\+I\+B\+M\+Body\+File\+U\+C\+D2}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a26144c20fceb54b25e5167d9dd3d5152}{read\+IBMBody\+File\+UCD2}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
 \begin{DoxyCompactList}\small\item\em read the ibm mesh in ucd2 format (without 0 tri entries) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibmInput_8c_a957e43490e06d5313c52d4152a91713c}\label{ibmInput_8c_a957e43490e06d5313c52d4152a91713c}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a957e43490e06d5313c52d4152a91713c}{read\+I\+B\+M\+Surface\+File\+U\+CD}} (\mbox{\hyperlink{structsurface}{surface}} $\ast$ibm\+Surface)
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a957e43490e06d5313c52d4152a91713c}{read\+IBMSurface\+File\+UCD}} (\mbox{\hyperlink{structsurface}{surface}} $\ast$ibm\+Surface)
 \begin{DoxyCompactList}\small\item\em read the ibm mesh in ucd format \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibmInput_8c_a6f037d3e02d6510a96142bca338772e0}\label{ibmInput_8c_a6f037d3e02d6510a96142bca338772e0}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a6f037d3e02d6510a96142bca338772e0}{read\+I\+B\+M\+Surface\+File\+U\+C\+D2}} (\mbox{\hyperlink{structsurface}{surface}} $\ast$ibm\+Surface)
+Petsc\+Error\+Code \mbox{\hyperlink{ibmInput_8c_a6f037d3e02d6510a96142bca338772e0}{read\+IBMSurface\+File\+UCD2}} (\mbox{\hyperlink{structsurface}{surface}} $\ast$ibm\+Surface)
 \begin{DoxyCompactList}\small\item\em read the ibm mesh in ucd2 format (without 0 tri entries) \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
@@ -62,14 +68,14 @@ Contains Immersed boundary method input and read function definitions.
 
 
 \doxysubsection{Function Documentation}
-\mbox{\Hypertarget{ibmInput_8c_a772491326a1d5f3625ec88871be0ad89}\label{ibmInput_8c_a772491326a1d5f3625ec88871be0ad89}} 
-\index{ibmInput.c@{ibmInput.c}!readIBMSurfaceFileSTL@{readIBMSurfaceFileSTL}}
-\index{readIBMSurfaceFileSTL@{readIBMSurfaceFileSTL}!ibmInput.c@{ibmInput.c}}
-\doxysubsubsection{\texorpdfstring{readIBMSurfaceFileSTL()}{readIBMSurfaceFileSTL()}}
-{\footnotesize\ttfamily Petsc\+Error\+Code read\+I\+B\+M\+Surface\+File\+S\+TL (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structsurface}{surface}} $\ast$}]{ibm\+Surface }\end{DoxyParamCaption})}
+\mbox{\Hypertarget{ibmInput_8c_a68a8a8cf95b8fec76bbf9cb287835a2e}\label{ibmInput_8c_a68a8a8cf95b8fec76bbf9cb287835a2e}} 
+\index{ibmInput.c@{ibmInput.c}!readIBMSurfaceFileAbaqusInp@{readIBMSurfaceFileAbaqusInp}}
+\index{readIBMSurfaceFileAbaqusInp@{readIBMSurfaceFileAbaqusInp}!ibmInput.c@{ibmInput.c}}
+\doxysubsubsection{\texorpdfstring{readIBMSurfaceFileAbaqusInp()}{readIBMSurfaceFileAbaqusInp()}}
+{\footnotesize\ttfamily Petsc\+Error\+Code read\+IBMSurface\+File\+Abaqus\+Inp (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structsurface}{surface}} $\ast$}]{ibm\+Surface }\end{DoxyParamCaption})}
 
 
 
-read the ibm mesh in stl format 
+read the ibm mesh in abaqus inp format 
 
 combine the mesh nodes and elements of different surface bodies into one ibm body 

@@ -19,6 +19,15 @@ void {\bfseries time\+Step\+Set} (\mbox{\hyperlink{structclock__}{clock\+\_\+}} 
 \mbox{\Hypertarget{inline_8h_af386b87bd3a301828a9ae6736a4c8097}\label{inline_8h_af386b87bd3a301828a9ae6736a4c8097}} 
 Petsc\+Int {\bfseries must\+Write} (Petsc\+Real time, Petsc\+Real start\+Time, Petsc\+Real time\+Interval)
 \item 
+\mbox{\Hypertarget{inline_8h_a0e6a660a89191fdf2d8f7ae830efe13d}\label{inline_8h_a0e6a660a89191fdf2d8f7ae830efe13d}} 
+void {\bfseries mat\+Mat\+Product} (Petsc\+Real $\ast$$\ast$A, Petsc\+Real $\ast$$\ast$B, Petsc\+Real $\ast$$\ast$C, Petsc\+Int num\+RowA, Petsc\+Int num\+ColA, Petsc\+Int num\+RowB, Petsc\+Int num\+ColB)
+\item 
+\mbox{\Hypertarget{inline_8h_a1cf0495868e263000824499941a20f94}\label{inline_8h_a1cf0495868e263000824499941a20f94}} 
+void {\bfseries mat\+Vec\+Product} (Petsc\+Real $\ast$$\ast$A, Petsc\+Real $\ast$b, Petsc\+Real $\ast$c, Petsc\+Int num\+RowA, Petsc\+Int num\+ColA, Petsc\+Int num\+RowB)
+\item 
+\mbox{\Hypertarget{inline_8h_a2e8052c293aa5928fafdb1c74f014ec3}\label{inline_8h_a2e8052c293aa5928fafdb1c74f014ec3}} 
+Petsc\+Int {\bfseries is\+Present} (Petsc\+Int arr\mbox{[}$\,$\mbox{]}, Petsc\+Int n, Petsc\+Int elem)
+\item 
 \mbox{\Hypertarget{inline_8h_a06b7a2449417239327e428d6b2fbcce0}\label{inline_8h_a06b7a2449417239327e428d6b2fbcce0}} 
 Petsc\+Real {\bfseries sign} (Petsc\+Real a)
 \item 
@@ -39,6 +48,15 @@ complex {\bfseries digamma} (complex x)
 \item 
 \mbox{\Hypertarget{inline_8h_a065237d8e5be9a5059ebae20a9ed467f}\label{inline_8h_a065237d8e5be9a5059ebae20a9ed467f}} 
 complex {\bfseries hypergeom} (complex a, complex b, complex c, Petsc\+Real z)
+\item 
+\mbox{\Hypertarget{inline_8h_a43607486f3c47d558aa06934c382cb71}\label{inline_8h_a43607486f3c47d558aa06934c382cb71}} 
+Petsc\+Real {\bfseries poly\+Log2} (Petsc\+Real x)
+\item 
+\mbox{\Hypertarget{inline_8h_aba699fca457bbadb95ad39740569ec16}\label{inline_8h_aba699fca457bbadb95ad39740569ec16}} 
+Petsc\+Real {\bfseries spline\+B1} (Petsc\+Real a)
+\item 
+\mbox{\Hypertarget{inline_8h_a557f7748dc37c36034350ee4ff31e8ab}\label{inline_8h_a557f7748dc37c36034350ee4ff31e8ab}} 
+Petsc\+Real {\bfseries spline\+B2} (Petsc\+Real a)
 \item 
 \mbox{\Hypertarget{inline_8h_abb470ef2e74b3d0c76c8a1b693e2af8f}\label{inline_8h_abb470ef2e74b3d0c76c8a1b693e2af8f}} 
 \mbox{\hyperlink{structCmpnts}{Cmpnts}} {\bfseries n\+Max} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} v, Petsc\+Real c)
@@ -152,80 +170,80 @@ void {\bfseries Calculate\+\_\+\+Covariant\+\_\+metrics} (Petsc\+Real g\mbox{[}3
 void {\bfseries calculate\+Normal} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} \&csi, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&eta, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&zet, Petsc\+Real ni\mbox{[}3\mbox{]}, Petsc\+Real nj\mbox{[}3\mbox{]}, Petsc\+Real nk\mbox{[}3\mbox{]})
 \item 
 \mbox{\Hypertarget{inline_8h_aff739e6040b746a759be5187644dd685}\label{inline_8h_aff739e6040b746a759be5187644dd685}} 
-bool \mbox{\hyperlink{inline_8h_aff739e6040b746a759be5187644dd685}{is\+Box\+I\+B\+M\+Cell}} (int k, int j, int i, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+bool \mbox{\hyperlink{inline_8h_aff739e6040b746a759be5187644dd685}{is\+Box\+IBMCell}} (int k, int j, int i, Petsc\+Real $\ast$$\ast$$\ast$nvert)
 \begin{DoxyCompactList}\small\item\em check if ibm cell within the neighbouring box of i,j,k \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_af1fb6c58a9bb66534490946e0f5d398c}\label{inline_8h_af1fb6c58a9bb66534490946e0f5d398c}} 
 bool \mbox{\hyperlink{inline_8h_af1fb6c58a9bb66534490946e0f5d398c}{is\+Fluid\+Cell}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Real $\ast$$\ast$$\ast$nvert)
 \begin{DoxyCompactList}\small\item\em check if purely a fluid cell \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a625266c00b77e8b2ca704895be680cca}\label{inline_8h_a625266c00b77e8b2ca704895be680cca}} 
-bool \mbox{\hyperlink{inline_8h_a625266c00b77e8b2ca704895be680cca}{is\+I\+B\+M\+Cell}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check if I\+BM cell -\/ this includes I\+BM fluid cells (cell next to I\+BM body) and I\+BM solid cells \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_a625266c00b77e8b2ca704895be680cca}{is\+IBMCell}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check if IBM cell -\/ this includes IBM fluid cells (cell next to IBM body) and IBM solid cells \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a4ef9fba05ebb0ebb6de36d272a51e6c4}\label{inline_8h_a4ef9fba05ebb0ebb6de36d272a51e6c4}} 
-bool \mbox{\hyperlink{inline_8h_a4ef9fba05ebb0ebb6de36d272a51e6c4}{is\+I\+B\+M\+Fluid\+Cell}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check if I\+BM Fluid cell (cell next to I\+BM body) \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_a4ef9fba05ebb0ebb6de36d272a51e6c4}{is\+IBMFluid\+Cell}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check if IBM Fluid cell (cell next to IBM body) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_aecb22e981cbc70e03acadd5b16316fde}\label{inline_8h_aecb22e981cbc70e03acadd5b16316fde}} 
-bool \mbox{\hyperlink{inline_8h_aecb22e981cbc70e03acadd5b16316fde}{is\+I\+B\+M\+Solid\+Cell}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check if I\+BM solid cell \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_aecb22e981cbc70e03acadd5b16316fde}{is\+IBMSolid\+Cell}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check if IBM solid cell \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a187446ef5aa96591ffd87e090dec238d}\label{inline_8h_a187446ef5aa96591ffd87e090dec238d}} 
-bool \mbox{\hyperlink{inline_8h_a187446ef5aa96591ffd87e090dec238d}{is\+Fluid\+K\+Face}} (Petsc\+Int kL, Petsc\+Int j, Petsc\+Int i, Petsc\+Int kR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+bool \mbox{\hyperlink{inline_8h_a187446ef5aa96591ffd87e090dec238d}{is\+Fluid\+KFace}} (Petsc\+Int kL, Petsc\+Int j, Petsc\+Int i, Petsc\+Int kR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
 \begin{DoxyCompactList}\small\item\em check is a fluid k face -\/ shared by 2 fluid cells \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a576c35ea4e344ea3ec79975b152c3c27}\label{inline_8h_a576c35ea4e344ea3ec79975b152c3c27}} 
-bool \mbox{\hyperlink{inline_8h_a576c35ea4e344ea3ec79975b152c3c27}{is\+Fluid\+J\+Face}} (Petsc\+Int k, Petsc\+Int jL, Petsc\+Int i, Petsc\+Int jR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+bool \mbox{\hyperlink{inline_8h_a576c35ea4e344ea3ec79975b152c3c27}{is\+Fluid\+JFace}} (Petsc\+Int k, Petsc\+Int jL, Petsc\+Int i, Petsc\+Int jR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
 \begin{DoxyCompactList}\small\item\em check is a fluid j face -\/ shared by 2 fluid cells \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a401e8c9a020e5373130033c13dff55d0}\label{inline_8h_a401e8c9a020e5373130033c13dff55d0}} 
-bool \mbox{\hyperlink{inline_8h_a401e8c9a020e5373130033c13dff55d0}{is\+Fluid\+I\+Face}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int iL, Petsc\+Int iR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+bool \mbox{\hyperlink{inline_8h_a401e8c9a020e5373130033c13dff55d0}{is\+Fluid\+IFace}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int iL, Petsc\+Int iR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
 \begin{DoxyCompactList}\small\item\em check is a fluid i face -\/ shared by 2 fluid cells \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a9aff171d47a0c4f96426b1824a6af0ac}\label{inline_8h_a9aff171d47a0c4f96426b1824a6af0ac}} 
-bool \mbox{\hyperlink{inline_8h_a9aff171d47a0c4f96426b1824a6af0ac}{is\+I\+B\+M\+K\+Face}} (Petsc\+Int kL, Petsc\+Int j, Petsc\+Int i, Petsc\+Int kR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check is a I\+BM k face -\/ shared by atleast one I\+BM cell \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_a9aff171d47a0c4f96426b1824a6af0ac}{is\+IBMKFace}} (Petsc\+Int kL, Petsc\+Int j, Petsc\+Int i, Petsc\+Int kR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check is a IBM k face -\/ shared by atleast one IBM cell \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a857b173907758b0868a0467bea2507e1}\label{inline_8h_a857b173907758b0868a0467bea2507e1}} 
-bool \mbox{\hyperlink{inline_8h_a857b173907758b0868a0467bea2507e1}{is\+I\+B\+M\+J\+Face}} (Petsc\+Int k, Petsc\+Int jL, Petsc\+Int i, Petsc\+Int jR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check is a I\+BM j face -\/ shared by atleast one I\+BM cell \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_a857b173907758b0868a0467bea2507e1}{is\+IBMJFace}} (Petsc\+Int k, Petsc\+Int jL, Petsc\+Int i, Petsc\+Int jR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check is a IBM j face -\/ shared by atleast one IBM cell \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a789e35867bd5910b1b80294feaa0524f}\label{inline_8h_a789e35867bd5910b1b80294feaa0524f}} 
-bool \mbox{\hyperlink{inline_8h_a789e35867bd5910b1b80294feaa0524f}{is\+I\+B\+M\+I\+Face}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int iL, Petsc\+Int iR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check is a I\+BM i face -\/ shared by atleast one I\+BM cell \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_a789e35867bd5910b1b80294feaa0524f}{is\+IBMIFace}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int iL, Petsc\+Int iR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check is a IBM i face -\/ shared by atleast one IBM cell \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_ac3ce18ce805bc4e050096f1a0fb87103}\label{inline_8h_ac3ce18ce805bc4e050096f1a0fb87103}} 
-bool \mbox{\hyperlink{inline_8h_ac3ce18ce805bc4e050096f1a0fb87103}{is\+I\+B\+M\+Fluid\+K\+Face}} (Petsc\+Int kL, Petsc\+Int j, Petsc\+Int i, Petsc\+Int kR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check if I\+BM fluid k face -\/ atleast one of the shared cells is I\+BM fluid \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_ac3ce18ce805bc4e050096f1a0fb87103}{is\+IBMFluid\+KFace}} (Petsc\+Int kL, Petsc\+Int j, Petsc\+Int i, Petsc\+Int kR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check if IBM fluid k face -\/ atleast one of the shared cells is IBM fluid \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_afc04aee645fbc85e89a2042c31c79adb}\label{inline_8h_afc04aee645fbc85e89a2042c31c79adb}} 
-bool \mbox{\hyperlink{inline_8h_afc04aee645fbc85e89a2042c31c79adb}{is\+I\+B\+M\+Fluid\+J\+Face}} (Petsc\+Int k, Petsc\+Int jL, Petsc\+Int i, Petsc\+Int jR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check if I\+BM fluid j face -\/ at least one of the shared cells is I\+BM fluid \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_afc04aee645fbc85e89a2042c31c79adb}{is\+IBMFluid\+JFace}} (Petsc\+Int k, Petsc\+Int jL, Petsc\+Int i, Petsc\+Int jR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check if IBM fluid j face -\/ at least one of the shared cells is IBM fluid \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_ad935dad0c65340345ea1810d81172ef6}\label{inline_8h_ad935dad0c65340345ea1810d81172ef6}} 
-bool \mbox{\hyperlink{inline_8h_ad935dad0c65340345ea1810d81172ef6}{is\+I\+B\+M\+Fluid\+I\+Face}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int iL, Petsc\+Int iR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check if I\+BM fluid i face -\/ at least one of the shared cells is I\+BM fluid \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_ad935dad0c65340345ea1810d81172ef6}{is\+IBMFluid\+IFace}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int iL, Petsc\+Int iR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check if IBM fluid i face -\/ at least one of the shared cells is IBM fluid \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_ae8b66673e21f95d13e3f5e59a8108d74}\label{inline_8h_ae8b66673e21f95d13e3f5e59a8108d74}} 
-bool {\bfseries is\+I\+B\+M\+Solid\+K\+Face} (Petsc\+Int kL, Petsc\+Int j, Petsc\+Int i, Petsc\+Int kR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+bool {\bfseries is\+IBMSolid\+KFace} (Petsc\+Int kL, Petsc\+Int j, Petsc\+Int i, Petsc\+Int kR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
 \item 
 \mbox{\Hypertarget{inline_8h_aedfb7ae62f4b27fa3d36eb545ab153df}\label{inline_8h_aedfb7ae62f4b27fa3d36eb545ab153df}} 
-bool \mbox{\hyperlink{inline_8h_aedfb7ae62f4b27fa3d36eb545ab153df}{is\+I\+B\+M\+Solid\+J\+Face}} (Petsc\+Int k, Petsc\+Int jL, Petsc\+Int i, Petsc\+Int jR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check if I\+BM fluid j face -\/ at least one of the shared cells is I\+BM fluid \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_aedfb7ae62f4b27fa3d36eb545ab153df}{is\+IBMSolid\+JFace}} (Petsc\+Int k, Petsc\+Int jL, Petsc\+Int i, Petsc\+Int jR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check if IBM fluid j face -\/ at least one of the shared cells is IBM fluid \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_ad0f33fc250877b6ae6f65001af02e5ea}\label{inline_8h_ad0f33fc250877b6ae6f65001af02e5ea}} 
-bool \mbox{\hyperlink{inline_8h_ad0f33fc250877b6ae6f65001af02e5ea}{is\+I\+B\+M\+Solid\+I\+Face}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int iL, Petsc\+Int iR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
-\begin{DoxyCompactList}\small\item\em check if I\+BM fluid i face -\/ at least one of the shared cells is I\+BM fluid \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{inline_8h_ad0f33fc250877b6ae6f65001af02e5ea}{is\+IBMSolid\+IFace}} (Petsc\+Int k, Petsc\+Int j, Petsc\+Int iL, Petsc\+Int iR, Petsc\+Real $\ast$$\ast$$\ast$nvert)
+\begin{DoxyCompactList}\small\item\em check if IBM fluid i face -\/ at least one of the shared cells is IBM fluid \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_afb5d1f13ee87436bb9cea02c8ad80049}\label{inline_8h_afb5d1f13ee87436bb9cea02c8ad80049}} 
 void \mbox{\hyperlink{inline_8h_afb5d1f13ee87436bb9cea02c8ad80049}{reset\+Non\+Resolved\+Cell\+Centers\+Scalar}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Vec \&V)
-\begin{DoxyCompactList}\small\item\em Resets the value at the non-\/solved faces to zero except for zero\+Gradient, overset and periodic. \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em Resets the value at the non-\/solved centers to zero. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_aa2616d1fcc7b5d9e5cb87b09e7ddb5b5}\label{inline_8h_aa2616d1fcc7b5d9e5cb87b09e7ddb5b5}} 
 void \mbox{\hyperlink{inline_8h_aa2616d1fcc7b5d9e5cb87b09e7ddb5b5}{Contravariant\+To\+Cartesian\+Point}} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} \&csi, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&eta, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&zet, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&ucont, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ucat)
 \begin{DoxyCompactList}\small\item\em Interpolates cartesian velocity at cell center from the contravariant flux around a cell. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a7ca525a19a8a4073ff79041ed4a4be26}\label{inline_8h_a7ca525a19a8a4073ff79041ed4a4be26}} 
-void {\bfseries reset\+Non\+Resolved\+Cell\+Faces} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Vec \&V)
-\item 
+void \mbox{\hyperlink{inline_8h_a7ca525a19a8a4073ff79041ed4a4be26}{reset\+Non\+Resolved\+Cell\+Faces}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Vec \&V)
+\begin{DoxyCompactList}\small\item\em Resets the value at the non-\/solved faces to zero except for zero\+Gradient, overset and periodic. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_aa9e043f57f44cf3d10433db1fdda5007}\label{inline_8h_aa9e043f57f44cf3d10433db1fdda5007}} 
-bool {\bfseries is\+On\+Non\+Resolved\+Cell\+Centers} (Petsc\+Int i, Petsc\+Int j, Petsc\+Int k, D\+M\+D\+A\+Local\+Info info)
+bool {\bfseries is\+On\+Non\+Resolved\+Cell\+Centers} (Petsc\+Int i, Petsc\+Int j, Petsc\+Int k, DMDALocal\+Info info)
 \item 
 \mbox{\Hypertarget{inline_8h_ab83c410aa9607e7f6f0b19cb3056fb51}\label{inline_8h_ab83c410aa9607e7f6f0b19cb3056fb51}} 
-bool {\bfseries is\+On\+Corner\+Cell\+Centers} (Petsc\+Int i, Petsc\+Int j, Petsc\+Int k, D\+M\+D\+A\+Local\+Info info)
+bool {\bfseries is\+On\+Corner\+Cell\+Centers} (Petsc\+Int i, Petsc\+Int j, Petsc\+Int k, DMDALocal\+Info info)
 \item 
 \mbox{\Hypertarget{inline_8h_a07cdce03af9a52bf86930affeed1e910}\label{inline_8h_a07cdce03af9a52bf86930affeed1e910}} 
 void \mbox{\hyperlink{inline_8h_a07cdce03af9a52bf86930affeed1e910}{get\+Cell2\+Cell3\+Stencil\+Csi\+No\+Ghost}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int i, Petsc\+Int mx, Petsc\+Int $\ast$iL, Petsc\+Int $\ast$iR)
-\begin{DoxyCompactList}\small\item\em Get cell\textquotesingle{}s idxs of a 3 cell-\/sencil in csi direction given the cell idx. N\+E\+V\+ER U\+SE G\+H\+O\+S\+TS. \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em Get cell\textquotesingle{}s idxs of a 3 cell-\/sencil in csi direction given the cell idx. NEVER USE GHOSTS. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a1040f08e032c7785e5e9bf49cf8ac180}\label{inline_8h_a1040f08e032c7785e5e9bf49cf8ac180}} 
 void \mbox{\hyperlink{inline_8h_a1040f08e032c7785e5e9bf49cf8ac180}{get\+Cell2\+Cell3\+Stencil\+Eta\+No\+Ghost}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int j, Petsc\+Int my, Petsc\+Int $\ast$jL, Petsc\+Int $\ast$jR)
-\begin{DoxyCompactList}\small\item\em Get cell\textquotesingle{}s idxs of a 3 cell-\/sencil in eta direction given the cell idx. N\+E\+V\+ER U\+SE G\+H\+O\+S\+TS. \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em Get cell\textquotesingle{}s idxs of a 3 cell-\/sencil in eta direction given the cell idx. NEVER USE GHOSTS. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a454a3fe8fe018a84c1944524cdf8396b}\label{inline_8h_a454a3fe8fe018a84c1944524cdf8396b}} 
 void \mbox{\hyperlink{inline_8h_a454a3fe8fe018a84c1944524cdf8396b}{get\+Cell2\+Cell3\+Stencil\+Zet\+No\+Ghost}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int k, Petsc\+Int mz, Petsc\+Int $\ast$kL, Petsc\+Int $\ast$kR)
-\begin{DoxyCompactList}\small\item\em Get cell\textquotesingle{}s idxs of a 3 cell-\/sencil in zet direction given the cell idx. N\+E\+V\+ER U\+SE G\+H\+O\+S\+TS. \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em Get cell\textquotesingle{}s idxs of a 3 cell-\/sencil in zet direction given the cell idx. NEVER USE GHOSTS. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_ac7458ab75ca131ab5586dcae68950168}\label{inline_8h_ac7458ab75ca131ab5586dcae68950168}} 
 void \mbox{\hyperlink{inline_8h_ac7458ab75ca131ab5586dcae68950168}{get\+Cell2\+Cell3\+Stencil\+Csi}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int i, Petsc\+Int mx, Petsc\+Int $\ast$iL, Petsc\+Int $\ast$iR)
 \begin{DoxyCompactList}\small\item\em Get cell\textquotesingle{}s idxs of a 3 cell-\/sencil in csi direction given the cell idx. \end{DoxyCompactList}\item 
@@ -235,14 +253,14 @@ void \mbox{\hyperlink{inline_8h_a3b3a74350aac92aff7bb0d9c9801591a}{get\+Cell2\+C
 \mbox{\Hypertarget{inline_8h_aa8165791ede71e412550a3a9298b1309}\label{inline_8h_aa8165791ede71e412550a3a9298b1309}} 
 void \mbox{\hyperlink{inline_8h_aa8165791ede71e412550a3a9298b1309}{get\+Cell2\+Cell3\+Stencil\+Zet}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int k, Petsc\+Int mz, Petsc\+Int $\ast$kL, Petsc\+Int $\ast$kR)
 \begin{DoxyCompactList}\small\item\em Get cell\textquotesingle{}s idxs of a 3 cell-\/sencil in zet direction given the cell idx. \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{inline_8h_a7758a25077bd4e9353c9a167d5ed6562}\label{inline_8h_a7758a25077bd4e9353c9a167d5ed6562}} 
-void \mbox{\hyperlink{inline_8h_a7758a25077bd4e9353c9a167d5ed6562}{get\+Face2\+Cell4\+Stencil\+Csi}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int i, Petsc\+Int mx, Petsc\+Int $\ast$iL, Petsc\+Int $\ast$iR, Petsc\+Real $\ast$denom)
+\mbox{\Hypertarget{inline_8h_a5ff57f009283983a27a95dd095b7cf30}\label{inline_8h_a5ff57f009283983a27a95dd095b7cf30}} 
+void \mbox{\hyperlink{inline_8h_a5ff57f009283983a27a95dd095b7cf30}{get\+Face2\+Cell4\+Stencil\+Csi}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Int mx, Petsc\+Int $\ast$iL, Petsc\+Int $\ast$iR, Petsc\+Real $\ast$denom, Petsc\+Real $\ast$$\ast$$\ast$nvert)
 \begin{DoxyCompactList}\small\item\em Get outmost cell\textquotesingle{}s idxs of a 4 cell-\/sencil in csi direction given the face idx. \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{inline_8h_a66c3fd1a316644d76c29d7369ec0b059}\label{inline_8h_a66c3fd1a316644d76c29d7369ec0b059}} 
-void \mbox{\hyperlink{inline_8h_a66c3fd1a316644d76c29d7369ec0b059}{get\+Face2\+Cell4\+Stencil\+Eta}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int j, Petsc\+Int my, Petsc\+Int $\ast$jL, Petsc\+Int $\ast$jR, Petsc\+Real $\ast$denom)
+\mbox{\Hypertarget{inline_8h_adf5ea62c45bea3caa948b4c48962af84}\label{inline_8h_adf5ea62c45bea3caa948b4c48962af84}} 
+void \mbox{\hyperlink{inline_8h_adf5ea62c45bea3caa948b4c48962af84}{get\+Face2\+Cell4\+Stencil\+Eta}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Int my, Petsc\+Int $\ast$jL, Petsc\+Int $\ast$jR, Petsc\+Real $\ast$denom, Petsc\+Real $\ast$$\ast$$\ast$nvert)
 \begin{DoxyCompactList}\small\item\em Get outmost cell\textquotesingle{}s idxs of a 4 cell-\/sencil in eta direction given the face idx. \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{inline_8h_a5dceb07a62581b965cfe51d68ffb794e}\label{inline_8h_a5dceb07a62581b965cfe51d68ffb794e}} 
-void \mbox{\hyperlink{inline_8h_a5dceb07a62581b965cfe51d68ffb794e}{get\+Face2\+Cell4\+Stencil\+Zet}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int k, Petsc\+Int mz, Petsc\+Int $\ast$kL, Petsc\+Int $\ast$kR, Petsc\+Real $\ast$denom)
+\mbox{\Hypertarget{inline_8h_aa1cfa0566797f0c39f97aca2c06a4831}\label{inline_8h_aa1cfa0566797f0c39f97aca2c06a4831}} 
+void \mbox{\hyperlink{inline_8h_aa1cfa0566797f0c39f97aca2c06a4831}{get\+Face2\+Cell4\+Stencil\+Zet}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int k, Petsc\+Int j, Petsc\+Int i, Petsc\+Int mz, Petsc\+Int $\ast$kL, Petsc\+Int $\ast$kR, Petsc\+Real $\ast$denom, Petsc\+Real $\ast$$\ast$$\ast$nvert)
 \begin{DoxyCompactList}\small\item\em Get outmost cell\textquotesingle{}s idxs of a 4 cell-\/sencil in zet direction given the face idx. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_a45b66c20eac247f9625778483681c984}\label{inline_8h_a45b66c20eac247f9625778483681c984}} 
 void \mbox{\hyperlink{inline_8h_a45b66c20eac247f9625778483681c984}{get\+Face2\+Face3\+Stencil\+Csi}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Int i, Petsc\+Int mx, Petsc\+Int $\ast$iL, Petsc\+Int $\ast$iR)
@@ -280,11 +298,29 @@ void {\bfseries Compute\+\_\+dscalar\+\_\+center} (\mbox{\hyperlink{structmesh__
 \mbox{\Hypertarget{inline_8h_abea8580795dda899ca743cc4fa294fff}\label{inline_8h_abea8580795dda899ca743cc4fa294fff}} 
 Petsc\+Real {\bfseries integrate\+Testfilter\+Simpson} (Petsc\+Real val\mbox{[}3\mbox{]}\mbox{[}3\mbox{]}\mbox{[}3\mbox{]}, Petsc\+Real w\mbox{[}3\mbox{]}\mbox{[}3\mbox{]}\mbox{[}3\mbox{]})
 \item 
+\mbox{\Hypertarget{inline_8h_a34a58c9035e37cd56a9fdf920faf50da}\label{inline_8h_a34a58c9035e37cd56a9fdf920faf50da}} 
+Petsc\+Real {\bfseries integrate\+Testfilter\+Simpson5x5} (Petsc\+Real val\mbox{[}5\mbox{]}\mbox{[}5\mbox{]}\mbox{[}5\mbox{]}, Petsc\+Real w\mbox{[}5\mbox{]}\mbox{[}5\mbox{]}\mbox{[}5\mbox{]})
+\item 
 \mbox{\Hypertarget{inline_8h_a14e5324154bb1292d16086163cdc46cd}\label{inline_8h_a14e5324154bb1292d16086163cdc46cd}} 
 void {\bfseries Compute\+\_\+du\+\_\+dxyz} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Real csi0, Petsc\+Real csi1, Petsc\+Real csi2, Petsc\+Real eta0, Petsc\+Real eta1, Petsc\+Real eta2, Petsc\+Real zet0, Petsc\+Real zet1, Petsc\+Real zet2, Petsc\+Real ajc, Petsc\+Real dudc, Petsc\+Real dvdc, Petsc\+Real dwdc, Petsc\+Real dude, Petsc\+Real dvde, Petsc\+Real dwde, Petsc\+Real dudz, Petsc\+Real dvdz, Petsc\+Real dwdz, Petsc\+Real $\ast$du\+\_\+dx, Petsc\+Real $\ast$dv\+\_\+dx, Petsc\+Real $\ast$dw\+\_\+dx, Petsc\+Real $\ast$du\+\_\+dy, Petsc\+Real $\ast$dv\+\_\+dy, Petsc\+Real $\ast$dw\+\_\+dy, Petsc\+Real $\ast$du\+\_\+dz, Petsc\+Real $\ast$dv\+\_\+dz, Petsc\+Real $\ast$dw\+\_\+dz)
 \item 
 \mbox{\Hypertarget{inline_8h_ab9ba8aad67b8b6ab5d25c87bdc2785f6}\label{inline_8h_ab9ba8aad67b8b6ab5d25c87bdc2785f6}} 
 void {\bfseries Compute\+\_\+dscalar\+\_\+dxyz} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Real csi0, Petsc\+Real csi1, Petsc\+Real csi2, Petsc\+Real eta0, Petsc\+Real eta1, Petsc\+Real eta2, Petsc\+Real zet0, Petsc\+Real zet1, Petsc\+Real zet2, Petsc\+Real ajc, Petsc\+Real dkdc, Petsc\+Real dkde, Petsc\+Real dkdz, Petsc\+Real $\ast$dk\+\_\+dx, Petsc\+Real $\ast$dk\+\_\+dy, Petsc\+Real $\ast$dk\+\_\+dz)
+\item 
+\mbox{\Hypertarget{inline_8h_ac03216abb792cf0b2d5b679c5a92e271}\label{inline_8h_ac03216abb792cf0b2d5b679c5a92e271}} 
+void {\bfseries Compute\+\_\+du\+\_\+wm\+Local} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, \mbox{\hyperlink{structCmpnts}{Cmpnts}} eN, \mbox{\hyperlink{structCmpnts}{Cmpnts}} e\+T1, \mbox{\hyperlink{structCmpnts}{Cmpnts}} e\+T2, Petsc\+Real du\+\_\+dx, Petsc\+Real dv\+\_\+dx, Petsc\+Real dw\+\_\+dx, Petsc\+Real du\+\_\+dy, Petsc\+Real dv\+\_\+dy, Petsc\+Real dw\+\_\+dy, Petsc\+Real du\+\_\+dz, Petsc\+Real dv\+\_\+dz, Petsc\+Real dw\+\_\+dz, Petsc\+Real $\ast$dut1dn, Petsc\+Real $\ast$dut2dn, Petsc\+Real $\ast$dundn, Petsc\+Real $\ast$dut1dt1, Petsc\+Real $\ast$dut2dt1, Petsc\+Real $\ast$dundt1, Petsc\+Real $\ast$dut1dt2, Petsc\+Real $\ast$dut2dt2, Petsc\+Real $\ast$dundt2)
+\item 
+\mbox{\Hypertarget{inline_8h_a19fec67b10ca337f1c660e937417dafc}\label{inline_8h_a19fec67b10ca337f1c660e937417dafc}} 
+void {\bfseries Comput\+\_\+\+Jacob\+Tensor\+\_\+i} (Petsc\+Int i, Petsc\+Int j, Petsc\+Int k, Petsc\+Int mx, Petsc\+Int my, Petsc\+Int mz, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$$\ast$$\ast$coor, Petsc\+Real $\ast$dxdc, Petsc\+Real $\ast$dxde, Petsc\+Real $\ast$dxdz, Petsc\+Real $\ast$dydc, Petsc\+Real $\ast$dyde, Petsc\+Real $\ast$dydz, Petsc\+Real $\ast$dzdc, Petsc\+Real $\ast$dzde, Petsc\+Real $\ast$dzdz)
+\item 
+\mbox{\Hypertarget{inline_8h_a98acd18276dc5c9ca791baf89cf1af72}\label{inline_8h_a98acd18276dc5c9ca791baf89cf1af72}} 
+void {\bfseries Comput\+\_\+\+Jacob\+Tensor\+\_\+j} (Petsc\+Int i, Petsc\+Int j, Petsc\+Int k, Petsc\+Int mx, Petsc\+Int my, Petsc\+Int mz, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$$\ast$$\ast$coor, Petsc\+Real $\ast$dxdc, Petsc\+Real $\ast$dxde, Petsc\+Real $\ast$dxdz, Petsc\+Real $\ast$dydc, Petsc\+Real $\ast$dyde, Petsc\+Real $\ast$dydz, Petsc\+Real $\ast$dzdc, Petsc\+Real $\ast$dzde, Petsc\+Real $\ast$dzdz)
+\item 
+\mbox{\Hypertarget{inline_8h_aa3895c0b078803834353ba1df5c8538a}\label{inline_8h_aa3895c0b078803834353ba1df5c8538a}} 
+void {\bfseries Comput\+\_\+\+Jacob\+Tensor\+\_\+k} (Petsc\+Int i, Petsc\+Int j, Petsc\+Int k, Petsc\+Int mx, Petsc\+Int my, Petsc\+Int mz, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$$\ast$$\ast$coor, Petsc\+Real $\ast$dxdc, Petsc\+Real $\ast$dxde, Petsc\+Real $\ast$dxdz, Petsc\+Real $\ast$dydc, Petsc\+Real $\ast$dyde, Petsc\+Real $\ast$dydz, Petsc\+Real $\ast$dzdc, Petsc\+Real $\ast$dzde, Petsc\+Real $\ast$dzdz)
+\item 
+\mbox{\Hypertarget{inline_8h_ace7d9f3dfc664a1d0d76444456cee8f9}\label{inline_8h_ace7d9f3dfc664a1d0d76444456cee8f9}} 
+void {\bfseries Compute\+\_\+du\+\_\+\+Compgrid} (Petsc\+Real dxdc, Petsc\+Real dxde, Petsc\+Real dxdz, Petsc\+Real dydc, Petsc\+Real dyde, Petsc\+Real dydz, Petsc\+Real dzdc, Petsc\+Real dzde, Petsc\+Real dzdz, Petsc\+Real nx, Petsc\+Real ny, Petsc\+Real nz, Petsc\+Real t1x, Petsc\+Real t1y, Petsc\+Real t1z, Petsc\+Real t2x, Petsc\+Real t2y, Petsc\+Real t2z, Petsc\+Real dut1dn, Petsc\+Real dut2dn, Petsc\+Real dundn, Petsc\+Real dut1dt1, Petsc\+Real dut2dt1, Petsc\+Real dundt1, Petsc\+Real dut1dt2, Petsc\+Real dut2dt2, Petsc\+Real dundt2, Petsc\+Real $\ast$dudc, Petsc\+Real $\ast$dvdc, Petsc\+Real $\ast$dwdc, Petsc\+Real $\ast$dude, Petsc\+Real $\ast$dvde, Petsc\+Real $\ast$dwde, Petsc\+Real $\ast$dudz, Petsc\+Real $\ast$dvdz, Petsc\+Real $\ast$dwdz)
 \item 
 \mbox{\Hypertarget{inline_8h_a25d3b0dd1329d5ba16d7e48cea33769e}\label{inline_8h_a25d3b0dd1329d5ba16d7e48cea33769e}} 
 Petsc\+Real {\bfseries min\+Mod} (Petsc\+Real m1, Petsc\+Real m2)
@@ -358,8 +394,17 @@ void \mbox{\hyperlink{inline_8h_ac1367cd5ea7a26ef3410d11e663f43b5}{reset\+Cell\+
 \mbox{\Hypertarget{inline_8h_ad7a7d99b0a966cf9369d5c7951482bcd}\label{inline_8h_ad7a7d99b0a966cf9369d5c7951482bcd}} 
 Petsc\+Real {\bfseries visc\+Rayleigh} (Petsc\+Real \&alpha, Petsc\+Real \&hS, Petsc\+Real \&hE, Petsc\+Real \&h)
 \item 
+\mbox{\Hypertarget{inline_8h_a95100d50d2e527c42b20e0c705b2e529}\label{inline_8h_a95100d50d2e527c42b20e0c705b2e529}} 
+Petsc\+Real {\bfseries visc\+Cos\+Ascending} (Petsc\+Real \&alpha, Petsc\+Real \&hS, Petsc\+Real \&hE, Petsc\+Real \&h)
+\item 
+\mbox{\Hypertarget{inline_8h_ad7ac7cf4bcd91edca45f19c315e26d86}\label{inline_8h_ad7ac7cf4bcd91edca45f19c315e26d86}} 
+Petsc\+Real {\bfseries visc\+Cos\+Descending} (Petsc\+Real \&alpha, Petsc\+Real \&hS, Petsc\+Real \&hE, Petsc\+Real \&h)
+\item 
 \mbox{\Hypertarget{inline_8h_a6896d982cb1066a7199099686a591e98}\label{inline_8h_a6896d982cb1066a7199099686a591e98}} 
 Petsc\+Real {\bfseries visc\+Nordstrom} (Petsc\+Real \&alpha, Petsc\+Real \&hS, Petsc\+Real \&hE, Petsc\+Real \&delta, Petsc\+Real \&h)
+\item 
+\mbox{\Hypertarget{inline_8h_a661acd60cacc574f1e3ca46670947724}\label{inline_8h_a661acd60cacc574f1e3ca46670947724}} 
+double {\bfseries visc\+Nordstrom\+No\+Vert\+Filter} (double hS, double hE, double \&delta, double \&h)
 \item 
 \mbox{\Hypertarget{inline_8h_a52ed7cc8d1b374a36265a479cb815733}\label{inline_8h_a52ed7cc8d1b374a36265a479cb815733}} 
 double {\bfseries visc\+Stipa} (double \&hS, double \&hE, double \&delta, double \&h, double \&z, double \&H)
@@ -367,11 +412,11 @@ double {\bfseries visc\+Stipa} (double \&hS, double \&hE, double \&delta, double
 \mbox{\Hypertarget{inline_8h_a2ad635b7b592d6fd234ce021fd612750}\label{inline_8h_a2ad635b7b592d6fd234ce021fd612750}} 
 double {\bfseries visc\+Stipa\+Delta} (double \&hS, double \&hE, double \&deltaS, double \&deltaE, double \&h, double \&z, double \&H)
 \item 
-\mbox{\Hypertarget{inline_8h_ac4830425b7b2c6ac92a66c5a19bbdad0}\label{inline_8h_ac4830425b7b2c6ac92a66c5a19bbdad0}} 
-void {\bfseries find\+Interpolation\+Weigths} (Petsc\+Real $\ast$weights, Petsc\+Int $\ast$labels, Petsc\+Real $\ast$pvec, Petsc\+Int npts, Petsc\+Real pval)
+\mbox{\Hypertarget{inline_8h_aca904f9d09001931345db684ab24639e}\label{inline_8h_aca904f9d09001931345db684ab24639e}} 
+void {\bfseries find\+Interpolation\+Weights} (Petsc\+Real $\ast$weights, Petsc\+Int $\ast$labels, Petsc\+Real $\ast$pvec, Petsc\+Int npts, Petsc\+Real pval)
 \item 
-\mbox{\Hypertarget{inline_8h_a4dc1b78d920cd9f1481916e59f5336ab}\label{inline_8h_a4dc1b78d920cd9f1481916e59f5336ab}} 
-void {\bfseries find\+Interpolation\+Weigths\+With\+Extrap} (Petsc\+Real $\ast$weights, Petsc\+Int $\ast$labels, Petsc\+Real $\ast$pvec, Petsc\+Int npts, Petsc\+Real pval)
+\mbox{\Hypertarget{inline_8h_a64217a4cb5e681db2d60ff0217a1f9f8}\label{inline_8h_a64217a4cb5e681db2d60ff0217a1f9f8}} 
+void {\bfseries find\+Interpolation\+Weights\+With\+Extrap} (Petsc\+Real $\ast$weights, Petsc\+Int $\ast$labels, Petsc\+Real $\ast$pvec, Petsc\+Int npts, Petsc\+Real pval)
 \item 
 \mbox{\Hypertarget{inline_8h_a967ef5df6b09a61f755c59935262240d}\label{inline_8h_a967ef5df6b09a61f755c59935262240d}} 
 Petsc\+Real {\bfseries scale\+Hyper\+Tang\+Bot} (Petsc\+Real h, Petsc\+Real H, Petsc\+Real delta)
@@ -385,10 +430,10 @@ Petsc\+Real \mbox{\hyperlink{inline_8h_a8b072c023c0f8485160519e4ee031737}{comput
 Petsc\+Real \mbox{\hyperlink{inline_8h_ae2e959492e7e7742a87e910fc7ceef0d}{compute\+Em\+Tilde}} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} \&avgU, \mbox{\hyperlink{structsymmTensor}{symm\+Tensor}} \&avg\+Uprime\+Uprime)
 \begin{DoxyCompactList}\small\item\em Computes modified mechanical energy (Em = \uline{\uline{ + $<$\+V$>$$<$\+V$>$ + $<$\+W$>$$<$\+W$>$ + $<$U\textquotesingle{}U\textquotesingle{}$>$ + $<$V\textquotesingle{}V\textquotesingle{}$>$ + $<$W\textquotesingle{}W\textquotesingle{}$>$) using contrav. fluxes. }}\end{DoxyCompactList}\item 
 \mbox{\Hypertarget{inline_8h_afe91bbbd122c20a2d7fbfeb411e9a65d}\label{inline_8h_afe91bbbd122c20a2d7fbfeb411e9a65d}} 
-Petsc\+Real {\bfseries compute\+M\+KE} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} \&avgU)
+Petsc\+Real {\bfseries compute\+MKE} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} \&avgU)
 \item 
 \mbox{\Hypertarget{inline_8h_acfff7db550298ac6bb2701b3ddb0bdf7}\label{inline_8h_acfff7db550298ac6bb2701b3ddb0bdf7}} 
-Petsc\+Real {\bfseries compute\+T\+KE} (\mbox{\hyperlink{structsymmTensor}{symm\+Tensor}} \&avg\+Uprime\+Uprime)
+Petsc\+Real {\bfseries compute\+TKE} (\mbox{\hyperlink{structsymmTensor}{symm\+Tensor}} \&avg\+Uprime\+Uprime)
 \item 
 \mbox{\Hypertarget{inline_8h_a99330e6596469ce3a7598c1e6b6dddc0}\label{inline_8h_a99330e6596469ce3a7598c1e6b6dddc0}} 
 void \mbox{\hyperlink{inline_8h_a99330e6596469ce3a7598c1e6b6dddc0}{scalar\+Point\+Local\+Volume\+Interpolation}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, Petsc\+Real px, Petsc\+Real py, Petsc\+Real pz, Petsc\+Int ic, Petsc\+Int jc, Petsc\+Int kc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$$\ast$$\ast$cent, Petsc\+Real $\ast$$\ast$$\ast$v, Petsc\+Real \&result)
@@ -426,8 +471,20 @@ void {\bfseries destroy} (\mbox{\hyperlink{structlist}{list}} $\ast$ilist)
 \mbox{\Hypertarget{inline_8h_ab3c3e3e8f57fd58a9bd781257c590f41}\label{inline_8h_ab3c3e3e8f57fd58a9bd781257c590f41}} 
 void {\bfseries destroy\+Cell\+List} (\mbox{\hyperlink{structcellList}{cell\+List}} $\ast$ilist)
 \item 
-\mbox{\Hypertarget{inline_8h_aa685bdf23cd40ead6840be0bc2f310d1}\label{inline_8h_aa685bdf23cd40ead6840be0bc2f310d1}} 
-void {\bfseries inv\+\_\+4by4} (Petsc\+Real A\mbox{[}4\mbox{]}\mbox{[}4\mbox{]}, Petsc\+Real inv\+\_\+A\mbox{[}$\,$\mbox{]}\mbox{[}4\mbox{]})
+\mbox{\Hypertarget{inline_8h_ab1be933031f9fc78498aa24e234958ee}\label{inline_8h_ab1be933031f9fc78498aa24e234958ee}} 
+void {\bfseries reorder\+Matrix} (Petsc\+Real $\ast$$\ast$A, Petsc\+Real $\ast$$\ast$B, Petsc\+Int N, Petsc\+Int pivot)
+\item 
+\mbox{\Hypertarget{inline_8h_a2549b08cbd914ee9240596a9a798ae1f}\label{inline_8h_a2549b08cbd914ee9240596a9a798ae1f}} 
+void {\bfseries elim\+Jordan\+Alg} (Petsc\+Real $\ast$$\ast$A, Petsc\+Real $\ast$$\ast$B, Petsc\+Int N, Petsc\+Int pivot)
+\item 
+\mbox{\Hypertarget{inline_8h_a0a1971cd6918be222af0aae0103ceef3}\label{inline_8h_a0a1971cd6918be222af0aae0103ceef3}} 
+void {\bfseries inverse\+Matrix} (Petsc\+Real $\ast$$\ast$A, Petsc\+Real $\ast$$\ast$inv\+\_\+A, Petsc\+Int size)
+\item 
+\mbox{\Hypertarget{inline_8h_a0251e5571ef87afb556d09096a07d4ab}\label{inline_8h_a0251e5571ef87afb556d09096a07d4ab}} 
+void {\bfseries inv\+\_\+4by4} (Petsc\+Real $\ast$$\ast$A, Petsc\+Real $\ast$$\ast$inv\+\_\+A, Petsc\+Int size)
+\item 
+\mbox{\Hypertarget{inline_8h_abb0cf60702fb05b1affc3ce5aae87d11}\label{inline_8h_abb0cf60702fb05b1affc3ce5aae87d11}} 
+void {\bfseries inv\+\_\+3by3} (Petsc\+Real $\ast$$\ast$A, Petsc\+Real $\ast$$\ast$inv\+\_\+A, Petsc\+Int size)
 \item 
 \mbox{\Hypertarget{inline_8h_ac721b8aa936fbf73ac0fa94760290225}\label{inline_8h_ac721b8aa936fbf73ac0fa94760290225}} 
 void {\bfseries reorder\+\_\+20} (Petsc\+Real A\mbox{[}$\,$\mbox{]}\mbox{[}20\mbox{]}, Petsc\+Real B\mbox{[}$\,$\mbox{]}\mbox{[}20\mbox{]}, Petsc\+Int N, Petsc\+Int pivot)
@@ -438,17 +495,17 @@ void {\bfseries elim\+\_\+jordan\+\_\+20} (Petsc\+Real A\mbox{[}$\,$\mbox{]}\mbo
 \mbox{\Hypertarget{inline_8h_ab1daf06d8c1290ebc4d783bd9a97384b}\label{inline_8h_ab1daf06d8c1290ebc4d783bd9a97384b}} 
 void {\bfseries inv\+\_\+20} (Petsc\+Real A\mbox{[}20\mbox{]}\mbox{[}20\mbox{]}, Petsc\+Real inv\+\_\+A\mbox{[}$\,$\mbox{]}\mbox{[}20\mbox{]}, Petsc\+Int N)
 \item 
-\mbox{\Hypertarget{inline_8h_ab999ecdde7008821dbc5c54bf4c2a371}\label{inline_8h_ab999ecdde7008821dbc5c54bf4c2a371}} 
-void {\bfseries reorder} (Petsc\+Real A\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Real B\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Int N, Petsc\+Int pivot)
+\mbox{\Hypertarget{inline_8h_a9431acd0bc7c78155e55b2b63aef575b}\label{inline_8h_a9431acd0bc7c78155e55b2b63aef575b}} 
+void {\bfseries reorder\+\_\+10} (Petsc\+Real A\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Real B\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Int N, Petsc\+Int pivot)
 \item 
-\mbox{\Hypertarget{inline_8h_a077374a05dec08aed3b77f2269d404fe}\label{inline_8h_a077374a05dec08aed3b77f2269d404fe}} 
-void {\bfseries elim\+\_\+jordan} (Petsc\+Real A\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Real B\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Int N, Petsc\+Int pivot)
+\mbox{\Hypertarget{inline_8h_a034f5abf9c0f731dd10b3d6c203e6a17}\label{inline_8h_a034f5abf9c0f731dd10b3d6c203e6a17}} 
+void {\bfseries elim\+\_\+jordan\+\_\+10} (Petsc\+Real A\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Real B\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Int N, Petsc\+Int pivot)
 \item 
-\mbox{\Hypertarget{inline_8h_a8b704f89809be735a04972ad0698f591}\label{inline_8h_a8b704f89809be735a04972ad0698f591}} 
-void {\bfseries inv} (Petsc\+Real A\mbox{[}10\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Real inv\+\_\+A\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Int N)
+\mbox{\Hypertarget{inline_8h_abf4dcb4378598a40b3b4234ff8488331}\label{inline_8h_abf4dcb4378598a40b3b4234ff8488331}} 
+void {\bfseries inv\+\_\+10} (Petsc\+Real A\mbox{[}10\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Real inv\+\_\+A\mbox{[}$\,$\mbox{]}\mbox{[}10\mbox{]}, Petsc\+Int N)
 \item 
-\mbox{\Hypertarget{inline_8h_ae517b96b2d729d374e3f5607c1b65432}\label{inline_8h_ae517b96b2d729d374e3f5607c1b65432}} 
-void {\bfseries mult\+\_\+mats3\+\_\+lin} (Petsc\+Real inv\+\_\+A\mbox{[}4\mbox{]}\mbox{[}4\mbox{]}, Petsc\+Real $\ast$$\ast$B, Petsc\+Int nsupport, Petsc\+Real $\ast$P\+HI)
+\mbox{\Hypertarget{inline_8h_ada0bb5e163b3ca4ac77243e76c0973a1}\label{inline_8h_ada0bb5e163b3ca4ac77243e76c0973a1}} 
+void {\bfseries mult\+\_\+mats3\+\_\+lin} (Petsc\+Real $\ast$$\ast$inv\+\_\+A, Petsc\+Real $\ast$$\ast$B, Petsc\+Int nsupport, Petsc\+Real $\ast$PHI)
 \end{DoxyCompactItemize}
 
 

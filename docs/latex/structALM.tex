@@ -1,4 +1,4 @@
-\hypertarget{structALM}{}\doxysection{A\+LM Struct Reference}
+\hypertarget{structALM}{}\doxysection{ALM Struct Reference}
 \label{structALM}\index{ALM@{ALM}}
 
 
@@ -12,6 +12,12 @@ Actuator Line Model.
 \doxysubsection*{Public Attributes}
 \begin{DoxyCompactItemize}
 \item 
+\mbox{\Hypertarget{structALM_a79a9d6b77b9b93cd9d86335aed027264}\label{structALM_a79a9d6b77b9b93cd9d86335aed027264}} 
+word \mbox{\hyperlink{structALM_a79a9d6b77b9b93cd9d86335aed027264}{projection\+Type}}
+\begin{DoxyCompactList}\small\item\em isotropic or anisotropic (follows chord) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structALM_a770bf2109ec4644e48f3751f9da4e76d}\label{structALM_a770bf2109ec4644e48f3751f9da4e76d}} 
+word \mbox{\hyperlink{structALM_a770bf2109ec4644e48f3751f9da4e76d}{sample\+Type}}
+\begin{DoxyCompactList}\small\item\em velocity sampling type (\char`\"{}rotor\+Disk\char`\"{} or \char`\"{}integral\char`\"{}) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structALM_a23f4fb417dbf3f339ff382c49840393c}\label{structALM_a23f4fb417dbf3f339ff382c49840393c}} 
 Petsc\+Int \mbox{\hyperlink{structALM_a23f4fb417dbf3f339ff382c49840393c}{n\+Points}}
 \begin{DoxyCompactList}\small\item\em total number of points \end{DoxyCompactList}\item 
@@ -36,6 +42,9 @@ Petsc\+Real $\ast$ \mbox{\hyperlink{structALM_a1b1d3c78da55352266f1a8281e29a614}
 \mbox{\Hypertarget{structALM_a0ffdc8bf2aa23968d6d1565a80b5bec9}\label{structALM_a0ffdc8bf2aa23968d6d1565a80b5bec9}} 
 Petsc\+Real $\ast$ \mbox{\hyperlink{structALM_a0ffdc8bf2aa23968d6d1565a80b5bec9}{twist}}
 \begin{DoxyCompactList}\small\item\em array containing the twist at each AL point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structALM_a8bb2b9c45279ed9a00dd4dc353206d56}\label{structALM_a8bb2b9c45279ed9a00dd4dc353206d56}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structALM_a8bb2b9c45279ed9a00dd4dc353206d56}{thick}}
+\begin{DoxyCompactList}\small\item\em array containing the thickness at each AL point \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structALM_a10c98841d2d0878ab7761b134b4df817}\label{structALM_a10c98841d2d0878ab7761b134b4df817}} 
 Petsc\+Real $\ast$ \mbox{\hyperlink{structALM_a10c98841d2d0878ab7761b134b4df817}{solidity}}
 \begin{DoxyCompactList}\small\item\em array containing the solidity at each AL point \end{DoxyCompactList}\item 
@@ -63,6 +72,9 @@ Petsc\+Real $\ast$ \mbox{\hyperlink{structALM_a0ff8ea76d92a568cf6dc6120a60e9152}
 \mbox{\Hypertarget{structALM_a20b5c847c6b14af23cdcdc65d9f4b239}\label{structALM_a20b5c847c6b14af23cdcdc65d9f4b239}} 
 \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structALM_a20b5c847c6b14af23cdcdc65d9f4b239}{U}}
 \begin{DoxyCompactList}\small\item\em flow velocity at each point of the AL (relative to the blade) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structALM_a28d54ad93fd8eca304f379c48d52f146}\label{structALM_a28d54ad93fd8eca304f379c48d52f146}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structALM_a28d54ad93fd8eca304f379c48d52f146}{g\+Wind}}
+\begin{DoxyCompactList}\small\item\em sampled velocity at each point of the AL \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structALM_a225f9dd8621ed5ce8ee412acabb253d2}\label{structALM_a225f9dd8621ed5ce8ee412acabb253d2}} 
 \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structALM_a225f9dd8621ed5ce8ee412acabb253d2}{B}}
 \begin{DoxyCompactList}\small\item\em body force at each point of the AL mesh \end{DoxyCompactList}\item 
@@ -74,7 +86,7 @@ Petsc\+Real $\ast$ \mbox{\hyperlink{structALM_ae129eb9dceb9506b0f8e8f54644692c1}
 \begin{DoxyCompactList}\small\item\em rotor tangential force at each point of the AL mesh \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structALM_a137fd9c063671ed052d99071fa865c00}\label{structALM_a137fd9c063671ed052d99071fa865c00}} 
 Petsc\+Real \mbox{\hyperlink{structALM_a137fd9c063671ed052d99071fa865c00}{rtr\+Avg\+MagU}}
-\begin{DoxyCompactList}\small\item\em average velocity on the rotor (includes induction from C\+FD) \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em average velocity on the rotor (includes induction from CFD) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structALM_a3693361d8b12f3411fb6a8c1e42ff828}\label{structALM_a3693361d8b12f3411fb6a8c1e42ff828}} 
 Petsc\+Real \mbox{\hyperlink{structALM_a3693361d8b12f3411fb6a8c1e42ff828}{rtr\+Torque}}
 \begin{DoxyCompactList}\small\item\em total rotor torque \end{DoxyCompactList}\item 

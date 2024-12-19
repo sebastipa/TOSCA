@@ -1,0 +1,67 @@
+\hypertarget{structnacelleModel}{}\doxysection{nacelle\+Model Struct Reference}
+\label{structnacelleModel}\index{nacelleModel@{nacelleModel}}
+
+
+Wind turbine nacelle actuator point model.  
+
+
+
+
+{\ttfamily \#include $<$turbines.\+h$>$}
+
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structnacelleModel_a521c0fdf7f1441279a8b8dbef5d8c4c2}\label{structnacelleModel_a521c0fdf7f1441279a8b8dbef5d8c4c2}} 
+Petsc\+Real \mbox{\hyperlink{structnacelleModel_a521c0fdf7f1441279a8b8dbef5d8c4c2}{Cd}}
+\begin{DoxyCompactList}\small\item\em tower drag coefficient \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a565248c5af220fa57096cc4557a109bf}\label{structnacelleModel_a565248c5af220fa57096cc4557a109bf}} 
+Petsc\+Real \mbox{\hyperlink{structnacelleModel_a565248c5af220fa57096cc4557a109bf}{eps}}
+\begin{DoxyCompactList}\small\item\em spreading width of the gaussian projection function (good is 0.\+035 $\ast$ h\+Tower) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a283519d3e6a485640cf1d405451641aa}\label{structnacelleModel_a283519d3e6a485640cf1d405451641aa}} 
+Petsc\+Real \mbox{\hyperlink{structnacelleModel_a283519d3e6a485640cf1d405451641aa}{prj\+NSigma}}
+\begin{DoxyCompactList}\small\item\em confidence interval as number of std deviations for the projection function (hardcoded to 2.\+7) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a0c8a451eefca6dd81445ce3073a8abeb}\label{structnacelleModel_a0c8a451eefca6dd81445ce3073a8abeb}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structnacelleModel_a0c8a451eefca6dd81445ce3073a8abeb}{point}}
+\begin{DoxyCompactList}\small\item\em nacelle point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a6ff6f0aec49ad8e92a07bdc249aa2dd0}\label{structnacelleModel_a6ff6f0aec49ad8e92a07bdc249aa2dd0}} 
+Petsc\+Real \mbox{\hyperlink{structnacelleModel_a6ff6f0aec49ad8e92a07bdc249aa2dd0}{A}}
+\begin{DoxyCompactList}\small\item\em frontal area \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a816fd23b271f9cadb86579723a8b5bb4}\label{structnacelleModel_a816fd23b271f9cadb86579723a8b5bb4}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$ \mbox{\hyperlink{structnacelleModel_a816fd23b271f9cadb86579723a8b5bb4}{controlled\+Cells}}
+\begin{DoxyCompactList}\small\item\em labels of the background mesh cells influenced by this nacelle in this processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a9a3c8aa62159c296016ee5c8b5a1e65c}\label{structnacelleModel_a9a3c8aa62159c296016ee5c8b5a1e65c}} 
+Petsc\+Int \mbox{\hyperlink{structnacelleModel_a9a3c8aa62159c296016ee5c8b5a1e65c}{n\+Controlled}}
+\begin{DoxyCompactList}\small\item\em size of controlled\+Cells \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a4babf3624c9f3d7ef0e69f109e847e1f}\label{structnacelleModel_a4babf3624c9f3d7ef0e69f109e847e1f}} 
+Petsc\+Int \mbox{\hyperlink{structnacelleModel_a4babf3624c9f3d7ef0e69f109e847e1f}{this\+Pt\+Controlled}}
+\begin{DoxyCompactList}\small\item\em flags telling if this nacelle is controlled by this processor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a19a73cf2543589ecc89f2900b0f441f5}\label{structnacelleModel_a19a73cf2543589ecc89f2900b0f441f5}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} \mbox{\hyperlink{structnacelleModel_a19a73cf2543589ecc89f2900b0f441f5}{closest\+Cell}}
+\begin{DoxyCompactList}\small\item\em indices of the closest cell to this turbine nacelle point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_af284d4e32e5ade1362c0f6194c515249}\label{structnacelleModel_af284d4e32e5ade1362c0f6194c515249}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structnacelleModel_af284d4e32e5ade1362c0f6194c515249}{U}}
+\begin{DoxyCompactList}\small\item\em flow velocity at nacelle point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a028f4b880f277c58cbf078b28c40aee1}\label{structnacelleModel_a028f4b880f277c58cbf078b28c40aee1}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structnacelleModel_a028f4b880f277c58cbf078b28c40aee1}{B}}
+\begin{DoxyCompactList}\small\item\em body at nacelle point \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a03eb9ddc06b8382df829782d0106b83d}\label{structnacelleModel_a03eb9ddc06b8382df829782d0106b83d}} 
+Petsc\+Real \mbox{\hyperlink{structnacelleModel_a03eb9ddc06b8382df829782d0106b83d}{tangF}}
+\begin{DoxyCompactList}\small\item\em nacelle tangential force \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_ad864151e5f5cf8e9b8ca80f7effce6ef}\label{structnacelleModel_ad864151e5f5cf8e9b8ca80f7effce6ef}} 
+Petsc\+Real \mbox{\hyperlink{structnacelleModel_ad864151e5f5cf8e9b8ca80f7effce6ef}{nac\+Thrust}}
+\begin{DoxyCompactList}\small\item\em total nacelle thrust \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_afe2c1ad0061a394e5fd42f20520f15e8}\label{structnacelleModel_afe2c1ad0061a394e5fd42f20520f15e8}} 
+MPI\+\_\+\+Comm \mbox{\hyperlink{structnacelleModel_afe2c1ad0061a394e5fd42f20520f15e8}{NAC\+\_\+\+COMM}}
+\begin{DoxyCompactList}\small\item\em communicator for this nacelle \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structnacelleModel_a77645cb4be7c0c26ad9c166f1e61d762}\label{structnacelleModel_a77645cb4be7c0c26ad9c166f1e61d762}} 
+Petsc\+MPIInt \mbox{\hyperlink{structnacelleModel_a77645cb4be7c0c26ad9c166f1e61d762}{n\+Procs\+Nac}}
+\begin{DoxyCompactList}\small\item\em size of the NAC\+\_\+\+COMM communicator \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Wind turbine nacelle actuator point model. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/include/turbines.\+h\end{DoxyCompactItemize}

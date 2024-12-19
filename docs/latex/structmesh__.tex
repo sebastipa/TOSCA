@@ -21,6 +21,9 @@ word \mbox{\hyperlink{structmesh___a2ae7b6cb6115271d34d5e595f0989b90}{mesh\+File
 \mbox{\Hypertarget{structmesh___af541527550b4c685b283e208c4e90ca9}\label{structmesh___af541527550b4c685b283e208c4e90ca9}} 
 \mbox{\hyperlink{structboundingBox}{bounding\+Box}} \mbox{\hyperlink{structmesh___af541527550b4c685b283e208c4e90ca9}{bounds}}
 \begin{DoxyCompactList}\small\item\em domain extensions and lengths information \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structmesh___a900a90fc493e0efb6c643b2e6bd38744}\label{structmesh___a900a90fc493e0efb6c643b2e6bd38744}} 
+Petsc\+Real \mbox{\hyperlink{structmesh___a900a90fc493e0efb6c643b2e6bd38744}{grnd\+Level}}
+\begin{DoxyCompactList}\small\item\em the ground level height -\/ would be = bounds-\/$>$zmin for normal simulation, but could change if using IBM \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___aecc0a74c2de3593c5153845ded169419}\label{structmesh___aecc0a74c2de3593c5153845ded169419}} 
 Petsc\+Int {\bfseries IM}
 \item 
@@ -29,10 +32,10 @@ Petsc\+Int {\bfseries JM}
 \item 
 \mbox{\Hypertarget{structmesh___acf540c2904b2c1cb5c6dd27585d3522b}\label{structmesh___acf540c2904b2c1cb5c6dd27585d3522b}} 
 Petsc\+Int \mbox{\hyperlink{structmesh___acf540c2904b2c1cb5c6dd27585d3522b}{KM}}
-\begin{DoxyCompactList}\small\item\em ncells in the G\+CC directions \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em ncells in the GCC directions \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___a259e98399a57e71a8e082e013943dc60}\label{structmesh___a259e98399a57e71a8e082e013943dc60}} 
 DM \mbox{\hyperlink{structmesh___a259e98399a57e71a8e082e013943dc60}{da}}
-\begin{DoxyCompactList}\small\item\em data structure for scalars (include the grid geometry informaion, to obtain the mesh information, use D\+M\+D\+A\+Get\+Coordinates) \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em data structure for scalars (include the grid geometry informaion, to obtain the mesh information, use DMDAGet\+Coordinates) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___af9e5239da6b5567b743756a5405d019d}\label{structmesh___af9e5239da6b5567b743756a5405d019d}} 
 DM \mbox{\hyperlink{structmesh___af9e5239da6b5567b743756a5405d019d}{fda}}
 \begin{DoxyCompactList}\small\item\em data Structure for vectors \end{DoxyCompactList}\item 
@@ -40,7 +43,7 @@ DM \mbox{\hyperlink{structmesh___af9e5239da6b5567b743756a5405d019d}{fda}}
 DM \mbox{\hyperlink{structmesh___a2ac6bb5fd2752cb1c84d9bcabdd293b3}{sda}}
 \begin{DoxyCompactList}\small\item\em data Structure for symmetric tensors \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___a72b6b3606cac065bb5fb0aba74b38648}\label{structmesh___a72b6b3606cac065bb5fb0aba74b38648}} 
-D\+M\+D\+A\+Local\+Info \mbox{\hyperlink{structmesh___a72b6b3606cac065bb5fb0aba74b38648}{info}}
+DMDALocal\+Info \mbox{\hyperlink{structmesh___a72b6b3606cac065bb5fb0aba74b38648}{info}}
 \begin{DoxyCompactList}\small\item\em data struct that contains information about a the Distributed Array (essentially mesh information) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___a68e5a1998b9f6bf8934b581fbe07aa1e}\label{structmesh___a68e5a1998b9f6bf8934b581fbe07aa1e}} 
 Vec {\bfseries Cent}
@@ -61,47 +64,47 @@ Vec {\bfseries l\+Zet}
 Vec \mbox{\hyperlink{structmesh___a31ec25c566a8c1fd5273ade57acfd5ce}{l\+Aj}}
 \begin{DoxyCompactList}\small\item\em jacobian evaluated at cell centers (1 / cell volume) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___a766d21be703ae167d4489024303703dd}\label{structmesh___a766d21be703ae167d4489024303703dd}} 
-Vec {\bfseries l\+I\+Csi}
+Vec {\bfseries l\+ICsi}
 \item 
 \mbox{\Hypertarget{structmesh___a9489fb4866ad401ab8c00be5b1b68b93}\label{structmesh___a9489fb4866ad401ab8c00be5b1b68b93}} 
-Vec {\bfseries l\+I\+Eta}
+Vec {\bfseries l\+IEta}
 \item 
 \mbox{\Hypertarget{structmesh___a0aed1404783f5b23caa893ac4072869f}\label{structmesh___a0aed1404783f5b23caa893ac4072869f}} 
-Vec {\bfseries l\+I\+Zet}
+Vec {\bfseries l\+IZet}
 \item 
 \mbox{\Hypertarget{structmesh___a500c6de4e78f20fc080d8022c69bffa7}\label{structmesh___a500c6de4e78f20fc080d8022c69bffa7}} 
-Vec \mbox{\hyperlink{structmesh___a500c6de4e78f20fc080d8022c69bffa7}{l\+I\+Aj}}
+Vec \mbox{\hyperlink{structmesh___a500c6de4e78f20fc080d8022c69bffa7}{l\+IAj}}
 \begin{DoxyCompactList}\small\item\em jacobian evaluated at the i-\/faces \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___a769016b78e9da51c9228e611160d166f}\label{structmesh___a769016b78e9da51c9228e611160d166f}} 
-Vec {\bfseries l\+J\+Csi}
+Vec {\bfseries l\+JCsi}
 \item 
 \mbox{\Hypertarget{structmesh___aa719dde12be94ba2797ee2877c516517}\label{structmesh___aa719dde12be94ba2797ee2877c516517}} 
-Vec {\bfseries l\+J\+Eta}
+Vec {\bfseries l\+JEta}
 \item 
 \mbox{\Hypertarget{structmesh___a564dd5e7df15817409c84921cd40c964}\label{structmesh___a564dd5e7df15817409c84921cd40c964}} 
-Vec {\bfseries l\+J\+Zet}
+Vec {\bfseries l\+JZet}
 \item 
 \mbox{\Hypertarget{structmesh___aa2df1f894c70a7e421ee8ae9a135df78}\label{structmesh___aa2df1f894c70a7e421ee8ae9a135df78}} 
-Vec \mbox{\hyperlink{structmesh___aa2df1f894c70a7e421ee8ae9a135df78}{l\+J\+Aj}}
+Vec \mbox{\hyperlink{structmesh___aa2df1f894c70a7e421ee8ae9a135df78}{l\+JAj}}
 \begin{DoxyCompactList}\small\item\em jacobian evaluated at the j-\/faces \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___a0587e28a7aecaa905e1037c8c253bb21}\label{structmesh___a0587e28a7aecaa905e1037c8c253bb21}} 
-Vec {\bfseries l\+K\+Csi}
+Vec {\bfseries l\+KCsi}
 \item 
 \mbox{\Hypertarget{structmesh___aea18909a65c2faebe6c3d245460f9ae6}\label{structmesh___aea18909a65c2faebe6c3d245460f9ae6}} 
-Vec {\bfseries l\+K\+Eta}
+Vec {\bfseries l\+KEta}
 \item 
 \mbox{\Hypertarget{structmesh___ad9994526ab4a3b23109d28fe6d786b00}\label{structmesh___ad9994526ab4a3b23109d28fe6d786b00}} 
-Vec {\bfseries l\+K\+Zet}
+Vec {\bfseries l\+KZet}
 \item 
 \mbox{\Hypertarget{structmesh___a2ccbb45007045b7350a4fd88c02fcb03}\label{structmesh___a2ccbb45007045b7350a4fd88c02fcb03}} 
-Vec \mbox{\hyperlink{structmesh___a2ccbb45007045b7350a4fd88c02fcb03}{l\+K\+Aj}}
+Vec \mbox{\hyperlink{structmesh___a2ccbb45007045b7350a4fd88c02fcb03}{l\+KAj}}
 \begin{DoxyCompactList}\small\item\em jacobian evaluated at the j-\/faces \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___a69b4fcc9e78a5b8dedaab8111adf96cf}\label{structmesh___a69b4fcc9e78a5b8dedaab8111adf96cf}} 
 Vec {\bfseries Nvert}
 \item 
 \mbox{\Hypertarget{structmesh___a4f177e7c8730b09155dc7df61c1a350c}\label{structmesh___a4f177e7c8730b09155dc7df61c1a350c}} 
 Vec \mbox{\hyperlink{structmesh___a4f177e7c8730b09155dc7df61c1a350c}{Nvert\+\_\+o}}
-\begin{DoxyCompactList}\small\item\em solid body field for I\+BM \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em solid body field for IBM \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structmesh___a06c1e010e6a0edff9489c2435efea7ca}\label{structmesh___a06c1e010e6a0edff9489c2435efea7ca}} 
 Vec {\bfseries l\+Nvert}
 \item 
@@ -142,7 +145,7 @@ Petsc\+Int {\bfseries kk\+\_\+periodic}
 Vec {\bfseries flux\+Limiter}
 \item 
 \mbox{\Hypertarget{structmesh___ab77291862c3ee7d51aaaed6e8f0abdb8}\label{structmesh___ab77291862c3ee7d51aaaed6e8f0abdb8}} 
-M\+P\+I\+\_\+\+Comm {\bfseries M\+E\+S\+H\+\_\+\+C\+O\+MM}
+MPI\+\_\+\+Comm {\bfseries MESH\+\_\+\+COMM}
 \item 
 \mbox{\Hypertarget{structmesh___af3f88dc40bc044881ae69f9820b66f01}\label{structmesh___af3f88dc40bc044881ae69f9820b66f01}} 
 \mbox{\hyperlink{structaccess__}{access\+\_\+}} $\ast$ {\bfseries access}
