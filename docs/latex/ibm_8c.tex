@@ -15,58 +15,91 @@ Contains Immersed boundary method function definitions.
 \begin{DoxyCompactItemize}
 \item 
 \mbox{\Hypertarget{ibm_8c_a27dffc4d2f498f7dae7d9bd34594b2fd}\label{ibm_8c_a27dffc4d2f498f7dae7d9bd34594b2fd}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a27dffc4d2f498f7dae7d9bd34594b2fd}{Initialize\+I\+BM}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a27dffc4d2f498f7dae7d9bd34594b2fd}{Initialize\+IBM}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em initialize ibm\+: top level function \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a980ea403eaa390bd1d60a702c55e63fb}\label{ibm_8c_a980ea403eaa390bd1d60a702c55e63fb}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a980ea403eaa390bd1d60a702c55e63fb}{Update\+I\+BM}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a980ea403eaa390bd1d60a702c55e63fb}{Update\+IBM}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em update imb\+: top level function \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a1f82afe6598ab4c9e337ace22dc64d03}\label{ibm_8c_a1f82afe6598ab4c9e337ace22dc64d03}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a1f82afe6598ab4c9e337ace22dc64d03}{set\+I\+B\+M\+Wall\+Models}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
-\begin{DoxyCompactList}\small\item\em set I\+BM wall model type and properties \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a1f82afe6598ab4c9e337ace22dc64d03}{set\+IBMWall\+Models}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\begin{DoxyCompactList}\small\item\em set IBM wall model type and properties \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a8b8405586e772390b404a0ecac7bdd47}\label{ibm_8c_a8b8405586e772390b404a0ecac7bdd47}} 
 Petsc\+Error\+Code {\bfseries Compute\+Force\+Moment} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \item 
-\mbox{\Hypertarget{ibm_8c_a6141154e9079ac1a4bf959f4be6b24ca}\label{ibm_8c_a6141154e9079ac1a4bf959f4be6b24ca}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a6141154e9079ac1a4bf959f4be6b24ca}{write\+I\+B\+M\+Force\+Data}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b, Petsc\+Real $\ast$g\+Elem\+Pressure, Petsc\+Real net\+Moment, Petsc\+Real ibm\+Power, \mbox{\hyperlink{structCmpnts}{Cmpnts}} net\+Force, \mbox{\hyperlink{structCmpnts}{Cmpnts}} moment\+Vector)
-\begin{DoxyCompactList}\small\item\em writes the I\+BM force data for element and net force \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_ad6dcc4b2f715325743875a1c56e70918}\label{ibm_8c_ad6dcc4b2f715325743875a1c56e70918}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_ad6dcc4b2f715325743875a1c56e70918}{write\+IBMForce\+Data}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b, Petsc\+Real $\ast$g\+Elem\+Pressure, Petsc\+Real net\+Moment, Petsc\+Real ibm\+Power, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Pres\+Force, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Visc\+Force, \mbox{\hyperlink{structCmpnts}{Cmpnts}} moment\+Vector)
+\begin{DoxyCompactList}\small\item\em writes the IBM force data for element and net force \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_aef4d1a87a909b82473aeb921ab050402}\label{ibm_8c_aef4d1a87a909b82473aeb921ab050402}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_aef4d1a87a909b82473aeb921ab050402}{Update\+I\+B\+Mesh}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_aef4d1a87a909b82473aeb921ab050402}{Update\+IBMesh}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em update the ibm mesh when the ibm body is moving \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_ae63380960668316fc9f40c9166dea41f}\label{ibm_8c_ae63380960668316fc9f40c9166dea41f}} 
+Petsc\+Error\+Code {\bfseries recompute\+IBMesh\+Properties} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
+\item 
+\mbox{\Hypertarget{ibm_8c_a7a73bd79127407d432259afe801c58f2}\label{ibm_8c_a7a73bd79127407d432259afe801c58f2}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a7a73bd79127407d432259afe801c58f2}{pitching\+Motion}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
+\begin{DoxyCompactList}\small\item\em prescribe pitching oscillation motion for IBM body \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_ae6a4177abd8f8635d189aa420362b3a3}\label{ibm_8c_ae6a4177abd8f8635d189aa420362b3a3}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_ae6a4177abd8f8635d189aa420362b3a3}{sine\+Motion}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
+\begin{DoxyCompactList}\small\item\em prescribe sinusoidal motion for IBM body \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_adbe8008b3b8d8e7ed3ab8053368a7752}\label{ibm_8c_adbe8008b3b8d8e7ed3ab8053368a7752}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_adbe8008b3b8d8e7ed3ab8053368a7752}{rotate\+I\+B\+Mesh}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_adbe8008b3b8d8e7ed3ab8053368a7752}{rotate\+IBMesh}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
 \begin{DoxyCompactList}\small\item\em rotate the ibm mesh based on the angular speed input \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a0a2a67029381cb8ac4691c1c5202db02}\label{ibm_8c_a0a2a67029381cb8ac4691c1c5202db02}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a0a2a67029381cb8ac4691c1c5202db02}{write\+I\+B\+M\+Data}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a0a2a67029381cb8ac4691c1c5202db02}{write\+IBMData}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int b)
 \begin{DoxyCompactList}\small\item\em writes the angular position when the body is rotating \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_ad9ff06f35bd8b87c5564386509d4abee}\label{ibm_8c_ad9ff06f35bd8b87c5564386509d4abee}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_ad9ff06f35bd8b87c5564386509d4abee}{find\+Interception\+Point}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\begin{DoxyCompactList}\small\item\em find the interception\+Point on the background mesh plane for curvib interpolation \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_ac02fe36932ca84186dab9ace8dbb8c69}\label{ibm_8c_ac02fe36932ca84186dab9ace8dbb8c69}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_ac02fe36932ca84186dab9ace8dbb8c69}{interception\+Pt}} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} p\+Coor, \mbox{\hyperlink{structCmpnts}{Cmpnts}} pc\mbox{[}9\mbox{]}, \mbox{\hyperlink{structCmpnts}{Cmpnts}} e\+Norm, \mbox{\hyperlink{structibmFluidCell}{ibm\+Fluid\+Cell}} $\ast$ibF)
+\begin{DoxyCompactList}\small\item\em interception point algorithm based on dividing the plane into 8 triangles \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_a431ba70f0cfda3c4d73f4eb11c1af4cf}\label{ibm_8c_a431ba70f0cfda3c4d73f4eb11c1af4cf}} 
+Petsc\+Error\+Code {\bfseries find\+Closest\+IBMElement2\+Solid} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\item 
 \mbox{\Hypertarget{ibm_8c_a5bc4cb3cf5176f6384e6e75a7fbfc891}\label{ibm_8c_a5bc4cb3cf5176f6384e6e75a7fbfc891}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a5bc4cb3cf5176f6384e6e75a7fbfc891}{find\+Closest\+I\+B\+M\+Element}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
-\begin{DoxyCompactList}\small\item\em find the closest ibm mesh element to a I\+BM fluid node \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a5bc4cb3cf5176f6384e6e75a7fbfc891}{find\+Closest\+IBMElement}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\begin{DoxyCompactList}\small\item\em find the closest ibm mesh element to a IBM fluid node \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_a90e956bb125c0f067ca9b1b9e290de67}\label{ibm_8c_a90e956bb125c0f067ca9b1b9e290de67}} 
+Petsc\+Error\+Code {\bfseries Curvib\+Interpolation\+Triangular} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\item 
+\mbox{\Hypertarget{ibm_8c_a291b56ea50e202ba75e26aa573e63661}\label{ibm_8c_a291b56ea50e202ba75e26aa573e63661}} 
+Petsc\+Error\+Code {\bfseries Curvib\+Interpolation\+Internal\+Cell} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\item 
 \mbox{\Hypertarget{ibm_8c_a48ccba69df886b4d75ad9ab3c5c76545}\label{ibm_8c_a48ccba69df886b4d75ad9ab3c5c76545}} 
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a48ccba69df886b4d75ad9ab3c5c76545}{Curvib\+Interpolation}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
-\begin{DoxyCompactList}\small\item\em C\+U\+R\+V\+IB normal projection interpolation algorithm. \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{ibm_8c_a218f1b4ef4e4a25a56d8225a90d893cb}\label{ibm_8c_a218f1b4ef4e4a25a56d8225a90d893cb}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a218f1b4ef4e4a25a56d8225a90d893cb}{find\+I\+B\+M\+Wall\+Shear}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm, Petsc\+Int c, Petsc\+Real ustar)
-\begin{DoxyCompactList}\small\item\em compute shear stress at faces close to the I\+BM \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em CURVIB normal projection interpolation algorithm. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_a0f3a01f0aa1e0e22879cceff82e5de03}\label{ibm_8c_a0f3a01f0aa1e0e22879cceff82e5de03}} 
+Petsc\+Error\+Code {\bfseries Curvib\+Interpolation\+Quadratic} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\item 
+\mbox{\Hypertarget{ibm_8c_a36736a607d2b97d7d25405b0effc6f89}\label{ibm_8c_a36736a607d2b97d7d25405b0effc6f89}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a36736a607d2b97d7d25405b0effc6f89}{find\+IBMWall\+Shear\+Chester}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\begin{DoxyCompactList}\small\item\em compute shear stress at faces close to the IBM \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_a14686f921852499d065420f312e5c25e}\label{ibm_8c_a14686f921852499d065420f312e5c25e}} 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a14686f921852499d065420f312e5c25e}{find\+IBMWall\+Shear}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\begin{DoxyCompactList}\small\item\em compute shear stress at faces close to the IBM \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a22fe6d564940c2fa1ae407eab8a9d1c2}\label{ibm_8c_a22fe6d564940c2fa1ae407eab8a9d1c2}} 
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a22fe6d564940c2fa1ae407eab8a9d1c2}{ibm\+Search}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em ibm fluid node search performed using ray tracing algorithm \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a30f648d428bc38794f33bd95e379f1be}\label{ibm_8c_a30f648d428bc38794f33bd95e379f1be}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a30f648d428bc38794f33bd95e379f1be}{M\+L\+S\+Interpolation}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
-\begin{DoxyCompactList}\small\item\em M\+LS interpolation algorithm. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a30f648d428bc38794f33bd95e379f1be}{MLSInterpolation}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\begin{DoxyCompactList}\small\item\em MLS interpolation algorithm. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a43e167a5b5b3d08f5ed3a50f4daaf25b}\label{ibm_8c_a43e167a5b5b3d08f5ed3a50f4daaf25b}} 
-Petsc\+Error\+Code {\bfseries check\+I\+B\+Mexists} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code {\bfseries check\+IBMexists} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+\item 
+\mbox{\Hypertarget{ibm_8c_ae1b491cac2919062950d708521cbe45b}\label{ibm_8c_ae1b491cac2919062950d708521cbe45b}} 
+Petsc\+Error\+Code {\bfseries create\+Half\+Edge\+Data\+Structure} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \item 
 \mbox{\Hypertarget{ibm_8c_afc2703ea43352d8178d04365f27b95b0}\label{ibm_8c_afc2703ea43352d8178d04365f27b95b0}} 
-Petsc\+Error\+Code {\bfseries compute\+I\+B\+M\+Element\+Normal} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code {\bfseries compute\+IBMElement\+Normal} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \item 
 \mbox{\Hypertarget{ibm_8c_a9c978ae9d3e0e7fd31ca9be4b6503151}\label{ibm_8c_a9c978ae9d3e0e7fd31ca9be4b6503151}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a9c978ae9d3e0e7fd31ca9be4b6503151}{find\+I\+B\+M\+Controlled\+Procs}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a9c978ae9d3e0e7fd31ca9be4b6503151}{find\+IBMControlled\+Procs}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em find in which processors the ibm body belongs \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a3f671cb828aba8285c6e49b205ad2d21}\label{ibm_8c_a3f671cb828aba8285c6e49b205ad2d21}} 
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a3f671cb828aba8285c6e49b205ad2d21}{init\+Element\+Projection\+Procs}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em create list of ibm element processors and their closest ibm fluid cell to the ibm element normal projection \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_ab5aee507680c3a7c2654d33a96830fdc}\label{ibm_8c_ab5aee507680c3a7c2654d33a96830fdc}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_ab5aee507680c3a7c2654d33a96830fdc}{I\+B\+M\+Projection\+Processor\+Transfer}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_ab5aee507680c3a7c2654d33a96830fdc}{IBMProjection\+Processor\+Transfer}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em transfer ibm mesh element across processors based on their movement -\/ for dynamic case \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a5b30173a04c821ef5d59917a8939976e}\label{ibm_8c_a5b30173a04c821ef5d59917a8939976e}} 
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a5b30173a04c821ef5d59917a8939976e}{create\+Processor\+Buffer\+Zones}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
@@ -75,7 +108,7 @@ Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a5b30173a04c821ef5d59917a8939976e}{cr
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a147ef292bbfee4ed4c8bc36bddee7e5c}{init\+Element\+Procs}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em create list of ibm element processors and their closest ibm fluid cell to the ibm element \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a7bd12895748628f618047701a1545621}\label{ibm_8c_a7bd12895748628f618047701a1545621}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a7bd12895748628f618047701a1545621}{I\+B\+M\+Element\+Processor\+Transfer}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a7bd12895748628f618047701a1545621}{IBMElement\+Processor\+Transfer}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em transfer ibm mesh element across processors based on their movement -\/ for dynamic case \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_accba6ab47e789e78f8c65a3acfd8785a}\label{ibm_8c_accba6ab47e789e78f8c65a3acfd8785a}} 
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_accba6ab47e789e78f8c65a3acfd8785a}{element\+Bounding\+Sphere}} (\mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ibm\+Body)
@@ -87,10 +120,10 @@ Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a7b72f5a5ac4a157bbdc8393525100e4b}{fi
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a90e60f76a23b242199ecc703b89e761d}{find\+Fluid\+Support\+Nodes}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em find the fluid nodes that act as support nodes to the given ibm fluid node \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a87fc7402b0753220ecb773fa936f9a40}\label{ibm_8c_a87fc7402b0753220ecb773fa936f9a40}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a87fc7402b0753220ecb773fa936f9a40}{find\+I\+B\+M\+Fluid\+Cells}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a87fc7402b0753220ecb773fa936f9a40}{find\+IBMFluid\+Cells}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em find list of ibm fluid nodes within each processor \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_affa113a10fce9e7aeea2efb4f0446902}\label{ibm_8c_affa113a10fce9e7aeea2efb4f0446902}} 
-Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_affa113a10fce9e7aeea2efb4f0446902}{find\+I\+B\+M\+Mesh\+Support\+Nodes}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
+Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_affa113a10fce9e7aeea2efb4f0446902}{find\+IBMMesh\+Support\+Nodes}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em find the ibm mesh nodes that act as support node to the given ibm fluid node \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a7e7ffc1d9aadd2e8d20f621cdbd12219}\label{ibm_8c_a7e7ffc1d9aadd2e8d20f621cdbd12219}} 
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a7e7ffc1d9aadd2e8d20f621cdbd12219}{find\+Search\+Cell\+Dim}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
@@ -102,7 +135,7 @@ Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_a89d7ff186ba17634484885a512f28d37}{cr
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_ad9f008b01686202b1c82c4c3dd65ef69}{destroy\+Lists}} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} $\ast$ibm)
 \begin{DoxyCompactList}\small\item\em destroy the ibm search cell list \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a0fabc589698fb5e266287a1d9a9a968b}\label{ibm_8c_a0fabc589698fb5e266287a1d9a9a968b}} 
-void \mbox{\hyperlink{ibm_8c_a0fabc589698fb5e266287a1d9a9a968b}{insert\+I\+B\+M\+Support\+Nodes}} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} pt, \mbox{\hyperlink{structcellIds}{cell\+Ids}} s\+Cell, \mbox{\hyperlink{structibmFluidCell}{ibm\+Fluid\+Cell}} $\ast$ibF, \mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ib\+Body, \mbox{\hyperlink{structsearchBox}{search\+Box}} $\ast$s\+Box)
+void \mbox{\hyperlink{ibm_8c_a0fabc589698fb5e266287a1d9a9a968b}{insert\+IBMSupport\+Nodes}} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} pt, \mbox{\hyperlink{structcellIds}{cell\+Ids}} s\+Cell, \mbox{\hyperlink{structibmFluidCell}{ibm\+Fluid\+Cell}} $\ast$ibF, \mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$ib\+Body, \mbox{\hyperlink{structsearchBox}{search\+Box}} $\ast$s\+Box)
 \begin{DoxyCompactList}\small\item\em insert ibm nodes into the list of support nodes around an ibm fluid node \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_ad5498c3f877d30b55e996929a281daa3}\label{ibm_8c_ad5498c3f877d30b55e996929a281daa3}} 
 Petsc\+Error\+Code \mbox{\hyperlink{ibm_8c_ad5498c3f877d30b55e996929a281daa3}{ray\+Cast\+Local}} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} p, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p1, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p2, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p3, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p4, \mbox{\hyperlink{structibmMesh}{ibm\+Mesh}} $\ast$ib\+Msh, \mbox{\hyperlink{structcellIds}{cell\+Ids}} s\+Cell, \mbox{\hyperlink{structsearchBox}{search\+Box}} $\ast$s\+Box, \mbox{\hyperlink{structboundingBox}{bounding\+Box}} $\ast$ib\+Box, \mbox{\hyperlink{structlist}{list}} $\ast$search\+Cell\+List, Petsc\+Int \&intersect)
@@ -126,17 +159,26 @@ Petsc\+Bool \mbox{\hyperlink{ibm_8c_a4163457cd2faa612b882432264758b98}{is\+Line\
 Petsc\+Int \mbox{\hyperlink{ibm_8c_a61ee5019514dd4f8a95db6ec38e1adf1}{is\+Point\+In\+Triangle}} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} p, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p1, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p2, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p3, \mbox{\hyperlink{structCmpnts}{Cmpnts}} norm)
 \begin{DoxyCompactList}\small\item\em check whether point p is inside the triangle -\/ 3D \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_a65a12b9220bf4d302a8067fd742f0673}\label{ibm_8c_a65a12b9220bf4d302a8067fd742f0673}} 
-Petsc\+Int \mbox{\hyperlink{ibm_8c_a65a12b9220bf4d302a8067fd742f0673}{I\+S\+Inside\+Triangle2D}} (\mbox{\hyperlink{structCpt2D}{Cpt2D}} p, \mbox{\hyperlink{structCpt2D}{Cpt2D}} pa, \mbox{\hyperlink{structCpt2D}{Cpt2D}} pb, \mbox{\hyperlink{structCpt2D}{Cpt2D}} pc)
+Petsc\+Int \mbox{\hyperlink{ibm_8c_a65a12b9220bf4d302a8067fd742f0673}{ISInside\+Triangle2D}} (\mbox{\hyperlink{structCpt2D}{Cpt2D}} p, \mbox{\hyperlink{structCpt2D}{Cpt2D}} pa, \mbox{\hyperlink{structCpt2D}{Cpt2D}} pb, \mbox{\hyperlink{structCpt2D}{Cpt2D}} pc)
 \begin{DoxyCompactList}\small\item\em check whether point p is inside the triangle -\/ 2D \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_aa7076cdb89c42f86b92221e477af8e1a}\label{ibm_8c_aa7076cdb89c42f86b92221e477af8e1a}} 
-Petsc\+Int \mbox{\hyperlink{ibm_8c_aa7076cdb89c42f86b92221e477af8e1a}{I\+S\+Same\+Side2D}} (\mbox{\hyperlink{structCpt2D}{Cpt2D}} p, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p1, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p2, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p3)
+Petsc\+Int \mbox{\hyperlink{ibm_8c_aa7076cdb89c42f86b92221e477af8e1a}{ISSame\+Side2D}} (\mbox{\hyperlink{structCpt2D}{Cpt2D}} p, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p1, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p2, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p3)
 \begin{DoxyCompactList}\small\item\em Check whether 2D point p is located on the same side of line p1p2. \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{ibm_8c_ae2417dd41406e31dabb468ec56b23ab9}\label{ibm_8c_ae2417dd41406e31dabb468ec56b23ab9}} 
-void \mbox{\hyperlink{ibm_8c_ae2417dd41406e31dabb468ec56b23ab9}{dis\+P2\+Line}} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} p, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p1, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p2, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$po, Petsc\+Real $\ast$d)
+\mbox{\Hypertarget{ibm_8c_a55ac4fe2c634c3e1079b2ddad3032350}\label{ibm_8c_a55ac4fe2c634c3e1079b2ddad3032350}} 
+void \mbox{\hyperlink{ibm_8c_a55ac4fe2c634c3e1079b2ddad3032350}{dis\+P2\+Line}} (\mbox{\hyperlink{structCmpnts}{Cmpnts}} p, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p1, \mbox{\hyperlink{structCmpnts}{Cmpnts}} p2, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$po, Petsc\+Real $\ast$d, Petsc\+Real $\ast$t)
 \begin{DoxyCompactList}\small\item\em find projection of point on a line and the distance to it \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_af2c3cd09846085e044d9cbfd68ccd45d}\label{ibm_8c_af2c3cd09846085e044d9cbfd68ccd45d}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{ibm_8c_af2c3cd09846085e044d9cbfd68ccd45d}{compute\+Vertex\+Average\+Normal}} (\mbox{\hyperlink{structibmMesh}{ibm\+Mesh}} $\ast$ib\+Msh, Petsc\+Int vertex\+Id)
+\begin{DoxyCompactList}\small\item\em find the angle averaged normal about a vertex \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_ac46b83e6523b38245489661412419262}\label{ibm_8c_ac46b83e6523b38245489661412419262}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{ibm_8c_ac46b83e6523b38245489661412419262}{compute\+Edge\+Average\+Normal}} (\mbox{\hyperlink{structibmMesh}{ibm\+Mesh}} $\ast$ib\+Msh, Petsc\+Int vertex\+Id, Petsc\+Int face\+Id)
+\begin{DoxyCompactList}\small\item\em find the angle averaged normal about an edge \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{ibm_8c_ac82c224251e6d94f1bc3d415db2ad928}\label{ibm_8c_ac82c224251e6d94f1bc3d415db2ad928}} 
 void \mbox{\hyperlink{ibm_8c_ac82c224251e6d94f1bc3d415db2ad928}{triangle\+Intp}} (\mbox{\hyperlink{structCpt2D}{Cpt2D}} p, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p1, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p2, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p3, \mbox{\hyperlink{structibmFluidCell}{ibm\+Fluid\+Cell}} $\ast$ibF)
-\begin{DoxyCompactList}\small\item\em find the interpolation weights of a point inside a triangle from its nodes \end{DoxyCompactList}\end{DoxyCompactItemize}
+\begin{DoxyCompactList}\small\item\em find the interpolation weights of a point inside a triangle from its nodes \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{ibm_8c_a40cbf5311141e00bf27379fd85a748be}\label{ibm_8c_a40cbf5311141e00bf27379fd85a748be}} 
+void \mbox{\hyperlink{ibm_8c_a40cbf5311141e00bf27379fd85a748be}{triangle\+Intp\+Bg}} (\mbox{\hyperlink{structCpt2D}{Cpt2D}} p, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p1, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p2, \mbox{\hyperlink{structCpt2D}{Cpt2D}} p3, \mbox{\hyperlink{structibmFluidCell}{ibm\+Fluid\+Cell}} $\ast$ibF)
+\begin{DoxyCompactList}\small\item\em find the interpolation weights of a point inside a triangle from its nodes used for background grid \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
 \doxysubsection{Detailed Description}

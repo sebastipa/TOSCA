@@ -14,14 +14,14 @@ struct \mbox{\hyperlink{structteqn__}{teqn\+\_\+}}
 \begin{DoxyCompactItemize}
 \item 
 \mbox{\Hypertarget{teqn_8h_ac5c60b468ea82539afc98853f47d0b01}\label{teqn_8h_ac5c60b468ea82539afc98853f47d0b01}} 
-Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_ac5c60b468ea82539afc98853f47d0b01}{Initialize\+T\+Eqn}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn)
+Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_ac5c60b468ea82539afc98853f47d0b01}{Initialize\+TEqn}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn)
 \begin{DoxyCompactList}\small\item\em Initializes Teqn environment. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{teqn_8h_a7739b85e467cfde1fd5607597fe2c6db}\label{teqn_8h_a7739b85e467cfde1fd5607597fe2c6db}} 
-Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_a7739b85e467cfde1fd5607597fe2c6db}{Solve\+T\+Eqn}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn)
+Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_a7739b85e467cfde1fd5607597fe2c6db}{Solve\+TEqn}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn)
 \begin{DoxyCompactList}\small\item\em Solve T equation. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{teqn_8h_a461e2ce6ef8e92bec5469e7293acf4ac}\label{teqn_8h_a461e2ce6ef8e92bec5469e7293acf4ac}} 
-Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_a461e2ce6ef8e92bec5469e7293acf4ac}{Teqn\+S\+N\+ES}} (S\+N\+ES snes, Vec T, Vec Rhs, void $\ast$ptr)
-\begin{DoxyCompactList}\small\item\em S\+N\+ES evaulation function. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_a461e2ce6ef8e92bec5469e7293acf4ac}{Teqn\+SNES}} (SNES snes, Vec T, Vec Rhs, void $\ast$ptr)
+\begin{DoxyCompactList}\small\item\em SNES evaulation function. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{teqn_8h_aeabc45c90afc8e23687e0d961058bc2c}\label{teqn_8h_aeabc45c90afc8e23687e0d961058bc2c}} 
 Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_aeabc45c90afc8e23687e0d961058bc2c}{gh\+Grad\+RhoK}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn)
 \begin{DoxyCompactList}\small\item\em Computes g$\ast$h times gradient of rho\+\_\+k / rho\+\_\+0. \end{DoxyCompactList}\item 
@@ -36,13 +36,16 @@ Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_adef8d7a66575d954d004d2ccc8dd2cbf}{s
 \begin{DoxyCompactList}\small\item\em Apply temperature control. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{teqn_8h_acc7cc98bd8a66a83b31d2e49df596661}\label{teqn_8h_acc7cc98bd8a66a83b31d2e49df596661}} 
 Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_acc7cc98bd8a66a83b31d2e49df596661}{FormT}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn, Vec \&Rhs, Petsc\+Real scale)
-\begin{DoxyCompactList}\small\item\em R\+HS of the potential temperature transport equation. \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em RHS of the potential temperature transport equation. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{teqn_8h_a7437f6e16d2453fe90e43f3080f36ded}\label{teqn_8h_a7437f6e16d2453fe90e43f3080f36ded}} 
-Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_a7437f6e16d2453fe90e43f3080f36ded}{Teqn\+R\+K4}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn)
+Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_a7437f6e16d2453fe90e43f3080f36ded}{Teqn\+RK4}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn)
 \begin{DoxyCompactList}\small\item\em solve Teqn using Runge\+Kutta 4 \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{teqn_8h_a0ee5106ef816c125fb59cf772ba0ef91}\label{teqn_8h_a0ee5106ef816c125fb59cf772ba0ef91}} 
 Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_a0ee5106ef816c125fb59cf772ba0ef91}{Form\+Explicit\+RhsT}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn)
-\begin{DoxyCompactList}\small\item\em Computed R\+HS of temperature equation using current l\+Tmprt (updates Rhs), data put in ueqn-\/$>$Rhs. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\begin{DoxyCompactList}\small\item\em Computed RHS of temperature equation using current l\+Tmprt (updates Rhs), data put in ueqn-\/$>$Rhs. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{teqn_8h_a85ebdc9ced9bd9455042571f0f139ce9}\label{teqn_8h_a85ebdc9ced9bd9455042571f0f139ce9}} 
+Petsc\+Error\+Code \mbox{\hyperlink{teqn_8h_a85ebdc9ced9bd9455042571f0f139ce9}{correct\+Damping\+SourcesT}} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} $\ast$teqn)
+\begin{DoxyCompactList}\small\item\em Compute t\+Bar state for lateral damping region. \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
 \doxysubsection{Detailed Description}

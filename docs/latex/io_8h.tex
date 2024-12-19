@@ -25,6 +25,9 @@ word \mbox{\hyperlink{io_8h_ae57bcde696d8ccf1bd34ecc100b07fba}{this\+Case\+Name}
 \mbox{\Hypertarget{io_8h_aa8386d069befb8e442596f0829dd54d9}\label{io_8h_aa8386d069befb8e442596f0829dd54d9}} 
 Petsc\+Error\+Code \mbox{\hyperlink{io_8h_aa8386d069befb8e442596f0829dd54d9}{get\+Time\+List}} (const char $\ast$data\+Loc, std\+::vector$<$ Petsc\+Real $>$ \&time\+Series, Petsc\+Int \&ntimes)
 \begin{DoxyCompactList}\small\item\em Returns the time list (from folder names) and size contained in a folder. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{io_8h_aedfb9d6612941b3f6c1331c8bb6b226f}\label{io_8h_aedfb9d6612941b3f6c1331c8bb6b226f}} 
+Petsc\+Error\+Code \mbox{\hyperlink{io_8h_aedfb9d6612941b3f6c1331c8bb6b226f}{get\+File\+List}} (const char $\ast$data\+Loc, std\+::vector$<$ word $>$ \&file\+Series, Petsc\+Int \&nfiles)
+\begin{DoxyCompactList}\small\item\em Returns the file list (from folder names) and number of files contained in a folder. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_a66788a88f4cf4b5e1736f22145f5c5f7}\label{io_8h_a66788a88f4cf4b5e1736f22145f5c5f7}} 
 Petsc\+Int \mbox{\hyperlink{io_8h_a66788a88f4cf4b5e1736f22145f5c5f7}{found\+In\+String}} (const char $\ast$str, word keyword)
 \begin{DoxyCompactList}\small\item\em Finds a word inside a string. \end{DoxyCompactList}\item 
@@ -38,25 +41,28 @@ Petsc\+Int \mbox{\hyperlink{io_8h_ab010bb297a9d7297532582459454ea4b}{dir\+\_\+ex
 Petsc\+Int \mbox{\hyperlink{io_8h_a9286943b493f9ad1888637d9af54d01a}{count\+\_\+files}} (const char $\ast$path)
 \begin{DoxyCompactList}\small\item\em Count number of files. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_aff1d2ad6bef5bf436bf02e48adfef35c}\label{io_8h_aff1d2ad6bef5bf436bf02e48adfef35c}} 
-void \mbox{\hyperlink{io_8h_aff1d2ad6bef5bf436bf02e48adfef35c}{create\+Dir}} (M\+P\+I\+\_\+\+Comm comm, const char $\ast$path)
-\begin{DoxyCompactList}\small\item\em Created directory. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{io_8h_aff1d2ad6bef5bf436bf02e48adfef35c}{create\+Dir}} (MPI\+\_\+\+Comm comm, const char $\ast$path)
+\begin{DoxyCompactList}\small\item\em Creat directory (remove stuff it exists) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{io_8h_a2a7d4060c90481ce7ac9d6f81835ce66}\label{io_8h_a2a7d4060c90481ce7ac9d6f81835ce66}} 
+void \mbox{\hyperlink{io_8h_a2a7d4060c90481ce7ac9d6f81835ce66}{create\+Dir\+No\+Remove}} (MPI\+\_\+\+Comm comm, const char $\ast$path)
+\begin{DoxyCompactList}\small\item\em Creat directory (leave stuff it exists) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_a5921410df8275bc10192a334c4e4906c}\label{io_8h_a5921410df8275bc10192a334c4e4906c}} 
-void \mbox{\hyperlink{io_8h_a5921410df8275bc10192a334c4e4906c}{remove\+\_\+dir}} (M\+P\+I\+\_\+\+Comm comm, const char $\ast$path2dir)
+void \mbox{\hyperlink{io_8h_a5921410df8275bc10192a334c4e4906c}{remove\+\_\+dir}} (MPI\+\_\+\+Comm comm, const char $\ast$path2dir)
 \begin{DoxyCompactList}\small\item\em Removes directory. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_a53420ce24429b7403771e6cada87332e}\label{io_8h_a53420ce24429b7403771e6cada87332e}} 
-void \mbox{\hyperlink{io_8h_a53420ce24429b7403771e6cada87332e}{remove\+\_\+subdirs}} (M\+P\+I\+\_\+\+Comm comm, const char $\ast$path2dir)
+void \mbox{\hyperlink{io_8h_a53420ce24429b7403771e6cada87332e}{remove\+\_\+subdirs}} (MPI\+\_\+\+Comm comm, const char $\ast$path2dir)
 \begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_a597872b8208652663a2d178927a0943b}\label{io_8h_a597872b8208652663a2d178927a0943b}} 
-void \mbox{\hyperlink{io_8h_a597872b8208652663a2d178927a0943b}{remove\+\_\+subdirs\+\_\+except}} (M\+P\+I\+\_\+\+Comm comm, const char $\ast$path2dir, const word name)
+void \mbox{\hyperlink{io_8h_a597872b8208652663a2d178927a0943b}{remove\+\_\+subdirs\+\_\+except}} (MPI\+\_\+\+Comm comm, const char $\ast$path2dir, const word name)
 \begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the name provided. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_a7fc6972aaa70be99c519498611701db6}\label{io_8h_a7fc6972aaa70be99c519498611701db6}} 
-void \mbox{\hyperlink{io_8h_a7fc6972aaa70be99c519498611701db6}{remove\+\_\+subdirs\+\_\+except2}} (M\+P\+I\+\_\+\+Comm comm, const char $\ast$path2dir, const word name1, const word name2)
+void \mbox{\hyperlink{io_8h_a7fc6972aaa70be99c519498611701db6}{remove\+\_\+subdirs\+\_\+except2}} (MPI\+\_\+\+Comm comm, const char $\ast$path2dir, const word name1, const word name2)
 \begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the 2 names provided. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_ac52f5887f76318a2318d4721802f3403}\label{io_8h_ac52f5887f76318a2318d4721802f3403}} 
-void \mbox{\hyperlink{io_8h_ac52f5887f76318a2318d4721802f3403}{remove\+\_\+subdirs\+\_\+except3}} (M\+P\+I\+\_\+\+Comm comm, const char $\ast$path2dir, const word name1, const word name2, const word name3)
+void \mbox{\hyperlink{io_8h_ac52f5887f76318a2318d4721802f3403}{remove\+\_\+subdirs\+\_\+except3}} (MPI\+\_\+\+Comm comm, const char $\ast$path2dir, const word name1, const word name2, const word name3)
 \begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the 3 names provided. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_a53dac50624de3ed052ba33311ccc3c0a}\label{io_8h_a53dac50624de3ed052ba33311ccc3c0a}} 
-void \mbox{\hyperlink{io_8h_a53dac50624de3ed052ba33311ccc3c0a}{remove\+\_\+subdirs\+\_\+except4}} (M\+P\+I\+\_\+\+Comm comm, const char $\ast$path2dir, const word name1, const word name2, const word name3, const word name4)
+void \mbox{\hyperlink{io_8h_a53dac50624de3ed052ba33311ccc3c0a}{remove\+\_\+subdirs\+\_\+except4}} (MPI\+\_\+\+Comm comm, const char $\ast$path2dir, const word name1, const word name2, const word name3, const word name4)
 \begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the 3 names provided. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_aea57de8784231311b501c1f92e27a1af}\label{io_8h_aea57de8784231311b501c1f92e27a1af}} 
 void \mbox{\hyperlink{io_8h_aea57de8784231311b501c1f92e27a1af}{Set\+Write\+Dir}} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} $\ast$mesh, const word str)
@@ -97,6 +103,9 @@ Petsc\+Error\+Code \mbox{\hyperlink{io_8h_a5f8fc88b35d47c8350c91248852ce4a3}{rea
 \mbox{\Hypertarget{io_8h_a57804e3341077d959aff915fdcbd7fd7}\label{io_8h_a57804e3341077d959aff915fdcbd7fd7}} 
 Petsc\+Error\+Code \mbox{\hyperlink{io_8h_a57804e3341077d959aff915fdcbd7fd7}{read\+Dict\+Vector}} (const char $\ast$dict\+Name, const char $\ast$keyword, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$value)
 \begin{DoxyCompactList}\small\item\em Read mandatory vector from dictionary. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{io_8h_af0c4792189b4c6e1ada71d35a24d0332}\label{io_8h_af0c4792189b4c6e1ada71d35a24d0332}} 
+Petsc\+Error\+Code \mbox{\hyperlink{io_8h_af0c4792189b4c6e1ada71d35a24d0332}{read\+Dict\+Vector2D}} (const char $\ast$dict\+Name, const char $\ast$keyword, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$value)
+\begin{DoxyCompactList}\small\item\em Read mandatory 2D vector from dictionary. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{io_8h_a3c7c280a68596390486d409da1854301}\label{io_8h_a3c7c280a68596390486d409da1854301}} 
 Petsc\+Error\+Code \mbox{\hyperlink{io_8h_a3c7c280a68596390486d409da1854301}{read\+Dict\+Int}} (const char $\ast$dict\+Name, const char $\ast$keyword, Petsc\+Int $\ast$value)
 \begin{DoxyCompactList}\small\item\em Read mandatory Petsc\+Int from dictionary. \end{DoxyCompactList}\item 

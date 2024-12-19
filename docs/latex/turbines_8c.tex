@@ -19,21 +19,27 @@ Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a1cd6b36db1a72ce7b891df767164a62
 \mbox{\Hypertarget{turbines_8c_ace0ce35ddbbce239b1b394453ad7f0e2}\label{turbines_8c_ace0ce35ddbbce239b1b394453ad7f0e2}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_ace0ce35ddbbce239b1b394453ad7f0e2}{Initialize\+Wind\+Farm}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Initialize the wind farm. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_aebc447ac913b72dc8c09e145ed8525b0}\label{turbines_8c_aebc447ac913b72dc8c09e145ed8525b0}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aebc447ac913b72dc8c09e145ed8525b0}{check\+Turbine\+Mesh}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
+\begin{DoxyCompactList}\small\item\em Check that the mesh is resolved around the turbine. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a2ce4bbf94f65a2b4398759cb640cc37d}\label{turbines_8c_a2ce4bbf94f65a2b4398759cb640cc37d}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a2ce4bbf94f65a2b4398759cb640cc37d}{compute\+Rot\+Speed}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Solve rotor dynamics and compute filtered rot speed. \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{turbines_8c_a2375bcefa79ece6b0b92effabcb760eb}\label{turbines_8c_a2375bcefa79ece6b0b92effabcb760eb}} 
-Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a2375bcefa79ece6b0b92effabcb760eb}{rotate\+Blades}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, Petsc\+Real angle)
-\begin{DoxyCompactList}\small\item\em Rotate blades (only for \mbox{\hyperlink{structALM}{A\+LM}}) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_a103ec66cbf7d50dd440708102e3d893e}\label{turbines_8c_a103ec66cbf7d50dd440708102e3d893e}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a103ec66cbf7d50dd440708102e3d893e}{rotate\+Blades}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, Petsc\+Real angle, Petsc\+Int update\+Azimuth)
+\begin{DoxyCompactList}\small\item\em Rotate blades (only for \mbox{\hyperlink{structALM}{ALM}}) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_aa13b38ab3e25d3e8f136013e4dad9d82}\label{turbines_8c_aa13b38ab3e25d3e8f136013e4dad9d82}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aa13b38ab3e25d3e8f136013e4dad9d82}{control\+Gen\+Speed}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Compute generator torque with 5-\/regions control system model. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_aff99431bfb7e71efad66eb30db44a988}\label{turbines_8c_aff99431bfb7e71efad66eb30db44a988}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aff99431bfb7e71efad66eb30db44a988}{control\+Bld\+Pitch}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
-\begin{DoxyCompactList}\small\item\em Compute blade pitch using the P\+ID control. \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em Compute blade pitch using the PID control. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_af8d67709ace88629174c605a3450c435}\label{turbines_8c_af8d67709ace88629174c605a3450c435}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_af8d67709ace88629174c605a3450c435}{control\+Nac\+Yaw}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Compute nacelle yaw. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_aba2fbd25d7e12ba315e02f1e4500ddc0}\label{turbines_8c_aba2fbd25d7e12ba315e02f1e4500ddc0}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aba2fbd25d7e12ba315e02f1e4500ddc0}{wind\+Farm\+Control}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
+\begin{DoxyCompactList}\small\item\em Compute wind turbine control based on wind farm controller. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_afbcd4a6d04cf0e52044a5e003f1f665e}\label{turbines_8c_afbcd4a6d04cf0e52044a5e003f1f665e}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_afbcd4a6d04cf0e52044a5e003f1f665e}{find\+Controlled\+Points\+Rotor}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Discrimination algorithm\+: find out which points of each rotor are controlled by this processor. \end{DoxyCompactList}\item 
@@ -43,12 +49,18 @@ Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aae14e83a1e72bd7d59f07a1fc183cfd
 \mbox{\Hypertarget{turbines_8c_a36d824c70d196cd4eb2ebd8979e8745b}\label{turbines_8c_a36d824c70d196cd4eb2ebd8979e8745b}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a36d824c70d196cd4eb2ebd8979e8745b}{find\+Controlled\+Points\+Tower}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Discrimination algorithm\+: find out which points of each tower are controlled by this processor. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_a4a32e68ad41978580762469fd0d67b00}\label{turbines_8c_a4a32e68ad41978580762469fd0d67b00}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a4a32e68ad41978580762469fd0d67b00}{find\+Controlled\+Points\+Nacelle}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
+\begin{DoxyCompactList}\small\item\em Discrimination algorithm\+: find out which points of each nacelle are controlled by this processor. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_abd044abacd42186c69ea38511265d6b3}\label{turbines_8c_abd044abacd42186c69ea38511265d6b3}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_abd044abacd42186c69ea38511265d6b3}{compute\+Wind\+Vectors\+Rotor}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Compute wind velocity at the rotor mesh points. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a698336806710e68aa8cc28d1f975484b}\label{turbines_8c_a698336806710e68aa8cc28d1f975484b}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a698336806710e68aa8cc28d1f975484b}{compute\+Wind\+Vectors\+Tower}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Compute wind velocity at the tower mesh points. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_a511080a2ce9d8308f7d1cb9894679d37}\label{turbines_8c_a511080a2ce9d8308f7d1cb9894679d37}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a511080a2ce9d8308f7d1cb9894679d37}{compute\+Wind\+Vectors\+Nacelle}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
+\begin{DoxyCompactList}\small\item\em Compute wind velocity at the nacelle mesh points. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a4d4862596b7fec4c3af5341a3120f005}\label{turbines_8c_a4d4862596b7fec4c3af5341a3120f005}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a4d4862596b7fec4c3af5341a3120f005}{compute\+Wind\+Vectors\+Sample}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Compute wind velocity at the sample mesh points. \end{DoxyCompactList}\item 
@@ -61,12 +73,15 @@ Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a1c9f963195cd851c599dd964abd9a4d
 \mbox{\Hypertarget{turbines_8c_ad035b094ccb31e8ea8475652de8277f1}\label{turbines_8c_ad035b094ccb31e8ea8475652de8277f1}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_ad035b094ccb31e8ea8475652de8277f1}{project\+Tower\+Force}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Compute and project the tower forces on the background mesh. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_aac70f61e4da14da54148bc89b023c07c}\label{turbines_8c_aac70f61e4da14da54148bc89b023c07c}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aac70f61e4da14da54148bc89b023c07c}{project\+Nacelle\+Force}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
+\begin{DoxyCompactList}\small\item\em Compute and project the nacelle forces on the background mesh. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a8bb5a50cbade8b6772f0c7686e7e3615}\label{turbines_8c_a8bb5a50cbade8b6772f0c7686e7e3615}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a8bb5a50cbade8b6772f0c7686e7e3615}{body\+Force\+Cartesian2\+Contravariant}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Transform the cartesian body force to contravariant. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_ad3bafc165bf13b4052a6f1d545d9d630}\label{turbines_8c_ad3bafc165bf13b4052a6f1d545d9d630}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_ad3bafc165bf13b4052a6f1d545d9d630}{compute\+Max\+Tip\+Speed}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
-\begin{DoxyCompactList}\small\item\em Compute max tip speed and activate C\+FL control flag. \end{DoxyCompactList}\item 
+\begin{DoxyCompactList}\small\item\em Compute max tip speed and activate CFL control flag. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_ac2e05801940e1313c32796887a815ca8}\label{turbines_8c_ac2e05801940e1313c32796887a815ca8}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_ac2e05801940e1313c32796887a815ca8}{wind\+Turbines\+Write}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Write output if applicable. \end{DoxyCompactList}\item 
@@ -77,23 +92,26 @@ Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a63518e35b9dfb74c25ea99e6b5b1370
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a3e9db925e70e002c6ac524138f20a5b0}{wind\+Turbines\+Read\+Checkpoint}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Read checkpoint file and prepare wind turbines. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_ab428345a7474df9c58ae8dbde0c001c4}\label{turbines_8c_ab428345a7474df9c58ae8dbde0c001c4}} 
-Petsc\+Error\+Code {\bfseries init\+A\+DM} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base, const word mesh\+Name)
+Petsc\+Error\+Code {\bfseries init\+ADM} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base, const word mesh\+Name)
 \item 
 \mbox{\Hypertarget{turbines_8c_aef97a3b88e4edec0f27855f3cbae796c}\label{turbines_8c_aef97a3b88e4edec0f27855f3cbae796c}} 
-Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aef97a3b88e4edec0f27855f3cbae796c}{init\+U\+A\+DM}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base, const word mesh\+Name)
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aef97a3b88e4edec0f27855f3cbae796c}{init\+UADM}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base, const word mesh\+Name)
 \begin{DoxyCompactList}\small\item\em Initialize the Uniform Actuator Disk Model. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_aedd1d37892c0ed0fb2fd3a4f46549992}\label{turbines_8c_aedd1d37892c0ed0fb2fd3a4f46549992}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aedd1d37892c0ed0fb2fd3a4f46549992}{init\+Sample\+Points}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base, const word mesh\+Name)
 \begin{DoxyCompactList}\small\item\em Initialize the upstream sample points data structure. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a3727904d13581b62c3de21c3fdd6f23c}\label{turbines_8c_a3727904d13581b62c3de21c3fdd6f23c}} 
-Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a3727904d13581b62c3de21c3fdd6f23c}{init\+A\+LM}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base, const word mesh\+Name)
-\begin{DoxyCompactList}\small\item\em Initializes the \mbox{\hyperlink{structALM}{A\+LM}} reading from files and allocating memory. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a3727904d13581b62c3de21c3fdd6f23c}{init\+ALM}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base, const word mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Initializes the \mbox{\hyperlink{structALM}{ALM}} reading from files and allocating memory. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_aa18a0a4d8f9db8272b26a06dfe44e978}\label{turbines_8c_aa18a0a4d8f9db8272b26a06dfe44e978}} 
-Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aa18a0a4d8f9db8272b26a06dfe44e978}{init\+A\+FM}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base, const word mesh\+Name)
-\begin{DoxyCompactList}\small\item\em Initializes the \mbox{\hyperlink{structAFM}{A\+FM}} reading from files and allocating memory. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aa18a0a4d8f9db8272b26a06dfe44e978}{init\+AFM}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base, const word mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Initializes the \mbox{\hyperlink{structAFM}{AFM}} reading from files and allocating memory. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a7377487afce8dcba7e05e3fa92392f25}\label{turbines_8c_a7377487afce8dcba7e05e3fa92392f25}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a7377487afce8dcba7e05e3fa92392f25}{init\+Twr\+Model}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base)
 \begin{DoxyCompactList}\small\item\em Initializes the tower model. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_a94c683c5fb49621a08b051e3d4bdb618}\label{turbines_8c_a94c683c5fb49621a08b051e3d4bdb618}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a94c683c5fb49621a08b051e3d4bdb618}{init\+Nac\+Model}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base)
+\begin{DoxyCompactList}\small\item\em Initializes the nacelle model. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_aa1ff8e3030c14442c0babf933a0d49f5}\label{turbines_8c_aa1ff8e3030c14442c0babf933a0d49f5}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aa1ff8e3030c14442c0babf933a0d49f5}{init\+Controlled\+Cells}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Initialize sphere cells and see what proc controls which turbine. \end{DoxyCompactList}\item 
@@ -101,13 +119,13 @@ Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aa1ff8e3030c14442c0babf933a0d49f
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a1482d8d41dc814c7222b5fddb3a6dde6}{init\+Sample\+Controlled\+Cells}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Initialize sphere cells and see what proc controls which sample point. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a2ca807338f27dd4f87ea60254866ea2b}\label{turbines_8c_a2ca807338f27dd4f87ea60254866ea2b}} 
-Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a2ca807338f27dd4f87ea60254866ea2b}{write\+Farm\+A\+D\+Mesh}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a2ca807338f27dd4f87ea60254866ea2b}{write\+Farm\+ADMesh}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Write the wind farm AD mesh to ucd file. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a5d2ee4f82544763458b613f851165f3b}\label{turbines_8c_a5d2ee4f82544763458b613f851165f3b}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a5d2ee4f82544763458b613f851165f3b}{write\+Farm\+Twr\+Mesh}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Write the wind farm tower mesh to ucd file. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_ae9f2e325c4e6d8ecb89bc159a8c43b1c}\label{turbines_8c_ae9f2e325c4e6d8ecb89bc159a8c43b1c}} 
-Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_ae9f2e325c4e6d8ecb89bc159a8c43b1c}{write\+Farm\+A\+L\+Mesh}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_ae9f2e325c4e6d8ecb89bc159a8c43b1c}{write\+Farm\+ALMesh}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Write the wind farm AL mesh to ucd file. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a2e73d89ba91c9555b9dbdbe03d35ce7a}\label{turbines_8c_a2e73d89ba91c9555b9dbdbe03d35ce7a}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a2e73d89ba91c9555b9dbdbe03d35ce7a}{read\+Farm\+Properties}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
@@ -124,12 +142,15 @@ Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a965b357761b1d07e1600a2cf2366643
 \mbox{\Hypertarget{turbines_8c_a4bb4e90d4b48776d8cefac8418edcecb}\label{turbines_8c_a4bb4e90d4b48776d8cefac8418edcecb}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a4bb4e90d4b48776d8cefac8418edcecb}{read\+Airfoil\+Table}} (\mbox{\hyperlink{structfoilInfo}{foil\+Info}} $\ast$af, const char $\ast$table\+Name)
 \begin{DoxyCompactList}\small\item\em Reads the 2D airfoil tables given in the file named as the airfoil. \end{DoxyCompactList}\item 
-\mbox{\Hypertarget{turbines_8c_a9b0017548fba72455961c3986b4f8115}\label{turbines_8c_a9b0017548fba72455961c3986b4f8115}} 
-Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a9b0017548fba72455961c3986b4f8115}{read\+Blade\+Properties}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, const char $\ast$dict\+Name)
+\mbox{\Hypertarget{turbines_8c_a4af3b60170aa7e2e37575dc8cf5bccb8}\label{turbines_8c_a4af3b60170aa7e2e37575dc8cf5bccb8}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a4af3b60170aa7e2e37575dc8cf5bccb8}{read\+Blade\+Properties}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, const char $\ast$dict\+Name, const Petsc\+Int read\+Thickness)
 \begin{DoxyCompactList}\small\item\em Reads the blades aero properties used in the turbine (given in the blade\+Data subdict inside the file named as the wind turbine type) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a597326fb8f6617e7647c85ab12e07ae7}\label{turbines_8c_a597326fb8f6617e7647c85ab12e07ae7}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a597326fb8f6617e7647c85ab12e07ae7}{read\+Tower\+Properties}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, const char $\ast$dict\+Name)
 \begin{DoxyCompactList}\small\item\em Reads the tower properties used in the turbine (given in the tower\+Data subdict inside the file named as the wind turbine) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_a74e7b69e22d55a5e910cf72ef68a4121}\label{turbines_8c_a74e7b69e22d55a5e910cf72ef68a4121}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a74e7b69e22d55a5e910cf72ef68a4121}{read\+Nacelle\+Properties}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, const char $\ast$dict\+Name)
+\begin{DoxyCompactList}\small\item\em Reads the nacelle properties used in the turbine (given in the nacelle\+Data subdict inside the file named as the wind turbine) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a642de5fc034e14d5297502322c14c089}\label{turbines_8c_a642de5fc034e14d5297502322c14c089}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a642de5fc034e14d5297502322c14c089}{read\+Gen\+Controller\+Parameters}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, const char $\ast$dict\+Name, const char $\ast$mesh\+Name)
 \begin{DoxyCompactList}\small\item\em Reads generator torque controller parameters. \end{DoxyCompactList}\item 
@@ -139,12 +160,18 @@ Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a1d68afe95eef2c2e6df045755888ef0
 \mbox{\Hypertarget{turbines_8c_a94e00e0f0b3852a822827c2cb266361b}\label{turbines_8c_a94e00e0f0b3852a822827c2cb266361b}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a94e00e0f0b3852a822827c2cb266361b}{read\+Yaw\+Controller\+Parameters}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt, const char $\ast$dict\+Name, const char $\ast$mesh\+Name)
 \begin{DoxyCompactList}\small\item\em Reads nacelle yaw controller parameters. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_ac1dc3a6f4b8ec97fed5723c333f6cbcf}\label{turbines_8c_ac1dc3a6f4b8ec97fed5723c333f6cbcf}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_ac1dc3a6f4b8ec97fed5723c333f6cbcf}{read\+Wind\+Farm\+Control\+Table}} (\mbox{\hyperlink{structwindTurbine}{wind\+Turbine}} $\ast$wt)
+\begin{DoxyCompactList}\small\item\em Read wind farm controller table (1 header and time -\/ value list) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_aedcdfd78d0338e85314a9912111f0b92}\label{turbines_8c_aedcdfd78d0338e85314a9912111f0b92}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_aedcdfd78d0338e85314a9912111f0b92}{check\+Point\+Discrimination\+Rotor}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Debug check for the discrimination algorithm on the rotor. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_a4b6b6c3fa1f1ce08e5ca32f46e20085c}\label{turbines_8c_a4b6b6c3fa1f1ce08e5ca32f46e20085c}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a4b6b6c3fa1f1ce08e5ca32f46e20085c}{check\+Point\+Discrimination\+Tower}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Debug check for the discrimination algorithm on the tower. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{turbines_8c_a62bb38b315d91569b1c1553aa70b6195}\label{turbines_8c_a62bb38b315d91569b1c1553aa70b6195}} 
+Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_a62bb38b315d91569b1c1553aa70b6195}{check\+Point\+Discrimination\+Nacelle}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
+\begin{DoxyCompactList}\small\item\em Debug check for the discrimination algorithm on the nacelle. \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{turbines_8c_ae1d821bd77f36ff9d0748f6456d73778}\label{turbines_8c_ae1d821bd77f36ff9d0748f6456d73778}} 
 Petsc\+Error\+Code \mbox{\hyperlink{turbines_8c_ae1d821bd77f36ff9d0748f6456d73778}{check\+Point\+Discrimination\+Sample}} (\mbox{\hyperlink{structfarm__}{farm\+\_\+}} $\ast$farm)
 \begin{DoxyCompactList}\small\item\em Debug check for the discrimination algorithm on sample points. \end{DoxyCompactList}\item 

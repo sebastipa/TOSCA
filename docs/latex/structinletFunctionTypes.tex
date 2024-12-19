@@ -28,7 +28,7 @@ Petsc\+Int {\bfseries type\+Nut}
 Petsc\+Real {\bfseries Href}
 \item 
 \mbox{\Hypertarget{structinletFunctionTypes_aa4a0fd34ebdfe4cf641ee7f99083244d}\label{structinletFunctionTypes_aa4a0fd34ebdfe4cf641ee7f99083244d}} 
-Petsc\+Real {\bfseries u\+Prime\+R\+MS}
+Petsc\+Real {\bfseries u\+Prime\+RMS}
 \item 
 \mbox{\Hypertarget{structinletFunctionTypes_a50b49bd10a1e9b5c553afd0fe7b0b890}\label{structinletFunctionTypes_a50b49bd10a1e9b5c553afd0fe7b0b890}} 
 \mbox{\hyperlink{structCmpnts}{Cmpnts}} \mbox{\hyperlink{structinletFunctionTypes_a50b49bd10a1e9b5c553afd0fe7b0b890}{Udir}}
@@ -54,6 +54,9 @@ Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_acc732a9488b99b45fd919edb8
 \mbox{\Hypertarget{structinletFunctionTypes_aecf667b71fe7505a9de8668f4f804174}\label{structinletFunctionTypes_aecf667b71fe7505a9de8668f4f804174}} 
 Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_aecf667b71fe7505a9de8668f4f804174}{g\+Top}}
 \begin{DoxyCompactList}\small\item\em temperature gradient above the inversion layer \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a997dca455abfcc0441d9bbd35b42e9c6}\label{structinletFunctionTypes_a997dca455abfcc0441d9bbd35b42e9c6}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_a997dca455abfcc0441d9bbd35b42e9c6}{g\+ABL}}
+\begin{DoxyCompactList}\small\item\em temperature gradient below the inversion layer \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structinletFunctionTypes_a405295e6a320db90bfc090b571c933cd}\label{structinletFunctionTypes_a405295e6a320db90bfc090b571c933cd}} 
 Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_a405295e6a320db90bfc090b571c933cd}{smear}}
 \begin{DoxyCompactList}\small\item\em Rampanelli Zardi model parameter. \end{DoxyCompactList}\item 
@@ -81,6 +84,12 @@ Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_ad8e38299050061651ab52c665f
 \mbox{\Hypertarget{structinletFunctionTypes_ae6ed92cf431a4a42e2ae117f8efde7b2}\label{structinletFunctionTypes_ae6ed92cf431a4a42e2ae117f8efde7b2}} 
 Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_ae6ed92cf431a4a42e2ae117f8efde7b2}{prds2}}
 \begin{DoxyCompactList}\small\item\em indicates how many times inflow data should be periodized along 2nd index \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_aceccf1a51aa96a07c91b8c6c7aaa4919}\label{structinletFunctionTypes_aceccf1a51aa96a07c91b8c6c7aaa4919}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_aceccf1a51aa96a07c91b8c6c7aaa4919}{merge1}}
+\begin{DoxyCompactList}\small\item\em average data at 5 top cells \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a4922b9a54b17ffdbc07f5d3df616b652}\label{structinletFunctionTypes_a4922b9a54b17ffdbc07f5d3df616b652}} 
+Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_a4922b9a54b17ffdbc07f5d3df616b652}{shift2}}
+\begin{DoxyCompactList}\small\item\em apply shift on inflow slice data along direction 2 \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structinletFunctionTypes_aae6085875f810580e5146c0f57c7fba5}\label{structinletFunctionTypes_aae6085875f810580e5146c0f57c7fba5}} 
 Petsc\+Int \mbox{\hyperlink{structinletFunctionTypes_aae6085875f810580e5146c0f57c7fba5}{mapT}}
 \begin{DoxyCompactList}\small\item\em flag telling if also T is mapped (if temperature\+Transport is active is mandatory) \end{DoxyCompactList}\item 
@@ -93,9 +102,24 @@ Petsc\+Real $\ast$$\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_a7fd2c5
 \mbox{\Hypertarget{structinletFunctionTypes_a1410ab9a289670a716efd9be02a557e8}\label{structinletFunctionTypes_a1410ab9a289670a716efd9be02a557e8}} 
 \mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$$\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_a1410ab9a289670a716efd9be02a557e8}{closest\+Cells}}
 \begin{DoxyCompactList}\small\item\em array of 4 closest cells for each cell center \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a102af40dac5ca3776b74a66374be0cd5}\label{structinletFunctionTypes_a102af40dac5ca3776b74a66374be0cd5}} 
+Petsc\+Real $\ast$$\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_a102af40dac5ca3776b74a66374be0cd5}{inflow\+Weights\+\_\+1}}
+\begin{DoxyCompactList}\small\item\em array of 6 weights for each cell center (ordered as a 2D plane array) -\/ j spline interp \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_ac3481f41c84cf533b92e610122a931c0}\label{structinletFunctionTypes_ac3481f41c84cf533b92e610122a931c0}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$$\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_ac3481f41c84cf533b92e610122a931c0}{closest\+Cells\+\_\+1}}
+\begin{DoxyCompactList}\small\item\em array of 6 closest cells for each cell center -\/ j spline interp \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_aa405479ce84f051fa06a5fe3f8a734ac}\label{structinletFunctionTypes_aa405479ce84f051fa06a5fe3f8a734ac}} 
+Petsc\+Real $\ast$$\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_aa405479ce84f051fa06a5fe3f8a734ac}{inflow\+Weights\+\_\+2}}
+\begin{DoxyCompactList}\small\item\em array of 6 weights for each cell center (ordered as a 2D plane array) -\/ i spline interp \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a39618df9f8d2b8e6e3156efc1de32276}\label{structinletFunctionTypes_a39618df9f8d2b8e6e3156efc1de32276}} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} $\ast$$\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_a39618df9f8d2b8e6e3156efc1de32276}{closest\+Cells\+\_\+2}}
+\begin{DoxyCompactList}\small\item\em array of 6 closest cells for each cell center -\/ i spline interp \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structinletFunctionTypes_a05efba2d5198c221f7e9181415c79459}\label{structinletFunctionTypes_a05efba2d5198c221f7e9181415c79459}} 
 word \mbox{\hyperlink{structinletFunctionTypes_a05efba2d5198c221f7e9181415c79459}{source\+Type}}
 \begin{DoxyCompactList}\small\item\em source mesh type (uniform or grading) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a17a59e42ec168f3ec75be71f76ee0fc5}\label{structinletFunctionTypes_a17a59e42ec168f3ec75be71f76ee0fc5}} 
+word \mbox{\hyperlink{structinletFunctionTypes_a17a59e42ec168f3ec75be71f76ee0fc5}{interp\+Method}}
+\begin{DoxyCompactList}\small\item\em interpolation method (linear or null\+Div) \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structinletFunctionTypes_a6968eeee539407f71906a8104c9940e8}\label{structinletFunctionTypes_a6968eeee539407f71906a8104c9940e8}} 
 Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_a6968eeee539407f71906a8104c9940e8}{width1}}
 \begin{DoxyCompactList}\small\item\em inflow cell width in the 1st direction \end{DoxyCompactList}\item 
@@ -122,7 +146,43 @@ Petsc\+Real $\ast$$\ast$ \mbox{\hyperlink{structinletFunctionTypes_aca72491a1b88
 \begin{DoxyCompactList}\small\item\em temperature inflow database inflormation for unsteady\+Mapped\+Inflow BC \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structinletFunctionTypes_a6fbea38c7b5d8fbfc7798537f4776b93}\label{structinletFunctionTypes_a6fbea38c7b5d8fbfc7798537f4776b93}} 
 \mbox{\hyperlink{structinflowData}{inflow\+Data}} \mbox{\hyperlink{structinletFunctionTypes_a6fbea38c7b5d8fbfc7798537f4776b93}{inflow\+Nut}}
-\begin{DoxyCompactList}\small\item\em temperature inflow database inflormation for unsteady\+Mapped\+Inflow BC \end{DoxyCompactList}\end{DoxyCompactItemize}
+\begin{DoxyCompactList}\small\item\em temperature inflow database inflormation for unsteady\+Mapped\+Inflow BC \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a2eca91946f9d33df0b1be18338542f1c}\label{structinletFunctionTypes_a2eca91946f9d33df0b1be18338542f1c}} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$ \mbox{\hyperlink{structinletFunctionTypes_a2eca91946f9d33df0b1be18338542f1c}{u\+Bar\+Avg\+TopX}}
+\begin{DoxyCompactList}\small\item\em velocity average from inflow database at top 10 points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a7676e215fbaec0743bbd69244e733358}\label{structinletFunctionTypes_a7676e215fbaec0743bbd69244e733358}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structinletFunctionTypes_a7676e215fbaec0743bbd69244e733358}{t\+Bar\+Avg\+TopX}}
+\begin{DoxyCompactList}\small\item\em temperature average from inflow database at top 10 points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_acafeecaddaa55f486f77d731678fa78f}\label{structinletFunctionTypes_acafeecaddaa55f486f77d731678fa78f}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structinletFunctionTypes_acafeecaddaa55f486f77d731678fa78f}{avg\+Top\+Point\+Coords}}
+\begin{DoxyCompactList}\small\item\em z coordinates of the 10 average top points \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_add029bbd383aedbb4dba09b605d60333}\label{structinletFunctionTypes_add029bbd383aedbb4dba09b605d60333}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_add029bbd383aedbb4dba09b605d60333}{avg\+Top\+Delta}}
+\begin{DoxyCompactList}\small\item\em length of the five top cells \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a8c6e3d537dd5a5e021f2a646c4d21faf}\label{structinletFunctionTypes_a8c6e3d537dd5a5e021f2a646c4d21faf}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_a8c6e3d537dd5a5e021f2a646c4d21faf}{avg\+Top\+Length}}
+\begin{DoxyCompactList}\small\item\em height of the inflow slices \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_ad3ccb4b5935d5604c9129aaa0245a466}\label{structinletFunctionTypes_ad3ccb4b5935d5604c9129aaa0245a466}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_ad3ccb4b5935d5604c9129aaa0245a466}{shift\+Speed}}
+\begin{DoxyCompactList}\small\item\em speed of the i-\/direction shift \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a4ad180d04965e5ce1aadecc39acb3382}\label{structinletFunctionTypes_a4ad180d04965e5ce1aadecc39acb3382}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structinletFunctionTypes_a4ad180d04965e5ce1aadecc39acb3382}{ycent}}
+\begin{DoxyCompactList}\small\item\em vector storing y cell center coordinates (assuming they don\textquotesingle{}t vary vertically) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_abb3a2843eb440ff8885ce83d1ce78df3}\label{structinletFunctionTypes_abb3a2843eb440ff8885ce83d1ce78df3}} 
+Petsc\+Int $\ast$ \mbox{\hyperlink{structinletFunctionTypes_abb3a2843eb440ff8885ce83d1ce78df3}{y\+IDs}}
+\begin{DoxyCompactList}\small\item\em IDs for the right interpolation point (the left would be IDs\mbox{[}i\mbox{]}-\/1) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_adf514a120776c52421867b393443225d}\label{structinletFunctionTypes_adf514a120776c52421867b393443225d}} 
+Petsc\+Real $\ast$ \mbox{\hyperlink{structinletFunctionTypes_adf514a120776c52421867b393443225d}{y\+Weights}}
+\begin{DoxyCompactList}\small\item\em vector storing the right weight for the interpolation (left weight is 1.\+0 -\/ right weight) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a3a33442b86743f15d675f4cf37b3afdb}\label{structinletFunctionTypes_a3a33442b86743f15d675f4cf37b3afdb}} 
+MPI\+\_\+\+Comm \mbox{\hyperlink{structinletFunctionTypes_a3a33442b86743f15d675f4cf37b3afdb}{IFFCN\+\_\+\+COMM}}
+\begin{DoxyCompactList}\small\item\em communicator involving all processors touching k-\/boundaries \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a32f4f87008df096e6f743ea874580c2b}\label{structinletFunctionTypes_a32f4f87008df096e6f743ea874580c2b}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_a32f4f87008df096e6f743ea874580c2b}{amplitude}}
+\begin{DoxyCompactList}\small\item\em oscillation amplitude w.\+r.\+t. reference velocity magnitude \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structinletFunctionTypes_a8761a393ade7f1a96b0968761089bc7f}\label{structinletFunctionTypes_a8761a393ade7f1a96b0968761089bc7f}} 
+Petsc\+Real \mbox{\hyperlink{structinletFunctionTypes_a8761a393ade7f1a96b0968761089bc7f}{periods}}
+\begin{DoxyCompactList}\small\item\em number of periods in the spanwise direction \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
 \doxysubsection{Detailed Description}

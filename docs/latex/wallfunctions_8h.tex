@@ -15,6 +15,9 @@ Petsc\+Real {\bfseries u\+Tau\+Cabot} (Petsc\+Real nu, Petsc\+Real u, Petsc\+Rea
 \mbox{\Hypertarget{wallfunctions_8h_ac9176e5602d9b768109d649a097ebd87}\label{wallfunctions_8h_ac9176e5602d9b768109d649a097ebd87}} 
 Petsc\+Real {\bfseries utau\+\_\+wf} (Petsc\+Real nu, Petsc\+Real ks, Petsc\+Real sb, Petsc\+Real Ut\+\_\+mag)
 \item 
+\mbox{\Hypertarget{wallfunctions_8h_a4957b9ec63f61ec7535f30572869eb20}\label{wallfunctions_8h_a4957b9ec63f61ec7535f30572869eb20}} 
+Petsc\+Real {\bfseries u\+Tau\+Cabot\+Roughness} (Petsc\+Real nu, Petsc\+Real u, Petsc\+Real y, Petsc\+Real guess, Petsc\+Real dpdn, Petsc\+Real ks)
+\item 
 \mbox{\Hypertarget{wallfunctions_8h_aaf2b220dd909d9fa331a4b51444d5667}\label{wallfunctions_8h_aaf2b220dd909d9fa331a4b51444d5667}} 
 void {\bfseries wall\+Function\+Cabot} (Petsc\+Real nu, Petsc\+Real sc, Petsc\+Real sb, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, Petsc\+Real $\ast$ustar, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf)
 \item 
@@ -25,16 +28,28 @@ void {\bfseries wall\+Function\+Cabot\+Roughness} (Petsc\+Real nu, Petsc\+Real k
 void {\bfseries wall\+Function\+Powerlaw} (Petsc\+Real nu, Petsc\+Real sc, Petsc\+Real sb, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, Petsc\+Real $\ast$ustar, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf)
 \item 
 \mbox{\Hypertarget{wallfunctions_8h_a61404fc78a9f725599aaf656cc929c4c}\label{wallfunctions_8h_a61404fc78a9f725599aaf656cc929c4c}} 
-void {\bfseries wall\+Function\+Powerlaw\+A\+PG} (Petsc\+Real nu, Petsc\+Real sc, Petsc\+Real sb, Petsc\+Real roughness, Petsc\+Real kappa, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, Petsc\+Real $\ast$ustar, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf, Petsc\+Real dpdx, Petsc\+Real dpdy, Petsc\+Real dpdz)
+void {\bfseries wall\+Function\+Powerlaw\+APG} (Petsc\+Real nu, Petsc\+Real sc, Petsc\+Real sb, Petsc\+Real roughness, Petsc\+Real kappa, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, Petsc\+Real $\ast$ustar, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf, Petsc\+Real dpdx, Petsc\+Real dpdy, Petsc\+Real dpdz)
 \item 
 \mbox{\Hypertarget{wallfunctions_8h_af8a9bfa5871c6f0a92c7d22694056565}\label{wallfunctions_8h_af8a9bfa5871c6f0a92c7d22694056565}} 
-void {\bfseries wall\+Function\+Log\+Law\+A\+PG} (Petsc\+Real nu, Petsc\+Real sc, Petsc\+Real sb, Petsc\+Real roughness, Petsc\+Real kappa, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, Petsc\+Real $\ast$ustar, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf, Petsc\+Real dpdx, Petsc\+Real dpdy, Petsc\+Real dpdz)
+void {\bfseries wall\+Function\+Log\+Law\+APG} (Petsc\+Real nu, Petsc\+Real sc, Petsc\+Real sb, Petsc\+Real roughness, Petsc\+Real kappa, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, Petsc\+Real $\ast$ustar, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf, Petsc\+Real dpdx, Petsc\+Real dpdy, Petsc\+Real dpdz)
+\item 
+\mbox{\Hypertarget{wallfunctions_8h_a5df7a330d7c080c95e94b23d2c858958}\label{wallfunctions_8h_a5df7a330d7c080c95e94b23d2c858958}} 
+void {\bfseries slip\+BC} (Petsc\+Real sc, Petsc\+Real sb, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf)
+\item 
+\mbox{\Hypertarget{wallfunctions_8h_a08c6fa029c65fc6745aac3d520c7ef6f}\label{wallfunctions_8h_a08c6fa029c65fc6745aac3d520c7ef6f}} 
+void {\bfseries wall\+Function\+Schumann} (Petsc\+Real nu, Petsc\+Real sc, Petsc\+Real sb, Petsc\+Real roughness, Petsc\+Real kappa, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, Petsc\+Real $\ast$ustar, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf)
+\item 
+\mbox{\Hypertarget{wallfunctions_8h_af7f79d6a65099615402cced279b7e6ea}\label{wallfunctions_8h_af7f79d6a65099615402cced279b7e6ea}} 
+void {\bfseries wall\+Shear\+Velocity\+BC} (Petsc\+Real nu, Petsc\+Real sc, Petsc\+Real sb, Petsc\+Real roughness, Petsc\+Real kappa, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, Petsc\+Real $\ast$ustar, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf)
+\item 
+\mbox{\Hypertarget{wallfunctions_8h_ad45963314ae9ed79906c2f1d90778698}\label{wallfunctions_8h_ad45963314ae9ed79906c2f1d90778698}} 
+void {\bfseries wall\+Shear\+Velocity\+BCQuadratic} (Petsc\+Real nu, Petsc\+Real sd, Petsc\+Real sc, Petsc\+Real sb, Petsc\+Real roughness, Petsc\+Real kappa, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ua, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Ud, \mbox{\hyperlink{structCmpnts}{Cmpnts}} Uc, \mbox{\hyperlink{structCmpnts}{Cmpnts}} $\ast$Ub, Petsc\+Real $\ast$ustar, \mbox{\hyperlink{structCmpnts}{Cmpnts}} nf)
 \item 
 \mbox{\Hypertarget{wallfunctions_8h_a4ad6b3782081da9e36255c71db03d505}\label{wallfunctions_8h_a4ad6b3782081da9e36255c71db03d505}} 
-void {\bfseries u\+Star\+Shumann} (Petsc\+Real \&U\+Parallel\+Mean\+Mag, Petsc\+Real \&wall\+Dist, Petsc\+Real \&roughness, Petsc\+Real \&gammaM, Petsc\+Real \&kappa, Petsc\+Real \&qwall, Petsc\+Real \&theta\+Ref, Petsc\+Real \&u\+Star, Petsc\+Real \&phiM, Petsc\+Real \&L)
+void {\bfseries u\+Star\+Shumann} (Petsc\+Real \&UParallel\+Mean\+Mag, Petsc\+Real \&wall\+Dist, Petsc\+Real \&roughness, Petsc\+Real \&gammaM, Petsc\+Real \&kappa, Petsc\+Real \&qwall, Petsc\+Real \&theta\+Ref, Petsc\+Real \&u\+Star, Petsc\+Real \&phiM, Petsc\+Real \&L)
 \item 
 \mbox{\Hypertarget{wallfunctions_8h_a4eee540a06a836a94a1552501391f1ba}\label{wallfunctions_8h_a4eee540a06a836a94a1552501391f1ba}} 
-void {\bfseries q\+Wall\+Shumann} (Petsc\+Real \&U\+Parallel\+Mean\+Mag, Petsc\+Real \&wall\+Dist, Petsc\+Real \&z0, Petsc\+Real \&gammaM, Petsc\+Real \&gammaH, Petsc\+Real \&alphaH, Petsc\+Real \&theta\+Ref, Petsc\+Real \&delta\+Theta, Petsc\+Real \&kappa, Petsc\+Real \&q\+Wall, Petsc\+Real \&u\+Star, Petsc\+Real \&phiM, Petsc\+Real \&phiH, Petsc\+Real \&L)
+void {\bfseries q\+Wall\+Shumann} (Petsc\+Real \&UParallel\+Mean\+Mag, Petsc\+Real \&wall\+Dist, Petsc\+Real \&z0, Petsc\+Real \&gammaM, Petsc\+Real \&gammaH, Petsc\+Real \&alphaH, Petsc\+Real \&theta\+Ref, Petsc\+Real \&delta\+Theta, Petsc\+Real \&kappa, Petsc\+Real \&q\+Wall, Petsc\+Real \&u\+Star, Petsc\+Real \&phiM, Petsc\+Real \&phiH, Petsc\+Real \&L)
 \end{DoxyCompactItemize}
 
 

@@ -2,7 +2,7 @@
 \label{structibm__}\index{ibm\_@{ibm\_}}
 
 
-struct storing I\+BM model  
+struct storing IBM model  
 
 
 
@@ -12,12 +12,21 @@ struct storing I\+BM model
 \doxysubsection*{Public Attributes}
 \begin{DoxyCompactItemize}
 \item 
+\mbox{\Hypertarget{structibm___ac68ff1ca43e652e0ded3c1b432e347f1}\label{structibm___ac68ff1ca43e652e0ded3c1b432e347f1}} 
+Vec {\bfseries l\+Nvert\+Fixed}
+\item 
 \mbox{\Hypertarget{structibm___a7e5b2d18ede0c77edefbe2c1a11b85bc}\label{structibm___a7e5b2d18ede0c77edefbe2c1a11b85bc}} 
 Petsc\+Int \mbox{\hyperlink{structibm___a7e5b2d18ede0c77edefbe2c1a11b85bc}{num\+Bodies}}
 \begin{DoxyCompactList}\small\item\em number of bodies \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structibm___ad5158afcc83cf8937946f45da9fd15e1}\label{structibm___ad5158afcc83cf8937946f45da9fd15e1}} 
-word \mbox{\hyperlink{structibm___ad5158afcc83cf8937946f45da9fd15e1}{I\+B\+Interpolation\+Model}}
+word \mbox{\hyperlink{structibm___ad5158afcc83cf8937946f45da9fd15e1}{IBInterpolation\+Model}}
 \begin{DoxyCompactList}\small\item\em interpolation methodology \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structibm___a8b7c320261e3a81d8367b4b7b290e6a0}\label{structibm___a8b7c320261e3a81d8367b4b7b290e6a0}} 
+word {\bfseries curvib\+Type}
+\item 
+\mbox{\Hypertarget{structibm___ac97d5540fb9f0c206506f84796fe4214}\label{structibm___ac97d5540fb9f0c206506f84796fe4214}} 
+word {\bfseries curvib\+Order}
+\item 
 \mbox{\Hypertarget{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}\label{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}} 
 \mbox{\hyperlink{structibmObject}{ibm\+Object}} $\ast$$\ast$ \mbox{\hyperlink{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}{ibm\+Body}}
 \begin{DoxyCompactList}\small\item\em array of pointers to ibm objects \end{DoxyCompactList}\item 
@@ -25,10 +34,10 @@ word \mbox{\hyperlink{structibm___ad5158afcc83cf8937946f45da9fd15e1}{I\+B\+Inter
 \mbox{\hyperlink{structsearchBox}{search\+Box}} $\ast$ \mbox{\hyperlink{structibm___ac02bdee327b6634904d5cde6c50a79da}{s\+Box}}
 \begin{DoxyCompactList}\small\item\em array of \mbox{\hyperlink{structsearchBox}{search\+Box}} with number of search cells and their size for each ibm object \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structibm___afa028ac00ffea179ec8029b0b0bfe64f}\label{structibm___afa028ac00ffea179ec8029b0b0bfe64f}} 
-\mbox{\hyperlink{structibmFluidCell}{ibm\+Fluid\+Cell}} $\ast$ \mbox{\hyperlink{structibm___afa028ac00ffea179ec8029b0b0bfe64f}{ibm\+F\+Cells}}
+\mbox{\hyperlink{structibmFluidCell}{ibm\+Fluid\+Cell}} $\ast$ \mbox{\hyperlink{structibm___afa028ac00ffea179ec8029b0b0bfe64f}{ibm\+FCells}}
 \begin{DoxyCompactList}\small\item\em cell ids and supports cells of the ibm fluid cells within each processor \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structibm___ab98888e4019f88a3366d87d5ffb42f7b}\label{structibm___ab98888e4019f88a3366d87d5ffb42f7b}} 
-Petsc\+Int \mbox{\hyperlink{structibm___ab98888e4019f88a3366d87d5ffb42f7b}{num\+I\+B\+M\+Fluid}}
+Petsc\+Int \mbox{\hyperlink{structibm___ab98888e4019f88a3366d87d5ffb42f7b}{num\+IBMFluid}}
 \begin{DoxyCompactList}\small\item\em number of ibm fluid cells within each processor \end{DoxyCompactList}\item 
 \mbox{\Hypertarget{structibm___a83728ff65459fc6479450b68e9383a43}\label{structibm___a83728ff65459fc6479450b68e9383a43}} 
 \mbox{\hyperlink{structaccess__}{access\+\_\+}} $\ast$ {\bfseries access}
@@ -45,8 +54,20 @@ Petsc\+Int {\bfseries compute\+Force}
 \mbox{\Hypertarget{structibm___a7052beef29707061c3fe0e3b1b5b9c68}\label{structibm___a7052beef29707061c3fe0e3b1b5b9c68}} 
 Petsc\+Int {\bfseries check\+Normal}
 \item 
+\mbox{\Hypertarget{structibm___a348efcd65911227ba50912d02bfb8dee}\label{structibm___a348efcd65911227ba50912d02bfb8dee}} 
+Petsc\+Int {\bfseries average\+Normal}
+\item 
+\mbox{\Hypertarget{structibm___aced1f774582c299368cd08374b5bc982}\label{structibm___aced1f774582c299368cd08374b5bc982}} 
+Petsc\+Int {\bfseries wall\+Shear\+On}
+\item 
 \mbox{\Hypertarget{structibm___ad47bea8e035a5f72f37344c130caaee1}\label{structibm___ad47bea8e035a5f72f37344c130caaee1}} 
-Petsc\+Int {\bfseries write\+S\+TL}
+Petsc\+Int {\bfseries write\+STL}
+\item 
+\mbox{\Hypertarget{structibm___a4e54986a5bd9379466fee3f1faab4824}\label{structibm___a4e54986a5bd9379466fee3f1faab4824}} 
+Petsc\+Int {\bfseries ibm\+ABL}
+\item 
+\mbox{\Hypertarget{structibm___ad54dcb38501bc57f11388e0f3a4fcb11}\label{structibm___ad54dcb38501bc57f11388e0f3a4fcb11}} 
+Petsc\+Real {\bfseries interp\+Dist}
 \item 
 \mbox{\Hypertarget{structibm___a0ac57fca8c0b7cd2f96f033487cd1945}\label{structibm___a0ac57fca8c0b7cd2f96f033487cd1945}} 
 Petsc\+Real \mbox{\hyperlink{structibm___a0ac57fca8c0b7cd2f96f033487cd1945}{time\+Start}}
@@ -60,7 +81,7 @@ Petsc\+Real \mbox{\hyperlink{structibm___af609a1063678cb597285b156636981f9}{time
 
 
 \doxysubsection{Detailed Description}
-struct storing I\+BM model 
+struct storing IBM model 
 
 The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
 \item 

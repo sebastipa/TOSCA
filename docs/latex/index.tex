@@ -1,8 +1,25 @@
-Toolbox f\+Or Stratified Convective Atmospheres\hypertarget{index_autotoc_md0}{}\doxysection{Executables}\label{index_autotoc_md0}
-\begin{DoxyVerb}- tosca    : transient solver for stratified incompressible flows. Temperature stratification is accounted via Boussinesq approximation.
-- windToPW : post processor for ParaView visualization. Writes data in XMF/HDF format.
+\label{index_mainpage}%
+\Hypertarget{index_mainpage}%
+
+
+ 
+\begin{DoxyImageNoCaption}
+  \mbox{\includegraphics[width=400px]{tosca.png}}
+\end{DoxyImageNoCaption}
+
+
+Toolbox f\+Or Stratified Convective Atmospheres\hypertarget{index_autotoc_md0}{}\doxysection{Recent Highlights/\+Additions}\label{index_autotoc_md0}
+\begin{DoxyVerb}- Direct/Indirect profile assimilation techniques to drive LES with observations/mesoscale models
+- New scale-dependent LES model
+- New stability dependent wall model for IBM
+- IBM also for concurrent precursor (to model terrain features)
+- Lateral fringe region.
 \end{DoxyVerb}
-\hypertarget{index_autotoc_md1}{}\doxysection{Boundary Conditions}\label{index_autotoc_md1}
+ Now we can simulate real cases, wind rotating 360 degs, with terrain and turbines, all while damping gravity waves in all directions !!\hypertarget{index_autotoc_md1}{}\doxysection{Executables}\label{index_autotoc_md1}
+\begin{DoxyVerb}- tosca    : transient solver for stratified incompressible flows. Temperature stratification is accounted via Boussinesq approximation.
+- tosca2PV : post processor for ParaView visualization. Writes data in XMF/HDF format.
+\end{DoxyVerb}
+ \hypertarget{index_autotoc_md2}{}\doxysection{Boundary Conditions}\label{index_autotoc_md2}
 \begin{DoxyVerb}- noSlip               : on all patches
 - slip                 : on all patches
 - zeroGradient         : on all patches
@@ -12,27 +29,27 @@ Toolbox f\+Or Stratified Convective Atmospheres\hypertarget{index_autotoc_md0}{}
 - velocityWallFunction : shear stress model (only U equation). Can be prescribed on jRight and jLeft patches
 - thetaWallFunction    : potential temperature wall model (only T equation). Can be prescribed on jRight and jLeft patches
 \end{DoxyVerb}
-\hypertarget{index_autotoc_md2}{}\doxysection{Wall Models}\label{index_autotoc_md2}
+ \hypertarget{index_autotoc_md3}{}\doxysection{Wall Models}\label{index_autotoc_md3}
 \begin{DoxyVerb}- Shumann    : applies wall shear stress in the momentum equation according to similarity theory of Paulson and Obuhkov.
                Velocity BC is dependent (velocityWallFunction/thetaWallFunction, type -3).
 - Cabot      : prescribes velocity BC according to Cabot formulation (velocityWallFunction, type -1).
 \end{DoxyVerb}
-\hypertarget{index_autotoc_md3}{}\doxysection{Turbulence Models}\label{index_autotoc_md3}
+ \hypertarget{index_autotoc_md4}{}\doxysection{Turbulence Models}\label{index_autotoc_md4}
 \begin{DoxyVerb}- Smagorinsky standard model (les 1).
 - Dynamic Smagorinsky LES turbulence model with cubic (les 3) or lagrangian (les 4) averaging.
 \end{DoxyVerb}
-\hypertarget{index_autotoc_md4}{}\doxysection{Turbine Models}\label{index_autotoc_md4}
+ \hypertarget{index_autotoc_md5}{}\doxysection{Turbine Models}\label{index_autotoc_md5}
 \begin{DoxyVerb}- UADM : base actuator disk model with imposed Ct and yaw controller
 - ADM  : advanced actuator disk model with rotor dynamics and yaw/pitch/rotation controllers
-- UADM : base actuator disk model with uniform disk loading and yaw controller
+- ALM  : advanced actuator line model with rotor dynamics and yaw/pitch/rotation controllers (anisotropic gaussuan projection avail.)
 - AFM  : anisotropic actuator farm model for coarser meshes, integral/point sampling available
 \end{DoxyVerb}
-\hypertarget{index_autotoc_md5}{}\doxysection{I\+B\+M Method}\label{index_autotoc_md5}
+ \hypertarget{index_autotoc_md6}{}\doxysection{IBM Method}\label{index_autotoc_md6}
 \begin{DoxyVerb}TOSCA uses a sharp-interface IBM method with ghost cells applied on the flow side of the body. This allows for more flexibility with
 thin bodies but complicated wall modeling. New wall models have been recently added, validated with both hi-Re terrains (Shumann) or small objects (Cabot).
 Moving IBM is also possible, we are currently validating the latter capability.
 \end{DoxyVerb}
-\hypertarget{index_autotoc_md6}{}\doxysection{Acquisition System}\label{index_autotoc_md6}
+ \hypertarget{index_autotoc_md7}{}\doxysection{Acquisition System}\label{index_autotoc_md7}
 \begin{DoxyVerb}- ABL wall-parallel planes-averaged statistics as a function of time
 - field averages
 - domain sections
@@ -42,42 +59,112 @@ Moving IBM is also possible, we are currently validating the latter capability.
 - layer averaged fields (three layers available - 3LM)
 - mechanical energy budgets within user-defined boxes (the code is not energy-conservative so MKE eq. is not fullfilled)
 \end{DoxyVerb}
-\hypertarget{index_autotoc_md7}{}\doxysection{Future Implementations\+:}\label{index_autotoc_md7}
+ \hypertarget{index_autotoc_md8}{}\doxysection{Future Implementations\+:}\label{index_autotoc_md8}
 \begin{DoxyVerb}- Overset with fringe interpolation
 - IBM smooth normals and thin-body augmented search
 \end{DoxyVerb}
-\hypertarget{index_autotoc_md8}{}\doxysection{Notes\+:}\label{index_autotoc_md8}
+ \hypertarget{index_autotoc_md9}{}\doxysection{Notes\+:}\label{index_autotoc_md9}
 \begin{DoxyVerb}- test cases which contain an empty 'inflowDatabase' file require the inflow database. A sample database can be downloaded
   at https://drive.google.com/file/d/17F5wtI5Jc1XGh8crmOVJYVXabC8iQXq1/view?usp=sharing, simply substitute the 'inflowDatabase'
   file with the downloaded folder.
 \end{DoxyVerb}
-\hypertarget{index_autotoc_md9}{}\doxysection{Installation\+:}\label{index_autotoc_md9}
-In order to be installed, T\+O\+S\+CA requires a working C/\+C++ compiler, P\+E\+T\+Sc (version 3.\+14.\+x, 3.\+15.\+x), Open M\+PI (version 4.\+0.\+x, 4.\+1.\+x), H\+D\+F5 and H\+Y\+P\+RE (needed by P\+E\+T\+Ss in order to build some of the matrix solvers we use). T\+O\+S\+CA has been tested with the above version combinations, it could work with other combinations or versions but it has not been tested (especially older versions). We recommend the following versions of the above libraries\+:
+ \hypertarget{index_autotoc_md10}{}\doxysection{Installation\+:}\label{index_autotoc_md10}
+In order to be installed, TOSCA requires a working C/\+C++ compiler, PETSc (version 3.\+14.\+x, 3.\+15.\+x), Open MPI (version 4.\+0.\+x, 4.\+1.\+x), HDF5 and HYPRE (needed by PETSs in order to build some of the matrix solvers we use). TOSCA has been tested with the above version combinations, it could work with other combinations or versions but it has not been tested (especially older versions). We recommend the following versions of the above libraries\+:
 \begin{DoxyItemize}
 \item gcc \+: 9.\+2.\+0 (\href{https://gcc.gnu.org/}{\texttt{ https\+://gcc.\+gnu.\+org/}}).
-\item P\+E\+T\+Sc \+: 3.\+15.\+5 (\href{https://ftp.mcs.anl.gov/pub/petsc/}{\texttt{ https\+://ftp.\+mcs.\+anl.\+gov/pub/petsc/}}).
-\item Open M\+PI \+: 4.\+1.\+2 (\href{https://www.open-mpi.org/software/ompi/v4.1/}{\texttt{ https\+://www.\+open-\/mpi.\+org/software/ompi/v4.\+1/}}).
-\item H\+Y\+P\+RE \+: 2.\+20.\+0 (\href{https://github.com/hypre-space/hypre/tree/hypre_petsc}{\texttt{ https\+://github.\+com/hypre-\/space/hypre/tree/hypre\+\_\+petsc}}) (check version in /src/\+C\+Make\+Lists.txt).
-\item H\+D\+F5 \+: 1.\+12.\+1 (\href{https://www.hdfgroup.org/downloads/hdf5/}{\texttt{ https\+://www.\+hdfgroup.\+org/downloads/hdf5/}}).
+\item PETSc \+: 3.\+15.\+5 (\href{https://ftp.mcs.anl.gov/pub/petsc/}{\texttt{ https\+://ftp.\+mcs.\+anl.\+gov/pub/petsc/}}).
+\item Open MPI \+: 4.\+1.\+2 (\href{https://www.open-mpi.org/software/ompi/v4.1/}{\texttt{ https\+://www.\+open-\/mpi.\+org/software/ompi/v4.\+1/}}).
+\item HYPRE \+: 2.\+20.\+0 (\href{https://github.com/hypre-space/hypre/tree/hypre_petsc}{\texttt{ https\+://github.\+com/hypre-\/space/hypre/tree/hypre\+\_\+petsc}}) (check version in /src/\+CMake\+Lists.txt).
+\item HDF5 \+: 1.\+12.\+1 (\href{https://www.hdfgroup.org/downloads/hdf5/}{\texttt{ https\+://www.\+hdfgroup.\+org/downloads/hdf5/}}).
 \end{DoxyItemize}
 
-Prior to install T\+O\+S\+CA, we suggest to create a folder named {\ttfamily Software} inside {\ttfamily \$\+H\+O\+ME}, where the P\+E\+T\+Sc, H\+Y\+P\+RE and T\+O\+S\+CA folders will be located. In order to compile T\+O\+S\+CA on your system, please follow these steps\+:
+Prior to install TOSCA, we suggest to create a folder named {\ttfamily Software} inside {\ttfamily \$\+HOME}, where the PETSc, HYPRE and TOSCA folders will be located. In order to compile TOSCA on your system, please follow these steps\+:
 
 
 \begin{DoxyItemize}
 \item Check your compiler version with {\ttfamily gcc -\/-\/version}
-\item Download P\+E\+T\+Sc into {\ttfamily \$\+H\+O\+ME/\+Software/}
-\item Download H\+Y\+P\+RE {\ttfamily \$\+H\+O\+ME/\+Software/}
-\item Download Open M\+PI\+: you can download the binaries or compile from source (the latter is recommended if use {\ttfamily environment-\/modules}). If you have only one version of Open M\+PI installed on your system in the {\ttfamily /usr} directory (using sudo for example), you can omit the `-\/-\/with-\/mpi-\/dir=\textquotesingle{}your-\/-\/path-\/-\/to-\/-\/mpicc'` at point 4\+: Open M\+PI will be found by the \textquotesingle{}ld' library locator.
-\item Configure P\+E\+T\+Sc (will automatically compile H\+Y\+P\+RE). We suggest the following configure options\+: `./configure -\/-\/with-\/fc=0 -\/-\/download-\/f2cblaslapack -\/-\/with-\/mpi-\/dir=\textquotesingle{}your-\/-\/path-\/-\/to-\/-\/mpicc' --download-\/hypre=\textquotesingle{}your--path--to--hypre \textbackslash{} --with-\/64-\/bit-\/indices=1 --with-\/debugging=0\`{}
-\item Make P\+E\+T\+Sc with {\ttfamily make all}
-\item Test P\+E\+T\+Sc with {\ttfamily make check}
-\item Save an environment variable that will tell T\+O\+S\+CA where P\+E\+T\+Sc is installed in your .bashrc\+: {\ttfamily echo \char`\"{}export P\+E\+T\+S\+C\+\_\+\+D\+I\+R=\$\+H\+O\+M\+E/your-\/-\/path-\/-\/to-\/-\/petsc\char`\"{} $>$$>$ \$\+H\+O\+ME/.bashrc}
-\item Save an environment variable that will tell T\+O\+S\+CA which P\+E\+T\+Sc architecture is required in your .bashrc. Note\+: this is the folder within \$\+P\+E\+T\+S\+C\+\_\+\+D\+IR with a name beginning with \char`\"{}arch-\/\char`\"{}. In a typical installation, it will be \char`\"{}arch-\/linux-\/c-\/opt\char`\"{}\+: {\ttfamily echo \char`\"{}export P\+E\+T\+S\+C\+\_\+\+A\+R\+C\+H=arch-\/linux-\/c-\/opt\char`\"{} $>$$>$ \$\+H\+O\+ME/.bashrc}
-\item Add the P\+E\+T\+Sc shared libraries to your library path environment variable in your .bashrc\+: {\ttfamily echo \char`\"{}export L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+T\+H=\$\+L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+T\+H\+:\$\+P\+E\+T\+S\+C\+\_\+\+D\+I\+R/\$\+P\+E\+T\+S\+C\+\_\+\+A\+R\+C\+H/lib\char`\"{} $>$$>$ \$\+H\+O\+ME/.bashrc}
-\item Reload the environment with {\ttfamily source \$\+H\+O\+ME/.bashrc}
-\item Go inside T\+O\+S\+C\+A/src directory and compile the executables with {\ttfamily make tosca} and {\ttfamily make wind\+To\+PW}
-\item Test the installation by copying {\ttfamily tosca} and {\ttfamily wind\+To\+PW} in one of the example cases and run the simulation and the post-\/processing with {\ttfamily ./tosca} and {\ttfamily ./wind\+To\+PW} respectively. To run in parallel you have to use `mpirun -\/np \textquotesingle{}your-\/number-\/of-\/processors' ./tosca\`{}
+\item Download PETSc into {\ttfamily \$\+HOME/\+Software/}
+\item Download HYPRE {\ttfamily \$\+HOME/\+Software/}
+\item Download Open MPI\+: you can download the binaries or compile from source (the latter is recommended if use {\ttfamily environment-\/modules}). If you have only one version of Open MPI installed on your system in the {\ttfamily /usr} directory (using sudo for example), you can omit the `-\/-\/with-\/mpi-\/dir=\textquotesingle{}your-\/-\/path-\/-\/to-\/-\/mpicc'` at point 4\+: Open MPI will be found by the \textquotesingle{}ld' library locator.
+\item Configure PETSc (will automatically compile HYPRE). We suggest the following configure options\+: `./configure -\/-\/with-\/fc=0 -\/-\/download-\/f2cblaslapack -\/-\/with-\/mpi-\/dir=\textquotesingle{}your-\/-\/path-\/-\/to-\/-\/mpicc' --download-\/hypre=\textquotesingle{}your--path--to--hypre \textbackslash{} --with-\/64-\/bit-\/indices=1 --with-\/debugging=0\`{}
+\item Make PETSc with {\ttfamily make all}
+\item Test PETSc with {\ttfamily make check}
+\item Save an environment variable that will tell TOSCA where PETSc is installed in your .bashrc\+: {\ttfamily echo \char`\"{}export PETSC\+\_\+\+DIR=\$\+HOME/your-\/-\/path-\/-\/to-\/-\/petsc\char`\"{} $>$$>$ \$\+HOME/.bashrc}
+\item Save an environment variable that will tell TOSCA which PETSc architecture is required in your .bashrc. Note\+: this is the folder within \$\+PETSC\+\_\+\+DIR with a name beginning with \char`\"{}arch-\/\char`\"{}. In a typical installation, it will be \char`\"{}arch-\/linux-\/c-\/opt\char`\"{}\+: {\ttfamily echo \char`\"{}export PETSC\+\_\+\+ARCH=arch-\/linux-\/c-\/opt\char`\"{} $>$$>$ \$\+HOME/.bashrc}
+\item Add the PETSc shared libraries to your library path environment variable in your .bashrc\+: {\ttfamily echo \char`\"{}export LD\+\_\+\+LIBRARY\+\_\+\+PATH=\$\+LD\+\_\+\+LIBRARY\+\_\+\+PATH\+:\$\+PETSC\+\_\+\+DIR/\$\+PETSC\+\_\+\+ARCH/lib\char`\"{} $>$$>$ \$\+HOME/.bashrc}
+\item Reload the environment with {\ttfamily source \$\+HOME/.bashrc}
+\item Go inside TOSCA/src directory and compile the executables with {\ttfamily make tosca} and {\ttfamily make tosca2\+PV}
+\item Test the installation by copying {\ttfamily tosca} and {\ttfamily tosca2\+PV} in one of the example cases and run the simulation and the post-\/processing with {\ttfamily ./tosca} and {\ttfamily ./tosca2\+PV} respectively. To run in parallel you have to use `mpirun -\/np \textquotesingle{}your-\/number-\/of-\/processors' ./tosca\`{}
+\end{DoxyItemize}\hypertarget{index_autotoc_md11}{}\doxysection{Contribute to the TOSCA Project}\label{index_autotoc_md11}
+The TOSCA repository is open-\/source, so anyone can download and use the code. If you want to contribute to the project by adding code to TOSCA repository you need to open a pull-\/request that has to be approved by our team. In order to do so, please use the following steps\+:
+
+
+\begin{DoxyItemize}
+\item Clone the TOSCA package locally on your machine with {\ttfamily git clone \href{https://github.com/sebastipa/TOSCA.git}{\texttt{ https\+://github.\+com/sebastipa/\+TOSCA.\+git}}}
+\item Create a new local branch with {\ttfamily git checkout -\/b your-\/branch-\/name}
+\item Make the desired changes to the TOSCA code, then check which files have been modified with {\ttfamily git status}
+\item Add changes to the git stack with {\ttfamily git add modified-\/files}
+\item Commit the changes using a short but exhaustive comment with {\ttfamily git commit -\/m \char`\"{}your-\/commit-\/description\char`\"{}}
+\item Push your local branch online with {\ttfamily git push origin your-\/branch-\/name}
+\item Go to github, select your branch, click on \char`\"{}\+Contribute\char`\"{} and open a pull-\/request describing the motivation of your changes, their effect on the code and the tests you performed.
+\item After approval of the pull-\/request by our team, commits will be added to the main TOSCA version
+\item To stay up-\/to-\/date, rebase your local master with the your new commits by first checking out in your local master branch with {\ttfamily git checkout master} and then rebase with {\ttfamily git pull -\/-\/rebase origin master}
+\item Delete your local branch as it is not useful anymore with {\ttfamily git branch -\/-\/delete -\/d your-\/branch-\/name} and operate on the master until you want to make new changes
+\end{DoxyItemize}\hypertarget{index_autotoc_md12}{}\doxysection{Paraview-\/\+Catalyst2 OS-\/\+Rendering}\label{index_autotoc_md12}
+TOSCA provides full interface with Paraview-\/catalyst2 through the USE\+\_\+\+CATALYST flag in the makefile. If this is the case, the CATALYST environment variable should point to the catalyst2 installation directory. Paraview-\/catalyst is optional and can be disabled by setting USE\+\_\+\+CATALYST=0\hypertarget{index_autotoc_md13}{}\doxysection{Usage}\label{index_autotoc_md13}
+In order to activate off-\/screen rendering capabilities, -\/pv\+Catalyst=1 should be set in the control.\+dat file. A file called catalyst\+Properties will be required inside the sampling directory. Entries to this file are
+
+
+\begin{DoxyItemize}
+\item io\+Type can be set to \textquotesingle{}script\textquotesingle{} or \textquotesingle{}general\textquotesingle{}
+\item output\+Type can be set to \textquotesingle{}time\+Step\textquotesingle{} or \textquotesingle{}adjustable\+Time\textquotesingle{}
+\item start\+Time model-\/time at which catalyst actions start
+\item time\+Interval acquisition period in seconds if output\+Type=adjustable\+Time or iterations if output\+Type=time\+Step
+\item script\+Name name of the catalyst actions python script. Only required if io\+Type=script
+\end{DoxyItemize}\hypertarget{index_autotoc_md14}{}\doxysection{What does it do}\label{index_autotoc_md14}
+If io\+Type=general, 3D fields of velocity magnitude, pressure and q-\/criterion are saved inside the catalyst/ folder. If io\+Type=script, Praview actions defined in the python script are executed and e.\+g. png images can be saved at runtime.\hypertarget{index_autotoc_md15}{}\doxysection{Installation\+:}\label{index_autotoc_md15}
+In order to be installed, Paraview-\/catalyst2 requires a working C/\+C++ compiler, Open MPI (version 4.\+0.\+x, 4.\+1.\+x), Python3 and cmake. In order for Paraview to work, Open\+GL must be available at runtime or mesa libraries are required to mimic some hardware components. These are usually available on supercomputers through the \textquotesingle{}mesa\textquotesingle{} module, which should be loaded at runtime. Lastly, paraview and catalyst2 should be manually compiled of the system. As Paraview-\/5.\+10 contains a bug in the definition of rectilinear mesh (used by TOSCA), Paraview-\/5.\+11 or later is recommended.
+
+Prior to install TOSCA, we suggest to create a folder named {\ttfamily Software} inside {\ttfamily \$\+HOME}, where catalyst2 and paraview-\/5.\+11 will be located. In order to re-\/compile TOSCA with Paraview-\/catalyst2 capabilities on your system, please follow these steps\+:\hypertarget{index_autotoc_md16}{}\doxysection{1. install Catalyst2}\label{index_autotoc_md16}
+
+\begin{DoxyItemize}
+\item {\ttfamily export LOCATION=\$\+HOME/\+Software}
+\item {\ttfamily cd \$\+LOCATION}
+\item {\ttfamily mkdir catalyst2 \&\& cd catalyst2}
+\item {\ttfamily git clone \href{https://gitlab.kitware.com/paraview/catalyst.git}{\texttt{ https\+://gitlab.\+kitware.\+com/paraview/catalyst.\+git}} catalyst-\/src \&\& cd catalyst-\/src}
+\item {\ttfamily mkdir -\/p build \&\& cd build}
+\item {\ttfamily cmake .. -\/DCMAKE\+\_\+\+INSTALL\+\_\+\+PREFIX=\$\+LOCATION/catalyst2/install}
+\item {\ttfamily make}
+\item {\ttfamily make install}
+\item {\ttfamily echo \char`\"{}export CATALYST=\$\+LOCATION\char`\"{} $>$$>$ \$\+HOME/.bashrc}
+\item Add the Catalyst2 shared libraries to your library path environment variable in your .bashrc\+: {\ttfamily echo \char`\"{}export LD\+\_\+\+LIBRARY\+\_\+\+PATH=\$\+LD\+\_\+\+LIBRARY\+\_\+\+PATH\+:\$\+LOCATION/catalyst2/install/lib\char`\"{} $>$$>$ \$\+HOME/.bashrc} Note\+: in some cases you may have to replace lib with lib64
+\end{DoxyItemize}\hypertarget{index_autotoc_md17}{}\doxysection{2. install Paraview-\/5.\+11}\label{index_autotoc_md17}
+
+\begin{DoxyItemize}
+\item {\ttfamily cd \$\+LOCATION}
+\item {\ttfamily mkdir paraview-\/5.\+11.\+0 \&\& cd paraview-\/5.\+11.\+0}
+\item {\ttfamily wget \href{https://www.paraview.org/files/v5.11/ParaView-v5.11.0.tar.xz}{\texttt{ https\+://www.\+paraview.\+org/files/v5.\+11/\+Para\+View-\/v5.\+11.\+0.\+tar.\+xz}}}
+\item {\ttfamily tar -\/xvf Para\+View-\/v5.\+11.\+0.\+tar.\+xz}
+\item {\ttfamily mv Para\+View-\/v5.\+11.\+0 paraview-\/src \&\& cd paraview-\/src}
+\item {\ttfamily mkdir -\/p build \&\& cd build}
+\item {\ttfamily export CMAKE\+\_\+\+PREFIX\+\_\+\+PATH=\$\+CMAKE\+\_\+\+PREFIX\+\_\+\+PATH\+:\$\+LOCATION/catalyst2/install/lib/cmake/catalyst-\/2.0} Note\+: in some cases you may have to replace lib with lib64
+\item {\ttfamily FLAGS=(-\/DCMAKE\+\_\+\+INSTALL\+\_\+\+PREFIX=\$\+LOCATION/paraview-\/5.11.\+0/install -\/DVTK\+\_\+\+OPENGL\+\_\+\+HAS\+\_\+\+OSMESA=ON -\/DPARAVIEW\+\_\+\+USE\+\_\+\+MPI=ON -\/DBUILD\+\_\+\+TESTING=OFF -\/DVTK\+\_\+\+USE\+\_\+X=OFF -\/DPARAVIEW\+\_\+\+USE\+\_\+\+QT=OFF -\/DPARAVIEW\+\_\+\+USE\+\_\+\+PYTHON=ON -\/DPython3\+\_\+\+FIND\+\_\+\+STRATEGY=LOCATION -\/DPython3\+\_\+\+ROOT\+\_\+\+DIR=\$\+EBROOTPYTHON -\/DPARAVIEW\+\_\+\+BUILD\+\_\+\+SHARED\+\_\+\+LIBS=ON -\/DPARAVIEW\+\_\+\+ENABLE\+\_\+\+RAYTRACING=OFF -\/DPARAVIEW\+\_\+\+ENABLE\+\_\+\+CATALYST=ON )}
+\item {\ttfamily cmake .. \char`\"{}\$\{\+FLAGS\mbox{[}@\mbox{]}\}\char`\"{}}
+\item {\ttfamily make -\/j8}
+\item {\ttfamily make install}
+\item Add the Paraview shared libraries to your library path environment variable in your .bashrc\+: {\ttfamily echo \char`\"{}export LD\+\_\+\+LIBRARY\+\_\+\+PATH=\$\+LD\+\_\+\+LIBRARY\+\_\+\+PATH\+:\$\+LOCATION/paraview-\/5.\+11.\+0/install/lib\char`\"{} $>$$>$ \$\+HOME/.bashrc} Note\+: in some cases you may have to replace lib with lib64
+\end{DoxyItemize}\hypertarget{index_autotoc_md18}{}\doxysection{3. Re-\/compile TOSCA}\label{index_autotoc_md18}
+
+\begin{DoxyItemize}
+\item Reload the environment with {\ttfamily source \$\+HOME/.bashrc}
+\item Go inside {\ttfamily TOSCA/src} directory and recompile the solver with {\ttfamily make tosca} ensuring that {\ttfamily -\/DUSE\+\_\+\+CATALYST=1} in the makefile
+\end{DoxyItemize}\hypertarget{index_autotoc_md19}{}\doxysection{4. Running}\label{index_autotoc_md19}
+In order for catalyst2 to find paraview library, the following envronment variables should be set at runtime\+:
+
+
+\begin{DoxyItemize}
+\item {\ttfamily export CATALYST\+\_\+\+IMPLEMENTATION\+\_\+\+PATHS=\$\+LOCATION/paraview-\/5.11.\+0/install/lib/catalyst} Note\+: in some cases you may have to replace lib with lib64
+\item {\ttfamily export CATALYST\+\_\+\+IMPLEMENTATION\+\_\+\+NAME=paraview}
 \end{DoxyItemize}
 
 Credits and Copyright\+: Sebastiano Stipa -\/ Arjun Ajay -\/ Mohammad Hadi -\/ The University of British Columbia 
