@@ -9,7 +9,7 @@
   <title>User Guide &mdash; TOSCA 1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
-      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=a0fb6060" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=e7028309" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
@@ -17,6 +17,7 @@
       <script src="_static/documentation_options.js?v=f2a433a1"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -49,7 +50,30 @@
 <li class="toctree-l1"><a class="reference internal" href="tosca_setup.html#contribute-to-the-tosca-project">Contribute to the TOSCA Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_setup.html#paraview-catalyst2-os-rendering">Paraview-Catalyst2 OS-Rendering</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_quickstart.html">Getting Started</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">User Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">User Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#spatial-mesh">Spatial Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#input-files">Input Files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#control-dat"><cite>control.dat</cite></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#time-controls">Time Controls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#i-o-controls">I/O Controls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#solution-flags">Solution Flags</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#solution-controls">Solution Controls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#solution-constants">Solution Constants</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#acquisition-controls">Acquisition Controls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#post-processing-controls">Post Processing Controls</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#boundary"><cite>boundary</cite></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#boundary-conditions">Boundary Conditions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#wall-models">Wall Models</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#inlet-functions">Inlet Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#initial-condition">Initial Condition</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
 </ul>
@@ -80,6 +104,1139 @@
              
   <section id="user-guide">
 <h1>User Guide<a class="headerlink" href="#user-guide" title="Link to this heading"></a></h1>
+<p>TOSCA uses ASCII input files, organized in files, dictionaries and subdictionaries. The latter two levels of description are always embodied using ’{}’ parenthesis. The code provides some level of input checking, meaning that non-recognized inputs are followed by an error message listing available possibilities.</p>
+<p>TOSCA has a standardized case structure. The minimum-required case structure is depicted on the right of the following figure, while the case structure required to run ABL and wind farm simulations under potential temperature stratification (i.e. with the addition of the <code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> and <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> files) is shown on the right. The principal control file for a TOSCA simulation is the <cite>control.dat</cite> file, located in the case directory. Depending on the type of simulation that one wishes to perform, flags can be activated in the <cite>control.dat</cite> which prompt TOSCA to read additional input files and data.</p>
+<img alt="_images/structure_1.png" class="align-center" src="_images/structure_1.png" />
+<p>Inside the <code class="docutils literal notranslate"><span class="pre">boundary</span></code> directory, initial and boundary conditions are set in files having the same name as the field they refer to.</p>
+<section id="spatial-mesh">
+<span id="spatial-mesh-section"></span><h2>Spatial Mesh<a class="headerlink" href="#spatial-mesh" title="Link to this heading"></a></h2>
+<p>The spatial mesh can be provided in two different formats. These can be selected with the <code class="docutils literal notranslate"><span class="pre">-meshFileType</span></code> keyword in the <cite>control.dat</cite> file, which can be set to <code class="docutils literal notranslate"><span class="pre">cartesian</span></code> or <code class="docutils literal notranslate"><span class="pre">curvilinear</span></code> for <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> and <code class="docutils literal notranslate"><span class="pre">.grid</span></code> formats, respectively. While both formats describe a structured mesh (TOSCA can only operate with this type of mesh), the first one is additionally cartesian. Both types of mesh can be defined such that grid points are stretched in all spatial directions. The <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> mesh format is TOSCA’s custom Cartesian mesh format, and it is very convenient since the user only has to provide the discretization along each of the three cartesian axes. The <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> mesh file format can be generalized as</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Nx<span class="w"> </span>Ny<span class="w"> </span>Nz
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>which, for a cube extending 50 m in each direction, with 10 m cells along each direction (hence 6 points), is given by</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">6</span><span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="m">6</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">20</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">30</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">40</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">50</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">10</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">20</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">30</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">40</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">50</span>
+</pre></div>
+</div>
+<p>As can be noticed, the mesh file is extremely light, even for large meshes, as only the discretization along the three cartesian axes is provided. The coordinates of the remaining mesh cells are inferred iternally within TOSCA, starting from the axes discretization.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">.grid</span></code> format is a curvilinear mesh format (available for example in the meshing software <cite>Pointwise</cite>), where the cartesian coordinates of each mesh point are provided. This becomes useful when the mesh is deformed, and a unique relationship between the cartesian and curvilinear sets of coordinates does not exist anymore. This is a much heavier mesh format, which can be generalized as follows</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Nj<span class="w"> </span>Nk<span class="w"> </span>Ni
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+:
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+:
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+:
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+:
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
+</pre></div>
+</div>
+<p>Taking as an example the same box extending 50 m in each direction, with 10 m cells along each direction, this can be expressed using the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> format as</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">6</span><span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="m">6</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Both in the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> and <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> format, the user has to provide the <em>mesh points</em> rather then the <em>cell centers</em> coordinates.</p>
+</div>
+<p>Notably, every cartesian mesh can be expressed using the curvilinear format, while the opposite is not true. TOSCA always operates using curvilinear coordinates internally, and since boundary conditions are given on curvilinear patches one has to bear in mind a few concepts, explained below, in order to assign BCs in the way he intends to. Firstly, one can think of curvilinear coordinates as the mesh cell indices in each of the three directions, expressed in TOSCA as <cite>k</cite>, <cite>j</cite> and <cite>i</cite>. With this in mind, it appears clear that each boundary can be identified by keeping one of the indices fixed while the others two vary. In fact, boundaries are identifyed in TOSCA using <cite>kLeft</cite>, <cite>kRight</cite>, <cite>jLeft</cite>, <cite>jRight</cite>, <cite>iLeft</cite> and <cite>iRight</cite>. When the mesh is cartesian (and the axes are aligned to the edges of the domain) boundaries can be also identifyed with the minimum and maximum of each cartesian coordinates. However, this is not general and it would not hold for a curvilinear mesh, or even a cartesian mesh with the domain edges not aligned with the cartesian coordinates. For this reason, boundaries are always identified using the curvilinear definition in TOSCA. To know how to assign boundary conditions, e.g. what boundary corresponds to the <cite>kLeft</cite> patch and so on, one has to keep in mind that the <cite>.grid</cite> file is read by TOSCA using a <cite>i,k,j</cite> nested loop order, namely</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="c1">// loop through the mesh cells</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">&lt;</span><span class="n">Ni</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">&lt;</span><span class="n">Nk</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">&lt;</span><span class="n">Nj</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="c1">// read point k,j,i in the .grid file</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Looking at the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> file format, it is clear that there is no unique relation between <cite>k,j,i</cite> and <cite>x,y,z</cite>. However, when the mesh is cartesian, this relation depends on how the mesh file is created. It is easy to notice that, in the provided <code class="docutils literal notranslate"><span class="pre">.grid</span></code> example, <cite>k,j,i</cite> correspond to <cite>x,z,y</cite>. For the <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> file format, where a unique relation exists, TOSCA constructs the mesh such that <cite>k,j,i</cite> correspond to <cite>x,z,y</cite> (this can be also appreciated in the provided example). In an ABL or wind farm simulation, where x is usually aligned with the wind direction, and y and z are the spanwise and vertical coordinates, respectively, the inlet will corrispond to <cite>kLeft</cite>, the outlet to <cite>kRight</cite>, the bottom and top to <cite>jLeft</cite> and <cite>jRight</cite>, respectively, while the spanwise boundaries will be <cite>iLeft</cite> and <cite>iRight</cite>. This relation will always apply as long as a cartesian mesh is used. The relations between curvilinear and cartesian coordinates depending on the mesh and domain type are summarized in the following table.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><strong>format</strong></p></td>
+<td><p><strong>cartesian domain</strong></p></td>
+<td><p><strong>curvilinear domain</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">.grid</span></code></p></td>
+<td><p>case-dependent</p></td>
+<td><p>unique relation impossible</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">.xyz</span></code></p></td>
+<td><p><cite>k,j,i</cite> -&gt; <cite>x,z,y</cite></p></td>
+<td><p>non-representable</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="input-files">
+<span id="input-files-section"></span><h2>Input Files<a class="headerlink" href="#input-files" title="Link to this heading"></a></h2>
+<p>This section describes all available entries for each of the TOSCA code’s input files.</p>
+<section id="control-dat">
+<h3><cite>control.dat</cite><a class="headerlink" href="#control-dat" title="Link to this heading"></a></h3>
+<p>As already mentioned, TOSCA expects a specific case structure, where the <cite>control.dat</cite> file contains the main simulation settings,
+some of which prompt the code to read additional input files. The <cite>control.dat</cite> is subdivided in 7 subsections, namely</p>
+<ol class="arabic simple">
+<li><p>Time Controls</p></li>
+<li><p>I/O Controls</p></li>
+<li><p>Solution Flags</p></li>
+<li><p>Solution Controls</p></li>
+<li><p>Solution Constants</p></li>
+<li><p>Acquisition Controls</p></li>
+<li><p>Post Processing Controls</p></li>
+</ol>
+<p>The last group is only needed when the <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> executable is launched, which converts the binary TOSCA output in <code class="docutils literal notranslate"><span class="pre">.xmf</span></code>
+format, which can be read from e.g. <cite>ParaView</cite>. The following tables summarize all available entries for each of the <cite>control.dat</cite>
+file subsections.</p>
+<section id="time-controls">
+<h4>Time Controls<a class="headerlink" href="#time-controls" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-startFrom</span></code></p></td>
+<td><p>It can be set to <cite>startTime</cite> (requires <code class="docutils literal notranslate"><span class="pre">-startTime</span></code> entry), or <cite>latestTime</cite>. In the last case,
+the latest time available in the <code class="docutils literal notranslate"><span class="pre">fields</span></code> directory is used as the initial time (the code exits if
+the directory is not present, or it doesn’t contain any time
+directories).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-startTime</span></code></p></td>
+<td><p>Specifies the initial time of the simulation if the <code class="docutils literal notranslate"><span class="pre">-startFrom</span></code> keyword is set to <cite>startTime</cite>.
+Disregarded otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-endTime</span></code></p></td>
+<td><p>Defines the time at which the simulation ends.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-timeStep</span></code></p></td>
+<td><p>Initial time step size in seconds.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-adjustTimeStep</span></code></p></td>
+<td><p>If set to 0, the time step will remain fixed and equal to the specified <code class="docutils literal notranslate"><span class="pre">-timeStep</span></code>. If set to
+1 (requires <code class="docutils literal notranslate"><span class="pre">-cfl</span></code>), the time step will be adjusted based on the CFL value and I/O settings. This
+means that time step size will be varied based on the solution, and in order to land on those
+time values designated for data writing by the acquisition
+system.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-cfl</span></code></p></td>
+<td><p>Specifies the CFL value to be maintained. Disregarded if <code class="docutils literal notranslate"><span class="pre">-adjustTimeStep</span></code> is set to 0.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-timePrecision</span></code></p></td>
+<td><p>Specifies the number of digits after the comma that are used to write files and expected to read
+them. Note that, if the time folder storing the initial condition has a different number of digits,
+the simulation will throw an error. To solve this one can act both on the <code class="docutils literal notranslate"><span class="pre">-timePrecision</span></code>, or
+rename the folder using a <code class="docutils literal notranslate"><span class="pre">-timePrecision</span></code> that matches that specified inside the <cite>control.dat</cite>
+file.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="i-o-controls">
+<h4>I/O Controls<a class="headerlink" href="#i-o-controls" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-intervalType</span></code></p></td>
+<td><p>It can be set to <cite>adjustableTime</cite>, <cite>timeStep</cite> or <cite>writeNow</cite>. In the last case, a checkpoint
+followed by termination of the simulation will be triggered.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-timeInterval</span></code></p></td>
+<td><p>Specifies how often a checkpoint file is written. If the <code class="docutils literal notranslate"><span class="pre">-timeInterval</span></code> is set to
+<cite>adjustableTime</cite>, the time interval between two checkpoints is expressed in seconds. If
+<code class="docutils literal notranslate"><span class="pre">-timeInterval</span></code> is set to <cite>timeStep</cite>, the time interval refers to the number of iterations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-purgeWrite</span></code></p></td>
+<td><p>If set to 1, eliminates all previous checkpoint files every time that a checkpoint is written
+(in order to save disk space).</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="solution-flags">
+<h4>Solution Flags<a class="headerlink" href="#solution-flags" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-les</span></code></p></td>
+<td><p>Specifies if and which LES model is active:
+(1) standard Smagorinsky
+(2) stability dependent
+(3) dynamic Smagorinsky with box averaging
+(4) dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
+(5) dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
+(6) dynamic smagorinsky scale dependent with plane averaging (PASD).
+TOSCA has been extensively and most used adopting model (4) for ABL and wind plant simulations.
+Model (5) provides a good alternative in stably stratified flows.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-potentialT</span></code></p></td>
+<td><p>Specifies if potential temperature transport equation is solved (set to 1) or not (set to 0).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-abl</span></code></p></td>
+<td><p>Specifies if an ABL simulation is run. Requires additional file <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-ibm</span></code></p></td>
+<td><p>Specifies if immersed bodies are present in the simulation (set to 1) or not (set to 0). Requires
+additional input in <code class="docutils literal notranslate"><span class="pre">IBM</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-overset</span></code></p></td>
+<td><p>Specifies if overset mesh is present in the simulation. Requires additional input in <code class="docutils literal notranslate"><span class="pre">Overset</span></code>
+directory if activated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code></p></td>
+<td><p>Specifies if vertical Rayleigh damping layer is present in the simulation. Requires additional
+input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code></p></td>
+<td><p>Specifies if horizontal inlet fringe region is present in the simulation. Requires additional input
+in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated. Concurrent precursor can be enabled with this flag.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code></p></td>
+<td><p>Specifies if horizontal lateral fringe region is present in the simulation. Requires additional input
+in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated. Concurrent precursor <strong>has to</strong> be enabled with this
+flag.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-advectionDamping</span></code></p></td>
+<td><p>Specifies if horizontal inlet advection damping region is present in the simulation. Requires
+additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code></p></td>
+<td><p>Concurrent precursor <strong>has to</strong> be enabled with this flag. Specifies the type of inlet boundary
+condition and initial condition for the concurrent precursor. If set to 0, streamwise periodic
+boundary conditions are applied and initial condition is read from <code class="docutils literal notranslate"><span class="pre">fields/precursor</span></code> directory.
+If set to 1, inlet planes from previous simulation are applied and flow is initialized by
+spreading the flow given in the plane corresponding to the simulation start time throughout the
+domain. If set to 2 is equivalent to 1, but the initial condition is read from the
+<code class="docutils literal notranslate"><span class="pre">fields/precursor</span></code> directory. This is used for coarse concurrent precursor, where a good solution
+has to be continuously feed because the simulation cannot be really self-sustained in the concurrent
+precursor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code></p></td>
+<td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> boundary is present in the simulation.
+Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code></p></td>
+<td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundary is present in the simulation.
+Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-canopy</span></code></p></td>
+<td><p>Specifies if wind farm canopy model is present in the simulation. Requires additional input in
+<code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-windplant</span></code></p></td>
+<td><p>Specifies if wind turbines are present in the simulation (set to 1) or not (set to 0). Requires
+turbine models definitions in <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-inviscid</span></code></p></td>
+<td><p>If set to 1, allows disabling viscous terms. Default value is 0.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeContinuity</span></code></p></td>
+<td><p>Computes the divergence field within the entire domain and writes it to checkpoint files.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-pvCatalyst</span></code></p></td>
+<td><p>Enables <cite>ParaView-Catalyst</cite> off-screen rendering capabilities. Useful to create nice videos of very
+large simulations. More details are given in Sec. <a class="reference internal" href="tosca_setup.html#paraview-catalyst-section"><span class="std std-ref">Paraview-Catalyst2 OS-Rendering</span></a>.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="solution-controls">
+<h4>Solution Controls<a class="headerlink" href="#solution-controls" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-meshFileType</span></code></p></td>
+<td><p>Defines the format of the mesh input file. It can be set to <code class="docutils literal notranslate"><span class="pre">cartesian</span></code> or <code class="docutils literal notranslate"><span class="pre">curvilinear</span></code>.
+More details are given in Sec. <a class="reference internal" href="#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code></p></td>
+<td><p>Time discretization scheme, it can be set to <code class="docutils literal notranslate"><span class="pre">forwardEuler</span></code> (explicit first order, usually
+unstable), <code class="docutils literal notranslate"><span class="pre">rungeKutta4</span></code> (explicit fourth-order Runge-Kutta) or <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>,
+which corresponds to the second-order implicit Crank-Nicholson scheme (explicit selection of
+the Crank-Nicholson scheme will be made available). For long simulations the
+<code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code> scheme is preferred, as it can run with CFL greater than 1 and is
+unconditionally stable. For simulations affected by constraints other than the CFL (e.g. blade
+rotation in actuator line model), <code class="docutils literal notranslate"><span class="pre">rungeKutta4</span></code> is a good alternative.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-divScheme</span></code></p></td>
+<td><p>Determines which divergence scheme is used for the discretization of the advection fluxes. It
+can be set to <code class="docutils literal notranslate"><span class="pre">central</span></code> (second-order symmetric scheme, dispersive), <code class="docutils literal notranslate"><span class="pre">quickDiv</span></code> (third-order
+upwind-biased quadratic scheme, diffusive), <code class="docutils literal notranslate"><span class="pre">weno3</span></code> (fourth-order weighted essentially
+non-oscillatory scheme, diffusive), <code class="docutils literal notranslate"><span class="pre">centralUpwind</span></code> (vanLeer blending of central and quadratic
+scheme, to balance diffusion and dispersion), <code class="docutils literal notranslate"><span class="pre">centralUpwindW</span></code> (weighted version, for
+graded/non-uniform meshes).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-relTolU</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>, discarded otherwise. Allows to set the relative
+exit tolerance for the Newton method used to solve implicit discretized momentum equation, default
+value 1e-30.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-absTolU</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>, discarded otherwise. Allows to set the absolute
+exit tolerance for the Newton method used to solve implicit discretized momentum equation,
+default value 1e-5.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-poissonSolver</span></code></p></td>
+<td><p>Allows to specify the library used to solve the pressure equation, it can be set to <code class="docutils literal notranslate"><span class="pre">HYPRE</span></code> or
+<code class="docutils literal notranslate"><span class="pre">PETSc</span></code>. <code class="docutils literal notranslate"><span class="pre">HYPRE</span></code> is suggested, as it has proved to work better than <code class="docutils literal notranslate"><span class="pre">PETSc</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-hypreSolverType</span></code></p></td>
+<td><p>Allows to choose the solution method for the linear system if <code class="docutils literal notranslate"><span class="pre">-poissonSolver</span></code> is set to
+<code class="docutils literal notranslate"><span class="pre">HYPRE</span></code>, discarded otherwise. Set to 1 to use the Generalized Minimum Residual (GMRES), set
+to 2 to use the preconditioned Conjugate-Gradient (PCG) method. Default value is 1.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-poissonTol</span></code></p></td>
+<td><p>Allows to set the exit tolerance for the pressure solver. Default value is 1e-8.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-poissonIt</span></code></p></td>
+<td><p>Set the maximum number of iterations for the pressure solver. Default value is 8.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-amgCoarsenType</span></code></p></td>
+<td><p>Since TOSCA uses the Algebraic Multi-Grid (AMG) preconditioner when the <code class="docutils literal notranslate"><span class="pre">-poissonSolver</span></code> is set
+to <code class="docutils literal notranslate"><span class="pre">HYPRE</span></code>, this entry allows to set the coarsening method. Available entries are 0 (CLJP),
+6 (Falgout), 8 (PMIS), 10 (HMIS). Default value is 10.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-amgThresh</span></code></p></td>
+<td><p>Allows to set the AMG threshold. Default value is 0.5. For distorted meshes, a value of 0.6 is
+suggested.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-amgAgg</span></code></p></td>
+<td><p>Allows to set the level of aggressive coarsening. Default value is 0 (not used).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-pTildeBuoyancy</span></code></p></td>
+<td><p>If set to 1, buoyancy force is recast into a buoyancy gradient and pressure is defined accordingly.
+Default value is 0 (not used).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-dTdtScheme</span></code></p></td>
+<td><p>Can be set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code> (implicit first-order) or <code class="docutils literal notranslate"><span class="pre">rungeKutta4</span></code> (explicit fourth-order).
+For ABL simulations, <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code> is suggested. Crank-Nicholson has been removed from TOSCA
+due to poor velocity-temperature coupling.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-relTolT</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dTdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>. Allows to set the relative exit tolerance for
+the Newton method used to solve implicit discretized temperature equation, default value 1e-30.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-absTolT</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dTdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>. Allows to set the absolute exit tolerance for
+the Newton method used to solve implicit discretized temperature equation, default value 1e-5.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-max_cs</span></code></p></td>
+<td><p>Maximum value for the LES model <span class="math notranslate nohighlight">\(C_s\)</span> coefficient, default value is set to 0.5. Only used when
+<code class="docutils literal notranslate"><span class="pre">-les</span></code> is greater than 1.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="solution-constants">
+<h4>Solution Constants<a class="headerlink" href="#solution-constants" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-nu</span></code></p></td>
+<td><p>Sets the molecular (kinematic) viscosity of the working fluid.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-rho</span></code></p></td>
+<td><p>Sets the density of the working fluid (used e.g. to compute forces).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-Pr</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-potentialT</span></code> to be se to 1. Sets the Prandtl number of the working fluid.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-tRef</span></code></p></td>
+<td><p>It is a required parameter when <code class="docutils literal notranslate"><span class="pre">-potentialT</span></code> is active and <code class="docutils literal notranslate"><span class="pre">-abl</span></code> is not. Sets the reference
+potential temperature of the flow, otherwise <code class="docutils literal notranslate"><span class="pre">-tRef</span></code> is set inside the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="acquisition-controls">
+<h4>Acquisition Controls<a class="headerlink" href="#acquisition-controls" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-probes</span></code></p></td>
+<td><p>Activates probes acquisition. Requires additional input files inside <code class="docutils literal notranslate"><span class="pre">sampling/probes</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-sections</span></code></p></td>
+<td><p>Activates acquisition of sections to be visualized in <cite>ParaView</cite>. Requires additional input files in
+<code class="docutils literal notranslate"><span class="pre">sampling/surfaces</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-averageABL</span></code></p></td>
+<td><p>Activates planar averages at every cell-level in the z-direction. Requires <code class="docutils literal notranslate"><span class="pre">-abl</span></code> to be active.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-averageABLPeriod</span></code></p></td>
+<td><p>Output period of the ABL planar averages. It is a required parameter, even if <code class="docutils literal notranslate"><span class="pre">-averageABL</span></code> is set to
+0, for concurrent-precursor simulations, where these averages are always active.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-averageABLStartTime</span></code></p></td>
+<td><p>Time at which ABL planar averages are started. It is a required parameter, even if <code class="docutils literal notranslate"><span class="pre">-averageABL</span></code> is set to
+0, for concurrent-precursor simulations.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-average3LM</span></code></p></td>
+<td><p>Activates vertical averages within layer at user-defined points. Requires additional inputs in
+<code class="docutils literal notranslate"><span class="pre">sampling</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-perturbABL</span></code></p></td>
+<td><p>Activates acquisition of perturbation fields at the same location as sections to be visualized in ParaView.
+Requires additional inputs in <code class="docutils literal notranslate"><span class="pre">sampling</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-averaging</span></code></p></td>
+<td><p>It can be activated by setting to 1, 2, or 3 to get a higher amount of three-dimensional averaged fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-avgPeriod</span></code></p></td>
+<td><p>Average period of three-dimensional averages. Fields are written at checkpoint times in the correspondent time
+folder.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-avgStartTime</span></code></p></td>
+<td><p>Start time of three-dimensional averages.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code></p></td>
+<td><p>These averages are a duplicate of the averages, but are useful if one wants to perform both unconditioned-averages
+and phase-averages, e.g. at multiples of some characteristic time, in the same simulation.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-phaseAvgPeriod</span></code></p></td>
+<td><p>Average period of three-dimensional phase averages. Fields are written at checkpoint times in the correspondent time
+folder.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-phaseAvgStartTime</span></code></p></td>
+<td><p>Start time of three-dimensional phase averages.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-keBudgets</span></code></p></td>
+<td><p>Set to 1 to activate mechanical energy budgets. Requires additional inputs in <code class="docutils literal notranslate"><span class="pre">sampling</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-writePressureForce</span></code></p></td>
+<td><p>Writes pressure force on the IBM surface.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeQ</span></code></p></td>
+<td><p>Writes 3D field of Q-criterion at checkpoint times.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-computeL2</span></code></p></td>
+<td><p>Writes 3D field of Lambda2-criterion at checkpoint times.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeFarmForce</span></code></p></td>
+<td><p>Writes 3D field of wind farm body force at checkpoint times.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-computeSources</span></code></p></td>
+<td><p>Compute source fields to be written in checkpoint files, to be converted in <code class="docutils literal notranslate"><span class="pre">.xmf</span></code> format by
+<code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> executable. Depending on what is active, it calculates the coriolis force and driving
+pressure gradient (require <code class="docutils literal notranslate"><span class="pre">-abl</span></code> set to 1), the inlet and lateral fringe source terms (require
+<code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> and <code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code> set to 1, respectively) and the body force from the canopy
+model (requires <code class="docutils literal notranslate"><span class="pre">-canopy</span></code> set to 1).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeBuoyancy</span></code></p></td>
+<td><p>Writes 3D field of buoyancy term in the momentum equation at checkpoint times.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="post-processing-controls">
+<h4>Post Processing Controls<a class="headerlink" href="#post-processing-controls" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-postProcessFields</span></code></p></td>
+<td><p>Activate to post process 3D fields. It should be deactivated (set to 0) for too big cases to be fit in the memory of a
+single node, as field conversion from binary to <code class="docutils literal notranslate"><span class="pre">.xmf</span></code> is not parallelized. Note that there is no plans within the
+TOSCA developers team to parallelize this feature, as too big cases could not be visualized in <cite>ParaView</cite> anyways due
+to RAM limitations. We suggest to use <code class="docutils literal notranslate"><span class="pre">-sections</span></code> instead, where parallel writing is enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-writeRaster</span></code></p></td>
+<td><p>Activate to write raster file from jSections.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-sections</span></code></p></td>
+<td><p>Activate to post process binary sections and write <code class="docutils literal notranslate"><span class="pre">.xmf</span></code> and <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> files to be visualized in e.g. <cite>ParaView</cite>.
+This feature also works if <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> is launched in parallel. When concurrent precursor is activated, those sections
+which fall inside the concurrent precursor domain are also processed, so that the user only has to provide one
+section definition inside the <code class="docutils literal notranslate"><span class="pre">sampling/surfaces</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-postProcessPrecursor</span></code></p></td>
+<td><p>Activate to also post process fields from the concurrent precursor simulation. Similarly to the <code class="docutils literal notranslate"><span class="pre">-postProcessFields</span></code>
+flag, this option is not available in parallel.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="boundary">
+<h3><cite>boundary</cite><a class="headerlink" href="#boundary" title="Link to this heading"></a></h3>
+<p>This sections describes the input file definition used to prescribe boundary conditions in TOSCA. TOSCA expects a file for each solved field,
+where boundary and initial conditions are specified. Pressure boundary conditions are not required, as they always are of the Neumann type, except when
+periodicity is present. Therefore, boundary conditions are expected for <em>U</em> (velocity) and <em>nut</em> (turbulent viscosity) fields, as well as for <em>T</em> (potential temperature),
+when this is activated in the <em>control.dat</em> file.
+Specifically, TOSCA expects to find <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code> (if applicable) files, inside a directory named <code class="docutils literal notranslate"><span class="pre">boundary</span></code>. Within each file, boundary conditions
+have to be specified for each side of the domain. These are identified as <code class="docutils literal notranslate"><span class="pre">kLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">kRight</span></code>, <code class="docutils literal notranslate"><span class="pre">jLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">jRight</span></code>, <code class="docutils literal notranslate"><span class="pre">iLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">iRight</span></code>. In addition,
+the keyword <code class="docutils literal notranslate"><span class="pre">internalField</span></code> has to be specified, which sets the type of initial condition for each of these fields. An example of a <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file is given below:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># TOSCA Input file - U boundary conditions</span>
+<span class="cp"># ----------------------------------------</span>
+
+<span class="n">internalField</span><span class="w"> </span><span class="n">spreadInflow</span>
+
+<span class="n">iLeft</span><span class="w">   </span><span class="n">periodic</span>
+<span class="n">iRight</span><span class="w">  </span><span class="n">periodic</span>
+<span class="n">jLeft</span><span class="w">   </span><span class="n">noSlip</span>
+<span class="n">jRight</span><span class="w">  </span><span class="n">slip</span>
+<span class="n">kLeft</span><span class="w">   </span><span class="n">fixedValue</span><span class="w"> </span><span class="p">(</span><span class="mf">5.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span>
+<span class="n">kRight</span><span class="w">  </span><span class="n">zeroGradient</span>
+</pre></div>
+</div>
+<p>In addition to common boundary conditions, which are available at all boundaries, TOSCA also features some special boundary conditions, which are only
+available on specific boundaries. These are used for specific simulations and the user is suggested to consider such
+constraint when designing and setting up a TOSCA case.</p>
+<p>Within TOSCA, specific entry types are defined, which are used to define boundary conditions as well as other inputs throughout the code. These are</p>
+<ol class="arabic simple">
+<li><p><em>bool</em>       : an integer which is 0 (false) or 1 (true)</p></li>
+<li><p><em>integer</em>    : an integer number</p></li>
+<li><p><em>scalar</em>     : a floating point number (if an integer is provided, this is cast into a floating point number).</p></li>
+<li><p><em>vector</em>     : a group of floating point numbers defined as <em>(scalar scalar scalar)</em>, where the scalar <strong>must</strong> be a floating point number. There shouldn’t be any space between parantheses and the first and last vector components.</p></li>
+<li><p><em>string</em>     : a word without spaces.</p></li>
+<li><p><em>dictionary</em> : a group of additional entries, where the number is dependant on the name of the dictionary, embodied within <cite>{}</cite> parentheses. Dictionaries can containmultiple integer, bool, scalar, vector and string entries. An example is given below.</p></li>
+</ol>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">dictionary</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">boolEntry</span><span class="w">    </span><span class="mi">1</span>
+<span class="w">   </span><span class="n">integerEntry</span><span class="w"> </span><span class="mi">10</span>
+<span class="w">   </span><span class="n">scalarEntry</span><span class="w">  </span><span class="mf">1.0</span><span class="w"> </span><span class="c1">// or 1</span>
+<span class="w">   </span><span class="n">vectorEntry</span><span class="w">  </span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="mf">1.0</span><span class="w"> </span><span class="mf">1.0</span><span class="p">)</span>
+<span class="w">   </span><span class="n">stringEntry</span><span class="w">  </span><span class="n">someRandomString</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<section id="boundary-conditions">
+<h4>Boundary Conditions<a class="headerlink" href="#boundary-conditions" title="Link to this heading"></a></h4>
+<p>The boundary conditions available in TOSCA are summarized in the following table. The table also specifies the fields for which a given boundary condition is available, together with their entry type and description.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>BC type</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">fixedValue</span></code></p></td>
+<td><p>scalar or vector</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fixedGradient</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">T</span></code>. Entry is a scalar value that refers to the gradient
+normal to the patch.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zeroGradient</span></code></p></td>
+<td><p>none</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slip</span></code></p></td>
+<td><p>none</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">noSlip</span></code></p></td>
+<td><p>none</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">periodic</span></code></p></td>
+<td><p>none</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code>. Requires keywords
+<code class="docutils literal notranslate"><span class="pre">-iPeriodicType</span></code>, <code class="docutils literal notranslate"><span class="pre">-jPeriodicType</span></code>, <code class="docutils literal notranslate"><span class="pre">-kPeriodicType</span></code> at the top of
+the mesh file, depending on the patch to which it is applied. These should
+be placed in the header, before the number of points in each direction, and
+indicate the type of parallel connectivity between the periodic boundaries.
+For type 1, the domain is decomposed such that periodic cell-pairs lie
+within the same processor. Type 2 allows for a more general decomposition
+(suggested).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Available only for <code class="docutils literal notranslate"><span class="pre">U</span></code>. Applies wall models to velocity and temperature
+(if active). Only available for <code class="docutils literal notranslate"><span class="pre">iLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">iRight</span></code>, <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> and
+<code class="docutils literal notranslate"><span class="pre">jRight</span></code> patches. Not really tested on i-patches. It is usually applied
+on the <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> patch in combination with an <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> on the
+<code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch (see below).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">inletFunction</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code> only at the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The last two boundary conditions listed in the previous table are not available on all patches. On the one hand, the
+<code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code>, used to prescribe wall models, is not available on <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundaries. On the
+other hand, the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> type, used to prescribe special boundary conditions for inlet velocity, temperature and turbulent viscosity, is only available on the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch. The user should keep this constraint in mind when setting
+up a TOSCA case.</p>
+</section>
+<section id="wall-models">
+<h4>Wall Models<a class="headerlink" href="#wall-models" title="Link to this heading"></a></h4>
+<p>The <code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code> applies the Shumann wall model, used for ABL flows. In particular, the modeled wall shear
+stress is directly enforced in the stress term of the momentum equations, while a constant normal gradient condition
+is applied to the velocity. In order to avoid double counting at the wall when using this condition (the wall shear
+stress should be entirely and only modeled), the turbulent viscosity at the wall should be set to zero in the
+<code class="docutils literal notranslate"><span class="pre">boundary/nut</span></code> file. The mandatory entries for this boundary condition type are defined as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">velocityWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-3</span><span class="w">        </span><span class="c1">// Shumann wall model (only -3 is available)</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">    </span><span class="mf">0.003</span><span class="w">     </span><span class="c1">// equivalent roughness length</span>
+<span class="w">   </span><span class="n">gammaM</span><span class="w">    </span><span class="mf">4.9</span><span class="w">       </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">kappa</span><span class="w">     </span><span class="mf">0.4</span><span class="w">       </span><span class="c1">// von Karman constant</span>
+<span class="w">   </span><span class="n">thetaRef</span><span class="w">  </span><span class="mf">300.0</span><span class="w">     </span><span class="c1">// reference potential temperature</span>
+<span class="w">   </span><span class="n">uStarEval</span><span class="w"> </span><span class="n">averaged</span><span class="w">  </span><span class="c1">// for laterally homogeneous flows (e.g. ABL),</span>
+<span class="w">                       </span><span class="c1">// otherwise set to &#39;localized&#39; (e.g. wind farm flows)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="inlet-functions">
+<h4>Inlet Functions<a class="headerlink" href="#inlet-functions" title="Link to this heading"></a></h4>
+<p>The <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> boundary condition has several different types, each corresponding to a different inlet boundary
+condition. These are summarized in the following table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 20.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>IF type</strong></p></td>
+<td><p><strong>name</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>power law profile</p></td>
+<td><p>Power law velocity profile <span class="math notranslate nohighlight">\(\mathbf{U}=
+\mathbf{U}_\text{ref}\left(z/H_\text{ref}\right)
+^\alpha\)</span>, with <span class="math notranslate nohighlight">\(\alpha=0.107027\)</span>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">1</span>
+<span class="w">   </span><span class="n">Uref</span><span class="w">      </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">Href</span><span class="w">      </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">uPrimeRMS</span><span class="w"> </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>logarithmic profile</p></td>
+<td><p>Logarithmic velocity profile <span class="math notranslate nohighlight">\(\mathbf{U}=
+u*/0.4\ln(z/z_0)\mathbf{e}_U\)</span>.
+<span class="math notranslate nohighlight">\(\mathbf{U}\)</span> is constant above the
+inversion height <span class="math notranslate nohighlight">\(H\)</span> and equal to
+<span class="math notranslate nohighlight">\(\mathbf{U}(H)\)</span>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">       </span><span class="mi">2</span>
+<span class="w">   </span><span class="n">directionU</span><span class="w"> </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">hInversion</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">frictionU</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">     </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>unsteady mapped inflow</p></td>
+<td><p>Maps 2D planes contained in <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code>
+directory at the inlet. Planes can be tiled
+laterally or vertically. Data can also be
+extrapolated in the vertical direction. The
+extrapolated value can be unsteady or steady. The
+latter is calculated by averaging the top data
+contained in the 2D planes and slowly merging with
+the unsteady data within the last 10 cells of the
+2D plane. Note: 2D planes and inlet mesh should be
+identical as data is only mapped.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">3</span>
+<span class="w">   </span><span class="n">n1Inflow</span><span class="w">  </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n2Inflow</span><span class="w">  </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n1Periods</span><span class="w"> </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n2Periods</span><span class="w"> </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n1Merge</span><span class="w">   </span><span class="kt">bool</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>unsteady interpolated inflow</p></td>
+<td><p>Same as type 3, but data is interpolated, hence
+the 2D plane mesh and inlet mesh can be different.
+Spanwise shift of the inflow data is also
+available by setting a lateral shift velocity.
+Note that this velocity is not added to the flow
+velocity, but rather data are shifted with this
+constant lateral velocity.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">       </span><span class="mi">4</span>
+<span class="w">   </span><span class="n">n1Inflow</span><span class="w">   </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n2Inflow</span><span class="w">   </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n1Periods</span><span class="w">  </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n2Periods</span><span class="w">  </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n1Merge</span><span class="w">    </span><span class="kt">bool</span>
+<span class="w">   </span><span class="n">n2Shift</span><span class="w">    </span><span class="kt">bool</span>
+<span class="w">   </span><span class="n">shiftSpeed</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">sourceType</span><span class="w"> </span><span class="n">string</span>
+<span class="w">   </span><span class="n">cellWidth1</span><span class="w"> </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">cellWidth2</span><span class="w"> </span><span class="n">integer</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Nieuwstadt (1983) model</p></td>
+<td><p>Applies the Nieuwstadt (1983) model. This is more
+sophisticated than the logarithmic profile, as it
+also contains wind veer. The wind profile is
+rotated such that the prescribed direction is
+imposed at the prescribed reference height.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">       </span><span class="mi">5</span>
+<span class="w">   </span><span class="n">directionU</span><span class="w"> </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">hInversion</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">hReference</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">frictionU</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">     </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">latitude</span><span class="w">   </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>sinusoidally varying i-th component</p></td>
+<td><p>Uniform inflow, where the spanwise component
+varies sinusoidally with given amplitude and
+frequency. Useful to test turbine yaw controllers.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">6</span>
+<span class="w">   </span><span class="n">Uref</span><span class="w">      </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">amplitude</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">periods</span><span class="w">   </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The different entries required in the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> dictionary for each function type are detailed below:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 20.0%" />
+<col style="width: 55.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>type 1 - power law profile</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Uref</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>reference velocity in m/s</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Href</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>height where <span class="math notranslate nohighlight">\(\mathbf{U}= \mathbf{U}_\text{ref}\)</span> in m</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uPrimeRMS</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>isotropic fluctuation value in m/s</p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>type 2 - logarithmic profile</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">directionU</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>velocity direction (will be normalized)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hInversion</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>inversion height in m</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">frictionU</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>friction velocity in m/s</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRough</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness length in m</p></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>type 3 - unsteady mapped inflow</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Inflow</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 1 (j for kLeft patch)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Inflow</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 2 (i for kLeft patch)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Periods</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 1 for tiling (if target is larger data is extrapolated)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Periods</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 2 for tiling (if target is larger data is extrapolated)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Merge</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>average top cell values from 2D planes and merge within 10 top cells. Useful to make
+the geostrophic region steady, removing e.g. inertial oscillations.</p></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>type 4 - unsteady interpolated inflow</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Inflow</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 1 (j for kLeft patch)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Inflow</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 2 (i for kLeft patch)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Periods</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 1 for tiling (if target is larger data is extrapolated)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Periods</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 2 for tiling (if target is larger data is extrapolated)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Merge</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>average top cell from 2D planes and merge within 10 top cells</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Shift</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>spanwise shift of inflow data</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">shiftSpeed</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>spanwise shift velocity in m/s</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sourceType</span></code></p></td>
+<td><p>string</p></td>
+<td><p><em>uniform</em> (requires next two entries) or <em>grading</em> (requires the mesh file used in
+the simulation that generated the 2D planes, renamed <code class="docutils literal notranslate"><span class="pre">inflowMesh.xyz</span></code> to be located
+inside the <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> directory)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cellWidth1</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>inflow mesh cell width in direction 1 if <code class="docutils literal notranslate"><span class="pre">sourceType</span></code> <em>uniform</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cellWidth2</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>inflow mesh cell width in direction 2 if <code class="docutils literal notranslate"><span class="pre">sourceType</span></code> <em>uniform</em></p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>type 5 - Nieuwstadt (1983) model</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">directionU</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>velocity direction (will be normalized)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hInversion</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>inversion height in m</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">hReference</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>reference height in m at which the wind has the provided direction</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">frictionU</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>friction velocity in m/s</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">hRough</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness length in m</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">latitude</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>latitude in degrees</p></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>type 6 - sinusoidally varying i-th component</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Uref</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>reference velocity in m/s</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">amplitude</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>amplitude of the spanwise velocity oscillation in m/s</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">periods</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>number of periods contained in the domain length along the i curvilinear direction</p></td>
+</tr>
+</tbody>
+</table>
+<p>As an example, a logarithmic profile on the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch is prescribed as follows</p>
+<blockquote>
+<div><div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">kLeft</span><span class="w"> </span><span class="n">inletFunction</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="n">type</span><span class="w">        </span><span class="mi">2</span><span class="w">             </span><span class="c1">// type 2 is logarithmic profile</span>
+<span class="w">         </span><span class="n">directionU</span><span class="w">  </span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="c1">// velocity is along the x direction</span>
+<span class="w">         </span><span class="n">hInversion</span><span class="w">  </span><span class="mi">500</span><span class="w">           </span><span class="c1">// ABL height is 500 m</span>
+<span class="w">         </span><span class="n">frictionU</span><span class="w">   </span><span class="mf">0.5</span><span class="w">           </span><span class="c1">// friction velocity is 0.5 m/s</span>
+<span class="w">         </span><span class="n">kRough</span><span class="w">      </span><span class="mf">0.001</span><span class="w">         </span><span class="c1">// equivalent roughness lenght is 0.001 m</span>
+<span class="w">      </span><span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</section>
+<section id="initial-condition">
+<h4>Initial Condition<a class="headerlink" href="#initial-condition" title="Link to this heading"></a></h4>
+<p>The initial field is finally prescribed after the <code class="docutils literal notranslate"><span class="pre">internalField</span></code> keyword within each boundary condition file. Initial conditions
+available within TOSCA are summarized in the following table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 75.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>initial condition type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uniform</span></code></p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nu</span></code>, <code class="docutils literal notranslate"><span class="pre">T</span></code>. The <em>value</em> entry can be vector or
+scalar.  If the <em>perturbations</em> entry is set to 1, sinusoidal perturbations
+are applied to trigger turbulence (only required for <code class="docutils literal notranslate"><span class="pre">U</span></code> field)</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">uniform</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">value</span><span class="w">          </span><span class="n">vector</span><span class="w"> </span><span class="n">or</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">perturbations</span><span class="w">  </span><span class="kt">bool</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">readField</span></code></p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nu</span></code>, <code class="docutils literal notranslate"><span class="pre">T</span></code>. Reads field data from the <code class="docutils literal notranslate"><span class="pre">fields</span></code>
+directory. Used for simulation restart.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ABLFlow</span></code></p></td>
+<td><p>Sets initial log profile for <code class="docutils literal notranslate"><span class="pre">U</span></code>, while <code class="docutils literal notranslate"><span class="pre">T</span></code> is set according to the
+Rampanelli and Zardi (2003) model. Requires <code class="docutils literal notranslate"><span class="pre">-abl</span></code> set to 1 in the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file, as it picks input parameters from the
+<code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file. Perturbations to trigger turbulence can be
+added using the <em>perturbations</em> entry in the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">spreadInflow</span></code></p></td>
+<td><p>Copies the flow from the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> ghost cells at every <code class="docutils literal notranslate"><span class="pre">k</span></code>-plane. Useful
+for ensuring perfect consistency between the inlet boundary condition and
+the internal field when using <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code>. In practice, sets the
+internal field to whatever the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> is.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">linear</span></code></p></td>
+<td><p>Only available for <code class="docutils literal notranslate"><span class="pre">T</span></code>. Sets an initial temperature profile characterized
+by a linear lapse rate <em>tLapse</em> along <code class="docutils literal notranslate"><span class="pre">j</span></code> and a ground temperature
+<em>tRef</em>. Used to prescribe an initially-linear potential temperature
+stratification.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">linear</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">tRef</span><span class="w">   </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">tLapse</span><span class="w"> </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+</section>
 </section>
 
 
