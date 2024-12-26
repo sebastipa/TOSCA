@@ -102,6 +102,8 @@ The TOSCA repository is open-source, so anyone can download and use the code. If
 9. To stay up-to-date, rebase your local master with the your new commits by first checking out in your local master branch with ``git checkout master`` and then rebase with ``git pull --rebase origin master``
 10. Delete your local branch as it is not useful anymore with ``git branch --delete -d your-branch-name`` and use the master until you want to make new changes
 
+.. _paraview-catalyst-section:
+
 Paraview-Catalyst2 OS-Rendering
 ===============================
 
