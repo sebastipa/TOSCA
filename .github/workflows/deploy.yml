@@ -20,7 +20,7 @@ jobs:
 
     - name: Install Dependencies
       run: |
-        pip install sphinx
+        pip install sphinx sphinx_rtd_theme
 
     - name: Build Sphinx Documentation
       run: |
