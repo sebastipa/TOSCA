@@ -1,7 +1,7 @@
-.math {
+.rst-content .math {
     text-align: left;
 }
-.eqno {
+.rst-content .eqno {
     float: right;
 }
 

@@ -9,7 +9,7 @@
   <title>User Guide &mdash; TOSCA 1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
-      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=e7028309" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
@@ -51,7 +51,6 @@
 <li class="toctree-l1"><a class="reference internal" href="tosca_setup.html#paraview-catalyst2-os-rendering">Paraview-Catalyst2 OS-Rendering</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_quickstart.html">Getting Started</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">User Guide</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#spatial-mesh">Spatial Mesh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#input-files">Input Files</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#control-dat"><cite>control.dat</cite></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#time-controls">Time Controls</a></li>
@@ -70,8 +69,11 @@
 <li class="toctree-l4"><a class="reference internal" href="#initial-condition">Initial Condition</a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#ablproperties-dat"><cite>ABLProperties.dat</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#turbines"><cite>turbines</cite></a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#spatial-mesh">Spatial Mesh</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
@@ -104,232 +106,24 @@
              
   <section id="user-guide">
 <h1>User Guide<a class="headerlink" href="#user-guide" title="Link to this heading"></a></h1>
-<p>TOSCA uses ASCII input files, organized in files, dictionaries and subdictionaries. The latter two levels of description are always embodied using ’{}’ parenthesis. The code provides some level of input checking, meaning that non-recognized inputs are followed by an error message listing available possibilities.</p>
-<p>TOSCA has a standardized case structure. The minimum-required case structure is depicted on the right of the following figure, while the case structure required to run ABL and wind farm simulations under potential temperature stratification (i.e. with the addition of the <code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> and <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> files) is shown on the right. The principal control file for a TOSCA simulation is the <cite>control.dat</cite> file, located in the case directory. Depending on the type of simulation that one wishes to perform, flags can be activated in the <cite>control.dat</cite> which prompt TOSCA to read additional input files and data.</p>
+<p>TOSCA uses ASCII input files, organized in files and dictionaries.
+The code provides some level of input checking, meaning that non-recognized inputs are followed by an error message that
+lists available possibilities.</p>
+<p>TOSCA has a standardized case structure. The minimum-required case structure is depicted on the right of the following figure,
+while the case structure required to run e.g. atmospheric boundary layer (ABL) and wind farm simulations with potential
+temperature stratification is shown on the right (i.e. with the addition of the <code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> and <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> files).
+The principal control file for a TOSCA simulation is the <cite>control.dat</cite> file, located in the case directory (see
+<a class="reference internal" href="#control-subsection"><span class="std std-ref">control.dat</span></a> for details).
+Depending on the type of simulation that one wishes to perform, flags can be activated in the <cite>control.dat</cite>, which prompt TOSCA
+to read additional input files and data. These are described in Sec. <a class="reference internal" href="#input-files-section"><span class="std std-ref">Input Files</span></a>.</p>
 <img alt="_images/structure_1.png" class="align-center" src="_images/structure_1.png" />
-<p>Inside the <code class="docutils literal notranslate"><span class="pre">boundary</span></code> directory, initial and boundary conditions are set in files having the same name as the field they refer to.</p>
-<section id="spatial-mesh">
-<span id="spatial-mesh-section"></span><h2>Spatial Mesh<a class="headerlink" href="#spatial-mesh" title="Link to this heading"></a></h2>
-<p>The spatial mesh can be provided in two different formats. These can be selected with the <code class="docutils literal notranslate"><span class="pre">-meshFileType</span></code> keyword in the <cite>control.dat</cite> file, which can be set to <code class="docutils literal notranslate"><span class="pre">cartesian</span></code> or <code class="docutils literal notranslate"><span class="pre">curvilinear</span></code> for <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> and <code class="docutils literal notranslate"><span class="pre">.grid</span></code> formats, respectively. While both formats describe a structured mesh (TOSCA can only operate with this type of mesh), the first one is additionally cartesian. Both types of mesh can be defined such that grid points are stretched in all spatial directions. The <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> mesh format is TOSCA’s custom Cartesian mesh format, and it is very convenient since the user only has to provide the discretization along each of the three cartesian axes. The <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> mesh file format can be generalized as</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Nx<span class="w"> </span>Ny<span class="w"> </span>Nz
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-:
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
-:
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span>
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-:
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-</pre></div>
-</div>
-<p>which, for a cube extending 50 m in each direction, with 10 m cells along each direction (hence 6 points), is given by</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">6</span><span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="m">6</span>
-<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
-<span class="m">10</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
-<span class="m">20</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
-<span class="m">30</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
-<span class="m">40</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
-<span class="m">50</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
-<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">0</span>
-<span class="m">0</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">0</span>
-<span class="m">0</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">0</span>
-<span class="m">0</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">0</span>
-<span class="m">0</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">0</span>
-<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
-<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">10</span>
-<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">20</span>
-<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">30</span>
-<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">40</span>
-<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">50</span>
-</pre></div>
-</div>
-<p>As can be noticed, the mesh file is extremely light, even for large meshes, as only the discretization along the three cartesian axes is provided. The coordinates of the remaining mesh cells are inferred iternally within TOSCA, starting from the axes discretization.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">.grid</span></code> format is a curvilinear mesh format (available for example in the meshing software <cite>Pointwise</cite>), where the cartesian coordinates of each mesh point are provided. This becomes useful when the mesh is deformed, and a unique relationship between the cartesian and curvilinear sets of coordinates does not exist anymore. This is a much heavier mesh format, which can be generalized as follows</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Nj<span class="w"> </span>Nk<span class="w"> </span>Ni
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-:
-:
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
-:
-:
-x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
-y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-:
-:
-y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
-:
-:
-y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
-z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-:
-:
-z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
-z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
-:
-:
-z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
-</pre></div>
-</div>
-<p>Taking as an example the same box extending 50 m in each direction, with 10 m cells along each direction, this can be expressed using the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> format as</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">6</span><span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="m">6</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
-</pre></div>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Both in the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> and <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> format, the user has to provide the <em>mesh points</em> rather then the <em>cell centers</em> coordinates.</p>
-</div>
-<p>Notably, every cartesian mesh can be expressed using the curvilinear format, while the opposite is not true. TOSCA always operates using curvilinear coordinates internally, and since boundary conditions are given on curvilinear patches one has to bear in mind a few concepts, explained below, in order to assign BCs in the way he intends to. Firstly, one can think of curvilinear coordinates as the mesh cell indices in each of the three directions, expressed in TOSCA as <cite>k</cite>, <cite>j</cite> and <cite>i</cite>. With this in mind, it appears clear that each boundary can be identified by keeping one of the indices fixed while the others two vary. In fact, boundaries are identifyed in TOSCA using <cite>kLeft</cite>, <cite>kRight</cite>, <cite>jLeft</cite>, <cite>jRight</cite>, <cite>iLeft</cite> and <cite>iRight</cite>. When the mesh is cartesian (and the axes are aligned to the edges of the domain) boundaries can be also identifyed with the minimum and maximum of each cartesian coordinates. However, this is not general and it would not hold for a curvilinear mesh, or even a cartesian mesh with the domain edges not aligned with the cartesian coordinates. For this reason, boundaries are always identified using the curvilinear definition in TOSCA. To know how to assign boundary conditions, e.g. what boundary corresponds to the <cite>kLeft</cite> patch and so on, one has to keep in mind that the <cite>.grid</cite> file is read by TOSCA using a <cite>i,k,j</cite> nested loop order, namely</p>
-<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="c1">// loop through the mesh cells</span>
-<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">&lt;</span><span class="n">Ni</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
-<span class="p">{</span>
-<span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">&lt;</span><span class="n">Nk</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span>
-<span class="w">   </span><span class="p">{</span>
-<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">&lt;</span><span class="n">Nj</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span>
-<span class="w">      </span><span class="p">{</span>
-<span class="w">         </span><span class="c1">// read point k,j,i in the .grid file</span>
-<span class="w">      </span><span class="p">}</span>
-<span class="w">   </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p>Looking at the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> file format, it is clear that there is no unique relation between <cite>k,j,i</cite> and <cite>x,y,z</cite>. However, when the mesh is cartesian, this relation depends on how the mesh file is created. It is easy to notice that, in the provided <code class="docutils literal notranslate"><span class="pre">.grid</span></code> example, <cite>k,j,i</cite> correspond to <cite>x,z,y</cite>. For the <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> file format, where a unique relation exists, TOSCA constructs the mesh such that <cite>k,j,i</cite> correspond to <cite>x,z,y</cite> (this can be also appreciated in the provided example). In an ABL or wind farm simulation, where x is usually aligned with the wind direction, and y and z are the spanwise and vertical coordinates, respectively, the inlet will corrispond to <cite>kLeft</cite>, the outlet to <cite>kRight</cite>, the bottom and top to <cite>jLeft</cite> and <cite>jRight</cite>, respectively, while the spanwise boundaries will be <cite>iLeft</cite> and <cite>iRight</cite>. This relation will always apply as long as a cartesian mesh is used. The relations between curvilinear and cartesian coordinates depending on the mesh and domain type are summarized in the following table.</p>
-<table class="docutils align-default">
-<tbody>
-<tr class="row-odd"><td><p><strong>format</strong></p></td>
-<td><p><strong>cartesian domain</strong></p></td>
-<td><p><strong>curvilinear domain</strong></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">.grid</span></code></p></td>
-<td><p>case-dependent</p></td>
-<td><p>unique relation impossible</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">.xyz</span></code></p></td>
-<td><p><cite>k,j,i</cite> -&gt; <cite>x,z,y</cite></p></td>
-<td><p>non-representable</p></td>
-</tr>
-</tbody>
-</table>
-</section>
+<p>Inside the <code class="docutils literal notranslate"><span class="pre">boundary</span></code> directory, initial and boundary conditions are set in files having the same name as the field they
+describe (see <a class="reference internal" href="#boundary-subsection"><span class="std std-ref">boundary</span></a> for details).</p>
 <section id="input-files">
 <span id="input-files-section"></span><h2>Input Files<a class="headerlink" href="#input-files" title="Link to this heading"></a></h2>
-<p>This section describes all available entries for each of the TOSCA code’s input files.</p>
+<p>This section describes TOSCA’s input files and their available entries.</p>
 <section id="control-dat">
-<h3><cite>control.dat</cite><a class="headerlink" href="#control-dat" title="Link to this heading"></a></h3>
+<span id="control-subsection"></span><h3><cite>control.dat</cite><a class="headerlink" href="#control-dat" title="Link to this heading"></a></h3>
 <p>As already mentioned, TOSCA expects a specific case structure, where the <cite>control.dat</cite> file contains the main simulation settings,
 some of which prompt the code to read additional input files. The <cite>control.dat</cite> is subdivided in 7 subsections, namely</p>
 <ol class="arabic simple">
@@ -731,7 +525,7 @@ flag, this option is not available in parallel.</p></td>
 </section>
 </section>
 <section id="boundary">
-<h3><cite>boundary</cite><a class="headerlink" href="#boundary" title="Link to this heading"></a></h3>
+<span id="boundary-subsection"></span><h3><cite>boundary</cite><a class="headerlink" href="#boundary" title="Link to this heading"></a></h3>
 <p>This sections describes the input file definition used to prescribe boundary conditions in TOSCA. TOSCA expects a file for each solved field,
 where boundary and initial conditions are specified. Pressure boundary conditions are not required, as they always are of the Neumann type, except when
 periodicity is present. Therefore, boundary conditions are expected for <em>U</em> (velocity) and <em>nut</em> (turbulent viscosity) fields, as well as for <em>T</em> (potential temperature),
@@ -1236,6 +1030,801 @@ stratification.</p>
 </table>
 </section>
 </section>
+<section id="ablproperties-dat">
+<span id="ablproperties-section"></span><h3><cite>ABLProperties.dat</cite><a class="headerlink" href="#ablproperties-dat" title="Link to this heading"></a></h3>
+<p>When the <code class="docutils literal notranslate"><span class="pre">-abl</span></code> flag is activated in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file, TOSCA is prompted to read the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file.
+This contains important settings that can be activated for ABL or wind farm simulations with potential temperature
+stratification. For example, this file contains settings for the potential temperature profile, it allows to activate
+velocity controllers, used to drive the flow when laterally-periodic simulations are applied, the potential temperature
+controller, used to fix the potential temperature profile over time, fringe and damping regions, as well as the geostrophic damper,
+which avoids inertial oscillations produced when the flow is not initialized in geostrophic balance and the Coriolis force is
+active. It is also in this file that one can activate TOSCA’s canopy model or the concurrent precursor method.</p>
+<p>Primarily, this file contains entries that are required by TOSCA when the <code class="docutils literal notranslate"><span class="pre">-abl</span></code> flag is activated. In
+addition, it contains dictionaries that are required when additional flags are activated in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file. For
+example, the <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code> dictionary is only read if <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> is set to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p>
+<p>The folliwing table summarizes all entries and dictionaries available in the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code>. A description of
+entries specific to each dictionaries is given in the subsequent table.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 32.0%" />
+<col style="width: 15.0%" />
+<col style="width: 53.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry name</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hRough</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness length in m used to set
+set the initial velocity condition when
+<code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uRef</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>reference velocity in m/s used to set
+set the initial condition when
+<code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file. The initial wind will be
+a logarthmic profile with this value of velocity
+at <code class="docutils literal notranslate"><span class="pre">hRef</span></code>. It is also used by the
+velocity controller when <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> is set
+to <em>pressure</em> inside the <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code>
+dictionary.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hRef</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>reference height in m used to set
+set the initial condition when
+<code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file. The initial wind will be
+a logarthmic profile with velocity <code class="docutils literal notranslate"><span class="pre">uRef</span></code>
+at this height. It is also used by the
+velocity controller when <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> is set
+to <em>pressure</em> inside the <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code>
+dictionary.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">hInv</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>inversion layer height in m used to set
+set the initial potential temperature condition
+when <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dInv</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>inversion layer wifth in m used to set
+set the initial potential temperature condition
+when <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gInv</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>inversion layer strength in K used to set
+set the initial potential temperature condition
+when <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gTop</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>lapse rate above inversion in K/m used to set
+set the initial potential temperature condition
+when <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gABL</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>lapse rate below inversion in K/m used to set
+set the initial potential temperature condition
+when <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tRef</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>reference potential temperaure used to set
+set the initial potential temperature condition
+when <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> file. This is also assumed as a
+reference temperature throughout the simulation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">vkConst</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>von Karman constant.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">smearT</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>smearing parameter used to define how sharp the
+initial potential temperaure profile is, when
+when <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> file. Suggested value is 0.33.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">coriolisActive</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>Coriolis force activation flag.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">fCoriolis</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Coriolis parameter. Should be computed as
+<span class="math notranslate nohighlight">\(10^{-5} \cdot 7.272205217sin(\phi)\)</span>,
+where <span class="math notranslate nohighlight">\(\phi\)</span> is latitude.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerActive</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>Velocity controller activation flag. Requires
+<code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code> dictionary.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerActiveT</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>Temperature controller activation flag. The target
+laterally-averaged potential temperature profile
+that the controller aims at maintaining is the
+initial one. Requires
+<code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code> dictionary.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerActivePrecursorT</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>Temperature controller activation flag. Same as
+<code class="docutils literal notranslate"><span class="pre">controllerActiveT</span></code>, but for the concurrent
+precursor simulation. Requires
+<code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code> dictionary.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">perturbations</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>Adds divergence-free sinusoidal perturbations to
+triger turbulence in the initial condition when
+<code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
+<code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Contains inputs for velocity and temperature
+controllers. Required when
+<code class="docutils literal notranslate"><span class="pre">controllerActive</span></code>, <code class="docutils literal notranslate"><span class="pre">controllerActiveT</span></code>
+or <code class="docutils literal notranslate"><span class="pre">controllerActivePrecursorT</span></code> are set to 1.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">controllerProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">relaxPI</span><span class="w">                </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">controllerMaxHeight</span><span class="w">    </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">controllerType</span><span class="w">         </span><span class="n">string</span>
+<span class="w">   </span><span class="n">alphaPI</span><span class="w">                </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">timeWindowPI</span><span class="w">           </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">geostrophicDamping</span><span class="w">     </span><span class="kt">bool</span>
+<span class="w">   </span><span class="n">geoDampingAlpha</span><span class="w">        </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">geoDampingStartTime</span><span class="w">    </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">geoDampingTimeWindow</span><span class="w">   </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">hGeo</span><span class="w">                   </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">alphaGeo</span><span class="w">               </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">uGeoMag</span><span class="w">                </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">controllerAvgStartTime</span><span class="w"> </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Defines fringe region parameters, activated with
+<code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> 1 in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">xDampingProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">xDampingStart</span><span class="w">             </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">xDampingEnd</span><span class="w">               </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">xDampingDelta</span><span class="w">             </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">xDampingAlpha</span><span class="w">             </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">xDampingAlphaControlType</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">xDampingLineSamplingYmin</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">xDampingLineSamplingYmax</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">xDampingTimeWindow</span><span class="w">        </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">uBarSelectionType</span><span class="w">         </span><span class="n">integer</span>
+<span class="w">   </span><span class="c1">// additional parameters depending</span>
+<span class="w">   </span><span class="c1">// on uBarSelectionType (see next</span>
+<span class="w">   </span><span class="c1">// table)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The <em>uBarSelectionType</em> entry defines how the
+reference wind field is calculated inside the
+fringe region, and it requires additional
+parameters depending on the type. The <strong>concurrent
+precursor</strong> (i.e. when this reference field is
+solved concurrently with the main simulation) is
+activated by setting the <em>uBarSelectionType</em> to
+3. TOSCA creates the second simulation instance
+automatically, without requiring additional user
+parameters.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Defines lateral fringe region parameters,
+activated with  <code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code> 1 in
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">yDampingProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">yDampingStart</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">yDampingEnd</span><span class="w">    </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">yDampingDelta</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">yDampingAlpha</span><span class="w">  </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Defines Reyleigh damping layer parameters,
+activated with  <code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code> 1 in
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">zDampingProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">zDampingStart</span><span class="w">   </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">zDampingEnd</span><span class="w">     </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">zDampingAlpha</span><span class="w">   </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">zDampingAlsoXY</span><span class="w">  </span><span class="kt">bool</span>
+<span class="w">   </span><span class="n">zDampingXYType</span><span class="w">  </span><span class="n">integer</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">advectionDampingProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Defines advection damping regions parameters.
+This corresponds to the technique developed by
+Lanzilao and Meyers (2022a). It is activated with
+<code class="docutils literal notranslate"><span class="pre">-advectionDamping</span></code> 1 in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">advectionDampingProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">advDampingStart</span><span class="w">       </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">advDampingEnd</span><span class="w">         </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">advDampingDeltaStart</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">advDampingDeltaEnd</span><span class="w">    </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Defines Rayleigh damping layer at the <em>kLeft</em>
+patch. Requires <code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code> set to 1 in
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code>. Damping transitions from zero
+to max across a layer of width
+<em>kLeftFilterWidth</em> centered at
+<em>kLeftFilterHeight</em> and is applied between the
+<em>kLeft</em> patch and a plane at a distance
+<em>kLeftPatchDist</em> from the <em>kLeft</em> patch to
+obtain the desired velocity <em>kLeftDampingUBar</em>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">kLeftDampingProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">kLeftPatchDist</span><span class="w">     </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kLeftDampingAlpha</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kLeftDampingUBar</span><span class="w">   </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">kLeftFilterHeight</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kLeftFilterWidth</span><span class="w">   </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Defines Rayleigh damping layer at the <em>kRight</em>
+patch. Requires <code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code> set to 1 in
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code>. Damping transitions from zero
+to max across a layer of width
+<em>kRightFilterWidth</em> centered at
+<em>kRightFilterHeight</em> and is applied between the
+<em>kRight</em> patch and a plane at a distance
+<em>kRightPatchDist</em> from the <em>kRight</em> patch to
+obtain the desired velocity <em>kRightDampingUBar</em>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">kRightDampingProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">kRightPatchDist</span><span class="w">     </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kRightDampingAlpha</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kRightDampingUBar</span><span class="w">   </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">kRightFilterHeight</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kRightFilterWidth</span><span class="w">   </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">canopyProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Defines input parameters for the canopy model.
+Requires <code class="docutils literal notranslate"><span class="pre">-canopy</span></code> set to 1 in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>
+file.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">canopyProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">xStartCanopy</span><span class="w">     </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">xEndCanopy</span><span class="w">       </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">yStartCanopy</span><span class="w">     </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">yEndCanopy</span><span class="w">       </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">zStartCanopy</span><span class="w">     </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">zEndCanopy</span><span class="w">       </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">cftCanopy</span><span class="w">        </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">diskDirCanopy</span><span class="w">    </span><span class="n">vector</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The meaning of the entires required in the dictionaries listed in the above table are described below.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>controllerProperties</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">relaxPI</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerMaxHeight</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerType</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alphaPI</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">timeWindowPI</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">geostrophicDamping</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingAlpha</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingStartTime</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingTimeWindow</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hGeo</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alphaGeo</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uGeoMag</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerAvgStartTime</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>xDampingProperties</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingStart</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingEnd</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingDelta</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingAlpha</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingAlphaControlType</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingLineSamplingYmin</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingLineSamplingYmax</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingTimeWindow</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>yDampingProperties</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingStart</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingEnd</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingDelta</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingAlpha</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>zDampingProperties</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingStart</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingEnd</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingAlpha</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingAlsoXY</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingXYType</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>advectionDampingProperties</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingStart</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingEnd</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingDeltaStart</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingDeltaEnd</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>kLeftDampingProperties</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftPatchDist</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingAlpha</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterWidth</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>kRightDampingProperties</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightPatchDist</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingAlpha</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingUBar</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterHeight</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterWidth</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>canopyProperties</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xStartCanopy</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xEndCanopy</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yStartCanopy</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yEndCanopy</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zStartCanopy</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zEndCanopy</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cftCanopy</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">diskDirCanopy</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="turbines">
+<span id="turbines-section"></span><h3><cite>turbines</cite><a class="headerlink" href="#turbines" title="Link to this heading"></a></h3>
+</section>
+</section>
+<section id="spatial-mesh">
+<span id="spatial-mesh-section"></span><h2>Spatial Mesh<a class="headerlink" href="#spatial-mesh" title="Link to this heading"></a></h2>
+<p>The spatial mesh can be provided in two different formats. These can be selected with the <code class="docutils literal notranslate"><span class="pre">-meshFileType</span></code> keyword in the <cite>control.dat</cite> file, which can be set to <code class="docutils literal notranslate"><span class="pre">cartesian</span></code> or <code class="docutils literal notranslate"><span class="pre">curvilinear</span></code> for <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> and <code class="docutils literal notranslate"><span class="pre">.grid</span></code> formats, respectively. While both formats describe a structured mesh (TOSCA can only operate with this type of mesh), the first one is additionally cartesian. Both types of mesh can be defined such that grid points are stretched in all spatial directions. The <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> mesh format is TOSCA’s custom Cartesian mesh format, and it is very convenient since the user only has to provide the discretization along each of the three cartesian axes. The <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> mesh file format can be generalized as</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Nx<span class="w"> </span>Ny<span class="w"> </span>Nz
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>which, for a cube extending 50 m in each direction, with 10 m cells along each direction (hence 6 points), is given by</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">6</span><span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="m">6</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">20</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">30</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">40</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">50</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">10</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">20</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">30</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">40</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">50</span>
+</pre></div>
+</div>
+<p>As can be noticed, the mesh file is extremely light, even for large meshes, as only the discretization along the three cartesian axes is provided. The coordinates of the remaining mesh cells are inferred iternally within TOSCA, starting from the axes discretization.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">.grid</span></code> format is a curvilinear mesh format (available for example in the meshing software <cite>Pointwise</cite>), where the cartesian coordinates of each mesh point are provided. This becomes useful when the mesh is deformed, and a unique relationship between the cartesian and curvilinear sets of coordinates does not exist anymore. This is a much heavier mesh format, which can be generalized as follows</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Nj<span class="w"> </span>Nk<span class="w"> </span>Ni
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+:
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+:
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+:
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+:
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
+</pre></div>
+</div>
+<p>Taking as an example the same box extending 50 m in each direction, with 10 m cells along each direction, this can be expressed using the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> format as</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">6</span><span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="m">6</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Both in the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> and <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> format, the user has to provide the <em>mesh points</em> rather then the <em>cell centers</em> coordinates.</p>
+</div>
+<p>Notably, every cartesian mesh can be expressed using the curvilinear format, while the opposite is not true. TOSCA always operates using curvilinear coordinates internally, and since boundary conditions are given on curvilinear patches one has to bear in mind a few concepts, explained below, in order to assign BCs in the way he intends to. Firstly, one can think of curvilinear coordinates as the mesh cell indices in each of the three directions, expressed in TOSCA as <cite>k</cite>, <cite>j</cite> and <cite>i</cite>. With this in mind, it appears clear that each boundary can be identified by keeping one of the indices fixed while the others two vary. In fact, boundaries are identifyed in TOSCA using <cite>kLeft</cite>, <cite>kRight</cite>, <cite>jLeft</cite>, <cite>jRight</cite>, <cite>iLeft</cite> and <cite>iRight</cite>. When the mesh is cartesian (and the axes are aligned to the edges of the domain) boundaries can be also identifyed with the minimum and maximum of each cartesian coordinates. However, this is not general and it would not hold for a curvilinear mesh, or even a cartesian mesh with the domain edges not aligned with the cartesian coordinates. For this reason, boundaries are always identified using the curvilinear definition in TOSCA. To know how to assign boundary conditions, e.g. what boundary corresponds to the <cite>kLeft</cite> patch and so on, one has to keep in mind that the <cite>.grid</cite> file is read by TOSCA using a <cite>i,k,j</cite> nested loop order, namely</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="c1">// loop through the mesh cells</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">&lt;</span><span class="n">Ni</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">&lt;</span><span class="n">Nk</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">&lt;</span><span class="n">Nj</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="c1">// read point k,j,i in the .grid file</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Looking at the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> file format, it is clear that there is no unique relation between <cite>k,j,i</cite> and <cite>x,y,z</cite>. However, when the mesh is cartesian, this relation depends on how the mesh file is created. It is easy to notice that, in the provided <code class="docutils literal notranslate"><span class="pre">.grid</span></code> example, <cite>k,j,i</cite> correspond to <cite>x,z,y</cite>. For the <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> file format, where a unique relation exists, TOSCA constructs the mesh such that <cite>k,j,i</cite> correspond to <cite>x,z,y</cite> (this can be also appreciated in the provided example). In an ABL or wind farm simulation, where x is usually aligned with the wind direction, and y and z are the spanwise and vertical coordinates, respectively, the inlet will corrispond to <cite>kLeft</cite>, the outlet to <cite>kRight</cite>, the bottom and top to <cite>jLeft</cite> and <cite>jRight</cite>, respectively, while the spanwise boundaries will be <cite>iLeft</cite> and <cite>iRight</cite>. This relation will always apply as long as a cartesian mesh is used. The relations between curvilinear and cartesian coordinates depending on the mesh and domain type are summarized in the following table.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><strong>format</strong></p></td>
+<td><p><strong>cartesian domain</strong></p></td>
+<td><p><strong>curvilinear domain</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">.grid</span></code></p></td>
+<td><p>case-dependent</p></td>
+<td><p>unique relation impossible</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">.xyz</span></code></p></td>
+<td><p><cite>k,j,i</cite> -&gt; <cite>x,z,y</cite></p></td>
+<td><p>non-representable</p></td>
+</tr>
+</tbody>
+</table>
 </section>
 </section>
 
