@@ -1,4 +1,3 @@
-
 //#include </usr/include/hdf5/serial/hdf5.h>
 #include "include/base.h"
 #include "include/domain.h"
@@ -199,6 +198,14 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
       // temperature equation initialize
       InitializeTEqn(domain[d].teqn);
 
+      InitializeSMObject(domain[d].smObject);
+
+      // scalarMoment equations initialize
+      for  (PetscInt  i=0; i < domain[d].access.flags->isScalarMomentsActive; i++)
+      {
+          InitializeSM(domain[d].smObject->sm[i]);
+      }
+
       // LES model initialize
       InitializeLES(domain[d].les);
 
@@ -220,6 +227,7 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
           PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",        &(acquisition->isProbesActive),     PETSC_NULL);
 
           averageFieldsInitialize(domain[d].acquisition);
+          TKEFieldsInitialize(domain[d].acquisition);
           averageKEBudgetsInitialize(domain[d].acquisition);
           perturbationABLInitialize(domain[d].acquisition);
 
@@ -495,6 +503,18 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
         mesh->Nvert
     );
 
+    writeScalarToXMF
+    (
+        domain,
+        filexmf,
+        hdfileName.c_str(),
+        &file_id,
+        &dataspace_id,
+        time,
+        "vents",
+        mesh->ventMarkers
+    );
+
     if(domain->flags.isLesActive)
     {
         writeScalarToXMF
@@ -550,6 +570,136 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             "T",
             domain->teqn->Tmprt
         );
+    }
+
+    if(flags->isScalarMomentsActive)
+    {
+        for  (int  ii=0; ii < flags->isScalarMomentsActive; ii++)
+        {
+            char nam[20];
+            sprintf(nam, "SM%i", ii);
+
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                nam,
+                domain->smObject->sm[ii]->smVal
+            );
+        }
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "quant",
+            domain->smObject->quant
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Dq",
+            domain->smObject->Dq
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "probI",
+            domain->smObject->probI
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "coag0",
+            domain->smObject->sm[0]->coagSource
+        );
+
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "dep0",
+            domain->smObject->sm[0]->Dep
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "depCount0",
+            domain->smObject->DepCount
+        );
+
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "sed0",
+            domain->smObject->sm[0]->Sed
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "exCount0",
+            domain->smObject->ExCount
+        );
+
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "dev0",
+            domain->smObject->sm[0]->Dev
+        );
+
     }
 
     if(io->qCrit)
@@ -673,6 +823,97 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             "buoyancy",
             domain->ueqn->bTheta
         );
+    }
+
+    if(io->TKE)
+    {
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "avgU",
+            acquisition->TKE->avgU
+        );
+
+        writeVectorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Up",
+            acquisition->TKE->Up
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "KeEps",
+            acquisition->TKE->KeEps
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Kres",
+            acquisition->TKE->Kres
+        );
+
+        writeSymmTensorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "tkeUpUp",
+            acquisition->TKE->VpVp
+        );
+
+        if(domain->flags.isLesActive)
+        {
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "avgNut",
+                acquisition->TKE->avgNut
+            );
+
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "avgCs",
+                acquisition->TKE->avgCs
+            );
+        }
+
     }
 
     if(io->averaging)
@@ -5522,7 +5763,7 @@ PetscErrorCode fieldUserDefinedPlaneToXMF(domain_ *domain)
 
                     fileName   = surfaceDir + "/" + thisCaseName() + "_" +  uSection->sectionName  + "_averages_" + stream.str();
                     hdfileName = thisCaseName() + "_" + uSection->sectionName  + "_averages_" + stream.str();
-                    
+
                     // open this time section in the XMF file
                     if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), uSection->nx, uSection->ny, 1, "3DSMesh", timeSeries[ntimes-1]);
 
@@ -5771,7 +6012,7 @@ PetscErrorCode fieldUserDefinedPlaneToXMF(domain_ *domain)
                         {
                             // no fields for now
                         }
-                    }                    
+                    }
                     // close this time section in the XMF file
                     if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
 
@@ -5788,11 +6029,11 @@ PetscErrorCode fieldUserDefinedPlaneToXMF(domain_ *domain)
                         fclose(xmf);
                     }
                 }
-                
+
             }
 
-            PetscPrintf(mesh->MESH_COMM, "done\n\n");         
-        }        
+            PetscPrintf(mesh->MESH_COMM, "done\n\n");
+        }
     }
 
     return 0;
@@ -9132,13 +9373,13 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                     // allocate memory
                     acquisition->userSections->uSection[s] = new uSections;
-                    
+
                     uSections *uSection = acquisition->userSections->uSection[s];
-                    
+
                     userSecName = userSecPath + "/" + surfaceSeries[s];
 
-                    //set surface name 
-                    uSection->sectionName = surfaceSeries[s]; 
+                    //set surface name
+                    uSection->sectionName = surfaceSeries[s];
 
                     // read acquisition start time and type of interval
                     readDictDouble(userSecName.c_str(), "timeStart", &(uSection->timeStart));
@@ -9186,7 +9427,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                     }
 
                     if(flipIndexOrder == 1)
-                    { 
+                    {
                         PetscInt tempIndex;
                         tempIndex = uSection->ny;
                         uSection->ny = uSection->nx;
@@ -9220,7 +9461,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                     indata.close();
 
-                    //allocate memory 
+                    //allocate memory
                     uSection->closestId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
 
                     for(j=0; j<ny; j++)
@@ -9286,7 +9527,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                                     }
                                 }
-                            }   
+                            }
 
                             MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
 
@@ -9318,7 +9559,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                         free(localId[j]);
                     }
 
-                    free(localId);  
+                    free(localId);
 
                     atLeastOneVector++;
                     if(flags.isTeqnActive) atLeastOneScalar++;
@@ -9346,7 +9587,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                         }
                     }
                 }
-                
+
             }
             else
             {

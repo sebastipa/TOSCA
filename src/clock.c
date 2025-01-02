@@ -56,6 +56,16 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
             predictedDt  = currentDistanceToWriteTime(clock, timeStart, timeInterval);
 
+            // averaged tke
+            if(domain[d].io->TKE)
+            {
+                timeStart    = domain[d].io->tkeStartTime;
+                timeInterval = domain[d].io->tkePrd;
+
+                timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
+                predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
+            }
+
             // averaged fields
             if(domain[d].io->averaging)
             {

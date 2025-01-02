@@ -46,3 +46,9 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn);
 
 //!< \brief set the internal field as the spreaded inlet flow condition
 PetscErrorCode SpreadInletFlowT(teqn_ *teqn);
+
+//!< \brief set the initial ScalarMoment field
+PetscErrorCode SetInitialFieldSM(sm_ *sm, char *momentInitF, PetscInt ii);
+
+//!< \brief set uniform value for the Scalar Moment
+PetscErrorCode SetUniformFieldSM(sm_ *sm, PetscReal &smRef, PetscInt ii);

@@ -28,7 +28,7 @@ struct ueqn_
     Vec           sourceU;                          //!< source term to drive Uref at Zref with periodic BCs
     Vec           gCont;                            //!< gravity vector in cuvilinear coordinates
     Vec           Ucont, lUcont;                    //!< contravariant fluxes (contravariant velocity / J)
-    Vec           Ucat, lUcat;                      //!< cartesian velocity
+    Vec           Ucat, lUcat, Ucat_o;                      //!< cartesian velocity
     Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step
     Vec           lUstar;
 
@@ -91,6 +91,9 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn);
 
 //! \brief Adjust fluxes to obey mass conservation in the overset domain
 PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn);
+
+//! \brief Adjust fluxes to obey mass conservation
+PetscErrorCode adjustFluxesVents(ueqn_ *ueqn);
 
 //! \brief Compute driving source term
 PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);

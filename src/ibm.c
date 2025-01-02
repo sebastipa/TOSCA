@@ -229,9 +229,6 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
         MPI_Barrier(mesh->MESH_COMM);
     }
 
-    //update the boundary condition around ibm cells
-    UpdateImmersedBCs(ibm);
-
     contravariantToCartesian(ibm->access->ueqn);
 
     MPI_Barrier(mesh->MESH_COMM);
@@ -2927,7 +2924,7 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
         PetscReal     d_center, dmin = 1.0e20, d, t, tmin;
         Cmpnts        pmin, po, pj;
         PetscReal     normProj;                             // normal projection of point to ibm mesh element
-        PetscInt      bodyID;
+        PetscInt      bodyID, sID;
         word          closestType;
 
         // loop through the ibm bodies
@@ -2976,12 +2973,228 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
 
                             if(d_center - rvec[e] < dmin)
                             {
+<<<<<<< HEAD
                                 dmin = d_center - rvec[e];
                                 cellMin = e;
                                 bodyID  = b;
                             }
                         }
 
+=======
+
+                                dis = nScale(normProj, elemNorm);
+                                pj  = nSub(cent[k][j][i], dis);
+
+                                // The projected point is inside the triangle
+                                if(isPointInTriangle(pj, p1, p2, p3, elemNorm) == 1)
+                                {
+                                    if(normProj < dmin)
+                                    {
+                                        dmin    = normProj;
+                                        pmin    = pj;
+                                        cellMin = e;
+                                        bodyID  = b;
+
+                                        if (ibmBody->bodyType == "surfaceBody")
+                                        {
+                                            PetscInt leftB = 0;
+                                            PetscInt rightB = 0;
+
+                                            for (PetscInt s = 0; s < ibmBody->numSurfaces; s++)
+                                            {
+                                              if (s == 0)
+                                              {
+                                                  PetscInt leftB = 0;
+                                                  PetscInt rightB = ibmBody->ibmSurface[s]->ibMsh->elems;
+                                                  //PetscPrintf(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                                  if (e >= leftB && e < rightB)
+                                                  {
+                                                      sID = s;
+                                                      //PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                                  }
+
+                                              }
+                                              else
+                                              {
+                                                  PetscInt leftB =+ ibmBody->ibmSurface[s-1]->ibMsh->elems;
+                                                  PetscInt rightB =+ leftB + ibmBody->ibmSurface[s]->ibMsh->elems;
+                                                  //PetscPrintf(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                                  if (e >= leftB && e < rightB)
+                                                  {
+                                                      sID = s;
+                                                      //PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                                  }
+                                              }
+
+                                            }
+
+                                            ibF[c].sID = sID;
+
+                                        }
+
+                                    }
+                                }
+                                // The projected point is outside the triangle
+                                else
+                                {
+                                    // po is the approximated projected point and d is the distance to that point from cent[k][j][i]
+                                    disP2Line(cent[k][j][i], p1, p2, &po, &d);
+
+                                    if (d < dmin)
+                                    {
+                                        dmin = d;
+                                        pmin = po;
+                                        cellMin = e;
+                                        bodyID  = b;
+
+                                        if (ibmBody->bodyType == "surfaceBody")
+                                        {
+                                            PetscInt leftB = 0;
+                                            PetscInt rightB = 0;
+
+                                            for (PetscInt s = 0; s < ibmBody->numSurfaces; s++)
+                                            {
+                                              if (s == 0)
+                                              {
+                                                  PetscInt leftB = 0;
+                                                  PetscInt rightB = ibmBody->ibmSurface[s]->ibMsh->elems;
+                                                  //PetscPrintf(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                                  if (e >= leftB && e < rightB)
+                                                  {
+                                                      sID = s;
+                                                      //PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                                  }
+
+                                              }
+                                              else
+                                              {
+                                                  PetscInt leftB =+ ibmBody->ibmSurface[s-1]->ibMsh->elems;
+                                                  PetscInt rightB =+ leftB + ibmBody->ibmSurface[s]->ibMsh->elems;
+                                                  //PetscPrintf(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                                  if (e >= leftB && e < rightB)
+                                                  {
+                                                      sID = s;
+                                                      PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                                  }
+                                              }
+
+                                            }
+
+                                            ibF[c].sID = sID;
+
+                                        }
+
+                                    }
+
+                                    disP2Line(cent[k][j][i], p2, p3, &po, &d);
+
+                                    if (d < dmin)
+                                    {
+                                        dmin = d;
+                                        pmin = po;
+                                        cellMin = e;
+                                        bodyID  = b;
+
+                                        if (ibmBody->bodyType == "surfaceBody")
+                                        {
+                                            PetscInt leftB = 0;
+                                            PetscInt rightB = 0;
+
+                                            for (PetscInt s = 0; s < ibmBody->numSurfaces; s++)
+                                            {
+                                              if (s == 0)
+                                              {
+                                                  PetscInt leftB = 0;
+                                                  PetscInt rightB = ibmBody->ibmSurface[s]->ibMsh->elems;
+                                                  //PetscPrintf(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                                  if (e >= leftB && e < rightB)
+                                                  {
+                                                      sID = s;
+                                                      //PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                                  }
+
+                                              }
+                                              else
+                                              {
+                                                  PetscInt leftB =+ ibmBody->ibmSurface[s-1]->ibMsh->elems;
+                                                  PetscInt rightB =+ leftB + ibmBody->ibmSurface[s]->ibMsh->elems;
+                                                  //PetscPrintf(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                                  if (e >= leftB && e < rightB)
+                                                  {
+                                                      sID = s;
+                                                      PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                                  }
+                                              }
+
+                                            }
+
+                                            ibF[c].sID = sID;
+
+                                        }
+
+                                    }
+
+                                    disP2Line(cent[k][j][i], p3, p1, &po, &d);
+
+                                    if (d < dmin)
+                                    {
+                                        dmin = d;
+                                        pmin = po;
+                                        cellMin = e;
+                                        bodyID  = b;
+
+                                        if (ibmBody->bodyType == "surfaceBody")
+                                        {
+                                            PetscInt leftB = 0;
+                                            PetscInt rightB = 0;
+
+                                            for (PetscInt s = 0; s < ibmBody->numSurfaces; s++)
+                                            {
+                                              if (s == 0)
+                                              {
+                                                  PetscInt leftB = 0;
+                                                  PetscInt rightB = ibmBody->ibmSurface[s]->ibMsh->elems;
+                                                  //PetscPrintf(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                                  if (e >= leftB && e < rightB)
+                                                  {
+                                                      sID = s;
+                                                      //PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                                  }
+
+                                              }
+                                              else
+                                              {
+                                                  PetscInt leftB =+ ibmBody->ibmSurface[s-1]->ibMsh->elems;
+                                                  PetscInt rightB =+ leftB + ibmBody->ibmSurface[s]->ibMsh->elems;
+                                                  //(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                                  if (e >= leftB && e < rightB)
+                                                  {
+                                                      sID = s;
+                                                      PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                                  }
+                                              }
+
+                                            }
+
+                                            ibF[c].sID = sID;
+
+                                        }
+
+                                    }
+                                }
+                            }
+                        }
+
+
+>>>>>>> sm.c added for a RK4 scalar moment solver for passive aerosol concentration transport. TKE field added in acquisition to allow for Up to be saved. Syn turbulence at inlet updated to ensure its divergence free for vents. adjustFluxVents added as well.
                     }
                 }
             }
@@ -3001,10 +3214,17 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
         ibmMesh       *ibMsh   = ibmBody->ibMsh;                         // pointer to the ibm body mesh
         elementBox    *eBox    = ibmBody->eBox;
 
+<<<<<<< HEAD
         PetscInt      *nv1   = ibMsh->nID1, *nv2  = ibMsh->nID2, *nv3  = ibMsh->nID3;
         Cmpnts        *eN    = ibMsh->eN;
         Cmpnts        *nCoor = ibMsh->nCoor;
         dmin = 1.0e20;
+=======
+
+
+        Cpt2D     pjp, pj1, pj2, pj3;
+        ibmMesh   *ibMsh = ibm->ibmBody[bodyID]->ibMsh;                         // pointer to the ibm body mesh
+>>>>>>> sm.c added for a RK4 scalar moment solver for passive aerosol concentration transport. TKE field added in acquisition to allow for Up to be saved. Syn turbulence at inlet updated to ensure its divergence free for vents. adjustFluxVents added as well.
 
         //check if processor controls this ibm body
         if(ibmBody->ibmControlled)
@@ -3518,9 +3738,16 @@ PetscErrorCode CurvibInterpolationTriangular(ibm_ *ibm)
 
     PetscInt      i, j, k, ii, kk, jj, k1, j1, i1;
     PetscInt      b, c, s;
+<<<<<<< HEAD
     Cmpnts        ***ucat, ***lucat, ***cent;
     PetscReal     ***lt, ***temp, ***nvert, ***aj, dudt;
     Cmpnts        bPt;
+=======
+    cellIds       initCp;
+    Cmpnts        ***ucat, ***lucat, ***cent, ***csi, ***eta, ***zet;
+    PetscReal     ***lt, ***temp, ***tempO, ***aj, ***nvert, ***lp, ***dudt;
+    Cmpnts        bPt, bPtInit;
+>>>>>>> sm.c added for a RK4 scalar moment solver for passive aerosol concentration transport. TKE field added in acquisition to allow for Up to be saved. Syn turbulence at inlet updated to ensure its divergence free for vents. adjustFluxVents added as well.
     Cmpnts        bPtVel, ibmPtVel, ibmPtVelPrev;
     PetscReal     bPtTemp, ibmPtTemp, cellSize;
 
@@ -3532,6 +3759,7 @@ PetscErrorCode CurvibInterpolationTriangular(ibm_ *ibm)
 
     if (flags->isTeqnActive)
     {
+        DMDAVecGetArray(da, teqn->Tmprt_o, &tempO);
         DMDAVecGetArray(da, teqn->lTmprt, &lt);
         DMDAVecGetArray(da, teqn->Tmprt, &temp);
     }
@@ -3951,6 +4179,7 @@ PetscErrorCode CurvibInterpolationInternalCell(ibm_ *ibm)
             kc = initCp.k;
         }
 
+<<<<<<< HEAD
          /********************************************************************************************************
              Interpolation of the second background point field
          /*******************************************************************************************************/
@@ -5853,6 +6082,61 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                     a11 = eT1.x; a12 = eT2.x, a13 = eN.x;
                     a21 = eT1.y; a22 = eT2.y, a23 = eN.y;
                     a31 = eT1.z; a32 = eT2.z, a33 = eN.z;
+=======
+
+        if(ibm->ibmBody[ibF[c].bodyID]->bodyType == "surfaceBody")
+        {
+            //PetscPrintf(PETSC_COMM_WORLD, "SID = %li flag = %li\n", ibF[c].surfaceID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID]);
+            if(ibm->ibmBody[ibF[c].bodyID]->uSourceFlagSurf[ibF[c].sID] == 1)
+            {
+                // interpolate the velocity of the projected point on the IBM solid element from its nodes
+                ibmPtVel.x =   0.5;
+
+                ibmPtVel.y =   ibMsh->nU[n1].y * ibF[c].cs1
+                             + ibMsh->nU[n2].y * ibF[c].cs2
+                             + ibMsh->nU[n3].y * ibF[c].cs3;
+
+                ibmPtVel.z =   ibMsh->nU[n1].z * ibF[c].cs1
+                             + ibMsh->nU[n2].z * ibF[c].cs2
+                             + ibMsh->nU[n3].z * ibF[c].cs3;
+            }
+            else
+            {
+                // interpolate the velocity of the projected point on the IBM solid element from its nodes
+                ibmPtVel.x =   ibMsh->nU[n1].x * ibF[c].cs1
+                             + ibMsh->nU[n2].x * ibF[c].cs2
+                             + ibMsh->nU[n3].x * ibF[c].cs3;
+
+                ibmPtVel.y =   ibMsh->nU[n1].y * ibF[c].cs1
+                             + ibMsh->nU[n2].y * ibF[c].cs2
+                             + ibMsh->nU[n3].y * ibF[c].cs3;
+
+                ibmPtVel.z =   ibMsh->nU[n1].z * ibF[c].cs1
+                             + ibMsh->nU[n2].z * ibF[c].cs2
+                             + ibMsh->nU[n3].z * ibF[c].cs3;
+            }                        //}
+
+        }
+        else
+        {
+            //PetscPrintf(PETSC_COMM_WORLD, "SID = %li flag = %li\n", ibF[c].surfaceID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID]);
+                // interpolate the velocity of the projected point on the IBM solid element from its nodes
+                ibmPtVel.x =   ibMsh->nU[n1].x * ibF[c].cs1
+                             + ibMsh->nU[n2].x * ibF[c].cs2
+                             + ibMsh->nU[n3].x * ibF[c].cs3;
+
+                ibmPtVel.y =   ibMsh->nU[n1].y * ibF[c].cs1
+                             + ibMsh->nU[n2].y * ibF[c].cs2
+                             + ibMsh->nU[n3].y * ibF[c].cs3;
+
+                ibmPtVel.z =   ibMsh->nU[n1].z * ibF[c].cs1
+                             + ibMsh->nU[n2].z * ibF[c].cs2
+                             + ibMsh->nU[n3].z * ibF[c].cs3;
+            //}                        //}
+        }
+
+
+>>>>>>> sm.c added for a RK4 scalar moment solver for passive aerosol concentration transport. TKE field added in acquisition to allow for Up to be saved. Syn turbulence at inlet updated to ensure its divergence free for vents. adjustFluxVents added as well.
 
                     //transform it to original co-ordinate system
                     tau11 = 2.0 * a11 * a13 * tauWall;
@@ -5874,6 +6158,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                         visc3[k][j][i].y = tau21* kzet[k1][j1][i1].x + tau22 * kzet[k1][j1][i1].y + tau23 * kzet[k1][j1][i1].z;
                         visc3[k][j][i].z = tau31* kzet[k1][j1][i1].x + tau32 * kzet[k1][j1][i1].y + tau33 * kzet[k1][j1][i1].z;
 
+<<<<<<< HEAD
                         if (flags->isTeqnActive)
                         {
                             qFlux = nScale(-qWall, eNorm);
@@ -5897,6 +6182,60 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                         visc1[k][j][i].x = tau11* icsi[k1][j1][i1].x + tau12 * icsi[k1][j1][i1].y + tau13 * icsi[k1][j1][i1].z;
                         visc1[k][j][i].y = tau21* icsi[k1][j1][i1].x + tau22 * icsi[k1][j1][i1].y + tau23 * icsi[k1][j1][i1].z;
                         visc1[k][j][i].z = tau31* icsi[k1][j1][i1].x + tau32 * icsi[k1][j1][i1].y + tau33 * icsi[k1][j1][i1].z;
+=======
+
+         //find the distance from the wall of points b and c along the element normal
+         sb = nDot(nSub(cent[k][j][i], ibF[c].pMin), eNorm);
+         sc = nDot(nSub(bPt, ibF[c].pMin), eNorm);
+
+         if (flags->isTeqnActive)
+         {
+
+             if(ibm->ibmBody[ibF[c].bodyID]->bodyType == "surfaceBody")
+             {
+                 //PetscPrintf(PETSC_COMM_WORLD, "SID = %li flag = %li\n", ibF[c].surfaceID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID]);
+                 if(ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].sID] == 1)
+                 {
+                     ibmPtTemp = ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->IBTemp;
+                     //PetscPrintf(PETSC_COMM_WORLD, "IBTemp%li %f\n", s, ibmPtTemp);
+                 }
+                 else if (ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].sID] == 2)
+                 {
+                     //future work
+                 }
+                 else
+                 {
+                     ibmPtTemp = ibm->access->constants->tRef;
+
+                     //PetscPrintf(PETSC_COMM_WORLD, "SID = %li flag = %li\n", ibF[c].surfaceID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID]);
+                 }                        //}
+
+             }
+             else
+             {
+                 if(flags->isAblActive)
+                 {
+                     ibmPtTemp = ibm->access->abl->tRef;
+                 }
+                 else if (ibm->ibmBody[ibF[c].bodyID]->tSourceFlag == 1)
+                 {
+                     ibmPtTemp = ibm->ibmBody[ibF[c].bodyID]->IBTemp;
+                     //ibmPtTemp = tempO[k][j][i] + sb * (37.5/(1000*0.00002216*cst->rho));
+                 }
+                 else if (ibm->ibmBody[ibF[c].bodyID]->tSourceFlag == 2)
+                 {
+                     //future work
+                 }
+                 else
+                 {
+                     ibmPtTemp = ibm->access->constants->tRef;
+                 }
+             }
+
+
+         }
+
+>>>>>>> sm.c added for a RK4 scalar moment solver for passive aerosol concentration transport. TKE field added in acquisition to allow for Up to be saved. Syn turbulence at inlet updated to ensure its divergence free for vents. adjustFluxVents added as well.
 
                         if (flags->isTeqnActive)
                         {
@@ -5930,9 +6269,44 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
 	DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
 	DMDAVecRestoreArray(fda, mesh->lJZet, &jzet);
 
+<<<<<<< HEAD
 	DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
 	DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
 	DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+=======
+             if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "LogLawAPG")
+             {
+                 wallFunctionLogLawAPG(cst->nu, sc, sb, roughness, kappa, ibmPtVel,
+                                         bPtVel, &ucat[k][j][i], &ustar, eNorm,
+                                         dp_dx, dp_dy, dp_dz);
+             }
+         }
+         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "slip")
+         {
+             slipBC(sc, sb, ibmPtVel, bPtVel, &ucat[k][j][i], eNorm);
+         }
+         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "noSlip")
+         {
+             ucat[k][j][i].x = (sb/sc) * bPtVel.x + (1.0 - (sb/sc)) * ibmPtVel.x;
+             ucat[k][j][i].y= (sb/sc) * bPtVel.y + (1.0 - (sb/sc)) * ibmPtVel.y;
+             ucat[k][j][i].z = (sb/sc) * bPtVel.z + (1.0 - (sb/sc)) * ibmPtVel.z;
+
+             /*if (ucat[k][j][i].x == 0. && ucat[k][j][i].y == 0. && ucat[k][j][i].z == 0.)
+             {
+                 printf("\n%li, %li, %li, %f, %f, %f", k, j, i, ucat[k][j][i].x, ucat[k][j][i].y, ucat[k][j][i].z);
+                 printf("\n%li, %li, %li, %f, %f, %f", k, j, i, bPtVel.x, bPtVel.y, bPtVel.z);
+                 printf("\n%li, %li, %li, %f, %f, %f", k, j, i, ibmPtVel.x, ibmPtVel.y, ibmPtVel.z);
+                 printf("\n%li, %li, %li, %f, %f", k, j, i, sb, sc);
+                 printf("\n%li, %li, %li, %f, %f, %f", k, j, i, cent[k][j][i].x, cent[k][j][i].y, cent[k][j][i].z);
+                 printf("\n%li, %li, %li, %f, %f, %f", k, j, i, ibF[c].pMin.x, ibF[c].pMin.y, ibF[c].pMin.z);
+                 printf("\n%li, %li, %li, %f, %f, %f", k, j, i, eNorm.x, eNorm.y, eNorm.z);
+
+             }*/
+         }
+         else if(ibm->ibmBody[ibF[c].bodyID]->wallModelU == "Schumann")
+         {
+             Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallmodel->wmShumann;
+>>>>>>> sm.c added for a RK4 scalar moment solver for passive aerosol concentration transport. TKE field added in acquisition to allow for Up to be saved. Syn turbulence at inlet updated to ensure its divergence free for vents. adjustFluxVents added as well.
 
     DMDAVecRestoreArray(da, mesh->lIAj, &iaj);
 	DMDAVecRestoreArray(da, mesh->lJAj, &jaj);
@@ -5945,7 +6319,11 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
 
     if (flags->isTeqnActive)
     {
+<<<<<<< HEAD
         DMDAVecRestoreArray(fda, teqn->lViscIBMT, &viscT);
+=======
+        DMDAVecRestoreArray(da, teqn->Tmprt_o, &tempO);
+>>>>>>> sm.c added for a RK4 scalar moment solver for passive aerosol concentration transport. TKE field added in acquisition to allow for Up to be saved. Syn turbulence at inlet updated to ensure its divergence free for vents. adjustFluxVents added as well.
         DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
         DMLocalToLocalBegin(fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);
         DMLocalToLocalEnd  (fda, teqn->lViscIBMT, INSERT_VALUES, teqn->lViscIBMT);

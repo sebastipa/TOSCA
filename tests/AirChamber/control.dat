@@ -1,0 +1,97 @@
+# TOSCA Input file - control dictionary
+# ---------------------------------
+
+# Simulation
+# ---------------------------------
+-startFrom                 startTime
+-startTime                 0
+-endTime                   60.0
+-cfl                       0.7
+-adjustTimeStep            1
+-timeStep                  0.08
+-timePrecision             3
+
+# Write Data
+# ---------------------------------
+-intervalType              adjustableTime
+-timeInterval              0.01
+-purgeWrite                0
+
+# Solution
+# ---------------------------------
+-potentialT                0
+-abl                       0
+-zDampingLayer             0
+-ibm                       0
+-overset                   0
+-absTolU                   1e-8
+-poissonIt                 30
+-poissonTol                1e-8
+-poissonSolver             PETSc
+-hypreSolverType           1
+-ceqn                      0
+-porousZones               0
+-sources                   0
+-scalarMoments	           0
+-vents                     1
+
+# Turbulence Model
+# ---------------------------------
+-les                       4
+-max_cs                    10
+
+# Numerical Schemes
+# ---------------------------------
+-dUdtScheme                backwardEuler
+-dTdtScheme                backwardEuler
+-dSMdtScheme		   rungeKutta4
+-divScheme                 centralUpwind
+
+# Wind Turbine
+# ---------------------------------
+-windplant                0
+
+# Constants
+# ---------------------------------
+-nu                        1.5e-5
+-rho                       1.2
+-Pr                        0.71
+-tRef                      293.0
+-Sc	                   0.63
+-ScT			   0.7
+
+# Mesh
+# ---------------------------------
+-meshFileType             cartesian
+
+
+# Acquisition
+# ---------------------------------
+-sections                 1
+-probes                   0
+-keBudgets                0
+#-averagingABL            1
+#-averaging3LM             1
+
+#-computeQ                1
+
+-tke                1
+-tkePeriod                0.01
+-tkeStartTime             0
+
+#-phaseAveraging          3
+#-phaseAvgPeriod          500
+#-phaseAvgStartTime       0
+
+# PostProcessing
+# ---------------------------------
+-writeRaster              0
+-postProcessFields        1
+
+# smSource
+# ---------------------------------
+-coagSource               0
+-groSource                0
+-depoSource               1
+-sediFlux                 1
+-deviFlux                 1

@@ -11,11 +11,23 @@
 #include "acquisition/keAcquisition.h"
 #include "acquisition/perturbAcquisition.h"
 
+//! \brief Struct defining the tke fields
+typedef struct{
+    Vec avgU;
+    Vec Up;
+    Vec KeEps;
+    Vec Kres;
+    Vec avgNut;
+    Vec avgCs;
+    Vec VpVp;
+}TKEFields;
+
 //! \brief Struct containing all acquisition data structures
 struct acquisition_
 {
     rakes         *probes;                    //!< probe rakes
     avgFields     *fields;                    //!< average and turbulence fields
+    TKEFields     *TKE;
     keFields      *keBudFields;               //!< kinetic energy budjets
     sections      *kSections;                 //!< information about the k-sections
     sections      *jSections;                 //!< information about the j-sections
@@ -114,6 +126,15 @@ PetscErrorCode computeCanopyForceIO(acquisition_ *acquisition);
 
 //! \brief Compute velocity divergence field for I/O
 PetscErrorCode computeVelocityDivergence(acquisition_ *acquisition);
+
+// TKE ACQUISITION
+// ============================================================================================================= //
+
+//! \brief Initialize average fields acquisition
+PetscErrorCode TKEFieldsInitialize(acquisition_ *acquisition);
+
+//! \brief Average fields
+PetscErrorCode TKEField(acquisition_ *acquisition);
 
 // MKE BUDGETS ACQUISITION
 // ============================================================================================================= //

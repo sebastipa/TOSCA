@@ -47,4 +47,8 @@ object0
     thetaRef                        300.0
 
     searchCellRatio                 3
+
+    #bondaryValues
+    tSourceFlag                     0
+    smSourceFlag                    0
 }

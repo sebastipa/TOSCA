@@ -1,0 +1,26 @@
+# OKWind Input file - U boundary conditions
+# -------------------------------------------
+
+#internal field
+
+internalField     uniform
+{
+  value (0.0 0.0 0.0)
+  perturbations 0
+}
+
+#internalField    readField
+
+# boundary patches
+
+iLeft            noSlip
+
+iRight           noSlip
+
+jLeft            noSlip
+
+jRight           noSlip
+
+kLeft            noSlip #fixedValue (0.1 0.0 0.0)
+
+kRight           noSlip #zeroGradient

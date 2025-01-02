@@ -154,6 +154,9 @@ struct inletFunctions
 //! \brief Reads boundary conditions for a scalar field
 PetscErrorCode readScalarBC(const word &location, const word &field, scalarBC *bc);
 
+//! \brief Reads boundary conditions for a scalarMoments field multiple scalar fields
+PetscErrorCode readScalarMomentsBC(const word &location, const word &field, SMObj_ *smObject);
+
 //! \brief Reads bundary conditions for a vector field
 PetscErrorCode readVectorBC(const word &location, const word &field, vectorBC *bc);
 
@@ -196,5 +199,8 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn);
 //! \brief Update wall model for specified wall heat flux
 PetscErrorCode UpdateWallModelsT(teqn_ *teqn);
 
-//! \brief read surface temperature and obhukhov length data 
+//! \brief read surface temperature and obhukhov length data
 PetscErrorCode readSurfaceTempData(Shumann *wm);
+
+//! \brief Update Scalar Moment boundary conditions for scalar moment object ii
+PetscErrorCode UpdateScalarMomentBCs(sm_ *sm, PetscInt ii);

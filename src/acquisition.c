@@ -105,6 +105,9 @@ PetscErrorCode InitializeAcquisition(domain_ *domain)
             // initialize averages
             averageFieldsInitialize(acquisition);
 
+            // initialize TKE fields
+            TKEFieldsInitialize(acquisition);
+
             // initialize MKE budgets
             averageKEBudgetsInitialize(acquisition);
 
@@ -250,6 +253,9 @@ PetscErrorCode WriteAcquisition(domain_ *domain)
             // average fields
             averageFields(acquisition);
 
+            // tke fields
+            TKEField(acquisition);
+
             // average ke budgets
             averageKEBudgets(acquisition);
 
@@ -271,6 +277,40 @@ PetscErrorCode WriteAcquisition(domain_ *domain)
 
         // write ABL data
         writeAveragingABL(domain);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode TKEFieldsInitialize(acquisition_ *acquisition)
+{
+    io_    *io    = acquisition->access->io;
+    mesh_  *mesh  = acquisition->access->mesh;
+    flags_ *flags = acquisition->access->flags;
+
+
+    if(io->TKE)
+    {
+        PetscMalloc(sizeof(TKEFields), &(acquisition->TKE));
+        TKEFields *tke = acquisition->TKE;
+
+        // allocate memory and set to zero
+        VecDuplicate(mesh->Cent,  &(tke->avgU));        VecSet(tke->avgU,0.);
+        VecDuplicate(mesh->Cent,  &(tke->Up));        VecSet(tke->Up,0.);
+
+        VecDuplicate(mesh->Nvert, &(tke->KeEps));        VecSet(tke->KeEps,0.);
+        VecDuplicate(mesh->Nvert, &(tke->Kres));        VecSet(tke->Kres,0.);
+
+        DMCreateGlobalVector(mesh->sda, &(tke->VpVp   )); VecSet(tke->VpVp   ,0.);
+
+        if(flags->isLesActive)
+        {
+            VecDuplicate(mesh->Nvert, &(tke->avgNut)); VecSet(tke->avgNut, 0.);
+            VecDuplicate(mesh->Nvert, &(tke->avgCs));  VecSet(tke->avgCs, 0.);
+        }
+
     }
 
     return(0);
@@ -1118,6 +1158,256 @@ PetscErrorCode readKeBoxArray(keFields *ke)
         char error[512];
         sprintf(error, "could not find subdictionary boxArray in dictionary %s\n", dictName.c_str());
         fatalErrorInFunction("readBoxArray",  error);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode TKEField(acquisition_ *acquisition)
+{
+    io_    *io    = acquisition->access->io;
+    clock_ *clock  = acquisition->access->clock;
+    PetscReal      nu = acquisition->access->constants->nu;
+
+    if(io->TKE)
+    {
+        // accumulation flags for current time step
+        PetscInt    accumulate         = 0;
+        PetscReal   epsilon            = 1e-8;
+
+        PetscReal startTimeAvg         = io->tkeStartTime;
+        PetscReal timeIntervalAvg      = io->tkePrd;
+        // check if must accumulate averaged fields
+        if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg))
+        {
+            accumulate = 1;
+        }
+
+        if(accumulate)
+        {
+            mesh_  *mesh   = acquisition->access->mesh;
+            flags_ *flags  = acquisition->access->flags;
+
+            ueqn_  *ueqn   = acquisition->access->ueqn;
+            les_   *les    = NULL;
+
+            TKEFields *tke = acquisition->TKE;
+
+            DMDALocalInfo info = mesh->info;
+            DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+
+            PetscInt       xs = info.xs, xe = info.xs + info.xm;
+            PetscInt       ys = info.ys, ye = info.ys + info.ym;
+            PetscInt       zs = info.zs, ze = info.zs + info.zm;
+            PetscInt       mx = info.mx, my = info.my, mz = info.mz;
+
+            PetscInt       i, j, k;
+            PetscInt       lxs, lxe, lys, lye, lzs, lze;
+
+            Cmpnts         ***ucat, ***csi, ***eta, ***zet;
+            PetscReal      ***p, ***nut, ***cs, ***nvert, ***aj;
+
+            Cmpnts         ***u_mean, ***up;
+
+            PetscReal      ***nut_mean, ***cs_mean;
+
+            PetscReal      ***k_res, ***keeps;
+
+            symmTensor     ***upup;
+
+            PetscReal      ts, te;
+
+            // averaging weights
+            PetscReal       aN, pN;
+            PetscReal       m1, m2, p1, p2;
+
+            PetscTime(&ts);
+
+            // indices for internal cells
+            lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+            lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+            lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+            // get solution arrays
+            DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+            DMDAVecGetArray(da,  mesh->lAj,    &aj);
+            DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+            DMDAVecGetArray(fda, mesh->lCsi,   &csi);
+            DMDAVecGetArray(fda, mesh->lEta,   &eta);
+            DMDAVecGetArray(fda, mesh->lZet,   &zet);
+
+            if(flags->isLesActive)
+            {
+                les = acquisition->access->les;
+
+                DMDAVecGetArray(da, les->lNu_t, &nut);
+                DMDAVecGetArray(da, les->lCs, &cs);
+
+                DMDAVecGetArray(da, tke->avgNut, &nut_mean);
+                DMDAVecGetArray(da, tke->avgCs,  &cs_mean);
+            }
+
+            aN = (PetscReal)io->tkeAvgWeight;
+            m1 = aN  / (aN + 1.0);
+            m2 = 1.0 / (aN + 1.0);
+
+            DMDAVecGetArray(fda, tke->Up,  &up);
+            DMDAVecGetArray(fda, tke->avgU,  &u_mean);
+
+            DMDAVecGetArray(da,  tke->Kres,    &k_res);
+            DMDAVecGetArray(da,  tke->KeEps,    &keeps);
+
+            DMDAVecGetArray(sda, tke->VpVp,     &upup);
+
+            for (k = lzs; k < lze; k++)
+            {
+                for (j = lys; j < lye; j++)
+                {
+                    for (i = lxs; i < lxe; i++)
+                    {
+                        // pre-set base variables for speed
+                        PetscReal U = ucat[k][j][i].x,
+                                  V = ucat[k][j][i].y,
+                                  W = ucat[k][j][i].z;
+
+                        PetscReal dudc, dvdc, dwdc,
+                                  dude, dvde, dwde,
+                                  dudz, dvdz, dwdz;
+                        PetscReal du_dx, du_dy, du_dz,
+                                  dv_dx, dv_dy, dv_dz,
+                                  dw_dx, dw_dy, dw_dz;
+
+                        PetscReal csi0 = csi[k][j][i].x,
+                                  csi1 = csi[k][j][i].y,
+                                  csi2 = csi[k][j][i].z;
+                        PetscReal eta0 = eta[k][j][i].x,
+                                  eta1 = eta[k][j][i].y,
+                                  eta2 = eta[k][j][i].z;
+                        PetscReal zet0 = zet[k][j][i].x,
+                                  zet1 = zet[k][j][i].y,
+                                  zet2 = zet[k][j][i].z;
+                        PetscReal ajc  = aj[k][j][i];
+
+                        Compute_du_center
+                        (
+                            mesh,
+                            i, j, k, mx, my, mz, ucat, nvert, &dudc,
+                            &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz
+                        );
+
+                        Compute_du_dxyz
+                        (
+                            mesh,
+                            csi0, csi1, csi2, eta0, eta1, eta2, zet0,
+                            zet1, zet2, ajc, dudc, dvdc, dwdc, dude, dvde, dwde,
+                            dudz, dvdz, dwdz, &du_dx, &dv_dx, &dw_dx, &du_dy,
+                            &dv_dy, &dw_dy, &du_dz, &dv_dz, &dw_dz
+                        );
+
+                        // cumulate avgU
+                        u_mean[k][j][i].x = m1 * u_mean[k][j][i].x + m2 * U;
+                        u_mean[k][j][i].y = m1 * u_mean[k][j][i].y + m2 * V;
+                        u_mean[k][j][i].z = m1 * u_mean[k][j][i].z + m2 * W;
+
+                        // fluctuations
+                        PetscReal Uprime = U - u_mean[k][j][i].x,
+                                  Vprime = V - u_mean[k][j][i].y,
+                                  Wprime = W - u_mean[k][j][i].z;
+
+                        // save fluctuating velocity signals
+                        up[k][j][i].x = Uprime;
+                        up[k][j][i].y = Vprime;
+                        up[k][j][i].z = Wprime;
+
+                        // Reynolds stresses averages
+                        upup[k][j][i].xx = m1 * upup[k][j][i].xx + m2 * Uprime * Uprime;
+                        upup[k][j][i].yy = m1 * upup[k][j][i].yy + m2 * Vprime * Vprime;
+                        upup[k][j][i].zz = m1 * upup[k][j][i].zz + m2 * Wprime * Wprime;
+
+                        upup[k][j][i].xy = m1 * upup[k][j][i].xy + m2 * Uprime * Vprime;
+                        upup[k][j][i].xz = m1 * upup[k][j][i].xz + m2 * Uprime * Wprime;
+                        upup[k][j][i].yz = m1 * upup[k][j][i].yz + m2 * Vprime * Wprime;
+
+                        // resolved TKE
+                        k_res[k][j][i] = 0.5*(upup[k][j][i].xx + upup[k][j][i].yy + upup[k][j][i].zz);
+
+                        // Tau_ij
+                        PetscReal tau11_SGS, tau12_SGS, tau13_SGS,
+                                  tau21_SGS, tau22_SGS, tau23_SGS,
+                                  tau31_SGS, tau32_SGS, tau33_SGS;
+                        PetscReal nuEff = nu;
+
+                        if (flags->isLesActive)
+                        {
+                            nuEff += nut[k][j][i];
+
+                            // cumulate avgNut and avgCs
+                            nut_mean[k][j][i] = m1 * nut_mean[k][j][i] + m2 * nut[k][j][i];
+                            cs_mean[k][j][i]  = m1 * cs_mean[k][j][i]  + m2 * cs[k][j][i];
+
+                        }
+
+                        tau11_SGS = - nuEff*(2.0*du_dx);
+                        tau12_SGS = - nuEff*(du_dy + dv_dx);
+                        tau13_SGS = - nuEff*(du_dz + dw_dx);
+                        tau21_SGS =   tau12_SGS;
+                        tau22_SGS = - nuEff*(2.0*dv_dy);
+                        tau23_SGS = - nuEff*(dv_dz + dw_dy);
+                        tau31_SGS =   tau13_SGS;
+                        tau32_SGS =   tau23_SGS;
+                        tau33_SGS = - nuEff*(2.0*dw_dz);
+
+                        // dissipation average
+                        PetscReal TauijSij  = 0.5 *
+                        (
+                            tau11_SGS*(2.0*du_dx) + tau12_SGS*(du_dy + dv_dx) + tau13_SGS*(du_dz + dw_dx) +
+                            tau21_SGS*(du_dy + dv_dx) + tau22_SGS*(2.0*dv_dy) + tau23_SGS*(dv_dz + dw_dy) +
+                            tau31_SGS*(du_dz + dw_dx) + tau32_SGS*(dv_dz + dw_dy) + tau33_SGS*(2.0*dw_dz)
+                        );
+
+                        // dissipation (on LHS)
+                        keeps[k][j][i] = m1 * keeps[k][j][i] - m2 * TauijSij;
+                    }
+                }
+            }
+
+            // restore solution arrays
+            DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+            DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+            DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+            DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
+            DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
+            DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
+
+            if(flags->isLesActive)
+            {
+                DMDAVecRestoreArray(da, les->lNu_t, &nut);
+                DMDAVecRestoreArray(da, les->lCs, &cs);
+
+                DMDAVecRestoreArray(da, tke->avgNut, &nut_mean);
+                DMDAVecRestoreArray(da, tke->avgCs,  &cs_mean);
+            }
+
+            // restore averaged arrays
+            if(accumulate)
+            {
+                DMDAVecRestoreArray(fda, tke->avgU,  &u_mean);
+                DMDAVecRestoreArray(fda, tke->Up,  &up);
+
+                DMDAVecRestoreArray(da,  tke->Kres,    &k_res);
+                DMDAVecRestoreArray(da,  tke->KeEps,    &keeps);
+
+                DMDAVecRestoreArray(sda, tke->VpVp,     &upup);
+
+                // increase snapshot weighting
+                io->tkeAvgWeight++;
+            }
+
+            PetscTime(&te);
+            PetscPrintf(mesh->MESH_COMM, "Averaged tke fields in %lf s\n", te-ts);
+        }
     }
 
     return(0);
@@ -6357,7 +6647,7 @@ PetscErrorCode writeProbes(domain_ *domain)
 
                 )
                 {
-                    printf("here........................");
+
                     // initialize local vectors
                     std::vector<Cmpnts> lprobeValuesU;
                     std::vector<Cmpnts> gprobeValuesU;

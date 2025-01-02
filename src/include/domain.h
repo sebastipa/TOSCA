@@ -6,6 +6,7 @@
 
 #include "objects.h"
 #include "clock.h"
+#include "sm.h"
 #include "vents.h"
 #include "access.h"
 #include "flags.h"
@@ -20,7 +21,6 @@
 #include "precursor.h"
 #include "turbines.h"
 #include "abl.h"
-
 
 //! \brief Domain data structure definition
 struct domain_
@@ -38,6 +38,9 @@ struct domain_
     ueqn_         *ueqn;             //!< momentum equation data structure
     peqn_         *peqn;             //!< pressure equation data structure
     teqn_         *teqn;             //!< potential temperature transport equation
+
+    SMObj_      *smObject;        //!<scalar moments equation object
+
     les_          *les;              //!< LES model data structure
 
     overset_      *os;               //!< overset data structure

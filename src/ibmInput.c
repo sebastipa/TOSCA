@@ -117,6 +117,8 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     ibmBody->eBox = new elementBox;
 
     char objectName[256];
+    char IBTempName[256];
+
     sprintf(objectName, "object%ld", i);
 
     // read object name
@@ -154,6 +156,11 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
         //read the surfaces array
         std::string* surfaceNames = readSubDictWordArray("./IBM/IBMProperties.dat", objectName, "surfaceNames", numSurf);
 
+        //read the surfaces array
+        readSubDictIntArray("./IBM/IBMProperties.dat", objectName, "tSourceFlag", ibmBody->tSourceFlagSurf);
+        readSubDictIntArray("./IBM/IBMProperties.dat", objectName, "uSourceFlag", ibmBody->uSourceFlagSurf);
+        readSubDictIntArray("./IBM/IBMProperties.dat", objectName, "smSourceFlag", ibmBody->smSourceFlagSurf);
+
         // loop through the surfaces and allocate memory
         for(PetscInt s = 0; s < numSurf; s++)
         {
@@ -176,6 +183,21 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
 
             //allocate the mesh memory
             ibmSurface->ibMsh = new ibmMesh;
+
+            sprintf(IBTempName, "IBTemp%ld", s);
+
+            //read tSource info if needed
+            if(ibmBody->tSourceFlagSurf[s] == 1)
+            {
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, IBTempName, &(ibmSurface->IBTemp));
+
+                //printf("IBTemp%li: %f\n", s, ibmSurface->IBTemp);
+            }
+            else if(ibmBody->tSourceFlagSurf[s] == 2)
+            {
+                //futurework
+            }
+
         }
     }
     else
@@ -188,6 +210,20 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             // read name of the element set
             readSubDictWord("./IBM/IBMProperties.dat", objectName, "elementSet", &(ibmBody->elementSet));
         }
+
+        // check if IB is a heat source
+        readSubDictInt("./IBM/IBMProperties.dat", objectName, "tSourceFlag", &(ibmBody->tSourceFlag));
+
+        //read tSource info if needed
+        if(ibmBody->tSourceFlag == 1)
+        {
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "IBTemp", &(ibmBody->IBTemp));
+        }
+        else if(ibmBody->tSourceFlag == 2)
+        {
+            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "IBTFlux", &(ibmBody->IBTFlux));
+        }
+
     }
 
     // read the ibm motion
@@ -267,18 +303,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
         }
     }
 
-    // check if IB is a heat source
-    readSubDictInt("./IBM/IBMProperties.dat", objectName, "tSourceFlag", &(ibmBody->tSourceFlag));
 
-    //read tSource info if needed
-    if(ibmBody->tSourceFlag == 1)
-    {
-        readSubDictDouble("./IBM/IBMProperties.dat", objectName, "IBTemp", &(ibmBody->IBTemp));
-    }
-    else if(ibmBody->tSourceFlag == 2)
-    {
-        readSubDictDouble("./IBM/IBMProperties.dat", objectName, "IBTFlux", &(ibmBody->IBTFlux));
-    }
 
     // read the search cell ratio wrt to the average cell size of the domain mesh
     readSubDictDouble("./IBM/IBMProperties.dat", objectName, "searchCellRatio", &(ibmBody->searchCellRatio));
@@ -655,6 +680,7 @@ PetscErrorCode combineMesh(ibmObject *ibmBody)
         surface *ibmSurface = ibmBody->ibmSurface[s];
         elemTot += ibmSurface->ibMsh->elems;
         nodeTot += ibmSurface->ibMsh->nodes;
+        //ibmSurface->ibMesh->eSurface = new PetscInt[ibmSurface->ibMsh->elems];
     }
 
     ibMesh->nodes = nodeTot;
@@ -706,6 +732,7 @@ PetscErrorCode combineMesh(ibmObject *ibmBody)
             ibMesh->nID3[ctr] = ibmSurface->ibMsh->nID3[e] + nTot;
 
             ibMesh->eSurface[ctr] = s;
+            //ibmSurface->ibMesh->eSurface[e] = s;
 
             if(ibmSurface->surfaceFileType == "inp")
             {

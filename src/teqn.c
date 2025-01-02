@@ -31,7 +31,7 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         // input file
         PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
-        // initialize p-tilde formulation of momentum equation
+        // initialize p-tilde formulation of temperature equation
         teqn->pTildeFormulation = 0;
         PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-pTildeBuoyancy", &(teqn->pTildeFormulation),   PETSC_NULL);
 
@@ -1304,6 +1304,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                         }
 
                         PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
 
                         kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }

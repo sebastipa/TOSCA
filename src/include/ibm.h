@@ -146,6 +146,12 @@ typedef struct
     PetscInt      *elementMapping;
 
     ibmMesh  *ibMsh;
+
+    //ibm source variables
+    PetscReal     IBTemp;                                     //!< surface temperature of fixed temp IB sources
+    PetscReal     IBTFlux;                                     //!< surface temperature of fixed temp IB sources
+
+
 }surface;
 
 // struct to define the bounding boxes around each process that define the local ibm mesh elements within each processor
@@ -235,6 +241,10 @@ typedef struct
     //local ibm elements box
     elementBox    *eBox;
 
+    labelList     tSourceFlagSurf;                               //!< set to 0 if no source, 1 if if fixed surface temp. and 2 if fixed heat flux. Set as array for each surface in body
+    labelList     uSourceFlagSurf;                               //!< set to 0 if no source, 1 if source
+    labelList     smSourceFlagSurf;                               //!< set to 0 if no source, 1 if source
+
 }ibmObject;
 
 typedef struct
@@ -254,6 +264,8 @@ typedef struct
   PetscReal       minDist;                                    //!< dist to the ibm mesh element from the ibm fluid cell
   PetscInt        bodyID;
   Cmpnts          normal;
+
+  PetscInt        sID;
 
   PetscReal       cs1, cs2, cs3;                              //!< ibm interpolation coefficient of the projected point from the ibm element nodes
   PetscReal       cr1, cr2, cr3;                              //!< ibm interpolation coefficient of the background mesh point from the background plane triangle nodes

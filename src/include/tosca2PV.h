@@ -188,8 +188,34 @@ PetscErrorCode writeScalarToXMF
     Vec        V
 );
 
+//! \brief Writes a scalar field (appends to XMF and creates HDF)
+PetscErrorCode writeBoundScalarToXMF
+(
+    domain_    *domain,
+    const char *filexmf,
+    const char *hdfilen,
+    hid_t	     *file_id,
+    hid_t      *dataspace_id,
+    PetscReal     time,
+    const char *fieldName,
+    Vec        V
+);
+
 //! \brief Writes a vector field (appends to XMF and creates HDF)
 PetscErrorCode writeVectorToXMF
+(
+    domain_    *domain,
+    const char *filexmf,
+    const char *hdfilen,
+    hid_t	   *file_id,
+    hid_t      *dataspace_id,
+    PetscReal     time,
+    const char *fieldName,
+    Vec        V
+);
+
+//! \brief Writes a vector field (appends to XMF and creates HDF)
+PetscErrorCode writeBoundVectorToXMF
 (
     domain_    *domain,
     const char *filexmf,

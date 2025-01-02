@@ -11,6 +11,96 @@
 
 //***************************************************************************************************************//
 
+PetscErrorCode readScalarMomentsBC(const word &location, const word &field, sm_ *sm, PetscInt ii)
+{
+    word filename = location + field;
+
+    PetscPrintf(PETSC_COMM_WORLD, "Reading %s boundary conditions in %s\n\n", field.c_str(), filename.c_str());
+
+    //PetscMalloc(sizeof(scalarMomentBC), &(*bc));
+    char momentBC[256];
+
+    sprintf(momentBC, "momentBC%ld", ii);
+
+    // read the file and stores the string
+    readSubDictWordAndDouble(filename.c_str(), momentBC, "iLeft", &(sm->iLeft), &(sm->iLval));
+    readSubDictWordAndDouble(filename.c_str(), momentBC, "iRight", &(sm->iRight), &(sm->iRval));
+    readSubDictWordAndDouble(filename.c_str(), momentBC, "jLeft", &(sm->jLeft), &(sm->jLval));
+    readSubDictWordAndDouble(filename.c_str(), momentBC, "jRight", &(sm->jRight), &(sm->jRval));
+    readSubDictWordAndDouble(filename.c_str(), momentBC, "kLeft", &(sm->kLeft), &(sm->kLval));
+    readSubDictWordAndDouble(filename.c_str(), momentBC, "kRight", &(sm->kRight), &(sm->kRval));
+
+    if (sm->iLeft == "zeroGradient" || sm->iLeft == "periodic" || sm->iLeft == "fixedValue")
+    {
+
+    }
+    else
+    {
+        char error[512];
+         sprintf(error, "SM boundary can only be zeroGradient, periodic, or fixedValue");
+         fatalErrorInFunction("readScalarMomentsBC", error);
+    }
+
+    if (sm->jLeft == "zeroGradient" || sm->jLeft == "periodic" || sm->jLeft == "fixedValue")
+    {
+
+    }
+    else
+    {
+        char error[512];
+         sprintf(error, "SM boundary can only be zeroGradient, periodic, or fixedValue");
+         fatalErrorInFunction("readScalarMomentsBC", error);
+    }
+
+    if (sm->kLeft == "zeroGradient" || sm->kLeft == "periodic" || sm->kLeft == "fixedValue")
+    {
+
+    }
+    else
+    {
+        char error[512];
+         sprintf(error, "SM boundary can only be zeroGradient, periodic, or fixedValue");
+         fatalErrorInFunction("readScalarMomentsBC", error);
+    }
+
+    if (sm->iRight == "zeroGradient" || sm->iRight == "periodic" || sm->iRight == "fixedValue")
+    {
+
+    }
+    else
+    {
+        char error[512];
+         sprintf(error, "SM boundary can only be zeroGradient, periodic, or fixedValue");
+         fatalErrorInFunction("readScalarMomentsBC", error);
+    }
+
+    if (sm->jRight == "zeroGradient" || sm->jRight == "periodic" || sm->jRight == "fixedValue")
+    {
+
+    }
+    else
+    {
+        char error[512];
+         sprintf(error, "SM boundary can only be zeroGradient, periodic, or fixedValue");
+         fatalErrorInFunction("readScalarMomentsBC", error);
+    }
+
+    if (sm->kRight == "zeroGradient" || sm->kRight == "periodic" || sm->kRight == "fixedValue")
+    {
+
+    }
+    else
+    {
+        char error[512];
+         sprintf(error, "SM boundary can only be zeroGradient, periodic, or fixedValue");
+         fatalErrorInFunction("readScalarMomentsBC", error);
+    }
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode readScalarBC(const word &location, const word &field, scalarBC *bc)
 {
     word filename = location + field;
@@ -84,6 +174,15 @@ PetscErrorCode SetBoundaryConditions(mesh_ *mesh)
     if (mesh->access->flags->isTeqnActive)
     {
         readScalarBC(location, "T", &(mesh->boundaryT));
+    }
+
+    // read scalar moments boundary conditions
+    for (PetscInt  ii=0; ii < mesh->access->flags->isScalarMomentsActive; ii++)
+    {
+        readScalarMomentsBC(location, "SM", mesh->access->smObject->sm[ii], ii);
+
+        //printf("\n 0.ILeftBC is : %s\n", mesh->access->smObject->sm[ii]->iLeft.c_str());
+        //printf("\n 0.ILeftBC1 is : %s\n", mesh->boundarySM.momentBC[1]->iLeft.c_str());
     }
 
     // check boundary conditions
@@ -702,7 +801,9 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                                 0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
                                 0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
                                 0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
-                            }
+
+
+                        }
 
                         if (k == 0)
                         {
@@ -765,6 +866,68 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     {
                              if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
                              //if (k == 65 && i == 65) {printf("Ucont BC jRight.............");}
+                    }
+
+                    //noSlip venBC included to allow for flow over plates. "slip" condition not included
+                    if
+                    (
+                        (
+                            vents->vent[q]->ventBC=="noSlip"
+                        )
+                        && i==0
+                    )
+                    {
+                        ucont[k][j][i].x = 0.0;
+                    }
+                    if
+                    (
+                        (
+                            vents->vent[q]->ventBC=="noSlip"
+                        )
+                        && i==mx-2
+                    )
+                    {
+                        ucont[k][j][i].x = 0;
+                    }
+                    if
+                    (
+                        (
+                            vents->vent[q]->ventBC=="noSlip"
+                        )
+                        && j==0
+                    )
+                    {
+                        ucont[k][j][i].y = 0.0;
+                    }
+                    if
+                    (
+                        (
+                            vents->vent[q]->ventBC=="noSlip"
+                        )
+                        && j==my-2
+                    )
+                    {
+                        ucont[k][j][i].y = 0;
+                    }
+                    if
+                    (
+                        (
+                            vents->vent[q]->ventBC=="noSlip"
+                        )
+                        && k==0
+                    )
+                    {
+                        ucont[k][j][i].z = 0.0;
+                    }
+                    if
+                    (
+                        (
+                            vents->vent[q]->ventBC=="noSlip"
+                        )
+                        && k==mz-2
+                    )
+                    {
+                        ucont[k][j][i].z = 0;
                     }
 
                     continue;
@@ -1050,6 +1213,14 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
     PetscInt      ***markVent;
 
+    PetscScalar uFluctSumX =0.;
+    PetscScalar uFluctSumY =0.;
+    PetscScalar uFluctSumZ =0.;
+
+    PetscScalar uFluctSumSX =0.;
+    PetscScalar uFluctSumSY =0.;
+    PetscScalar uFluctSumSZ =0.;
+
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
@@ -1152,116 +1323,94 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
             if (rank == 0)
             {
 
-                if (ifPtr->genType == "isoIF")
+                Cmpnts basis1, basis2, basis3, GnSph, GnCart, kComps;
+                PetscReal Coeff1, Coeff2, Coeff3, Coeff4, sphAng1, sphAng2, dirAng, phaseAng, dummyRand, max, min, random, intSum, intCst;
+                PetscReal UrmsDriving, TKEDriving, TurbIntDriving, meanUMag, b;
+                PetscInt n, iter;
+
+                max = 3.141592653589793238462643;
+                min = -3.141592653589793238462643;
+                intSum = 0;
+
+                //Set wave number magnitudes and initial power spectra values
+                for (n = 0; n < ifPtr->FSumNum; n++)
                 {
-                    Cmpnts basis1, basis2, basis3, GnSph, GnCart, kComps;
-                    PetscReal Coeff1, Coeff2, Coeff3, Coeff4, sphAng1, sphAng2, dirAng, phaseAng, dummyRand, max, min, random, intSum, intCst;
-                    PetscReal UrmsDriving, TKEDriving, TurbIntDriving, meanUMag, b;
-                    PetscInt n, iter;
+                    ifPtr->knMag[n] = ifPtr->kMin + (n) * ifPtr->dkn;
+                    Coeff1 = (1.42568*pow(ifPtr->Urms, 2))/(ifPtr->kEng);
+                    Coeff2 = 1 + (pow((ifPtr->knMag[n]/ifPtr->kEng), 2));
+                    Coeff3 = (pow((ifPtr->knMag[n]/ifPtr->kEng), 4))/pow(Coeff2, (17./6.));
+                    Coeff4 = pow((ifPtr->knMag[n]/ifPtr->kKol), 2);
+                    ifPtr->Ek[n] = Coeff1*Coeff3*exp(-2*Coeff4);
+                }
 
-                    max = 3.141592653589793238462643;
-                    min = -3.141592653589793238462643;
-                    intSum = 0;
+                //begn driving energy spectra creation and adjustment
+                for (iter = 0; iter < ifPtr->iterTKE; iter++)
+                {
 
-                    //Set wave number magnitudes and initial power spectra values
+                    TKEDriving = 0; // reset TKE for trapazoidal rule integration of energy spectra
+
+                    //adjust energy spectra constant to achieve desired Urms
+                    for (n = 0; n < (ifPtr->FSumNum-1); n++)
+                    {
+                        TKEDriving += 0.5*(ifPtr->Ek[n]+ifPtr->Ek[n+1])*(ifPtr->knMag[n+1]-ifPtr->knMag[n]);
+                    }
+
+                    UrmsDriving = pow((2*TKEDriving/3), 0.5);
+                    meanUMag = sqrt(pow(ifPtr->meanU.x, 2) + pow(ifPtr->meanU.y, 2) + pow(ifPtr->meanU.z, 2));
+                    TurbIntDriving = UrmsDriving/meanUMag;
+
+                    b = (ifPtr->Urms/UrmsDriving);
+
                     for (n = 0; n < ifPtr->FSumNum; n++)
                     {
-                        ifPtr->knMag[n] = ifPtr->kMin + (n) * ifPtr->dkn;
-                        Coeff1 = (1.42568*pow(ifPtr->Urms, 2))/(ifPtr->kEng);
-                        Coeff2 = 1 + (pow((ifPtr->knMag[n]/ifPtr->kEng), 2));
-                        Coeff3 = (pow((ifPtr->knMag[n]/ifPtr->kEng), 4))/pow(Coeff2, (17./6.));
-                        Coeff4 = pow((ifPtr->knMag[n]/ifPtr->kKol), 2);
-                        ifPtr->Ek[n] = Coeff1*Coeff3*exp(-2*Coeff4);
+                        ifPtr->Ek[n] *= b;
                     }
 
-                    //begn driving energy spectra creation and adjustment
-                    for (iter = 0; iter < ifPtr->iterTKE; iter++)
-                    {
+                }
 
-                        TKEDriving = 0; // reset TKE for trapazoidal rule integration of energy spectra
+                PetscPrintf(mesh->MESH_COMM, "\nDriving Turbulence Generation: UrmsDesired = %f, UrmsDriving = %f, TKEDriving2 = %f, TIDriving = %f, meanUMag = %f\n", ifPtr->Urms, UrmsDriving, TKEDriving, TurbIntDriving, meanUMag);
 
-                        //adjust energy spectra constant to achieve desired Urms
-                        for (n = 0; n < (ifPtr->FSumNum-1); n++)
-                        {
-                            TKEDriving += 0.5*(ifPtr->Ek[n]+ifPtr->Ek[n+1])*(ifPtr->knMag[n+1]-ifPtr->knMag[n]);
-                        }
+                //begin random number generation from adjusted energy spectrum
+                for (n = 0; n < ifPtr->FSumNum; n++)
+                {
+                    //get random number from uniform distribution b/w -pi and pi for sperical angle 1 and direction angle
 
-                        UrmsDriving = pow((2*TKEDriving/3), 0.5);
-                        meanUMag = sqrt(pow(ifPtr->meanU.x, 2) + pow(ifPtr->meanU.y, 2) + pow(ifPtr->meanU.z, 2));
-                        TurbIntDriving = UrmsDriving/meanUMag;
+                    sphAng1 = (((double)rand()*(max - min) / RAND_MAX) + min);
 
-                        b = (ifPtr->Urms/UrmsDriving);
+                    dirAng = (((double)rand()*(max - min) / RAND_MAX) + min);
 
-                        for (n = 0; n < ifPtr->FSumNum; n++)
-                        {
-                            ifPtr->Ek[n] *= b;
-                        }
+                    //Set phaseAng to 0 to ensure continuity
+                    phaseAng = 0;
 
-                    }
+                    ifPtr->phaseN[n] = phaseAng;
 
-                    PetscPrintf(mesh->MESH_COMM, "\nDriving Turbulence Generation: UrmsDesired = %f, UrmsDriving = %f, TKEDriving2 = %f, TIDriving = %f, meanUMag = %f\n", ifPtr->Urms, UrmsDriving, TKEDriving, TurbIntDriving, meanUMag);
+                    // get random number for sphereical angle 2 from an probability densition fun of 0.5*sin(shprAng2) by inversing CDF.
+                    dummyRand = (((double)rand()*(1 - (0)) / RAND_MAX) + (0));
 
-                    //begin random number generation from adjusted energy spectrum
-                    for (n = 0; n < ifPtr->FSumNum; n++)
-                    {
-                        //get random number from uniform distribution b/w -pi and pi for sperical angle 1 and direction angle
+                    sphAng2 = acos(1-2*dummyRand);
 
-                        sphAng1 = (((double)rand()*(max - min) / RAND_MAX) + min);
+                    //put wave vector in to cartesian coordinates
+                    kComps.z = ifPtr->knMag[n]*sin(sphAng2)*cos(sphAng1);
+                    kComps.y = ifPtr->knMag[n]*sin(sphAng2)*sin(sphAng1);
+                    kComps.x = ifPtr->knMag[n]*cos(sphAng2);
 
-                        dirAng = (((double)rand()*(max - min) / RAND_MAX) + min);
+                    ifPtr->kn[n] = kComps;
 
-                        //get random number from uniform distribution b/w -pi and pi for phase
-                        phaseAng =(((double)rand()*(max - min) / RAND_MAX) + min);
+                    //find the randomized unit direction vector in cartesian coordinates
+                    basis1.z = -sin(sphAng1); basis1.y = -cos(sphAng2)*cos(sphAng1); basis1.x = sin(sphAng2)*cos(sphAng1);
+                    basis2.z = cos(sphAng1); basis2.y = -cos(sphAng2)*sin(sphAng1); basis2.x = sin(sphAng2)*sin(sphAng1);
+                    basis3.z = 0; basis3.y = sin(sphAng2); basis3.x = cos(sphAng2);
 
-                        ifPtr->phaseN[n] = phaseAng;
+                    GnSph.z = cos(dirAng); GnSph.y = sin(dirAng); GnSph.x = 0;
 
-                        // get random number for sphereical angle 2 from an probability densition fun of 0.5*sin(shprAng2) by inversing CDF.
-                        dummyRand = (((double)rand()*(1 - (0)) / RAND_MAX) + (0));
+                    GnCart.z = basis1.z * GnSph.z + basis1.y * GnSph.y + basis1.x * GnSph.x; // - sin(sphAng2)*cos(sphAng1);
+                    GnCart.y = basis2.z * GnSph.z + basis2.y * GnSph.y + basis2.x * GnSph.x; // - sin(sphAng2)*sin(sphAng1);
+                    GnCart.x = basis3.z * GnSph.z + basis3.y * GnSph.y + basis3.x * GnSph.x; // - cos(sphAng2);
 
-                        sphAng2 = acos(1-2*dummyRand);
+                    ifPtr->Gn[n] = GnCart;
 
-                        //put wave vector in to cartesian coordinates
-                        kComps.x = ifPtr->knMag[n]*sin(sphAng2)*cos(sphAng1);
-                        kComps.y = ifPtr->knMag[n]*sin(sphAng2)*sin(sphAng1);
-                        kComps.z = ifPtr->knMag[n]*cos(sphAng2);
-
-                        ifPtr->kn[n] = kComps;
-
-                        //find the randomized unit direction vector in cartesian coordinates
-                        basis1.x = -sin(sphAng1); basis1.y = -cos(sphAng2)*cos(sphAng1); basis1.z = sin(sphAng2)*cos(sphAng1);
-                        basis2.x = cos(sphAng1); basis2.y = -cos(sphAng2)*sin(sphAng1); basis2.z = sin(sphAng2)*sin(sphAng1);
-                        basis3.x = 0; basis3.y = sin(sphAng2); basis3.z = cos(sphAng2);
-
-                        GnSph.x = cos(dirAng); GnSph.y = sin(dirAng); GnSph.z = 0;
-
-                        GnCart.x = basis1.x * GnSph.x + basis1.y * GnSph.y + basis1.z * GnSph.z; // - sin(sphAng2)*cos(sphAng1);
-                        GnCart.y = basis2.x * GnSph.x + basis2.y * GnSph.y + basis2.z * GnSph.z; // - sin(sphAng2)*sin(sphAng1);
-                        GnCart.z = basis3.x * GnSph.x + basis3.y * GnSph.y + basis3.z * GnSph.z; // - cos(sphAng2);
-
-                        ifPtr->Gn[n] = GnCart;
-
-                        //calculate fluctuating u magnitude for this fourier series at this point.
-                        ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
-
-                        /*char *filename = "SynTurbSummary";
-
-                        FILE *fp = fopen(filename, "a");
-
-                        if (fp == NULL)
-                        {
-                            printf("Errror cannot open file DrivingSynTurbSummary");
-                            return -1;
-                        }
-
-                        if (n == 0)
-                        {
-                           fprintf(fp, "n, unMag, Gnx, Gny, Gnz, knx, kny, knz, phaseN, sphAng1, sphAng2, dirAng, EDriving, knMag\n");
-                        }
-
-                        fprintf(fp, "%li, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", n, ifPtr->uMagN[n], ifPtr->Gn[n].x, ifPtr->Gn[n].y, ifPtr->Gn[n].z, ifPtr->kn[n].x, ifPtr->kn[n].y, ifPtr->kn[n].z, ifPtr->phaseN[n], sphAng1, sphAng2, dirAng, ifPtr->Ek[n], ifPtr->knMag[n]);
-
-                        fclose(fp);*/
-                    }
+                    //calculate fluctuating u magnitude for this fourier series at this point.
+                    ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
 
                 }
 
@@ -1300,55 +1449,55 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     if (rank == 0)
                     {
 
-                        if (ifPtr->genType == "isoIF")
+                        Cmpnts basis1, basis2, basis3, GnSph, GnCart, kComps;
+                        PetscReal Coeff1, Coeff2, Coeff3, Coeff4, sphAng1, sphAng2, dirAng, phaseAng, dummyRand, max, min, random, intSum, intCst;
+                        PetscReal UrmsDriving, TKEDriving, TurbIntDriving, meanUMag, b;
+                        PetscInt n, iter;
+
+                        max = 3.141592653589793238462643;
+                        min = -3.141592653589793238462643;
+                        intSum = 0;
+
+                        //Set wave number magnitudes and initial power spectra values
+                        for (n = 0; n < ifPtr->FSumNum; n++)
                         {
-                            Cmpnts basis1, basis2, basis3, GnSph, GnCart, kComps;
-                            PetscReal Coeff1, Coeff2, Coeff3, Coeff4, sphAng1, sphAng2, dirAng, phaseAng, dummyRand, max, min, random, intSum, intCst;
-                            PetscReal UrmsDriving, TKEDriving, TurbIntDriving, meanUMag, b;
-                            PetscInt n, iter;
+                            ifPtr->knMag[n] = ifPtr->kMin + (n) * ifPtr->dkn;
+                            Coeff1 = (1.42568*pow(ifPtr->Urms, 2))/(ifPtr->kEng);
+                            Coeff2 = 1 + (pow((ifPtr->knMag[n]/ifPtr->kEng), 2));
+                            Coeff3 = (pow((ifPtr->knMag[n]/ifPtr->kEng), 4))/pow(Coeff2, (17./6.));
+                            Coeff4 = pow((ifPtr->knMag[n]/ifPtr->kKol), 2);
+                            ifPtr->Ek[n] = Coeff1*Coeff3*exp(-2*Coeff4);
+                        }
 
-                            max = 3.141592653589793238462643;
-                            min = -3.141592653589793238462643;
-                            intSum = 0;
+                        //begn driving energy spectra creation and adjustment
+                        for (iter = 0; iter < ifPtr->iterTKE; iter++)
+                        {
 
-                            //Set wave number magnitudes and initial power spectra values
+                            TKEDriving = 0; // reset TKE for trapazoidal rule integration of energy spectra
+
+                            //adjust energy spectra constant to achieve desired Urms
+                            for (n = 0; n < (ifPtr->FSumNum-1); n++)
+                            {
+                                TKEDriving += 0.5*(ifPtr->Ek[n]+ifPtr->Ek[n+1])*(ifPtr->knMag[n+1]-ifPtr->knMag[n]);
+                            }
+
+                            UrmsDriving = pow((2*TKEDriving/3), 0.5);
+                            meanUMag = sqrt(pow(ifPtr->meanU.x, 2) + pow(ifPtr->meanU.y, 2) + pow(ifPtr->meanU.z, 2));
+                            TurbIntDriving = UrmsDriving/meanUMag;
+
+                            b = (ifPtr->Urms/UrmsDriving);
+
                             for (n = 0; n < ifPtr->FSumNum; n++)
                             {
-                                ifPtr->knMag[n] = ifPtr->kMin + (n) * ifPtr->dkn;
-                                Coeff1 = (1.42568*pow(ifPtr->Urms, 2))/(ifPtr->kEng);
-                                Coeff2 = 1 + (pow((ifPtr->knMag[n]/ifPtr->kEng), 2));
-                                Coeff3 = (pow((ifPtr->knMag[n]/ifPtr->kEng), 4))/pow(Coeff2, (17./6.));
-                                Coeff4 = pow((ifPtr->knMag[n]/ifPtr->kKol), 2);
-                                ifPtr->Ek[n] = Coeff1*Coeff3*exp(-2*Coeff4);
+                                ifPtr->Ek[n] *= b;
                             }
 
-                            //begn driving energy spectra creation and adjustment
-                            for (iter = 0; iter < ifPtr->iterTKE; iter++)
-                            {
+                        }
 
-                                TKEDriving = 0; // reset TKE for trapazoidal rule integration of energy spectra
+                        PetscPrintf(mesh->MESH_COMM, "\nDriving Turbulence Generation: UrmsDesired = %f, UrmsDriving = %f, TKEDriving2 = %f, TIDriving = %f, meanUMag = %f\n", ifPtr->Urms, UrmsDriving, TKEDriving, TurbIntDriving, meanUMag);
 
-                                //adjust energy spectra constant to achieve desired Urms
-                                for (n = 0; n < (ifPtr->FSumNum-1); n++)
-                                {
-                                    TKEDriving += 0.5*(ifPtr->Ek[n]+ifPtr->Ek[n+1])*(ifPtr->knMag[n+1]-ifPtr->knMag[n]);
-                                }
-
-                                UrmsDriving = pow((2*TKEDriving/3), 0.5);
-                                meanUMag = sqrt(pow(ifPtr->meanU.x, 2) + pow(ifPtr->meanU.y, 2) + pow(ifPtr->meanU.z, 2));
-                                TurbIntDriving = UrmsDriving/meanUMag;
-
-                                b = (ifPtr->Urms/UrmsDriving);
-
-                                for (n = 0; n < ifPtr->FSumNum; n++)
-                                {
-                                    ifPtr->Ek[n] *= b;
-                                }
-
-                            }
-
-                            PetscPrintf(mesh->MESH_COMM, "\nDriving Turbulence Generation: UrmsDesired = %f, UrmsDriving = %f, TKEDriving2 = %f, TIDriving = %f, meanUMag = %f\n", ifPtr->Urms, UrmsDriving, TKEDriving, TurbIntDriving, meanUMag);
-
+                        if (vents->vent[q]->face == "iLeft" || vents->vent[q]->face == "iRight")
+                        {
                             //begin random number generation from adjusted energy spectrum
                             for (n = 0; n < ifPtr->FSumNum; n++)
                             {
@@ -1357,16 +1506,57 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                                 sphAng1 = (((double)rand()*(max - min) / RAND_MAX) + min);
 
                                 dirAng = (((double)rand()*(max - min) / RAND_MAX) + min);
+                                //dummyRand = (((double)rand()*(1 - (0)) / RAND_MAX) + (0));
+                                //sphAng2 = acos(1-2*dummyRand);
+                                sphAng2 = max/2;
 
-                                //get random number from uniform distribution b/w -pi and pi for phase
-                                phaseAng =(((double)rand()*(max - min) / RAND_MAX) + min);
+                                phaseAng = 0.;
 
                                 ifPtr->phaseN[n] = phaseAng;
 
-                                // get random number for sphereical angle 2 from an probability densition fun of 0.5*sin(shprAng2) by inversing CDF.
-                                dummyRand = (((double)rand()*(1 - (0)) / RAND_MAX) + (0));
+                                //put wave vector in to cartesian coordinates
+                                kComps.x = ifPtr->knMag[n]*sin(sphAng2)*cos(sphAng1);
+                                kComps.z = ifPtr->knMag[n]*sin(sphAng2)*sin(sphAng1);
+                                kComps.y = ifPtr->knMag[n]*cos(sphAng2);
 
-                                sphAng2 = acos(1-2*dummyRand);
+                                ifPtr->kn[n] = kComps;
+
+                                //find the randomized unit direction vector in cartesian coordinates
+                                basis1.x = -sin(sphAng1); basis1.z = -cos(sphAng2)*cos(sphAng1); basis1.y = sin(sphAng2)*cos(sphAng1);
+                                basis2.x = cos(sphAng1); basis2.z = -cos(sphAng2)*sin(sphAng1); basis2.y = sin(sphAng2)*sin(sphAng1);
+                                basis3.x = 0; basis3.z = sin(sphAng2); basis3.y = cos(sphAng2);
+
+                                GnSph.x = cos(dirAng); GnSph.z = sin(dirAng); GnSph.y = 0;
+
+                                GnCart.x = basis1.x * GnSph.x + basis1.z * GnSph.z + basis1.y * GnSph.y; // - sin(sphAng2)*cos(sphAng1);
+                                GnCart.z = basis2.x * GnSph.x + basis2.z * GnSph.z + basis2.y * GnSph.y; // - sin(sphAng2)*sin(sphAng1);
+                                GnCart.y = basis3.x * GnSph.x + basis3.z * GnSph.z + basis3.y * GnSph.y; // - cos(sphAng2);
+
+                                ifPtr->Gn[n] = GnCart;
+
+                                //calculate fluctuating u magnitude for this fourier series at this point.
+                                ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
+
+                            }
+                        }
+
+                        if (vents->vent[q]->face == "jLeft" || vents->vent[q]->face == "jRight")
+                        {
+                            //begin random number generation from adjusted energy spectrum
+                            for (n = 0; n < ifPtr->FSumNum; n++)
+                            {
+                                //get random number from uniform distribution b/w -pi and pi for sperical angle 1 and direction angle
+
+                                sphAng1 = (((double)rand()*(max - min) / RAND_MAX) + min);
+
+                                dirAng = (((double)rand()*(max - min) / RAND_MAX) + min);
+                                //dummyRand = (((double)rand()*(1 - (0)) / RAND_MAX) + (0));
+                                //sphAng2 = acos(1-2*dummyRand);
+                                sphAng2 = max/2;
+
+                                phaseAng = 0.;
+
+                                ifPtr->phaseN[n] = phaseAng;
 
                                 //put wave vector in to cartesian coordinates
                                 kComps.x = ifPtr->knMag[n]*sin(sphAng2)*cos(sphAng1);
@@ -1391,26 +1581,50 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                                 //calculate fluctuating u magnitude for this fourier series at this point.
                                 ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
 
-                                /*char *filename = "SynTurbSummary";
-
-                                FILE *fp = fopen(filename, "a");
-
-                                if (fp == NULL)
-                                {
-                                    printf("Errror cannot open file DrivingSynTurbSummary");
-                                    return -1;
-                                }
-
-                                if (n == 0)
-                                {
-                                   fprintf(fp, "n, unMag, Gnx, Gny, Gnz, knx, kny, knz, phaseN, sphAng1, sphAng2, dirAng, EDriving, knMag\n");
-                                }
-
-                                fprintf(fp, "%li, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", n, ifPtr->uMagN[n], ifPtr->Gn[n].x, ifPtr->Gn[n].y, ifPtr->Gn[n].z, ifPtr->kn[n].x, ifPtr->kn[n].y, ifPtr->kn[n].z, ifPtr->phaseN[n], sphAng1, sphAng2, dirAng, ifPtr->Ek[n], ifPtr->knMag[n]);
-
-                                fclose(fp);*/
                             }
+                        }
 
+                        if (vents->vent[q]->face == "kLeft" || vents->vent[q]->face == "kRight")
+                        {
+                            for (n = 0; n < ifPtr->FSumNum; n++)
+                            {
+                                //get random number from uniform distribution b/w -pi and pi for sperical angle 1 and direction angle
+
+                                sphAng1 = (((double)rand()*(max - min) / RAND_MAX) + min);
+
+                                dirAng = (((double)rand()*(max - min) / RAND_MAX) + min);
+                                //dummyRand = (((double)rand()*(1 - (0)) / RAND_MAX) + (0));
+                                //sphAng2 = acos(1-2*dummyRand);
+                                sphAng2 = max/2;
+
+                                phaseAng = 0.;
+
+                                ifPtr->phaseN[n] = phaseAng;
+
+                                //put wave vector in to cartesian coordinates
+                                kComps.z = ifPtr->knMag[n]*sin(sphAng2)*cos(sphAng1);
+                                kComps.y = ifPtr->knMag[n]*sin(sphAng2)*sin(sphAng1);
+                                kComps.x = ifPtr->knMag[n]*cos(sphAng2);
+
+                                ifPtr->kn[n] = kComps;
+
+                                //find the randomized unit direction vector in cartesian coordinates
+                                basis1.z = -sin(sphAng1); basis1.y = -cos(sphAng2)*cos(sphAng1); basis1.x = sin(sphAng2)*cos(sphAng1);
+                                basis2.z = cos(sphAng1); basis2.y = -cos(sphAng2)*sin(sphAng1); basis2.x = sin(sphAng2)*sin(sphAng1);
+                                basis3.z = 0; basis3.y = sin(sphAng2); basis3.x = cos(sphAng2);
+
+                                GnSph.z = cos(dirAng); GnSph.y = sin(dirAng); GnSph.x = 0;
+
+                                GnCart.z = basis1.z * GnSph.z + basis1.y * GnSph.y + basis1.x * GnSph.x; // - sin(sphAng2)*cos(sphAng1);
+                                GnCart.y = basis2.z * GnSph.z + basis2.y * GnSph.y + basis2.x * GnSph.x; // - sin(sphAng2)*sin(sphAng1);
+                                GnCart.x = basis3.z * GnSph.z + basis3.y * GnSph.y + basis3.x * GnSph.x; // - cos(sphAng2);
+
+                                ifPtr->Gn[n] = GnCart;
+
+                                //calculate fluctuating u magnitude for this fourier series at this point.
+                                ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
+
+                            }
                         }
 
                     }
@@ -1842,7 +2056,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
-                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               // y-comp is 0
+                               dotKnX = ifPtr->kn[n].x*(cent[k][j][i].x - vents->vent[q]->ventCentX) + ifPtr->kn[n].z*(cent[k][j][i].z - vents->vent[q]->ventCentZ);
                                uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
                                uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
                                uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
@@ -1870,7 +2085,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
-                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               //y-comp is 0
+                               dotKnX = ifPtr->kn[n].x*(cent[k][j][i].x - vents->vent[q]->ventCentX) + ifPtr->kn[n].z*(cent[k][j][i].z - vents->vent[q]->ventCentZ);
                                uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
                                uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
                                uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
@@ -1898,7 +2114,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
-                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               //z-comp is 0
+                               dotKnX = ifPtr->kn[n].x*(cent[k][j][i].x - vents->vent[q]->ventCentX) + ifPtr->kn[n].y*(cent[k][j][i].y - vents->vent[q]->ventCentY);
                                uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
                                uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
                                uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
@@ -1923,19 +2140,61 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                            PetscReal dotKnX;
                            PetscInt n;
 
+                           uFluct.x = 0.;
+                           uFluct.y = 0.;
+                           uFluct.z = 0.;
+
+                           //printf("\nCellCent %f %f %f  ... %li %li %li", cent[k][j][i].x, cent[k][j][i].y, cent[k][j][i].z, k ,j ,i);
+                           //printf("\n CellCentDIF %f %f %f  ... %li %li %li", cent[k][j][i].x - vents->vent[q]->ventCentX, cent[k][j][i].y - vents->vent[q]->ventCentY, cent[k][j][i].z - vents->vent[q]->ventCentZ, k ,j ,i);
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
-                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
-                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
-                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
-                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                               //z-component is 0.
+                               dotKnX = ifPtr->kn[n].x*(cent[k][j][i].x - vents->vent[q]->ventCentX) + ifPtr->kn[n].y*(cent[k][j][i].y - vents->vent[q]->ventCentY);
+
+                               uFluct.x += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                               uFluct.y += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                               uFluct.z += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+
+                               //printf("\n n-terms %f %f %f %f %f %f %f %f %f %f %f %f ... %li %li %li %li", dotKnX, ifPtr->phaseN[n], ifPtr->Gn[n].x, ifPtr->Gn[n].y, ifPtr->Gn[n].z, ifPtr->uMagN[n], uFluct.x, uFluct.y, uFluct.z, ifPtr->kn[n].x, ifPtr->kn[n].y, ifPtr->kn[n].z, k ,j ,i, n);
                            }
+
+                           if (ifPtr->genType == "transverse")
+                           {
+                               uFluct.x *= sqrt(1.5);
+                               uFluct.y *= sqrt(1.5);
+                               uFluct.z *= 0;
+                           }
+                           else if (ifPtr->genType == "streamwise")
+                           {
+                               uFluct.x *= 0;
+                               uFluct.y *= 0;
+                               uFluct.z *= sqrt(3.);
+                           }
+                           else if (ifPtr->genType == "isotropic")
+                           {
+
+                           }
+                           else
+                           {
+                               char error[512];
+                               sprintf(error, "invalid shape function. Please use isotropic, transverse, or streamwise \n");
+                               fatalErrorInFunction("UpdateCartesianBCs", error);
+                           }
+
+                           //printf("%f %f %f, %li, %li, %li\n", uFluct.x, uFluct.y, uFluct.z, k, j, i);
 
                            ucat[k][j+1][i].x = ifPtr->meanU.x + uFluct.x;
                            ucat[k][j+1][i].y = ifPtr->meanU.y + uFluct.y;
                            ucat[k][j+1][i].z = ifPtr->meanU.z + uFluct.z;
 
+                           /*uFluctSumX += uFluct.x;
+                           uFluctSumY += uFluct.y;
+                           uFluctSumZ += uFluct.z;
+
+                           uFluctSumSX += uFluct.x*uFluct.x/(vents->vent[q]->nCellsVent);
+                           uFluctSumSY += uFluct.y*uFluct.y/(vents->vent[q]->nCellsVent);
+                           uFluctSumSZ += uFluct.z*uFluct.z/(vents->vent[q]->nCellsVent);*/
 
                         }
                     }
@@ -1954,7 +2213,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
-                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               //x-comp is 0 for dotKnX
+                               dotKnX = ifPtr->kn[n].y*(cent[k][j][i].y - vents->vent[q]->ventCentY) + ifPtr->kn[n].z*(cent[k][j][i].z - vents->vent[q]->ventCentZ);
                                uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
                                uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
                                uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
@@ -1982,7 +2242,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
-                               dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
+                               //x-comp is 0
+                               dotKnX = ifPtr->kn[n].y*(cent[k][j][i].y - vents->vent[q]->ventCentY) + ifPtr->kn[n].z*(cent[k][j][i].z - vents->vent[q]->ventCentZ);
                                uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
                                uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
                                uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
@@ -1994,6 +2255,48 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
 
                         }
+                    }
+
+                    // no-slip on X left boundary - set on the physical ghost cell
+                    if(i==1 && vents->vent[q]->ventBC == "noSlip")
+                    {
+                        mSetScale(-1.0, ucat[k][j][i-1], lucat[k][j][i]);
+                        solid_flag=1;
+                    }
+
+                    // no-slip on X right boundary - set on the physical ghost cell
+                    if(i==mx-2 && vents->vent[q]->ventBC =="noSlip")
+                    {
+                        mSetScale(-1.0, ucat[k][j][i+1], lucat[k][j][i]);
+                        solid_flag=1;
+                    }
+
+                    // no-slip on Y left boundary - set on the physical ghost cell
+                    if(j==1 && vents->vent[q]->ventBC == "noSlip")
+                    {
+                        mSetScale(-1.0, ucat[k][j-1][i], lucat[k][j][i]);
+                        solid_flag=1;
+                    }
+
+                    // no-slip on Y right boundary - set on the physical ghost cell
+                    if(j==my-2 && vents->vent[q]->ventBC == "noSlip")
+                    {
+                        mSetScale(-1.0, ucat[k][j+1][i], lucat[k][j][i]);
+                        solid_flag=1;
+                    }
+
+                    // no-slip on Z left boundary - set on the physical ghost cell
+                    if(k==1 && vents->vent[q]->ventBC == "noSlip")
+                    {
+                        mSetScale(-1.0, ucat[k-1][j][i], lucat[k][j][i]);
+                        solid_flag=1;
+                    }
+
+                    // no-slip on Z right boundary - set on the physical ghost cell
+                    if(k==mz-2 && vents->vent[q]->ventBC == "noSlip")
+                    {
+                        mSetScale(-1.0, ucat[k+1][j][i], lucat[k][j][i]);
+                        solid_flag=1;
                     }
 
                     continue; //with this set-up no IBMs can't be touching a vent. Shouldn't be an issue. Even IMBs blocking a vent should be at least one cell length away
@@ -2411,10 +2714,11 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                        for (n = 0; n < ifPtr->FSumNum; n++)
                        {
-                           dotKnX = ifPtr->kn[n].x*cent[k][j][i].x + ifPtr->kn[n].y*cent[k][j][i].y + ifPtr->kn[n].z*cent[k][j][i].z;
-                           uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
-                           uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
-                           uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                           // dot KnX is 0 in x-dir since on k face
+                           dotKnX =  ifPtr->kn[n].y*(cent[k][j][i].y - mesh->bounds.Ly/2)+ ifPtr->kn[n].z*(cent[k][j][i].z - mesh->bounds.Lz/2);
+                           uFluct.x += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                           uFluct.y += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                           uFluct.z += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
                        }
 
                        ucat[k-1][j][i].x = ifPtr->meanU.x + uFluct.x;
@@ -2784,6 +3088,16 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
         }
     }
 
+    //printf("\n\n%f %f %f  ... SUM\n", uFluctSumX, uFluctSumY, uFluctSumZ);
+    /*PetscScalar TKECheck = 1.5*(uFluctSumSX/3. + uFluctSumSY/3. + uFluctSumSZ/3.);
+    PetscScalar uRMSCheck2 = sqrt(uFluctSumSX/3. + uFluctSumSY/3. + uFluctSumSZ/3.);
+    if (uFluctSumX + uFluctSumY + uFluctSumZ != 0.)
+    {
+       //printf("\n%f %f %f, %f %f %f, %f %f\n", uFluctSumX, uFluctSumY, uFluctSumZ, uFluctSumSX, uFluctSumSY, uFluctSumSZ, TKECheck, uRMSCheck2);
+
+
+   }*/
+
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
     DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
@@ -2954,36 +3268,56 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     else
                     {
                         // loop through IBM bodies
-                        for (b = 0; b < ibm->numBodies; b++)
+                        /*for (b = 0; b < ibm->numBodies; b++)
                         {
                             ibmObject   *ibmBody  = ibm->ibmBody[b];
 
                             if(ibmBody->bound->xmin < cent[k][j][i].x && ibmBody->bound->xmax > cent[k][j][i].x && ibmBody->bound->ymin < cent[k][j][i].y && ibmBody->bound->ymax > cent[k][j][i].y && ibmBody->bound->zmin < cent[k][j][i].z && ibmBody->bound->zmax > cent[k][j][i].z)
                             {
-                                if(ibmBody->tSourceFlag == 1)
+                                /*if (ibmBody->bodyType == "surfaceBody")
                                 {
-                                    t[k][j][i] = ibmBody->IBTemp;
-                                    continue;
-                                }
-                                else if(ibmBody->tSourceFlag == 2)
-                                {
-                                    //futurework
+                                    if(ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID] == 1)
+                                    {
+                                        ibmPtTemp = ibmSurface->IBTemp;
+                                        //PetscPrintf(PETSC_COMM_WORLD, "IBTemp%li %f\n", s, ibmSurface->IBTemp);
+                                    }
+                                    else if (ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID] == 2)
+                                    {
+                                        //future work
+                                    }
+                                    else
+                                    {
+                                        ibmPtTemp = ibm->access->constants->tRef;
+                                    }
                                 }
                                 else
-                                {
-                                    t[k][j][i] = teqn->access->constants->tRef;
-                                    continue;
-                                }
-                            }
+                                {*/
+                                    /*if(ibmBody->tSourceFlag == 1)
+                                    {
+                                        t[k][j][i] = ibmBody->IBTemp;
+                                        continue;
+                                    }
+                                    else if(ibmBody->tSourceFlag == 2)
+                                    {
+                                        //futurework
+                                    }
+                                    else
+                                    {
+                                        t[k][j][i] = teqn->access->constants->tRef;
+                                        continue;
+                                    }*/
+                                //}
 
-                        }
+                           // }
+
+                        //}
 
                     }
 
 
                 }
 
-                //set ventBC and continues to next if vent cell
+                //set ventTBC and continues to next if vent cell
                 if (markVent[k][j][i] > 0)
                 {
                     q = markVent[k][j][i] - 1;
@@ -3489,9 +3823,334 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode UpdateScalarMomentBCs(sm_ *sm, PetscInt ii)
+{
+    ibm_           *ibm = sm->access->ibm;
+    vents_         *vents = sm->access->vents;
+    mesh_          *mesh = sm->access->mesh;
+    clock_         *clock = sm->access->clock;
+    ueqn_          *ueqn = sm->access->ueqn;
+
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    word          typeName = "boundary/SM";
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, b, q;
+    PetscInt      depSumInt = 0;;
+
+    PetscInt      ***markVent;
+
+    PetscReal     ***smVal, ***lsmVal, ***nvert;
+    PetscReal     ***aj, uFluctSum, ratio;
+    Cmpnts        ***csi, ***eta, ***zet, ***cent, ***dep, ***ucat, uFluct;
+
+    PetscReal       constSource; //constant SM boundary source term
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+    DMDAVecGetArray(fda, mesh->lCsi,   &csi);
+    DMDAVecGetArray(fda, mesh->lEta,   &eta);
+    DMDAVecGetArray(fda, mesh->lZet,   &zet);
+
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+
+    DMDAVecGetArray(da,  mesh->lAj,    &aj);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+
+    DMDAVecGetArray(da, sm->lsmVal, &lsmVal);
+    DMDAVecGetArray(da, sm->smVal,  &smVal);
+
+    DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
+
+    DMDAVecGetArray(fda, sm->lDep, &dep);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+
+                if(sm->access->flags->isIBMActive)
+                {
+                    ibmFluidCell  *ibF = ibm->ibmFCells;
+
+                    // set to zero if solid
+                    if(isIBMSolidCell(k, j, i, nvert))
+                    {
+                            smVal[k][j][i] = 0.0;
+                            //smVal[k][j][i] = lsmVal[k][j][i] - (dep[k][j][i-1].x + dep[k][j-1][i].y + dep[k-1][j][i].z)*clock->dt - (dep[k][j][i+1].x + dep[k][j+1][i].y + dep[k+1][j][i].z)*clock->dt;
+                            continue;
+                    }
+
+                    if(isIBMFluidCell(k, j, i, nvert))
+                    {
+                        //add SM sources
+                        for(PetscInt c = 0; c < ibm->numIBMFluid; c++)
+                        {
+                            if (i == ibF[c].cellId.i && j == ibF[c].cellId.j && k == ibF[c].cellId.k)
+                            {
+                                //printf("here111...................................\n");
+                                if(ibm->ibmBody[ibF[c].bodyID]->ibmControlled)
+                                {
+                                    //printf("here222...................................\n");
+                                    if(ibm->ibmBody[ibF[c].bodyID]->bodyType == "surfaceBody")
+                                    {
+                                        //printf("here333...................................\n");
+                                        //PetscPrintf(PETSC_COMM_WORLD, "SID = %li flag = %li\n", ibF[c].surfaceID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID]);
+                                        if(ibm->ibmBody[ibF[c].bodyID]->smSourceFlagSurf[ibF[c].sID] == 1)
+                                        {
+                                            if (ii == 0)
+                                            {
+                                                smVal[k][j][i] = 1.0;
+                                                //printf("here555...................................\n");
+                                            }
+                                            else if (ii == 1)
+                                            {
+                                                smVal[k][j][i] = 17.8685186173;
+                                            }
+                                            else if (ii == 2)
+                                            {
+                                                smVal[k][j][i] = 398.2118967443;
+                                            }
+                                            else if (ii == 3)
+                                            {
+                                                smVal[k][j][i] = 11068.2011912980;
+                                            }
+                                            else if (ii == 4)
+                                            {
+                                                smVal[k][j][i] = 383686.9178784288;
+                                            }
+                                            else if (ii == 5)
+                                            {
+                                                smVal[k][j][i] = 16588765.6310550347;
+                                            }
+
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+
+                    }
+                }
+
+                //set ventTBC and continues to next if vent cell
+                if (markVent[k][j][i] > 0)
+                {
+                    q = markVent[k][j][i] - 1;
+
+                    if (i == 1 && vents->vent[q]->smBC == "fixedValue")
+                    {
+                        smVal[k][j][i-1] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                        //smVal[k][j][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->smBC == "fixedValue")
+                    {
+                        smVal[k][j][i+1] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                        //smVal[k][j][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                    }
+
+                    if (j == 1 && vents->vent[q]->smBC == "fixedValue")
+                    {
+                        smVal[k][j-1][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                        //smVal[k][j][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                    }
+
+                    if (j == my-2 && vents->vent[q]->smBC == "fixedValue")
+                    {
+                         smVal[k][j+1][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                         //smVal[k][j][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                    }
+
+                    if (k == 1 && vents->vent[q]->smBC == "fixedValue")
+                    {
+                         smVal[k-1][j][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                         //smVal[k][j][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->smBC == "fixedValue")
+                    {
+                         smVal[k+1][j][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                         //smVal[k][j][i] = vents->vent[q]->ventSMBC[ii]->smBCVal;
+                    }
+
+                    if (i == 1 && vents->vent[q]->smBC == "zeroGradient")
+                    {
+                       smVal[k][j][i-1] = lsmVal[k][j][i];
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->smBC == "zeroGradient")
+                    {
+                        smVal[k][j][i+1] = lsmVal[k][j][i];
+                    }
+
+                    if (j == 1 && vents->vent[q]->smBC == "zeroGradient")
+                    {
+                       smVal[k][j-1][i] = lsmVal[k][j][i];
+                    }
+
+                    if (j == my-2 && vents->vent[q]->smBC == "zeroGradient")
+                    {
+                       smVal[k][j+1][i] = lsmVal[k][j][i];
+                    }
+
+                    if (k == 1 && vents->vent[q]->smBC == "zeroGradient")
+                    {
+                       smVal[k-1][j][i] = lsmVal[k][j][i];
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->smBC == "zeroGradient")
+                    {
+                       smVal[k+1][j][i] = lsmVal[k][j][i];
+                    }
+
+                    continue; //with this set-up no IBMs can'sm be touching a vent. Shouldn'sm be an issue. Even IMBs blocking a vent should be at least one cell length away
+                }
+
+                // zeroGradient boundary condition on i-left patch
+                if ((sm->iLeft=="zeroGradient") && i==1)
+                {
+                    smVal[k][j][i-1] = lsmVal[k][j][i];
+                }
+                // zeroGradient boundary condition on i-right patch
+                if ((sm->iRight=="zeroGradient") && i==mx-2)
+                {
+                    smVal[k][j][i+1] = lsmVal[k][j][i];
+                }
+                // zeroGradient boundary condition on j-left patch
+                if ((sm->jLeft=="zeroGradient") && j==1)
+                {
+                    smVal[k][j-1][i] = lsmVal[k][j][i];
+                }
+                // zeroGradient boundary condition on j-right patch
+                if ((sm->jRight=="zeroGradient") && j==my-2)
+                {
+                    smVal[k][j+1][i] = lsmVal[k][j][i];
+                }
+                // zeroGradient boundary condition on k-left patch
+                if (sm->kLeft=="zeroGradient" && k==1)
+                {
+                    smVal[k-1][j][i] = lsmVal[k][j][i];
+                }
+                // zeroGradient boundary condition on k-right patch
+                if (sm->kRight=="zeroGradient" && k==mz-2)
+                {
+                    smVal[k+1][j][i] = lsmVal[k][j][i];
+                }
+
+                // fixedValue boundary condition on i-left patch
+                if (sm->iLeft=="fixedValue" && i==1)
+                {
+                    smVal[k][j][i-1] = sm->iLval;
+                }
+                // fixedValue boundary condition on i-right patch
+                if (sm->iRight=="fixedValue" && i==mx-2)
+                {
+                    smVal[k][j][i+1] = sm->iRval;
+                }
+                // fixedValue boundary condition on j-left patch
+                if (sm->jLeft=="fixedValue" && j==1)
+                {
+                    smVal[k][j-1][i] = sm->jLval;
+                }
+                // fixedValue boundary condition on j-right patch
+                if (sm->jRight=="fixedValue" && j==my-2)
+                {
+                    smVal[k][j+1][i] = sm->jRval;
+                }
+                // fixedValue boundary condition on k-left patch
+                if (sm->kLeft=="fixedValue" && k==1)
+                {
+                    smVal[k-1][j][i] = sm->kLval;
+                }
+                // fixedValue boundary condition on k-right patch
+                if (sm->kRight=="fixedValue" && k==mz-2)
+                {
+                    smVal[k+1][j][i] = sm->kRval;
+                }
+
+                // periodic boundary condition on i-left patch
+                if (sm->iLeft=="periodic" && i==1)
+                {
+                    if(mesh->i_periodic)       smVal[k][j][i-1] = lsmVal[k][j][mx-2];
+                    else if(mesh->ii_periodic) smVal[k][j][i-1] = lsmVal[k][j][-2];
+                }
+                // periodic boundary condition on i-right patch
+                if (sm->iRight=="periodic" && i==mx-2)
+                {
+                    if(mesh->i_periodic)        smVal[k][j][i+1] = lsmVal[k][j][1];
+                    else if (mesh->ii_periodic) smVal[k][j][i+1] = lsmVal[k][j][mx+1];
+                }
+                // periodic boundary condition on j-left patch
+                if (sm->jLeft=="periodic" && j==1)
+                {
+                    if(mesh->j_periodic)       smVal[k][j-1][i] = lsmVal[k][my-2][i];
+                    else if(mesh->jj_periodic) smVal[k][j-1][i] = lsmVal[k][-2][i];
+                }
+                // periodic boundary condition on j-right patch
+                if (sm->jRight=="periodic" && j==my-2)
+                {
+                    if(mesh->j_periodic)       smVal[k][j+1][i] = lsmVal[k][1][i];
+                    else if(mesh->jj_periodic) smVal[k][j+1][i] = lsmVal[k][my+1][i];
+                }
+                // periodic boundary condition on k-left patch
+                if (sm->kLeft=="periodic" && k==1)
+                {
+                    if(mesh->k_periodic)       smVal[k-1][j][i] = lsmVal[mz-2][j][i];
+                    else if(mesh->kk_periodic) smVal[k-1][j][i] = lsmVal[-2][j][i];
+                }
+                // periodic boundary condition on k-right patch
+                if (sm->kRight=="periodic" && k==mz-2)
+                {
+                    if(mesh->k_periodic)       smVal[k+1][j][i] = lsmVal[1][j][i];
+                    else if(mesh->kk_periodic) smVal[k+1][j][i] = lsmVal[mz+1][j][i];
+                }
+
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+    DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+
+    DMDAVecRestoreArray(da, sm->lsmVal, &lsmVal);
+    DMDAVecRestoreArray(da, sm->smVal,  &smVal);
+
+    DMDAVecRestoreArray(da, mesh->ventMarkers, &markVent);
+
+    DMDAVecRestoreArray(fda, sm->lDep, &dep);
+
+    // scatter global to local
+    DMGlobalToLocalBegin(da, sm->smVal, INSERT_VALUES, sm->lsmVal);
+    DMGlobalToLocalEnd  (da, sm->smVal, INSERT_VALUES, sm->lsmVal);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode UpdateNutBCs(les_ *les)
 {
     mesh_          *mesh = les->access->mesh;
+    vents_         *vents = les->access->vents;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -3502,10 +4161,12 @@ PetscErrorCode UpdateNutBCs(les_ *les)
     word          typeName = "boundary/nut";
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k;
+    PetscInt      i, j, k, q;
 
     PetscReal     ***nut, ***nvert, ***iaj;
     Cmpnts        ***icsi, ***cent;
+
+    PetscInt      ***markVent;;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -3516,6 +4177,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
     DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
     DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
+    DMDAVecGetArray(da, mesh->ventMarkers, &markVent);
 
     // read inflow if necessary
     if(mesh->boundaryNut.kLeft == "inletFunction")
@@ -3584,6 +4246,76 @@ PetscErrorCode UpdateNutBCs(les_ *les)
                 {
                     nut[k][j][i] = 0.0;
                     continue;
+                }
+
+                //set ventBC and continues to next if vent cell
+                if (markVent[k][j][i] > 0)
+                {
+                    q = markVent[k][j][i] - 1;
+
+                    if (i == 1 && vents->vent[q]->ventBCNut == "fixedValue")
+                    {
+                        nut[k][j][i-1] = vents->vent[q]->ventBCNutReal;
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventBCNut == "fixedValue")
+                    {
+
+                        nut[k][j][i+1] = vents->vent[q]->ventBCNutReal;
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventBCNut == "fixedValue")
+                    {
+                        nut[k][j-1][i] = vents->vent[q]->ventBCNutReal;
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventBCNut == "fixedValue")
+                    {
+
+                         nut[k][j+1][i] = vents->vent[q]->ventBCNutReal;
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventBCNut == "fixedValue")
+                    {
+                         nut[k-1][j][i] = vents->vent[q]->ventBCNutReal;
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventBCNut == "fixedValue")
+                    {
+                         nut[k+1][j][i] = vents->vent[q]->ventBCNutReal;
+                    }
+
+                    if (i == 1 && vents->vent[q]->ventBCNut == "zeroGradient")
+                    {
+                       nut[k][j][i-1] = nut[k][j][i];
+                    }
+
+                    if (i == mx-2 && vents->vent[q]->ventBCNut == "zeroGradient")
+                    {
+                        nut[k][j][i+1] = nut[k][j][i];
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventBCNut == "zeroGradient")
+                    {
+                       nut[k][j-1][i] = nut[k][j][i];
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventBCNut == "zeroGradient")
+                    {
+                       nut[k][j+1][i] = nut[k][j][i];
+                    }
+
+                    if (k == 1 && vents->vent[q]->ventBCNut == "zeroGradient")
+                    {
+                       nut[k-1][j][i] = nut[k][j][i];
+                    }
+
+                    if (k == mz-2 && vents->vent[q]->ventBCNut == "zeroGradient")
+                    {
+                       nut[k+1][j][i] = nut[k][j][i];
+                    }
+
+                    continue; //with this set-up no IBMs can't be touching a vent. Shouldn't be an issue. Even IMBs blocking a vent should be at least one cell length away
                 }
 
                 // special boundary condition where inflow is mapped from precursor,
@@ -3778,6 +4510,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(da,  mesh->lIAj,   &iaj);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+    DMDAVecRestoreArray(da, mesh->ventMarkers, &markVent);
 
     // scatter nut from global to local
     DMLocalToLocalBegin(da, les->lNu_t, INSERT_VALUES, les->lNu_t);

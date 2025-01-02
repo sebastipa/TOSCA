@@ -46,7 +46,7 @@ struct avgFields
     Vec           pAvgOmegaOmega;             //!< phase sum of resolved vorticity stresses over time
     Vec           pAvgUdotGradP;              //!< phase sum of scalar u*dpdx + v*dpdy + w*dpdz over time
     Vec           pAvgMagGradU;               //!< phase sum of velocity grad magnitude over time
-    Vec           pAvgMagUU;                  //!< phase sum of vector (u^2+v^2+w^2)*ui over time
+    Vec           pAvgMagUU;                  //!< phase sum of vector (u^2+v^2+w^2)*ui over time  
 };
 
 #endif

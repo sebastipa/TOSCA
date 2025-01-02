@@ -21,11 +21,15 @@ struct io_
     PetscReal phAvgPrd;                       //!< sampling period in seconds
     PetscReal phAvgStartTime;                 //!< start time of phase averaging procedure
     PetscInt  keBudgets;                      //!< compute kinetic energy budget terms
+    PetscInt  TKE;
+    PetscReal tkePrd;                         //!< sampling period in seconds
+    PetscReal tkeStartTime;                   //!< start time of averaging procedure
     PetscInt  writePForce;                    //!< compute pressure on individual elements
 
     PetscInt  avgWeight;                      //!< number of average snapshots (cumulated at runtime)
     PetscInt  pAvgWeight;                     //!< number of phase average snapshots (cumulated at runtime)
     PetscInt  keAvgWeight;                    //!< number of keBudget average snapshots (cumulated at runtime)
+    PetscInt  tkeAvgWeight;                    //!< number of tkeBudget average snapshots (cumulated at runtime)
 
     PetscInt  qCrit;
     PetscInt  l2Crit;
@@ -177,3 +181,6 @@ word trim(const word& str);
 
 //! \brief Check if is a number
 bool isNumber(const word& str);
+
+//! \brief Read mandatory word from sub-dictionary and following double if "fixedValue"
+PetscErrorCode readSubDictWordAndDouble(const char *dictName, const char *subdict, const char *keyword, word *value, PetscScalar *value2);

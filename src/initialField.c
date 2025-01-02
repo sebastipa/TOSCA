@@ -19,6 +19,7 @@ PetscErrorCode SetInitialField(domain_ *domain)
         mesh_  *mesh       = domain[d].mesh;
         word   filenameU   = "./boundary/" + mesh->meshName + "/U";
         word   filenameT   = "./boundary/" + mesh->meshName + "/T";
+        word   filenameSM   = "./boundary/" + mesh->meshName + "/SM";
         word   filenameNut = "./boundary/" + mesh->meshName + "/nut";
 
         // read the internal field U
@@ -79,11 +80,52 @@ PetscErrorCode SetInitialField(domain_ *domain)
             SetInitialFieldLES(domain[d].les);
         }
 
+        // read scalar moment fieldsDir
+        char momentInitF[256];
+        for  (PetscInt  ii=0; ii < flags->isScalarMomentsActive; ii++)
+        {
+            if (ii == 0)
+            {
+                readDictDouble(filenameSM.c_str(), "OGConc", &(domain[d].smObject->OGConc));
+                readDictDouble(filenameSM.c_str(), "monoDFrac", &(domain[d].smObject->monoDFrac));
+                readDictDouble(filenameSM.c_str(), "rhoPart", &(domain[d].smObject->rhoPart));
+                readDictWord(filenameSM.c_str(), "internalField", &(domain[d].smObject->initFieldType));
+            }
+
+            sprintf(momentInitF, "momentInitF%ld", ii);
+            //readSubDictWord(filenameSM.c_str(), momentInitF, "internalField", &(domain[d].smObject->sm[ii]->initFieldType));
+            SetInitialFieldSM(domain[d].smObject->sm[ii], momentInitF, ii);
+        }
+
         // if readFields is on, read all the fields
         if(domain[d].ueqn->initFieldType == "readField")
         {
             PetscPrintf(mesh->MESH_COMM, "Setting initial field: %s\n\n", domain[d].ueqn->initFieldType.c_str());
             readFields(&domain[d], domain[d].clock->startTime);
+
+            // update boundary conditions
+            UpdateCartesianBCs(domain[d].ueqn);
+            UpdateContravariantBCs(domain[d].ueqn);
+            UpdatePressureBCs(domain[d].peqn);
+
+            if(flags->isTeqnActive)
+            {
+                UpdateTemperatureBCs(domain[d].teqn);
+            }
+
+            if(flags->isLesActive)
+            {
+               UpdateNutBCs(domain[d].les);
+            }
+
+            if(flags->isScalarMomentsActive)
+            {
+                for  (PetscInt  ii=0; ii < flags->isScalarMomentsActive; ii++)
+                {
+                    UpdateScalarMomentBCs(domain[d].smObject->sm[ii], ii);
+                }
+            }
+
         }
 
         // save old fields
@@ -93,6 +135,7 @@ PetscErrorCode SetInitialField(domain_ *domain)
         {
             VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
         }
+
     }
 
     return(0);
@@ -376,7 +419,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
 
                 //calculate fluctuating u magnitude for this fourier series at this point.
                 ifPtr->uMagN[n] = sqrt(ifPtr->Ek[n]*ifPtr->dkn);
-               
+
             }
 
         }
@@ -482,6 +525,56 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
 
     return(0);
 }
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetInitialFieldSM(sm_ *sm, char *momentInitF, PetscInt ii)
+{
+    clock_ *clock     = sm->access->clock;
+    mesh_  *mesh      = sm->access->mesh;
+    SMObj_ *smObject  = sm->access->smObject;
+
+    word   filename  = "./boundary/" + mesh->meshName + "/SM";
+
+    if(smObject->initFieldType == "readField")
+    {
+        if(clock->time == 0)
+        {
+            char error[512];
+            sprintf(error, "readField option not available at startTime 0. Use uniform field or spread the inflow\n");
+            fatalErrorInFunction("SetInitialFieldSM", error);
+        }
+
+        if(sm->access->flags->isScalarMomentsActive)
+        {
+            if(sm->access->ueqn->initFieldType != "readField")
+            {
+                char error[512];
+                sprintf(error, "readField requires all fields to be set to this keyword. Velocity not set as readField\n");
+                fatalErrorInFunction("SetInitialFieldSM", error);
+            }
+        }
+
+        // all fields read together later
+    }
+    else if (smObject->initFieldType == "uniform")
+    {
+        PetscReal smRef;
+        readSubDictDouble(filename.c_str(), momentInitF, "value", &(smRef));
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for SM%li: %s\n\n", ii, smObject->initFieldType.c_str());
+        SetUniformFieldSM(sm, smRef, ii);
+    }
+
+    else
+    {
+        char error[512];
+        sprintf(error, "Invalid initial field keyword. Available initial fields at time=0 are:\n\n        1. uniform 2. readField \n");
+        fatalErrorInFunction("SetInitialFieldSM", error);
+    }
+
+    return(0);
+}
+
 
 //***************************************************************************************************************//
 
@@ -1517,6 +1610,133 @@ PetscErrorCode SetUniformFieldT(teqn_ *teqn, PetscReal &tRef)
     DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
 
     UpdateTemperatureBCs(teqn);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetUniformFieldSM(sm_ *sm, PetscReal &smRef, PetscInt ii)
+{
+    mesh_         *mesh = sm->access->mesh;
+    ibm_          *ibm = sm->access->ibm;
+
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***smVal;
+    PetscReal     ***nvert;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+
+    DMDAVecGetArray(da, sm->smVal,  &smVal);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+    // loop on the internal cells and set the reference cartesian velocity
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+
+                if(sm->access->flags->isIBMActive)
+                {
+                    ibmFluidCell  *ibF = ibm->ibmFCells;
+
+                    if(isIBMFluidCell(k, j, i, nvert))
+                    {
+
+                        for(PetscInt c = 0; c < ibm->numIBMFluid; c++)
+                        {
+                            if (i == ibF[c].cellId.i && j == ibF[c].cellId.j && k == ibF[c].cellId.k)
+                            {
+                                //printf("here111...................................\n");
+                                if(ibm->ibmBody[ibF[c].bodyID]->ibmControlled)
+                                {
+                                    //printf("here222...................................\n");
+                                    if(ibm->ibmBody[ibF[c].bodyID]->bodyType == "surfaceBody")
+                                    {
+                                        //printf("here333...................................\n");
+                                        //PetscPrintf(PETSC_COMM_WORLD, "SID = %li flag = %li\n", ibF[c].surfaceID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID]);
+                                        if(ibm->ibmBody[ibF[c].bodyID]->smSourceFlagSurf[ibF[c].sID] == 1)
+                                        {
+                                            //printf("here444...................................\n");
+                                            if (ii == 0)
+                                            {
+                                                smVal[k][j][i] = 1.0;
+                                                //printf("here555...................................\n");
+                                            }
+                                            else if (ii == 1)
+                                            {
+                                                smVal[k][j][i] = 17.8685186173;
+                                            }
+                                            else if (ii == 2)
+                                            {
+                                                smVal[k][j][i] = 398.2118967443;
+                                            }
+                                            else if (ii == 3)
+                                            {
+                                                smVal[k][j][i] = 11068.2011912980;
+                                            }
+                                            else if (ii == 4)
+                                            {
+                                                smVal[k][j][i] = 383686.9178784288;
+                                            }
+                                            else if (ii == 5)
+                                            {
+                                                smVal[k][j][i] = 16588765.6310550347;
+                                            }
+
+                                        }
+                                        else
+                                        {
+                                            smVal[k][j][i] = smRef;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        smVal[k][j][i] = smRef;
+                                    }
+                                }
+
+                            }
+                        }
+
+                    }
+                    else
+                    {
+                         smVal[k][j][i] = smRef;
+                    }
+                }
+                else
+                {
+                     smVal[k][j][i] = smRef;
+                }
+
+
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, sm->smVal,  &smVal);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(da, sm->smVal, INSERT_VALUES, sm->lsmVal);
+    DMGlobalToLocalEnd(da, sm->smVal, INSERT_VALUES, sm->lsmVal);
+
+    UpdateScalarMomentBCs(sm, ii);
 
     return(0);
 }

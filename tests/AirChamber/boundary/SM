@@ -1,0 +1,151 @@
+# OKWind Input file - T boundary conditions
+# -------------------------------------------
+
+#internal field
+
+OGConc	2267500.0
+monoDFrac   0.2
+rhoPart 1000.0
+internalField uniform
+
+momentInitF0
+{
+  value  1.0
+  perturbations 0
+}
+
+momentInitF1
+{ 
+  value  0.3065440896 #55.832354
+  perturbations 0
+}
+
+momentInitF2
+{
+  value  0.0981136153 #3886.11773 #0.9027452930
+  perturbations 0
+}
+
+momentInitF3
+{
+  value  0.0327875522 #336705.679 #1.0000000000
+  perturbations 0
+}
+
+momentInitF4
+{
+  value  0.0114401599 #36155624.7 #1.1906393488
+  perturbations 0
+}
+
+momentInitF5
+{
+  value  0.0041677205 #4762338520.646 #1.5045754883
+  perturbations 0
+}
+
+# boundary patches
+
+iLeft   	 zeroGradient
+
+iRight  	 zeroGradient
+
+jLeft   	 zeroGradient
+
+jRight  	 zeroGradient
+
+kLeft   	 zeroGradient #fixedValue 1.0
+
+kRight  	 zeroGradient
+
+momentBC0
+{
+	iLeft   	 zeroGradient
+
+	iRight  	 zeroGradient
+
+	jLeft   	 zeroGradient
+
+	jRight  	 zeroGradient
+
+	kLeft   	 zeroGradient #fixedValue 1.0
+
+	kRight  	 zeroGradient
+}
+
+momentBC1
+{
+	iLeft   	 zeroGradient
+
+	iRight  	 zeroGradient
+
+	jLeft   	 zeroGradient
+
+	jRight  	 zeroGradient
+
+	kLeft   	 zeroGradient #fixedValue 1.0
+
+	kRight  	 zeroGradient
+}
+
+momentBC2
+{
+	iLeft   	 zeroGradient
+
+	iRight  	 zeroGradient
+
+	jLeft   	 zeroGradient
+
+	jRight  	 zeroGradient
+
+	kLeft   	 zeroGradient #fixedValue 1.0
+
+	kRight  	 zeroGradient
+}
+
+momentBC3
+{
+	iLeft   	 zeroGradient
+
+	iRight  	 zeroGradient
+
+	jLeft   	 zeroGradient
+
+	jRight  	 zeroGradient
+
+	kLeft   	 zeroGradient #fixedValue 1.0
+
+	kRight  	 zeroGradient
+}
+
+momentBC4
+{
+    	iLeft   	 zeroGradient
+
+	iRight  	 zeroGradient
+
+	jLeft   	 zeroGradient
+
+	jRight  	 zeroGradient
+
+	kLeft   	 zeroGradient #fixedValue 1.0
+
+	kRight  	 zeroGradient
+}
+
+momentBC5
+{
+    	iLeft   	 zeroGradient
+
+	iRight  	 zeroGradient
+
+	jLeft   	 zeroGradient
+
+	jRight  	 zeroGradient
+
+	kLeft   	 zeroGradient #fixedValue 1.0
+
+	kRight  	 zeroGradient
+}
+
+

@@ -1,9 +1,0 @@
-probesNumber 2
-timeStart    60
-intervalType  timeStep
-timeInterval 0.015
-fields       U
-
-locations
-0.914 0.203 0.660
-0.914 -0.203 0.660

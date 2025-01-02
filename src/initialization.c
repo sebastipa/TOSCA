@@ -118,6 +118,14 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // temperature equation initialize
         InitializeTEqn(domain[d].teqn);
 
+        InitializeSMObject(domain[d].smObject);
+
+        // scalarMoment equations initialize
+        for  (PetscInt  ii=0; ii < flags->isScalarMomentsActive; ii++)
+        {
+            InitializeSM(domain[d].smObject->sm[ii]);
+        }
+
         // LES model initialize
         InitializeLES(domain[d].les);
 
@@ -183,6 +191,12 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isGravityWaveModelingActive   = 0;
     flags->isNonInertialFrameActive      = 0;
     flags->isVentsActive                 = 0;
+    flags->isScalarMomentsActive         = 0;
+    flags->isCoagSourceActive            = 0;
+    flags->isGroSourceActive             = 0;
+    flags->isDepoSourceActive            = 0;
+    flags->isSediFluxActive              = 0;
+    flags->isDeviFluxActive              = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",         &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",             &(flags->isLesActive), PETSC_NULL);
@@ -202,6 +216,12 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",     &(flags->isNonInertialFrameActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",     &(flags->isGravityWaveModelingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-vents", &(flags->isVentsActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-scalarMoments", &(flags->isScalarMomentsActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-coagSource", &(flags->isCoagSourceActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-groSource", &(flags->isGroSourceActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-depoSource", &(flags->isDepoSourceActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sediFlux", &(flags->isSediFluxActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-deviFlux", &(flags->isDeviFluxActive), PETSC_NULL);
 
 	// do some checks
 	if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingActive)
@@ -245,6 +265,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
         }
 	}
 
+    if(flags->isScalarMomentsActive != 0 && flags->isScalarMomentsActive != 6)
+    {
+        printf("\n.......%li\n", flags->isScalarMomentsActive);
+        char error[512];
+        sprintf(error, "Scalar moment flag must be 0 or 6");
+        fatalErrorInFunction("SetSimulationFlags", error);
+    }
+
     // read acquisition flags
     PetscInt isProbesActive         = 0;
     PetscInt isSectionsActive       = 0;
@@ -252,6 +280,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscInt isAverage3LMActive     = 0;
     PetscInt isPhaseAveragingActive = 0;
     PetscInt isAveragingActive      = 0;
+    PetscInt isTKEActive            = 0;
     PetscInt isKEBudgetsActive      = 0;
     PetscInt isQCritActive          = 0;
     PetscInt isL2CritActive         = 0;
@@ -273,6 +302,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",       &isPerturbABLActive,     PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",       &PvCatalystActive,       PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeContinuity",&continuityActive,       PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-tke",           &isTKEActive,            PETSC_NULL);
 
     flags->isAquisitionActive
     =
@@ -480,6 +510,24 @@ PetscErrorCode ReadPhysicalConstants(domain_ *domain)
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,"-Pr", &(domain->constants.Pr), PETSC_NULL);
     }
 
+    // read Scmidt number
+    if(domain->flags.isScalarMomentsActive)
+    {
+        readDictDouble("control.dat", "-Sc",  &(domain->constants.Sc));
+        readDictDouble("control.dat", "-ScT",  &(domain->constants.ScT));
+
+        // read reference temperature if abl is not active
+        if(!domain->flags.isAblActive)
+        {
+            readDictDouble("control.dat", "-tRef",  &(domain->constants.tRef));
+        }
+    }
+    else
+    {
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,"-Sc", &(domain->constants.Sc), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,"-ScT", &(domain->constants.ScT), PETSC_NULL);
+    }
+
     return(0);
 }
 
@@ -501,6 +549,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     domain->farm        = NULL;
     domain->acquisition = NULL;
     domain->vents       = NULL;
+    domain->smObject    = NULL;
 
     // allocate pointers based on flags
     domain->mesh = new mesh_;
@@ -515,6 +564,26 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     if(domain->flags.isAquisitionActive) domain->acquisition = new acquisition_;
     if(domain->flags.isIBMActive)        domain->ibm         = new ibm_;
     if(domain->flags.isVentsActive)      domain->vents       = new vents_;
+    if(domain->flags.isScalarMomentsActive)
+    {
+        domain->smObject       = new SMObj_;
+
+        // allocate memory for each Scalar Moment object and the weights and abscissi
+        PetscMalloc(domain->flags.isScalarMomentsActive * sizeof(sm_*), &(domain->smObject->sm));
+        PetscMalloc(domain->flags.isScalarMomentsActive * sizeof(WandA*), &(domain->smObject->weightAbsc));
+
+        for  (PetscInt  i=0; i < domain->flags.isScalarMomentsActive; i++)
+        {
+            PetscMalloc(sizeof(sm_), &(domain->smObject->sm[i]));
+            PetscMalloc(sizeof(access_), &(domain->smObject->sm[i]->access));
+        }
+
+        for  (PetscInt  i=0; i < 3; i++)
+        {
+            PetscMalloc(sizeof(WandA), &(domain->smObject->weightAbsc[i]));
+        }
+    }
+
 
     return(0);
 }
@@ -607,6 +676,19 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
     {
         domain->access.vents  = domain->vents;
         domain->vents->access = &(domain->access);
+    }
+
+    if(domain->flags.isScalarMomentsActive)
+    {
+        domain->access.smObject = domain->smObject; //oly 1 way access needed for smObject since each sm has 2 way accesss
+        //domain->smObject->access = &(domain->access);
+
+        for  (PetscInt  i=0; i < domain->flags.isScalarMomentsActive; i++)
+        {
+            domain->smObject->sm[i]->access->smObject = domain->smObject;
+            domain->smObject->sm[i]->access = &(domain->access);
+        }
+
     }
 
     return(0);

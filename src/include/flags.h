@@ -28,6 +28,13 @@ struct flags_
     PetscInt isNonInertialFrameActive;
     PetscInt isGravityWaveModelingActive;
     PetscInt isVentsActive;
+    PetscInt isScalarMomentsActive;
+    PetscInt isCoagSourceActive;
+    PetscInt isGroSourceActive;
+    PetscInt isDepoSourceActive;
+    PetscInt isSediFluxActive;
+    PetscInt isDeviFluxActive;
 };
+
 
 #endif

@@ -38,6 +38,7 @@ PetscErrorCode InitializeIO(io_ *io)
     io->averaging      = 0;
     io->phaseAveraging = 0;
     io->keBudgets      = 0;
+    io->TKE            = 0;
 
     // read IBM pressure force write flag
     io->writePForce    = 0;
@@ -45,6 +46,7 @@ PetscErrorCode InitializeIO(io_ *io)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averaging", &(io->averaging), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-phaseAveraging", &(io->phaseAveraging), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-keBudgets", &(io->keBudgets), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-tke", &(io->TKE), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-writePressureForce", &(io->writePForce), PETSC_NULL);
 
     // read q-criterion flag
@@ -68,6 +70,18 @@ PetscErrorCode InitializeIO(io_ *io)
 
     io->continuity      = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeContinuity", &(io->continuity), PETSC_NULL);
+
+    if(io->TKE)
+    {
+        PetscPrintf(mesh->MESH_COMM, "TKE: yes\n\n");
+
+        readDictDouble("control.dat", "-tkePeriod", &(io->tkePrd));
+        readDictDouble("control.dat", "-tkeStartTime", &(io->tkeStartTime));
+
+        // initialize snapshot weighting (overwrittten if read averages)
+        io->tkeAvgWeight = 0;
+
+    }
 
     // allocate memory and initialize averaged fields
     if(io->averaging)
@@ -232,6 +246,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     mesh_        *mesh  = domain->mesh;
     peqn_        *peqn  = domain->peqn;
     teqn_        *teqn  = domain->teqn;
+    SMObj_       *smObject = domain->smObject;
     les_         *les   = domain->les;
     clock_       *clock = domain->clock;
     io_          *io    = domain->io;
@@ -278,6 +293,14 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     VecLoad(mesh->Nvert,viewer);
     PetscViewerDestroy(&viewer);
 
+    //read ibm field
+    PetscPrintf(mesh->MESH_COMM, "Reading vents...\n");
+    field = "/vents";
+    fileName = location + field;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(mesh->ventMarkers,viewer);
+    PetscViewerDestroy(&viewer);
+
     // read temperature
     if(domain->flags.isTeqnActive)
     {
@@ -287,6 +310,84 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
         VecLoad(teqn->Tmprt, viewer);
         PetscViewerDestroy(&viewer);
+    }
+
+    if(flags->isScalarMomentsActive)
+    {
+        // scalarMoment equations initialize
+        for  (PetscInt  i=0; i < flags->isScalarMomentsActive; i++)
+        {
+            PetscPrintf(mesh->MESH_COMM, "Reading SM%i...\n", i);
+            field = "/SM" + std::to_string(i);
+            fileName = location + field;
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(smObject->sm[i]->smVal, viewer);
+            PetscViewerDestroy(&viewer);
+        }
+
+        PetscPrintf(mesh->MESH_COMM, "Reading quant...\n");
+        field = "/quant";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->quant, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading Dq...\n");
+        field = "/Dq";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->Dq, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading probI...\n");
+        field = "/probI";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->probI, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading coag0...\n");
+        field = "/coag0";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->sm[0]->coagSource, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading dep0...\n");
+        field = "/dep0";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->sm[0]->Dep, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading depCount0...\n");
+        field = "/depCount0";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->DepCount, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading sed0...\n");
+        field = "/sed0";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->sm[0]->Sed, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading exCount0...\n");
+        field = "/exCount0";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->ExCount, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading dev0...\n");
+        field = "/dev0";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->sm[0]->Dev, viewer);
+        PetscViewerDestroy(&viewer);
+
     }
 
     if(domain->flags.isLesActive)
@@ -502,7 +603,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             }
             MPI_Barrier(mesh->MESH_COMM);
         }
-        
+
         //y damping mapped velocity
         if(flags->isYDampingActive)
         {
@@ -571,11 +672,139 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     }
 
     // read averaged fields
+    PetscInt tkeAvailable        = 0;
     PetscInt avgAvailable        = 0;
     PetscInt phaseAvgAvailable   = 0;
     PetscInt keBudAvailable      = 0;
     PetscInt lm3Available        = 0;
     PetscInt perturbABLAvailable = 0;
+
+    if(io->TKE)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // read avgU
+        field = "/avgU";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgU...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->TKE->avgU,viewer);
+            PetscViewerDestroy(&viewer);
+            tkeAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read Up
+        field = "/Up";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Up...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->TKE->Up,viewer);
+            PetscViewerDestroy(&viewer);
+            tkeAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read Eps
+        field = "/KeEps";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading KeEps...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->TKE->KeEps,viewer);
+            PetscViewerDestroy(&viewer);
+            tkeAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read Eps
+        field = "/Kres";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Kres...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->TKE->Kres,viewer);
+            PetscViewerDestroy(&viewer);
+            tkeAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgUpUp
+        field = "/tkeUpUp";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, " > tkeVpVp...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->TKE->VpVp,viewer);
+            PetscViewerDestroy(&viewer);
+            tkeAvailable++;
+        }
+
+        if(les)
+        {
+            // read avgNut
+            field = "/avgNut";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading avgNut...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->TKE->avgNut,viewer);
+                PetscViewerDestroy(&viewer);
+                tkeAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // read avgCs
+            field = "/avgCs";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading avgCs...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->TKE->avgCs,viewer);
+                PetscViewerDestroy(&viewer);
+                tkeAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+    }
 
     if(io->averaging)
     {
@@ -1719,6 +1948,14 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
 	}
 
     // read average, phase and ke budget average weights
+    if(tkeAvailable)
+    {
+        field = "/fieldInfo";
+        fileName = location + field;
+        readDictInt(fileName.c_str(), "avgWeight", &(io->tkeAvgWeight));
+        PetscPrintf(mesh->MESH_COMM, "Reading average weight: %ld and counting...\n",io->tkeAvgWeight);
+    }
+    // read average, phase and ke budget average weights
     if(avgAvailable)
     {
         field = "/fieldInfo";
@@ -1922,10 +2159,13 @@ PetscErrorCode writeFields(io_ *io)
     ueqn_       *ueqn  = io->access->ueqn;
     peqn_       *peqn  = io->access->peqn;
     teqn_       *teqn  = io->access->teqn;
+    SMObj_      *smObject  = io->access->smObject;
     les_        *les   = io->access->les;
     clock_      *clock = io->access->clock;
     flags_      *flags = io->access->flags;
     acquisition_ *acquisition;
+
+    DM             da = mesh->da;
 
     if(flags->isAquisitionActive)
     {
@@ -1967,6 +2207,11 @@ PetscErrorCode writeFields(io_ *io)
         writeBinaryField(mesh->MESH_COMM, mesh->Nvert, fieldName.c_str());
         MPI_Barrier(mesh->MESH_COMM);
 
+        // write vents
+        fieldName = timeName + "/vents";
+        writeBinaryField(mesh->MESH_COMM, mesh->ventMarkers, fieldName.c_str());
+        MPI_Barrier(mesh->MESH_COMM);
+
         // write temperature
         if(flags->isTeqnActive)
         {
@@ -1974,6 +2219,65 @@ PetscErrorCode writeFields(io_ *io)
             writeBinaryField(mesh->MESH_COMM, teqn->Tmprt, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
         }
+
+        if(flags->isScalarMomentsActive)
+        {
+            for  (int  i=0; i < flags->isScalarMomentsActive; i++)
+            {
+                char nam[20];
+                sprintf(nam, "/SM%i", i);
+                fieldName = timeName + nam;
+                writeBinaryField(mesh->MESH_COMM, smObject->sm[i]->smVal, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+            }
+
+            // write nvert
+            fieldName = timeName + "/quant";
+            writeBinaryField(mesh->MESH_COMM, smObject->quant, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write nvert
+            fieldName = timeName + "/Dq";
+            writeBinaryField(mesh->MESH_COMM, smObject->Dq, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write nvert
+            fieldName = timeName + "/probI";
+            writeBinaryField(mesh->MESH_COMM, smObject->probI, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write nvert
+            fieldName = timeName + "/coag0";
+            writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->coagSource, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write nvert
+            fieldName = timeName + "/dep0";
+            writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->Dep, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write nvert
+            fieldName = timeName + "/depCount0";
+            writeBinaryField(mesh->MESH_COMM, smObject->DepCount, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write nvert
+            fieldName = timeName + "/sed0";
+            writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->Sed, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write nvert
+            fieldName = timeName + "/exCount0";
+            writeBinaryField(mesh->MESH_COMM, smObject->ExCount, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write nvert
+            fieldName = timeName + "/dev0";
+            writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->Dev, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+        }
+
 
         if(flags->isLesActive)
         {
@@ -2064,7 +2368,7 @@ PetscErrorCode writeFields(io_ *io)
             {
                 Vec gyDamp;  VecDuplicate(ueqn->Ucat, &gyDamp);  VecSet(gyDamp, 0.);
                 VecVectorLocalToGlobalCopy(mesh, abl->uBarInstY, gyDamp);
-                
+
                 fieldName = timeName + "/yDampU";
                 writeBinaryField(mesh->MESH_COMM, gyDamp, fieldName.c_str());
                 VecDestroy(&gyDamp);
@@ -2088,6 +2392,70 @@ PetscErrorCode writeFields(io_ *io)
             fieldName = timeName + "/divU";
             writeBinaryField(mesh->MESH_COMM, acquisition->fields->divU, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        if(io->TKE)
+        {
+            // write avgU
+            fieldName = timeName + "/avgU";
+            writeBinaryField(mesh->MESH_COMM, acquisition->TKE->avgU, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write Up
+            fieldName = timeName + "/Up";
+            writeBinaryField(mesh->MESH_COMM, acquisition->TKE->Up, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write KeEps
+            fieldName = timeName + "/KeEps";
+            writeBinaryField(mesh->MESH_COMM, acquisition->TKE->KeEps, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write kres
+            fieldName = timeName + "/Kres";
+            writeBinaryField(mesh->MESH_COMM, acquisition->TKE->Kres, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+
+            // write Re Stresses
+            fieldName = timeName + "/tkeUpUp";
+            writeBinaryField(mesh->MESH_COMM, acquisition->TKE->VpVp, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            if(flags->isLesActive)
+            {
+                // write avgNut
+                fieldName = timeName + "/avgNut";
+                writeBinaryField(mesh->MESH_COMM, acquisition->TKE->avgNut, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgCs
+                fieldName = timeName + "/avgCs";
+                writeBinaryField(mesh->MESH_COMM, acquisition->TKE->avgCs, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+            }
+
+
+
+            // write weights
+            if(!rank)
+            {
+                FILE *f;
+                fieldName = timeName + "/fieldInfo";
+                f = fopen(fieldName.c_str(), "a");
+
+                if(!f)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                    fatalErrorInFunction("writeFields",  error);
+                }
+
+                fprintf(f, "avgWeight\t\t%ld\n", io->tkeAvgWeight);
+
+                fclose(f);
+            }
+
         }
 
         if(io->averaging)
@@ -4315,6 +4683,167 @@ PetscErrorCode readSubDictInt(const char *dictName, const char *subdict, const c
 
 //***************************************************************************************************************//
 
+PetscErrorCode readSubDictWordAndDouble(const char *dictName, const char *subdict, const char *keyword, word *value, PetscScalar *value2)
+{
+    // file stream
+    std::ifstream indata;
+
+    // word by word read
+    char word[256];
+
+    // open dictionary
+    indata.open(dictName);
+
+    if(!indata)
+    {
+       char error[512];
+        sprintf(error, "could not open %s dictionary\n", dictName);
+        fatalErrorInFunction("readSubDictWordAndDouble",  error);
+    }
+    else
+    {
+        // get word by word till end of dictionary
+        while(!indata.eof())
+        {
+            indata >> word;
+
+            // test if found subdictionary
+            if
+            (
+                strcmp
+                (
+                    subdict,
+                    word
+                ) == 0
+            )
+            {
+               // read the first "{"
+               indata >> word;
+
+               std::string token1(word);
+               std::string token2;
+
+               // test if braket is the first word after the subdictionary entry
+               if(trim(token1)=="{")
+               {
+                   // start reading inside the subdictionary
+                   indata >> token2;
+
+                   // read until "}" or end of dictionary is encountered
+                   while(trim(token2)!="}" && !indata.eof())
+                   {
+                       // look for the keyword
+                       if(token2==keyword)
+                       {
+                           indata >> word;
+
+                           // check if the value is a word
+                           std::string str(word);
+
+                           if(isNumber(str))
+                           {
+                              char error[512];
+                               sprintf(error, "expected word after keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
+                               fatalErrorInFunction("readSubDictWordAndDouble",  error);
+                           }
+                           else
+                           {
+                               // allocate memory
+                               PetscMalloc(sizeof(std::string), value);
+                               new(value) std::string{};
+
+                               // store the value
+                               *value = word;
+
+                               // if the word contains 'fixed' also read the following value
+                               std::string key(word);
+                               if (key.find ("fixed") != std::string::npos)
+                               {
+                                   // read the value
+                                   indata >> word;
+                                   std::sscanf(word, "%lf", value2);
+
+                                   // check if the value is a PetscReal, throw error otherwise
+                                   std::string str(word);
+
+                                   if(isNumber(str))
+                                   {
+                                       if (str.find ('.') != std::string::npos)
+                                       {
+                                           indata.close();
+                                           return(0);
+                                       }
+                                       else
+                                       {
+                                          char error[512];
+                                           sprintf(error, "expected <PetscReal>  after keyword '%s' in dict %s\n", keyword, dictName);
+                                           fatalErrorInFunction("readSubDictWordAndDouble",  error);
+                                       }
+                                   }
+                                   else
+                                   {
+                                      char error[512];
+                                       sprintf(error, "expected <PetscReal> after keyword '%s' in %s dictionary\n", keyword, dictName);
+                                       fatalErrorInFunction("readSubDictWordAndDouble",  error);
+                                   }
+                               }
+                               // if the string does not contain fixed, value is set to 0
+                               else
+                               {
+                                   *value2 = 0.0;
+                                   return(0);
+                               }
+
+                               // now look for the terminating "}", trows error if not found
+                               // if find another "{" means another subdict is entered: throws error
+
+                               indata >> token2;
+
+                               while(!indata.eof() && trim(token2)!="{")
+                               {
+                                   if(trim(token2)=="}")
+                                   {
+                                       indata.close();
+                                       return(0);
+                                   }
+
+                                   indata >> token2;
+                               }
+
+                              char error[512];
+                               sprintf(error, "missing '}' token in subdict %s of %s dictionary\n", subdict, dictName);
+                               fatalErrorInFunction("readSubDictWordAndDouble",  error);
+                           }
+
+                       }
+
+                       indata >> token2;
+                   }
+
+                  char error[512];
+                   sprintf(error, "could not find keyword '%s' in subdictionary %s of %s dictionary\n", keyword, subdict, dictName);
+                   fatalErrorInFunction("readSubDictWordAndDouble",  error);
+               }
+               else
+               {
+                  char error[512];
+                   sprintf(error, "expected '{' token in subdict %s of %s dictionary, found '%s'\n", subdict, dictName, word);
+                   fatalErrorInFunction("readSubDictWordAndDouble",  error);
+               }
+           }
+       }
+
+      char error[512];
+       sprintf(error, "could not find subdictionary %s in dictionary %s\n", subdict, dictName);
+       fatalErrorInFunction("readSubDictWordAndDouble",  error);
+   }
+   indata.close();
+
+   return(0);
+}
+
+//**************************************************************************************************************//
+
 PetscErrorCode readSubDictWord(const char *dictName, const char *subdict, const char *keyword, word *value)
 {
     // file stream
@@ -4428,7 +4957,7 @@ PetscErrorCode readSubDictWord(const char *dictName, const char *subdict, const 
 
       char error[512];
        sprintf(error, "could not find subdictionary %s in dictionary %s\n", subdict, dictName);
-       fatalErrorInFunction("readSubDicWord",  error);
+       fatalErrorInFunction("readSubDictWord",  error);
    }
    indata.close();
 

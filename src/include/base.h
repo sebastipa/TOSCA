@@ -58,6 +58,8 @@ struct constants_
 {
     // dimensionless numbers
     PetscReal        Pr;                         //!< Prantl number
+    PetscReal        Sc;                         //!< Schmidt number
+    PetscReal        ScT;                         //!< Turbulent Schmidt number
 
     // physical constants
     PetscReal        nu;                         //!< kinematic viscosity

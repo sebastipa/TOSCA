@@ -62,9 +62,10 @@ struct mesh_
     PetscInt       k_periodic, kk_periodic;
 
     // boundary conditions
-    scalarBC       boundaryNut;
-    scalarBC       boundaryT;
-    vectorBC       boundaryU;
+    scalarBC             boundaryNut;
+    scalarBC             boundaryT;
+    vectorBC             boundaryU;
+    //scalar moment bcs are stored in sm.h instead
 
     // special inflow boundary conditions
     inletFunctions inletF;

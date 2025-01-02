@@ -47,6 +47,7 @@ int main(int argc, char **argv)
 
     while(clock.endTime - clock.time > 1e-10)
     {
+
         PetscTime(&iterationTimeStart);
 
         // adjust time step
@@ -70,6 +71,7 @@ int main(int argc, char **argv)
 
             // copy old fields - contains all the bc for this time step - after all the boundary updates
             VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
+            VecCopy(domain[d].ueqn->Ucat, domain[d].ueqn->Ucat_o);
 
             if(flags.isTeqnActive)
             {
@@ -81,6 +83,16 @@ int main(int argc, char **argv)
                 }
 
                 Buoyancy(domain[d].ueqn, 1.0);
+            }
+
+            //save old scalar moment values for RK4
+            if(flags.isScalarMomentsActive)
+            {
+                for  (PetscInt  ii=0; ii < flags.isScalarMomentsActive; ii++)
+                {
+                    VecCopy(domain[d].smObject->sm[ii]->smVal, domain[d].smObject->sm[ii]->sm_o);
+                }
+
             }
 
             if(domain[d].ueqn->centralUpwindDiv || flags.isTeqnActive)
@@ -143,13 +155,25 @@ int main(int argc, char **argv)
 
             // transform contravarian1qt to cartesian
             contravariantToCartesian(domain[d].ueqn);
-              
+
             // temperature step
             if(flags.isTeqnActive)
             {
                 UpdateWallModelsT(domain[d].teqn);
 
                 SolveTEqn(domain[d].teqn);
+            }
+
+            //scalar moment Step
+            if(flags.isScalarMomentsActive)
+            {
+                SolveSM(domain[d].smObject);
+
+                //counts how many particles escape via deposition and exhaust
+                partCount(domain[d].smObject);
+
+                //estimates infection probability based on SM0 concentration
+                infectProb(domain[d].smObject);
             }
 
             MPI_Barrier(domain[d].mesh->MESH_COMM);
@@ -222,6 +246,12 @@ int main(int argc, char **argv)
             if(flags.isTeqnActive)
             {
                 UpdateTemperatureBCs(domain[d].teqn);
+            }
+
+            // updaate scalar moment BC
+            for  (PetscInt  ii=0; ii < flags.isScalarMomentsActive; ii++)
+            {
+                UpdateScalarMomentBCs(domain[d].smObject->sm[ii], ii);
             }
 
             // update cartesian BC

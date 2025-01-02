@@ -3,7 +3,7 @@
 
 #internal field 
 
-internalField    spreadInflow
+internalField    uniform 0.0
 #internalField    readField
 
 # boundary patches
@@ -12,5 +12,5 @@ iLeft   	fixedValue 0.0
 iRight  	fixedValue 0.0
 jLeft   	fixedValue 0.0
 jRight  	fixedValue 0.0
-kLeft   	zeroGradient
-kRight  	zeroGradient
+kLeft   	fixedValue 0.0
+kRight  	fixedValue 0.0

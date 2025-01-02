@@ -1207,6 +1207,60 @@ inline void resetNonResolvedCellCentersScalar(mesh_ *mesh,  Vec &V)
 
 //***************************************************************************************************************//
 
+//! \brief Resets the value at the non-solved faces to zero except for zeroGradient, overset and periodic
+inline void resetNonResolvedCellCentersScalarIBMSolid(mesh_ *mesh,  Vec &V)
+{
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         i, j, k;
+
+    PetscReal        ***nvert, ***s;
+
+    DMDAVecGetArray(mesh->da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(mesh->da, V, &s);
+
+    // Resets to zero the values of a vector field at the non-resolved
+    // faces of the mesh. Note: doesn't scatter to local.
+
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                //iface
+                if
+                (
+                    i==0 ||
+                    i==mx-1 ||
+                    j==0 ||
+                    j==my-1 ||
+                    k==0 ||
+                    k==mz-1 ||
+                    isIBMSolidCell(k, j, i, nvert)
+                )
+                {
+                    s[k][j][i] = 0.0;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->da, V, &s);
+    DMDAVecRestoreArray(mesh->da, mesh->lNvert, &nvert);
+
+    return;
+
+}
+
+//***************************************************************************************************************//
+
 //! \brief Interpolates cartesian velocity at cell center from the contravariant flux around a cell
 inline void ContravariantToCartesianPoint(Cmpnts &csi, Cmpnts &eta, Cmpnts &zet, Cmpnts &ucont, Cmpnts *ucat)
 {
@@ -2109,6 +2163,250 @@ inline void Compute_du_i
     return;
 }
 
+// ============================================================================================================= //
+
+inline void Compute_du_i_SM
+(
+    mesh_ *mesh,
+    PetscInt i, PetscInt j, PetscInt k, PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***ucat, PetscReal ***nvert,
+    PetscReal *dudc, PetscReal *dvdc, PetscReal *dwdc,
+    PetscReal *dude, PetscReal *dvde, PetscReal *dwde,
+    PetscReal *dudz, PetscReal *dvdz, PetscReal *dwdz
+)
+{
+    Cmpnts a, b, c, d, e, f, g, h, l, m;
+    /*a.x = -ucat[k][j][i].x;
+    b.z = ucat[k][j][i+1].z;
+    //c if (isIBMSolidCell(k, j-1, i+1, nvert))
+    d.x = ucat[k][j-1][i].x;
+    //e if (isIBMSolidCell(k, j+1, i+1, nvert))
+     f.z = ucat[k][j+1][i].z;
+    //gif (isIBMSolidCell(k-1, j, i+1, nvert))
+    h.x = ucat[k-1][j][i].x;
+    //l if (isIBMSolidCell(k+1, j, i+1, nvert))
+    m.z = ucat[k+1][j][i].z;*/
+
+    if (isIBMSolidCell(k, j, i, nvert))
+    {
+        a.x = -ucat[k][j][i+1].x;
+        a.y = -ucat[k][j][i+1].y;
+        a.z = -ucat[k][j][i+1].z;
+
+        b.x = ucat[k][j][i+1].x;
+        b.y = ucat[k][j][i+1].y;
+        b.z = ucat[k][j][i+1].z;
+
+        //c.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j-1, i+1, nvert))
+        {
+            c.x = -ucat[k][j][i+1].x;
+            c.y = -ucat[k][j][i+1].y;
+            c.z = -ucat[k][j][i+1].z;
+        }
+        else
+        {
+            c.x = ucat[k][j-1][i+1].x;
+            c.y = ucat[k][j-1][i+1].y;
+            c.z = ucat[k][j-1][i+1].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        d.x = ucat[k][j-1][i].x;
+        d.y = ucat[k][j-1][i].y;
+        d.z = ucat[k][j-1][i].z;
+
+        //e.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j+1, i+1, nvert))
+        {
+            e.x = -ucat[k][j][i+1].x;
+            e.y = -ucat[k][j][i+1].y;
+            e.z = -ucat[k][j][i+1].z;
+        }
+        else
+        {
+            e.x = ucat[k][j+1][i+1].x;
+            e.y = ucat[k][j+1][i+1].y;
+            e.z = ucat[k][j+1][i+1].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        f.x = ucat[k][j+1][i].x;
+        f.y = ucat[k][j+1][i].y;
+        f.z = ucat[k][j+1][i].z;
+
+        //g.x;         //either a solid with a fluid next to it in k-dir, or a fluid
+        if (isIBMSolidCell(k-1, j, i+1, nvert))
+        {
+            g.x = -ucat[k][j][i+1].x;
+            g.y = -ucat[k][j][i+1].y;
+            g.z = -ucat[k][j][i+1].z;
+        }
+        else
+        {
+            g.x = ucat[k-1][j][i+1].x;
+            g.y = ucat[k-1][j][i+1].y;
+            g.z = ucat[k-1][j][i+1].z;
+        }
+
+        //either a solid with a solid next to it in k-dir, or a fluid
+        h.x = ucat[k-1][j][i].x;
+        h.y = ucat[k-1][j][i].y;
+        h.z = ucat[k-1][j][i].z;
+
+        //l.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k+1, j, i+1, nvert))
+        {
+            l.x = -ucat[k][j][i+1].x;
+            l.y = -ucat[k][j][i+1].y;
+            l.z = -ucat[k][j][i+1].z;
+        }
+        else
+        {
+            l.x = ucat[k+1][j][i+1].x;
+            l.y = ucat[k+1][j][i+1].y;
+            l.z = ucat[k+1][j][i+1].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        m.x = ucat[k+1][j][i].x;
+        m.y = ucat[k+1][j][i].y;
+        m.z = ucat[k+1][j][i].z;
+
+    }
+    else
+    {
+        a.x = ucat[k][j][i].x;
+        a.y = ucat[k][j][i].y;
+        a.z = ucat[k][j][i].z;
+
+        b.x = -ucat[k][j][i].x;
+        b.y = -ucat[k][j][i].y;
+        b.z = -ucat[k][j][i].z;
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        c.x = ucat[k][j-1][i+1].x;
+        c.y = ucat[k][j-1][i+1].y;
+        c.z = ucat[k][j-1][i+1].z;
+
+        //d.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j-1, i, nvert))
+        {
+            d.x = -ucat[k][j][i].x;
+            d.y = -ucat[k][j][i].y;
+            d.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            d.x = ucat[k][j-1][i].x;
+            d.y = ucat[k][j-1][i].y;
+            d.z = ucat[k][j-1][i].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        e.x = ucat[k][j+1][i+1].x;
+        e.y = ucat[k][j+1][i+1].y;
+        e.z = ucat[k][j+1][i+1].z;
+
+        //f.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j+1, i, nvert))
+        {
+            f.x = -ucat[k][j][i].x;
+            f.y = -ucat[k][j][i].y;
+            f.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            f.x = ucat[k][j+1][i].x;
+            f.y = ucat[k][j+1][i].y;
+            f.z = ucat[k][j+1][i].z;
+        }
+
+        //either a solid with a solid next to it in k-dir, or a fluid
+        g.x = ucat[k-1][j][i+1].x;
+        g.y = ucat[k-1][j][i+1].y;
+        g.z = ucat[k-1][j][i+1].z;
+
+        //d.x;         //either a solid with a fluid next to it in k-dir, or a fluid
+        if (isIBMSolidCell(k-1, j, i, nvert))
+        {
+            h.x = -ucat[k][j][i].x;
+            h.y = -ucat[k][j][i].y;
+            h.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            h.x = ucat[k-1][j][i].x;
+            h.y = ucat[k-1][j][i].y;
+            h.z = ucat[k-1][j][i].z;
+        }
+
+        //either a solid with a solid next to it in k-dir, or a fluid
+        l.x = ucat[k+1][j][i+1].x;
+        l.y = ucat[k+1][j][i+1].y;
+        l.z = ucat[k+1][j][i+1].z;
+
+        //f.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k+1, j, i, nvert))
+        {
+            m.x = -ucat[k][j][i].x;
+            m.y = -ucat[k][j][i].y;
+            m.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            m.x = ucat[k+1][j][i].x;
+            m.y = ucat[k+1][j][i].y;
+            m.z = ucat[k+1][j][i].z;
+        }
+
+    }
+
+    *dudc = b.x - a.x;
+    *dvdc = b.y - a.y;
+    *dwdc = b.z - a.z;
+
+    if (j==my-2 && (i==0 || i==mx-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)))
+    {
+        *dude = (b.x + a.x - c.x - d.x) * 0.5;
+        *dvde = (b.y + a.y - c.y - d.y) * 0.5;
+        *dwde = (b.z + a.z - c.z - d.z) * 0.5;
+    }
+    else if  (j==1 && (i==0 || i==mx-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)))
+    {
+        *dude = (e.x + f.x - b.x - a.x) * 0.5;
+        *dvde = (e.y + f.y - b.y - a.y) * 0.5;
+        *dwde = (e.z + f.z - b.z - a.z) * 0.5;
+    }
+    else
+    {
+        *dude = (e.x + f.x - c.x - d.x) * 0.25;
+        *dvde = (e.y + f.y - c.y - d.y) * 0.25;
+        *dwde = (e.z + f.z - c.z - d.z) * 0.25;
+    }
+
+    if (k==mz-2 && (i==0 || i==mx-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)))
+    {
+        *dudz = (b.x + a.x - g.x - h.x) * 0.5;
+        *dvdz = (b.y + a.y - g.y - h.y) * 0.5;
+        *dwdz = (b.z + a.z - g.z - h.z) * 0.5;
+    }
+    else if (k==1 && (i==0 || i==mx-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)))
+    {
+        *dudz = (l.x + m.x - b.x - a.x) * 0.5;
+        *dvdz = (l.y + m.y - b.y - a.y) * 0.5;
+        *dwdz = (l.z + m.z - b.z - a.z) * 0.5;
+    }
+    else
+    {
+        *dudz = (l.x + m.x - g.x - h.x) * 0.25;
+        *dvdz = (l.y + m.y - g.y - h.y) * 0.25;
+        *dwdz = (l.z + m.z - g.z - h.z) * 0.25;
+    }
+
+    return;
+}
+
 //***************************************************************************************************************//
 
 inline void Compute_du_j
@@ -2173,6 +2471,242 @@ inline void Compute_du_j
 
 //***************************************************************************************************************//
 
+inline void Compute_du_j_SM
+(
+    mesh_ *mesh,
+    PetscInt i, PetscInt j, PetscInt k, PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***ucat, PetscReal ***nvert,
+    PetscReal *dudc, PetscReal *dvdc, PetscReal *dwdc,
+    PetscReal *dude, PetscReal *dvde, PetscReal *dwde,
+    PetscReal *dudz, PetscReal *dvdz, PetscReal *dwdz
+)
+
+{
+    Cmpnts a, b, c, d, e, f, g, h, l, m;
+
+    if (isIBMSolidCell(k, j, i, nvert))
+    {
+        a.x = -ucat[k][j+1][i].x;
+        a.y = -ucat[k][j+1][i].y;
+        a.z = -ucat[k][j+1][i].z;
+
+        b.x = ucat[k][j+1][i].x;
+        b.y = ucat[k][j+1][i].y;
+        b.z = ucat[k][j+1][i].z;
+
+        //c.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j+1, i-1, nvert))
+        {
+            c.x = -ucat[k][j+1][i].x;
+            c.y = -ucat[k][j+1][i].y;
+            c.z = -ucat[k][j+1][i].z;
+        }
+        else
+        {
+            c.x = ucat[k][j+1][i-1].x;
+            c.y = ucat[k][j+1][i-1].y;
+            c.z = ucat[k][j+1][i-1].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        d.x = ucat[k][j][i-1].x;
+        d.y = ucat[k][j][i-1].y;
+        d.z = ucat[k][j][i-1].z;
+
+        //e.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j+1, i+1, nvert))
+        {
+            e.x = -ucat[k][j+1][i].x;
+            e.y = -ucat[k][j+1][i].y;
+            e.z = -ucat[k][j+1][i].z;
+        }
+        else
+        {
+            e.x = ucat[k][j+1][i+1].x;
+            e.y = ucat[k][j+1][i+1].y;
+            e.z = ucat[k][j+1][i+1].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        f.x = ucat[k][j][i+1].x;
+        f.y = ucat[k][j][i+1].y;
+        f.z = ucat[k][j][i+1].z;
+
+        //g.x;         //either a solid with a fluid next to it in k-dir, or a fluid
+        if (isIBMSolidCell(k-1, j+1, i, nvert))
+        {
+            g.x = -ucat[k][j+1][i].x;
+            g.y = -ucat[k][j+1][i].y;
+            g.z = -ucat[k][j+1][i].z;
+        }
+        else
+        {
+            g.x = ucat[k-1][j+1][i].x;
+            g.y = ucat[k-1][j+1][i].y;
+            g.z = ucat[k-1][j+1][i].z;
+        }
+
+        //either a solid with a solid next to it in k-dir, or a fluid
+        h.x = ucat[k-1][j][i].x;
+        h.y = ucat[k-1][j][i].y;
+        h.z = ucat[k-1][j][i].z;
+
+        //l.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k+1, j+1, i, nvert))
+        {
+            l.x = -ucat[k][j+1][i].x;
+            l.y = -ucat[k][j+1][i].y;
+            l.z = -ucat[k][j+1][i].z;
+        }
+        else
+        {
+            l.x = ucat[k+1][j+1][i].x;
+            l.y = ucat[k+1][j+1][i].y;
+            l.z = ucat[k+1][j+1][i].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        m.x = ucat[k+1][j][i].x;
+        m.y = ucat[k+1][j][i].y;
+        m.z = ucat[k+1][j][i].z;
+
+    }
+    else
+    {
+        a.x = ucat[k][j][i].x;
+        a.y = ucat[k][j][i].y;
+        a.z = ucat[k][j][i].z;
+
+        b.x = -ucat[k][j][i].x;
+        b.y = -ucat[k][j][i].y;
+        b.z = -ucat[k][j][i].z;
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        c.x = ucat[k][j+1][i-1].x;
+        c.y = ucat[k][j+1][i-1].y;
+        c.z = ucat[k][j+1][i-1].z;
+
+        //d.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j, i-1, nvert))
+        {
+            d.x = -ucat[k][j][i].x;
+            d.y = -ucat[k][j][i].y;
+            d.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            d.x = ucat[k][j][i-1].x;
+            d.y = ucat[k][j][i-1].y;
+            d.z = ucat[k][j][i-1].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        e.x = ucat[k][j+1][i+1].x;
+        e.y = ucat[k][j+1][i+1].y;
+        e.z = ucat[k][j+1][i+1].z;
+
+        //f.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j, i+1, nvert))
+        {
+            f.x = -ucat[k][j][i].x;
+            f.y = -ucat[k][j][i].y;
+            f.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            f.x = ucat[k][j][i+1].x;
+            f.y = ucat[k][j][i+1].y;
+            f.z = ucat[k][j][i+1].z;
+        }
+
+        //either a solid with a solid next to it in k-dir, or a fluid
+        g.x = ucat[k-1][j+1][i].x;
+        g.y = ucat[k-1][j+1][i].y;
+        g.z = ucat[k-1][j+1][i].z;
+
+        //h.x;         //either a solid with a fluid next to it in k-dir, or a fluid
+        if (isIBMSolidCell(k-1, j, i, nvert))
+        {
+            h.x = -ucat[k][j][i].x;
+            h.y = -ucat[k][j][i].y;
+            h.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            h.x = ucat[k-1][j][i].x;
+            h.y = ucat[k-1][j][i].y;
+            h.z = ucat[k-1][j][i].z;
+        }
+
+        //either a solid with a solid next to it in k-dir, or a fluid
+        l.x = ucat[k+1][j+1][i].x;
+        l.y = ucat[k+1][j+1][i].y;
+        l.z = ucat[k+1][j+1][i].z;
+
+        //f.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k+1, j, i, nvert))
+        {
+            m.x = -ucat[k][j][i].x;
+            m.y = -ucat[k][j][i].y;
+            m.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            m.x = ucat[k+1][j][i].x;
+            m.y = ucat[k+1][j][i].y;
+            m.z = ucat[k+1][j][i].z;
+        }
+
+    }
+
+    if (i==mx-2 && (j==0 || j==my-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)))
+    {
+        *dudc = (b.x + a.x - c.x - d.x) * 0.5;
+        *dvdc = (b.y + a.y - c.y - d.y) * 0.5;
+        *dwdc = (b.z + a.z - c.z - d.z) * 0.5;
+    }
+    else if  (i==1 && (j==0 || j==my-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)))
+    {
+        *dudc = (e.x + f.x - b.x - a.x) * 0.5;
+        *dvdc = (e.y + f.y - b.y - a.y) * 0.5;
+        *dwdc = (e.z + f.z - b.z - a.z) * 0.5;
+
+    }
+    else
+    {
+        *dudc = (e.x + f.x - c.x - d.x) * 0.25;
+        *dvdc = (e.y + f.y - c.y - d.y) * 0.25;
+        *dwdc = (e.z + f.z - c.z - d.z) * 0.25;
+    }
+
+    *dude = b.x - a.x;
+    *dvde = b.y - a.y;
+    *dwde = b.z - a.z;
+
+    if (k==mz-2 && (j==0 || j==my-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)))
+    {
+        *dudz = (b.x + a.x - g.x - h.x) * 0.5;
+        *dvdz = (b.y + a.y - g.y - h.y) * 0.5;
+        *dwdz = (b.z + a.z - g.z - h.z) * 0.5;
+    }
+    else if (k==1 && (j==0 || j==my-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)))
+    {
+        *dudz = (l.x + m.x - b.x - a.x) * 0.5;
+        *dvdz = (l.y + m.y - b.y - a.y) * 0.5;
+        *dwdz = (l.z + m.z - b.z - a.z) * 0.5;
+    }
+    else
+    {
+        *dudz = (l.x + m.x - g.x - h.x) * 0.25;
+        *dvdz = (l.y + m.y - g.y - h.y) * 0.25;
+        *dwdz = (l.z + m.z - g.z - h.z) * 0.25;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
 inline void Compute_du_k
 (
     mesh_ *mesh,
@@ -2229,6 +2763,241 @@ inline void Compute_du_k
     *dudz = ucat[k+1][j][i].x - ucat[k][j][i].x;
     *dvdz = ucat[k+1][j][i].y - ucat[k][j][i].y;
     *dwdz = ucat[k+1][j][i].z - ucat[k][j][i].z;
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+inline void Compute_du_k_SM
+(
+    mesh_ *mesh,
+    PetscInt i, PetscInt j, PetscInt k, PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***ucat, PetscReal ***nvert,
+    PetscReal *dudc, PetscReal *dvdc, PetscReal *dwdc,
+    PetscReal *dude, PetscReal *dvde, PetscReal *dwde,
+    PetscReal *dudz, PetscReal *dvdz, PetscReal *dwdz
+)
+
+{
+    Cmpnts a, b, c, d, e, f, g, h, l, m;
+
+    if (isIBMSolidCell(k, j, i, nvert))
+    {
+        a.x = -ucat[k+1][j][i].x;
+        a.y = -ucat[k+1][j][i].y;
+        a.z = -ucat[k+1][j][i].z;
+
+        b.x = ucat[k+1][j][i].x;
+        b.y = ucat[k+1][j][i].y;
+        b.z = ucat[k+1][j][i].z;
+
+        //c.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k+1, j, i-1, nvert))
+        {
+            c.x = -ucat[k+1][j][i].x;
+            c.y = -ucat[k+1][j][i].y;
+            c.z = -ucat[k+1][j][i].z;
+        }
+        else
+        {
+            c.x = ucat[k+1][j][i-1].x;
+            c.y = ucat[k+1][j][i-1].y;
+            c.z = ucat[k+1][j][i-1].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        d.x = ucat[k][j][i-1].x;
+        d.y = ucat[k][j][i-1].y;
+        d.z = ucat[k][j][i-1].z;
+
+        //e.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k+1, j, i+1, nvert))
+        {
+            e.x = -ucat[k+1][j][i].x;
+            e.y = -ucat[k+1][j][i].y;
+            e.z = -ucat[k+1][j][i].z;
+        }
+        else
+        {
+            e.x = ucat[k+1][j][i+1].x;
+            e.y = ucat[k+1][j][i+1].y;
+            e.z = ucat[k+1][j][i+1].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        f.x = ucat[k][j][i+1].x;
+        f.y = ucat[k][j][i+1].y;
+        f.z = ucat[k][j][i+1].z;
+
+        //g.x;         //either a solid with a fluid next to it in k-dir, or a fluid
+        if (isIBMSolidCell(k+1, j-1, i, nvert))
+        {
+            g.x = -ucat[k+1][j][i].x;
+            g.y = -ucat[k+1][j][i].y;
+            g.z = -ucat[k+1][j][i].z;
+        }
+        else
+        {
+            g.x = ucat[k+1][j-1][i].x;
+            g.y = ucat[k+1][j-1][i].y;
+            g.z = ucat[k+1][j-1][i].z;
+        }
+
+        //either a solid with a solid next to it in k-dir, or a fluid
+        h.x = ucat[k][j-1][i].x;
+        h.y = ucat[k][j-1][i].y;
+        h.z = ucat[k][j-1][i].z;
+
+        //l.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k+1, j+1, i, nvert))
+        {
+            l.x = -ucat[k+1][j][i].x;
+            l.y = -ucat[k+1][j][i].y;
+            l.z = -ucat[k+1][j][i].z;
+        }
+        else
+        {
+            l.x = ucat[k+1][j+1][i].x;
+            l.y = ucat[k+1][j+1][i].y;
+            l.z = ucat[k+1][j+1][i].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        m.x = ucat[k][j+1][i].x;
+        m.y = ucat[k][j+1][i].y;
+        m.z = ucat[k][j+1][i].z;
+
+    }
+    else
+    {
+        a.x = ucat[k][j][i].x;
+        a.y = ucat[k][j][i].y;
+        a.z = ucat[k][j][i].z;
+
+        b.x = -ucat[k][j][i].x;
+        b.y = -ucat[k][j][i].y;
+        b.z = -ucat[k][j][i].z;
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        c.x = ucat[k+1][j][i-1].x;
+        c.y = ucat[k+1][j][i-1].y;
+        c.z = ucat[k+1][j][i-1].z;
+
+        //d.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j, i-1, nvert))
+        {
+            d.x = -ucat[k][j][i].x;
+            d.y = -ucat[k][j][i].y;
+            d.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            d.x = ucat[k][j][i-1].x;
+            d.y = ucat[k][j][i-1].y;
+            d.z = ucat[k][j][i-1].z;
+        }
+
+        //either a solid with a solid next to it in j-dir, or a fluid
+        e.x = ucat[k+1][j][i+1].x;
+        e.y = ucat[k+1][j][i+1].y;
+        e.z = ucat[k+1][j][i+1].z;
+
+        //f.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j, i+1, nvert))
+        {
+            f.x = -ucat[k][j][i].x;
+            f.y = -ucat[k][j][i].y;
+            f.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            f.x = ucat[k][j][i+1].x;
+            f.y = ucat[k][j][i+1].y;
+            f.z = ucat[k][j][i+1].z;
+        }
+
+        //either a solid with a solid next to it in k-dir, or a fluid
+        g.x = ucat[k+1][j-1][i].x;
+        g.y = ucat[k+1][j-1][i].y;
+        g.z = ucat[k+1][j-1][i].z;
+
+        //h.x;         //either a solid with a fluid next to it in k-dir, or a fluid
+        if (isIBMSolidCell(k, j-1, i, nvert))
+        {
+            h.x = -ucat[k][j][i].x;
+            h.y = -ucat[k][j][i].y;
+            h.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            h.x = ucat[k][j-1][i].x;
+            h.y = ucat[k][j-1][i].y;
+            h.z = ucat[k][j-1][i].z;
+        }
+
+        //either a solid with a solid next to it in k-dir, or a fluid
+        l.x = ucat[k+1][j+1][i].x;
+        l.y = ucat[k+1][j+1][i].y;
+        l.z = ucat[k+1][j+1][i].z;
+
+        //f.x;         //either a solid with a fluid next to it in j-dir, or a fluid
+        if (isIBMSolidCell(k, j+1, i, nvert))
+        {
+            m.x = -ucat[k][j][i].x;
+            m.y = -ucat[k][j][i].y;
+            m.z = -ucat[k][j][i].z;
+        }
+        else
+        {
+            m.x = ucat[k][j+1][i].x;
+            m.y = ucat[k][j+1][i].y;
+            m.z = ucat[k][j+1][i].z;
+        }
+
+    }
+
+    if (i==mx-2 && (k==0 || k==mz-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)))
+    {
+        *dudc = (b.x + a.x - c.x - d.x) * 0.5;
+        *dvdc = (b.y + a.y - c.y - d.y) * 0.5;
+        *dwdc = (b.z + a.z - c.z - d.z) * 0.5;
+    }
+    else if  (i==1 && (k==0 || k==mz-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)))
+    {
+        *dudc = (e.x + f.x - b.x - a.x) * 0.5;
+        *dvdc = (e.y + f.y - b.y - a.y) * 0.5;
+        *dwdc = (e.z + f.z - b.z - a.z) * 0.5;
+    }
+    else
+    {
+        *dudc = (e.x + f.x - c.x - d.x) * 0.25;
+        *dvdc = (e.y + f.y - c.y - d.y) * 0.25;
+        *dwdc = (e.z + f.z - c.z - d.z) * 0.25;
+    }
+
+    if (j==my-2 && (k==0 || k==mz-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)))
+    {
+        *dude = (b.x + a.x - g.x - h.x) * 0.5;
+        *dvde = (b.y + a.y - g.y - h.y) * 0.5;
+        *dwde = (b.z + a.z - g.z - h.z) * 0.5;
+    }
+    else if (j==1 && (k==0 || k==mz-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)))
+    {
+        *dude = (l.x + m.x - b.x - a.x) * 0.5;
+        *dvde = (l.y + m.y - b.y - a.y) * 0.5;
+        *dwde = (l.z + m.z - b.z - a.z) * 0.5;
+    }
+    else
+    {
+        *dude = (l.x + m.x - g.x - h.x) * 0.25;
+        *dvde = (l.y + m.y - g.y - h.y) * 0.25;
+        *dwde = (l.z + m.z - g.z - h.z) * 0.25;
+    }
+
+    *dudz = b.x - a.x;
+    *dvdz = b.y - a.y;
+    *dwdz = b.z - a.z;
 
     return;
 }
@@ -2325,7 +3094,7 @@ inline void Compute_dscalar_k
     PetscReal *dkdc, PetscReal *dkde, PetscReal *dkdz
 )
 {
-    if (isIBMKFace(k, j, i+1, k+1, nvert))
+    if (isIBMKFace(k, j, i+1, k+1, nvert) )
     {
         *dkdc = (K[k+1][j][i  ] + K[k][j][i  ] - K[k+1][j][i-1] - K[k][j][i-1]) * 0.5;
     }
@@ -3312,6 +4081,69 @@ inline PetscReal centralUpwind(PetscReal f0, PetscReal f1, PetscReal f2, PetscRe
 	return
     (
        C + (1.0-lim)*corr
+    );
+}
+
+//***************************************************************************************************************//
+
+inline PetscReal minmod(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal wavespeed)
+{
+    PetscReal r, n, d;
+    PetscReal fUU, fU, fD, lim, corr, C;
+
+    if(wavespeed>0)
+    {
+        n = PetscMax(fabs(f1 - f0), 1e-5); d = fabs(f2 - f1); r = d/n;
+        fUU = f0; fU  = f1; fD  = f2;
+
+        // minmod limiter function
+        lim = PetscMax(0, PetscMin(1, r));
+
+        // upwind
+        C = fU;
+
+        // quickDiv correction to the central scheme
+        corr = ((6.0*fU + 3.0*fUU - 1.0*fD) / 8.0) - C;
+	}
+	else
+    {
+        n = PetscMax(fabs(f2 - f3), 1e-5); d = fabs(f1 - f2); r = d/n;
+        fUU = f3; fU  = f2; fD  = f1;
+
+        // minmod limiter function
+        lim = PetscMax(0, PetscMin(1, r));
+
+        // upwind
+        C = fU;
+
+        // quickDiv correction to the central scheme
+        corr = ((6.0*fU + 3.0*fUU - 1.0*fD) / 8.0) - C;
+	}
+
+	return
+    (
+       C + (1.0-lim)*corr
+    );
+}
+
+//***************************************************************************************************************//
+
+inline PetscReal upwind(PetscReal f0, PetscReal f1, PetscInt k, PetscInt j, PetscInt i, PetscReal wavespeed)
+{
+    PetscReal C;
+
+    if(wavespeed>=0)
+    {
+        C = f0;
+	}
+	else
+    {
+        C = f1;
+	}
+
+	return
+    (
+       C
     );
 }
 

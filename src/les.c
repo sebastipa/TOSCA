@@ -766,7 +766,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     // if(J <= 0) J = 1;
                     // if(J >= my-1) J = my-2;
                     // if(I <= 0) I = 1;
-                    // if(I >= mx-1) I = mx-2; 
+                    // if(I >= mx-1) I = mx-2;
 
                     // cartesian velocity
                     u[R][Q][P] = ucat[K][J][I].x;
@@ -882,7 +882,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     // if(J <= 0) J = 1;
                     // if(J >= my-1) J = my-2;
                     // if(I <= 0) I = 1;
-                    // if(I >= mx-1) I = mx-2; 
+                    // if(I >= mx-1) I = mx-2;
 
                     // fluid
                     if
@@ -1144,7 +1144,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         -1.0/8.0
                     ) +
                     1.e-19;
-                    
+
 
                     PetscReal LM_new, MM_new;
 
@@ -1422,7 +1422,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         -1.0/8.0
                     ) +
                     1.e-19;
-                    
+
 
                     PetscReal QN_new, NN_new;
 
@@ -1865,11 +1865,11 @@ PetscErrorCode UpdateCs (les_ *les)
     {
         std::vector<PetscInt> count, total_count;
         std::vector<PetscReal> J_LM(my), J_MM(my), J_QN(my), J_NN(my), LM_tmp(my), MM_tmp(my), QN_tmp(my), NN_tmp(my);
-        
+
         count.resize(my);
         total_count.resize(my);
-        
-        for(j=0; j<my; j++) 
+
+        for(j=0; j<my; j++)
         {
             LM_tmp[j] = 0;
             MM_tmp[j] = 0;
@@ -1884,25 +1884,25 @@ PetscErrorCode UpdateCs (les_ *les)
         for (j=lys; j<lye; j++)
         for (i=lxs; i<lxe; i++)
         {
-            if(isFluidCell(k,j,i, nvert)) 
+            if(isFluidCell(k,j,i, nvert))
             {
                 LM_tmp[j] += LM[k][j][i];
                 MM_tmp[j] += MM[k][j][i];
                 QN_tmp[j] += QN[k][j][i];
-                NN_tmp[j] += NN[k][j][i];            
+                NN_tmp[j] += NN[k][j][i];
                 count[j] ++;
             }
         }
-        
+
         MPI_Allreduce( &LM_tmp[0], &J_LM[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
         MPI_Allreduce( &MM_tmp[0], &J_MM[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
         MPI_Allreduce( &QN_tmp[0], &J_QN[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
         MPI_Allreduce( &NN_tmp[0], &J_NN[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
-        MPI_Allreduce( &count[0], &total_count[0], my, MPIU_INT, MPI_SUM, mesh->MESH_COMM);	
-        
-        for(j=0; j<my; j++) 
+        MPI_Allreduce( &count[0], &total_count[0], my, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+
+        for(j=0; j<my; j++)
         {
-            if( total_count[j]>0) 
+            if( total_count[j]>0)
             {
                 J_LM[j] = J_LM[j]/total_count[j];
                 J_MM[j] = J_MM[j]/total_count[j];
@@ -1910,7 +1910,7 @@ PetscErrorCode UpdateCs (les_ *les)
                 J_NN[j] = J_NN[j]/total_count[j];
             }
         }
-        
+
         PetscReal beta;
         // loop over internal cells
         for (k=lzs; k<lze; k++)

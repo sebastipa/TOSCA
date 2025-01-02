@@ -14,14 +14,14 @@
 # Write Data
 # ---------------------------------
 -intervalType              adjustableTime
--timeInterval              1
+-timeInterval              0.5
 -purgeWrite                0
 -timePrecision             5
 
 # Solution
 # ---------------------------------
 #-abl                       0
-#-potentialT                1
+#-potentialT                0
 #-zDampingLayer             0
 #-xDampingLayer             0
 -ibm                       1
@@ -29,7 +29,10 @@
 -absTolU                   1e-7
 -poissonIt                 12
 -poissonTol                1e-10
--poissonSolver             HYPRE
+-poissonSolver             PETSc
+-hypreSolverType           1
+-scalarMoments             6
+-vents                     1
 
 # Turbulence Model
 # ---------------------------------
@@ -39,6 +42,8 @@
 # Numerical Schemes
 # ---------------------------------
 -dUdtScheme                backwardEuler
+-dTdtScheme                backwardEuler
+-dSMdtScheme               rungeKutta4
 -divScheme                 centralUpwind
 
 # Wind Turbine
@@ -49,6 +54,11 @@
 # ---------------------------------
 -nu                        1.5e-5
 -rho                       1.225
+-Pr                        0.71
+-tRef                      298.15
+-Sc                        0.63
+-ScT                       0.7
+
 # Mesh
 # ---------------------------------
 -meshFileType              cartesian
@@ -76,3 +86,10 @@
 # ---------------------------------
 -writeRaster                0
 -postProcessFields          1
+
+#smSource
+#----------------------------------
+-coagSource		    1
+-depoSource		    1
+-sediFlux                   1
+-deviFlux                   1

@@ -24,6 +24,7 @@ struct access_
     ibm_         *ibm;
     PetscInt     *domainID;
     vents_       *vents;
+    SMObj_      *smObject;
 };
 
 #endif
