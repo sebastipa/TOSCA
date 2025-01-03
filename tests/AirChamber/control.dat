@@ -5,7 +5,7 @@
 # ---------------------------------
 -startFrom                 startTime
 -startTime                 0
--endTime                   60.0
+-endTime                   10.0
 -cfl                       0.7
 -adjustTimeStep            1
 -timeStep                  0.08
@@ -14,7 +14,7 @@
 # Write Data
 # ---------------------------------
 -intervalType              adjustableTime
--timeInterval              0.01
+-timeInterval              0.1
 -purgeWrite                0
 
 # Solution
@@ -22,7 +22,7 @@
 -potentialT                0
 -abl                       0
 -zDampingLayer             0
--ibm                       0
+-ibm                       1
 -overset                   0
 -absTolU                   1e-8
 -poissonIt                 30
@@ -32,7 +32,7 @@
 -ceqn                      0
 -porousZones               0
 -sources                   0
--scalarMoments	           0
+-scalarMoments	           6
 -vents                     1
 
 # Turbulence Model
@@ -76,7 +76,7 @@
 #-computeQ                1
 
 -tke                1
--tkePeriod                0.01
+-tkePeriod                0.1
 -tkeStartTime             0
 
 #-phaseAveraging          3

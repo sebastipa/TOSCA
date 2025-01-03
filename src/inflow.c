@@ -863,6 +863,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             ifPtr->Ek = (PetscReal *)malloc( sizeof(PetscReal) * ifPtr->FSumNum);
             ifPtr->kn = (Cmpnts *)malloc( sizeof(Cmpnts) * ifPtr->FSumNum);
             ifPtr->Gn = (Cmpnts *)malloc( sizeof(Cmpnts) * ifPtr->FSumNum);
+        }
         else
         {
             char error[512];

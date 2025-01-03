@@ -3,14 +3,17 @@ NumberofBodies                      34
 
 InterpolationMethod                 CURVIB
 CURVIBInterpolationType             CurvibTrilinear
+interpolationOrder                  linear
 
 debug                               0
 dynamic                             0
 checkNormal                         1
+averageNormal                       0
 computeForce                        0
 writeSTL                            0
 wallShear                           0
 pressureBC                          0
+abl                                 0
 
 
 writeSettings
@@ -33,8 +36,8 @@ object0
     baseLocation                    (-0.011 0.0 -0.011)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType               setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -70,8 +73,8 @@ object1
     baseLocation                    (-0.011 0.0 1.881)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -107,8 +110,8 @@ object2
     baseLocation                    (1.781 0.0 1.881)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -143,8 +146,8 @@ object3
     baseLocation                    (1.781 0.0 -0.011)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -179,8 +182,8 @@ object4
     baseLocation                    (0.0 -0.011 -0.011)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -216,8 +219,8 @@ object5
     baseLocation                    (0.0 -0.011 1.881)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -253,8 +256,8 @@ object6
     baseLocation                    (0.0 1.751 1.881)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -289,8 +292,8 @@ object7
     baseLocation                    (0.0 1.751 -0.011)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -325,8 +328,8 @@ object8
     baseLocation                    (-0.011 -0.011 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -362,8 +365,8 @@ object9
     baseLocation                    (-0.011 1.751 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -399,8 +402,8 @@ object10
     baseLocation                    (1.781 1.751 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -435,8 +438,8 @@ object11
     baseLocation                    (1.781 -0.011 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -471,8 +474,8 @@ object12
     baseLocation                    (-0.011 0.581 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -508,8 +511,8 @@ object13
     baseLocation                    (-0.011 1.161 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -545,8 +548,8 @@ object14
     baseLocation                    (1.781 0.581 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -581,8 +584,8 @@ object15
     baseLocation                    (1.781 1.161 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -617,8 +620,8 @@ object16
     baseLocation                    (0.591 -0.011 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -654,8 +657,8 @@ object17
     baseLocation                    (1.181 -0.011 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -691,8 +694,8 @@ object18
     baseLocation                    (0.591 1.751 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -727,8 +730,8 @@ object19
     baseLocation                    (1.181 1.751 0.0)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -763,8 +766,8 @@ object20
     baseLocation                    (0.0 0.581 1.881)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -799,8 +802,8 @@ object21
     baseLocation                    (0.0 1.161 1.881)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -835,8 +838,8 @@ object22
     baseLocation                    (0.8851 0.0 1.881)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -871,8 +874,8 @@ object23
     baseLocation                    (0.0 -0.011 1.271)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -907,8 +910,8 @@ object24
     baseLocation                    (0.0 1.751 1.271)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -943,8 +946,8 @@ object25
     baseLocation                    (1.781 0.0 1.271)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -979,8 +982,8 @@ object26
     baseLocation                    (0.0 -0.011 0.029)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -1015,8 +1018,8 @@ object27
     baseLocation                    (0.0 1.751 0.029)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -1051,8 +1054,8 @@ object28
     baseLocation                    (-0.011 0.0 0.029)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -1087,8 +1090,8 @@ object29
     baseLocation                    (1.781 0.0 0.029)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -1123,8 +1126,8 @@ object30
     baseLocation                    (-0.011 0.0 1.271)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -1159,8 +1162,8 @@ object31
     baseLocation                    (-0.011 1.161 1.271)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -1195,8 +1198,8 @@ object32
     baseLocation                    (-0.011 0.58 1.571)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized
@@ -1232,8 +1235,8 @@ object33
     baseLocation                    (-0.011 0.58 0.77)
 
     #wall model
-    wallModelU                      noSlip
-    wallModelUProp                  setHere
+    velocityBC                      noSlip
+    velocityBCSetType                  setHere
     roughness                       0.00
     kappa                           0.4
     uStarEval                       localized

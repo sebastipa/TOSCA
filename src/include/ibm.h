@@ -359,12 +359,9 @@ PetscErrorCode rotateIBMesh(ibm_ *ibm, PetscInt b);
 //! \brief prescribe sinusoidal motion for IBM body
 PetscErrorCode sineMotion(ibm_ *ibm, PetscInt b);
 
-<<<<<<< HEAD
 //! \brief prescribe pitching oscillation motion for IBM body
 PetscErrorCode pitchingMotion(ibm_ *ibm, PetscInt b);
 
-=======
->>>>>>> added translational movement to IBM
 //! \brief translate the ibm mesh based on the speed input
 PetscErrorCode translateIBMesh(ibm_ *ibm, PetscInt b);
 
