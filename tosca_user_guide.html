@@ -7,7 +7,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>User Guide &mdash; TOSCA 1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
 
@@ -64,12 +64,22 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#boundary"><cite>boundary</cite></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#boundary-conditions">Boundary Conditions</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#wall-models">Wall Models</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#wall-functions">Wall Functions</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#inlet-functions">Inlet Functions</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#initial-condition">Initial Condition</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#ablproperties-dat"><cite>ABLProperties.dat</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#ablproperties-dat"><cite>ABLProperties.dat</cite></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#controllerproperties">controllerProperties</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#xdampingproperties">xDampingProperties</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ydampingproperties">yDampingProperties</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zdampingproperties">zDampingProperties</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#advectiondampingproperties">advectionDampingProperties</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#kleftdampingproperties">kLeftDampingProperties</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#krightdampingproperties">kRightDampingProperties</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#canopyproperties">canopyProperties</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#turbines"><cite>turbines</cite></a></li>
 </ul>
 </li>
@@ -117,6 +127,25 @@ The principal control file for a TOSCA simulation is the <cite>control.dat</cite
 Depending on the type of simulation that one wishes to perform, flags can be activated in the <cite>control.dat</cite>, which prompt TOSCA
 to read additional input files and data. These are described in Sec. <a class="reference internal" href="#input-files-section"><span class="std std-ref">Input Files</span></a>.</p>
 <img alt="_images/structure_1.png" class="align-center" src="_images/structure_1.png" />
+<p>Within TOSCA, specific entry types are defined, which are used to define boundary conditions as well as other inputs throughout the code. These are</p>
+<ol class="arabic simple">
+<li><p><em>bool</em>       : an integer which is 0 (false) or 1 (true)</p></li>
+<li><p><em>integer</em>    : an integer number</p></li>
+<li><p><em>scalar</em>     : a floating point number (if an integer is provided, this is cast into a floating point number).</p></li>
+<li><p><em>vector</em>     : a group of floating point numbers defined as <em>(scalar scalar scalar)</em>, where the scalar <strong>must</strong> be a floating point number. There shouldn’t be any space between parantheses and the first and last vector components.</p></li>
+<li><p><em>string</em>     : a word without spaces.</p></li>
+<li><p><em>dictionary</em> : a group of additional entries, where the number is dependant on the name of the dictionary, embodied within <cite>{}</cite> parentheses. Dictionaries can containmultiple integer, bool, scalar, vector and string entries. An example is given below.</p></li>
+</ol>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">dictionary</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">boolEntry</span><span class="w">    </span><span class="mi">1</span>
+<span class="w">   </span><span class="n">integerEntry</span><span class="w"> </span><span class="mi">10</span>
+<span class="w">   </span><span class="n">scalarEntry</span><span class="w">  </span><span class="mf">1.0</span><span class="w"> </span><span class="c1">// or 1</span>
+<span class="w">   </span><span class="n">vectorEntry</span><span class="w">  </span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="mf">1.0</span><span class="w"> </span><span class="mf">1.0</span><span class="p">)</span>
+<span class="w">   </span><span class="n">stringEntry</span><span class="w">  </span><span class="n">someRandomString</span>
+<span class="p">}</span>
+</pre></div>
+</div>
 <p>Inside the <code class="docutils literal notranslate"><span class="pre">boundary</span></code> directory, initial and boundary conditions are set in files having the same name as the field they
 describe (see <a class="reference internal" href="#boundary-subsection"><span class="std std-ref">boundary</span></a> for details).</p>
 <section id="input-files">
@@ -526,8 +555,8 @@ flag, this option is not available in parallel.</p></td>
 </section>
 <section id="boundary">
 <span id="boundary-subsection"></span><h3><cite>boundary</cite><a class="headerlink" href="#boundary" title="Link to this heading"></a></h3>
-<p>This sections describes the input file definition used to prescribe boundary conditions in TOSCA. TOSCA expects a file for each solved field,
-where boundary and initial conditions are specified. Pressure boundary conditions are not required, as they always are of the Neumann type, except when
+<p>This section describes the input file definition used to prescribe boundary conditions in TOSCA. TOSCA expects a file for each solved field,
+where boundary and initial conditions are specified. Pressure boundary conditions are not required, as they are always of the Neumann type except when
 periodicity is present. Therefore, boundary conditions are expected for <em>U</em> (velocity) and <em>nut</em> (turbulent viscosity) fields, as well as for <em>T</em> (potential temperature),
 when this is activated in the <em>control.dat</em> file.
 Specifically, TOSCA expects to find <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code> (if applicable) files, inside a directory named <code class="docutils literal notranslate"><span class="pre">boundary</span></code>. Within each file, boundary conditions
@@ -547,27 +576,8 @@ the keyword <code class="docutils literal notranslate"><span class="pre">interna
 </pre></div>
 </div>
 <p>In addition to common boundary conditions, which are available at all boundaries, TOSCA also features some special boundary conditions, which are only
-available on specific boundaries. These are used for specific simulations and the user is suggested to consider such
+available on specific boundaries. These are used for specific simulations, the user is suggested to consider such
 constraint when designing and setting up a TOSCA case.</p>
-<p>Within TOSCA, specific entry types are defined, which are used to define boundary conditions as well as other inputs throughout the code. These are</p>
-<ol class="arabic simple">
-<li><p><em>bool</em>       : an integer which is 0 (false) or 1 (true)</p></li>
-<li><p><em>integer</em>    : an integer number</p></li>
-<li><p><em>scalar</em>     : a floating point number (if an integer is provided, this is cast into a floating point number).</p></li>
-<li><p><em>vector</em>     : a group of floating point numbers defined as <em>(scalar scalar scalar)</em>, where the scalar <strong>must</strong> be a floating point number. There shouldn’t be any space between parantheses and the first and last vector components.</p></li>
-<li><p><em>string</em>     : a word without spaces.</p></li>
-<li><p><em>dictionary</em> : a group of additional entries, where the number is dependant on the name of the dictionary, embodied within <cite>{}</cite> parentheses. Dictionaries can containmultiple integer, bool, scalar, vector and string entries. An example is given below.</p></li>
-</ol>
-<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">dictionary</span>
-<span class="p">{</span>
-<span class="w">   </span><span class="n">boolEntry</span><span class="w">    </span><span class="mi">1</span>
-<span class="w">   </span><span class="n">integerEntry</span><span class="w"> </span><span class="mi">10</span>
-<span class="w">   </span><span class="n">scalarEntry</span><span class="w">  </span><span class="mf">1.0</span><span class="w"> </span><span class="c1">// or 1</span>
-<span class="w">   </span><span class="n">vectorEntry</span><span class="w">  </span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="mf">1.0</span><span class="w"> </span><span class="mf">1.0</span><span class="p">)</span>
-<span class="w">   </span><span class="n">stringEntry</span><span class="w">  </span><span class="n">someRandomString</span>
-<span class="p">}</span>
-</pre></div>
-</div>
 <section id="boundary-conditions">
 <h4>Boundary Conditions<a class="headerlink" href="#boundary-conditions" title="Link to this heading"></a></h4>
 <p>The boundary conditions available in TOSCA are summarized in the following table. The table also specifies the fields for which a given boundary condition is available, together with their entry type and description.</p>
@@ -616,42 +626,168 @@ within the same processor. Type 2 allows for a more general decomposition
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code></p></td>
 <td><p>dictionary</p></td>
-<td><p>Available only for <code class="docutils literal notranslate"><span class="pre">U</span></code>. Applies wall models to velocity and temperature
-(if active). Only available for <code class="docutils literal notranslate"><span class="pre">iLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">iRight</span></code>, <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> and
+<td><p>Available only for <code class="docutils literal notranslate"><span class="pre">U</span></code>. Applies wall models to velocity.
+Only available for <code class="docutils literal notranslate"><span class="pre">iLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">iRight</span></code>, <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> and
 <code class="docutils literal notranslate"><span class="pre">jRight</span></code> patches. Not really tested on i-patches. It is usually applied
 on the <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> patch in combination with an <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> on the
-<code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch (see below).</p></td>
+<code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">inletFunction</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">thetaWallFunction</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Available only for <code class="docutils literal notranslate"><span class="pre">T</span></code>. Applies wall models to temperature.
+Only available for <code class="docutils literal notranslate"><span class="pre">iLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">iRight</span></code>, <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> and
+<code class="docutils literal notranslate"><span class="pre">jRight</span></code> patches. Not really tested on i-patches. It is usually applied
+on the <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> patch in combination with an <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> on the
+<code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">inletFunction</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code> only at the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch.</p></td>
 </tr>
 </tbody>
 </table>
-<p>The last two boundary conditions listed in the previous table are not available on all patches. On the one hand, the
-<code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code>, used to prescribe wall models, is not available on <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundaries. On the
-other hand, the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> type, used to prescribe special boundary conditions for inlet velocity, temperature and turbulent viscosity, is only available on the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch. The user should keep this constraint in mind when setting
-up a TOSCA case.</p>
+<p>The last three boundary conditions listed in the previous table are not available on all patches. On the one hand, the
+<code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code> and <code class="docutils literal notranslate"><span class="pre">thetaWallFunction</span></code>, used to prescribe wall models, are not available on <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundaries. On the
+other hand, the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> type, used to prescribe special inlet boundary conditions for inlet velocity, temperature and turbulent
+viscosity, is only available on the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch. The user should keep this constraint in mind when setting up a TOSCA case.</p>
 </section>
-<section id="wall-models">
-<h4>Wall Models<a class="headerlink" href="#wall-models" title="Link to this heading"></a></h4>
-<p>The <code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code> applies the Shumann wall model, used for ABL flows. In particular, the modeled wall shear
-stress is directly enforced in the stress term of the momentum equations, while a constant normal gradient condition
+<section id="wall-functions">
+<h4>Wall Functions<a class="headerlink" href="#wall-functions" title="Link to this heading"></a></h4>
+<p>The <code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code> applies the Shumann wall model, used for ABL flows, or the Cabot wall model, used for wall surfaces, to the velocoty field.
+In the Shumann model, the modeled wall shear stress is directly enforced in the stress term of the momentum equations, while a constant normal gradient condition
 is applied to the velocity. In order to avoid double counting at the wall when using this condition (the wall shear
 stress should be entirely and only modeled), the turbulent viscosity at the wall should be set to zero in the
-<code class="docutils literal notranslate"><span class="pre">boundary/nut</span></code> file. The mandatory entries for this boundary condition type are defined as follows:</p>
+<code class="docutils literal notranslate"><span class="pre">boundary/nut</span></code> file. Entries for velocity wall functions are summarized in the folllwing table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 20.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>WF type</strong></p></td>
+<td><p><strong>name</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>-1</p></td>
+<td><p>Cabot wall model</p></td>
+<td><p>Usage:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">velocityWallFunction</span>
 <span class="p">{</span>
-<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-3</span><span class="w">        </span><span class="c1">// Shumann wall model (only -3 is available)</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-1</span>
 <span class="w">   </span><span class="n">kRough</span><span class="w">    </span><span class="mf">0.003</span><span class="w">     </span><span class="c1">// equivalent roughness length</span>
-<span class="w">   </span><span class="n">gammaM</span><span class="w">    </span><span class="mf">4.9</span><span class="w">       </span><span class="c1">// Shumann model constant</span>
-<span class="w">   </span><span class="n">kappa</span><span class="w">     </span><span class="mf">0.4</span><span class="w">       </span><span class="c1">// von Karman constant</span>
-<span class="w">   </span><span class="n">thetaRef</span><span class="w">  </span><span class="mf">300.0</span><span class="w">     </span><span class="c1">// reference potential temperature</span>
-<span class="w">   </span><span class="n">uStarEval</span><span class="w"> </span><span class="n">averaged</span><span class="w">  </span><span class="c1">// for laterally homogeneous flows (e.g. ABL),</span>
-<span class="w">                       </span><span class="c1">// otherwise set to &#39;localized&#39; (e.g. wind farm flows)</span>
 <span class="p">}</span>
 </pre></div>
 </div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>-3</p></td>
+<td><p>Shumann wall model</p></td>
+<td><p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">velocityWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-3</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">    </span><span class="mf">0.003</span><span class="w">     </span><span class="c1">// equivalent roughness length</span>
+<span class="w">   </span><span class="n">gammaM</span><span class="w">    </span><span class="mf">4.9</span><span class="w">       </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">kappa</span><span class="w">     </span><span class="mf">0.4</span><span class="w">       </span><span class="c1">// von Karman constant</span>
+<span class="w">   </span><span class="n">thetaRef</span><span class="w">  </span><span class="mf">300.0</span><span class="w">     </span><span class="c1">// reference potential</span>
+<span class="w">                       </span><span class="c1">// temperature in Kelvin</span>
+<span class="w">   </span><span class="n">uStarEval</span><span class="w"> </span><span class="n">averaged</span><span class="w">  </span><span class="c1">// for laterally homogeneous</span>
+<span class="w">                       </span><span class="c1">// flows (e.g. ABL), otherwise</span>
+<span class="w">                       </span><span class="c1">// set to &#39;localized&#39; (e.g.</span>
+<span class="w">                       </span><span class="c1">// wind farm flows)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The <code class="docutils literal notranslate"><span class="pre">thetaWallFunction</span></code> is used to select different formulations of the Shumann wall model for potential temperature.
+In particular, the modeled heat flux is directly enforced in the stress term of the potential temperature equations,
+while a zero normal gradient condition is applied to the temperature field. In order to avoid double counting at the wall when using this condition,
+the turbulent viscosity at the wall should be set to zero in the <code class="docutils literal notranslate"><span class="pre">boundary/nut</span></code> file.
+Entries for temperature wall functions are summarized in the folllwing table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 20.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>WF type</strong></p></td>
+<td><p><strong>name</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>-1</p></td>
+<td><p>Shumann wall model,
+standard.</p></td>
+<td><p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">thetaWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-3</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">    </span><span class="mf">0.003</span><span class="w">      </span><span class="c1">// equivalent roughness length</span>
+<span class="w">   </span><span class="n">gammaM</span><span class="w">    </span><span class="mf">4.9</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">gammaH</span><span class="w">    </span><span class="mf">7.8</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">alphaH</span><span class="w">    </span><span class="mf">1.0</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">kappa</span><span class="w">     </span><span class="mf">0.4</span><span class="w">        </span><span class="c1">// von Karman constant</span>
+<span class="w">   </span><span class="n">thetaRef</span><span class="w">  </span><span class="mf">300.0</span><span class="w">      </span><span class="c1">// reference potential</span>
+<span class="w">                        </span><span class="c1">// temperature in Kelvin</span>
+<span class="w">   </span><span class="n">uStarEval</span><span class="w"> </span><span class="n">averaged</span><span class="w">   </span><span class="c1">// for laterally homogeneous</span>
+<span class="w">                        </span><span class="c1">// flows (e.g. ABL), otherwise</span>
+<span class="w">                        </span><span class="c1">// set to &#39;localized&#39; (e.g.</span>
+<span class="w">                        </span><span class="c1">// wind farm flows)</span>
+<span class="w">   </span><span class="n">heatingRate</span><span class="w"> </span><span class="mf">-0.00014</span><span class="w"> </span><span class="c1">// K/s</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>-3</p></td>
+<td><p>Shumann wall model, with
+specified heat flux.</p></td>
+<td><p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">thetaWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-2</span>
+<span class="w">   </span><span class="n">qWall</span><span class="w">     </span><span class="mf">0.003</span><span class="w">     </span><span class="c1">// wall heat flux in J/m2</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p>-4</p></td>
+<td><p>Shumann wall model, with
+specified time history of
+surface temperature and Obhukhov
+length.</p></td>
+<td><p>Only available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> patch.
+Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">thetaWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-4</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">    </span><span class="mf">0.003</span><span class="w">      </span><span class="c1">// equivalent roughness length</span>
+<span class="w">   </span><span class="n">gammaM</span><span class="w">    </span><span class="mf">4.9</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">gammaH</span><span class="w">    </span><span class="mf">7.8</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">alphaH</span><span class="w">    </span><span class="mf">1.0</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">kappa</span><span class="w">     </span><span class="mf">0.4</span><span class="w">        </span><span class="c1">// von Karman constant</span>
+<span class="w">                        </span><span class="c1">// temperature in Kelvin</span>
+<span class="w">   </span><span class="n">uStarEval</span><span class="w"> </span><span class="n">averaged</span><span class="w">   </span><span class="c1">// for laterally homogeneous</span>
+<span class="w">                        </span><span class="c1">// flows (e.g. ABL), otherwise</span>
+<span class="w">                        </span><span class="c1">// set to &#39;localized&#39; (e.g.</span>
+<span class="w">                        </span><span class="c1">// wind farm flows)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Look up tables of time (s), surface temperature (K), and Obhukhov length (m),
+stored in <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/time</span></code>,
+<code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/surfTemp</span></code> and
+<code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/L</span></code>, respectively. All vectors should have same
+size.</p>
+</td>
+</tr>
+</tbody>
+</table>
 </section>
 <section id="inlet-functions">
 <h4>Inlet Functions<a class="headerlink" href="#inlet-functions" title="Link to this heading"></a></h4>
@@ -1040,10 +1176,11 @@ controller, used to fix the potential temperature profile over time, fringe and 
 which avoids inertial oscillations produced when the flow is not initialized in geostrophic balance and the Coriolis force is
 active. It is also in this file that one can activate TOSCA’s canopy model or the concurrent precursor method.</p>
 <p>Primarily, this file contains entries that are required by TOSCA when the <code class="docutils literal notranslate"><span class="pre">-abl</span></code> flag is activated. In
-addition, it contains dictionaries that are required when additional flags are activated in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file. For
-example, the <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code> dictionary is only read if <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> is set to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p>
+addition, it contains dictionaries that are required when additional flags are activated in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file, which are
+only used for ABL flows. For example, the <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code> dictionary is only read if <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> is set to 1 in
+the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p>
 <p>The folliwing table summarizes all entries and dictionaries available in the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code>. A description of
-entries specific to each dictionaries is given in the subsequent table.</p>
+entries specific to each dictionaries is given in the subsequent tables.</p>
 <table class="docutils align-center">
 <colgroup>
 <col style="width: 32.0%" />
@@ -1170,14 +1307,29 @@ initial one. Requires
 precursor simulation. Requires
 <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code> dictionary.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">perturbations</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Temperature controller type <em>initial</em> tries to
+maintain the initial horizontally averaged
+potential temperature profile. Types
+<em>directProfileAssimilation</em> and
+<em>indirectProfileAssimilation</em> calculate source
+terms to follow a provided time-series of
+potential temperature profile. They require
+additional entries in the <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code>
+subdictionary, i.e. <code class="docutils literal notranslate"><span class="pre">relaxPI</span></code>,
+<code class="docutils literal notranslate"><span class="pre">lowestSrcHeight</span></code>, <code class="docutils literal notranslate"><span class="pre">highestSrcHeight</span></code>.
+Moreover, <code class="docutils literal notranslate"><span class="pre">polynomialOrder</span></code> is also required for
+controller type <em>indirectProfileAssimilation</em>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">perturbations</span></code></p></td>
 <td><p>bool</p></td>
 <td><p>Adds divergence-free sinusoidal perturbations to
 triger turbulence in the initial condition when
 <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
 <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Contains inputs for velocity and temperature
 controllers. Required when
@@ -1204,7 +1356,7 @@ or <code class="docutils literal notranslate"><span class="pre">controllerActive
 </div>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines fringe region parameters, activated with
 <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> 1 in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.</p>
@@ -1238,7 +1390,7 @@ automatically, without requiring additional user
 parameters.</p>
 </td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingProperties</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines lateral fringe region parameters,
 activated with  <code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code> 1 in
@@ -1255,7 +1407,7 @@ activated with  <code class="docutils literal notranslate"><span class="pre">-yD
 </div>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingProperties</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines Reyleigh damping layer parameters,
 activated with  <code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code> 1 in
@@ -1273,7 +1425,7 @@ activated with  <code class="docutils literal notranslate"><span class="pre">-zD
 </div>
 </td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">advectionDampingProperties</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">advectionDampingProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines advection damping regions parameters.
 This corresponds to the technique developed by
@@ -1291,7 +1443,7 @@ Lanzilao and Meyers (2022a). It is activated with
 </div>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingProperties</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines Rayleigh damping layer at the <em>kLeft</em>
 patch. Requires <code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code> set to 1 in
@@ -1315,7 +1467,7 @@ obtain the desired velocity <em>kLeftDampingUBar</em>.</p>
 </div>
 </td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingProperties</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines Rayleigh damping layer at the <em>kRight</em>
 patch. Requires <code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code> set to 1 in
@@ -1339,7 +1491,7 @@ obtain the desired velocity <em>kRightDampingUBar</em>.</p>
 </div>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">canopyProperties</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">canopyProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines input parameters for the canopy model.
 Requires <code class="docutils literal notranslate"><span class="pre">-canopy</span></code> set to 1 in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>
@@ -1362,7 +1514,9 @@ file.</p>
 </tr>
 </tbody>
 </table>
-<p>The meaning of the entires required in the dictionaries listed in the above table are described below.</p>
+<p>The meaning of the entires required in the dictionaries listed in the above table are described in the following tables.</p>
+<section id="controllerproperties">
+<h4>controllerProperties<a class="headerlink" href="#controllerproperties" title="Link to this heading"></a></h4>
 <table class="docutils align-center">
 <colgroup>
 <col style="width: 35.0%" />
@@ -1374,236 +1528,506 @@ file.</p>
 <td><p><strong>entry type</strong></p></td>
 <td><p><strong>description</strong></p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>controllerProperties</em></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">relaxPI</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>controller gain. To be set between 0 and 1. Used by all controllers characterized by
+a <code class="docutils literal notranslate"><span class="pre">controllerAction</span></code> of type <em>write</em>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">relaxPI</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerMaxHeight</span></code></p></td>
 <td></td>
-<td></td>
+<td><p>although it is good practice to apply the source term throughout the whole vertical
+extent of the domain, this can be used to avoid applying the driving source term
+above a specified height, to be specified in meters.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerMaxHeight</span></code></p></td>
-<td></td>
-<td></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerAction</span></code></p></td>
+<td><p>string</p></td>
+<td><p>can be set to <em>write</em> or <em>read</em>. The former controls the flow based on different
+types of calculated driving pressure gradients, then writes the source terms to file.
+The latter reads these previously written source terms and directly applies them with
+no feedback controlling action. This keyword has to be set in combination with
+<code class="docutils literal notranslate"><span class="pre">controllerType</span></code>. Types <em>pressure</em>, <em>geostrophic</em>, <em>directProfileAssimilation</em> and
+<em>indirectProfileAssimilation</em> require <code class="docutils literal notranslate"><span class="pre">controllerAction</span></code> set to <em>write</em>, while
+<em>timeSeries</em>, <em>timeAverageSeries</em> and <em>timeHeightSeries</em> require <code class="docutils literal notranslate"><span class="pre">controllerAction</span></code>
+set to <em>read</em>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerType</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>string</p></td>
+<td><p>type <em>pressure</em> is the basic PI controller for ABL simulations, it tries to maintain
+a wind speed of magnitude <code class="docutils literal notranslate"><span class="pre">uRef</span></code>, aligned with the x-axis, at <code class="docutils literal notranslate"><span class="pre">hRef</span></code>. It writes
+the required source terms to file, to be used later in wind farm simulations with
+inlet-outlet BCs through the type <em>timeSeries</em> or <em>timeAverageSeries</em>, where source
+terms are read or averaged, respectively, from the <code class="docutils literal notranslate"><span class="pre">inflowDatabase/momentumSource</span></code>
+file. When trying to attain a specific wind at <code class="docutils literal notranslate"><span class="pre">hRef</span></code> inside the boundary layer
+and the Coriolis force is active, the <em>pressure</em> controller produces inertial
+oscillations of the geostrophic wind since it is impossible to initialize the flow
+in geostrophic balance. In this case, once should either use <code class="docutils literal notranslate"><span class="pre">geostrophicDamping</span></code>
+or controller type <code class="docutils literal notranslate"><span class="pre">geostrophic</span></code>. The latter tries to attain
+a velocity <code class="docutils literal notranslate"><span class="pre">uGeoMag</span></code> at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code> (which should be above the boundary layer). The
+wind field is then rotated such that the flow is aligned with the x-axis at <code class="docutils literal notranslate"><span class="pre">hRef</span></code>.
+Note that, at every restart, the initial geostrophic wind angle w.r.t. the x-axis
+<code class="docutils literal notranslate"><span class="pre">alphaGeo</span></code> should be provided (the user can take this info in the last iteration
+of the previous run, printed on the log file). TOSCA also features profile
+assimilation techniques, used to drive the flow following observation profiles.
+These can be set with controller type <em>directProfileAssimilation</em> or
+<em>indirectProfileAssimilation</em>, and require the observed time series inside
+<code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData</span></code>. An example can be found in
+<code class="docutils literal notranslate"><span class="pre">tests/directProfileAssimilationTest</span></code>. Once these controllers compute and write
+the time series of source terms to file, this can be re-applied within wind farm
+simulations using the controller type <em>timeHeightSeries</em>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alphaPI</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>proportional over integral controlling action used by all controllers characterized
+by a <code class="docutils literal notranslate"><span class="pre">controllerAction</span></code> of type <em>write</em>. A too low value makes the controller
+unstable, usually set between 0.6 and 0.9.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">timeWindowPI</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>time filter for integral part of the controller, used by all controllers
+characterized  by a <code class="docutils literal notranslate"><span class="pre">controllerAction</span></code> of type <em>write</em>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">geostrophicDamping</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>bool</p></td>
+<td><p>activates geostrophic damping to remove inertial oscillations. Only for controller
+type <em>pressure</em>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingAlpha</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>ratio of damping over critical damping coefficient, usually set to 1.0 (critical
+damping). Values above 1.0 mean over-damping, values below 1.0 mean under-damping.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingStartTime</span></code></p></td>
 <td></td>
-<td></td>
+<td><p>start time of geostrophic damping action. Has to be long enough to provide a good
+guess on the geostrophic wind components. Usually set greater than one period of
+inertial oscillation (<span class="math notranslate nohighlight">\(2\pi/f_c\)</span>).</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingTimeWindow</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>time filter of the deduced geostrophic wind components. Usually set to 1/10 of
+the inertial oscillation period (<span class="math notranslate nohighlight">\(0.2\pi/f_c\)</span>).</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hGeo</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>height used to sample the geostrophic wind components for the controller type
+<em>geostrophic</em>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alphaGeo</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>initial wind angle with respect to the x-axis at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code>. This as to be set at
+every restart of the simulation. For the first run, one can initialize the wind
+aligned with the x-axis and this parameter to zero. Then, the controller will start
+to slowly rotate the wind. The wind angle at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code> will be printed in the log file
+and the user can set this parameter to the value obtained at the last iteration of
+the previous run when restarting.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uGeoMag</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>desired geostrophic wind magnitude for controller type <em>geostrophic</em>. At the first
+run, the initial flow should match this value at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code> to avoid inertial
+oscillations.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerAvgStartTime</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>time after which source terms are averaged before being applied. Used for controller
+type <em>timeAverageSeries</em>.</p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>xDampingProperties</em></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">avgSources</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>whether or not to filter the calculated source terms for controller types
+<em>directProfileAssimilation</em> and <em>indirectProfileAssimilation</em>. Requires
+<code class="docutils literal notranslate"><span class="pre">movingAvgWindow</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingStart</span></code></p></td>
-<td></td>
-<td></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">movingAvgWindow</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>moving average time window used by controller types <em>directProfileAssimilation</em> and
+<em>indirectProfileAssimilation</em> to filter the calculated source terms. Usually on the
+order of 100 s.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingEnd</span></code></p></td>
-<td></td>
-<td></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lowestSrcHeight</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Source term is constant below this height. Used by controller types
+<em>directProfileAssimilation</em> and <em>indirectProfileAssimilation</em> to avoid interfering
+with the SGS model inside the boundary layer. Usually set to the mean boundaryr layer
+height.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingDelta</span></code></p></td>
-<td></td>
-<td></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">highestSrcHeight</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Source term is constant above this height. Used by controller types
+<em>directProfileAssimilation</em> and <em>indirectProfileAssimilation</em>. Usually not required
+so set above the max domain height.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingAlpha</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingAlphaControlType</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingLineSamplingYmin</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingLineSamplingYmax</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingTimeWindow</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td colspan="3"><p><em>yDampingProperties</em></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingStart</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingEnd</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingDelta</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingAlpha</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td colspan="3"><p><em>zDampingProperties</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingStart</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingEnd</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingAlpha</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingAlsoXY</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingXYType</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td colspan="3"><p><em>advectionDampingProperties</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingStart</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingEnd</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingDeltaStart</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingDeltaEnd</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td colspan="3"><p><em>kLeftDampingProperties</em></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftPatchDist</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingAlpha</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterWidth</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td colspan="3"><p><em>kRightDampingProperties</em></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightPatchDist</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingAlpha</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingUBar</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterHeight</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterWidth</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td colspan="3"><p><em>canopyProperties</em></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xStartCanopy</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xEndCanopy</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yStartCanopy</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yEndCanopy</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zStartCanopy</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zEndCanopy</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cftCanopy</span></code></p></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">diskDirCanopy</span></code></p></td>
-<td></td>
-<td></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">polynomialOrder</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>Polynomial order for source term fitting used by controller type
+<em>indirectProfileAssimilation</em>. Usually set to 5th order.</p></td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="xdampingproperties">
+<h4>xDampingProperties<a class="headerlink" href="#xdampingproperties" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingStart</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>start x coordinate of the x fringe region in meters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingEnd</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>end x coordinate of the x fringe region in meters.
+Should be greather than <code class="docutils literal notranslate"><span class="pre">xDampingStart</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingDelta</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>distance over which the damping action goes from 0 to <span class="math notranslate nohighlight">\(\alpha\)</span>. It must be
+smaller than (<code class="docutils literal notranslate"><span class="pre">xDampingEnd</span></code> - <code class="docutils literal notranslate"><span class="pre">xDampingStart</span></code>)/2.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingAlpha</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>damping coefficient <span class="math notranslate nohighlight">\(\alpha\)</span>. Usually set to 0.3.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>type of reference velocity computation within the fringe region. This allows to
+activate the concurrent precursor method.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> 0 : corresponds to inletFunction 2 throughout the fringe
+region, requires the same parameters inside <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> 1: corresponds to inletFunction 3 throughout the fringe
+region, requires the same parameters inside <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> 2: corresponds to inletFunction 4 throughout the fringe
+region, requires the same parameters inside <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> 3: corresponds concurrent precursor, no additional
+parameters are required, TOSCA creates a child case inferring all inputs from files.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> 4: corresponds to inletFunction 5 throughout the fringe
+region, requires the same parameters inside <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code>.</p></li>
+</ul>
+<p>See section <a class="reference internal" href="#boundary-subsection"><span class="std std-ref">boundary</span></a> for details on inletFunctions.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingAlphaControlType</span></code></p></td>
+<td><p>string</p></td>
+<td><p>type of alpha computation, only for concurrent precursor method (i.e.
+<code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> = 3). Most used type is <em>alphaFixed</em>, where the damping
+coefficient is specified by <code class="docutils literal notranslate"><span class="pre">xDampingAlpha</span></code>. Moreover, we developed an experimental
+variable-alpha fringe region where the damping coefficient is optimized in time.
+In particular, TOSCA tries to find the minimum <span class="math notranslate nohighlight">\(\alpha\)</span> that allows to obtain an
+average velocity over a line spanning the domain along y, located at <code class="docutils literal notranslate"><span class="pre">hRef</span></code> and
+close to the exit of the fringe region, which is as close as possibe to the velocity
+sampled on the same line defined in the concurrent precursor domain.
+Alpha is slowly increased until the two velocity match. This is meant to be used for
+tuning runs with a coarse mesh. The resulting alpha can then be set using
+<em>alphaFixed</em> for production runs.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingLineSamplingYmin</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>minimum y of the line located at the fringe exit and at a height of <code class="docutils literal notranslate"><span class="pre">hRef</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingLineSamplingYmax</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>maximum y of the line located at the fringe exit and at a height of <code class="docutils literal notranslate"><span class="pre">hRef</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xDampingTimeWindow</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>time window for error filtering. Sould be greater or equal than a fringe flow
+turnover time.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="ydampingproperties">
+<h4>yDampingProperties<a class="headerlink" href="#ydampingproperties" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingStart</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>start y coordinate of the y fringe region in meters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingEnd</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>end y coordinate of the y fringe region in meters.
+Should be greather than <code class="docutils literal notranslate"><span class="pre">yDampingStart</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingDelta</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>distance over which the damping action goes from 0 to <span class="math notranslate nohighlight">\(\alpha\)</span>. It must be
+smaller than (<code class="docutils literal notranslate"><span class="pre">yDampingEnd</span></code> - <code class="docutils literal notranslate"><span class="pre">yDampingStart</span></code>)/2.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingAlpha</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>damping coefficient <span class="math notranslate nohighlight">\(\alpha\)</span>. Usually set to 0.3.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yDampingNumPeriods</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>TOSCA uses a tiling approach which maps data from the x fringe region to the y fringe
+region in order to define the unperturbed velocity and temperature fields within the
+y fringe region. Hence, y fringe region is only available when also the x fringe
+region is active, and when the <code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> is set to 3. Usage of the y
+fringe region is subject to two main constraints:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(L_x\)</span> / (<code class="docutils literal notranslate"><span class="pre">xDampingEnd</span></code> - <code class="docutils literal notranslate"><span class="pre">xDampingStart</span></code>) = <code class="docutils literal notranslate"><span class="pre">yDampingNumPeriods</span></code>,
+where <span class="math notranslate nohighlight">\(L_x\)</span> is the streamwise domain length.</p></li>
+<li><p>the end of the x fringe region should coincide with a mesh coordinate in the x
+axis.</p></li>
+</ul>
+<p>These two constraints are checked, so not satisfying them will result in an error.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="zdampingproperties">
+<h4>zDampingProperties<a class="headerlink" href="#zdampingproperties" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingStart</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>start z coordinate of the z Rayleigh damping layer in meters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingEnd</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>end z coordinate of the z Rayleigh damping layer in meters.
+Should be greather than <code class="docutils literal notranslate"><span class="pre">zDampingStart</span></code>, usually it is set coincident with the top
+of the computational domain. Notably, the damping action goes from 0 at
+<code class="docutils literal notranslate"><span class="pre">zDampingStart</span></code> to <span class="math notranslate nohighlight">\(\alpha\)</span> at <code class="docutils literal notranslate"><span class="pre">zDampingEnd</span></code>, so setting the latter to
+values higher than the domain height is wrong.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingAlpha</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>damping coefficient <span class="math notranslate nohighlight">\(\alpha\)</span>. Usually set to <span class="math notranslate nohighlight">\(3\sqrt{g\Gamma/\theta_0}\)</span>,
+where <span class="math notranslate nohighlight">\(g\)</span> is the value of the gravitational acceleration, <span class="math notranslate nohighlight">\(\Gamma\)</span> is the
+free atmosphere lapse rate, defined by <code class="docutils literal notranslate"><span class="pre">gTop</span></code> and <span class="math notranslate nohighlight">\(\theta_0\)</span> is the reference
+potential temperature, defined by <code class="docutils literal notranslate"><span class="pre">tRef</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingAlsoXY</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>If set to 0, damping only acts on the vertical velocity with null velocity as the
+reference state (classic Rayleigh damping). If set to 1, horizontal components are
+also damped as specified by <code class="docutils literal notranslate"><span class="pre">zDampingXYType</span></code>. This is usually set to 0, as
+horizontal velocity components should be damped with x and y fringes or kLeft and
+kRight Rayleigh damping layers.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zDampingXYType</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>Specifies how to chose the reference velocity used to perform horizontal damping. If
+set to 1, velocity is averaged for each j index, along the i index of the mesh (the
+simulation setup should be such that they correspond to z and y, respectively) at
+the kLeft patch. The resulting vertical velocity profile is used as reference state.
+If set to 2, velocity is horizontally averaged from the concurrent precursor domain (
+requires x fringe with <code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> 3).</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="advectiondampingproperties">
+<h4>advectionDampingProperties<a class="headerlink" href="#advectiondampingproperties" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingStart</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>start x coordinate of the x advection damping layer in meters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingEnd</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>end x coordinate of the x advection damping layer in meters.
+Should be greather than <code class="docutils literal notranslate"><span class="pre">advDampingStart</span></code>. See Lanzilao &amp; Meyers (2022):
+An Improved Fringe-Region Technique for the Representation of Gravity Waves in Large
+Eddy Simulation with Application to Wind Farms for optimal setup of these parameters
+with respect to the location of the x fringe region.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingDeltaStart</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>distance over which the damping action goes from 0 to 1 (complete removal of
+horizontal advection of vertical velocity). The sum of <code class="docutils literal notranslate"><span class="pre">advDampingDeltaStart</span></code> and
+<code class="docutils literal notranslate"><span class="pre">advDampingDeltaEnd</span></code> should be less than <code class="docutils literal notranslate"><span class="pre">advDampingEnd</span></code> - <code class="docutils literal notranslate"><span class="pre">advDampingStart</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">advDampingDeltaEnd</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>distance over which the damping goes back to 1. Usually larger than
+<code class="docutils literal notranslate"><span class="pre">advDampingDeltaStart</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="kleftdampingproperties">
+<h4>kLeftDampingProperties<a class="headerlink" href="#kleftdampingproperties" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftPatchDist</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>width of the k Raileigh damping region, given as distance from the kLeft patch.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingAlpha</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>damping coefficient <span class="math notranslate nohighlight">\(\alpha\)</span>. Usually set to 0.3.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>reference unpertuerbed velocity that should be obtained when the flow exits the
+Rayleigh damping region. Notably, if the kLeft is the inlet patch, this should be
+consistent with the inlet boundary condition, which should be steady above
+<code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code>. This can be obtained by using inletFunction type 4 with
+<code class="docutils literal notranslate"><span class="pre">n1Merge</span></code> activated, so that extrapolated values are averaged in time. To know the
+<code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code>, the user can run a tentative simulation with a dummy
+<code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code> and the <code class="docutils literal notranslate"><span class="pre">n1Merge</span></code> activated. At simulation startup. after
+averaging the inflow data, velocity values will be printed in the TOSCA log file.
+The consistent <code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code> will be the value at the highest cell.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Filter height for turbulent flow. It should be set to the height of the incoming
+boundary layer, damping will only be applied above, while turbulence will allowed
+through below.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterWidth</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Sharpness of the filter in m. The filtering function is such that damping is 1% at
+<code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code> - <code class="docutils literal notranslate"><span class="pre">kLeftFilterWidth</span></code>/2 and 99% at <code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code> +
+<code class="docutils literal notranslate"><span class="pre">kLeftFilterWidth</span></code>/2.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="krightdampingproperties">
+<h4>kRightDampingProperties<a class="headerlink" href="#krightdampingproperties" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightPatchDist</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>width of the k Raileigh damping region, given as distance from the kRight patch.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingAlpha</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>damping coefficient <span class="math notranslate nohighlight">\(\alpha\)</span>. Usually set to 0.3.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingUBar</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>reference unpertuerbed velocity that should be obtained when the flow exits the
+Rayleigh damping region. It should be consistent with the incoming flow. As kRight
+and kLeft damping are usually employed together, <code class="docutils literal notranslate"><span class="pre">kRightDampingUBar</span></code> and
+<code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code> should be the same.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterHeight</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Filter height for turbulent flow. It should be set to the height of the incoming
+boundary layer, damping will only be applied above, while turbulence will allowed
+through below.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterWidth</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Sharpness of the filter in m. The filtering function is such that damping is 1% at
+<code class="docutils literal notranslate"><span class="pre">kRightFilterHeight</span></code> - <code class="docutils literal notranslate"><span class="pre">kRightFilterWidth</span></code>/2 and 99% at <code class="docutils literal notranslate"><span class="pre">kRightFilterHeight</span></code> +
+<code class="docutils literal notranslate"><span class="pre">kRightFilterWidth</span></code>/2.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="canopyproperties">
+<h4>canopyProperties<a class="headerlink" href="#canopyproperties" title="Link to this heading"></a></h4>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 20.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xStartCanopy</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>start x coordinate of the canopy box.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xEndCanopy</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>end x coordinate of the canopy box.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yStartCanopy</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>start y coordinate of the canopy box.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yEndCanopy</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>end y coordinate of the canopy box.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zStartCanopy</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>start z coordinate of the canopy box.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zEndCanopy</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>end z coordinate of the canopy box.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cftCanopy</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>planform averaged thrust coefficient for the canopy model. It can be evaluated as
+<span class="math notranslate nohighlight">\(4\pi C_T/(4S_xS_y)\)</span>. It is still debated if <span class="math notranslate nohighlight">\(C_T\)</span> should be the
+freestream or the disk based thrust coefficient. Here we suggest disk based.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">diskDirCanopy</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>vector that defines the direction of the force applied from the canopy to the flow.
+It is automatically normalized by TOSCA.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="turbines">
 <span id="turbines-section"></span><h3><cite>turbines</cite><a class="headerlink" href="#turbines" title="Link to this heading"></a></h3>
