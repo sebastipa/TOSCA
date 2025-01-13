@@ -3,8 +3,8 @@
 `boundary`
 ~~~~~~~~~~       
     
-This sections describes the input file definition used to prescribe boundary conditions in TOSCA. TOSCA expects a file for each solved field,
-where boundary and initial conditions are specified. Pressure boundary conditions are not required, as they always are of the Neumann type, except when 
+This section describes the input file definition used to prescribe boundary conditions in TOSCA. TOSCA expects a file for each solved field,
+where boundary and initial conditions are specified. Pressure boundary conditions are not required, as they are always of the Neumann type except when 
 periodicity is present. Therefore, boundary conditions are expected for *U* (velocity) and *nut* (turbulent viscosity) fields, as well as for *T* (potential temperature), 
 when this is activated in the *control.dat* file.
 Specifically, TOSCA expects to find ``U``, ``nut`` and ``T`` (if applicable) files, inside a directory named ``boundary``. Within each file, boundary conditions 
@@ -26,28 +26,8 @@ the keyword ``internalField`` has to be specified, which sets the type of initia
    kRight  zeroGradient   
 
 In addition to common boundary conditions, which are available at all boundaries, TOSCA also features some special boundary conditions, which are only 
-available on specific boundaries. These are used for specific simulations and the user is suggested to consider such 
+available on specific boundaries. These are used for specific simulations, the user is suggested to consider such 
 constraint when designing and setting up a TOSCA case. 
-
-Within TOSCA, specific entry types are defined, which are used to define boundary conditions as well as other inputs throughout the code. These are 
-
-1. *bool*       : an integer which is 0 (false) or 1 (true)
-2. *integer*    : an integer number
-3. *scalar*     : a floating point number (if an integer is provided, this is cast into a floating point number).
-4. *vector*     : a group of floating point numbers defined as *(scalar scalar scalar)*, where the scalar **must** be a floating point number. There shouldn't be any space between parantheses and the first and last vector components. 
-5. *string*     : a word without spaces. 
-6. *dictionary* : a group of additional entries, where the number is dependant on the name of the dictionary, embodied within `{}` parentheses. Dictionaries can containmultiple integer, bool, scalar, vector and string entries. An example is given below. 
-           
-.. code-block:: C
-
-   dictionary
-   {
-      boolEntry    1
-      integerEntry 10
-      scalarEntry  1.0 // or 1
-      vectorEntry  (1.0 1.0 1.0)
-      stringEntry  someRandomString
-   }
    
 Boundary Conditions
 *******************
@@ -81,41 +61,145 @@ The boundary conditions available in TOSCA are summarized in the following table
                                                       within the same processor. Type 2 allows for a more general decomposition 
                                                       (suggested). 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``velocityWallFunction``       dictionary          Available only for ``U``. Applies wall models to velocity and temperature 
-                                                      (if active). Only available for ``iLeft``, ``iRight``, ``jLeft`` and 
+   ``velocityWallFunction``       dictionary          Available only for ``U``. Applies wall models to velocity. 
+                                                      Only available for ``iLeft``, ``iRight``, ``jLeft`` and 
                                                       ``jRight`` patches. Not really tested on i-patches. It is usually applied 
                                                       on the ``jLeft`` patch in combination with an ``inletFunction`` on the 
-                                                      ``kLeft`` patch (see below). 
+                                                      ``kLeft`` patch. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``thetaWallFunction``          dictionary          Available only for ``T``. Applies wall models to temperature. 
+                                                      Only available for ``iLeft``, ``iRight``, ``jLeft`` and 
+                                                      ``jRight`` patches. Not really tested on i-patches. It is usually applied 
+                                                      on the ``jLeft`` patch in combination with an ``inletFunction`` on the 
+                                                      ``kLeft`` patch. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``inletFunction``              dictionary          Available for ``U``, ``nut`` and ``T`` only at the ``kLeft`` patch. 
    ============================== =================== ============================================================================
 
-The last two boundary conditions listed in the previous table are not available on all patches. On the one hand, the 
-``velocityWallFunction``, used to prescribe wall models, is not available on ``kLeft`` and ``kRight`` boundaries. On the 
-other hand, the ``inletFunction`` type, used to prescribe special boundary conditions for inlet velocity, temperature and turbulent viscosity, is only available on the ``kLeft`` patch. The user should keep this constraint in mind when setting
-up a TOSCA case. 
+The last three boundary conditions listed in the previous table are not available on all patches. On the one hand, the 
+``velocityWallFunction`` and ``thetaWallFunction``, used to prescribe wall models, are not available on ``kLeft`` and ``kRight`` boundaries. On the 
+other hand, the ``inletFunction`` type, used to prescribe special inlet boundary conditions for inlet velocity, temperature and turbulent 
+viscosity, is only available on the ``kLeft`` patch. The user should keep this constraint in mind when setting up a TOSCA case. 
 
-Wall Models 
-***********
+Wall Functions 
+**************
 
-The ``velocityWallFunction`` applies the Shumann wall model, used for ABL flows. In particular, the modeled wall shear 
-stress is directly enforced in the stress term of the momentum equations, while a constant normal gradient condition 
+The ``velocityWallFunction`` applies the Shumann wall model, used for ABL flows, or the Cabot wall model, used for wall surfaces, to the velocoty field.  
+In the Shumann model, the modeled wall shear stress is directly enforced in the stress term of the momentum equations, while a constant normal gradient condition 
 is applied to the velocity. In order to avoid double counting at the wall when using this condition (the wall shear 
 stress should be entirely and only modeled), the turbulent viscosity at the wall should be set to zero in the 
-``boundary/nut`` file. The mandatory entries for this boundary condition type are defined as follows:
+``boundary/nut`` file. Entries for velocity wall functions are summarized in the folllwing table:
 
-.. code-block:: C
+.. table:: 
+   :widths: 15, 20, 65
+   :align: center
+   
+   =========== =================================== ================================================================================
+   **WF type** **name**                            **description**
+   ----------- ----------------------------------- --------------------------------------------------------------------------------
+   -1          Cabot wall model                    Usage:
+                                                    
+                                                   .. code-block:: C
 
-   velocityWallFunction
-   {
-      type      -3        // Shumann wall model (only -3 is available)
-      kRough    0.003     // equivalent roughness length
-      gammaM    4.9       // Shumann model constant
-      kappa     0.4       // von Karman constant
-      thetaRef  300.0     // reference potential temperature 
-      uStarEval averaged  // for laterally homogeneous flows (e.g. ABL), 
-                          // otherwise set to 'localized' (e.g. wind farm flows)
-   }
+                                                      velocityWallFunction
+                                                      {
+                                                         type      -1        
+                                                         kRough    0.003     // equivalent roughness length
+                                                      }
+                                                      
+   ----------- ----------------------------------- --------------------------------------------------------------------------------
+   -3          Shumann wall model                  Usage:
+                                                    
+                                                   .. code-block:: C
+
+                                                      velocityWallFunction
+                                                      {
+                                                         type      -3        
+                                                         kRough    0.003     // equivalent roughness length
+                                                         gammaM    4.9       // Shumann model constant
+                                                         kappa     0.4       // von Karman constant
+                                                         thetaRef  300.0     // reference potential 
+                                                                             // temperature in Kelvin
+                                                         uStarEval averaged  // for laterally homogeneous 
+                                                                             // flows (e.g. ABL), otherwise 
+                                                                             // set to 'localized' (e.g. 
+                                                                             // wind farm flows)
+                                                      }
+   =========== =================================== ================================================================================
+   
+The ``thetaWallFunction`` is used to select different formulations of the Shumann wall model for potential temperature.  
+In particular, the modeled heat flux is directly enforced in the stress term of the potential temperature equations, 
+while a zero normal gradient condition is applied to the temperature field. In order to avoid double counting at the wall when using this condition, 
+the turbulent viscosity at the wall should be set to zero in the ``boundary/nut`` file. 
+Entries for temperature wall functions are summarized in the folllwing table:
+   
+.. table:: 
+   :widths: 15, 20, 65
+   :align: center
+   
+   =========== =================================== ================================================================================
+   **WF type** **name**                            **description**
+   ----------- ----------------------------------- --------------------------------------------------------------------------------
+   -1          Shumann wall model,                 Usage:
+               standard.                                     
+                                                   .. code-block:: C
+
+                                                      thetaWallFunction
+                                                      {
+                                                         type      -3        
+                                                         kRough    0.003      // equivalent roughness length
+                                                         gammaM    4.9        // Shumann model constant
+                                                         gammaH    7.8        // Shumann model constant
+                                                         alphaH    1.0        // Shumann model constant
+                                                         kappa     0.4        // von Karman constant
+                                                         thetaRef  300.0      // reference potential 
+                                                                              // temperature in Kelvin
+                                                         uStarEval averaged   // for laterally homogeneous 
+                                                                              // flows (e.g. ABL), otherwise 
+                                                                              // set to 'localized' (e.g. 
+                                                                              // wind farm flows)
+                                                         heatingRate -0.00014 // K/s
+                                                      }
+                                                      
+   ----------- ----------------------------------- --------------------------------------------------------------------------------
+   -3          Shumann wall model, with            Usage:
+               specified heat flux.                                    
+                                                   .. code-block:: C
+
+                                                      thetaWallFunction
+                                                      {
+                                                         type      -2        
+                                                         qWall     0.003     // wall heat flux in J/m2 
+                                                      }
+   ----------- ----------------------------------- --------------------------------------------------------------------------------
+   -4          Shumann wall model, with            Only available at ``jLeft`` patch. 
+               specified time history of           Usage:
+               surface temperature and Obhukhov 
+               length.                                    
+                                                   .. code-block:: C
+
+                                                      thetaWallFunction
+                                                      {
+                                                         type      -4        
+                                                         kRough    0.003      // equivalent roughness length
+                                                         gammaM    4.9        // Shumann model constant
+                                                         gammaH    7.8        // Shumann model constant
+                                                         alphaH    1.0        // Shumann model constant
+                                                         kappa     0.4        // von Karman constant
+                                                                              // temperature in Kelvin
+                                                         uStarEval averaged   // for laterally homogeneous 
+                                                                              // flows (e.g. ABL), otherwise 
+                                                                              // set to 'localized' (e.g. 
+                                                                              // wind farm flows)
+                                                      }
+                                                      
+                                                   Look up tables of time (s), surface temperature (K), and Obhukhov length (m), 
+                                                   stored in ``inflowDatabase/mesoscaleData/time``, 
+                                                   ``inflowDatabase/mesoscaleData/surfTemp`` and 
+                                                   ``inflowDatabase/mesoscaleData/L``, respectively. All vectors should have same 
+                                                   size. 
+   =========== =================================== ================================================================================
+  
    
 Inlet Functions 
 ***************

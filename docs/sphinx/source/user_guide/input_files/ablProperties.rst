@@ -12,11 +12,12 @@ which avoids inertial oscillations produced when the flow is not initialized in 
 active. It is also in this file that one can activate TOSCA's canopy model or the concurrent precursor method.
 
 Primarily, this file contains entries that are required by TOSCA when the ``-abl`` flag is activated. In
-addition, it contains dictionaries that are required when additional flags are activated in the ``control.dat`` file. For
-example, the ``xDampingProperties`` dictionary is only read if ``-xDampingLayer`` is set to 1 in the ``control.dat`` file.
+addition, it contains dictionaries that are required when additional flags are activated in the ``control.dat`` file, which are 
+only used for ABL flows. For example, the ``xDampingProperties`` dictionary is only read if ``-xDampingLayer`` is set to 1 in 
+the ``control.dat`` file.
 
 The folliwing table summarizes all entries and dictionaries available in the ``ABLProperties.dat``. A description of
-entries specific to each dictionaries is given in the subsequent table.
+entries specific to each dictionaries is given in the subsequent tables.
 
 .. table::
    :widths: 32, 15, 53
@@ -107,6 +108,19 @@ entries specific to each dictionaries is given in the subsequent table.
                                                       ``controllerActiveT``, but for the concurrent
                                                       precursor simulation. Requires
                                                       ``controllerProperties`` dictionary.
+   ----------------------------------- -------------- --------------------------------------------------
+   ``controllerTypeT``                 string         Temperature controller type *initial* tries to 
+                                                      maintain the initial horizontally averaged 
+                                                      potential temperature profile. Types 
+                                                      *directProfileAssimilation* and 
+                                                      *indirectProfileAssimilation* calculate source 
+                                                      terms to follow a provided time-series of 
+                                                      potential temperature profile. They require 
+                                                      additional entries in the ``controllerProperties``
+                                                      subdictionary, i.e. ``relaxPI``, 
+                                                      ``lowestSrcHeight``, ``highestSrcHeight``.  
+                                                      Moreover, ``polynomialOrder`` is also required for 
+                                                      controller type *indirectProfileAssimilation*.
    ----------------------------------- -------------- --------------------------------------------------
    ``perturbations``                   bool           Adds divergence-free sinusoidal perturbations to
                                                       triger turbulence in the initial condition when
@@ -297,7 +311,10 @@ entries specific to each dictionaries is given in the subsequent table.
 
    =================================== ============== ==================================================
 
-The meaning of the entires required in the dictionaries listed in the above table are described below.
+The meaning of the entires required in the dictionaries listed in the above table are described in the following tables.
+
+controllerProperties 
+********************
 
 .. table::
    :widths: 35, 20, 45
@@ -306,125 +323,344 @@ The meaning of the entires required in the dictionaries listed in the above tabl
    ============================= ================== =====================================================================================
    **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   *controllerProperties*
-   --------------------------------------------------------------------------------------------------------------------------------------
-   ``relaxPI``
+   ``relaxPI``                   scalar             controller gain. To be set between 0 and 1. Used by all controllers characterized by 
+                                                    a ``controllerAction`` of type *write*. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``controllerMaxHeight``
+   ``controllerMaxHeight``                          although it is good practice to apply the source term throughout the whole vertical 
+                                                    extent of the domain, this can be used to avoid applying the driving source term 
+                                                    above a specified height, to be specified in meters. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``controllerType``
+   ``controllerAction``          string             can be set to *write* or *read*. The former controls the flow based on different 
+                                                    types of calculated driving pressure gradients, then writes the source terms to file.
+                                                    The latter reads these previously written source terms and directly applies them with
+                                                    no feedback controlling action. This keyword has to be set in combination with
+                                                    ``controllerType``. Types *pressure*, *geostrophic*, *directProfileAssimilation* and 
+                                                    *indirectProfileAssimilation* require ``controllerAction`` set to *write*, while 
+                                                    *timeSeries*, *timeAverageSeries* and *timeHeightSeries* require ``controllerAction`` 
+                                                    set to *read*.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``alphaPI``
+   ``controllerType``            string             type *pressure* is the basic PI controller for ABL simulations, it tries to maintain  
+                                                    a wind speed of magnitude ``uRef``, aligned with the x-axis, at ``hRef``. It writes
+                                                    the required source terms to file, to be used later in wind farm simulations with 
+                                                    inlet-outlet BCs through the type *timeSeries* or *timeAverageSeries*, where source 
+                                                    terms are read or averaged, respectively, from the ``inflowDatabase/momentumSource``  
+                                                    file. When trying to attain a specific wind at ``hRef`` inside the boundary layer 
+                                                    and the Coriolis force is active, the *pressure* controller produces inertial 
+                                                    oscillations of the geostrophic wind since it is impossible to initialize the flow 
+                                                    in geostrophic balance. In this case, once should either use ``geostrophicDamping`` 
+                                                    or controller type ``geostrophic``. The latter tries to attain
+                                                    a velocity ``uGeoMag`` at ``hGeo`` (which should be above the boundary layer). The 
+                                                    wind field is then rotated such that the flow is aligned with the x-axis at ``hRef``. 
+                                                    Note that, at every restart, the initial geostrophic wind angle w.r.t. the x-axis 
+                                                    ``alphaGeo`` should be provided (the user can take this info in the last iteration  
+                                                    of the previous run, printed on the log file). TOSCA also features profile  
+                                                    assimilation techniques, used to drive the flow following observation profiles. 
+                                                    These can be set with controller type *directProfileAssimilation* or 
+                                                    *indirectProfileAssimilation*, and require the observed time series inside 
+                                                    ``inflowDatabase/mesoscaleData``. An example can be found in 
+                                                    ``tests/directProfileAssimilationTest``. Once these controllers compute and write 
+                                                    the time series of source terms to file, this can be re-applied within wind farm
+                                                    simulations using the controller type *timeHeightSeries*.                                                                   
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``timeWindowPI``
+   ``alphaPI``                   scalar             proportional over integral controlling action used by all controllers characterized 
+                                                    by a ``controllerAction`` of type *write*. A too low value makes the controller 
+                                                    unstable, usually set between 0.6 and 0.9. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``geostrophicDamping``
+   ``timeWindowPI``              scalar             time filter for integral part of the controller, used by all controllers 
+                                                    characterized  by a ``controllerAction`` of type *write*.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``geoDampingAlpha``
+   ``geostrophicDamping``        bool               activates geostrophic damping to remove inertial oscillations. Only for controller 
+                                                    type *pressure*. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``geoDampingStartTime``
+   ``geoDampingAlpha``           scalar             ratio of damping over critical damping coefficient, usually set to 1.0 (critical 
+                                                    damping). Values above 1.0 mean over-damping, values below 1.0 mean under-damping.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``geoDampingTimeWindow``
+   ``geoDampingStartTime``                          start time of geostrophic damping action. Has to be long enough to provide a good 
+                                                    guess on the geostrophic wind components. Usually set greater than one period of 
+                                                    inertial oscillation (:math:`2\pi/f_c`).
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``hGeo``
+   ``geoDampingTimeWindow``      scalar             time filter of the deduced geostrophic wind components. Usually set to 1/10 of 
+                                                    the inertial oscillation period (:math:`0.2\pi/f_c`).
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``alphaGeo``
+   ``hGeo``                      scalar             height used to sample the geostrophic wind components for the controller type 
+                                                    *geostrophic*. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``uGeoMag``
+   ``alphaGeo``                  scalar             initial wind angle with respect to the x-axis at ``hGeo``. This as to be set at 
+                                                    every restart of the simulation. For the first run, one can initialize the wind 
+                                                    aligned with the x-axis and this parameter to zero. Then, the controller will start 
+                                                    to slowly rotate the wind. The wind angle at ``hGeo`` will be printed in the log file 
+                                                    and the user can set this parameter to the value obtained at the last iteration of 
+                                                    the previous run when restarting. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``controllerAvgStartTime``
+   ``uGeoMag``                   scalar             desired geostrophic wind magnitude for controller type *geostrophic*. At the first 
+                                                    run, the initial flow should match this value at ``hGeo`` to avoid inertial 
+                                                    oscillations. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   *xDampingProperties*
-   --------------------------------------------------------------------------------------------------------------------------------------
-   ``xDampingStart``
+   ``controllerAvgStartTime``    scalar             time after which source terms are averaged before being applied. Used for controller 
+                                                    type *timeAverageSeries*.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``xDampingEnd``
+   ``avgSources``                bool               whether or not to filter the calculated source terms for controller types 
+                                                    *directProfileAssimilation* and *indirectProfileAssimilation*. Requires 
+                                                    ``movingAvgWindow``.                                        
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``xDampingDelta``
+   ``movingAvgWindow``           scalar             moving average time window used by controller types *directProfileAssimilation* and 
+                                                    *indirectProfileAssimilation* to filter the calculated source terms. Usually on the 
+                                                    order of 100 s.                                             
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``xDampingAlpha``
+   ``lowestSrcHeight``           scalar             Source term is constant below this height. Used by controller types 
+                                                    *directProfileAssimilation* and *indirectProfileAssimilation* to avoid interfering 
+                                                    with the SGS model inside the boundary layer. Usually set to the mean boundaryr layer 
+                                                    height.                                            
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``xDampingAlphaControlType``
+   ``highestSrcHeight``          scalar             Source term is constant above this height. Used by controller types 
+                                                    *directProfileAssimilation* and *indirectProfileAssimilation*. Usually not required 
+                                                    so set above the max domain height. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``xDampingLineSamplingYmin``
+   ``polynomialOrder``           integer            Polynomial order for source term fitting used by controller type 
+                                                    *indirectProfileAssimilation*. Usually set to 5th order.                                              
+   ============================= ================== =====================================================================================
+    
+xDampingProperties
+******************
+
+.. table::
+   :widths: 35, 20, 45
+   :align: center
+
+   ============================= ================== =====================================================================================
+   **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``xDampingLineSamplingYmax``
+   ``xDampingStart``             scalar             start x coordinate of the x fringe region in meters.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``xDampingTimeWindow``
+   ``xDampingEnd``               scalar             end x coordinate of the x fringe region in meters. 
+                                                    Should be greather than ``xDampingStart``. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``uBarSelectionType``
+   ``xDampingDelta``             scalar             distance over which the damping action goes from 0 to :math:`\alpha`. It must be 
+                                                    smaller than (``xDampingEnd`` - ``xDampingStart``)/2. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   *yDampingProperties*
-   --------------------------------------------------------------------------------------------------------------------------------------
-   ``yDampingStart``
+   ``xDampingAlpha``             scalar             damping coefficient :math:`\alpha`. Usually set to 0.3. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``yDampingEnd``
+   ``uBarSelectionType``         integer            type of reference velocity computation within the fringe region. This allows to 
+                                                    activate the concurrent precursor method.  
+                                                    
+                                                    * ``uBarSelectionType`` 0 : corresponds to inletFunction 2 throughout the fringe 
+                                                      region, requires the same parameters inside ``xDampingProperties``. 
+                                                    * ``uBarSelectionType`` 1: corresponds to inletFunction 3 throughout the fringe 
+                                                      region, requires the same parameters inside ``xDampingProperties``. 
+                                                    * ``uBarSelectionType`` 2: corresponds to inletFunction 4 throughout the fringe 
+                                                      region, requires the same parameters inside ``xDampingProperties``. 
+                                                    * ``uBarSelectionType`` 3: corresponds concurrent precursor, no additional 
+                                                      parameters are required, TOSCA creates a child case inferring all inputs from files. 
+                                                    * ``uBarSelectionType`` 4: corresponds to inletFunction 5 throughout the fringe 
+                                                      region, requires the same parameters inside ``xDampingProperties``. 
+                                                      
+                                                    See section :ref:`boundary-subsection` for details on inletFunctions. 
+                                                    
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``yDampingDelta``
+   ``xDampingAlphaControlType``  string             type of alpha computation, only for concurrent precursor method (i.e. 
+                                                    ``uBarSelectionType`` = 3). Most used type is *alphaFixed*, where the damping 
+                                                    coefficient is specified by ``xDampingAlpha``. Moreover, we developed an experimental 
+                                                    variable-alpha fringe region where the damping coefficient is optimized in time. 
+                                                    In particular, TOSCA tries to find the minimum :math:`\alpha` that allows to obtain an 
+                                                    average velocity over a line spanning the domain along y, located at ``hRef`` and 
+                                                    close to the exit of the fringe region, which is as close as possibe to the velocity 
+                                                    sampled on the same line defined in the concurrent precursor domain. 
+                                                    Alpha is slowly increased until the two velocity match. This is meant to be used for 
+                                                    tuning runs with a coarse mesh. The resulting alpha can then be set using 
+                                                    *alphaFixed* for production runs. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``yDampingAlpha``
+   ``xDampingLineSamplingYmin``  scalar             minimum y of the line located at the fringe exit and at a height of ``hRef``. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   *zDampingProperties*
-   --------------------------------------------------------------------------------------------------------------------------------------
-   ``zDampingStart``
+   ``xDampingLineSamplingYmax``  scalar             maximum y of the line located at the fringe exit and at a height of ``hRef``. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``zDampingEnd``
+   ``xDampingTimeWindow``        scalar             time window for error filtering. Sould be greater or equal than a fringe flow 
+                                                    turnover time. 
+   ============================= ================== =====================================================================================
+   
+yDampingProperties
+******************
+
+.. table::
+   :widths: 35, 20, 45
+   :align: center
+
+   ============================= ================== =====================================================================================
+   **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``zDampingAlpha``
+   ``yDampingStart``             scalar             start y coordinate of the y fringe region in meters.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``zDampingAlsoXY``
+   ``yDampingEnd``               scalar             end y coordinate of the y fringe region in meters.
+                                                    Should be greather than ``yDampingStart``.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``zDampingXYType``
+   ``yDampingDelta``             scalar             distance over which the damping action goes from 0 to :math:`\alpha`. It must be 
+                                                    smaller than (``yDampingEnd`` - ``yDampingStart``)/2. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   *advectionDampingProperties*
-   --------------------------------------------------------------------------------------------------------------------------------------
-   ``advDampingStart``
+   ``yDampingAlpha``             scalar             damping coefficient :math:`\alpha`. Usually set to 0.3. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``advDampingEnd``
+   ``yDampingNumPeriods``        integer            TOSCA uses a tiling approach which maps data from the x fringe region to the y fringe
+                                                    region in order to define the unperturbed velocity and temperature fields within the 
+                                                    y fringe region. Hence, y fringe region is only available when also the x fringe 
+                                                    region is active, and when the ``uBarSelectionType`` is set to 3. Usage of the y 
+                                                    fringe region is subject to two main constraints: 
+                                                    
+                                                    * :math:`L_x` / (``xDampingEnd`` - ``xDampingStart``) = ``yDampingNumPeriods``, 
+                                                      where :math:`L_x` is the streamwise domain length. 
+                                                    * the end of the x fringe region should coincide with a mesh coordinate in the x
+                                                      axis. 
+                                                    
+                                                    These two constraints are checked, so not satisfying them will result in an error.      
+   ============================= ================== =====================================================================================
+
+zDampingProperties
+******************
+
+.. table::
+   :widths: 35, 20, 45
+   :align: center
+
+   ============================= ================== =====================================================================================
+   **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``advDampingDeltaStart``
+   ``zDampingStart``             scalar             start z coordinate of the z Rayleigh damping layer in meters.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``advDampingDeltaEnd``
+   ``zDampingEnd``               scalar             end z coordinate of the z Rayleigh damping layer in meters.
+                                                    Should be greather than ``zDampingStart``, usually it is set coincident with the top
+                                                    of the computational domain. Notably, the damping action goes from 0 at 
+                                                    ``zDampingStart`` to :math:`\alpha` at ``zDampingEnd``, so setting the latter to 
+                                                    values higher than the domain height is wrong. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   *kLeftDampingProperties*
-   --------------------------------------------------------------------------------------------------------------------------------------
-   ``kLeftPatchDist``
+   ``zDampingAlpha``             scalar             damping coefficient :math:`\alpha`. Usually set to :math:`3\sqrt{g\Gamma/\theta_0}`, 
+                                                    where :math:`g` is the value of the gravitational acceleration, :math:`\Gamma` is the 
+                                                    free atmosphere lapse rate, defined by ``gTop`` and :math:`\theta_0` is the reference 
+                                                    potential temperature, defined by ``tRef``. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kLeftDampingAlpha``
+   ``zDampingAlsoXY``            bool               If set to 0, damping only acts on the vertical velocity with null velocity as the 
+                                                    reference state (classic Rayleigh damping). If set to 1, horizontal components are
+                                                    also damped as specified by ``zDampingXYType``. This is usually set to 0, as 
+                                                    horizontal velocity components should be damped with x and y fringes or kLeft and 
+                                                    kRight Rayleigh damping layers. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kLeftDampingUBar``
+   ``zDampingXYType``            integer            Specifies how to chose the reference velocity used to perform horizontal damping. If 
+                                                    set to 1, velocity is averaged for each j index, along the i index of the mesh (the
+                                                    simulation setup should be such that they correspond to z and y, respectively) at 
+                                                    the kLeft patch. The resulting vertical velocity profile is used as reference state. 
+                                                    If set to 2, velocity is horizontally averaged from the concurrent precursor domain (
+                                                    requires x fringe with ``uBarSelectionType`` 3). 
+   ============================= ================== =====================================================================================
+
+advectionDampingProperties
+**************************
+
+.. table::
+   :widths: 35, 20, 45
+   :align: center
+
+   ============================= ================== =====================================================================================
+   **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kLeftFilterHeight``
+   ``advDampingStart``           scalar             start x coordinate of the x advection damping layer in meters.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kLeftFilterWidth``
+   ``advDampingEnd``             scalar             end x coordinate of the x advection damping layer in meters.
+                                                    Should be greather than ``advDampingStart``. See Lanzilao & Meyers (2022): 
+                                                    An Improved Fringe-Region Technique for the Representation of Gravity Waves in Large 
+                                                    Eddy Simulation with Application to Wind Farms for optimal setup of these parameters
+                                                    with respect to the location of the x fringe region. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   *kRightDampingProperties*
-   --------------------------------------------------------------------------------------------------------------------------------------
-   ``kRightPatchDist``
+   ``advDampingDeltaStart``      scalar             distance over which the damping action goes from 0 to 1 (complete removal of 
+                                                    horizontal advection of vertical velocity). The sum of ``advDampingDeltaStart`` and 
+                                                    ``advDampingDeltaEnd`` should be less than ``advDampingEnd`` - ``advDampingStart``. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kRightDampingAlpha``
+   ``advDampingDeltaEnd``        scalar             distance over which the damping goes back to 1. Usually larger than 
+                                                    ``advDampingDeltaStart``. 
+   ============================= ================== =====================================================================================
+
+kLeftDampingProperties
+**********************
+
+.. table::
+   :widths: 35, 20, 45
+   :align: center
+
+   ============================= ================== =====================================================================================
+   **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kRightDampingUBar``
+   ``kLeftPatchDist``            scalar             width of the k Raileigh damping region, given as distance from the kLeft patch. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kRightFilterHeight``
+   ``kLeftDampingAlpha``         scalar             damping coefficient :math:`\alpha`. Usually set to 0.3. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kRightFilterWidth``
+   ``kLeftDampingUBar``          vector             reference unpertuerbed velocity that should be obtained when the flow exits the 
+                                                    Rayleigh damping region. Notably, if the kLeft is the inlet patch, this should be 
+                                                    consistent with the inlet boundary condition, which should be steady above 
+                                                    ``kLeftFilterHeight``. This can be obtained by using inletFunction type 4 with 
+                                                    ``n1Merge`` activated, so that extrapolated values are averaged in time. To know the
+                                                    ``kLeftDampingUBar``, the user can run a tentative simulation with a dummy 
+                                                    ``kLeftDampingUBar`` and the ``n1Merge`` activated. At simulation startup. after 
+                                                    averaging the inflow data, velocity values will be printed in the TOSCA log file. 
+                                                    The consistent ``kLeftDampingUBar`` will be the value at the highest cell. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   *canopyProperties*
-   --------------------------------------------------------------------------------------------------------------------------------------
-   ``xStartCanopy``
+   ``kLeftFilterHeight``         scalar             Filter height for turbulent flow. It should be set to the height of the incoming 
+                                                    boundary layer, damping will only be applied above, while turbulence will allowed 
+                                                    through below. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``xEndCanopy``
+   ``kLeftFilterWidth``          scalar             Sharpness of the filter in m. The filtering function is such that damping is 1% at 
+                                                    ``kLeftFilterHeight`` - ``kLeftFilterWidth``/2 and 99% at ``kLeftFilterHeight`` + 
+                                                    ``kLeftFilterWidth``/2.
+   ============================= ================== =====================================================================================
+
+kRightDampingProperties
+***********************
+
+.. table::
+   :widths: 35, 20, 45
+   :align: center
+
+   ============================= ================== =====================================================================================
+   **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``yStartCanopy``
+   ``kRightPatchDist``           scalar             width of the k Raileigh damping region, given as distance from the kRight patch. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``yEndCanopy``
+   ``kRightDampingAlpha``        scalar             damping coefficient :math:`\alpha`. Usually set to 0.3.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``zStartCanopy``
+   ``kRightDampingUBar``         vector             reference unpertuerbed velocity that should be obtained when the flow exits the 
+                                                    Rayleigh damping region. It should be consistent with the incoming flow. As kRight 
+                                                    and kLeft damping are usually employed together, ``kRightDampingUBar`` and 
+                                                    ``kLeftDampingUBar`` should be the same. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``zEndCanopy``
+   ``kRightFilterHeight``        scalar             Filter height for turbulent flow. It should be set to the height of the incoming 
+                                                    boundary layer, damping will only be applied above, while turbulence will allowed 
+                                                    through below. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``cftCanopy``
+   ``kRightFilterWidth``         scalar             Sharpness of the filter in m. The filtering function is such that damping is 1% at 
+                                                    ``kRightFilterHeight`` - ``kRightFilterWidth``/2 and 99% at ``kRightFilterHeight`` + 
+                                                    ``kRightFilterWidth``/2.
+   ============================= ================== =====================================================================================
+
+canopyProperties
+****************
+
+.. table::
+   :widths: 35, 20, 45
+   :align: center
+
+   ============================= ================== =====================================================================================
+   **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``diskDirCanopy``
+   ``xStartCanopy``              scalar             start x coordinate of the canopy box. 
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``xEndCanopy``                scalar             end x coordinate of the canopy box.
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``yStartCanopy``              scalar             start y coordinate of the canopy box.
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``yEndCanopy``                scalar             end y coordinate of the canopy box.
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``zStartCanopy``              scalar             start z coordinate of the canopy box.
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``zEndCanopy``                scalar             end z coordinate of the canopy box.
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``cftCanopy``                 scalar             planform averaged thrust coefficient for the canopy model. It can be evaluated as 
+                                                    :math:`4\pi C_T/(4S_xS_y)`. It is still debated if :math:`C_T` should be the 
+                                                    freestream or the disk based thrust coefficient. Here we suggest disk based. 
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``diskDirCanopy``             vector             vector that defines the direction of the force applied from the canopy to the flow.
+                                                    It is automatically normalized by TOSCA. 
    ============================= ================== =====================================================================================
