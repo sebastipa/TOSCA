@@ -68,6 +68,10 @@ struct constants_
     // reference temperature
     PetscReal        tRef;                       //!< reference T, required when ABL is not active
 
+    // thermal conductivity and diffusivity of fluid
+    PetscReal        kCon;
+    PetscReal        alpha;
+
 };
 
 //! \brief Cell indices

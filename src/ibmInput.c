@@ -189,7 +189,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             //read tSource info if needed
             if(ibmBody->tSourceFlagSurf[s] == 1)
             {
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, IBTempName, &(ibmSurface->IBTemp));
+                readSubDictDouble("./IBM/IBMProperties.dat", objectName, IBTempName, &(ibmSurface->fixedTemp));
 
                 //printf("IBTemp%li: %f\n", s, ibmSurface->IBTemp);
             }
@@ -209,19 +209,6 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
         {
             // read name of the element set
             readSubDictWord("./IBM/IBMProperties.dat", objectName, "elementSet", &(ibmBody->elementSet));
-        }
-
-        // check if IB is a heat source
-        readSubDictInt("./IBM/IBMProperties.dat", objectName, "tSourceFlag", &(ibmBody->tSourceFlag));
-
-        //read tSource info if needed
-        if(ibmBody->tSourceFlag == 1)
-        {
-            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "IBTemp", &(ibmBody->IBTemp));
-        }
-        else if(ibmBody->tSourceFlag == 2)
-        {
-            readSubDictDouble("./IBM/IBMProperties.dat", objectName, "IBTFlux", &(ibmBody->IBTFlux));
         }
 
     }

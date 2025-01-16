@@ -1,0 +1,24 @@
+# OKWind Input file - T boundary conditions
+# -------------------------------------------
+
+#internal field
+
+internalField    uniform
+{
+  value  294.15
+  perturbations 0
+}
+
+# boundary patches
+
+iLeft   	 zeroGradient
+
+iRight  	 zeroGradient
+
+jLeft   	 zeroGradient
+
+jRight  	 zeroGradient #fixedValue 21.0
+
+kLeft   	 zeroGradient
+
+kRight  	 zeroGradient

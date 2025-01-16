@@ -498,6 +498,8 @@ PetscErrorCode ReadPhysicalConstants(domain_ *domain)
     if(domain->flags.isTeqnActive)
     {
         readDictDouble("control.dat", "-Pr",  &(domain->constants.Pr));
+        readDictDouble("control.dat", "-kCon",  &(domain->constants.kCon));
+        readDictDouble("control.dat", "-alpha",  &(domain->constants.alpha));
 
         // read reference temperature if abl is not active
         if(!domain->flags.isAblActive)

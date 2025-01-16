@@ -147,9 +147,12 @@ typedef struct
 
     ibmMesh  *ibMsh;
 
-    //ibm source variables
-    PetscReal     IBTemp;                                     //!< surface temperature of fixed temp IB sources
-    PetscReal     IBTFlux;                                     //!< surface temperature of fixed temp IB sources
+    //ibm temp bc
+    word          tempBC;
+    word          tBCSetType;
+    PetscInt      wallFunctionTypeT;
+    PetscReal     fixedTemp;
+    PetscReal     fixedFluxT;              //characteristic velocity used to find Nusselt number for fixedFLux BC only. Recomended to select average inlet velocoity or IBM tranalation speed.
 
 
 }surface;
@@ -196,6 +199,9 @@ typedef struct
     word          tBCSetType;
     PetscInt      wallFunctionTypeT;
     PetscReal     fixedTemp;
+    PetscReal     fixedFluxT;
+    PetscReal     uChar;   //global characteristic velocity anf length of simulation.
+    PetscReal     lChar;
 
 
     //ibm motion variables

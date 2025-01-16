@@ -1285,7 +1285,6 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
-                    nu = 0;
 
                     if(teqn->access->flags->isLesActive != 2)
                     {
@@ -1419,7 +1418,6 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
-                    nu = 0;
 
                     if(teqn->access->flags->isLesActive != 2)
                     {
@@ -1551,7 +1549,6 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     teqn->access->flags->isLesActive
                 )
                 {
-                    nu = 0;
 
                     if(teqn->access->flags->isLesActive != 2)
                     {
