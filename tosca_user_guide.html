@@ -2031,6 +2031,374 @@ It is automatically normalized by TOSCA.</p></td>
 </section>
 <section id="turbines">
 <span id="turbines-section"></span><h3><cite>turbines</cite><a class="headerlink" href="#turbines" title="Link to this heading"></a></h3>
+<p>This section describes how wind turbines can be activated in TOSCA. By setting the <code class="docutils literal notranslate"><span class="pre">-windplant</span></code>
+flag to 1 in the <em>control.dat</em> file, TOSCA is prompted to read turbine and farm parameters
+inside the <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory. The structure of a wind farm definition in TOSCA works as
+follows. The list of all wind turbines present in the simulation is defined in the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code>
+file. Here, the user can define how frequently wind turbine variables are written to file, as well
+as the type, model, location and activation of global wind farm controller for each wind
+turbine in the list. Such file has the following syntax:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># TOSCA Input file - Wind Farm Properties</span>
+<span class="cp"># -------------------------------------------</span>
+
+<span class="n">windFarmName</span><span class="w">            </span><span class="n">string</span>
+<span class="n">arraySpecification</span><span class="w">      </span><span class="n">string</span>
+<span class="n">debug</span><span class="w">                   </span><span class="kt">bool</span>
+
+<span class="n">writeSettings</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">timeStart</span><span class="w">           </span><span class="n">scalar</span>
+<span class="w">    </span><span class="n">intervalType</span><span class="w">        </span><span class="n">string</span>
+<span class="w">    </span><span class="n">timeInterval</span><span class="w">        </span><span class="n">scalar</span>
+<span class="p">}</span>
+
+<span class="n">turbineArray</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">turbineID_1</span>
+<span class="w">    </span><span class="p">(</span>
+<span class="w">        </span><span class="n">turbineType</span><span class="w">         </span><span class="n">string</span>
+<span class="w">        </span><span class="n">turbineModel</span><span class="w">        </span><span class="n">string</span>
+<span class="w">        </span><span class="n">baseLocation</span><span class="w">        </span><span class="n">vector</span>
+<span class="w">        </span><span class="n">windFarmController</span><span class="w">  </span><span class="kt">bool</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="w">    </span><span class="o">:</span>
+<span class="w">    </span><span class="o">:</span>
+<span class="w">    </span><span class="o">:</span>
+<span class="w">    </span><span class="n">turbineID_N</span>
+<span class="w">    </span><span class="p">(</span>
+<span class="w">        </span><span class="n">turbineType</span><span class="w">         </span><span class="n">string</span>
+<span class="w">        </span><span class="n">turbineModel</span><span class="w">        </span><span class="n">string</span>
+<span class="w">        </span><span class="n">baseLocation</span><span class="w">        </span><span class="n">vector</span>
+<span class="w">        </span><span class="n">windFarmController</span><span class="w">  </span><span class="kt">bool</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">windFarmName</span></code> identifies the name of the wind farm, and it is totally up to the user to set it. Regarding <code class="docutils literal notranslate"><span class="pre">arraySpecification</span></code>,
+TOSCA currenty only supports the <em>onebyone</em> specification type, which is the most generic and allows to define all types of
+wind farms. In the future, we might add the <em>aligned</em> and <em>staggered</em> types, which do not require to specify each wind turbine
+individually. Notably, these layouts can still be obtained with the current format. The <code class="docutils literal notranslate"><span class="pre">debug</span></code> flag prints to screen
+useful wind farm information at each iteration, but requires more processor communication when it is activated, so we suggest
+to set it to zero for production runs. The <code class="docutils literal notranslate"><span class="pre">writeSettings</span></code> dictionary allows to set parameters for the wind turbine acquisition
+system. The <code class="docutils literal notranslate"><span class="pre">timeStart</span></code> entry, defined in seconds, defines the time at which TOSCA starts to write turbine data to file. The
+frequency at which this operation happens can be specified using the next two entries. Specifically, <code class="docutils literal notranslate"><span class="pre">intervalType</span></code> can be set
+to <em>timeStep</em> or <em>adjustableTime</em>. In the first case, turbine data are written to file every <code class="docutils literal notranslate"><span class="pre">timeInterval</span></code> iterations (which
+has to be an integer), in the second case data are written every <code class="docutils literal notranslate"><span class="pre">timeInterval</span></code> seconds (which can be a scalar value with decimals).
+Notably, in this case the <code class="docutils literal notranslate"><span class="pre">-adjustTimeStep</span></code> flag has to be set to 1 in the <em>control.dat</em> file, and TOSCA will adjust the time
+step to land on multiples of the <code class="docutils literal notranslate"><span class="pre">timeInterval</span></code> specified by the user.</p>
+<p>Regarding the definition of the wind turbine list, this can be of arbitrary length. The name of each entry (e.g. <em>turbineID_1</em>, <em>turbineID_N</em>)
+is a string which must be specified by the user. This will be the name of the file where TOSCA will write each turbine’s acquisition data,
+and it will be saved in the <code class="docutils literal notranslate"><span class="pre">postProcessing/turbines/startTime</span></code> folder, which will be created at the start of the simulation.
+At each simulation restart, the <code class="docutils literal notranslate"><span class="pre">startTime</span></code> will differ, so TOSCA will not overwrite the turbine data. In the follwing table,
+the entries required for each turbine in the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code> file are detailed.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">turbineType</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Name of the file defining the wind turbine model. Different wind turbines
+can be present in the same wind farm. For example, if the wind turbine is
+<em>ModelA</em>, a file with this name should be contained inside the <code class="docutils literal notranslate"><span class="pre">turbines</span></code>
+directory. See below for entries to this file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">turbineModel</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Actuator model used to represent the wind turbine in the flow domain.
+Inputs to the model are contained in the wind turbine model file. Available
+models are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ALM</span></code>: actuator line model</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ADM</span></code>: actuator disk model</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uniformADM</span></code>: uniform actuator disk model</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">AFM</span></code>: actuator farm model</p></li>
+</ul>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">baseLocation</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>vector defining the coordinates of the base location.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">windFarmController</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>Wether or not the wind farm controller is active. If the controller is
+active for this turbine, an addition file is required, located in
+<code class="docutils literal notranslate"><span class="pre">turbines/control</span></code>. This a look up table that should have the following
+format:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># wind farm control table given as a function of time and pitch/DeltaCT</span>
+<span class="n">time_1</span><span class="w"> </span><span class="n">pitch_1</span><span class="o">/</span><span class="n">DeltaCT_1</span>
+<span class="o">:</span><span class="w">      </span><span class="o">:</span>
+<span class="n">time_n</span><span class="w"> </span><span class="n">pitch_n</span><span class="o">/</span><span class="n">DeltaCT_n</span>
+</pre></div>
+</div>
+<p>Notably, the file should contain only one header line.
+If <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is set to <code class="docutils literal notranslate"><span class="pre">ALM</span></code> or <code class="docutils literal notranslate"><span class="pre">ADM</span></code>, pitch in degrees should
+be provided in the second column, while for <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code> and <code class="docutils literal notranslate"><span class="pre">ADM</span></code>
+the second column corresponds to a delta in thrust coefficient. Whether
+this is interpreted as disk based or freestream, it depends on the settings
+provided in the wind turbine model file. This is a simple method to impose
+a wind farm controller (in the context of wind farm wake mixing) with no
+feedback action.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>As TOSCA requires individual definition of each turbine, this comes with some perks. In particular, the entires described in the
+above table can be different for each wind turbine. This means that the user can use different actuator models, controller
+activation and turbine model specification within the same simulation. This becomes useful for studies of multiple wind farm
+clusters which might have different turbines and be controlled differently.</p>
+<p>The turbine type specification is contained in a file named as the <code class="docutils literal notranslate"><span class="pre">turbineType</span></code> entry in the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code> file. Its
+syntax is defined as follows</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># TOSCA Input file - Turbine Type File</span>
+<span class="cp"># -------------------------------------------</span>
+
+<span class="cp"># Global wind turbine parameters</span>
+<span class="n">rTip</span><span class="w">                </span><span class="n">scalar</span>
+<span class="n">rHub</span><span class="w">                </span><span class="n">scalar</span>
+<span class="n">hTower</span><span class="w">              </span><span class="n">scalar</span>
+<span class="n">overHang</span><span class="w">            </span><span class="n">scalar</span>
+<span class="n">precone</span><span class="w">             </span><span class="n">scalar</span>
+<span class="n">towerDir</span><span class="w">            </span><span class="n">vector</span>
+<span class="n">rotorDir</span><span class="w">            </span><span class="n">vector</span>
+<span class="n">upTilt</span><span class="w">              </span><span class="n">scalar</span>
+<span class="n">initialOmega</span><span class="w">        </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for ALM and ADM only</span>
+<span class="n">nBlades</span><span class="w">             </span><span class="n">integer</span><span class="w"> </span><span class="c1">// for ALM and ADM only</span>
+<span class="n">rotationDir</span><span class="w">         </span><span class="n">string</span><span class="w">  </span><span class="c1">// for ALM and ADM only</span>
+<span class="n">includeTower</span><span class="w">        </span><span class="kt">bool</span>
+<span class="n">includeNacelle</span><span class="w">      </span><span class="kt">bool</span>
+<span class="n">debug</span><span class="w">               </span><span class="kt">bool</span>
+
+<span class="cp"># Controllers</span>
+<span class="n">genControllerType</span><span class="w">   </span><span class="n">string</span><span class="w">  </span><span class="c1">// for ALM and ADM only</span>
+<span class="n">pitchControllerType</span><span class="w"> </span><span class="n">string</span><span class="w">  </span><span class="c1">// for ALM and ADM only</span>
+<span class="n">yawControllerType</span><span class="w">   </span><span class="n">string</span>
+
+<span class="cp"># Actuator model parameters</span>
+<span class="n">nRadPts</span><span class="w">             </span><span class="n">integer</span><span class="w"> </span><span class="c1">// for ALM, ADM and uniformADM only</span>
+<span class="n">nAziPts</span><span class="w">             </span><span class="n">integer</span><span class="w"> </span><span class="c1">// for ADM and uniformADM only</span>
+<span class="n">Uref</span><span class="w">                </span><span class="n">scalar</span>
+<span class="n">Ct</span><span class="w">                  </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for uniformADM and AFM only</span>
+<span class="n">projection</span><span class="w">          </span><span class="n">string</span><span class="w">  </span><span class="c1">// for ALM and AFM only</span>
+<span class="n">sampleType</span><span class="w">          </span><span class="n">string</span><span class="w">  </span><span class="c1">// for ALM, uniformADM and AFM only</span>
+<span class="n">epsilon</span><span class="w">             </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for ALM, ADM and unformADM only</span>
+<span class="n">epsilon_x</span><span class="w">           </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for anisotropic AFM only</span>
+<span class="n">epsilon_y</span><span class="w">           </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for anisotropic AFM only</span>
+<span class="n">epsilon_z</span><span class="w">           </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for anisotropic AFM only</span>
+<span class="n">gaussexp_x</span><span class="w">          </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for gaussexp AFM only</span>
+<span class="n">gaussexp_r</span><span class="w">          </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for gaussexp AFM only</span>
+<span class="n">gaussexp_f</span><span class="w">          </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for gaussexp AFM only</span>
+<span class="n">epsilonFactor_x</span><span class="w">     </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for anisotropic ALM only</span>
+<span class="n">epsilonFactor_y</span><span class="w">     </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for anisotropic ALM only</span>
+<span class="n">epsilonFactor_z</span><span class="w">     </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// for anisotropic ALM only</span>
+
+<span class="cp"># Tower properties</span>
+<span class="n">towerData</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">Cd</span><span class="w">              </span><span class="n">scalar</span>
+<span class="w">    </span><span class="n">epsilon</span><span class="w">         </span><span class="n">scalar</span>
+<span class="w">    </span><span class="n">nLinPts</span><span class="w">         </span><span class="n">integer</span>
+<span class="w">    </span><span class="n">rBase</span><span class="w">           </span><span class="n">scalar</span>
+<span class="w">    </span><span class="n">rTop</span><span class="w">            </span><span class="n">scalar</span>
+<span class="p">}</span>
+
+<span class="cp"># Nacelle properties</span>
+<span class="n">nacelleData</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">Cd</span><span class="w">              </span><span class="n">scalar</span>
+<span class="w">    </span><span class="n">epsilon</span><span class="w">         </span><span class="n">scalar</span>
+<span class="p">}</span>
+
+<span class="cp"># names of the foils (for ALM and ADM only)</span>
+<span class="n">airfoils</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="nl">airfoil_1</span>
+<span class="w">    </span><span class="p">:</span>
+<span class="w">    </span><span class="n">airfoil_n</span>
+<span class="p">}</span>
+
+
+<span class="cp"># Blade parameters given as:</span>
+<span class="cp"># (radius(m) c(m) twist(deg) thickness(m, anisotropic ALM only) airfoilID)</span>
+<span class="cp"># for ALM and ADM only</span>
+<span class="n">bladeData</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="p">(</span><span class="n">scalar</span><span class="w">     </span><span class="n">scalar</span><span class="w">   </span><span class="n">scalar</span><span class="w">     </span><span class="n">integer</span><span class="p">)</span>
+<span class="w">    </span><span class="p">(</span><span class="o">:</span><span class="w">          </span><span class="o">:</span><span class="w">        </span><span class="o">:</span><span class="w">          </span><span class="o">:</span><span class="w">      </span><span class="p">)</span>
+<span class="w">    </span><span class="p">(</span><span class="n">scalar</span><span class="w">     </span><span class="n">scalar</span><span class="w">   </span><span class="n">scalar</span><span class="w">     </span><span class="n">integer</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Notably, depending on the chosen actuator model type, different parameters are needed. Indication about this are provided in the
+above file example. Parameters which do not contain a comment line are always required. Each of the above parameters is detailed
+in the table below:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rTip</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rHub</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hTower</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">overHang</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">precone</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">towerDir</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rotorDir</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">upTilt</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">initialOmega</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nBlades</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rotationDir</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">includeTower</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">includeNacelle</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">debug</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">genControllerType</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pitchControllerType</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yawControllerType</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nRadPts</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nAziPts</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Uref</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Ct</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">projection</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sampleType</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_x</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_y</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_z</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_x</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_r</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_f</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_x</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_y</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_z</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">towerData</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nacelleData</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">airfoils</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bladeData</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
 </section>
 </section>
 <section id="spatial-mesh">
