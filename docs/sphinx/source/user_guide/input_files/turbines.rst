@@ -5,7 +5,12 @@
 
 This section describes how wind turbines can be activated in TOSCA. By setting the ``-windplant``
 flag to 1 in the *control.dat* file, TOSCA is prompted to read turbine and farm parameters 
-inside the ``turbines`` directory. The structure of a wind farm definition in TOSCA works as
+inside the ``turbines`` directory. 
+
+windFarmProperties 
+******************
+
+The structure of a wind farm definition in TOSCA works as
 follows. The list of all wind turbines present in the simulation is defined in the ``windFarmProperties``
 file. Here, the user can define how frequently wind turbine variables are written to file, as well
 as the type, model, location and activation of global wind farm controller for each wind 
@@ -117,6 +122,9 @@ above table can be different for each wind turbine. This means that the user can
 activation and turbine model specification within the same simulation. This becomes useful for studies of multiple wind farm
 clusters which might have different turbines and be controlled differently. 
 
+turbineTypeFile 
+***************
+
 The turbine type specification is contained in a file named as the ``turbineType`` entry in the ``windFarmProperties`` file. Its 
 syntax is defined as follows
  
@@ -211,84 +219,368 @@ in the table below:
    ============================== =================== ============================================================================
    **entry**                      **entry type**      **description**
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``rTip``                 
+   ``rTip``                       scalar              turbine tip radius in m.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``rHub``               
+   ``rHub``                       scalar              turbine hub radius in m. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``hTower``               
+   ``hTower``                     scalar              turbine tower height in m. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``overHang``  
+   ``overHang``                   scalar              distance between rotor center and tower top in m. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``precone``    
+   ``precone``                    scalar              angle in degrees formed between turbine blades and the rotor plane. The 
+                                                      rotor plane is defined as the unique plane that is formed when all blades 
+                                                      lie in the same plane.
+                                                      The more positive the angle, the furthest the blade tip from the tower.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``towerDir``    
+   ``towerDir``                   vector              vector defining the tower direction from base to top. Normalized by TOSCA. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``rotorDir``    
+   ``rotorDir``                   vector              vector defining the direction of the rotor, facing the wind. Normalized by 
+                                                      TOSCA. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``upTilt``    
+   ``upTilt``                     scalar              angle in degrees formed between the normal of the rotor plane and the 
+                                                      horizontal plane. The more positive the angle, the furthest the blade tip 
+                                                      from the tower.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``initialOmega``    
+   ``initialOmega``               scalar              initial blade angular velocity in rpm. This is updated by the angular  
+                                                      velocity controller if this is activated, otherwise it is kept constant. 
+                                                      Only required when ``turbineModel`` is ``ALM`` or ``ADM``. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``nBlades``    
+   ``nBlades``                    integer             number of turbine blades. Only required when ``turbineModel`` is ``ALM`` 
+                                                      or ``ADM``.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``rotationDir``    
+   ``rotationDir``                string              it can be set to *cw* (clockwise) or *ccw* (counter-clockwise). It is 
+                                                      defined by looking at the wind turbine from upstream. Only required when 
+                                                      ``turbineModel`` is ``ALM`` or ``ADM``.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``includeTower``    
+   ``includeTower``               bool                whether or not to model also the tower as an actuator line. Requires the 
+                                                      ``towerData`` dictionary. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``includeNacelle``    
+   ``includeNacelle``             bool                whether or not to model also the nacelle as an actuator point. Requires the 
+                                                      ``nacelleData`` dictionary. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``debug``    
+   ``debug``                      bool                debug switch. Prints turbine-level information and projection error. 
+                                                      Deactivate for performance. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``genControllerType``    
+   ``genControllerType``          string              name of the file that contains the generator control properties of this 
+                                                      wind turbine type. Should be located inside the ``turbines/control`` 
+                                                      directory and it will be described later. 
+                                                      Only required when ``turbineModel`` is ``ALM`` or ``ADM``. Set to 
+                                                      *none* to disable.  
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``pitchControllerType``    
+   ``pitchControllerType``        string              name of the file that contains the collective pitch control properties of  
+                                                      this wind turbine type. Should be located inside the ``turbines/control`` 
+                                                      directory and it will be described later.
+                                                      Only required when ``turbineModel`` is ``ALM`` or ``ADM``. Set to 
+                                                      *none* to disable.  
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``yawControllerType``    
+   ``yawControllerType``          string              name of the file that contains the yaw control properties of  
+                                                      this wind turbine type. Should be located inside the ``turbines/control`` 
+                                                      directory and it will be described later. Set to 
+                                                      *none* to disable.  
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``nRadPts``    
+   ``nRadPts``                    integer             number of radial points for the actuator model. Only required when 
+                                                      ``turbineModel`` is ``ALM``, ``ADM`` or ``uniformADM``. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``nAziPts``    
+   ``nAziPts``                    integer             number of azimuthal points for the actuator model. Only required when 
+                                                      ``turbineModel`` is ``ADM`` or ``uniformADM``. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``Uref``    
+   ``Uref``                       scalar              freestream velocity for this wind turbine in m/s. The meaning of this  
+                                                      parameter depends on the chosen actuator model. 
+                                                      
+                                                      - for ``ALM``, ``ADM`` and ``AFM`` it is used to compute the freestream   
+                                                        thrust coefficient when writing the turbine data to file. It does not   
+                                                        affect thrust computation.  
+                                                      - for ``uniformADM`` it is used to compute thrust when ``sampleType`` is 
+                                                        set to *givenVelocity*. For other sample types it is used to compute the 
+                                                        freestream thrust coefficient when writing the turbine data to file and 
+                                                        it does not affect thrust computation.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``Ct``  
+   ``Ct``                         scalar              thrust coefficient for this wind turbine. Only required when 
+                                                      ``turbineModel`` is ``uniformADM`` or ``AFM``. The meaning of this parameter 
+                                                      depends on the chosen actuator model. 
+                                                      
+                                                      - for ``uniformADM`` it should be the freestream thrust coefficient when
+                                                        ``sampleType`` is set to *givenVelocity* or *rotorUpstream*. Conversely, 
+                                                        when using *rotorDisk* it should be the disk-based thrust coefficient. 
+                                                      - for ``AFM`` it should be the freestream thrust coefficient when
+                                                        ``sampleType`` is set to *momentumTheory*. Conversely, when using 
+                                                        *rotorDisk* or *integral* it should be the disk-based thrust coefficient.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``projection``  
+   ``projection``                 string              body force projection type. Only required for ``ALM`` and ``AFM`` models.
+                                                      Entries specific to each model are described below.
+   
+                                                      ``ALM``
+                                                       - *isotropic*: standard actuator line model.
+                                                       - *anisotropic*: advanced actuator line model, where the gaussian projection 
+                                                         function has different widths along the blade span, chord and thickness. 
+                                                         The latter should be provided in the ``bladeData`` table. 
+                                                      
+                                                      ``AFM``
+                                                       - *anisotropic*: anisotropic gaussian projection
+                                                       - *gaussexp*: gauss-exponential projection. The latter has been subject to 
+                                                         more validation, hence is suggested. 
+                                           
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``sampleType``  
+   ``sampleType``                 string              velocity sampling type. Only required for ``ALM``, ``uniformADM`` and 
+                                                      ``AFM`` models. Entries specific to each model are described below.
+                                                      
+                                                      ``ALM``
+                                                       - *rotorDisk*: tri-linearly interpolates velocity at actuator 
+                                                         points 
+                                                       - *integral*: integrates the velocity around the blade, weighted by 
+                                                         the projection function. 
+                                                        
+                                                      ``uniformADM``
+                                                       - *rotorUpstream*: averages velocity on a fictitious 
+                                                         actuator disk, located 2.5 diamters upstream of the wind turbine 
+                                                       - *givenVelocity*: does not sample any velocity but uses the provided value 
+                                                         of ``Uref`` 
+                                                       - *rotorDisk*: averages velocity on the rotor disk. 
+                                                       
+                                                      ``AFM``
+                                                       - *rotorDisk*: tri-linearly interpolates velocity at the rotor 
+                                                         center
+                                                       - *integral*: integrates velocity around the rotor center, weighted  
+                                                         by the projection function
+                                                       - *momentumTheory*: computes the freestream 
+                                                         velocity as :math:`U_{disk}/(1-a)`, where :math:`a` is the induction 
+                                                         factor, defined as :math:`\frac{1 - \sqrt{1-C_T}}{2}`.
+                                                        
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``epsilon``  
+   ``epsilon``                    scalar              standard deviation of the projection function in m for ``ALM`` (when
+                                                      ``projection`` is set to *isotropic*), ``ADM`` and ``uniformADM``. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``epsilon_x``  
+   ``epsilon_x``                  scalar              standard deviation of the projection function in along x for ``AFM`` 
+                                                      (when ``projection`` is set to *anisotropic*).
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``epsilon_y``  
+   ``epsilon_y``                  scalar              standard deviation of the projection function in along y for ``AFM`` 
+                                                      (when ``projection`` is set to *anisotropic*).
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``epsilon_z``  
+   ``epsilon_z``                  scalar              standard deviation of the projection function in along z for ``AFM`` 
+                                                      (when ``projection`` is set to *anisotropic*).
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``gaussexp_x``  
+   ``gaussexp_x``                 scalar              standard deviation of the projection function in along x for ``AFM`` 
+                                                      (when ``projection`` is set to *gaussexp*).
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``gaussexp_r``  
+   ``gaussexp_r``                 scalar              radial helf-decay length in m of the exponential projection function for 
+                                                      ``AFM`` model, when ``projection`` is set to *gaussexp*. Usually set equal  
+                                                      to the turbine radius. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``gaussexp_f``  
+   ``gaussexp_f``                 scalar              smoothing parameter of the exponential projection function for ``AFM`` 
+                                                      model, when ``projection`` is set to *gaussexp*.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``epsilonFactor_x``  
+   ``epsilonFactor_x``            scalar              chord multiplication factor defining the standard deviation along the blade  
+                                                      chord of the gaussian projection function for ``ALM`` when 
+                                                      ``projection`` is set to *anisotropic*.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``epsilonFactor_y``  
+   ``epsilonFactor_y``            scalar              thickness multiplication factor defining the standard deviation along the  
+                                                      blade thickness of the gaussian projection function for ``ALM`` when 
+                                                      ``projection`` is set to *anisotropic*.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``epsilonFactor_z``  
+   ``epsilonFactor_z``            scalar              :math:`dr` multiplication factor defining the standard deviation along the  
+                                                      blade radius of the gaussian projection function for ``ALM`` when 
+                                                      ``projection`` is set to *anisotropic*.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``towerData``   
+   ``towerData``                  dictionary          Dictionary defining the parameters required to represent the tower as an 
+                                                      actuator line. Usage:
+                                                      
+                                                      .. code-block:: C
+                                                      
+                                                         towerData
+                                                         {
+                                                             Cd      scalar  // drag coefficient 
+                                                             epsilon scalar  // projection length 
+                                                                             // in m
+                                                             nLinPts integer // num. of actuator 
+                                                                             // points
+                                                             rBase   scalar  // tower base radius 
+                                                             rTop    scalar  // tower top radius 
+                                                         }
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``nacelleData`` 
+   ``nacelleData``                dictionary          Dictionary defining the parameters required to represent the nacelle as an 
+                                                      actuator point. Usage:
+                                                      
+                                                      .. code-block:: C
+                                                      
+                                                         nacelleData
+                                                         {
+                                                             Cd      scalar // drag coefficient 
+                                                             epsilon scalar // projection length 
+                                                                            // in m
+                                                         }
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``airfoils`` 
+   ``airfoils``                   table               List of files storing the blade airfoil information. The list has an 
+                                                      arbitrary length files named as the element of the list should be located 
+                                                      inside ``turbines/airfoils``. Usage:
+                                                      
+                                                      .. code-block:: C
+                                                      
+                                                         airfoils
+                                                         {
+                                                             airfoil_1
+                                                             :
+                                                             airfoil_n
+                                                         }
+                                                         
+                                                      Each file should have the following format: 
+                                                      
+                                                      .. code-block:: C
+                                                      
+                                                         # data provided as | alpha | C_l | C_d
+
+                                                         table
+                                                         {
+                                                              (scalar    scalar   scalar)
+                                                              (:         :        :     )
+                                                              (scalar    scalar   scalar)
+                                                         }
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``bladeData``                        
+   ``bladeData``                  table               List of properties for each blade radial station. The list has an arbitrary 
+                                                      length and should store radial position, chord, twist and airfoil ID. 
+                                                      The latter is the index of one of the airfoils present in the airfoils list,
+                                                      starting from 0. Specifically, that which corresponds to the given radial 
+                                                      position. When using ``ALM`` with ``projection`` set to *anisotropic*, 
+                                                      blade thickness is added to the list, before the airfoil ID. Usage:
+                                                      
+                                                      .. code-block:: C
+                                                      
+                                                         bladeData
+                                                         { 
+                                                           (scalar scalar scalar integer)
+                                                           (:      :      :      :      )
+                                                           (scalar scalar scalar integer)
+                                                         }
+                                                         
+                                                      or 
+                                                      
+                                                      .. code-block:: C
+                                                      
+                                                         bladeData
+                                                         { 
+                                                           (scalar scalar scalar scalar integer)
+                                                           (:      :      :      :      :      )
+                                                           (scalar scalar scalar scalar integer)
+                                                         }
+                                                         
+                                                      when using ``ALM`` with ``projection`` set to *anisotropic*. 
    ============================== =================== ============================================================================
 
+control 
+*******
 
+In order to complete the definition of a given wind turbine, information regarding individual turbine control should be 
+provided. While yaw control can be applied to any actuator model, angular velocity and pitch control are only available 
+for ``ALM`` and ``ADM``, as these feature a more detailed description of the wind turbine. The name of the turbine control 
+files that TOSCA will use for each specific wind turbine are defined with the entries ``genControllerType``, ``pitchControllerType``
+and ``yawControllerType``, detailed in the previous table. The general idea is that a given controller is entirely described in a file. 
+Hence, in most cases these entries will be equal if all three controllers are active on a given wind turbine. However, a single 
+turbine can be also controlled with different controllers, defined in different files. Moreover, as many different controllers 
+as desired by the user can be used within a given wind farm. The turbine control file should be contained inside the 
+``turbines/control`` directory, and consists of the the entires described in the following table. 
 
+.. table:: 
+   :widths: 30, 20, 50
+   :align: center
+   
+   ============================== =================== ============================================================================
+   **entry**                      **entry type**      **description**
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``genInertia``                 scalar              rotational inertia of the electrical generator in kg/m2.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``hubInertia``                 scalar              rotational inertia of the hub in kg/m2.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``bldIntertia``                scalar              rotational inertia of each blade in kg/m2.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``gbxRatioG2R``                scalar              gearbox ratio (generator / rotor).
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``gbxEfficiency``              scalar              gearbox efficiency.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``genEff``                     scalar              generator efficiency.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``initialGenTorque``           scalar              initial torque of the electrical generator.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``genTqControllerParameters``  dictionary          parameters defining the generator torque controller.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``pitchControllerParameters``  dictionary          parameters defining the collective pitch controller. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``yawControllerParameters``    dictionary          parameters defining the nacelle yaw controller. 
+   ============================== =================== ============================================================================
 
+Entries for the last three dictionaries are described in the following table
+
+.. table:: 
+   :widths: 30, 20, 50
+   :align: center
+   
+   ============================== =================== ============================================================================
+   **entry**                      **entry type**      **description**
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   *genTqControllerParameters* 
+   -------------------------------------------------------------------------------------------------------------------------------
+   ``genSpeedFilterFreq``         scalar              corner frequency of generator-speed low-pass filter in Hz.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``cutInGenSpeed``              scalar              transitional generator speed between regions 1 and 1.5 in rpm.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``cutInGenTorque``             scalar              generator torque at cut-in wind speed in Nm. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``regTwoStartGenSpeed``        scalar              transitional generator speed between regions 1.5 and 2 in rpm.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``regTwoEndGenSpeed``          scalar              transitional generator speed between regions 2 and 3 in rpm.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``ratedGenTorque``             scalar              generator torque at rated wind speed in Nm. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``controllerPGain``            scalar              proportional gain of torque controller in Nm/rpm2
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``torqueRateLimiter``          bool                activation of limit on rate of torque variation. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``rtrSpeedLimiter``            bool                activation of limit on rotor speed. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``torqueMaxRate``              scalar              maximum rate of torque variation in Nm/s.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``ratedRotorSpeed``            scalar              rotor speed at rated wind speed in rpm. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   *pitchControllerParameters* 
+   -------------------------------------------------------------------------------------------------------------------------------
+   ``pitchRateLimiter``           bool                activation of limit on rate of pitch variation. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``pitchAngleLimiter``          bool                activation of limit on pitch angle. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``pitchMaxRate``               scalar              maximum rate of pitch variation in deg/s. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``pitchMin``                   scalar              minimum pitch value in deg. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``pitchMax``                   scalar              maximum pitch value in deg. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``controllerPGain``            scalar              proportional gain of pitch controller in s. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``controllerIGain``            scalar              integral gain of pitch controller. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``controllerDGain``            scalar              derivative gain of pitch controller. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``pitchS2R``                   scalar              blade pitch angle in deg at which the rotor power has doubled. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   *yawControllerParameters* 
+   -------------------------------------------------------------------------------------------------------------------------------
+   ``sampleType``                 string              type of velocity sampling to calculate the incoming wind angle. Currently
+                                                      the only possibility is *hubUpDistance*, where the wind is sampled one 
+                                                      rotor diameter upstream with respect to the rotor center. We are planning
+                                                      to implement also *anemometer* sampling, where the wind is sampled from the 
+                                                      nacelle-mounted anemometer (right now this is just a place-holder and it 
+                                                      does not do anything).
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``avgWindow``                  scalar              averaging window to filter the wind measurement at the sampling location.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``yawMin``                     scalar              minimum yaw angle in deg (range is -180 to 180).
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``yawMax``                     scalar              maximum yaw angle in deg (range is -180 to 180).
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``yawSpeed``                   scalar              constant nacelle rotational speed in deg/s. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``allowedError``               scalar              allowed misalignment error in deg under which yaw is not changed. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``initialFlowAngle``           scalar              initial angle in deg between the incoming flow and the direction of the 
+                                                      rotor plane with zero upTilt. 
+   ============================== =================== ============================================================================
 
 
 
