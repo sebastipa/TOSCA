@@ -80,7 +80,12 @@
 <li class="toctree-l4"><a class="reference internal" href="#canopyproperties">canopyProperties</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#turbines"><cite>turbines</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#turbines"><cite>turbines</cite></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#windfarmproperties">windFarmProperties</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#turbinetypefile">turbineTypeFile</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#control">control</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#spatial-mesh">Spatial Mesh</a></li>
@@ -2033,7 +2038,10 @@ It is automatically normalized by TOSCA.</p></td>
 <span id="turbines-section"></span><h3><cite>turbines</cite><a class="headerlink" href="#turbines" title="Link to this heading"></a></h3>
 <p>This section describes how wind turbines can be activated in TOSCA. By setting the <code class="docutils literal notranslate"><span class="pre">-windplant</span></code>
 flag to 1 in the <em>control.dat</em> file, TOSCA is prompted to read turbine and farm parameters
-inside the <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory. The structure of a wind farm definition in TOSCA works as
+inside the <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory.</p>
+<section id="windfarmproperties">
+<h4>windFarmProperties<a class="headerlink" href="#windfarmproperties" title="Link to this heading"></a></h4>
+<p>The structure of a wind farm definition in TOSCA works as
 follows. The list of all wind turbines present in the simulation is defined in the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code>
 file. Here, the user can define how frequently wind turbine variables are written to file, as well
 as the type, model, location and activation of global wind farm controller for each wind
@@ -2154,6 +2162,9 @@ feedback action.</p>
 above table can be different for each wind turbine. This means that the user can use different actuator models, controller
 activation and turbine model specification within the same simulation. This becomes useful for studies of multiple wind farm
 clusters which might have different turbines and be controlled differently.</p>
+</section>
+<section id="turbinetypefile">
+<h4>turbineTypeFile<a class="headerlink" href="#turbinetypefile" title="Link to this heading"></a></h4>
 <p>The turbine type specification is contained in a file named as the <code class="docutils literal notranslate"><span class="pre">turbineType</span></code> entry in the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code> file. Its
 syntax is defined as follows</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># TOSCA Input file - Turbine Type File</span>
@@ -2250,155 +2261,534 @@ in the table below:</p>
 <td><p><strong>description</strong></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rTip</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>turbine tip radius in m.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rHub</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>turbine hub radius in m.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hTower</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>turbine tower height in m.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">overHang</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>distance between rotor center and tower top in m.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">precone</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>angle in degrees formed between turbine blades and the rotor plane. The
+rotor plane is defined as the unique plane that is formed when all blades
+lie in the same plane.
+The more positive the angle, the furthest the blade tip from the tower.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">towerDir</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>vector</p></td>
+<td><p>vector defining the tower direction from base to top. Normalized by TOSCA.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rotorDir</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>vector</p></td>
+<td><p>vector defining the direction of the rotor, facing the wind. Normalized by
+TOSCA.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">upTilt</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>angle in degrees formed between the normal of the rotor plane and the
+horizontal plane. The more positive the angle, the furthest the blade tip
+from the tower.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">initialOmega</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>initial blade angular velocity in rpm. This is updated by the angular
+velocity controller if this is activated, otherwise it is kept constant.
+Only required when <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ALM</span></code> or <code class="docutils literal notranslate"><span class="pre">ADM</span></code>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nBlades</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>integer</p></td>
+<td><p>number of turbine blades. Only required when <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ALM</span></code>
+or <code class="docutils literal notranslate"><span class="pre">ADM</span></code>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rotationDir</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>string</p></td>
+<td><p>it can be set to <em>cw</em> (clockwise) or <em>ccw</em> (counter-clockwise). It is
+defined by looking at the wind turbine from upstream. Only required when
+<code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ALM</span></code> or <code class="docutils literal notranslate"><span class="pre">ADM</span></code>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">includeTower</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>bool</p></td>
+<td><p>whether or not to model also the tower as an actuator line. Requires the
+<code class="docutils literal notranslate"><span class="pre">towerData</span></code> dictionary.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">includeNacelle</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>bool</p></td>
+<td><p>whether or not to model also the nacelle as an actuator point. Requires the
+<code class="docutils literal notranslate"><span class="pre">nacelleData</span></code> dictionary.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">debug</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>bool</p></td>
+<td><p>debug switch. Prints turbine-level information and projection error.
+Deactivate for performance.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">genControllerType</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>string</p></td>
+<td><p>name of the file that contains the generator control properties of this
+wind turbine type. Should be located inside the <code class="docutils literal notranslate"><span class="pre">turbines/control</span></code>
+directory and it will be described later.
+Only required when <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ALM</span></code> or <code class="docutils literal notranslate"><span class="pre">ADM</span></code>. Set to
+<em>none</em> to disable.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pitchControllerType</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>string</p></td>
+<td><p>name of the file that contains the collective pitch control properties of
+this wind turbine type. Should be located inside the <code class="docutils literal notranslate"><span class="pre">turbines/control</span></code>
+directory and it will be described later.
+Only required when <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ALM</span></code> or <code class="docutils literal notranslate"><span class="pre">ADM</span></code>. Set to
+<em>none</em> to disable.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yawControllerType</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>string</p></td>
+<td><p>name of the file that contains the yaw control properties of
+this wind turbine type. Should be located inside the <code class="docutils literal notranslate"><span class="pre">turbines/control</span></code>
+directory and it will be described later. Set to
+<em>none</em> to disable.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nRadPts</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>integer</p></td>
+<td><p>number of radial points for the actuator model. Only required when
+<code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ALM</span></code>, <code class="docutils literal notranslate"><span class="pre">ADM</span></code> or <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nAziPts</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>integer</p></td>
+<td><p>number of azimuthal points for the actuator model. Only required when
+<code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ADM</span></code> or <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Uref</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>freestream velocity for this wind turbine in m/s. The meaning of this
+parameter depends on the chosen actuator model.</p>
+<ul class="simple">
+<li><p>for <code class="docutils literal notranslate"><span class="pre">ALM</span></code>, <code class="docutils literal notranslate"><span class="pre">ADM</span></code> and <code class="docutils literal notranslate"><span class="pre">AFM</span></code> it is used to compute the freestream
+thrust coefficient when writing the turbine data to file. It does not
+affect thrust computation.</p></li>
+<li><p>for <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code> it is used to compute thrust when <code class="docutils literal notranslate"><span class="pre">sampleType</span></code> is
+set to <em>givenVelocity</em>. For other sample types it is used to compute the
+freestream thrust coefficient when writing the turbine data to file and
+it does not affect thrust computation.</p></li>
+</ul>
+</td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Ct</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>thrust coefficient for this wind turbine. Only required when
+<code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code> or <code class="docutils literal notranslate"><span class="pre">AFM</span></code>. The meaning of this parameter
+depends on the chosen actuator model.</p>
+<ul class="simple">
+<li><p>for <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code> it should be the freestream thrust coefficient when
+<code class="docutils literal notranslate"><span class="pre">sampleType</span></code> is set to <em>givenVelocity</em> or <em>rotorUpstream</em>. Conversely,
+when using <em>rotorDisk</em> it should be the disk-based thrust coefficient.</p></li>
+<li><p>for <code class="docutils literal notranslate"><span class="pre">AFM</span></code> it should be the freestream thrust coefficient when
+<code class="docutils literal notranslate"><span class="pre">sampleType</span></code> is set to <em>momentumTheory</em>. Conversely, when using
+<em>rotorDisk</em> or <em>integral</em> it should be the disk-based thrust coefficient.</p></li>
+</ul>
+</td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">projection</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>string</p></td>
+<td><p>body force projection type. Only required for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> and <code class="docutils literal notranslate"><span class="pre">AFM</span></code> models.
+Entries specific to each model are described below.</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">ALM</span></code></dt><dd><ul class="simple">
+<li><p><em>isotropic</em>: standard actuator line model.</p></li>
+<li><p><em>anisotropic</em>: advanced actuator line model, where the gaussian projection
+function has different widths along the blade span, chord and thickness.
+The latter should be provided in the <code class="docutils literal notranslate"><span class="pre">bladeData</span></code> table.</p></li>
+</ul>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">AFM</span></code></dt><dd><ul class="simple">
+<li><p><em>anisotropic</em>: anisotropic gaussian projection</p></li>
+<li><p><em>gaussexp</em>: gauss-exponential projection. The latter has been subject to
+more validation, hence is suggested.</p></li>
+</ul>
+</dd>
+</dl>
+</td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sampleType</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>string</p></td>
+<td><p>velocity sampling type. Only required for <code class="docutils literal notranslate"><span class="pre">ALM</span></code>, <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code> and
+<code class="docutils literal notranslate"><span class="pre">AFM</span></code> models. Entries specific to each model are described below.</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">ALM</span></code></dt><dd><ul class="simple">
+<li><p><em>rotorDisk</em>: tri-linearly interpolates velocity at actuator
+points</p></li>
+<li><p><em>integral</em>: integrates the velocity around the blade, weighted by
+the projection function.</p></li>
+</ul>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">uniformADM</span></code></dt><dd><ul class="simple">
+<li><p><em>rotorUpstream</em>: averages velocity on a fictitious
+actuator disk, located 2.5 diamters upstream of the wind turbine</p></li>
+<li><p><em>givenVelocity</em>: does not sample any velocity but uses the provided value
+of <code class="docutils literal notranslate"><span class="pre">Uref</span></code></p></li>
+<li><p><em>rotorDisk</em>: averages velocity on the rotor disk.</p></li>
+</ul>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">AFM</span></code></dt><dd><ul class="simple">
+<li><p><em>rotorDisk</em>: tri-linearly interpolates velocity at the rotor
+center</p></li>
+<li><p><em>integral</em>: integrates velocity around the rotor center, weighted
+by the projection function</p></li>
+<li><p><em>momentumTheory</em>: computes the freestream
+velocity as <span class="math notranslate nohighlight">\(U_{disk}/(1-a)\)</span>, where <span class="math notranslate nohighlight">\(a\)</span> is the induction
+factor, defined as <span class="math notranslate nohighlight">\(\frac{1 - \sqrt{1-C_T}}{2}\)</span>.</p></li>
+</ul>
+</dd>
+</dl>
+</td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>standard deviation of the projection function in m for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> (when
+<code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>isotropic</em>), <code class="docutils literal notranslate"><span class="pre">ADM</span></code> and <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_x</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>standard deviation of the projection function in along x for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
+(when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>).</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_y</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>standard deviation of the projection function in along y for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
+(when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>).</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_z</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>standard deviation of the projection function in along z for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
+(when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>).</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_x</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>standard deviation of the projection function in along x for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
+(when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>gaussexp</em>).</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_r</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>radial helf-decay length in m of the exponential projection function for
+<code class="docutils literal notranslate"><span class="pre">AFM</span></code> model, when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>gaussexp</em>. Usually set equal
+to the turbine radius.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_f</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>smoothing parameter of the exponential projection function for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
+model, when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>gaussexp</em>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_x</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>chord multiplication factor defining the standard deviation along the blade
+chord of the gaussian projection function for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> when
+<code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_y</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p>thickness multiplication factor defining the standard deviation along the
+blade thickness of the gaussian projection function for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> when
+<code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_z</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>scalar</p></td>
+<td><p><span class="math notranslate nohighlight">\(dr\)</span> multiplication factor defining the standard deviation along the
+blade radius of the gaussian projection function for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> when
+<code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">towerData</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>dictionary</p></td>
+<td><p>Dictionary defining the parameters required to represent the tower as an
+actuator line. Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">towerData</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">Cd</span><span class="w">      </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// drag coefficient</span>
+<span class="w">    </span><span class="n">epsilon</span><span class="w"> </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// projection length</span>
+<span class="w">                    </span><span class="c1">// in m</span>
+<span class="w">    </span><span class="n">nLinPts</span><span class="w"> </span><span class="n">integer</span><span class="w"> </span><span class="c1">// num. of actuator</span>
+<span class="w">                    </span><span class="c1">// points</span>
+<span class="w">    </span><span class="n">rBase</span><span class="w">   </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// tower base radius</span>
+<span class="w">    </span><span class="n">rTop</span><span class="w">    </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// tower top radius</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nacelleData</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>dictionary</p></td>
+<td><p>Dictionary defining the parameters required to represent the nacelle as an
+actuator point. Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">nacelleData</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">Cd</span><span class="w">      </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// drag coefficient</span>
+<span class="w">    </span><span class="n">epsilon</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// projection length</span>
+<span class="w">                   </span><span class="c1">// in m</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">airfoils</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>table</p></td>
+<td><p>List of files storing the blade airfoil information. The list has an
+arbitrary length files named as the element of the list should be located
+inside <code class="docutils literal notranslate"><span class="pre">turbines/airfoils</span></code>. Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">airfoils</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="nl">airfoil_1</span>
+<span class="w">    </span><span class="p">:</span>
+<span class="w">    </span><span class="n">airfoil_n</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Each file should have the following format:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># data provided as | alpha | C_l | C_d</span>
+
+<span class="n">table</span>
+<span class="p">{</span>
+<span class="w">     </span><span class="p">(</span><span class="n">scalar</span><span class="w">    </span><span class="n">scalar</span><span class="w">   </span><span class="n">scalar</span><span class="p">)</span>
+<span class="w">     </span><span class="p">(</span><span class="o">:</span><span class="w">         </span><span class="o">:</span><span class="w">        </span><span class="o">:</span><span class="w">     </span><span class="p">)</span>
+<span class="w">     </span><span class="p">(</span><span class="n">scalar</span><span class="w">    </span><span class="n">scalar</span><span class="w">   </span><span class="n">scalar</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bladeData</span></code></p></td>
-<td></td>
-<td></td>
+<td><p>table</p></td>
+<td><p>List of properties for each blade radial station. The list has an arbitrary
+length and should store radial position, chord, twist and airfoil ID.
+The latter is the index of one of the airfoils present in the airfoils list,
+starting from 0. Specifically, that which corresponds to the given radial
+position. When using <code class="docutils literal notranslate"><span class="pre">ALM</span></code> with <code class="docutils literal notranslate"><span class="pre">projection</span></code> set to <em>anisotropic</em>,
+blade thickness is added to the list, before the airfoil ID. Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">bladeData</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="p">(</span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">integer</span><span class="p">)</span>
+<span class="w">  </span><span class="p">(</span><span class="o">:</span><span class="w">      </span><span class="o">:</span><span class="w">      </span><span class="o">:</span><span class="w">      </span><span class="o">:</span><span class="w">      </span><span class="p">)</span>
+<span class="w">  </span><span class="p">(</span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">integer</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>or</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">bladeData</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="p">(</span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">integer</span><span class="p">)</span>
+<span class="w">  </span><span class="p">(</span><span class="o">:</span><span class="w">      </span><span class="o">:</span><span class="w">      </span><span class="o">:</span><span class="w">      </span><span class="o">:</span><span class="w">      </span><span class="o">:</span><span class="w">      </span><span class="p">)</span>
+<span class="w">  </span><span class="p">(</span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="n">integer</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>when using <code class="docutils literal notranslate"><span class="pre">ALM</span></code> with <code class="docutils literal notranslate"><span class="pre">projection</span></code> set to <em>anisotropic</em>.</p>
+</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="control">
+<h4>control<a class="headerlink" href="#control" title="Link to this heading"></a></h4>
+<p>In order to complete the definition of a given wind turbine, information regarding individual turbine control should be
+provided. While yaw control can be applied to any actuator model, angular velocity and pitch control are only available
+for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> and <code class="docutils literal notranslate"><span class="pre">ADM</span></code>, as these feature a more detailed description of the wind turbine. The name of the turbine control
+files that TOSCA will use for each specific wind turbine are defined with the entries <code class="docutils literal notranslate"><span class="pre">genControllerType</span></code>, <code class="docutils literal notranslate"><span class="pre">pitchControllerType</span></code>
+and <code class="docutils literal notranslate"><span class="pre">yawControllerType</span></code>, detailed in the previous table. The general idea is that a given controller is entirely described in a file.
+Hence, in most cases these entries will be equal if all three controllers are active on a given wind turbine. However, a single
+turbine can be also controlled with different controllers, defined in different files. Moreover, as many different controllers
+as desired by the user can be used within a given wind farm. The turbine control file should be contained inside the
+<code class="docutils literal notranslate"><span class="pre">turbines/control</span></code> directory, and consists of the the entires described in the following table.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">genInertia</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>rotational inertia of the electrical generator in kg/m2.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">hubInertia</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>rotational inertia of the hub in kg/m2.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bldIntertia</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>rotational inertia of each blade in kg/m2.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gbxRatioG2R</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>gearbox ratio (generator / rotor).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gbxEfficiency</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>gearbox efficiency.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">genEff</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>generator efficiency.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">initialGenTorque</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>initial torque of the electrical generator.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">genTqControllerParameters</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>parameters defining the generator torque controller.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pitchControllerParameters</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>parameters defining the collective pitch controller.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yawControllerParameters</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>parameters defining the nacelle yaw controller.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Entries for the last three dictionaries are described in the following table</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>genTqControllerParameters</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">genSpeedFilterFreq</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>corner frequency of generator-speed low-pass filter in Hz.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cutInGenSpeed</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>transitional generator speed between regions 1 and 1.5 in rpm.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cutInGenTorque</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>generator torque at cut-in wind speed in Nm.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">regTwoStartGenSpeed</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>transitional generator speed between regions 1.5 and 2 in rpm.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">regTwoEndGenSpeed</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>transitional generator speed between regions 2 and 3 in rpm.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ratedGenTorque</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>generator torque at rated wind speed in Nm.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerPGain</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>proportional gain of torque controller in Nm/rpm2</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">torqueRateLimiter</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>activation of limit on rate of torque variation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rtrSpeedLimiter</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>activation of limit on rotor speed.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">torqueMaxRate</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>maximum rate of torque variation in Nm/s.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ratedRotorSpeed</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>rotor speed at rated wind speed in rpm.</p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>pitchControllerParameters</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pitchRateLimiter</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>activation of limit on rate of pitch variation.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pitchAngleLimiter</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>activation of limit on pitch angle.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pitchMaxRate</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>maximum rate of pitch variation in deg/s.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pitchMin</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>minimum pitch value in deg.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pitchMax</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>maximum pitch value in deg.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerPGain</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>proportional gain of pitch controller in s.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerIGain</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>integral gain of pitch controller.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerDGain</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>derivative gain of pitch controller.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pitchS2R</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>blade pitch angle in deg at which the rotor power has doubled.</p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>yawControllerParameters</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sampleType</span></code></p></td>
+<td><p>string</p></td>
+<td><p>type of velocity sampling to calculate the incoming wind angle. Currently
+the only possibility is <em>hubUpDistance</em>, where the wind is sampled one
+rotor diameter upstream with respect to the rotor center. We are planning
+to implement also <em>anemometer</em> sampling, where the wind is sampled from the
+nacelle-mounted anemometer (right now this is just a place-holder and it
+does not do anything).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">avgWindow</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>averaging window to filter the wind measurement at the sampling location.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yawMin</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>minimum yaw angle in deg (range is -180 to 180).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yawMax</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>maximum yaw angle in deg (range is -180 to 180).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yawSpeed</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>constant nacelle rotational speed in deg/s.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">allowedError</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>allowed misalignment error in deg under which yaw is not changed.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">initialFlowAngle</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>initial angle in deg between the incoming flow and the direction of the
+rotor plane with zero upTilt.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 </section>
 <section id="spatial-mesh">
