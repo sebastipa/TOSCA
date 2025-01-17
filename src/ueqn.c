@@ -112,8 +112,8 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         SNESSetJacobian(ueqn->snesU, ueqn->JU, ueqn->JU, MatMFFDComputeJacobian, (void *)ueqn);
 
         // set SNES solver type
-        SNESSetType(ueqn->snesU, SNESNEWTONTR);          //SNESTR
-        //SNESSetType(ueqn->snesU, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
+        // SNESSetType(ueqn->snesU, SNESNEWTONTR);          //SNESTR
+        SNESSetType(ueqn->snesU, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
 
         // set SNES solve and step failures
         SNESSetMaxLinearSolveFailures(ueqn->snesU,10000);

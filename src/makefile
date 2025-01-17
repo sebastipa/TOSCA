@@ -27,12 +27,12 @@ LIBS       = -lpthread \
              -lrt \
              -ldl \
              -lstdc++ \
-		     -lpetsc \
-		     -lf2cblas \
-		     -lf2clapack \
-		     -lHYPRE \
-		     -lhdf5 \
-#		     -lcatalyst            
+	     -lpetsc \
+	     -lf2cblas \
+	     -lf2clapack \
+	     -lHYPRE \
+	     -lhdf5 \
+#	     -lcatalyst            
 		    
 LDFLAGS    = -L$(PETSC)/$(PETSC_ARCH)/lib\
              -L$(HDF5)/lib \

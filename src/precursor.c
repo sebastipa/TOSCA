@@ -1532,10 +1532,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
 		if(abl->controllerActive)
 		{
-			readDictWord  ("ABLProperties.dat", "controllerType",   &(abl->controllerType));
-
-			// overwrite controller type if precursor is periodic, use same as successor otherwise
-			if(!flags->isPrecursorSpinUp)
+            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerType",   &(abl->controllerType));
 			{
 				// use the same as successor (average) because this may introduce
 				// streamwise oscillations in the successor from the fringe
@@ -1612,7 +1609,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         if(abl->controllerActive)
         {
-            readDictDouble("ABLProperties.dat", "controllerMaxHeight", &(abl->controllerMaxHeight));
+            readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerMaxHeight", &(abl->controllerMaxHeight));
             readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerAction",   &(abl->controllerAction));
 
             abl->cumulatedSource.x = 0.0;
@@ -1624,9 +1621,10 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                 if(abl->controllerType == "pressure" || abl->controllerType == "geostrophic")
                 {
 
-                    readDictDouble("ABLProperties.dat", "relaxPI",          &(abl->relax));
-                    readDictDouble("ABLProperties.dat", "alphaPI",          &(abl->alpha));
-                    readDictDouble("ABLProperties.dat", "timeWindowPI",     &(abl->timeWindow));
+                    // read PI controller properties
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
 
                     // calculating levels interpolation weights at reference height
                     {

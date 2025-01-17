@@ -1696,17 +1696,20 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
 			ifPtr->inflowWeights [j][0]    = ifPtr->inflowWeights [j][mx-2];
 			ifPtr->inflowWeights [j][mx-1] = ifPtr->inflowWeights [j][1];
 
-            ifPtr->closestCells_1 [j][0]    = ifPtr->closestCells_1 [j][mx-2];
-			ifPtr->closestCells_1 [j][mx-1] = ifPtr->closestCells_1 [j][1];
+            if(ifPtr->interpMethod == "spline")
+            {
+                ifPtr->closestCells_1 [j][0]    = ifPtr->closestCells_1 [j][mx-2];
+                ifPtr->closestCells_1 [j][mx-1] = ifPtr->closestCells_1 [j][1];
 
-			ifPtr->inflowWeights_1 [j][0]    = ifPtr->inflowWeights_1 [j][mx-2];
-			ifPtr->inflowWeights_1 [j][mx-1] = ifPtr->inflowWeights_1 [j][1];
+                ifPtr->inflowWeights_1 [j][0]    = ifPtr->inflowWeights_1 [j][mx-2];
+                ifPtr->inflowWeights_1 [j][mx-1] = ifPtr->inflowWeights_1 [j][1];
 
-            ifPtr->closestCells_2 [j][0]    = ifPtr->closestCells_2 [j][mx-2];
-			ifPtr->closestCells_2 [j][mx-1] = ifPtr->closestCells_2 [j][1];
+                ifPtr->closestCells_2 [j][0]    = ifPtr->closestCells_2 [j][mx-2];
+                ifPtr->closestCells_2 [j][mx-1] = ifPtr->closestCells_2 [j][1];
 
-			ifPtr->inflowWeights_2 [j][0]    = ifPtr->inflowWeights_2 [j][mx-2];
-			ifPtr->inflowWeights_2 [j][mx-1] = ifPtr->inflowWeights_2 [j][1];
+                ifPtr->inflowWeights_2 [j][0]    = ifPtr->inflowWeights_2 [j][mx-2];
+                ifPtr->inflowWeights_2 [j][mx-1] = ifPtr->inflowWeights_2 [j][1];
+            }
 		}
     }
 
