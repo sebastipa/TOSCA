@@ -1535,7 +1535,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
             readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerType",   &(abl->controllerType));
 
             // overwrite controller type if precursor is periodic, use same as successor otherwise
-			if(!flags->isPrecursorSpinUp)
+		    if(!flags->isPrecursorSpinUp)
 			{
 				// use the same as successor (average) because this may introduce
 				// streamwise oscillations in the successor from the fringe

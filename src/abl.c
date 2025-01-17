@@ -1090,20 +1090,28 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // nut value is dependent on the velocity (no need to map)
                 ifPtr->mapNut = 0;
 
+                // read if source mesh is uniform or grading
+                readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
+
+                // read interpolation method
+                readSubDictWord("ABLProperties.dat", "xDampingProperties", "interpolation",  &(ifPtr->interpMethod));
+
                 readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Inflow",   &(ifPtr->n1));
                 readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Inflow",   &(ifPtr->n2));
                 readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Periods",  &(ifPtr->prds1));
                 readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Periods",  &(ifPtr->prds2));
-
-                // read if source mesh is uniform or grading
-                readSubDictWord("ABLProperties.dat", "xDampingProperties", "sourceType",  &(ifPtr->sourceType));
+                
+                // overwrite remaining inputs
+                ifPtr->merge1 = 1;
+                ifPtr->shift2 = 0;
 
                 if(ifPtr->sourceType == "uniform")
                 {
-                    PetscPrintf(mesh->MESH_COMM, "   -> using uniform source mesh type\n");
-
                     readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
                     readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
+                    
+                    // height of the inflow database (it is duplicate consider removing)
+                    ifPtr->inflowHeigth = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
 
                     // height of the inflow database
                     ifPtr->avgTopLength = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
@@ -1122,8 +1130,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 }
                 else if(ifPtr->sourceType == "grading")
                 {
-                    PetscPrintf(mesh->MESH_COMM, "   -> using grading source mesh type\n");
-
                     std::vector<PetscReal>  Zcart;
 
                     word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
@@ -1158,6 +1164,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
                         fclose(meshFileID);
 
                         // height of the inflow database
+                        ifPtr->inflowHeigth = Zcart[npz-1] - Zcart[0];
+
+                        // height of the inflow database
                         ifPtr->avgTopLength = Zcart[npz-1] - Zcart[0];
 
                         // width of the merging region
@@ -1178,7 +1187,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 else
                 {
                     char error[512];
-                    sprintf(error, "unknown sourceType in uBarSelectionType type 4, available types are\n    1: uniform\n    2: grading\n");
+                    sprintf(error, "unknown sourceType in uBarSelectionType type 2, available types are\n    1: uniform\n    2: grading\n");
                     fatalErrorInFunction("ABLInitialize",  error);
                 }
 

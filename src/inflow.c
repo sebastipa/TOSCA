@@ -1659,58 +1659,62 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
                 }
             }
         }
+    }
 
-		// scatter to all processors
-		for (j=1; j<my-1; j++)
-		{
-			for (i=1; i<mx-1; i++)
-			{
-                MPI_Allreduce(&(closestCells_tmp[j][i][0]),  &(ifPtr->closestCells [j][i][0]), 12, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
-                MPI_Allreduce(&(inflowWeights_tmp[j][i][0]), &(ifPtr->inflowWeights[j][i][0]), 4, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
+    // scatter to all processors 
+    // Note: this is out of the zs=0 condition because it also has to work for uBarSelectionType=2
+    //       when fringe is active. In that case interp data has to be known also by non-boundary procs 
+    //       since inflow slices are spread throughout the fringe region.  
 
-                std::vector<  cellIds> ().swap(closestCells_tmp[j][i]);
-				std::vector<PetscReal> ().swap(inflowWeights_tmp[j][i]);
+    for (j=1; j<my-1; j++)
+    {
+        for (i=1; i<mx-1; i++)
+        {
+            MPI_Allreduce(&(closestCells_tmp[j][i][0]),  &(ifPtr->closestCells [j][i][0]), 12, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&(inflowWeights_tmp[j][i][0]), &(ifPtr->inflowWeights[j][i][0]), 4, MPIU_REAL, MPI_SUM,mesh->MESH_COMM);
 
-                if(ifPtr->interpMethod == "spline")
-                {
-                    MPI_Allreduce(&(closestCells_tmp_1[j][i][0]),  &(ifPtr->closestCells_1 [j][i][0]), 18, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
-                    MPI_Allreduce(&(inflowWeights_tmp_1[j][i][0]), &(ifPtr->inflowWeights_1[j][i][0]), 6, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
-                    MPI_Allreduce(&(closestCells_tmp_2[j][i][0]),  &(ifPtr->closestCells_2 [j][i][0]), 18, MPIU_INT, MPI_SUM,ifPtr->IFFCN_COMM);
-                    MPI_Allreduce(&(inflowWeights_tmp_2[j][i][0]), &(ifPtr->inflowWeights_2[j][i][0]), 6, MPIU_REAL, MPI_SUM,ifPtr->IFFCN_COMM);
-
-                    std::vector<  cellIds> ().swap(closestCells_tmp_1[j][i]);
-    				std::vector<PetscReal> ().swap(inflowWeights_tmp_1[j][i]);
-                    std::vector<  cellIds> ().swap(closestCells_tmp_2[j][i]);
-    				std::vector<PetscReal> ().swap(inflowWeights_tmp_2[j][i]);
-                }
-			}
-		}
-
-		// periodic along i for i-shift
-		// set i-periodicity
-		for (j=0; j<my; j++)
-		{
-			ifPtr->closestCells [j][0]    = ifPtr->closestCells [j][mx-2];
-			ifPtr->closestCells [j][mx-1] = ifPtr->closestCells [j][1];
-
-			ifPtr->inflowWeights [j][0]    = ifPtr->inflowWeights [j][mx-2];
-			ifPtr->inflowWeights [j][mx-1] = ifPtr->inflowWeights [j][1];
+            std::vector<  cellIds> ().swap(closestCells_tmp[j][i]);
+            std::vector<PetscReal> ().swap(inflowWeights_tmp[j][i]);
 
             if(ifPtr->interpMethod == "spline")
             {
-                ifPtr->closestCells_1 [j][0]    = ifPtr->closestCells_1 [j][mx-2];
-                ifPtr->closestCells_1 [j][mx-1] = ifPtr->closestCells_1 [j][1];
+                MPI_Allreduce(&(closestCells_tmp_1[j][i][0]),  &(ifPtr->closestCells_1 [j][i][0]), 18, MPIU_INT, MPI_SUM,mesh->MESH_COMM);
+                MPI_Allreduce(&(inflowWeights_tmp_1[j][i][0]), &(ifPtr->inflowWeights_1[j][i][0]), 6, MPIU_REAL, MPI_SUM,mesh->MESH_COMM);
+                MPI_Allreduce(&(closestCells_tmp_2[j][i][0]),  &(ifPtr->closestCells_2 [j][i][0]), 18, MPIU_INT, MPI_SUM,mesh->MESH_COMM);
+                MPI_Allreduce(&(inflowWeights_tmp_2[j][i][0]), &(ifPtr->inflowWeights_2[j][i][0]), 6, MPIU_REAL, MPI_SUM,mesh->MESH_COMM);
 
-                ifPtr->inflowWeights_1 [j][0]    = ifPtr->inflowWeights_1 [j][mx-2];
-                ifPtr->inflowWeights_1 [j][mx-1] = ifPtr->inflowWeights_1 [j][1];
-
-                ifPtr->closestCells_2 [j][0]    = ifPtr->closestCells_2 [j][mx-2];
-                ifPtr->closestCells_2 [j][mx-1] = ifPtr->closestCells_2 [j][1];
-
-                ifPtr->inflowWeights_2 [j][0]    = ifPtr->inflowWeights_2 [j][mx-2];
-                ifPtr->inflowWeights_2 [j][mx-1] = ifPtr->inflowWeights_2 [j][1];
+                std::vector<  cellIds> ().swap(closestCells_tmp_1[j][i]);
+                std::vector<PetscReal> ().swap(inflowWeights_tmp_1[j][i]);
+                std::vector<  cellIds> ().swap(closestCells_tmp_2[j][i]);
+                std::vector<PetscReal> ().swap(inflowWeights_tmp_2[j][i]);
             }
-		}
+        }
+    }
+
+    // periodic along i for i-shift
+    // set i-periodicity
+    for (j=0; j<my; j++)
+    {
+        ifPtr->closestCells [j][0]    = ifPtr->closestCells [j][mx-2];
+        ifPtr->closestCells [j][mx-1] = ifPtr->closestCells [j][1];
+
+        ifPtr->inflowWeights [j][0]    = ifPtr->inflowWeights [j][mx-2];
+        ifPtr->inflowWeights [j][mx-1] = ifPtr->inflowWeights [j][1];
+
+        if(ifPtr->interpMethod == "spline")
+        {
+            ifPtr->closestCells_1 [j][0]    = ifPtr->closestCells_1 [j][mx-2];
+            ifPtr->closestCells_1 [j][mx-1] = ifPtr->closestCells_1 [j][1];
+
+            ifPtr->inflowWeights_1 [j][0]    = ifPtr->inflowWeights_1 [j][mx-2];
+            ifPtr->inflowWeights_1 [j][mx-1] = ifPtr->inflowWeights_1 [j][1];
+
+            ifPtr->closestCells_2 [j][0]    = ifPtr->closestCells_2 [j][mx-2];
+            ifPtr->closestCells_2 [j][mx-1] = ifPtr->closestCells_2 [j][1];
+
+            ifPtr->inflowWeights_2 [j][0]    = ifPtr->inflowWeights_2 [j][mx-2];
+            ifPtr->inflowWeights_2 [j][mx-1] = ifPtr->inflowWeights_2 [j][1];
+        }
     }
 
     // free memory

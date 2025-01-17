@@ -1644,7 +1644,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
 
                         gdataHeight = gdataHeight / gcount;
                     }
-                    // type 2: inflow and actual meshes are different, use inflow width
+                    // type 2: inflow and actual meshes are different, use avgTopLength
                     else if (ifPtr->typeT == 2)
                     {
                         gdataHeight = ifPtr->avgTopLength;
@@ -1661,7 +1661,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     // set k to the starting value of this processor. It is needed to
                     // get the z coordinate. This is only valid for cartesian meshes
                     PetscInt k_idx = lzs;
-
+                    
                     // steady prescribed ubar
                     if (ifPtr->typeU == 0)
                     {
@@ -1750,6 +1750,71 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     // unsteady mapped interpolated
                     else if (ifPtr->typeU == 2)
                     {
+                        Cmpnts uGhost;
+
+                        uGhost.x =
+                            ifPtr->inflowWeights[j][i][0] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
+                            ifPtr->inflowWeights[j][i][1] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
+                            ifPtr->inflowWeights[j][i][2] *
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
+                            ifPtr->inflowWeights[j][i][3] ;
+                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x;
+                        
+                        if(ifPtr->interpMethod == "spline")
+                        {
+                            uGhost.y =
+                                ifPtr->inflowWeights_2[j][i][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][0].j][ifPtr->closestCells_2[j][i][0].i].y +
+                                ifPtr->inflowWeights_2[j][i][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][1].j][ifPtr->closestCells_2[j][i][1].i].y +
+                                ifPtr->inflowWeights_2[j][i][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][2].j][ifPtr->closestCells_2[j][i][2].i].y +
+                                ifPtr->inflowWeights_2[j][i][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][3].j][ifPtr->closestCells_2[j][i][3].i].y +
+                                ifPtr->inflowWeights_2[j][i][4] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][4].j][ifPtr->closestCells_2[j][i][4].i].y +
+                                ifPtr->inflowWeights_2[j][i][5] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][5].j][ifPtr->closestCells_2[j][i][5].i].y;
+
+                            uGhost.z =
+                                ifPtr->inflowWeights_1[j][i][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][0].j][ifPtr->closestCells_1[j][i][0].i].z +
+                                ifPtr->inflowWeights_1[j][i][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][1].j][ifPtr->closestCells_1[j][i][1].i].z +
+                                ifPtr->inflowWeights_1[j][i][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][2].j][ifPtr->closestCells_1[j][i][2].i].z +
+                                ifPtr->inflowWeights_1[j][i][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][3].j][ifPtr->closestCells_1[j][i][3].i].z +
+                                ifPtr->inflowWeights_1[j][i][4] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][4].j][ifPtr->closestCells_1[j][i][4].i].z +
+                                ifPtr->inflowWeights_1[j][i][5] *
+                                ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][5].j][ifPtr->closestCells_1[j][i][5].i].z;
+                        }
+                        else
+                        {
+                            uGhost.y =
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y;
+
+                            uGhost.z =
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
+                        }
+
                         PetscReal height = cent[k_idx][j][i].z - mesh->grndLevel;
                         PetscInt  IDs[2];
                         PetscReal Wg [2];
@@ -1760,14 +1825,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         =
                         scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
-                            ifPtr->inflowWeights[j][i][0] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
-                            ifPtr->inflowWeights[j][i][1] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
-                            ifPtr->inflowWeights[j][i][2] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
-                            ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x
+                            uGhost.x
                         ) +
                         scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
@@ -1775,20 +1833,11 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             ifPtr->uBarAvgTopX[IDs[1]].x * Wg[1]
                         );
 
-
-
                         luBarInstX[j][i].y
                         =
                         scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
-                            ifPtr->inflowWeights[j][i][0] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
-                            ifPtr->inflowWeights[j][i][1] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
-                            ifPtr->inflowWeights[j][i][2] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
-                            ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y
+                            uGhost.y
                         ) +
                         scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
@@ -1800,14 +1849,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         =
                         scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
-                            ifPtr->inflowWeights[j][i][0] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
-                            ifPtr->inflowWeights[j][i][1] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
-                            ifPtr->inflowWeights[j][i][2] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
-                            ifPtr->inflowWeights[j][i][3] *
-                            ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z
+                            uGhost.z
                         ) +
                         scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                         (
@@ -1903,6 +1945,18 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                         else if (ifPtr->typeT == 2)
                         {
                             PetscReal delta  = PetscMax(0.0, cent[k_idx][j][i].z - gdataHeight);
+						    PetscReal tGhost;
+
+                            tGhost =
+    							ifPtr->inflowWeights[j][i][0] *
+    							ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+    							ifPtr->inflowWeights[j][i][1] *
+    							ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+    							ifPtr->inflowWeights[j][i][2] *
+    							ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+    							ifPtr->inflowWeights[j][i][3] *
+    							ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+
                             PetscReal height = cent[k_idx][j][i].z - mesh->grndLevel;
 
                             PetscInt  IDs[2];
@@ -1913,14 +1967,7 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                             =
                             scaleHyperTangBot(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
-                                ifPtr->inflowWeights[j][i][0] *
-                                ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
-                                ifPtr->inflowWeights[j][i][1] *
-                                ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
-                                ifPtr->inflowWeights[j][i][2] *
-                                ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
-                                ifPtr->inflowWeights[j][i][3] *
-                                ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i]
+                                tGhost
                             ) +
                             scaleHyperTangTop(height, ifPtr->avgTopLength, ifPtr->avgTopDelta) *
                             (
