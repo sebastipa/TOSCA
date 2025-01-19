@@ -27,8 +27,8 @@ epsilon             8.0
 debug               0
 initialOmega        10.41
 projection          anisotropic
-sampleType	    integral
-epsilonFactor_x	    10.5
+sampleType	        integral
+epsilonFactor_x	  10.5
 epsilonFactor_y     10.5
 epsilonFactor_z     8
 

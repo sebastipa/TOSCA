@@ -85,7 +85,7 @@ the entries required for each turbine in the ``windFarmProperties`` file are det
                                                       directory. See below for entries to this file. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``turbineModel``               string              Actuator model used to represent the wind turbine in the flow domain. 
-                                                      Inputs to the model are contained in the wind turbine model file. Available 
+                                                      Inputs to the model are contained in the wind turbine type file. Available 
                                                       models are:
                                                       
                                                       - ``ALM``: actuator line model 
@@ -96,7 +96,7 @@ the entries required for each turbine in the ``windFarmProperties`` file are det
    ``baseLocation``               vector              vector defining the coordinates of the base location.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``windFarmController``         bool                Wether or not the wind farm controller is active. If the controller is 
-                                                      active for this turbine, an addition file is required, located in 
+                                                      active for this turbine, an additional file is required, located in 
                                                       ``turbines/control``. This a look up table that should have the following 
                                                       format: 
                                                       
@@ -109,15 +109,15 @@ the entries required for each turbine in the ``windFarmProperties`` file are det
                                                       
                                                       Notably, the file should contain only one header line. 
                                                       If ``turbineModel`` is set to ``ALM`` or ``ADM``, pitch in degrees should 
-                                                      be provided in the second column, while for ``uniformADM`` and ``ADM``
+                                                      be provided in the second column, while for ``uniformADM`` and ``AFM``
                                                       the second column corresponds to a delta in thrust coefficient. Whether 
                                                       this is interpreted as disk based or freestream, it depends on the settings
-                                                      provided in the wind turbine model file. This is a simple method to impose 
+                                                      provided in the wind turbine type file. This is a simple method to impose 
                                                       a wind farm controller (in the context of wind farm wake mixing) with no
                                                       feedback action. 
    ============================== =================== ============================================================================
 
-As TOSCA requires individual definition of each turbine, this comes with some perks. In particular, the entires described in the 
+As TOSCA requires individual definition of each turbine, this comes with some perks. In particular, the entries described in the 
 above table can be different for each wind turbine. This means that the user can use different actuator models, controller 
 activation and turbine model specification within the same simulation. This becomes useful for studies of multiple wind farm
 clusters which might have different turbines and be controlled differently. 
@@ -209,7 +209,7 @@ syntax is defined as follows
    }
 
 Notably, depending on the chosen actuator model type, different parameters are needed. Indication about this are provided in the 
-above file example. Parameters which do not contain a comment line are always required. Each of the above parameters is detailed
+comments of the example file above. Parameters which do not contain a comment line are always required. Each of the above parameters is detailed
 in the table below:
 
 .. table:: 
