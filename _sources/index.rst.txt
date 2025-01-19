@@ -10,11 +10,12 @@ Welcome to TOSCA's documentation!
    :maxdepth: 1
    :caption: Contents:
    
-   tosca_setup.rst
-   tosca_quickstart.rst
+   tosca_installation.rst
    tosca_user_guide.rst
-   tosca_theory_guide.rst
    tosca_examples.rst
+   tosca_applications.rst
+   tosca_theory_guide.rst
+   
 
 
 

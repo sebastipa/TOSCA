@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TOSCA Installation &mdash; TOSCA 1.0 documentation</title>
+  <title>Installation &mdash; TOSCA 1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
@@ -20,7 +20,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Getting Started" href="tosca_quickstart.html" />
+    <link rel="next" title="User Guide" href="tosca_user_guide.html" />
     <link rel="prev" title="Welcome to TOSCA’s documentation!" href="index.html" /> 
 </head>
 
@@ -45,18 +45,19 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">TOSCA Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#contribute-to-the-tosca-project">Contribute to the TOSCA Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#paraview-catalyst2-os-rendering">Paraview-Catalyst2 OS-Rendering</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#what-does-it-do">What does it do</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#contribute-to-the-tosca-project">Contribute to the TOSCA Project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#paraview-catalyst2-os-rendering">Paraview-Catalyst2 OS-Rendering</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#usage">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Installation</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="tosca_quickstart.html">Getting Started</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
 </ul>
 
         </div>
@@ -73,9 +74,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">TOSCA Installation</li>
+      <li class="breadcrumb-item active">Installation</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/tosca_setup.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/tosca_installation.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -83,8 +84,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="tosca-installation">
-<h1>TOSCA Installation<a class="headerlink" href="#tosca-installation" title="Link to this heading"></a></h1>
+  <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
 <p>In order to be installed, TOSCA requires a working C/C++ compiler, PETSc (version 3.14.x, 3.15.x), Open MPI (version 4.0.x, 4.1.x), HDF5 and
 HYPRE (needed by PETSs in order to build some of the matrix solvers we use). TOSCA has been tested with the above version combinations,
 it could work with other combinations or versions but it has not been tested (especially older versions).
@@ -166,9 +167,8 @@ and the post-processing with <code class="docutils literal notranslate"><span cl
 <p class="admonition-title">Tip</p>
 <p>You can add <code class="docutils literal notranslate"><span class="pre">tosca</span></code> and <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> to the <code class="docutils literal notranslate"><span class="pre">PATH</span></code> so that they will be found as executables without the need to copy them inside the case directory.</p>
 </div>
-</section>
 <section id="contribute-to-the-tosca-project">
-<h1>Contribute to the TOSCA Project<a class="headerlink" href="#contribute-to-the-tosca-project" title="Link to this heading"></a></h1>
+<h2>Contribute to the TOSCA Project<a class="headerlink" href="#contribute-to-the-tosca-project" title="Link to this heading"></a></h2>
 <p>The TOSCA repository is open-source, so anyone can download and use the code. If you want to contribute to the project by adding code to TOSCA repository you need to open a pull-request that has to be approved by our team. In order to do so, please use the following steps:</p>
 <ol class="arabic simple">
 <li><p>Clone the TOSCA package locally on your machine with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/sebastipa/TOSCA.git</span></code></p></li>
@@ -184,10 +184,10 @@ and the post-processing with <code class="docutils literal notranslate"><span cl
 </ol>
 </section>
 <section id="paraview-catalyst2-os-rendering">
-<span id="paraview-catalyst-section"></span><h1>Paraview-Catalyst2 OS-Rendering<a class="headerlink" href="#paraview-catalyst2-os-rendering" title="Link to this heading"></a></h1>
+<span id="paraview-catalyst-section"></span><h2>Paraview-Catalyst2 OS-Rendering<a class="headerlink" href="#paraview-catalyst2-os-rendering" title="Link to this heading"></a></h2>
 <p>TOSCA provides full interface with Paraview-catalyst2 through the <code class="docutils literal notranslate"><span class="pre">USE_CATALYST</span></code> flag in the makefile. If this is the case, the <code class="docutils literal notranslate"><span class="pre">CATALYST</span></code> environment variable should point to the catalyst2 installation directory. Paraview-catalyst is optional and can be disabled by setting <code class="docutils literal notranslate"><span class="pre">USE_CATALYST=0</span></code></p>
 <section id="usage">
-<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h2>
+<h3>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h3>
 <p>In order to activate off-screen rendering capabilities, <code class="docutils literal notranslate"><span class="pre">-pvCatalyst=1</span></code> should be set in the <em>control.dat</em> file. A file called <em>catalystProperties</em> will be required inside the sampling directory. Entries to this file are</p>
 <table class="docutils align-default">
 <tbody>
@@ -211,14 +211,11 @@ Only required if <code class="docutils literal notranslate"><span class="pre">io
 </tr>
 </tbody>
 </table>
-</section>
-<section id="what-does-it-do">
-<h2>What does it do<a class="headerlink" href="#what-does-it-do" title="Link to this heading"></a></h2>
 <p>If ioType=general, 3D fields of velocity magnitude, pressure and q-criterion are saved inside the catalyst/ folder.
 If ioType=script, Praview actions defined in the python script are executed and e.g. png images can be saved at runtime.</p>
 </section>
-<section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<section id="id1">
+<h3>Installation<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
 <p>In order to be installed, Paraview-catalyst2 requires a working C/C++ compiler, Open MPI (version 4.0.x, 4.1.x), Python3 and cmake. In order for Paraview to work, OpenGL must be available at runtime or mesa libraries are required to mimic some hardware components. These are usually available on supercomputers through the ‘mesa’ module, which should be loaded at runtime. Lastly, paraview and catalyst2 should be manually compiled of the system. As Paraview-5.10 contains a bug in the definition of rectilinear mesh (used by TOSCA), Paraview-5.11 or later is recommended.</p>
 <p>Prior to install TOSCA, we suggest to create a folder named <code class="docutils literal notranslate"><span class="pre">Software</span></code> inside <code class="docutils literal notranslate"><span class="pre">$HOME</span></code>, where catalyst2 and paraview-5.11 will be located.
 In order to re-compile TOSCA with Paraview-catalyst2 capabilities on your system, please follow these steps:</p>
@@ -289,13 +286,14 @@ make<span class="w"> </span>install
 </div>
 </section>
 </section>
+</section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="index.html" class="btn btn-neutral float-left" title="Welcome to TOSCA’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="tosca_quickstart.html" class="btn btn-neutral float-right" title="Getting Started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="tosca_user_guide.html" class="btn btn-neutral float-right" title="User Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Getting Started &mdash; TOSCA 1.0 documentation</title>
+  <title>Primary Applications &mdash; TOSCA 1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
@@ -20,8 +20,8 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="User Guide" href="tosca_user_guide.html" />
-    <link rel="prev" title="TOSCA Installation" href="tosca_setup.html" /> 
+    <link rel="next" title="Atmospheric Boundary Layer" href="02_applications/abl.html" />
+    <link rel="prev" title="Rotating Block Dynamic IBM Example" href="03_examples/07_rotating_block_test.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -45,13 +45,19 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="tosca_setup.html">TOSCA Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tosca_setup.html#contribute-to-the-tosca-project">Contribute to the TOSCA Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tosca_setup.html#paraview-catalyst2-os-rendering">Paraview-Catalyst2 OS-Rendering</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Primary Applications</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="02_applications/abl.html">Atmospheric Boundary Layer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_applications/ibm.html">Dynamic Immersed Boundary Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_applications/precursor.html">Precursor Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_applications/concurrent_precursor.html">Concurrent Precursor Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_applications/terrain.html">Terrain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_applications/assimilation.html">Observations/WRF Data Assimilation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
 </ul>
 
         </div>
@@ -68,9 +74,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Getting Started</li>
+      <li class="breadcrumb-item active">Primary Applications</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/tosca_quickstart.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/tosca_applications.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -78,16 +84,28 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="getting-started">
-<h1>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h1>
+  <section id="primary-applications">
+<h1>Primary Applications<a class="headerlink" href="#primary-applications" title="Link to this heading"></a></h1>
+<p>This section describes the main capabilities of the TOSCA package, highlighting steps to follow and consierations to make when
+setting up different types of simulations. In particular, these are</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="02_applications/abl.html">Atmospheric Boundary Layer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="02_applications/ibm.html">Dynamic Immersed Boundary Method</a></li>
+<li class="toctree-l1"><a class="reference internal" href="02_applications/precursor.html">Precursor Method</a></li>
+<li class="toctree-l1"><a class="reference internal" href="02_applications/concurrent_precursor.html">Concurrent Precursor Method</a></li>
+<li class="toctree-l1"><a class="reference internal" href="02_applications/terrain.html">Terrain</a></li>
+<li class="toctree-l1"><a class="reference internal" href="02_applications/assimilation.html">Observations/WRF Data Assimilation</a></li>
+</ul>
+</div>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="tosca_setup.html" class="btn btn-neutral float-left" title="TOSCA Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="tosca_user_guide.html" class="btn btn-neutral float-right" title="User Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="03_examples/07_rotating_block_test.html" class="btn btn-neutral float-left" title="Rotating Block Dynamic IBM Example" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="02_applications/abl.html" class="btn btn-neutral float-right" title="Atmospheric Boundary Layer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

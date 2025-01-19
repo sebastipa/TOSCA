@@ -1,5 +1,5 @@
-TOSCA Installation
-==================
+Installation
+============
 
 In order to be installed, TOSCA requires a working C/C++ compiler, PETSc (version 3.14.x, 3.15.x), Open MPI (version 4.0.x, 4.1.x), HDF5 and
 HYPRE (needed by PETSs in order to build some of the matrix solvers we use). TOSCA has been tested with the above version combinations,
@@ -87,7 +87,7 @@ In order to compile TOSCA on your system, please follow these steps:
 	You can add ``tosca`` and ``tosca2PV`` to the ``PATH`` so that they will be found as executables without the need to copy them inside the case directory.
 
 Contribute to the TOSCA Project
-===============================
+-------------------------------
 
 The TOSCA repository is open-source, so anyone can download and use the code. If you want to contribute to the project by adding code to TOSCA repository you need to open a pull-request that has to be approved by our team. In order to do so, please use the following steps:
 
@@ -105,12 +105,12 @@ The TOSCA repository is open-source, so anyone can download and use the code. If
 .. _paraview-catalyst-section:
 
 Paraview-Catalyst2 OS-Rendering
-===============================
+-------------------------------
 
 TOSCA provides full interface with Paraview-catalyst2 through the ``USE_CATALYST`` flag in the makefile. If this is the case, the ``CATALYST`` environment variable should point to the catalyst2 installation directory. Paraview-catalyst is optional and can be disabled by setting ``USE_CATALYST=0``
 
 Usage
------
+*****
 
 In order to activate off-screen rendering capabilities, ``-pvCatalyst=1`` should be set in the *control.dat* file. A file called *catalystProperties* will be required inside the sampling directory. Entries to this file are
 
@@ -129,14 +129,11 @@ In order to activate off-screen rendering capabilities, ``-pvCatalyst=1`` should
 |                  | Only required if ``ioType=script``                  |
 +------------------+-----------------------------------------------------+
 
-What does it do
----------------
-
 If ioType=general, 3D fields of velocity magnitude, pressure and q-criterion are saved inside the catalyst/ folder.
 If ioType=script, Praview actions defined in the python script are executed and e.g. png images can be saved at runtime.
 
 Installation
-------------
+************
 
 In order to be installed, Paraview-catalyst2 requires a working C/C++ compiler, Open MPI (version 4.0.x, 4.1.x), Python3 and cmake. In order for Paraview to work, OpenGL must be available at runtime or mesa libraries are required to mimic some hardware components. These are usually available on supercomputers through the 'mesa' module, which should be loaded at runtime. Lastly, paraview and catalyst2 should be manually compiled of the system. As Paraview-5.10 contains a bug in the definition of rectilinear mesh (used by TOSCA), Paraview-5.11 or later is recommended.
 
