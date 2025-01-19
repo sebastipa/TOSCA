@@ -1,0 +1,538 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>control.dat &mdash; TOSCA 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="boundary" href="boundary.html" />
+    <link rel="prev" title="Input Files" href="../input_files.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../tosca_user_guide.html">User Guide</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../input_files.html">Input Files</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#"><cite>control.dat</cite></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#time-controls">Time Controls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#i-o-controls">I/O Controls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#solution-flags">Solution Flags</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#solution-controls">Solution Controls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#solution-constants">Solution Constants</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#acquisition-controls">Acquisition Controls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#post-processing-controls">Post Processing Controls</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="boundary.html"><cite>boundary</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ablProperties.html"><cite>ABLProperties.dat</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="turbines.html"><cite>turbines</cite></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../spatial_mesh.html">Spatial Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../overset.html">Overset Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../acquisition.html">Data Acquisition System</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution.html">Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_theory_guide.html">Theory Guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../tosca_user_guide.html">User Guide</a></li>
+          <li class="breadcrumb-item"><a href="../input_files.html">Input Files</a></li>
+      <li class="breadcrumb-item active"><cite>control.dat</cite></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/01_user_guide/input_files/control.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="control-dat">
+<span id="control-subsection"></span><h1><cite>control.dat</cite><a class="headerlink" href="#control-dat" title="Link to this heading"></a></h1>
+<p>As already mentioned, TOSCA expects a specific case structure, where the <cite>control.dat</cite> file contains the main simulation settings,
+some of which prompt the code to read additional input files. The <cite>control.dat</cite> is subdivided in 7 subsections, namely</p>
+<ol class="arabic simple">
+<li><p>Time Controls</p></li>
+<li><p>I/O Controls</p></li>
+<li><p>Solution Flags</p></li>
+<li><p>Solution Controls</p></li>
+<li><p>Solution Constants</p></li>
+<li><p>Acquisition Controls</p></li>
+<li><p>Post Processing Controls</p></li>
+</ol>
+<p>The last group is only needed when the <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> executable is launched, which converts the binary TOSCA output in <code class="docutils literal notranslate"><span class="pre">.xmf</span></code>
+format, which can be read from e.g. <cite>ParaView</cite>. The following tables summarize all available entries for each of the <cite>control.dat</cite>
+file subsections.</p>
+<section id="time-controls">
+<h2>Time Controls<a class="headerlink" href="#time-controls" title="Link to this heading"></a></h2>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-startFrom</span></code></p></td>
+<td><p>It can be set to <cite>startTime</cite> (requires <code class="docutils literal notranslate"><span class="pre">-startTime</span></code> entry), or <cite>latestTime</cite>. In the last case,
+the latest time available in the <code class="docutils literal notranslate"><span class="pre">fields</span></code> directory is used as the initial time (the code exits if
+the directory is not present, or it doesn’t contain any time
+directories).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-startTime</span></code></p></td>
+<td><p>Specifies the initial time of the simulation if the <code class="docutils literal notranslate"><span class="pre">-startFrom</span></code> keyword is set to <cite>startTime</cite>.
+Disregarded otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-endTime</span></code></p></td>
+<td><p>Defines the time at which the simulation ends.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-timeStep</span></code></p></td>
+<td><p>Initial time step size in seconds.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-adjustTimeStep</span></code></p></td>
+<td><p>If set to 0, the time step will remain fixed and equal to the specified <code class="docutils literal notranslate"><span class="pre">-timeStep</span></code>. If set to
+1 (requires <code class="docutils literal notranslate"><span class="pre">-cfl</span></code>), the time step will be adjusted based on the CFL value and I/O settings. This
+means that time step size will be varied based on the solution, and in order to land on those
+time values designated for data writing by the acquisition
+system.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-cfl</span></code></p></td>
+<td><p>Specifies the CFL value to be maintained. Disregarded if <code class="docutils literal notranslate"><span class="pre">-adjustTimeStep</span></code> is set to 0.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-timePrecision</span></code></p></td>
+<td><p>Specifies the number of digits after the comma that are used to write files and expected to read
+them. Note that, if the time folder storing the initial condition has a different number of digits,
+the simulation will throw an error. To solve this one can act both on the <code class="docutils literal notranslate"><span class="pre">-timePrecision</span></code>, or
+rename the folder using a <code class="docutils literal notranslate"><span class="pre">-timePrecision</span></code> that matches that specified inside the <cite>control.dat</cite>
+file.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="i-o-controls">
+<h2>I/O Controls<a class="headerlink" href="#i-o-controls" title="Link to this heading"></a></h2>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-intervalType</span></code></p></td>
+<td><p>It can be set to <cite>adjustableTime</cite>, <cite>timeStep</cite> or <cite>writeNow</cite>. In the last case, a checkpoint
+followed by termination of the simulation will be triggered.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-timeInterval</span></code></p></td>
+<td><p>Specifies how often a checkpoint file is written. If the <code class="docutils literal notranslate"><span class="pre">-timeInterval</span></code> is set to
+<cite>adjustableTime</cite>, the time interval between two checkpoints is expressed in seconds. If
+<code class="docutils literal notranslate"><span class="pre">-timeInterval</span></code> is set to <cite>timeStep</cite>, the time interval refers to the number of iterations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-purgeWrite</span></code></p></td>
+<td><p>If set to 1, eliminates all previous checkpoint files every time that a checkpoint is written
+(in order to save disk space).</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="solution-flags">
+<h2>Solution Flags<a class="headerlink" href="#solution-flags" title="Link to this heading"></a></h2>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-les</span></code></p></td>
+<td><p>Specifies if and which LES model is active:
+(1) standard Smagorinsky
+(2) stability dependent
+(3) dynamic Smagorinsky with box averaging
+(4) dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
+(5) dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
+(6) dynamic smagorinsky scale dependent with plane averaging (PASD).
+TOSCA has been extensively and most used adopting model (4) for ABL and wind plant simulations.
+Model (5) provides a good alternative in stably stratified flows.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-potentialT</span></code></p></td>
+<td><p>Specifies if potential temperature transport equation is solved (set to 1) or not (set to 0).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-abl</span></code></p></td>
+<td><p>Specifies if an ABL simulation is run. Requires additional file <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-ibm</span></code></p></td>
+<td><p>Specifies if immersed bodies are present in the simulation (set to 1) or not (set to 0). Requires
+additional input in <code class="docutils literal notranslate"><span class="pre">IBM</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-overset</span></code></p></td>
+<td><p>Specifies if overset mesh is present in the simulation. Requires additional input in <code class="docutils literal notranslate"><span class="pre">Overset</span></code>
+directory if activated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code></p></td>
+<td><p>Specifies if vertical Rayleigh damping layer is present in the simulation. Requires additional
+input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code></p></td>
+<td><p>Specifies if horizontal inlet fringe region is present in the simulation. Requires additional input
+in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated. Concurrent precursor can be enabled with this flag.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code></p></td>
+<td><p>Specifies if horizontal lateral fringe region is present in the simulation. Requires additional input
+in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated. Concurrent precursor <strong>has to</strong> be enabled with this
+flag.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-advectionDamping</span></code></p></td>
+<td><p>Specifies if horizontal inlet advection damping region is present in the simulation. Requires
+additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code></p></td>
+<td><p>Concurrent precursor <strong>has to</strong> be enabled with this flag. Specifies the type of inlet boundary
+condition and initial condition for the concurrent precursor. If set to 0, streamwise periodic
+boundary conditions are applied and initial condition is read from <code class="docutils literal notranslate"><span class="pre">fields/precursor</span></code> directory.
+If set to 1, inlet planes from previous simulation are applied and flow is initialized by
+spreading the flow given in the plane corresponding to the simulation start time throughout the
+domain. If set to 2 is equivalent to 1, but the initial condition is read from the
+<code class="docutils literal notranslate"><span class="pre">fields/precursor</span></code> directory. This is used for coarse concurrent precursor, where a good solution
+has to be continuously feed because the simulation cannot be really self-sustained in the concurrent
+precursor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code></p></td>
+<td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> boundary is present in the simulation.
+Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code></p></td>
+<td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundary is present in the simulation.
+Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-canopy</span></code></p></td>
+<td><p>Specifies if wind farm canopy model is present in the simulation. Requires additional input in
+<code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-windplant</span></code></p></td>
+<td><p>Specifies if wind turbines are present in the simulation (set to 1) or not (set to 0). Requires
+turbine models definitions in <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-inviscid</span></code></p></td>
+<td><p>If set to 1, allows disabling viscous terms. Default value is 0.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeContinuity</span></code></p></td>
+<td><p>Computes the divergence field within the entire domain and writes it to checkpoint files.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-pvCatalyst</span></code></p></td>
+<td><p>Enables <cite>ParaView-Catalyst</cite> off-screen rendering capabilities. Useful to create nice videos of very
+large simulations. More details are given in Sec. <a class="reference internal" href="../../tosca_installation.html#paraview-catalyst-section"><span class="std std-ref">Paraview-Catalyst2 OS-Rendering</span></a>.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="solution-controls">
+<h2>Solution Controls<a class="headerlink" href="#solution-controls" title="Link to this heading"></a></h2>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-meshFileType</span></code></p></td>
+<td><p>Defines the format of the mesh input file. It can be set to <code class="docutils literal notranslate"><span class="pre">cartesian</span></code> or <code class="docutils literal notranslate"><span class="pre">curvilinear</span></code>.
+More details are given in Sec. <a class="reference internal" href="../spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code></p></td>
+<td><p>Time discretization scheme, it can be set to <code class="docutils literal notranslate"><span class="pre">forwardEuler</span></code> (explicit first order, usually
+unstable), <code class="docutils literal notranslate"><span class="pre">rungeKutta4</span></code> (explicit fourth-order Runge-Kutta) or <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>,
+which corresponds to the second-order implicit Crank-Nicholson scheme (explicit selection of
+the Crank-Nicholson scheme will be made available). For long simulations the
+<code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code> scheme is preferred, as it can run with CFL greater than 1 and is
+unconditionally stable. For simulations affected by constraints other than the CFL (e.g. blade
+rotation in actuator line model), <code class="docutils literal notranslate"><span class="pre">rungeKutta4</span></code> is a good alternative.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-divScheme</span></code></p></td>
+<td><p>Determines which divergence scheme is used for the discretization of the advection fluxes. It
+can be set to <code class="docutils literal notranslate"><span class="pre">central</span></code> (second-order symmetric scheme, dispersive), <code class="docutils literal notranslate"><span class="pre">quickDiv</span></code> (third-order
+upwind-biased quadratic scheme, diffusive), <code class="docutils literal notranslate"><span class="pre">weno3</span></code> (fourth-order weighted essentially
+non-oscillatory scheme, diffusive), <code class="docutils literal notranslate"><span class="pre">centralUpwind</span></code> (vanLeer blending of central and quadratic
+scheme, to balance diffusion and dispersion), <code class="docutils literal notranslate"><span class="pre">centralUpwindW</span></code> (weighted version, for
+graded/non-uniform meshes).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-relTolU</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>, discarded otherwise. Allows to set the relative
+exit tolerance for the Newton method used to solve implicit discretized momentum equation, default
+value 1e-30.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-absTolU</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>, discarded otherwise. Allows to set the absolute
+exit tolerance for the Newton method used to solve implicit discretized momentum equation,
+default value 1e-5.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-poissonSolver</span></code></p></td>
+<td><p>Allows to specify the library used to solve the pressure equation, it can be set to <code class="docutils literal notranslate"><span class="pre">HYPRE</span></code> or
+<code class="docutils literal notranslate"><span class="pre">PETSc</span></code>. <code class="docutils literal notranslate"><span class="pre">HYPRE</span></code> is suggested, as it has proved to work better than <code class="docutils literal notranslate"><span class="pre">PETSc</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-hypreSolverType</span></code></p></td>
+<td><p>Allows to choose the solution method for the linear system if <code class="docutils literal notranslate"><span class="pre">-poissonSolver</span></code> is set to
+<code class="docutils literal notranslate"><span class="pre">HYPRE</span></code>, discarded otherwise. Set to 1 to use the Generalized Minimum Residual (GMRES), set
+to 2 to use the preconditioned Conjugate-Gradient (PCG) method. Default value is 1.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-poissonTol</span></code></p></td>
+<td><p>Allows to set the exit tolerance for the pressure solver. Default value is 1e-8.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-poissonIt</span></code></p></td>
+<td><p>Set the maximum number of iterations for the pressure solver. Default value is 8.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-amgCoarsenType</span></code></p></td>
+<td><p>Since TOSCA uses the Algebraic Multi-Grid (AMG) preconditioner when the <code class="docutils literal notranslate"><span class="pre">-poissonSolver</span></code> is set
+to <code class="docutils literal notranslate"><span class="pre">HYPRE</span></code>, this entry allows to set the coarsening method. Available entries are 0 (CLJP),
+6 (Falgout), 8 (PMIS), 10 (HMIS). Default value is 10.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-amgThresh</span></code></p></td>
+<td><p>Allows to set the AMG threshold. Default value is 0.5. For distorted meshes, a value of 0.6 is
+suggested.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-amgAgg</span></code></p></td>
+<td><p>Allows to set the level of aggressive coarsening. Default value is 0 (not used).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-pTildeBuoyancy</span></code></p></td>
+<td><p>If set to 1, buoyancy force is recast into a buoyancy gradient and pressure is defined accordingly.
+Default value is 0 (not used).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-dTdtScheme</span></code></p></td>
+<td><p>Can be set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code> (implicit first-order) or <code class="docutils literal notranslate"><span class="pre">rungeKutta4</span></code> (explicit fourth-order).
+For ABL simulations, <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code> is suggested. Crank-Nicholson has been removed from TOSCA
+due to poor velocity-temperature coupling.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-relTolT</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dTdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>. Allows to set the relative exit tolerance for
+the Newton method used to solve implicit discretized temperature equation, default value 1e-30.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-absTolT</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dTdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>. Allows to set the absolute exit tolerance for
+the Newton method used to solve implicit discretized temperature equation, default value 1e-5.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-max_cs</span></code></p></td>
+<td><p>Maximum value for the LES model <span class="math notranslate nohighlight">\(C_s\)</span> coefficient, default value is set to 0.5. Only used when
+<code class="docutils literal notranslate"><span class="pre">-les</span></code> is greater than 1.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="solution-constants">
+<h2>Solution Constants<a class="headerlink" href="#solution-constants" title="Link to this heading"></a></h2>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-nu</span></code></p></td>
+<td><p>Sets the molecular (kinematic) viscosity of the working fluid.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-rho</span></code></p></td>
+<td><p>Sets the density of the working fluid (used e.g. to compute forces).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-Pr</span></code></p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-potentialT</span></code> to be se to 1. Sets the Prandtl number of the working fluid.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-tRef</span></code></p></td>
+<td><p>It is a required parameter when <code class="docutils literal notranslate"><span class="pre">-potentialT</span></code> is active and <code class="docutils literal notranslate"><span class="pre">-abl</span></code> is not. Sets the reference
+potential temperature of the flow, otherwise <code class="docutils literal notranslate"><span class="pre">-tRef</span></code> is set inside the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="acquisition-controls">
+<h2>Acquisition Controls<a class="headerlink" href="#acquisition-controls" title="Link to this heading"></a></h2>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-probes</span></code></p></td>
+<td><p>Activates probes acquisition. Requires additional input files inside <code class="docutils literal notranslate"><span class="pre">sampling/probes</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-sections</span></code></p></td>
+<td><p>Activates acquisition of sections to be visualized in <cite>ParaView</cite>. Requires additional input files in
+<code class="docutils literal notranslate"><span class="pre">sampling/surfaces</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-averageABL</span></code></p></td>
+<td><p>Activates planar averages at every cell-level in the z-direction. Requires <code class="docutils literal notranslate"><span class="pre">-abl</span></code> to be active.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-averageABLPeriod</span></code></p></td>
+<td><p>Output period of the ABL planar averages. It is a required parameter, even if <code class="docutils literal notranslate"><span class="pre">-averageABL</span></code> is set to
+0, for concurrent-precursor simulations, where these averages are always active.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-averageABLStartTime</span></code></p></td>
+<td><p>Time at which ABL planar averages are started. It is a required parameter, even if <code class="docutils literal notranslate"><span class="pre">-averageABL</span></code> is set to
+0, for concurrent-precursor simulations.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-average3LM</span></code></p></td>
+<td><p>Activates vertical averages within layer at user-defined points. Requires additional inputs in
+<code class="docutils literal notranslate"><span class="pre">sampling</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-perturbABL</span></code></p></td>
+<td><p>Activates acquisition of perturbation fields at the same location as sections to be visualized in ParaView.
+Requires additional inputs in <code class="docutils literal notranslate"><span class="pre">sampling</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-averaging</span></code></p></td>
+<td><p>It can be activated by setting to 1, 2, or 3 to get a higher amount of three-dimensional averaged fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-avgPeriod</span></code></p></td>
+<td><p>Average period of three-dimensional averages. Fields are written at checkpoint times in the correspondent time
+folder.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-avgStartTime</span></code></p></td>
+<td><p>Start time of three-dimensional averages.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code></p></td>
+<td><p>These averages are a duplicate of the averages, but are useful if one wants to perform both unconditioned-averages
+and phase-averages, e.g. at multiples of some characteristic time, in the same simulation.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-phaseAvgPeriod</span></code></p></td>
+<td><p>Average period of three-dimensional phase averages. Fields are written at checkpoint times in the correspondent time
+folder.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-phaseAvgStartTime</span></code></p></td>
+<td><p>Start time of three-dimensional phase averages.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-keBudgets</span></code></p></td>
+<td><p>Set to 1 to activate mechanical energy budgets. Requires additional inputs in <code class="docutils literal notranslate"><span class="pre">sampling</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-writePressureForce</span></code></p></td>
+<td><p>Writes pressure force on the IBM surface.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeQ</span></code></p></td>
+<td><p>Writes 3D field of Q-criterion at checkpoint times.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-computeL2</span></code></p></td>
+<td><p>Writes 3D field of Lambda2-criterion at checkpoint times.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeFarmForce</span></code></p></td>
+<td><p>Writes 3D field of wind farm body force at checkpoint times.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-computeSources</span></code></p></td>
+<td><p>Compute source fields to be written in checkpoint files, to be converted in <code class="docutils literal notranslate"><span class="pre">.xmf</span></code> format by
+<code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> executable. Depending on what is active, it calculates the coriolis force and driving
+pressure gradient (require <code class="docutils literal notranslate"><span class="pre">-abl</span></code> set to 1), the inlet and lateral fringe source terms (require
+<code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> and <code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code> set to 1, respectively) and the body force from the canopy
+model (requires <code class="docutils literal notranslate"><span class="pre">-canopy</span></code> set to 1).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeBuoyancy</span></code></p></td>
+<td><p>Writes 3D field of buoyancy term in the momentum equation at checkpoint times.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="post-processing-controls">
+<h2>Post Processing Controls<a class="headerlink" href="#post-processing-controls" title="Link to this heading"></a></h2>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-postProcessFields</span></code></p></td>
+<td><p>Activate to post process 3D fields. It should be deactivated (set to 0) for too big cases to be fit in the memory of a
+single node, as field conversion from binary to <code class="docutils literal notranslate"><span class="pre">.xmf</span></code> is not parallelized. Note that there is no plans within the
+TOSCA developers team to parallelize this feature, as too big cases could not be visualized in <cite>ParaView</cite> anyways due
+to RAM limitations. We suggest to use <code class="docutils literal notranslate"><span class="pre">-sections</span></code> instead, where parallel writing is enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-writeRaster</span></code></p></td>
+<td><p>Activate to write raster file from jSections.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-sections</span></code></p></td>
+<td><p>Activate to post process binary sections and write <code class="docutils literal notranslate"><span class="pre">.xmf</span></code> and <code class="docutils literal notranslate"><span class="pre">.hdf5</span></code> files to be visualized in e.g. <cite>ParaView</cite>.
+This feature also works if <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> is launched in parallel. When concurrent precursor is activated, those sections
+which fall inside the concurrent precursor domain are also processed, so that the user only has to provide one
+section definition inside the <code class="docutils literal notranslate"><span class="pre">sampling/surfaces</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-postProcessPrecursor</span></code></p></td>
+<td><p>Activate to also post process fields from the concurrent precursor simulation. Similarly to the <code class="docutils literal notranslate"><span class="pre">-postProcessFields</span></code>
+flag, this option is not available in parallel.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../input_files.html" class="btn btn-neutral float-left" title="Input Files" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="boundary.html" class="btn btn-neutral float-right" title="boundary" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
