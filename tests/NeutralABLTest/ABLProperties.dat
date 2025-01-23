@@ -30,7 +30,7 @@ gABL 0.0
 vkConst 0.4
 
 # Rampanelli and Zardi temperature model parameter.
-smearT 0.5
+smearT 0.33
 
 # Activation flags
 coriolisActive 1
