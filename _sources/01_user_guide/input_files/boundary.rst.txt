@@ -281,7 +281,10 @@ condition. These are summarized in the following table:
    4           unsteady interpolated inflow        Same as type 3, but data is interpolated, hence 
                                                    the 2D plane mesh and inlet mesh can be different. 
                                                    Spanwise shift of the inflow data is also 
-                                                   available by setting a lateral shift velocity. 
+                                                   available by setting a lateral shift velocity.
+                                                   The inflow data at the top-most point can be 
+                                                   averaged so that inflow is precisely steady from 
+                                                   the height where it is extrapolated. 
                                                    Note that this velocity is not added to the flow 
                                                    velocity, but rather data are shifted with this
                                                    constant lateral velocity. 
@@ -392,11 +395,15 @@ The different entries required in the ``inletFunction`` dictionary for each func
    ------------------------ ------------------ -------------------------------------------------------------------------------------
    ``n2Inflow``             integer            number of points in direction 2 (i for kLeft patch)
    ------------------------ ------------------ -------------------------------------------------------------------------------------
-   ``n1Periods``            integer            number of points in direction 1 for tiling (if target is larger data is extrapolated)
+   ``n1Periods``            integer            number of periods in direction 1 for tiling. 
+                                               If target is larger data is extrapolated.
    ------------------------ ------------------ -------------------------------------------------------------------------------------
-   ``n2Periods``            integer            number of points in direction 2 for tiling (if target is larger data is extrapolated)
+   ``n2Periods``            integer            number of periods in direction 2 for tiling.
+                                               If target is larger data is extrapolated.
    ------------------------ ------------------ -------------------------------------------------------------------------------------
-   ``n1Merge``              bool               average top cell from 2D planes and merge within 10 top cells
+   ``n1Merge``              bool               if set to 1 averages top-most cell from 2D planes and merges it with the unsteady 
+                                               data smoothly within the 10 top-most cells of the target mesh. It ensures that the 
+                                               extrapolated data is precisely steady. 
    ------------------------ ------------------ -------------------------------------------------------------------------------------
    ``n2Shift``              bool               spanwise shift of inflow data
    ------------------------ ------------------ -------------------------------------------------------------------------------------
