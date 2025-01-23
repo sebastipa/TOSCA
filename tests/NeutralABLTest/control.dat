@@ -57,7 +57,7 @@
 -sections                 1
 -probes                   0
 -averageABL               1
--average3LM               1
+-average3LM               0
 -avgABLPeriod             5
 -avgABLStartTime          5000
 
@@ -70,6 +70,6 @@
 # PostProcessing 
 # ---------------------------------
 -writeRaster              0
--postProcessFields        0
+-postProcessFields        1
 
 
