@@ -419,6 +419,9 @@ identical as data is only mapped.</p>
 the 2D plane mesh and inlet mesh can be different.
 Spanwise shift of the inflow data is also
 available by setting a lateral shift velocity.
+The inflow data at the top-most point can be
+averaged so that inflow is precisely steady from
+the height where it is extrapolated.
 Note that this velocity is not added to the flow
 velocity, but rather data are shifted with this
 constant lateral velocity.</p>
@@ -561,15 +564,19 @@ the geostrophic region steady, removing e.g. inertial oscillations.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Periods</span></code></p></td>
 <td><p>integer</p></td>
-<td><p>number of points in direction 1 for tiling (if target is larger data is extrapolated)</p></td>
+<td><p>number of periods in direction 1 for tiling.
+If target is larger data is extrapolated.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Periods</span></code></p></td>
 <td><p>integer</p></td>
-<td><p>number of points in direction 2 for tiling (if target is larger data is extrapolated)</p></td>
+<td><p>number of periods in direction 2 for tiling.
+If target is larger data is extrapolated.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Merge</span></code></p></td>
 <td><p>bool</p></td>
-<td><p>average top cell from 2D planes and merge within 10 top cells</p></td>
+<td><p>if set to 1 averages top-most cell from 2D planes and merges it with the unsteady
+data smoothly within the 10 top-most cells of the target mesh. It ensures that the
+extrapolated data is precisely steady.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Shift</span></code></p></td>
 <td><p>bool</p></td>

@@ -5,7 +5,7 @@ TOSCA uses ASCII input files, organized in files and dictionaries.
 The code provides some level of input checking, meaning that non-recognized inputs are followed by an error message that
 lists available possibilities. 
 
-TOSCA has a standardized case structure. The minimum-required case structure is depicted on the right of the following figure, 
+TOSCA has a standardized case structure. The minimum-required case structure is depicted on the left of the following figure, 
 while the case structure required to run e.g. atmospheric boundary layer (ABL) with potential 
 temperature stratification is shown on the right (i.e. with the addition of the ``boundary/T`` and ``ABLProperties.dat`` files).
 The principal control file for a TOSCA simulation is the `control.dat` file, located in the case directory (see 
