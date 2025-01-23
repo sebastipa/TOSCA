@@ -282,9 +282,6 @@ condition. These are summarized in the following table:
                                                    the 2D plane mesh and inlet mesh can be different. 
                                                    Spanwise shift of the inflow data is also 
                                                    available by setting a lateral shift velocity.
-                                                   The inflow data at the top-most point can be 
-                                                   averaged so that inflow is precisely steady from 
-                                                   the height where it is extrapolated. 
                                                    Note that this velocity is not added to the flow 
                                                    velocity, but rather data are shifted with this
                                                    constant lateral velocity. 
