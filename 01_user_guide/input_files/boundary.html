@@ -193,7 +193,8 @@ on the <code class="docutils literal notranslate"><span class="pre">jLeft</span>
 </tbody>
 </table>
 <p>The last three boundary conditions listed in the previous table are not available on all patches. On the one hand, the
-<code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code> and <code class="docutils literal notranslate"><span class="pre">thetaWallFunction</span></code>, used to prescribe wall models, are not available on <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundaries. On the
+<code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code> and <code class="docutils literal notranslate"><span class="pre">thetaWallFunction</span></code>, used to prescribe wall models, are not available on <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundaries,
+plus at additional boundaries, depending on the wall model type, as detailed below. On the
 other hand, the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> type, used to prescribe special inlet boundary conditions for inlet velocity, temperature and turbulent
 viscosity, is only available on the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch. The user should keep this constraint in mind when setting up a TOSCA case.</p>
 </section>
@@ -217,7 +218,9 @@ stress should be entirely and only modeled), the turbulent viscosity at the wall
 </tr>
 <tr class="row-even"><td><p>-1</p></td>
 <td><p>Cabot wall model</p></td>
-<td><p>Usage:</p>
+<td><p>Available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">jRight</span></code>, <code class="docutils literal notranslate"><span class="pre">iLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">iRight</span></code> patches. Mostly
+tested for the first two.
+Usage:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">velocityWallFunction</span>
 <span class="p">{</span>
 <span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-1</span>
@@ -229,7 +232,9 @@ stress should be entirely and only modeled), the turbulent viscosity at the wall
 </tr>
 <tr class="row-odd"><td><p>-3</p></td>
 <td><p>Shumann wall model</p></td>
-<td><p>Usage:</p>
+<td><p>Available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">jRight</span></code>, <code class="docutils literal notranslate"><span class="pre">iLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">iRight</span></code> patches. Mostly
+tested for the first two.
+Usage:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">velocityWallFunction</span>
 <span class="p">{</span>
 <span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-3</span>
@@ -265,10 +270,11 @@ Entries for temperature wall functions are summarized in the folllwing table:</p
 <td><p><strong>name</strong></p></td>
 <td><p><strong>description</strong></p></td>
 </tr>
-<tr class="row-even"><td><p>-1</p></td>
+<tr class="row-even"><td><p>-3</p></td>
 <td><p>Shumann wall model,
 standard.</p></td>
-<td><p>Usage:</p>
+<td><p>Only available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">jRight</span></code> patches.
+Usage:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">thetaWallFunction</span>
 <span class="p">{</span>
 <span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-3</span>
@@ -289,10 +295,11 @@ standard.</p></td>
 </div>
 </td>
 </tr>
-<tr class="row-odd"><td><p>-3</p></td>
+<tr class="row-odd"><td><p>-2</p></td>
 <td><p>Shumann wall model, with
 specified heat flux.</p></td>
-<td><p>Usage:</p>
+<td><p>Only available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> patch.
+Usage:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">thetaWallFunction</span>
 <span class="p">{</span>
 <span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-2</span>

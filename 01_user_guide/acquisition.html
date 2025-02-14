@@ -17,6 +17,7 @@
       <script src="../_static/documentation_options.js?v=f2a433a1"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -352,21 +353,677 @@ restarted, a new <code class="docutils literal notranslate"><span class="pre">&l
 </section>
 <section id="averaging-and-phaseaveraging">
 <span id="averaging-subsection"></span><h2><cite>-averaging</cite> and <cite>-phaseAveraging</cite><a class="headerlink" href="#averaging-and-phaseaveraging" title="Link to this heading"></a></h2>
+<p>The averaging functionalities in TOSCA are activated by setting <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> and <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> to a number greater than 0 in the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file. The former is used to compute 3D averages, while the latter is used to compute phase averages. Phase averages are a duplicated
+of the average fields, useful when the user wants to co,pute both averages and phase averages in the same simulation.
+Averages are accumulated during the simulation and written to disk at every checkpoint time. They can be visualized in <em>ParaView</em>
+by running <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> in serial (entire 3D field), or in parallel (on-the-fly sections described in Sec. <a class="reference internal" href="#sections-subsection"><span class="std std-ref">-sections</span></a>).
+The various fields that are accumulated by TOSCA based on the values of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> and <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> are detailed in the following table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Output Field</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">avgU</span></code></p></td>
+<td><p>averaged velocity <span class="math notranslate nohighlight">\(\overline{u_i}\)</span>.
+Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than 0 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">avgP</span></code></p></td>
+<td><p>averaged pressure <span class="math notranslate nohighlight">\(\overline{p}\)</span>.
+Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than 0 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">avgUU</span></code></p></td>
+<td><p>averaged resolved Reynolds stress tensor components <span class="math notranslate nohighlight">\(\overline{u'_i u'_j}\)</span>.
+Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than 0 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">avgOmega</span></code></p></td>
+<td><p>averaged vorticity <span class="math notranslate nohighlight">\(\overline{\omega_i}\)</span>.
+Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">avgPsq</span></code></p></td>
+<td><p>averaged pressure squared <span class="math notranslate nohighlight">\(\overline{p^2}\)</span>.
+Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than 2 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">avgUdotGradP</span></code></p></td>
+<td><p>averaged dot product between velocity and pressure gradient
+<span class="math notranslate nohighlight">\(\overline{u_i \partial p / \partial x_i}\)</span>.
+Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than 2 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">avgMagGradU</span></code></p></td>
+<td><p>averaged square root of two times the strain rate tensor
+<span class="math notranslate nohighlight">\(\overline{\sqrt{2 \partial u_i / \partial x_j \partial u_i / \partial x_j}}\)</span>.
+Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than 2 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">avgMagUU</span></code></p></td>
+<td><p>averaged velocity scaled by its module squared <span class="math notranslate nohighlight">\(\overline{(u_i u_i)u_j}\)</span>.
+Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than 2 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">avgOmegaOmega</span></code></p></td>
+<td><p>averaged vorticity fuctuation tensor <span class="math notranslate nohighlight">\(\overline{\omega'_i \omega'_j}\)</span>.
+Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than 2 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">avgNut</span></code></p></td>
+<td><p>average effective viscosity <span class="math notranslate nohighlight">\(\overline{\nu_t}\)</span>. Activated with <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> greater than
+0 and  <code class="docutils literal notranslate"><span class="pre">-les</span></code> greater than 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">avgCs</span></code></p></td>
+<td><p>averaged SGS model coefficient <span class="math notranslate nohighlight">\(\overline{C_s}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgU</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgU</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgP</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgP</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgUU</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgUU</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgOmega</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgOmega</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgPsq</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgPsq</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgUdotGradP</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgUdotGradP</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgMagGradU</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgMagGradU</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgMagUU</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgMagUU</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgOmegaOmega</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgOmegaOmega</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgNut</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgNut</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">phAvgCs</span></code></p></td>
+<td><p>duplicate of <code class="docutils literal notranslate"><span class="pre">avgCs</span></code>.
+Controlled by <code class="docutils literal notranslate"><span class="pre">-phaseAveraging</span></code> in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file instead of <code class="docutils literal notranslate"><span class="pre">-averaging</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Notably, when the simulation has to be restarted and averaging has been performed in the previous run, TOSCA automatically takes into
+account the average cumulation that has been previously performed up to the checkpoint time if average fields have been written in the
+<code class="docutils literal notranslate"><span class="pre">fields/&lt;checkpointTime&gt;</span></code> directory at checkpoint. In fact, weighting info are saved in the <code class="docutils literal notranslate"><span class="pre">fields/&lt;checkpointTime&gt;/fieldInfo</span></code> file.</p>
 </section>
 <section id="kebudgets">
 <span id="mke-budgets-subsection"></span><h2><cite>-keBudgets</cite><a class="headerlink" href="#kebudgets" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">-keBudgets</span></code> functionality in TOSCA allows for the computation and storage of mean kinetic energy (MKE) budgets within user-defined boxes.
+These budgets can be calculated in Cartesian components or general curvilinear coordinates (GCC). The results are saved at every checkpoint
+time and can be used for detailed analysis of energy transfer and dissipation within the specified regions. MKE budgets are activated by setting
+<code class="docutils literal notranslate"><span class="pre">-keBudgets</span></code> to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file, and require the additional <code class="docutils literal notranslate"><span class="pre">sampling/keBudgets</span></code> file which is characterized by the following
+syntax:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">cartesian</span><span class="w">    </span><span class="kt">bool</span><span class="w">         </span><span class="c1">// 1 to perform the budget in Cartesian components, 0 for GCC</span>
+<span class="n">debug</span><span class="w">        </span><span class="kt">bool</span><span class="w">         </span><span class="c1">// 1 to activate debug mode, 0 to deactivate</span>
+<span class="n">avgStartTime</span><span class="w"> </span><span class="n">scalar</span><span class="w">       </span><span class="c1">// Start time for averaging</span>
+<span class="n">avgPeriod</span><span class="w">    </span><span class="n">scalar</span><span class="w">       </span><span class="c1">// Averaging period</span>
+
+<span class="n">boxArray</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">string</span><span class="w">                </span><span class="c1">// box 1 name</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">center</span><span class="w">  </span><span class="n">vector</span><span class="w">    </span><span class="c1">// Center of the box</span>
+<span class="w">        </span><span class="n">sizeX</span><span class="w">   </span><span class="n">scalar</span><span class="w">    </span><span class="c1">// Size of the box in the x-direction</span>
+<span class="w">        </span><span class="n">sizeY</span><span class="w">   </span><span class="n">scalar</span><span class="w">    </span><span class="c1">// Size of the box in the y-direction</span>
+<span class="w">        </span><span class="n">sizeZ</span><span class="w">   </span><span class="n">scalar</span><span class="w">    </span><span class="c1">// Size of the box in the z-direction</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">string</span><span class="w">                </span><span class="c1">// box 2 name</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">center</span><span class="w">  </span><span class="n">vector</span><span class="w">    </span><span class="c1">// Center of the box</span>
+<span class="w">        </span><span class="n">sizeX</span><span class="w">   </span><span class="n">scalar</span><span class="w">    </span><span class="c1">// Size of the box in the x-direction</span>
+<span class="w">        </span><span class="n">sizeY</span><span class="w">   </span><span class="n">scalar</span><span class="w">    </span><span class="c1">// Size of the box in the y-direction</span>
+<span class="w">        </span><span class="n">sizeZ</span><span class="w">   </span><span class="n">scalar</span><span class="w">    </span><span class="c1">// Size of the box in the z-direction</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="o">:</span>
+<span class="w">    </span><span class="n">string</span><span class="w">                </span><span class="c1">// box n name</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">center</span><span class="w">  </span><span class="n">vector</span><span class="w">    </span><span class="c1">// Center of the box</span>
+<span class="w">        </span><span class="n">sizeX</span><span class="w">   </span><span class="n">scalar</span><span class="w">    </span><span class="c1">// Size of the box in the x-direction</span>
+<span class="w">        </span><span class="n">sizeY</span><span class="w">   </span><span class="n">scalar</span><span class="w">    </span><span class="c1">// Size of the box in the y-direction</span>
+<span class="w">        </span><span class="n">sizeZ</span><span class="w">   </span><span class="n">scalar</span><span class="w">    </span><span class="c1">// Size of the box in the z-direction</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The MKE budget data is written, one file per box, inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/keBoxes/&lt;startTime&gt;</span></code> directory, where <code class="docutils literal notranslate"><span class="pre">&lt;startTime&gt;</span></code> is the start time
+of the simulation. If the simulation is restarted, a new <code class="docutils literal notranslate"><span class="pre">&lt;startTime&gt;</span></code> directory will be created, so that data is not overwritten.
+The various fields that are accumulated by TOSCA, representing the different terms of the mean kinetic energy equation within each box,
+either as flux terms on the faces or as volume terms, are detailed in the following table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 22.2%" />
+<col style="width: 77.8%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Output Field</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">name</span></code></p></td>
+<td><p>Name of the box.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">center</span></code></p></td>
+<td><p>Center coordinates of the box.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">size</span></code></p></td>
+<td><p>Size of the box in x, y, and z directions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dum</span></code></p></td>
+<td><p>Sum of mean kinetic energy advection in x, y, and z directions.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dup</span></code></p></td>
+<td><p>Sum of turbulent kinetic energy advection in x, y, and z directions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dpm</span></code></p></td>
+<td><p>Sum of mean pressure advection in x, y, and z directions.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dpp</span></code></p></td>
+<td><p>Sum of fluctuating pressure advection in x, y, and z directions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dumx</span></code></p></td>
+<td><p>Mean kinetic energy advection in the x direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dupx</span></code></p></td>
+<td><p>Turbulent kinetic energy advection in the x direction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dpmx</span></code></p></td>
+<td><p>Mean pressure advection in the x direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dppx</span></code></p></td>
+<td><p>Fluctuating pressure advection in the x direction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dumy</span></code></p></td>
+<td><p>Mean kinetic energy advection in the y direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dupy</span></code></p></td>
+<td><p>Turbulent kinetic energy advection in the y direction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dpmy</span></code></p></td>
+<td><p>Mean pressure advection in the y direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dppy</span></code></p></td>
+<td><p>Fluctuating pressure advection in the y direction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dumz</span></code></p></td>
+<td><p>Mean kinetic energy advection in the z direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dupz</span></code></p></td>
+<td><p>Turbulent kinetic energy advection in the z direction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dpmz</span></code></p></td>
+<td><p>Mean pressure advection in the z direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dppz</span></code></p></td>
+<td><p>Fluctuating pressure advection in the z direction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Fx</span></code></p></td>
+<td><p>Turbulent flux in the x direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Fy</span></code></p></td>
+<td><p>Turbulent flux in the y direction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Fz</span></code></p></td>
+<td><p>Turbulent flux in the z direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">eps</span></code></p></td>
+<td><p>Turbulent dissipation.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Moreover, the following fields are saved at every checkpoint and can be visualized  with <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> (this can only be done in serial
+and it has been included for debugging purposes):</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 22.2%" />
+<col style="width: 77.8%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Output Field</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">keErr</span></code></p></td>
+<td><p>Error on the MKE equation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">keEm</span></code></p></td>
+<td><p>Mechanical energy.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">keD</span></code></p></td>
+<td><p>Dissipation term.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">keF</span></code></p></td>
+<td><p>Turbulent fluxes.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">keEps</span></code></p></td>
+<td><p>Turbulent dissipation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">keUpUp</span></code></p></td>
+<td><p>Reynolds stress tensor components.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">keFarm</span></code></p></td>
+<td><p>Wind turbine power (if wind farm is active).</p></td>
+</tr>
+</tbody>
+</table>
 </section>
 <section id="averageabl">
 <span id="averaging-abl-subsection"></span><h2><cite>-averageABL</cite><a class="headerlink" href="#averageabl" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">-averageABL</span></code> functionality in TOSCA allows for the computation and storage of horizontally-averaged fields within the atmospheric boundary layer (ABL).
+These fields are computed at each curvilinear level in the j direction. Given these restrictions, it only makes sense to activate this functionality when <strong>the mesh is cartesian</strong>
+and <strong>the flow is horizontally homogeneous</strong>. Moreover, the simulation should be set up such that the j direction is the vertical direction.
+The ABL statistics are activated by setting <code class="docutils literal notranslate"><span class="pre">-averageABL</span></code> to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file. Moreover, the user is required to set the
+<code class="docutils literal notranslate"><span class="pre">-avgABLPeriod</span></code> and the <code class="docutils literal notranslate"><span class="pre">-avgABLStartTime</span></code> parameters in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file, which control the frequency at which the ABL statistics are written to disk and
+the time at which they start to be written, respectively. Statistics are written inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/averaging/&lt;startTime&gt;</span></code> directory, where <code class="docutils literal notranslate"><span class="pre">&lt;startTime&gt;</span></code> is the start time
+of the simulation. They consist of different files, one for each field, with the following format:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">time_0</span><span class="w">  </span><span class="n">timeStep_0</span><span class="w"> </span><span class="n">stat_level_0</span><span class="w"> </span><span class="n">stat_level_1</span><span class="w"> </span><span class="p">..</span><span class="w"> </span><span class="n">stat_level_n</span>
+<span class="n">time_1</span><span class="w">  </span><span class="n">timeStep_1</span><span class="w"> </span><span class="n">stat_level_0</span><span class="w"> </span><span class="n">stat_level_1</span><span class="w"> </span><span class="p">..</span><span class="w"> </span><span class="n">stat_level_n</span>
+<span class="o">:</span><span class="w">       </span><span class="o">:</span><span class="w">          </span><span class="o">:</span><span class="w">            </span><span class="o">:</span><span class="w">            </span><span class="o">:</span>
+<span class="n">time_n</span><span class="w">  </span><span class="n">timeStep_n</span><span class="w"> </span><span class="n">stat_level_0</span><span class="w"> </span><span class="n">stat_level_1</span><span class="w"> </span><span class="p">..</span><span class="w"> </span><span class="n">stat_level_n</span>
+</pre></div>
+</div>
+<p>where <em>stat</em> is the field name, and <em>level</em> is the curvilinear level in the j direction. In addition, a file called
+<code class="docutils literal notranslate"><span class="pre">hLevelsCell</span></code> is written in the same directory, which contains the mesh levels in meters.</p>
+<p>The various fields that are accumulated by TOSCA are detailed in the following table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 22.2%" />
+<col style="width: 77.8%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Output Field</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">U_mean</span></code></p></td>
+<td><p>averaged x-component velocity <span class="math notranslate nohighlight">\(\overline{u}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">V_mean</span></code></p></td>
+<td><p>averaged y-component velocity <span class="math notranslate nohighlight">\(\overline{v}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">W_mean</span></code></p></td>
+<td><p>averaged z-component velocity <span class="math notranslate nohighlight">\(\overline{w}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nu_SGS_mean</span></code></p></td>
+<td><p>averaged effective viscosity <span class="math notranslate nohighlight">\(\overline{\nu}_t\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uu_mean</span></code></p></td>
+<td><p>averaged resolved Reynolds stress tensor 11 component <span class="math notranslate nohighlight">\(\overline{u'u'}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">vv_mean</span></code></p></td>
+<td><p>averaged resolved Reynolds stress tensor 22 component <span class="math notranslate nohighlight">\(\overline{v'v'}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ww_mean</span></code></p></td>
+<td><p>averaged resolved Reynolds stress tensor 33 component <span class="math notranslate nohighlight">\(\overline{w'w'}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uv_mean</span></code></p></td>
+<td><p>averaged resolved Reynolds stress tensor 12 component <span class="math notranslate nohighlight">\(\overline{u'v'}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uw_mean</span></code></p></td>
+<td><p>averaged resolved Reynolds stress tensor 13 component <span class="math notranslate nohighlight">\(\overline{u'w'}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">vw_mean</span></code></p></td>
+<td><p>averaged resolved Reynolds stress tensor 23 component <span class="math notranslate nohighlight">\(\overline{v'w'}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">R11_mean</span></code></p></td>
+<td><p>averaged SGS Reynolds stress tensor 11 component <span class="math notranslate nohighlight">\(\overline{\tau}_{SGS,11}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">R22_mean</span></code></p></td>
+<td><p>averaged SGS Reynolds stress tensor 22 component <span class="math notranslate nohighlight">\(\overline{\tau}_{SGS,22}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">R33_mean</span></code></p></td>
+<td><p>averaged SGS Reynolds stress tensor 33 component <span class="math notranslate nohighlight">\(\overline{\tau}_{SGS,33}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">R12_mean</span></code></p></td>
+<td><p>averaged SGS Reynolds stress tensor 12 component <span class="math notranslate nohighlight">\(\overline{\tau}_{SGS,12}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">R13_mean</span></code></p></td>
+<td><p>averaged SGS Reynolds stress tensor 13 component <span class="math notranslate nohighlight">\(\overline{\tau}_{SGS,13}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">R23_mean</span></code></p></td>
+<td><p>averaged SGS Reynolds stress tensor 23 component <span class="math notranslate nohighlight">\(\overline{\tau}_{SGS,23}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">T_mean</span></code></p></td>
+<td><p>averaged potential temperature <span class="math notranslate nohighlight">\(\overline{\theta}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">q1_mean</span></code></p></td>
+<td><p>averaged resolved heat flux 1 component <span class="math notranslate nohighlight">\(\overline{q}_1\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">q2_mean</span></code></p></td>
+<td><p>averaged resolved heat flux 2 component <span class="math notranslate nohighlight">\(\overline{q}_2\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">q3_mean</span></code></p></td>
+<td><p>averaged resolved heat flux 3 component <span class="math notranslate nohighlight">\(\overline{q}_3\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Tu_mean</span></code></p></td>
+<td><p>averaged fluctuation potential temperature times x-velocity velocity fluctuation vector
+<span class="math notranslate nohighlight">\(\overline{\theta'u'}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Tv_mean</span></code></p></td>
+<td><p>averaged fluctuation potential temperature times y-velocity velocity fluctuation vector
+<span class="math notranslate nohighlight">\(\overline{\theta'v'}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Tw_mean</span></code></p></td>
+<td><p>averaged fluctuation potential temperature times z-velocity velocity fluctuation vector
+<span class="math notranslate nohighlight">\(\overline{\theta'w'}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">wuu_mean</span></code></p></td>
+<td><p>averaged resolved triple velocity fluctiation tensor 311 component <span class="math notranslate nohighlight">\(\overline{w'u'u'}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wvv_mean</span></code></p></td>
+<td><p>averaged resolved triple velocity fluctiation tensor 322 component <span class="math notranslate nohighlight">\(\overline{w'v'v'}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">www_mean</span></code></p></td>
+<td><p>averaged resolved triple velocity fluctiation tensor 333 component <span class="math notranslate nohighlight">\(\overline{w'w'w'}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wuv_mean</span></code></p></td>
+<td><p>averaged resolved triple velocity fluctiation tensor 312 component <span class="math notranslate nohighlight">\(\overline{w'u'v'}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">wuw_mean</span></code></p></td>
+<td><p>averaged resolved triple velocity fluctiation tensor 313 component <span class="math notranslate nohighlight">\(\overline{w'u'w'}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wvw_mean</span></code></p></td>
+<td><p>averaged resolved triple velocity fluctiation tensor 323 component <span class="math notranslate nohighlight">\(\overline{w'v'w'}\)</span>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Notably, the averaging process happens horizontally only, hence the above mentioned files actually contain a time series of horizontally-averaged
+quantities. The user can then use these files to compute further statistics, such as boundary layer height history, friction velocity history,
+capping inversion width history, etc.</p>
 </section>
 <section id="average3lm">
 <span id="averaging-3lm-subsection"></span><h2><cite>-average3LM</cite><a class="headerlink" href="#average3lm" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">-average3LM</span></code> functionality in TOSCA allows for the computation and storage of depth-averaged fields within the atmospheric boundary layer (ABL).
+Specifically, depth-averaged pressure, velocity and boundary layer height are calculated on a uniform 2D user-defined grid. This utility can be useful
+when comparing LES data against the reduced-order three-layer model (3LM) for the ABL. The 3LM is a simplified model that describes the ABL as a
+three-layer system, with two layers inside the ABL and one layer aloft, and it is used to study the interaction between wind farms and atmopsheric gravity waves.
+The 3LM field computation is activated by setting <code class="docutils literal notranslate"><span class="pre">-average3LM</span></code> to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file. This prompts TOSCA to read the <code class="docutils literal notranslate"><span class="pre">sampling/3LM</span></code> file,
+which contains the 2D mesh definition, the sampling frequency and start time, as well as the definition of the three layers. Specifically, the file
+should have the following syntax:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">nstw</span><span class="w">      </span><span class="n">scalar</span><span class="w">        </span><span class="c1">// number of sampling points in the streamwise direction</span>
+<span class="n">nspw</span><span class="w">      </span><span class="n">scalar</span><span class="w">        </span><span class="c1">// number of sampling points in the spanwise direction</span>
+<span class="n">upDir</span><span class="w">     </span><span class="n">vector</span><span class="w">        </span><span class="c1">// upward direction vector</span>
+<span class="n">streamDir</span><span class="w"> </span><span class="n">vector</span><span class="w">        </span><span class="c1">// streamwise direction vector</span>
+
+<span class="n">avgStartTime</span><span class="w"> </span><span class="n">scalar</span><span class="w">     </span><span class="c1">// start time for averaging</span>
+<span class="n">avgPeriod</span><span class="w">    </span><span class="n">scalar</span><span class="w">     </span><span class="c1">// averaging period</span>
+
+<span class="n">level1</span>
+<span class="p">{</span>
+<span class="w">     </span><span class="n">hStart</span><span class="w">     </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// starting height of the first layer</span>
+<span class="w">     </span><span class="n">hEnd</span><span class="w">       </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// ending height of the first layer</span>
+<span class="p">}</span>
+
+<span class="w"> </span><span class="n">level2</span>
+<span class="w"> </span><span class="p">{</span>
+<span class="w">       </span><span class="n">hStart</span><span class="w">     </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// starting height of the second layer</span>
+<span class="w">       </span><span class="n">hEnd</span><span class="w">       </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// ending height of the second layer</span>
+<span class="w"> </span><span class="p">}</span>
+
+<span class="w"> </span><span class="n">level3</span>
+<span class="w"> </span><span class="p">{</span>
+<span class="w">       </span><span class="n">hStart</span><span class="w">     </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// starting height of the third layer</span>
+<span class="w">       </span><span class="n">hEnd</span><span class="w">       </span><span class="n">scalar</span><span class="w">  </span><span class="c1">// ending height of the third layer</span>
+<span class="w"> </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>3LM statistics are written inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/3LM/&lt;startTime&gt;</span></code> directory, where <code class="docutils literal notranslate"><span class="pre">&lt;startTime&gt;</span></code> is the start time of the simulation.
+They consist of different files, one for each field. Each file has three header lines, one blank line and then the data, which is organized as
+a matric with nstw rows and nspw columns and the value of the field at each element. The various fields that are accumulated by TOSCA are detailed
+in the following table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 22.2%" />
+<col style="width: 77.8%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Output Field</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">IBL</span></code></p></td>
+<td><p>wind farm boundary layer height <span class="math notranslate nohighlight">\(h_{IBL}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">LBL</span></code></p></td>
+<td><p>capping inversion layer bottom height <span class="math notranslate nohighlight">\(h_{LBL}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TBL</span></code></p></td>
+<td><p>capping inversion layer top height <span class="math notranslate nohighlight">\(h_{TBL}\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">P_L1</span></code></p></td>
+<td><p>depth-averaged pressure in the first layer <span class="math notranslate nohighlight">\(\overline{p}_1\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">P_L2</span></code></p></td>
+<td><p>depth-averaged pressure in the second layer <span class="math notranslate nohighlight">\(\overline{p}_2\)</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">P_L3</span></code></p></td>
+<td><p>depth-averaged pressure in the third layer <span class="math notranslate nohighlight">\(\overline{p}_3\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">U_L1</span></code></p></td>
+<td><p>depth-averaged velocity in the first layer <span class="math notranslate nohighlight">\(\overline{u}_1\)</span>. Each element of the matrix
+data is a TOSCA vector.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">U_L2</span></code></p></td>
+<td><p>depth-averaged velocity in the second layer <span class="math notranslate nohighlight">\(\overline{u}_2\)</span>. Each element of the matrix
+data is a TOSCA vector.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">U_L3</span></code></p></td>
+<td><p>depth-averaged velocity in the third layer <span class="math notranslate nohighlight">\(\overline{u}_3\)</span>. Each element of the matrix
+data is a TOSCA vector.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">points</span></code></p></td>
+<td><p>2D mesh points. Each element of the matrix data is a TOSCA vector.</p></td>
+</tr>
+</tbody>
+</table>
 </section>
 <section id="perturbabl">
 <span id="perturb-abl-subsection"></span><h2><cite>-perturbABL</cite><a class="headerlink" href="#perturbabl" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">-perturbABL</span></code> functionality in TOSCA allows for the computation and storage of gravity wave perturbations (or in general any other perturbation field) within the atmospheric boundary layer (ABL).
+ABL perturbations of a generic variable <span class="math notranslate nohighlight">\(\phi\)</span> are calculated as follows:</p>
+<div class="math notranslate nohighlight">
+\[\phi_p(x,y,z) = \overline{\phi}(x,y,z) - \overline{\phi}(x_s,y,z)\]</div>
+<p>where <span class="math notranslate nohighlight">\(\overline{\phi}\)</span> is the temporal mean and <span class="math notranslate nohighlight">\(\overline{\phi}(x_s,y,z)\)</span> is the vertical plane of <span class="math notranslate nohighlight">\(\overline{\phi}\)</span>, normal to the streamwise direction and at a given streamwise location <span class="math notranslate nohighlight">\(x_s\)</span>.
+Notably, the location at which the latter is evaluated should be representative of non-perturbed conditions. This utility can be useful when studying the interaction between wind farms and atmopsheric gravity waves,
+as it allows to quantify and visualize the perturbations to which the ABL is subjected to. This functionality is activated by setting <code class="docutils literal notranslate"><span class="pre">-perturbABL</span></code> to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file. This prompts TOSCA to
+read the <code class="docutils literal notranslate"><span class="pre">sampling/perturbABL</span></code> file, which has the following syntax:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">avgStartTime</span><span class="w"> </span><span class="n">scalar</span><span class="w">     </span><span class="c1">// start time for averaging</span>
+<span class="n">avgPeriod</span><span class="w">    </span><span class="n">scalar</span><span class="w">     </span><span class="c1">// averaging period</span>
+<span class="n">xSample</span><span class="w">      </span><span class="n">scalar</span><span class="w">     </span><span class="c1">// streamwise location at which the non-perturbed profile is evaluated</span>
+</pre></div>
+</div>
+<p>Perturbation 3D fields <code class="docutils literal notranslate"><span class="pre">UpABL</span></code> (velocity perturbation), <code class="docutils literal notranslate"><span class="pre">PpABL</span></code> (pressure perturbation) and <code class="docutils literal notranslate"><span class="pre">TpABL</span></code> (potential temperature perturbation) are written inside the <code class="docutils literal notranslate"><span class="pre">fields/&lt;checkpointTime&gt;</span></code> directory.
+these fields can be either later visualized in serial with <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>. For large cases this is not possible, and <code class="docutils literal notranslate"><span class="pre">-perturbABL</span></code> should be used in conjunction with <code class="docutils literal notranslate"><span class="pre">-sections</span></code> to save slices of the perturbation fields
+at the same locations where instantaneous sections are saved. This is again done by the <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> utility, so the user does not have to decide where to slice the perturbation fields at simulation runtime.</p>
 </section>
 <section id="turbine-data">
 <span id="turbine-data-subsection"></span><h2><cite>turbine data</cite><a class="headerlink" href="#turbine-data" title="Link to this heading"></a></h2>
+<p>Wind turbine data acquisition is always active in TOSCA once the wind farm is activated. The user can specify the acquisition settings in the <code class="docutils literal notranslate"><span class="pre">writeSettings</span></code> dictionary of the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code> file (see Sec. <a class="reference internal" href="input_files/turbines.html#turbines-section"><span class="std std-ref">turbines</span></a>).
+A file is written for each turbine inside the  <code class="docutils literal notranslate"><span class="pre">postProcessing/turbines/&lt;startTime&gt;</span></code> directory, where <code class="docutils literal notranslate"><span class="pre">&lt;startTime&gt;</span></code> is the start time of the simulation. `` directory. The file name matches the wind turbine ID defined in the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code> file.
+The amount of data that is written in each file depends on the actuator model adopted for the wind turbine. Each wind turbine output file has as many rows as the number of time samples, and as many columns as the number of fields that are written.
+All available fields that can be accumulated are detailed in the following table, where it is also shown on which actuator model these fields are available:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Output Field</strong></p></td>
+<td><p><strong>Actuator Model</strong></p></td>
+<td><p><strong>Units</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">time</span></code></p></td>
+<td><p>All</p></td>
+<td><p>s</p></td>
+<td><p>simulation time.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rtrAvgMagU</span></code></p></td>
+<td><p>ADM, uniformADM, ALM</p></td>
+<td><p>m/s</p></td>
+<td><p>rotor average wind speed magnitude.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rtrAvgUpMagU</span></code></p></td>
+<td><p>ADM, uniformADM, ALM</p></td>
+<td><p>m/s</p></td>
+<td><p>rotor average upstream wind speed magnitude.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rtrThrust</span></code></p></td>
+<td><p>ADM, uniformADM, AFM,
+ALM</p></td>
+<td><p>kN</p></td>
+<td><p>rotor thrust force.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">aeroPwr</span></code></p></td>
+<td><p>ADM, uniformADM, AFM,
+ALM</p></td>
+<td><p>MW</p></td>
+<td><p>aerodynamic power.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CtInf</span></code></p></td>
+<td><p>ADM, uniformADM, ALM</p></td>
+<td><p>n/a</p></td>
+<td><p>thrust coefficient based on inflow wind speed.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CtLoc</span></code></p></td>
+<td><p>ADM, uniformADM, ALM</p></td>
+<td><p>n/a</p></td>
+<td><p>thrust coefficient based on local wind speed.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CtUp</span></code></p></td>
+<td><p>ADM, uniformADM, ALM</p></td>
+<td><p>n/a</p></td>
+<td><p>thrust coefficient based on upstream wind speed.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rtrTorque</span></code></p></td>
+<td><p>ADM, ALM</p></td>
+<td><p>kNm</p></td>
+<td><p>rotor torque.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rtrOmega</span></code></p></td>
+<td><p>ADM, ALM</p></td>
+<td><p>rpm</p></td>
+<td><p>rotor rotational speed.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">genTorque</span></code></p></td>
+<td><p>ADM, ALM</p></td>
+<td><p>kNm</p></td>
+<td><p>generator torque.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">genPwr</span></code></p></td>
+<td><p>ADM, ALM</p></td>
+<td><p>MW</p></td>
+<td><p>generator power.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">genOmega</span></code></p></td>
+<td><p>ADM, ALM</p></td>
+<td><p>rpm</p></td>
+<td><p>generator rotational speed.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">collPitch</span></code></p></td>
+<td><p>ADM, ALM</p></td>
+<td><p>deg</p></td>
+<td><p>collective blade pitch angle.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">flowAngle</span></code></p></td>
+<td><p>All</p></td>
+<td><p>deg</p></td>
+<td><p>flow angle. Only when yaw control is active.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yawAngle</span></code></p></td>
+<td><p>All</p></td>
+<td><p>deg</p></td>
+<td><p>yaw angle. Only when yaw control is active.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">azimuth</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>deg</p></td>
+<td><p>azimuth angle.</p></td>
+</tr>
+</tbody>
+</table>
+<p>For the ALM model, additional files are created, which contain the following fields as a function of the radial coordinate (columns) for each time sample (rows).
+These files are written inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/turbines/&lt;startTime&gt;</span></code> directory, where <code class="docutils literal notranslate"><span class="pre">&lt;startTime&gt;</span></code> is the start time of the simulation. The name of
+the files is <code class="docutils literal notranslate"><span class="pre">&lt;turbineID&gt;_&lt;var&gt;</span></code>, where <em>var</em> is any of the fields listed in the following table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Output File</strong></p></td>
+<td><p><strong>Actuator Model</strong></p></td>
+<td><p><strong>Units</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">aoa</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>degs</p></td>
+<td><p>angle of attack at radial points.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">relVelMag</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>m?s</p></td>
+<td><p>relative velocity magnitude at radial points.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">phi</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>degs</p></td>
+<td><p>relative velocity angle at radial points.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uAxl</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>m/s</p></td>
+<td><p>inflow velocity in axial direction at radial points.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uRad</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>m/s</p></td>
+<td><p>inflow velocity in radial direction at radial points.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uTan</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>m/s</p></td>
+<td><p>inflow velocity in tangential direction at radial points.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Cl</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>n/a</p></td>
+<td><p>lift coefficient at radial points.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Cd</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>n/a</p></td>
+<td><p>drag coefficient at radial points.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">axialF</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>N</p></td>
+<td><p>axial force at radial points.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tangF</span></code></p></td>
+<td><p>ALM</p></td>
+<td><p>N</p></td>
+<td><p>tangential force at radial points.</p></td>
+</tr>
+</tbody>
+</table>
 </section>
 <section id="writepressureforce">
 <span id="ibm-force-subsection"></span><h2><cite>-writePressureForce</cite><a class="headerlink" href="#writepressureforce" title="Link to this heading"></a></h2>
