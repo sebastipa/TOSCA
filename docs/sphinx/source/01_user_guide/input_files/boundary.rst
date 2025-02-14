@@ -77,7 +77,8 @@ The boundary conditions available in TOSCA are summarized in the following table
    ============================== =================== ============================================================================
 
 The last three boundary conditions listed in the previous table are not available on all patches. On the one hand, the 
-``velocityWallFunction`` and ``thetaWallFunction``, used to prescribe wall models, are not available on ``kLeft`` and ``kRight`` boundaries. On the 
+``velocityWallFunction`` and ``thetaWallFunction``, used to prescribe wall models, are not available on ``kLeft`` and ``kRight`` boundaries,
+plus at additional boundaries, depending on the wall model type, as detailed below. On the 
 other hand, the ``inletFunction`` type, used to prescribe special inlet boundary conditions for inlet velocity, temperature and turbulent 
 viscosity, is only available on the ``kLeft`` patch. The user should keep this constraint in mind when setting up a TOSCA case. 
 
@@ -97,7 +98,9 @@ stress should be entirely and only modeled), the turbulent viscosity at the wall
    =========== =================================== ================================================================================
    **WF type** **name**                            **description**
    ----------- ----------------------------------- --------------------------------------------------------------------------------
-   -1          Cabot wall model                    Usage:
+   -1          Cabot wall model                    Available at ``jLeft``, ``jRight``, ``iLeft`` and ``iRight`` patches. Mostly 
+                                                   tested for the first two. 
+                                                   Usage:
                                                     
                                                    .. code-block:: C
 
@@ -108,7 +111,9 @@ stress should be entirely and only modeled), the turbulent viscosity at the wall
                                                       }
                                                       
    ----------- ----------------------------------- --------------------------------------------------------------------------------
-   -3          Shumann wall model                  Usage:
+   -3          Shumann wall model                  Available at ``jLeft``, ``jRight``, ``iLeft`` and ``iRight`` patches. Mostly 
+                                                   tested for the first two.
+                                                   Usage:
                                                     
                                                    .. code-block:: C
 
@@ -140,8 +145,9 @@ Entries for temperature wall functions are summarized in the folllwing table:
    =========== =================================== ================================================================================
    **WF type** **name**                            **description**
    ----------- ----------------------------------- --------------------------------------------------------------------------------
-   -1          Shumann wall model,                 Usage:
-               standard.                                     
+   -3          Shumann wall model,                 Only available at ``jLeft`` and ``jRight`` patches.
+               standard.                           Usage:
+                                                   
                                                    .. code-block:: C
 
                                                       thetaWallFunction
@@ -162,8 +168,9 @@ Entries for temperature wall functions are summarized in the folllwing table:
                                                       }
                                                       
    ----------- ----------------------------------- --------------------------------------------------------------------------------
-   -3          Shumann wall model, with            Usage:
-               specified heat flux.                                    
+   -2          Shumann wall model, with            Only available at ``jLeft`` patch.
+               specified heat flux.                Usage:
+                                                  
                                                    .. code-block:: C
 
                                                       thetaWallFunction
