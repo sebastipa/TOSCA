@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://cloudconvert.com/
+HostUrl=https://eu-central.storage.cloudconvert.com/tasks/8496dc9f-17e9-4880-8586-d278a275a802/NREL5MW_movie.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=cloudconvert-production%2F20250217%2Ffra%2Fs3%2Faws4_request&X-Amz-Date=20250217T122105Z&X-Amz-Expires=86400&X-Amz-Signature=751743bc064bd209d3ba346b24e7fbf88db6fa9a378cc46f31ab42be914d80b0&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3D%22NREL5MW_movie.mp4%22&response-content-type=video%2Fmp4&x-id=GetObject
