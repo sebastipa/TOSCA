@@ -63,8 +63,23 @@ is a plane. Conversely, for curvilinear meshes the surface follows the curviline
 than coordinates. For these reason, these sections are faster to write.  
 
 Conversely, user-defined sections are defined by providing the cartesian coordinates of each point, hence they can be arbitrary surfaces
-within the computational domain and data is tri-linearly interpolated at the surface points. The classification of each different section 
-type available in TOSCA is given in the following table: 
+within the computational domain and data is tri-linearly interpolated at the surface points. User-defined sections are only processed by the utility ``tosca2PV``, 
+and are used to slice averaged fields after the simulation has completed. Hence, ``-averaging`` should be activated during the run in order to produce 
+the average data to be later sliced. 
+
+The workflow to save sections in TOSCA is as follows: in order to save instantaneous data, curvilinear sections should be used, as these are gathered 
+during the simulation. If the ``-averaging`` flag is activated in the ``control.dat`` file during the simulation, average fields are produced as explained 
+in Sec. :ref:`averaging-subsection`. These fields can be sliced after the simulation by ``tosca2PV``, both by curvilinear and user-defined sections.  
+
+TOSCA only saves the slices in binary format, these are then converted to *hdf5* format, which can be visualized in *ParaView*, by running 
+``tosca2PV``. If, after converting the slices, the user wishes to save additional slices of the average fields at different locations, the section files 
+contained inside the ``sampling/surfaces`` directory can be edited, and ``tosca2PV`` should be run again to produce the new slices. If any slices are already present 
+inside the ``postProcessing/iSurfaces``, ``postProcessing/jSurfaces`` or ``postProcessing/kSurfaces`` directories,
+``tosca2PV`` will not produce the new slices, so the user should rename the slices saved during the simulation by renaming these directories 
+to something else, depending if ``sampling/surfaces/iSections``, ``sampling/surfaces/jSections`` or ``sampling/surfaces/kSections`` have been edited, respectively. 
+This procedure is identified in TOSCA as on-the-fly section re-acquisition, and it is printed in the terminal (or the log file) when running ``tosca2PV``.
+
+The classification of each different section type available in TOSCA is provided in the following table: 
 
 .. table:: 
    :widths: 16, 17, 67
@@ -124,7 +139,9 @@ type available in TOSCA is given in the following table:
                                                       Note: no comments should be present in this file. Above comments are 
                                                       only for explanation in the context of the user guide. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   *userSections*                 user-defined        Automatically saves velocity, pressure, effective viscosity and potential 
+   *userSections*                 user-defined        Requires ``-averaging`` set to 1 during the simulation, then sections are 
+                                                      produced when running ``tosca2PV``. Automatically saves mean velocity, 
+                                                      pressure, effective viscosity and potential 
                                                       temperature (if applicable). Defined in ``sampling/surfaces/userSections``
                                                       directory. This should contain **ONLY** files where sections are defined,  
                                                       the name can be arbitrary and **ALL** files are read by TOSCA. The file 
@@ -752,21 +769,65 @@ the files is ``<turbineID>_<var>``, where *var* is any of the fields listed in t
     ``tangF``                      ALM                 N                   tangential force at radial points.
     ============================== =================== =================== ============================================================================
 
-   
-   
-
 .. _ibm-force-subsection:
 
 `-writePressureForce`
 ~~~~~~~~~~~~~~~~~~~~~
+
+This functionality allows to write the pressure and viscous forces exerted by the flow onto the IBM body. 
 
 .. _add-fields-subsection:
 
 `additional fields`
 ~~~~~~~~~~~~~~~~~~~
 
+For debugging purposes, TOSCA can output several additional 3D fields at every checkpoint file. These can be then visualized in serial when running ``tosca2PV``.
+The following table summarizes the available fields and how to activate them in the ``control.dat`` file:
 
+.. table:: 
+   :widths: 20, 80
+   :align: center
 
+   ============================== ============================================================================
+   **Output Field**               **Description**
+   ------------------------------ ----------------------------------------------------------------------------
+   ``Q``                          Q-criterion, activated with ``-computeQ`` set to 1 in the ``control.dat`` 
+                                  file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``bf``                         wind farm body force field, activated with ``-computeFarmForce`` set to 1 
+                                  in the ``control.dat`` file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``Coriolis``                   Coriolis force field, activated with ``-computeSources`` set to 1 in the 
+                                  ``control.dat`` file and ``coriolisActive`` set to 1 in the 
+                                  ``ABLProperties.dat`` file. 
+   ------------------------------ ----------------------------------------------------------------------------
+   ``Driving``                    driving pressure gradient field, activated with ``-computeSources`` set to 1 
+                                  in the ``control.dat`` file and ``controllerActive`` set to 1 in the 
+                                  ``ABLProperties.dat`` file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``Damping``                    body force in the fringe and damping layers, activated with 
+                                  ``-computeSources`` set to 1 and one or more 
+                                  between ``-xDampingLayer``, ``-zDampingLayer``, 
+                                  ``-kLeftRayleigh`` and ``-kRightRayleigh`` set to 1 in the ``control.dat``
+                                  file. 
+   ------------------------------ ----------------------------------------------------------------------------
+   ``CanopyForce``                canopy force field, activated with ``-computeSources`` and ``-canopy`` set 
+                                  to 1 in the ``control.dat`` file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``yDampU``                     mapped velocity from the x fringe region to the y fringe region to check the 
+                                  result of the tiled mapping. Activated when ``-computeSources`` is set to 1
+                                  in the ``control.dat`` file and both ``-xDampingLayer`` and 
+                                  ``-yDampingLayer`` are set to 1 in the ``control.dat`` file. Notably, 
+                                  ``uBarSelectionType`` should be set to 3 in the ``xDampingProperties`` 
+                                  inside the ``ABLProperties.dat`` file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``divU``                       divergence of velocity, activated with ``-computeContinuity`` set to 1 
+                                  in the ``control.dat`` file. 
+   ------------------------------ ----------------------------------------------------------------------------
+   ``buoyancy``                   buoyancy term of the momentum equation, activated with ``-computeBuoyancy`` 
+                                  and ``-potentialT`` set to 1 in the ``control.dat`` file. 
+   ============================== ============================================================================
+   
 
 
 
