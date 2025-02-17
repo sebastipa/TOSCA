@@ -134,13 +134,13 @@ checkpoint file inside the ``postProcessing/turbines/0.00`` directory.
 .. image:: ./images/NREL5MW_sections.png
     :width: 100%
 
-By loading the instantaneous z-normal sections inside the ``postProcessing/jSections/0.00`` directory, the 
+By loading the instantaneous z-normal sections inside the ``postProcessing/jSections/0.00`` directory into *ParaView*, the 
 user can create the following video, which shows the evolution of the instantaneous velocity and pressure fields over time. 
 
 .. raw:: html
 
     <video width="100%" controls>
-        <source src="./../../../source/03_examples/videos/NREL5MW_movie.mp4" type="video/mp4">
+        <source src="./../_static/videos/NREL5MW_movie.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
 

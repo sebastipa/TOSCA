@@ -140,7 +140,7 @@ user can create the following video, which shows the evolution of the instantane
 .. raw:: html
 
     <video width="100%" controls>
-        <source src="./../../../source/03_examples/videos/NREL5MW_movie.mp4" type="video/mp4">
+        <source src="./../_static/videos/NREL5MW_movie.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
 
