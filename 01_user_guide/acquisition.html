@@ -155,8 +155,20 @@ index are selected to form the surface. As can be understood, if the mesh is car
 is a plane. Conversely, for curvilinear meshes the surface follows the curvilinear directions, as it is selected through mesh indexing rather
 than coordinates. For these reason, these sections are faster to write.</p>
 <p>Conversely, user-defined sections are defined by providing the cartesian coordinates of each point, hence they can be arbitrary surfaces
-within the computational domain and data is tri-linearly interpolated at the surface points. The classification of each different section
-type available in TOSCA is given in the following table:</p>
+within the computational domain and data is tri-linearly interpolated at the surface points. User-defined sections are only processed by the utility <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>,
+and are used to slice averaged fields after the simulation has completed. Hence, <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> should be activated during the run in order to produce
+the average data to be later sliced.</p>
+<p>The workflow to save sections in TOSCA is as follows: in order to save instantaneous data, curvilinear sections should be used, as these are gathered
+during the simulation. If the <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> flag is activated in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file during the simulation, average fields are produced as explained
+in Sec. <a class="reference internal" href="#averaging-subsection"><span class="std std-ref">-averaging and -phaseAveraging</span></a>. These fields can be sliced after the simulation by <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>, both by curvilinear and user-defined sections.</p>
+<p>TOSCA only saves the slices in binary format, these are then converted to <em>hdf5</em> format, which can be visualized in <em>ParaView</em>, by running
+<code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>. If, after converting the slices, the user wishes to save additional slices of the average fields at different locations, the section files
+contained inside the <code class="docutils literal notranslate"><span class="pre">sampling/surfaces</span></code> directory can be edited, and <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> should be run again to produce the new slices. If any slices are already present
+inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/iSurfaces</span></code>, <code class="docutils literal notranslate"><span class="pre">postProcessing/jSurfaces</span></code> or <code class="docutils literal notranslate"><span class="pre">postProcessing/kSurfaces</span></code> directories,
+<code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> will not produce the new slices, so the user should rename the slices saved during the simulation by renaming these directories
+to something else, depending if <code class="docutils literal notranslate"><span class="pre">sampling/surfaces/iSections</span></code>, <code class="docutils literal notranslate"><span class="pre">sampling/surfaces/jSections</span></code> or <code class="docutils literal notranslate"><span class="pre">sampling/surfaces/kSections</span></code> have been edited, respectively.
+This procedure is identified in TOSCA as on-the-fly section re-acquisition, and it is printed in the terminal (or the log file) when running <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>.</p>
+<p>The classification of each different section type available in TOSCA is provided in the following table:</p>
 <table class="docutils align-center">
 <colgroup>
 <col style="width: 16.0%" />
@@ -224,7 +236,9 @@ only for explanation in the context of the user guide.</p>
 </tr>
 <tr class="row-odd"><td><p><em>userSections</em></p></td>
 <td><p>user-defined</p></td>
-<td><p>Automatically saves velocity, pressure, effective viscosity and potential
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> set to 1 during the simulation, then sections are
+produced when running <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>. Automatically saves mean velocity,
+pressure, effective viscosity and potential
 temperature (if applicable). Defined in <code class="docutils literal notranslate"><span class="pre">sampling/surfaces/userSections</span></code>
 directory. This should contain <strong>ONLY</strong> files where sections are defined,
 the name can be arbitrary and <strong>ALL</strong> files are read by TOSCA. The file
@@ -1027,9 +1041,68 @@ the files is <code class="docutils literal notranslate"><span class="pre">&lt;tu
 </section>
 <section id="writepressureforce">
 <span id="ibm-force-subsection"></span><h2><cite>-writePressureForce</cite><a class="headerlink" href="#writepressureforce" title="Link to this heading"></a></h2>
+<p>This functionality allows to write the pressure and viscous forces exerted by the flow onto the IBM body.</p>
 </section>
 <section id="additional-fields">
 <span id="add-fields-subsection"></span><h2><cite>additional fields</cite><a class="headerlink" href="#additional-fields" title="Link to this heading"></a></h2>
+<p>For debugging purposes, TOSCA can output several additional 3D fields at every checkpoint file. These can be then visualized in serial when running <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>.
+The following table summarizes the available fields and how to activate them in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Output Field</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Q</span></code></p></td>
+<td><p>Q-criterion, activated with <code class="docutils literal notranslate"><span class="pre">-computeQ</span></code> set to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>
+file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bf</span></code></p></td>
+<td><p>wind farm body force field, activated with <code class="docutils literal notranslate"><span class="pre">-computeFarmForce</span></code> set to 1
+in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Coriolis</span></code></p></td>
+<td><p>Coriolis force field, activated with <code class="docutils literal notranslate"><span class="pre">-computeSources</span></code> set to 1 in the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file and <code class="docutils literal notranslate"><span class="pre">coriolisActive</span></code> set to 1 in the
+<code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Driving</span></code></p></td>
+<td><p>driving pressure gradient field, activated with <code class="docutils literal notranslate"><span class="pre">-computeSources</span></code> set to 1
+in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file and <code class="docutils literal notranslate"><span class="pre">controllerActive</span></code> set to 1 in the
+<code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Damping</span></code></p></td>
+<td><p>body force in the fringe and damping layers, activated with
+<code class="docutils literal notranslate"><span class="pre">-computeSources</span></code> set to 1 and one or more
+between <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code>, <code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code>,
+<code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code> and <code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code> set to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>
+file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CanopyForce</span></code></p></td>
+<td><p>canopy force field, activated with <code class="docutils literal notranslate"><span class="pre">-computeSources</span></code> and <code class="docutils literal notranslate"><span class="pre">-canopy</span></code> set
+to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yDampU</span></code></p></td>
+<td><p>mapped velocity from the x fringe region to the y fringe region to check the
+result of the tiled mapping. Activated when <code class="docutils literal notranslate"><span class="pre">-computeSources</span></code> is set to 1
+in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file and both <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> and
+<code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code> are set to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file. Notably,
+<code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> should be set to 3 in the <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code>
+inside the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">divU</span></code></p></td>
+<td><p>divergence of velocity, activated with <code class="docutils literal notranslate"><span class="pre">-computeContinuity</span></code> set to 1
+in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">buoyancy</span></code></p></td>
+<td><p>buoyancy term of the momentum equation, activated with <code class="docutils literal notranslate"><span class="pre">-computeBuoyancy</span></code>
+and <code class="docutils literal notranslate"><span class="pre">-potentialT</span></code> set to 1 in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p></td>
+</tr>
+</tbody>
+</table>
 </section>
 </section>
 
