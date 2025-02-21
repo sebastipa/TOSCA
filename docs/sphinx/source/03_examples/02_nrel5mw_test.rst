@@ -3,7 +3,7 @@
 NREL 5MW Example - Uniform Flow
 -------------------------------
 
-In this example case, the NREL 5MW wind turbine is simulated using the ADM, with a uniform inflow of 20 m/s. To make the example case more 
+In the *tests/NREL5MWTest* example case, the NREL 5MW wind turbine is simulated using the ADM, with a uniform inflow of 20 m/s. To make the example case more 
 interesting, the wind turbine is initially placed such that the rotor plane is parallel to the wind direction, and the yaw controller slowly 
 rotates the turbine such that it faces the wind direction. As the rotor gradually takes up more wind, the pitch controller adjusts the pitch 
 angle to protect the wind turbine above rated conditions. 
@@ -120,6 +120,10 @@ to the initial 90 degs misalignment.
 .. image:: ./images/NREL5MW_yawTest.png
     :width: 100%
 
+.. raw:: html
+
+    <br>
+
 Interstingly, the controller switches off the wind turbine for a few seconds, during the transition phase. 
 As designed, the controller drives the wind turbine to face the wind direction, while the pitch controller adjusts the pitch angle to protect the
 wind turbine above rated conditions, while the power output adjusts to 5 MW.
@@ -134,6 +138,10 @@ checkpoint file inside the ``postProcessing/turbines/0.00`` directory.
 .. image:: ./images/NREL5MW_sections.png
     :width: 100%
 
+.. raw:: html
+
+    <br>
+
 By loading the instantaneous z-normal sections inside the ``postProcessing/jSections/0.00`` directory into *ParaView*, the 
 user can create the following video, which shows the evolution of the instantaneous velocity and pressure fields over time. 
 
@@ -143,6 +151,10 @@ user can create the following video, which shows the evolution of the instantane
         <source src="./../_static/videos/NREL5MW_movie.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
+
+.. raw:: html
+
+    <br>
 
 Finally, the mechanical energy budgets are written inside the ``postProcessing/keBoxes/0.00`` directory, where  file for each box is created. This utility, 
 just shown here for demonstration purposes, can be used to track the mechanical energy budgets of the flow moving through e.g. a wind farm, by suitably

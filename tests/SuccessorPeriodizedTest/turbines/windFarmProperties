@@ -1,7 +1,7 @@
 # TOSCA Input file - Wind Farm Properties
 # -------------------------------------------
 
-windFarmName            Piombino
+windFarmName            ExampleSite
 
 arraySpecification      onebyone
 
@@ -19,28 +19,28 @@ turbineArray
     A1
     (
         turbineType         NREL5MW
-        turbineModel        uniformADM
+        turbineModel        ADM
         baseLocation        (200.0 1000.0 0.0)
         windFarmController  0
     )
     A2
     (
         turbineType         NREL5MW
-        turbineModel        uniformADM
+        turbineModel        ADM
         baseLocation        (830.0 1000.0 0.0)
         windFarmController  0
     )
     A3
     (
         turbineType         NREL5MW
-        turbineModel        uniformADM
+        turbineModel        ADM
         baseLocation        (500.0 500.0 0.0)
         windFarmController  0
     )
     A4
     (
         turbineType         NREL5MW
-        turbineModel        uniformADM
+        turbineModel        ADM
         baseLocation        (500.0 1500.0 0.0)
         windFarmController  0
     )

@@ -1,11 +1,11 @@
 # TOSCA Input file - Wind Farm Properties
 # -------------------------------------------
 
-windFarmName            Piombino
+windFarmName            Isolated
 
 arraySpecification      onebyone
 
-debug                   1
+debug                   0
 
 writeSettings
 {
@@ -19,8 +19,8 @@ turbineArray
     A1
     (
         turbineType         NREL5MW
-        turbineModel        ALM
+        turbineModel        ADM
         baseLocation        (0.0 0.0 -90.0)
-        windFarmController  1
+        windFarmController  0
     )
 }

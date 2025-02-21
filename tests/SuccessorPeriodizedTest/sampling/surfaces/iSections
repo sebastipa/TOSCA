@@ -1,7 +1,7 @@
 surfaceNumber 1
 timeStart     0
-intervalType  timeStep
-timeInterval  2
+intervalType  adjustableTime
+timeInterval  210
 coordinates   500.0   
 
 

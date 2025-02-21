@@ -1,7 +1,7 @@
 probesNumber 2
 timeStart    0
-intervalType adjustableTime
-timeInterval 3.0
+intervalType timeStep
+timeInterval 1
 fields       U
 
 locations

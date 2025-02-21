@@ -88,7 +88,7 @@
              
   <section id="nrel-5mw-example-uniform-flow">
 <span id="examples-nrel5mw-test"></span><h1>NREL 5MW Example - Uniform Flow<a class="headerlink" href="#nrel-5mw-example-uniform-flow" title="Link to this heading"></a></h1>
-<p>In this example case, the NREL 5MW wind turbine is simulated using the ADM, with a uniform inflow of 20 m/s. To make the example case more
+<p>In the <em>tests/NREL5MWTest</em> example case, the NREL 5MW wind turbine is simulated using the ADM, with a uniform inflow of 20 m/s. To make the example case more
 interesting, the wind turbine is initially placed such that the rotor plane is parallel to the wind direction, and the yaw controller slowly
 rotates the turbine such that it faces the wind direction. As the rotor gradually takes up more wind, the pitch controller adjusts the pitch
 angle to protect the wind turbine above rated conditions.</p>
@@ -182,7 +182,7 @@ After the simulation has completed, the results can be visualized using the <cod
 to the initial 90 degs misalignment.</p>
 <a class="reference internal image-reference" href="../_images/NREL5MW_yawTest.png"><img alt="../_images/NREL5MW_yawTest.png" src="../_images/NREL5MW_yawTest.png" style="width: 100%;" />
 </a>
-<p>Interstingly, the controller switches off the wind turbine for a few seconds, during the transition phase.
+<br><p>Interstingly, the controller switches off the wind turbine for a few seconds, during the transition phase.
 As designed, the controller drives the wind turbine to face the wind direction, while the pitch controller adjusts the pitch angle to protect the
 wind turbine above rated conditions, while the power output adjusts to 5 MW.</p>
 <p>After running the <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> executable, the user can visualize the results using ParaView. In particular, the executables creates the <code class="docutils literal notranslate"><span class="pre">XMF</span></code> directory,
@@ -193,12 +193,12 @@ the average velocity magnitude on all sections defined in the simulation, as wel
 checkpoint file inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/turbines/0.00</span></code> directory.</p>
 <a class="reference internal image-reference" href="../_images/NREL5MW_sections.png"><img alt="../_images/NREL5MW_sections.png" src="../_images/NREL5MW_sections.png" style="width: 100%;" />
 </a>
-<p>By loading the instantaneous z-normal sections inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/jSections/0.00</span></code> directory into <em>ParaView</em>, the
+<br><p>By loading the instantaneous z-normal sections inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/jSections/0.00</span></code> directory into <em>ParaView</em>, the
 user can create the following video, which shows the evolution of the instantaneous velocity and pressure fields over time.</p>
 <video width="100%" controls>
     <source src="./../_static/videos/NREL5MW_movie.mp4" type="video/mp4">
     Your browser does not support the video tag.
-</video><p>Finally, the mechanical energy budgets are written inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/keBoxes/0.00</span></code> directory, where  file for each box is created. This utility,
+</video><br><p>Finally, the mechanical energy budgets are written inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/keBoxes/0.00</span></code> directory, where  file for each box is created. This utility,
 just shown here for demonstration purposes, can be used to track the mechanical energy budgets of the flow moving through e.g. a wind farm, by suitably
 defining the boxes and plotting the various contributions to the mechanical energy equation box by box.</p>
 </section>
