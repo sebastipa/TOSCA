@@ -14,7 +14,7 @@
 # Write Data
 # ---------------------------------
 -intervalType              adjustableTime
--timeInterval              5
+-timeInterval              100
 -purgeWrite                0
 
 # Solution
@@ -58,22 +58,13 @@
 # ---------------------------------
 -sections                 1
 -probes                   0
-#-averagingABL            0
-#-averaging3LM            0
-
-#-computeQ                0
 
 -averaging                1
 -avgPeriod                0.5
--avgStartTime             0
-
-#-phaseAveraging          3
-#-phaseAvgPeriod          500
-#-phaseAvgStartTime       0
+-avgStartTime             100
 
 -keBudgets                1
 
 # PostProcessing
 # ---------------------------------
--writeRaster              0
--postProcessFields        0
+-postProcessFields        1

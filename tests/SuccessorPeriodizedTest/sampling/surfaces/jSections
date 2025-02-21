@@ -1,7 +1,7 @@
-surfaceNumber 2
+surfaceNumber 1
 timeStart     0
-intervalType  timeStep
-timeInterval  2
-coordinates   90.0 500.0  
+intervalType  adjustableTime
+timeInterval  10
+coordinates   90.0  
 
 

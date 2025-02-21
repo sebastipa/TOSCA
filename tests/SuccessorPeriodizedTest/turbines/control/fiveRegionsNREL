@@ -41,6 +41,17 @@ pitchControllerParameters
     pitchS2R             6.302336
 }
 
+yawControllerParameters
+{
+    sampleType           hubUpDistance
+    avgWindow            60.0
+    yawMin               -180.0
+    yawMax               180.0
+    yawSpeed             0.5
+    allowedError         2
+    initialFlowAngle     0  
+}
+
 
 
 

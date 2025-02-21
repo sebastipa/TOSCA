@@ -56,7 +56,7 @@ controllerProperties
     controllerMaxHeight 100000.0
     
     # Start time for the given momentum source average (only controller type 'average')
-    controllerAvgStartTime 6000.0
+    controllerAvgStartTime 10000
     
     # Geostrophic height
     hGeo 900
@@ -76,25 +76,7 @@ zDampingProperties
     zDampingEnd     4675.48
     zDampingAlpha   0.01
     zDampingAlsoXY  0 
-}    
-
-xDampingProperties
-{
-    xDampingStart   0
-    xDampingEnd     400
-    xDampingDelta   100
-    xDampingAlpha   0.1
-    xDampingAlphaControlType alphaFixed
-    
-    uBarSelectionType 2
-    n1Inflow 50 
-    n2Inflow 50 
-    n1Periods 1
-    n2Periods 2 
-    sourceType uniform
-    cellWidth1 20
-    cellWidth2 20
-}
-   
+} 
+  
 # perturbations to trigger turbulence 
 perturbations   0
