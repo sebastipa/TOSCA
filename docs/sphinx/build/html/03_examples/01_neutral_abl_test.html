@@ -95,7 +95,7 @@
              
   <section id="neutral-abl-example">
 <span id="examples-neutral-abl-test"></span><h1>Neutral ABL Example<a class="headerlink" href="#neutral-abl-example" title="Link to this heading"></a></h1>
-<p>This example case shows how to simulate a conventionally neutral atmospheric boundary
+<p>The <em>tests/NeutralABLTest</em> example case shows how to simulate a conventionally neutral atmospheric boundary
 layer (CNBL) in TOSCA. CNBLs are characterized by a strong capping inversion layer of
 thickness <span class="math notranslate nohighlight">\(\Delta h\)</span>, across which a potential temperature jump <span class="math notranslate nohighlight">\(\Delta \theta\)</span>
 is observed. Stratification is neutral below the inversion layer, while it is
@@ -196,12 +196,12 @@ file, then run</p>
 log file gives information about what fields are written, and should look as follows:</p>
 <a class="reference internal image-reference" href="../_images/neutral_abl_test_log_1.png"><img alt="../_images/neutral_abl_test_log_1.png" src="../_images/neutral_abl_test_log_1.png" style="width: 100%;" />
 </a>
-<p>In order to visualize the data, the user should navigate inside the <code class="docutils literal notranslate"><span class="pre">XMF</span></code> directory and open the <em>.xmf</em> file e.g. using <em>ParaView</em>.
+<br><p>In order to visualize the data, the user should navigate inside the <code class="docutils literal notranslate"><span class="pre">XMF</span></code> directory and open the <em>.xmf</em> file e.g. using <em>ParaView</em>.
 The following image shows the result of this operation. In particular, velocity and potential temperature fields are depicted on
 the left and right panels, respectively.</p>
 <a class="reference internal image-reference" href="../_images/neutral_abl_test_initial_field.png"><img alt="../_images/neutral_abl_test_initial_field.png" src="../_images/neutral_abl_test_initial_field.png" style="width: 100%;" />
 </a>
-</section>
+<br></section>
 <section id="turbulence-spinup-phase">
 <h2>Turbulence spinup phase<a class="headerlink" href="#turbulence-spinup-phase" title="Link to this heading"></a></h2>
 <p>Now the actual simulation can be started. In particular, the turbilence spinup phase should be first carried out.
@@ -235,7 +235,7 @@ Moreover, ABL averages (planar averages of different flow quantities at every he
 at the end of the spinup phase.</p>
 <a class="reference internal image-reference" href="../_images/neutral_abl_test_spinup_field.png"><img alt="../_images/neutral_abl_test_spinup_field.png" src="../_images/neutral_abl_test_spinup_field.png" style="width: 100%;" />
 </a>
-</section>
+<br></section>
 <section id="data-acquisition-phase">
 <h2>Data acquisition phase<a class="headerlink" href="#data-acquisition-phase" title="Link to this heading"></a></h2>
 <p>At this point, the simulation can be restarted from 10000 s and flow statistics can be gathered. Usually, precursor simulations are
@@ -292,7 +292,7 @@ the section has been taken, where the number of decimal places can be controlled
 <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p>
 <a class="reference internal image-reference" href="../_images/neutral_abl_test_log_2.png"><img alt="../_images/neutral_abl_test_log_2.png" src="../_images/neutral_abl_test_log_2.png" style="width: 100%;" />
 </a>
-<p>Once that the simulation completes, all data except from the 3D fields
+<br><p>Once that the simulation completes, all data except from the 3D fields
 are stored inside the <code class="docutils literal notranslate"><span class="pre">postProcessing</span></code> directory. In particular, <em>iSections</em>, <em>jSections</em>, <em>kSections</em> and ABL averages at
 different levels are stored in the here, while 3D field averages and checkpoint variables are located in the corresponding
 checkpoint time inside the <code class="docutils literal notranslate"><span class="pre">fields</span></code> directory. As this test case is small, the user can decide to

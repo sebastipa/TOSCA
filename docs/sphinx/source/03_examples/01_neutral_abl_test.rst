@@ -3,7 +3,7 @@
 Neutral ABL Example
 -------------------
 
-This example case shows how to simulate a conventionally neutral atmospheric boundary 
+The *tests/NeutralABLTest* example case shows how to simulate a conventionally neutral atmospheric boundary 
 layer (CNBL) in TOSCA. CNBLs are characterized by a strong capping inversion layer of 
 thickness :math:`\Delta h`, across which a potential temperature jump :math:`\Delta \theta`
 is observed. Stratification is neutral below the inversion layer, while it is 
@@ -125,12 +125,20 @@ log file gives information about what fields are written, and should look as fol
 .. image:: ./images/neutral_abl_test_log_1.png
     :width: 100%
 
+.. raw:: html
+
+    <br>
+
 In order to visualize the data, the user should navigate inside the ``XMF`` directory and open the *.xmf* file e.g. using *ParaView*. 
 The following image shows the result of this operation. In particular, velocity and potential temperature fields are depicted on 
 the left and right panels, respectively. 
 
 .. image:: ./images/neutral_abl_test_initial_field.png
     :width: 100%
+
+.. raw:: html
+
+    <br>
 
 Turbulence spinup phase
 ~~~~~~~~~~~~~~~~~~~~~~~  
@@ -169,6 +177,10 @@ at the end of the spinup phase.
 
 .. image:: ./images/neutral_abl_test_spinup_field.png
     :width: 100%
+
+.. raw:: html
+
+    <br>
 
 Data acquisition phase
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -237,6 +249,10 @@ the section has been taken, where the number of decimal places can be controlled
 
 .. image:: ./images/neutral_abl_test_log_2.png
     :width: 100%
+
+.. raw:: html
+
+    <br>
     
 Once that the simulation completes, all data except from the 3D fields
 are stored inside the ``postProcessing`` directory. In particular, *iSections*, *jSections*, *kSections* and ABL averages at 
