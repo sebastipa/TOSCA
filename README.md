@@ -1,14 +1,12 @@
 <img src="docs/images/tosca.png" width="400">
 
-<u>Welcome to the official repository of TOSCA, the Toolbox fOr Stratified Convective Atmospheres.</u>
+**Welcome to the official repository of TOSCA, the Toolbox fOr Stratified Convective Atmospheres.**
 
 TOSCA is an incompressible finite-volume large-eddy simulation code formulated in curvilinear coordinates 
 with Boussinesq approximation to account for buoyancy. It features a moving immersed boundary method and several actuator 
 models to include bodies and wind turbines within the simulation domain. It has been successfully used to simulate atmospheric 
 boundary layer and wind farm flows, including terrain and wind farm induced atmospheric gravity waves, cluster wakes, as well as 
-wind farm control problems. 
-
-TOSCA is currently developed at the [Computational Fluid Dynamics Laboratory of the University of British Columbia, Okanagan Campus](https://cfdlab.ok.ubc.ca/wind-farm-blockage-and-wake-effects/). 
+wind farm control problems. TOSCA is currently developed at the [Computational Fluid Dynamics Laboratory of the University of British Columbia, Okanagan Campus](https://cfdlab.ok.ubc.ca/wind-farm-blockage-and-wake-effects/). 
 
 We kindly ask you to *please* fill up [this](https://docs.google.com/forms/d/e/1FAIpQLSfUGtlHbCPfSI4-CO4bC9D4YsjcHis3Tu7UPTJeYqiB7BgCXA/viewform?usp=header) 
 survey, which allows us to keep track of new TOSCA users around the world.
