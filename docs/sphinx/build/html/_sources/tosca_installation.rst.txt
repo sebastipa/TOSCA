@@ -25,49 +25,80 @@ In order to compile TOSCA on your system, please follow these steps:
 
    .. code-block:: bash
    
-   	./configure --with-fc=0 --download-f2cblaslapack --with-mpi-dir='your--path--to--mpicc' --download-hypre='your--path--to--hypre' --with-64-bit-indices=1 --with-debugging=0
+   	./configure --with-fc=0 --download-f2cblaslapack --download-hypre --with-64-bit-indices=1 --with-debugging=0
+   	
+   Note that other options are available. For example, if one wants to specify paths to already installed HYPRE and OpenMPI libraries, 
+   the options ``--with-mpi-dir='your--path--to--mpicc'`` and ``--download-hypre='your--path--to--hypre'`` can be used. 
 
-6. Make PETSc 
+6. Make PETSc (PETSc will suggest a command after the configure, we advice to use that):
 	
    .. code-block:: bash
    
    	make all
 
-7. Make PETSc 
+7. Check the PETSc installation (PETSc will suggest a command after compilation, we advice to use that):
 	
    .. code-block:: bash
    
    	make check
    
-8. Save an environment variable that will tell TOSCA where PETSc is installed in your ``.bashrc``:
+8. Save an environment variable that will tell TOSCA where PETSc is installed in your ``.bashrc``. For HPC installations
+   it might be a better practice to use the ``.bash_profile`` instead.
 
    .. code-block:: bash
    
    	echo "export PETSC_DIR=$HOME/your--path--to--petsc" >> $HOME/.bashrc
+   	
+   or, for HPCs
    
-9. Save an environment variable that will tell TOSCA which PETSc architecture is required in your ``.bashrc``:
+   .. code-block:: bash
+   
+   	echo "export PETSC_DIR=$HOME/your--path--to--petsc" >> $HOME/.bash_profile
+   
+9. Save an environment variable that will tell TOSCA which PETSc architecture is required in your ``.bashrc``. For HPC installations
+   it might be a better practice to use the ``.bash_profile`` instead.
 
    .. code-block:: bash
     
     echo "export PETSC_ARCH=arch-linux-c-opt" >> $HOME/.bashrc
     
+   or, for HPCs
+    
+   .. code-block:: bash
+    
+    echo "export PETSC_ARCH=arch-linux-c-opt" >> $HOME/.bash_profile
+    
 .. note::
 
 	This is the folder within ``$PETSC_DIR`` with a name beginning with ``arch-``. In a typical installation, it will be ``arch-linux-c-opt``.
 
-10. Add the PETSc shared libraries to your library path environment variable in your ``.bashrc``:
+10. Add the PETSc shared libraries to your library path environment variable in your ``.bashrc``. For HPC installations
+    it might be a better practice to use the ``.bash_profile`` instead.
 
     .. code-block:: bash
    
    	 echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PETSC_DIR/$PETSC_ARCH/lib" >> $HOME/.bashrc
+   	 
+    or, for HPCs
+    
+    .. code-block:: bash
+   
+   	 echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PETSC_DIR/$PETSC_ARCH/lib" >> $HOME/.bash_profile
 
 11. Reload the environment with 
 
-	.. code-block:: bash
+	 .. code-block:: bash
 	
-	 source $HOME/.bashrc
+	  source $HOME/.bashrc
+	 
+	 of, for HPCs
+	 
+	 .. code-block:: bash
+	
+	  source $HOME/.bash_profile
     
-12. Go inside ``TOSCA/src`` directory and compile the executables 
+12. Go inside ``TOSCA/src`` directory and compile the executables. Make sure to have added the path to custom libraries (i.e. compiled
+    locally by the user) if any, such as OpenMPI and HDF5, to the ``LD_LIBRARY_PATH`` as done for the PETSc libraries at step 10. 
 
     .. code-block:: bash 
     
@@ -89,7 +120,8 @@ In order to compile TOSCA on your system, please follow these steps:
 Contribute to the TOSCA Project
 -------------------------------
 
-The TOSCA repository is open-source, so anyone can download and use the code. If you want to contribute to the project by adding code to TOSCA repository you need to open a pull-request that has to be approved by our team. In order to do so, please use the following steps:
+The TOSCA repository is open-source, so anyone can download and use the code. If you want to contribute to the project by adding 
+code to TOSCA repository you need to open a pull-request that has to be approved by our team. In order to do so, please use the following steps:
 
 1. Clone the TOSCA package locally on your machine with ``git clone https://github.com/sebastipa/TOSCA.git``
 2. Create a new local branch with ``git checkout -b your-branch-name``

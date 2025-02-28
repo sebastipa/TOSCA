@@ -107,27 +107,39 @@ In order to compile TOSCA on your system, please follow these steps:</p>
 If you have only one version of Open MPI installed on your system in the <code class="docutils literal notranslate"><span class="pre">/usr</span></code> directory (installed using sudo for example), you can omit the
 <code class="docutils literal notranslate"><span class="pre">--with-mpi-dir='your--path--to--mpicc'</span></code> at point 4: Open MPI will be found by the library locator.</p></li>
 <li><p>Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--with-fc<span class="o">=</span><span class="m">0</span><span class="w"> </span>--download-f2cblaslapack<span class="w"> </span>--with-mpi-dir<span class="o">=</span><span class="s1">&#39;your--path--to--mpicc&#39;</span><span class="w"> </span>--download-hypre<span class="o">=</span><span class="s1">&#39;your--path--to--hypre&#39;</span><span class="w"> </span>--with-64-bit-indices<span class="o">=</span><span class="m">1</span><span class="w"> </span>--with-debugging<span class="o">=</span><span class="m">0</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--with-fc<span class="o">=</span><span class="m">0</span><span class="w"> </span>--download-f2cblaslapack<span class="w"> </span>--download-hypre<span class="w"> </span>--with-64-bit-indices<span class="o">=</span><span class="m">1</span><span class="w"> </span>--with-debugging<span class="o">=</span><span class="m">0</span>
 </pre></div>
 </div>
+<p>Note that other options are available. For example, if one wants to specify paths to already installed HYPRE and OpenMPI libraries,
+the options <code class="docutils literal notranslate"><span class="pre">--with-mpi-dir='your--path--to--mpicc'</span></code> and <code class="docutils literal notranslate"><span class="pre">--download-hypre='your--path--to--hypre'</span></code> can be used.</p>
 </li>
-<li><p>Make PETSc</p>
+<li><p>Make PETSc (PETSc will suggest a command after the configure, we advice to use that):</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>all
 </pre></div>
 </div>
 </li>
-<li><p>Make PETSc</p>
+<li><p>Check the PETSc installation (PETSc will suggest a command after compilation, we advice to use that):</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>check
 </pre></div>
 </div>
 </li>
-<li><p>Save an environment variable that will tell TOSCA where PETSc is installed in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>:</p>
+<li><p>Save an environment variable that will tell TOSCA where PETSc is installed in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>. For HPC installations
+it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
 </pre></div>
 </div>
+<p>or, for HPCs</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
+</pre></div>
+</div>
 </li>
-<li><p>Save an environment variable that will tell TOSCA which PETSc architecture is required in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>:</p>
+<li><p>Save an environment variable that will tell TOSCA which PETSc architecture is required in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>. For HPC installations
+it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_ARCH=arch-linux-c-opt&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+</pre></div>
+</div>
+<p>or, for HPCs</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_ARCH=arch-linux-c-opt&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
 </pre></div>
 </div>
 </li>
@@ -137,8 +149,13 @@ If you have only one version of Open MPI installed on your system in the <code c
 <p>This is the folder within <code class="docutils literal notranslate"><span class="pre">$PETSC_DIR</span></code> with a name beginning with <code class="docutils literal notranslate"><span class="pre">arch-</span></code>. In a typical installation, it will be <code class="docutils literal notranslate"><span class="pre">arch-linux-c-opt</span></code>.</p>
 </div>
 <ol class="arabic" start="10">
-<li><p>Add the PETSc shared libraries to your library path environment variable in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>:</p>
+<li><p>Add the PETSc shared libraries to your library path environment variable in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>. For HPC installations
+it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export LD_LIBRARY_PATH=</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">:</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">/lib&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+</pre></div>
+</div>
+<p>or, for HPCs</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export LD_LIBRARY_PATH=</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">:</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">/lib&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
 </pre></div>
 </div>
 </li>
@@ -147,9 +164,14 @@ If you have only one version of Open MPI installed on your system in the <code c
 <div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span><span class="w"> </span><span class="nv">$HOME</span>/.bashrc
 </pre></div>
 </div>
+<p>of, for HPCs</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span><span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
+</pre></div>
+</div>
 </div></blockquote>
 </li>
-<li><p>Go inside <code class="docutils literal notranslate"><span class="pre">TOSCA/src</span></code> directory and compile the executables</p>
+<li><p>Go inside <code class="docutils literal notranslate"><span class="pre">TOSCA/src</span></code> directory and compile the executables. Make sure to have added the path to custom libraries (i.e. compiled
+locally by the user) if any, such as OpenMPI and HDF5, to the <code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH</span></code> as done for the PETSc libraries at step 10.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>tosca
 make<span class="w"> </span>tosca2PV
 </pre></div>
@@ -169,7 +191,8 @@ and the post-processing with <code class="docutils literal notranslate"><span cl
 </div>
 <section id="contribute-to-the-tosca-project">
 <h2>Contribute to the TOSCA Project<a class="headerlink" href="#contribute-to-the-tosca-project" title="Link to this heading"></a></h2>
-<p>The TOSCA repository is open-source, so anyone can download and use the code. If you want to contribute to the project by adding code to TOSCA repository you need to open a pull-request that has to be approved by our team. In order to do so, please use the following steps:</p>
+<p>The TOSCA repository is open-source, so anyone can download and use the code. If you want to contribute to the project by adding
+code to TOSCA repository you need to open a pull-request that has to be approved by our team. In order to do so, please use the following steps:</p>
 <ol class="arabic simple">
 <li><p>Clone the TOSCA package locally on your machine with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/sebastipa/TOSCA.git</span></code></p></li>
 <li><p>Create a new local branch with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">-b</span> <span class="pre">your-branch-name</span></code></p></li>
