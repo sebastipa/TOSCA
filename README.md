@@ -1,6 +1,6 @@
 <img src="docs/images/tosca.png" width="400">
 
-Welcome to the official repository of **TOSCA**, the **Toolbox fOr Stratified Convective Atmospheres**.
+<u>Welcome to the official repository of TOSCA, the Toolbox fOr Stratified Convective Atmospheres.</u>
 
 TOSCA is an incompressible finite-volume large-eddy simulation code formulated in curvilinear coordinates 
 with Boussinesq approximation to account for buoyancy. It features a moving immersed boundary method and several actuator 
@@ -14,7 +14,7 @@ We kindly ask you to *please* fill up [this](https://docs.google.com/forms/d/e/1
 survey, which allows us to keep track of new TOSCA users around the world.
 
 A large effort has been recently put in creating a comprehensive **User Guide**, which hosted right [here](https://sebastipa.github.io/TOSCA/) on GitHub. 
-Although some chapters are still under construction, here you can find instructions on how to install the code, a complete list of all input files and variables, together with their explanation,
+Although some chapters are still under construction, you can  already find instructions on how to install the code, a complete list of all input files and variables, together with their explanation,
 as well as a step by step guide of some of the tutorials that are available on the repository under the `tests/` directory. We refer to these set of 
 read-the-docs pages online as the main TOSCA user guide. 
 
@@ -25,13 +25,13 @@ This can be found both inside `docs/` (*ReferenceManual.pdf*), or opened as a we
 
 ## Reporting Bugs
 
-For bugs, questions and to request modification to the TOSCA code, please open an issue on the GitHub page of the repository. You can 
+For bugs, questions and to request modification to the TOSCA code, please open an issue GitHub. You can 
 also contribute to the TOSCA code as explained [here](https://sebastipa.github.io/TOSCA/tosca_installation.html#contribute-to-the-tosca-project).
 For different matters, please contact sebastiano.stipa@vki.ac.be or aajay100@mail.ubc.ca. 
 
 ## Publications
 
-The following is a list of 
+The following is a list of publication where TOSCA has been used. For referencing the TOSCA code please use the first publication on the list. 
 
  - [TOSCA – an open-source, finite-volume, large-eddy simulation (LES) environment for wind farm flows](https://wes.copernicus.org/articles/9/297/2024/). 
  - [The actuator farm model for large eddy simulation (LES) of wind-farm-induced atmospheric gravity waves and farm–farm interaction](https://wes.copernicus.org/articles/9/2301/2024/wes-9-2301-2024.html).
@@ -51,8 +51,8 @@ The following is a list of
 
 ## Executables
 
- - tosca    : transient solver for stratified incompressible flows. Temperature stratification is accounted via Boussinesq approximation.
- - tosca2PV : post processor for ParaView visualization. Writes data in XMF/HDF format.
+ - `tosca`    : transient solver for stratified incompressible flows. Temperature stratification is accounted via Boussinesq approximation.
+ - `tosca2PV` : post processor for ParaView visualization. Writes data in XMF/HDF format.
 
 ## Future Implementations:
 
@@ -60,4 +60,4 @@ The following is a list of
  - Two-way overset interpolation
  - Multiphase capabilities 
 
-Credits and Copyright: Sebastiano Stipa - Arjun Ajay - Mohammad Hadi - The University of British Columbia
+Credits & Copyright: Sebastiano Stipa - Arjun Ajay - Mohammad Hadi - The University of British Columbia
