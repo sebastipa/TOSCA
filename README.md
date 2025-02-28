@@ -1,7 +1,7 @@
 <img src="docs/images/tosca.png" width="400">
 
-## Welcome to the official repository of TOSCA
-(the Toolbox fOr Stratified Convective Atmospheres)
+## *Welcome to the official repository of TOSCA*
+*(Toolbox fOr Stratified Convective Atmospheres)*
 
 TOSCA is an incompressible finite-volume large-eddy simulation code formulated in curvilinear coordinates 
 with Boussinesq approximation to account for buoyancy. It features a moving immersed boundary method and several actuator 
