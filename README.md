@@ -12,7 +12,9 @@ wind farm control problems. TOSCA is currently developed at the [Computational F
 We kindly ask you to *please* fill up [this](https://docs.google.com/forms/d/e/1FAIpQLSfUGtlHbCPfSI4-CO4bC9D4YsjcHis3Tu7UPTJeYqiB7BgCXA/viewform?usp=header) 
 survey, which allows us to keep track of new TOSCA users around the world.
 
-A large effort has been recently put in creating a comprehensive **User Guide**, which hosted right [here](https://sebastipa.github.io/TOSCA/) on GitHub. 
+## User Guide
+
+A large effort has been recently put in creating a comprehensive  user guide, which is hosted on [GitHub Pages](https://sebastipa.github.io/TOSCA/). 
 Although some chapters are still under construction, you can  already find instructions on how to install the code, a complete list of all input files and variables, together with their explanation,
 as well as a step by step guide of some of the tutorials that are available on the repository under the `tests/` directory. We refer to these set of 
 read-the-docs pages online as the main TOSCA user guide. 
