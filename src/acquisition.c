@@ -9430,6 +9430,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
         ablStat->VMean          = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
         ablStat->WMean          = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
         ablStat->nutMean        = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
+        ablStat->ksgsMean       = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
 
         ablStat->uuMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
         ablStat->uvMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
@@ -9462,9 +9463,11 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 			ablStat->TvMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
 			ablStat->TwMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
 
-			ablStat->q1Mean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
-			ablStat->q2Mean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
-			ablStat->q3Mean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
+            ablStat->diffTMean       = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
+
+            ablStat->q1Mean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
+            ablStat->q2Mean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
+            ablStat->q3Mean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);                
 
 			VecDuplicate(teqn->Tmprt, &(ablStat->TPrime)); VecSet(ablStat->TPrime, 0.);
 		}
@@ -9510,6 +9513,21 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             // nu_SGS_mean file
             sprintf(fileName, "%s/nu_SGS_mean", ablStat->timeName.c_str());
+            f = fopen(fileName, "w");
+
+            if(!f)
+            {
+                char error[530];
+                sprintf(error, "cannot open file %s\n", fileName);
+                fatalErrorInFunction("averagingABLInitialize",  error);
+            }
+            else
+            {
+                fclose(f);
+            }
+
+            // kSGS_mean file
+            sprintf(fileName, "%s/k_SGS_mean", ablStat->timeName.c_str());
             f = fopen(fileName, "w");
 
             if(!f)
@@ -10002,8 +10020,8 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
             Cmpnts        ***ucat, ***uprime;           // cartesian vel. and fluct. part
             Cmpnts        ***csi, ***eta, ***zet;
-            PetscReal     ***tmprt, ***tprime, ***nut;  // potential temp. and fluct. part and turb. visc.
-            PetscReal     ***aj, ***nvert;
+            PetscReal     ***tmprt, ***tprime, ***nut, ***ksg;  // potential temp. and fluct. part and turb. visc.
+            PetscReal     ***aj, ***nvert, ***ldt;
 
             word          fileName;
 
@@ -10028,6 +10046,8 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             DMDAVecGetArray(fda, ueqn->lUcat,     &ucat);
 
             DMDAVecGetArray(da,  les->lNu_t,      &nut);
+            DMDAVecGetArray(da,  les->lKsgs,      &ksg);
+
             DMDAVecGetArray(fda, ablStat->UPrime, &uprime);
 
 			if(acquisition->access->flags->isTeqnActive)
@@ -10042,6 +10062,10 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             std::vector<Cmpnts> gVelocity(nLevels);
             std::vector<PetscReal> lnut(nLevels);
             std::vector<PetscReal> gnut(nLevels);
+            std::vector<PetscReal> lkSGS(nLevels);
+            std::vector<PetscReal> gkSGS(nLevels);
+            std::vector<PetscReal> ldiffT(nLevels);
+            std::vector<PetscReal> gdiffT(nLevels);
 			std::vector<PetscReal> lTemperature(nLevels);
 			std::vector<PetscReal> gTemperature(nLevels);
 
@@ -10052,6 +10076,9 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 lnut[l] = 0.0;
                 gnut[l] = 0.0;
+
+                lkSGS[l] = 0.0;
+                gkSGS[l] = 0.0;
 
 				if(acquisition->access->flags->isTeqnActive)
 				{
@@ -10071,6 +10098,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         lVelocity[j-1].z  += ucat[k][j][i].z / aj[k][j][i];
 
                         lnut[j-1]         += nut[k][j][i]    / aj[k][j][i];
+                        lkSGS[j-1]        += ksg[k][j][i]    / aj[k][j][i];
 
 						if(acquisition->access->flags->isTeqnActive)
 						{
@@ -10082,6 +10110,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
             MPI_Allreduce(&lVelocity[0], &gVelocity[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
             MPI_Allreduce(&lnut[0], &gnut[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&lkSGS[0], &gkSGS[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
 			if(acquisition->access->flags->isTeqnActive)
 			{
@@ -10092,10 +10121,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             {
                 PetscReal totVolPerLevel = ablStat->totVolPerLevel[l];
 
-                ablStat->UMean[l]   = gVelocity[l].x / totVolPerLevel;
-                ablStat->VMean[l]   = gVelocity[l].y / totVolPerLevel;
-                ablStat->WMean[l]   = gVelocity[l].z / totVolPerLevel;
-                ablStat->nutMean[l] = gnut[l] / totVolPerLevel;
+                ablStat->UMean[l]    = gVelocity[l].x / totVolPerLevel;
+                ablStat->VMean[l]    = gVelocity[l].y / totVolPerLevel;
+                ablStat->WMean[l]    = gVelocity[l].z / totVolPerLevel;
+                ablStat->nutMean[l]  = gnut[l] / totVolPerLevel;
+                ablStat->ksgsMean[l] = gkSGS[l] / totVolPerLevel;
 
 				if(acquisition->access->flags->isTeqnActive)
 				{
@@ -10298,6 +10328,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             DMDAVecRestoreArray(fda, mesh->lZet,      &zet);
             DMDAVecRestoreArray(fda, ueqn->lUcat,     &ucat);
             DMDAVecRestoreArray(da,  les->lNu_t,      &nut);
+            DMDAVecRestoreArray(da,  les->lKsgs,      &ksg);
             DMDAVecRestoreArray(fda, ablStat->UPrime, &uprime);
 
 			if(acquisition->access->flags->isTeqnActive)
@@ -10311,6 +10342,10 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             std::vector<Cmpnts> ().swap(gVelocity);
             std::vector<PetscReal> ().swap(lnut);
             std::vector<PetscReal> ().swap(gnut);
+            std::vector<PetscReal> ().swap(lkSGS);
+            std::vector<PetscReal> ().swap(gkSGS);
+            std::vector<PetscReal> ().swap(ldiffT);
+            std::vector<PetscReal> ().swap(gdiffT);
             std::vector<symmTensor> ().swap(lS);
             std::vector<symmTensor> ().swap(gS);
             std::vector<symmTensor> ().swap(lSw);
@@ -10350,6 +10385,28 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     for(l=0; l<nLevels; l++)
                     {
                         fprintf(f, "%.5lf\t", ablStat->nutMean[l]);
+                    }
+                    fprintf(f, "\n");
+                    fclose(f);
+                }
+        
+                // k_SGS_mean file
+                fileName = ablStat->timeName + "/k_SGS_mean";
+                f = fopen(fileName.c_str(), "a");
+
+                if(!f)
+                {
+                   char error[512];
+                    sprintf(error, "cannot open file %s\n", fileName.c_str());
+                    fatalErrorInFunction("writeAveragingABL",  error);
+                }
+                else
+                {
+                    fprintf(f, "%.5lf\t", clock->time);
+                    fprintf(f, "%.5lf\t", clock->dt);
+                    for(l=0; l<nLevels; l++)
+                    {
+                        fprintf(f, "%.5lf\t", ablStat->ksgsMean[l]);
                     }
                     fprintf(f, "\n");
                     fclose(f);
