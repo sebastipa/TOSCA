@@ -2050,6 +2050,9 @@ PetscErrorCode UpdateNut(les_ *les)
     VecSet(les->lNu_t, 0.);
     VecSet(les->lKsgs, 0.);
 
+    std::vector<PetscReal> tempJAvg;
+    Vec tempMAvg; 
+
     DMDAVecGetArray(fda, eqn->lUcat,  &ucat);
     DMDAVecGetArray(da,  eqn->lUstar, &ustar);
 
@@ -2230,6 +2233,54 @@ PetscErrorCode UpdateNut(les_ *les)
                 {
                     denom += gradU_hat[c][a] * gradU_hat[c][a];
                 }
+            }
+
+            // add abl stratification contribution 
+            if (les->access->flags->isTeqnActive)
+            {
+                if(les->access->flags->isAblActive)
+                {
+                    //compute eddy diffusivity 
+                    PetscReal dtdc, dtde, dtdz;
+                    PetscReal dt_dx, dt_dy, dt_dz;
+                    PetscReal gradT_hat[3];
+
+                    PetscReal gravity = 9.81;
+                    PetscReal tRef = les->access->abl->tRef;
+                    PetscReal beta = gravity/tRef;
+
+                    Compute_dscalar_center
+                    (
+                        mesh,
+                        i, j, k,
+                        mx, my, mz,
+                        ltempDiff, nvert,
+                        &dtdc, &dtde, &dtdz
+                    );
+
+                    // compute temperature derivative w.r.t. the cartesian coordinates
+                    Compute_dscalar_dxyz
+                    (
+                        mesh,
+                        csi0, csi1, csi2,
+                        eta0, eta1, eta2,
+                        zet0, zet1, zet2,
+                        ajc,
+                        dtdc, dtde, dtdz,
+                        &dt_dx, &dt_dy, &dt_dz
+                    );
+
+                    gradT_hat[0] = delta_x * dt_dx;
+                    gradT_hat[1] = delta_y * dt_dy;
+                    gradT_hat[2] = delta_z * dt_dz;
+                    
+                    PetscInt a = 2; //only the z component
+                    for (PetscInt c = 0; c < 3; c++)
+                    {
+                        num += (beta/delta_z) * gradU_hat[c][a] * gradT_hat[c];
+                    }
+                }
+                
             }
 
             PetscReal nu_e = num / (denom + 1e-10);
