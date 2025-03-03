@@ -2902,6 +2902,125 @@ PetscErrorCode UpdateNutBCs(les_ *les)
 
 //***************************************************************************************************************//
 
+PetscErrorCode UpdateDiffBCs(les_ *les)
+{
+    mesh_          *mesh = les->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    word          typeName = "boundary/diff";
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***diff, ***nvert;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, les->lDiff_t, &diff);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                // set to zero at solid internal cells and skip
+                if(isIBMSolidCell(k, j, i, nvert))
+                {
+                    diff[k][j][i] = 0.0;
+                    continue;
+                }
+
+                // periodic boundary condition on i-left patch
+                if (mesh->boundaryNut.iLeft=="periodic" && i==1)
+                {
+                    if(mesh->i_periodic)       diff[k][j][i-1] = diff[k][j][mx-2];
+                    else if(mesh->ii_periodic) diff[k][j][i-1] = diff[k][j][-2];
+                }
+                else if (i==1)
+                {
+                    diff[k][j][i-1] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on i-right patch
+                if (mesh->boundaryNut.iRight=="periodic" && i==mx-2)
+                {
+                    if(mesh->i_periodic)        diff[k][j][i+1] = diff[k][j][1];
+                    else if (mesh->ii_periodic) diff[k][j][i+1] = diff[k][j][mx+1];
+                }
+                else if (i==mx-2)
+                {
+                    diff[k][j][i+1] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on j-left patch
+                if (mesh->boundaryNut.jLeft=="periodic" && j==1)
+                {
+                    if(mesh->j_periodic)       diff[k][j-1][i] = diff[k][my-2][i];
+                    else if(mesh->jj_periodic) diff[k][j-1][i] = diff[k][-2][i];
+                }
+                else if (j==1)
+                {
+                    diff[k][j-1][i] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on j-right patch
+                if (mesh->boundaryNut.jRight=="periodic" && j==my-2)
+                {
+                    if(mesh->j_periodic)       diff[k][j+1][i] = diff[k][1][i];
+                    else if(mesh->jj_periodic) diff[k][j+1][i] = diff[k][my+1][i];
+                }
+                else if (j==my-2)
+                {
+                    diff[k][j+1][i] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on k-left patch
+                if (mesh->boundaryNut.kLeft=="periodic" && k==1)
+                {
+                    if(mesh->k_periodic)       diff[k-1][j][i] = diff[mz-2][j][i];
+                    else if(mesh->kk_periodic) diff[k-1][j][i] = diff[-2][j][i];
+                }
+                else if (k==1)
+                {
+                    diff[k-1][j][i] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on k-right patch
+                if (mesh->boundaryNut.kRight=="periodic" && k==mz-2)
+                {
+                  
+                    if(mesh->k_periodic)       diff[k+1][j][i] = diff[1][j][i];
+                    else if(mesh->kk_periodic) diff[k+1][j][i] = diff[mz+1][j][i];
+                }
+                else if (k==mz-2)
+                {
+                    diff[k+1][j][i] = diff[k][j][i];
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, les->lDiff_t, &diff);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    // scatter difft from local to local
+    DMLocalToLocalBegin(da, les->lDiff_t, INSERT_VALUES, les->lDiff_t);
+    DMLocalToLocalEnd  (da, les->lDiff_t, INSERT_VALUES, les->lDiff_t);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
 {
     mesh_          *mesh = peqn->access->mesh;
