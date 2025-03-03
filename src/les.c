@@ -8,7 +8,7 @@
 
 const PetscReal wall_cs = 0.001 ;
 const PetscReal std_cs  = 0.0289; // standard Cs value for HIT
-
+const PetscReal amd_cs  =  0.3334;
 //***************************************************************************************************************//
 
 PetscErrorCode InitializeLES(les_ *les)
@@ -20,6 +20,7 @@ PetscErrorCode InitializeLES(les_ *les)
     // 4. dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
     // 5. dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
     // 6. dynamic smagorinsky scale dependent with plane averaging (PASD)
+    // 7. Anisotropic minimum dissipation model (AMD)
 
 
     if(les != NULL)
@@ -96,6 +97,14 @@ PetscErrorCode UpdateCs (les_ *les)
     if(les->access->flags->isLesActive==1)
     {
         VecSet(les->lCs, std_cs);
+        DMLocalToLocalBegin(da, les->lCs, INSERT_VALUES, les->lCs);
+        DMLocalToLocalEnd  (da, les->lCs, INSERT_VALUES, les->lCs);
+        return(0);
+    }
+
+    if(les->access->flags->isLesActive==7)
+    {
+        VecSet(les->lCs, amd_cs);
         DMLocalToLocalBegin(da, les->lCs, INSERT_VALUES, les->lCs);
         DMLocalToLocalEnd  (da, les->lCs, INSERT_VALUES, les->lCs);
         return(0);
@@ -480,21 +489,25 @@ PetscErrorCode UpdateCs (les_ *les)
             }
 
             // 2.2 - Build the filters
+            // binomial filter coefficient n=2, m = 1/4, d= [1 2 1] (from pascal triangle)
+            // binomial filter of order n is given by f = m[d]
 
             // filter kernel
-            PetscReal coef[3][3][3]=
+            PetscReal coef[3][3][3] = 
             {
-                0.125, 0.250, 0.125,
-                0.250, 0.500, 0.250,
-                0.125, 0.250, 0.125,
-
-                0.250, 0.500, 0.250,
-                0.500, 1.000, 0.500,
-                0.250, 0.500, 0.250,
-
-                0.125, 0.250, 0.125,
-                0.250, 0.500, 0.250,
-                0.125, 0.250, 0.125
+                0.015625, 0.03125, 0.015625,
+                0.03125, 0.0625, 0.03125,
+                0.015625, 0.03125, 0.015625,
+            
+            
+                0.03125, 0.0625, 0.03125,
+                0.0625, 0.125, 0.0625,
+                0.03125, 0.0625, 0.03125,
+            
+            
+                0.015625, 0.03125, 0.015625,
+                0.03125, 0.0625, 0.03125,
+                0.015625, 0.03125, 0.015625
             };
 
             // cell volume times stencil integration coeff. and fluid/body weight
@@ -524,7 +537,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     (I!=0 && I!=mx-1 && J!=0 && J!=my-1 && K!=0 && K!=mz-1)
                 )
                 {
-                    sum_vol += 1./aj[K][J][I] * coef[R][Q][P];
+                    sum_vol += 1./aj[K][J][I] * 8.0 * coef[R][Q][P];
                     weight[R][Q][P] = 1;
                 }
                 // body or physical ghost nodes
@@ -829,40 +842,41 @@ PetscErrorCode UpdateCs (les_ *les)
                 }
 
                 // 2.2 - Build the filters
+                // binomial filter coefficient n=4, m = 1/16, d= [1 4 6 4 1] (from pascal triangle)
+                // binomial filter of order n is given by f = m[d]
 
                 // filter kernel
                 PetscReal coef[5][5][5]=
                 {
-                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378,
+                    0.000244140625000, 0.000976562500000, 0.001464843750000, 0.000976562500000, 0.000244140625000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.001464843750000, 0.005859375000000, 0.008789062500000, 0.005859375000000, 0.001464843750000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.000244140625000, 0.000976562500000, 0.001464843750000, 0.000976562500000, 0.000244140625000,
 
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
-                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
-                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.003906250000000, 0.015625000000000, 0.023437500000000, 0.015625000000000, 0.003906250000000,
+                    0.005859375000000, 0.023437500000000, 0.035156250000000, 0.023437500000000, 0.005859375000000,
+                    0.003906250000000, 0.015625000000000, 0.023437500000000, 0.015625000000000, 0.003906250000000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
 
-                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
-                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
-                    0.56529725, 2.5334865, 4.17701308, 2.5334865, 0.56529725,
-                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
-                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
+                    0.001464843750000, 0.005859375000000, 0.008789062500000, 0.005859375000000, 0.001464843750000,
+                    0.005859375000000, 0.023437500000000, 0.035156250000000, 0.023437500000000, 0.005859375000000,
+                    0.008789062500000, 0.035156250000000, 0.052734375000000, 0.035156250000000, 0.008789062500000,
+                    0.005859375000000, 0.023437500000000, 0.035156250000000, 0.023437500000000, 0.005859375000000,
+                    0.001464843750000, 0.005859375000000, 0.008789062500000, 0.005859375000000, 0.001464843750000,
 
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
-                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
-                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.003906250000000, 0.015625000000000, 0.023437500000000, 0.015625000000000, 0.003906250000000,
+                    0.005859375000000, 0.023437500000000, 0.035156250000000, 0.023437500000000, 0.005859375000000,
+                    0.003906250000000, 0.015625000000000, 0.023437500000000, 0.015625000000000, 0.003906250000000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
 
-                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378
-
+                    0.000244140625000, 0.000976562500000, 0.001464843750000, 0.000976562500000, 0.000244140625000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.001464843750000, 0.005859375000000, 0.008789062500000, 0.005859375000000, 0.001464843750000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.000244140625000, 0.000976562500000, 0.001464843750000, 0.000976562500000, 0.000244140625000
                 };
 
                 // cell volume times stencil integration coeff. and fluid/body weight
@@ -892,7 +906,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         (I>0 && I<mx-1 && J>0 && J<my-1 && K>0 && K<mz-1)
                     )
                     {
-                        sum_vol += 1./aj[K][J][I] * coef[R][Q][P];
+                        sum_vol += 1./aj[K][J][I] * 64.0 * coef[R][Q][P];
                         weight[R][Q][P] = 1;
                     }
                     // body or physical ghost nodes
@@ -2093,40 +2107,104 @@ PetscErrorCode UpdateNut(les_ *les)
         );
 
         // compute rate of strain tensor
-        PetscReal Sxx = 0.5*(du_dx + du_dx),
-               Sxy = 0.5*(du_dy + dv_dx),
-               Sxz = 0.5*(du_dz + dw_dx);
-        PetscReal Syx = Sxy,
-               Syy = 0.5*(dv_dy + dv_dy),
-               Syz = 0.5*(dv_dz + dw_dy);
-        PetscReal Szx = Sxz,
-               Szy = Syz,
-               Szz = 0.5*(dw_dz + dw_dz);
+        PetscReal S[3][3] = {
+                                {0.5 * (du_dx + du_dx), 0.5 * (du_dy + dv_dx), 0.5 * (du_dz + dw_dx)},
+                                {0.5 * (dv_dx + du_dy), 0.5 * (dv_dy + dv_dy), 0.5 * (dv_dz + dw_dy)},
+                                {0.5 * (dw_dx + du_dz), 0.5 * (dw_dy + dv_dz), 0.5 * (dw_dz + dw_dz)}
+                            };
 
         // compute rate of strain tensor norm
-        PetscReal Sabs
-        =
-        sqrt
-        (
-            2.0*
-            (
-                Sxx*Sxx +
-                Sxy*Sxy +
-                Sxz*Sxz +
-                Syx*Syx +
-                Syy*Syy +
-                Syz*Syz +
-                Szx*Szx +
-                Szy*Szy +
-                Szz*Szz
-            )
-        );
+        PetscReal Sabs = sqrt(2.0 * (
+                                        S[0][0]*S[0][0] + S[0][1]*S[0][1] + S[0][2]*S[0][2] +
+                                        S[1][0]*S[1][0] + S[1][1]*S[1][1] + S[1][2]*S[1][2] +
+                                        S[2][0]*S[2][0] + S[2][1]*S[2][1] + S[2][2]*S[2][2]
+                                    ));
 
-        PetscReal filter;
+        if (les->access->flags->isLesActive == 7)
+        {
 
-        filter = pow( 1./aj[k][j][i], 1./3.);
+            // Compute volume
+            PetscReal V = 1.0 / aj[k][j][i];
+            
+            // Compute face areas
+            PetscReal A_x = nMag(zet[k][j][i]);
+            PetscReal A_y = nMag(csi[k][j][i]);
+            PetscReal A_z = nMag(eta[k][j][i]); 
+                                                    
 
-        lnu_t[k][j][i] = Cs[k][j][i] * pow ( filter, 2.0 ) * Sabs;
+            // Compute delta_x, delta_y, delta_z
+            PetscReal delta_x = V / A_x;
+            PetscReal delta_y = V / A_y;
+            PetscReal delta_z = V / A_z;
+
+            PetscReal invDelta2Sum =
+                    1.0 / (delta_x * delta_x)
+                + 1.0 / (delta_y * delta_y)
+                + 1.0 / (delta_z * delta_z);
+
+            PetscReal delta2_harm = 3.0 / invDelta2Sum; 
+            
+            PetscReal gradU[3][3] = 
+            {
+                {du_dx, dv_dx, dw_dx}, 
+                {du_dy, dv_dy, dw_dy}, 
+                {du_dz, dv_dz, dw_dz}  
+            };
+
+            PetscReal gradU_hat[3][3];
+            {
+                PetscReal deltaCell[3] = {delta_x, delta_y, delta_z};
+                for (PetscInt c = 0; c < 3; c++) 
+                {
+                    for (PetscInt a = 0; a < 3; a++) 
+                    {
+                        gradU_hat[c][a] = (deltaCell[c] / deltaCell[a]) * gradU[c][a];
+                    }
+                }
+            }
+
+            PetscReal S_hat[3][3];
+            for (PetscInt c = 0; c < 3; c++) 
+            {
+                for (PetscInt a = 0; a < 3; a++) 
+                {
+                    S_hat[c][a] = 0.5 * (gradU_hat[c][a] + gradU_hat[a][c]);
+                }
+            }
+
+            PetscReal num = 0.0, denom = 0.0;
+
+            for (PetscInt a = 0; a < 3; a++)
+            {
+                for (PetscInt b = 0; b < 3; b++) 
+                {
+                    for (PetscInt c = 0; c < 3; c++)
+                    {
+                        num += (-gradU_hat[c][a] * gradU_hat[c][b] * S_hat[a][b]);
+                    }
+                }
+            }
+
+            for (PetscInt a = 0; a < 3; a++)
+            {
+                for (PetscInt c = 0; c < 3; c++)
+                {
+                    denom += gradU_hat[c][a] * gradU_hat[c][a];
+                }
+            }
+
+            PetscReal nu_e = num / (denom + 1e-10);
+
+            nu_e = Cs[k][j][i] * delta2_harm * PetscMax(nu_e, 0.0);
+            
+            lnu_t[k][j][i] = nu_e;
+
+        }
+        else
+        {
+            PetscReal filter = pow( 1./aj[k][j][i], 1./3.);
+            lnu_t[k][j][i] = Cs[k][j][i] * pow(filter, 2.0) * Sabs;
+        }
 
     }
 
