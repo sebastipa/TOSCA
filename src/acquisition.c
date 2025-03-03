@@ -10336,15 +10336,16 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
 						}
 
-                        PetscReal tke   = 0.5 * (uprimeCell.x * uprimeCell.x + uprimeCell.y * uprimeCell.y + uprimeCell.z * uprimeCell.z);
-                        PetscReal nuEff = nu + nut[k][j][i];
+                        // PetscReal tke   = 0.5 * (uprimeCell.x * uprimeCell.x + uprimeCell.y * uprimeCell.y + uprimeCell.z * uprimeCell.z);
+                        PetscReal ksgs  = ksg[k][j][i];
+                        PetscReal nuEff = nut[k][j][i];
 
-                        lR[j-1].xx += (2.0/3.0 * tke - 2.0 * nuEff * du_dx) * volCell;
+                        lR[j-1].xx += (2.0/3.0 * ksgs - 2.0 * nuEff * du_dx) * volCell;
                         lR[j-1].xy += ( - nuEff * (dv_dx + du_dy)) * volCell;
                         lR[j-1].xz += ( - nuEff * (dw_dx + du_dz)) * volCell;
-                        lR[j-1].yy += (2.0/3.0 * tke - 2.0 * nuEff * dv_dy) * volCell;
+                        lR[j-1].yy += (2.0/3.0 * ksgs - 2.0 * nuEff * dv_dy) * volCell;
                         lR[j-1].yz += ( - nuEff * (dv_dz + dw_dy)) * volCell;
-                        lR[j-1].zz += (2.0/3.0 * tke - 2.0 * nuEff * dw_dz) * volCell;
+                        lR[j-1].zz += (2.0/3.0 * ksgs - 2.0 * nuEff * dw_dz) * volCell;
                     }
                 }
             }
