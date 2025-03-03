@@ -64,6 +64,8 @@ struct dataABL
     PetscReal *WMean;                         //!< mean z velocity at each level
     PetscReal *TMean;                         //!< mean temperature at each level
     PetscReal *nutMean;                       //!< mean turbulent viscosity at each level
+    PetscReal *ksgsMean;                      //!< mean subgrid scale kinetic energy at each level
+    PetscReal *diffTMean;                     //!< mean turbulent diffusivity at each level
     Vec       UPrime;                         //!< fluctuating velocity field
     Vec       TPrime;                         //!< fluctuating temperature field
 
