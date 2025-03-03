@@ -790,72 +790,138 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 src[j].z = 0.0;
                 
             }
-        
-        //to be performed after all values of src are set
-        // set the source terms outside the provided range of mesoscale data. this is set incorrectly above so corrected here
-        for(j=0; j<nlevels; j++)
-        {
-            if(abl->cellLevels[j] < abl->hV[0])
-            {
-                src[j].x = src[abl->lMesoIndV].x;
-                src[j].y = src[abl->lMesoIndV].y;
-                src[j].z = src[abl->lMesoIndV].z;
-            }
-            
-            if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
-            {
-                src[j].x = src[abl->hMesoIndV].x;
-                src[j].y = src[abl->hMesoIndV].y;
-                src[j].z = src[abl->hMesoIndV].z;
-            }
 
-            srcPA[j] = nSet(src[j]);
-
-            if(abl->averageSource && abl->controllerType=="directProfileAssimilation")
+            // set the source terms outside the provided range. this is set incorrectly above so corrected here
+            if(abl->flType == "ablHeight")
             {
-                if((abl->currAvgtime < abl->tAvgWindow) && (j == 0))
+                findABLHeight(abl);
+                PetscReal ablHeight = abl->ablHt;
+
+                if(ablHeight > abl->hV[abl->numhV - 1])
                 {
-                    abl->currAvgtime = abl->currAvgtime + clock->dt;
+                    char error[512];
+                    sprintf(error, "the abl height is greater than available mesoscale data height %lf. Use different lower layer\n", abl->hV[abl->numhV - 1]);
+                    fatalErrorInFunction("CorrectSourceTerm",  error); 
                 }
 
-                aN = (PetscReal)abl->currAvgtime;
-                m1 = aN  / (aN + clock->dt);
-                m2 = clock->dt / (aN + clock->dt);
+                //if abl height is below the lowest mesoscale data point
+                if(ablHeight < abl->hV[0])
+                {   
+                    i = 0;    
+                    while(abl->cellLevels[i] < abl->hV[0])
+                    {
+                        i++;
+                    }
 
-                abl->avgsrc[j].x = m1*abl->avgsrc[j].x + m2*srcPA[j].x;
-                abl->avgsrc[j].y = m1*abl->avgsrc[j].y + m2*srcPA[j].y;
-                abl->avgsrc[j].z = m1*abl->avgsrc[j].z + m2*srcPA[j].z;
+                    abl->lowestIndV = i;
+                    abl->bottomSrcHtV = abl->hV[0];
+                }
+                // if abl height is in between the mesoscale data points
+                else if(ablHeight >= abl->hV[0])
+                {
+                    i = 0;    
+
+                    while(abl->cellLevels[i] < ablHeight)
+                    {
+                        i++;
+                    }   
+
+                    abl->lowestIndV = i;
+                    abl->bottomSrcHtV = ablHeight;
+                }
             }
-        }
+
+            for(j=0; j<nlevels; j++)
+            {
+                if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                {
+                    src[j].x = src[abl->lowestIndV].x;
+                    src[j].y = src[abl->lowestIndV].y;
+                    src[j].z = src[abl->lowestIndV].z;
+                }
+                
+                if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
+                {
+                    src[j].x = src[abl->highestIndV].x;
+                    src[j].y = src[abl->highestIndV].y;
+                    src[j].z = src[abl->highestIndV].z;
+                }
+
+                srcPA[j] = nSet(src[j]);
+
+                if(abl->averageSource && abl->controllerType=="directProfileAssimilation")
+                {
+                    if((abl->currAvgtime < abl->tAvgWindow) && (j == 0))
+                    {
+                        abl->currAvgtime = abl->currAvgtime + clock->dt;
+                    }
+
+                    aN = (PetscReal)abl->currAvgtime;
+                    m1 = aN  / (aN + clock->dt);
+                    m2 = clock->dt / (aN + clock->dt);
+
+                    abl->avgsrc[j].x = m1*abl->avgsrc[j].x + m2*srcPA[j].x;
+                    abl->avgsrc[j].y = m1*abl->avgsrc[j].y + m2*srcPA[j].y;
+                    abl->avgsrc[j].z = m1*abl->avgsrc[j].z + m2*srcPA[j].z;
+                }
+            }
 
             if (abl->controllerType=="indirectProfileAssimilation")
             {
-                for (j=0; j<nlevels; j++) 
+                PetscInt    gLevels = abl->highestIndV - abl->lowestIndV + 1;
+
+                if(abl->flType == "ablHeight")
                 {
-                    PetscReal dotProductx = 0.0, dotProducty = 0.0, dotProductz = 0.0;
+                    computeLSqPolynomialCoefficientMatrix(abl);
 
-                    for (k = 0; k < nlevels; k++) 
+                    for (j=0; j<gLevels; j++) 
                     {
-                        dotProductx += abl->polyCoeffM[j][k] * src[k].x;
-                        dotProducty += abl->polyCoeffM[j][k] * src[k].y;
-                        dotProductz += abl->polyCoeffM[j][k] * src[k].z;
-                    }
+                        PetscReal dotProductx = 0.0, dotProducty = 0.0, dotProductz = 0.0;
 
-                    srcPA[j].x = dotProductx;
-                    srcPA[j].y = dotProducty;
-                    srcPA[j].z = dotProductz;
+                        for (k = 0; k < gLevels; k++) 
+                        {
+                            dotProductx += abl->polyCoeffM[j][k] * src[k+abl->lowestIndV].x;
+                            dotProducty += abl->polyCoeffM[j][k] * src[k+abl->lowestIndV].y;
+                            dotProductz += abl->polyCoeffM[j][k] * src[k+abl->lowestIndV].z;
+                        }
+
+                        srcPA[j+abl->lowestIndV].x = dotProductx;
+                        srcPA[j+abl->lowestIndV].y = dotProducty;
+                        srcPA[j+abl->lowestIndV].z = dotProductz;
+                    }
+                }
+                else 
+                {
+                    for (j=0; j<nlevels; j++) 
+                    {
+                        PetscReal dotProductx = 0.0, dotProducty = 0.0, dotProductz = 0.0;
+
+                        for (k = 0; k < nlevels; k++) 
+                        {
+                            dotProductx += abl->polyCoeffM[j][k] * src[k].x;
+                            dotProducty += abl->polyCoeffM[j][k] * src[k].y;
+                            dotProductz += abl->polyCoeffM[j][k] * src[k].z;
+                        }
+
+                        srcPA[j].x = dotProductx;
+                        srcPA[j].y = dotProducty;
+                        srcPA[j].z = dotProductz;
+                    }
                 }
 
                 for (j=0; j<nlevels; j++) 
-                {              
-                    if(abl->cellLevels[j] < abl->lowestSrcHt)
+                {            
+                    if(abl->flType == "constantHeight" || abl->flType == "ablHeight")
                     {
-                        srcPA[j].x = srcPA[abl->lowestIndV].x;
-                        srcPA[j].y = srcPA[abl->lowestIndV].y;
-                        srcPA[j].z = srcPA[abl->lowestIndV].z;
+                        if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                        {
+                            srcPA[j].x = srcPA[abl->lowestIndV].x;
+                            srcPA[j].y = srcPA[abl->lowestIndV].y;
+                            srcPA[j].z = srcPA[abl->lowestIndV].z;
+                        }
                     }
-                    
-                    if(abl->cellLevels[j] > abl->highestSrcHt)
+
+                    if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
                     {
                         srcPA[j].x = srcPA[abl->highestIndV].x;
                         srcPA[j].y = srcPA[abl->highestIndV].y;
@@ -1326,7 +1392,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                                 source[k][j][i].y = abl->avgsrc[j-1].y;
                                 source[k][j][i].z = 0.0;  
 
-                                if((abl->cellLevels[j] > abl->lowestSrcHt) && (abl->cellLevels[i] < abl->highestSrcHt))
+                                if((abl->cellLevels[j-1] > abl->bottomSrcHtV) && (abl->cellLevels[j-1] < abl->hV[abl->numhV - 1]))
                                 {
                                     lrelError += std::pow(abl->avgsrc[j-1].x*abl->avgsrc[j-1].x + abl->avgsrc[j-1].y*abl->avgsrc[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
                                     lcells ++;
@@ -1338,9 +1404,9 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                                 source[k][j][i].y = abl->srcPA[j-1].y;
                                 source[k][j][i].z = 0.0;
                                                                 
-                                if((abl->cellLevels[j] > abl->lowestSrcHt) && (abl->cellLevels[i] < abl->highestSrcHt))
+                                if((abl->cellLevels[j-1] > abl->bottomSrcHtV) && (abl->cellLevels[j-1] < abl->hV[abl->numhV - 1]))
                                 {
-                                    lrelError += std::pow(src[j-1].x*src[j-1].x + src[j-1].y*src[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
+                                    lrelError += std::pow(abl->srcPA[j-1].x*abl->srcPA[j-1].x + abl->srcPA[j-1].y*abl->srcPA[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
                                     lcells ++;
                                 } 
                             }

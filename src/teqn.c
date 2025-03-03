@@ -304,25 +304,25 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             // PetscPrintf(PETSC_COMM_WORLD, "tdes = %lf, gtmean = %lf, interpolated from time:%lf %lf, wts %lf %lf \n", abl->tDes[j], gtMean[j], abl->timeT[idx_1], abl->timeT[idx_2], w1, w2);
         }
 
-        // for(j=0; j<nLevels; j++)
-        // {
-        //     // if cellLevels is below the lowest mesoscale data point use the source at the last available height
-        //     if(abl->cellLevels[j] < abl->lowestSrcHt)
-        //     {
-        //         abl->tDes[j] = abl->tDes[abl->lowestIndT];
-        //         gtMean[j] = gtMean[abl->lowestIndT];
-        //         tD[j]     = tD[abl->lowestIndT];
-        //         tM[j]     = tM[abl->lowestIndT];
-        //     }
+        for(j=0; j<nLevels; j++)
+        {
+            // if cellLevels is below the lowest mesoscale data point use the source at the last available height
+            if(abl->cellLevels[j] < abl->bottomSrcHtT)
+            {
+                abl->tDes[j] = abl->tDes[abl->lowestIndT];
+                gtMean[j] = gtMean[abl->lowestIndT];
+                tD[j]     = tD[abl->lowestIndT];
+                tM[j]     = tM[abl->lowestIndT];
+            }
 
-        //     if(abl->cellLevels[i] > abl->hT[abl->numhT - 1])
-        //     {
-        //         abl->tDes[j] = abl->tDes[abl->highestIndT];
-        //         gtMean[j] = gtMean[abl->highestIndT];
-        //         tD[j]     = tD[abl->highestIndT];
-        //         tM[j]     = tM[abl->highestIndT];
-        //     }
-        // }
+            if(abl->cellLevels[j] > abl->hT[abl->numhT - 1])
+            {
+                abl->tDes[j] = abl->tDes[abl->highestIndT];
+                gtMean[j] = gtMean[abl->highestIndT];
+                tD[j]     = tD[abl->highestIndT];
+                tM[j]     = tM[abl->highestIndT];
+            }
+        }
 
         if((abl->controllerTypeT == "indirectProfileAssimilation"))
         {
@@ -333,20 +333,33 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
                 for (PetscInt kCtr = 0; kCtr < nLevels; kCtr++) 
                 {
-                    dotProduct1 += abl->polyCoeffM[iCtr][kCtr] * tD[kCtr];
-                    dotProduct2 += abl->polyCoeffM[iCtr][kCtr] * tM[kCtr];
+                    dotProduct1 += abl->polyCoeffT[iCtr][kCtr] * tD[kCtr];
+                    dotProduct2 += abl->polyCoeffT[iCtr][kCtr] * tM[kCtr];
                 }
                 abl->tDes[iCtr] = dotProduct1;
                 gtMean[iCtr]    = dotProduct2;
-            }   
+            }  
+
+            if(abl->flTypeT == "constantHeight")
+            {
+                for(j=0; j<nLevels; j++)    
+                {
+                    if(abl->cellLevels[j] < abl->bottomSrcHtT)
+                    {
+                        abl->tDes[j] = abl->tDes[abl->lowestIndT];
+                        gtMean[j] = gtMean[abl->lowestIndT];
+                    }
+                }
+            }
 
             for(j=0; j<nLevels; j++)    
             {
-                if(abl->cellLevels[j] < abl->lowestSrcHt)
+                if(abl->cellLevels[j] > abl->hT[abl->numhT - 1])
                 {
-                    abl->tDes[j] = abl->tDes[abl->lowestIndT];
-                    gtMean[j] = gtMean[abl->lowestIndT];
+                    abl->tDes[j] = abl->tDes[abl->highestIndT];
+                    gtMean[j] = gtMean[abl->highestIndT];
                 }
+            }
 
         }
 

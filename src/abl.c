@@ -373,8 +373,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
                 readSubDictInt   ("ABLProperties.dat", "controllerProperties", "avgSources",       &(abl->averageSource));
-                readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",  &(abl->lowestSrcHt));
-                readSubDictDouble("ABLProperties.dat", "controllerProperties", "highestSrcHeight", &(abl->highestSrcHt));
+                readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingType",   &(abl->flType));
 
                 PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
 
@@ -808,8 +807,25 @@ PetscErrorCode InitializeABL(abl_ *abl)
         {  
             // read proportional controller relaxation factor (same as the velocity one)
             readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
-            readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",    &(abl->lowestSrcHt));
-            readSubDictDouble("ABLProperties.dat", "controllerProperties", "highestSrcHeight",   &(abl->highestSrcHt));
+            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingTypeT",   &(abl->flTypeT));
+
+            PetscPrintf(mesh->MESH_COMM, "   controller type temperature: %s\n", abl->controllerType.c_str());
+
+            if(abl->flTypeT == "constantHeight")
+            {
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",  &(abl->lowestSrcHt));
+            }
+            else if(abl->flTypeT == "mesoDataHeight")
+            {
+
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "unknown lower layer mesoscale forcing type, available types are:\n        1 : constantHeight\n      2 : mesoDataHeight\n");
+                fatalErrorInFunction("ABLInitialize",  error);  
+            } 
+
             readMesoScaleTemperatureData(abl);
 
             findTemperatureInterpolationWeights(abl);
@@ -2348,89 +2364,34 @@ PetscErrorCode findVelocityInterpolationWeights(abl_ *abl)
         abl->velInterpIdx[i][1] = idx2;
     }
 
-    // find the lowest and highest cell levels for which data is available
-    PetscInt lowestInd = 0, highestInd = nlevels-1;
-
-    if(abl->lowestSrcHt < hVel[0])
+    if(abl->flType == "ablHeight" || abl->flType == "mesoDataHeight")
     {
-        char error[512];
-        sprintf(error, "the lowest interpolation height %lf is less than available mesoscale data height %lf\n", abl->lowestSrcHt, hVel[0]);
-        fatalErrorInFunction("findVelocityInterpolationWeights",  error);
+        abl->bottomSrcHtV = hVel[0];
+    }
+    else if(abl->flType == "constantHeight")
+    {
+        if(abl->lowestSrcHt < hVel[0])
+        {
+            char error[512];
+            sprintf(error, "the lowest interpolation height %lf is less than available mesoscale data height %lf\n", abl->lowestSrcHt, hVel[0]);
+            fatalErrorInFunction("findVelocityInterpolationWeights",  error); 
+        }
+        abl->bottomSrcHtV = abl->lowestSrcHt;
     }
 
-    if(abl->highestSrcHt > hVel[abl->numhV - 1])
+    i = 0;    
+    while(cellLevels[i] < abl->bottomSrcHtV)
     {
-        char error[512];
-        sprintf(error, "the highest interpolation height %lf is greater than available mesoscale data height %lf\n", abl->highestSrcHt, hVel[abl->numhV - 1]);
-        fatalErrorInFunction("findVelocityInterpolationWeights",  error);
-    }
-
-    i = lowestInd;
-    while(cellLevels[i] < abl->lowestSrcHt)
-    {
-        lowestInd = i;
         i++;
     }
-    lowestInd = i;
+    abl->lowestIndV = i;
 
-    i = highestInd;
-    while(cellLevels[i] > abl->highestSrcHt)
-    {
-        highestInd = i;
-        i--;
-    }
-    highestInd = i;
-
-    // lowest and highest index based on the user input, below and above this, the source term is kept constant
-    abl->lowestIndV = lowestInd;
-    abl->highestIndV = highestInd;
-
-    lowestInd = 0, highestInd = nlevels-1;
-
-    i = lowestInd;
-    while(cellLevels[i] < hVel[0])
-    {
-        lowestInd = i;
-        i++;
-    }
-    lowestInd = i;
-
-    i = highestInd;
+    i = nlevels-1;    
     while(cellLevels[i] > hVel[abl->numhV - 1])
     {
-        highestInd = i;
         i--;
     }
-    highestInd = i;
-
-    //lowest and highest index based on the mesoscale input data
-    abl->lMesoIndV = lowestInd;
-    abl->hMesoIndV = highestInd;
-
-    // for cellLevels outside the bounds of hVel, set the weights based on the lowest and highest available levels
-    for(i=0; i<nlevels; i++)
-    {
-        if(cellLevels[i] < hVel[0])
-        {
-            abl->velInterpWts[i][0] = abl->velInterpWts[abl->lMesoIndV][0];
-            abl->velInterpWts[i][1] = abl->velInterpWts[abl->lMesoIndV][1];
-
-            abl->velInterpIdx[i][0] = abl->velInterpIdx[abl->lMesoIndV][0];
-            abl->velInterpIdx[i][1] = abl->velInterpIdx[abl->lMesoIndV][1];
-        }
-
-        if(cellLevels[i] > hVel[abl->numhV - 1])
-        {
-            abl->velInterpWts[i][0] = abl->velInterpWts[abl->hMesoIndV][0];
-            abl->velInterpWts[i][1] = abl->velInterpWts[abl->hMesoIndV][1];
-
-            abl->velInterpIdx[i][0] = abl->velInterpIdx[abl->hMesoIndV][0];
-            abl->velInterpIdx[i][1] = abl->velInterpIdx[abl->hMesoIndV][1];
-        }
-
-        // PetscPrintf(PETSC_COMM_WORLD, "cell %ld, height = %lf, interp ids = %ld, %ld, wts = %lf %lf\n", i, cellLevels[i], abl->velInterpIdx[i][0], abl->velInterpIdx[i][1], abl->velInterpWts[i][0], abl->velInterpWts[i][1]);
-
-    }
+    abl->highestIndV = i;
 
     // find the initial time assimilation index and weights
     PetscReal tim = clock->startTime;
@@ -2558,68 +2519,34 @@ PetscErrorCode findTemperatureInterpolationWeights(abl_ *abl)
         abl->tempInterpIdx[i][1] = idx2;
     }
 
-    // find the lowest and highest cell levels for which data is available
-    PetscInt lowestInd = 0, highestInd = nlevels-1;
-
-    if(abl->lowestSrcHt < hT[0])
+    if(abl->flTypeT == "mesoDataHeight")
     {
-        char error[512];
-        sprintf(error, "the lowest interpolation height %lf is less than available mesoscale temperature data height %lf\n", abl->lowestSrcHt, hT[0]);
-        fatalErrorInFunction("findTemperatureInterpolationWeights",  error);
+        abl->bottomSrcHtT = hT[0];
+    }
+    else if(abl->flTypeT == "constantHeight")
+    {
+        if(abl->lowestSrcHt < hT[0])
+        {
+            char error[512];
+            sprintf(error, "the lowest interpolation height %lf is less than available mesoscale data height %lf\n", abl->lowestSrcHt, abl->hV[0]);
+            fatalErrorInFunction("findTemperatureInterpolationWeights",  error); 
+        }
+        abl->bottomSrcHtT = abl->lowestSrcHt;
     }
 
-    if(abl->highestSrcHt > hT[abl->numhT - 1])
+    i = 0;    
+    while(cellLevels[i] < abl->bottomSrcHtT)
     {
-        char error[512];
-        sprintf(error, "the highest interpolation height %lf is greater than available mesoscale data height %lf\n", abl->highestSrcHt, hT[abl->numhT - 1]);
-        fatalErrorInFunction("findTemperatureInterpolationWeights",  error);
-    }
-
-    i = lowestInd;
-    while(cellLevels[i] < abl->lowestSrcHt)
-    {
-        lowestInd = i;
         i++;
     }
-    lowestInd = i;
+    abl->lowestIndT = i;
 
-    i = highestInd;
+    i = nlevels-1;    
     while(cellLevels[i] > hT[abl->numhT - 1])
     {
-        highestInd = i;
         i--;
     }
-    highestInd = i;
-
-    abl->lowestIndT = lowestInd;
-    abl->highestIndT = highestInd;
-
-    // for cellLevels outside the bounds of abl->lowestSrcHt, set the weights based on the lowest available levels
-    // for cellLevels outside the bounds of abl top meso temp data, set the weights based on the highest available levels
-
-    // for(i=0; i<nlevels; i++)
-    // {
-    //     if(cellLevels[i] < abl->lowestSrcHt)
-    //     {
-    //         abl->tempInterpWts[i][0] = abl->tempInterpWts[lowestInd][0];
-    //         abl->tempInterpWts[i][1] = abl->tempInterpWts[lowestInd][1];
-
-    //         abl->tempInterpIdx[i][0] = abl->tempInterpIdx[lowestInd][0];
-    //         abl->tempInterpIdx[i][1] = abl->tempInterpIdx[lowestInd][1];
-    //     }
-
-    //     if(cellLevels[i] > hT[abl->numhT - 1])
-    //     {
-    //         abl->tempInterpWts[i][0] = abl->tempInterpWts[highestInd][0];
-    //         abl->tempInterpWts[i][1] = abl->tempInterpWts[highestInd][1];
-
-    //         abl->tempInterpIdx[i][0] = abl->tempInterpIdx[highestInd][0];
-    //         abl->tempInterpIdx[i][1] = abl->tempInterpIdx[highestInd][1];
-    //     }
-
-    //     // PetscPrintf(PETSC_COMM_WORLD, "cell %ld, height = %lf, interp ids = %ld, %ld, wts = %lf %lf\n", i, cellLevels[i], abl->tempInterpIdx[i][0], abl->tempInterpIdx[i][1], abl->tempInterpWts[i][0], abl->tempInterpWts[i][1]);
-
-    // }
+    abl->highestIndT = i;
 
     //find initial time assimilation index and weights
     PetscReal tim = clock->startTime;
