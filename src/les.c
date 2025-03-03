@@ -22,7 +22,6 @@ PetscErrorCode InitializeLES(les_ *les)
     // 6. dynamic smagorinsky scale dependent with plane averaging (PASD)
     // 7. Anisotropic minimum dissipation model (AMD)
 
-
     if(les != NULL)
     {
         // set pointer to mesh
@@ -39,6 +38,7 @@ PetscErrorCode InitializeLES(les_ *les)
         {
             VecDuplicate(mesh->lAj, &(les->lCs));     VecSet(les->lCs,0.);
             VecDuplicate(mesh->lAj, &(les->lNu_t));   VecSet(les->lNu_t,0.);
+            VecDuplicate(mesh->lAj, &(les->lKsgs));   VecSet(les->lKsgs,0.);
 
             if (les->access->flags->isLesActive > 1)
             {
@@ -2029,7 +2029,7 @@ PetscErrorCode UpdateNut(les_ *les)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***Cs, ***lnu_t, ***nvert, ***aj, ***ustar;
+    PetscReal     ***Cs, ***lnu_t, ***nvert, ***aj, ***ustar, ***ksg;
     Cmpnts        ***csi, ***eta, ***zet, ***ucat;
 
     PetscReal     ajc;
@@ -2046,6 +2046,7 @@ PetscErrorCode UpdateNut(les_ *les)
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
     VecSet(les->lNu_t, 0.);
+    VecSet(les->lKsgs, 0.);
 
     DMDAVecGetArray(fda, eqn->lUcat,  &ucat);
     DMDAVecGetArray(da,  eqn->lUstar, &ustar);
@@ -2057,6 +2058,8 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecGetArray(da,  mesh->lAj, &aj);
 
     DMDAVecGetArray(da,  les->lNu_t, &lnu_t);
+    DMDAVecGetArray(da,  les->lKsgs, &ksg);
+
     DMDAVecGetArray(da,  les->lCs, &Cs);
 
 
@@ -2067,6 +2070,7 @@ PetscErrorCode UpdateNut(les_ *les)
         if(isIBMSolidCell(k, j, i, nvert))
         {
             lnu_t[k][j][i]=0;
+            ksg[k][j][i]=0;
             continue;
         }
 
@@ -2138,7 +2142,7 @@ PetscErrorCode UpdateNut(les_ *les)
             PetscReal delta_z = V / A_z;
 
             PetscReal invDelta2Sum =
-                    1.0 / (delta_x * delta_x)
+                  1.0 / (delta_x * delta_x)
                 + 1.0 / (delta_y * delta_y)
                 + 1.0 / (delta_z * delta_z);
 
@@ -2206,6 +2210,19 @@ PetscErrorCode UpdateNut(les_ *les)
             lnu_t[k][j][i] = Cs[k][j][i] * pow(filter, 2.0) * Sabs;
         }
 
+        //compute the subgrid scale kinetic energy 
+        PetscReal a,b,c;
+        PetscReal Ce = 1.08;
+        PetscReal Ck = PetscPowReal((PetscPowReal(Cs[k][j][i], 2.0) * Ce), 1.0/3.0);
+        PetscReal filter = pow( 1./aj[k][j][i], 1./3.);
+
+        a = Ce/filter;
+        b = 2.0/3.0 * (S[0][0] + S[1][1] + S[2][2]);
+        c = 2 * Ck * filter * (S[0][0]*S[0][0] + S[0][1]*S[0][1] + S[0][2]*S[0][2] + 
+                                        S[1][0]*S[1][0] + S[1][1]*S[1][1] + S[1][2]*S[1][2] +
+                                        S[2][0]*S[2][0] + S[2][1]*S[2][1] + S[2][2]*S[2][2]);
+
+        ksg[k][j][i] = pow((-b + sqrt(b*b + 4.0*a*c))/(2*a), 2.0);
     }
 
     DMDAVecRestoreArray(fda, eqn->lUcat,  &ucat);
@@ -2218,6 +2235,7 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecRestoreArray(da,  mesh->lAj, &aj);
 
     DMDAVecRestoreArray(da,  les->lNu_t, &lnu_t);
+    DMDAVecRestoreArray(da,  les->lKsgs, &ksg);
     DMDAVecRestoreArray(da,  les->lCs, &Cs);
 
     DMLocalToLocalBegin(da,  les->lNu_t, INSERT_VALUES, les->lNu_t);
