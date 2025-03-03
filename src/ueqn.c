@@ -738,6 +738,19 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 idx_1 = idx_tmp;
             }
 
+            // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+            if(abl->timeV[idx_2] < clock->time)
+            {
+                idx_1 = idx_2;
+                idx_2 = idx_1 + 1;
+            }
+
+            if(abl->timeV[idx_1] > clock->time)
+            {
+                idx_2 = idx_1;
+                idx_1 = idx_2 - 1;
+            }
+
             // find interpolation weights
             PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
             PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
@@ -848,6 +861,125 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                         srcPA[j].y = srcPA[abl->highestIndV].y;
                         srcPA[j].z = srcPA[abl->highestIndV].z;
                     }
+
+                    if(abl->averageSource)
+                    {
+                        if((abl->currAvgtime < abl->tAvgWindow) && (j == 0))
+                        {
+                            abl->currAvgtime = abl->currAvgtime + clock->dt;
+                        }
+
+                        aN = (PetscReal)abl->currAvgtime;
+                        m1 = aN  / (aN + clock->dt);
+                        m2 = clock->dt / (aN + clock->dt);
+
+                        abl->avgsrc[j].x = m1*abl->avgsrc[j].x + m2*srcPA[j].x;
+                        abl->avgsrc[j].y = m1*abl->avgsrc[j].y + m2*srcPA[j].y;
+                        abl->avgsrc[j].z = m1*abl->avgsrc[j].z + m2*srcPA[j].z;
+                        
+                    }
+
+                    // PetscPrintf(PETSC_COMM_WORLD, "src[%ld] = %lf %lf %lf, avgsrc[%ld] = %lf %lf %lf\n", j, srcPA[j].x, srcPA[j].y, srcPA[j].z);
+                }
+
+                if(abl->flType == "ablHeight")
+                {
+                    //deallocate polyCoeff matrix
+                    for(j=0; j<gLevels; j++)
+                    {
+                        free(abl->polyCoeffM[j]);
+                    }
+
+                    free(abl->polyCoeffM);
+                }
+            }
+
+            if (abl->controllerType=="waveletProfileAssimilation")
+            {
+                findABLHeight(abl);
+                
+                if(abl->waveletBlend)
+                {
+                    if(abl->heatFluxSwitch > 0.02)
+                    {
+                        Cmpnts *srcAbove, *srcBelow;                                                                                                                
+                        PetscMalloc(sizeof(Cmpnts) * (nlevels), &(srcAbove));
+                        PetscMalloc(sizeof(Cmpnts) * (nlevels), &(srcBelow));
+    
+                        #if USE_PYTHON
+                            pywavedecVector(abl, src, srcBelow, nlevels);
+                        #endif
+        
+                        PetscInt waveLevel = abl->waveLevel;
+                        
+                        //hardcoded for now
+                        abl->waveLevel = abl->waveLevel - 4;
+                        if(abl->waveLevel <= 0) abl->waveLevel = 1;
+        
+                        #if USE_PYTHON
+                            pywavedecVector(abl, src, srcAbove, nlevels);
+                        #endif
+        
+                        abl->waveLevel = waveLevel;
+    
+                        // blend between the below and above profiles based on the abl height
+                        PetscReal ablHeight = abl->ablHt, scaleFactor;
+                        PetscReal ablgeoDelta = 300;
+                        PetscReal ablgeoDampTop = ablHeight + 500 + 0.5*ablgeoDelta;
+        
+                        for(j=0; j<nlevels; j++)
+                        {
+                            scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
+        
+                            srcPA[j].x = (1-scaleFactor)*srcBelow[j].x + scaleFactor*srcAbove[j].x;
+                            srcPA[j].y = (1-scaleFactor)*srcBelow[j].y + scaleFactor*srcAbove[j].y;
+                            srcPA[j].z = (1-scaleFactor)*srcBelow[j].z + scaleFactor*srcAbove[j].z;
+                            // PetscPrintf(PETSC_COMM_WORLD, "%lf %lf %lf %lf\n", src[j].x, srcBelow[j].x, srcAbove[j].x, srcPA[j].x);
+        
+                        }
+        
+                        PetscFree(srcAbove);
+                        PetscFree(srcBelow);
+                    }
+                    else
+                    {
+                        // PetscInt waveLevel = abl->waveLevel;
+                        // abl->waveLevel = abl->waveLevel - 2;
+                        // if(abl->waveLevel <= 0) abl->waveLevel = 1;
+    
+                        #if USE_PYTHON
+                        pywavedecVector(abl, src, srcPA, nlevels);
+                        #endif 
+                        // abl->waveLevel = waveLevel;
+                    }
+                }
+                else
+                {
+                    #if USE_PYTHON
+                    pywavedecVector(abl, src, srcPA, nlevels);
+                    #endif 
+                } 
+
+                
+                for (j=0; j<nlevels; j++) 
+                {             
+                    if(abl->flType == "constantHeight" || abl->flType == "ablHeight")
+                    {
+                        if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                        {
+                            srcPA[j].x = srcPA[abl->lowestIndV].x;
+                            srcPA[j].y = srcPA[abl->lowestIndV].y;
+                            srcPA[j].z = srcPA[abl->lowestIndV].z;
+                        }
+                    
+                    }
+
+                    if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
+                    {
+                        srcPA[j].x = srcPA[abl->highestIndV].x;
+                        srcPA[j].y = srcPA[abl->highestIndV].y;
+                        srcPA[j].z = srcPA[abl->highestIndV].z;
+                    } 
 
                     if(abl->averageSource)
                     {
@@ -1244,7 +1376,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     MPI_Allreduce(&lrelError, &grelError, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lcells, &gcells, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
 
-    if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+    if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation") )
     {
         if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: global avg error on velocity = %.5f percent\n", grelError*100/gcells);
     }
@@ -1276,7 +1408,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
     if(abl->controllerAction == "write")
     {
-        if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+        if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
         {
             free(src);
         }

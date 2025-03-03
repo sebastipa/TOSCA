@@ -7,6 +7,13 @@
 #include "include/inline.h"
 #include "include/inflow.h"
 
+#if USE_PYTHON
+    #include <pybind11/embed.h>
+    #include <pybind11/stl.h>
+    namespace py = pybind11;
+    static py::scoped_interpreter guard{};
+#endif
+
 //***************************************************************************************************************//
 
 PetscErrorCode InitializeABL(abl_ *abl)
@@ -359,7 +366,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     abl->uTau = geoWindMag * abl->vkConst / std::log(abl->hInv / abl->hRough);
                 }
             }
-            else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+            else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
             {
                 // read PI controller properties
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
@@ -374,12 +381,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 // allocate memory for the cumulated sources at all mesh heights
                 PetscMalloc(sizeof(Cmpnts) * nLevels, &(abl->cumulatedSourceHt));
 
-                PetscMalloc(sizeof(Cmpnts) * nLevels, &(abl->avgVel));
-
                 for(PetscInt i = 0; i < nLevels; i++)
                 {
                     abl->cumulatedSourceHt[i] = nSetZero();
-                    abl->avgVel[i] = nSetZero();
                 }
 
                 readMesoScaleVelocityData(abl);
@@ -420,7 +424,32 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrder",   &(abl->polyOrder));
 
                     //precompute the polynomial coefficient matrix using least square regression method.
-                    computeLSqPolynomialCoefficientMatrix(abl);
+                    if(abl->flType == "ablHeight")
+                        computeLSqPolynomialCoefficientMatrix(abl); 
+                    else
+                        computeLSqPolynomialCoefficientMatrixFullDomain(abl);
+
+                }
+
+                if(abl->controllerType=="waveletProfileAssimilation")
+                {
+                    #if USE_PYTHON
+
+                    #else
+                        char error[512];
+                        sprintf(error, "Wavelet profile assimilation requires python modules enabled. Set USE_PYTHON flag to 1 in makefile\n");
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    #endif
+
+                    readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletName", &(abl->waveName));
+                    readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletTMethod", &(abl->waveTMethod));
+                    readSubDictInt   ("ABLProperties.dat", "controllerProperties", "waveletDecompLevel", &(abl->waveLevel));
+                    readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletExtn", &(abl->waveExtn));
+                    readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletConvolution", &(abl->waveConv));
+                    readSubDictInt   ("ABLProperties.dat", "controllerProperties", "waveletBlend", &(abl->waveletBlend));
+
+                    PetscPrintf(PETSC_COMM_WORLD, "   wavelet profile assimilation using %s with wavelet filtering : %s and %ld levels of decomposition\n", abl->waveTMethod.c_str(), abl->waveName.c_str(), abl->waveLevel);
+
                 }
             }
             else
@@ -775,8 +804,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         readDictWord     ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
 
-        if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation")
-        {
+        if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation" || abl->controllerTypeT=="waveletProfileAssimilation")
+        {  
             // read proportional controller relaxation factor (same as the velocity one)
             readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
             readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",    &(abl->lowestSrcHt));
@@ -788,13 +817,32 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         if(abl->controllerTypeT=="indirectProfileAssimilation")
         {
-            readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrder",   &(abl->polyOrder));
+            readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrderT",   &(abl->polyOrderT));
 
             //precompute the polynomial coefficient matrix using least square regression method.
-            if(abl->controllerType !="indirectProfileAssimilation")
-            {
-                computeLSqPolynomialCoefficientMatrix(abl);
-            }
+            if(abl->flType == "ablHeight")
+                computeLSqPolynomialCoefficientMatrixT(abl); 
+            else
+                computeLSqPolynomialCoefficientMatrixTFullDomain(abl); 
+        }
+
+        if(abl->controllerTypeT=="waveletProfileAssimilation")
+        {
+            #if USE_PYTHON
+            #else
+                char error[512];
+                sprintf(error, "Wavelet profile assimilation requires python modules enabled. Set USE_PYTHON flag to 1 in makefile\n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            #endif
+
+            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletName", &(abl->waveName));
+            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletTMethod", &(abl->waveTMethod));
+            readSubDictInt   ("ABLProperties.dat", "controllerProperties", "waveletDecompLevel", &(abl->waveLevel));
+            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletExtn", &(abl->waveExtn));
+            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletConvolution", &(abl->waveConv));
+            readSubDictInt   ("ABLProperties.dat", "controllerProperties", "waveletBlend", &(abl->waveletBlend));
+
+            PetscPrintf(PETSC_COMM_WORLD, "   wavelet profile assimilation using %s with wavelet filtering : %s and %ld levels of decomposition\n", abl->waveTMethod.c_str(), abl->waveName.c_str(), abl->waveLevel);
         }
     }
 
@@ -1842,10 +1890,10 @@ PetscErrorCode readMesoScaleVelocityData(abl_ *abl)
                 //delete temp array
                 for(PetscInt j=0; j<dim1; j++)
                 {
-                    free(tempArray[j]);
+                    PetscFree(tempArray[j]);
                 }
 
-                free(tempArray);
+                PetscFree(tempArray); 
             }
 
             if(fileList[i] == "vVel")
@@ -1892,10 +1940,10 @@ PetscErrorCode readMesoScaleVelocityData(abl_ *abl)
                 //delete temp array
                 for(PetscInt j=0; j<dim1; j++)
                 {
-                    free(tempArray[j]);
+                    PetscFree(tempArray[j]);
                 }
 
-                free(tempArray);
+                PetscFree(tempArray); 
             }
 
             indata.close();
@@ -2083,10 +2131,10 @@ PetscErrorCode readMesoScaleTemperatureData(abl_ *abl)
                 //delete temp array
                 for(PetscInt j=0; j<dim1; j++)
                 {
-                    free(tempArray[j]);
+                    PetscFree(tempArray[j]);
                 }
 
-                free(tempArray);
+                PetscFree(tempArray); 
             }
 
             indata.close();

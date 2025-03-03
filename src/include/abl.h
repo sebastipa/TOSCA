@@ -221,6 +221,31 @@ struct abl_
     Cmpnts       *avgsrc;
     Cmpnts       *avgVel;
 
+    word         flType;
+    word         flTypeT;
+    PetscReal    *avgTotalStress;
+    PetscReal    *avgHeatFlux;
+    PetscReal    hAvgTime;
+    PetscReal    bottomSrcHtV;
+    PetscReal    bottomSrcHtT;
+
+    PetscReal    ablHt;
+    PetscReal    ablHtStartTime;
+    PetscReal    heatFluxSwitch;
+    
+    //continuous wavelet transform parameters 
+    PetscInt     kernelRadius;
+    PetscReal    sigma;  
+    PetscReal    omega;
+
+    //discrete wavelet transform parameters 
+    word        waveName;
+    word        waveTMethod;
+    word        waveExtn;
+    word        waveConv;
+    PetscInt    waveLevel;
+    PetscInt    waveBlend;
+
     // concurrent precursor
     precursor_    *precursor;                    //!< concurrent precursor data structure
 
@@ -253,3 +278,19 @@ PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl);
 
 PetscErrorCode findTimeHeightSeriesInterpolationWts(abl_ *abl);
 
+PetscErrorCode findABLHeight(abl_ *abl);
+
+PetscErrorCode waveletTransformContinuousVector(abl_ *abl, Cmpnts *srcPAIn, Cmpnts *srcPAOut, PetscInt sigLength);
+
+PetscErrorCode waveletTransformContinuousScalar(abl_ *abl, PetscReal *srcPAIn, PetscReal *srcPAOut, PetscInt sigLength);
+
+#if USE_PYTHON
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+        PetscErrorCode pywavedecVector(abl_ *abl, Cmpnts *src, Cmpnts *dest, PetscInt nlevels);
+        PetscErrorCode pywavedecScalar(abl_ *abl, PetscReal *srcPAIn, PetscReal *srcPAOut, PetscInt sigLength);
+    #ifdef __cplusplus
+    }
+    #endif
+#endif
