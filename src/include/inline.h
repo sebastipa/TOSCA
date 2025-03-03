@@ -116,6 +116,39 @@ inline void matVecProduct(PetscReal **A, PetscReal *b, PetscReal *c, PetscInt nu
 }
 
 //=============================================================================================================
+
+inline void gaussianSmooth1D(PetscReal *input, PetscReal *output, PetscInt n, PetscInt window)
+{
+    PetscReal weights[window];
+    PetscReal sigma = window/3.0;
+    PetscReal sum = 0;
+    
+    // Create Gaussian kernel
+    for(PetscInt i=0; i<window; i++) 
+    {
+        weights[i] = exp(-0.5*pow((i-window/2)/sigma, 2));
+        sum += weights[i];
+    }
+
+    //normalize
+    for(PetscInt i=0; i<window; i++) weights[i] /= sum;
+    
+    // Apply convolution
+    for(PetscInt i=0; i<n; i++) 
+    {
+        output[i] = 0;
+        for(PetscInt j=-window/2; j<=window/2; j++) 
+        {
+            PetscInt idx = i + j;
+            if(idx < 0) idx = 0;
+            if(idx >= n) idx = n-1;
+            output[i] += input[idx] * weights[j + window/2];
+        }
+    }   
+    return;
+}
+
+//=============================================================================================================
 //check for duplicates in an integer array
 inline PetscInt isPresent(PetscInt arr[], PetscInt n, PetscInt elem)
 {
@@ -948,6 +981,59 @@ inline bool isInsideBoundingBox ( Cmpnts pt, const boundingBox &simBox)
        &&   pt.z > simBox.zmin
        &&   pt.z < simBox.zmax ) ;
 
+}
+
+// FIELD AVERAGES 
+// ============================================================================================================= //
+
+inline std::vector<PetscReal> jPlaneScalarMean(mesh_  *mesh, PetscReal ***s, PetscInt nLevels)
+{
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    PetscInt      i, j, k;
+    PetscReal     ***aj;
+
+    std::vector<PetscReal> lMean(nLevels, 0.0);
+    std::vector<PetscReal> gMean(nLevels, 0.0);
+    std::vector<PetscReal> lVol(nLevels, 0.0);
+    std::vector<PetscReal> gVol(nLevels, 0.0);
+
+    DMDAVecGetArray(da,  mesh->lAj, &aj);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                lMean[j-1] += s[k][j][i] / aj[k][j][i];
+                lVol[j-1]  += 1.0 / aj[k][j][i];
+            }
+        }
+    }
+
+    MPI_Allreduce(&lMean[0], &gMean[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lVol[0], &gVol[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    for(j=0; j<nLevels; j++)
+    {
+        gMean[j] = gMean[j]/gVol[j];
+    }
+    
+    DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+
+    return gMean;
 }
 
 // MESH OPERATIONS
@@ -4379,6 +4465,19 @@ inline void findInterpolationWeights(PetscReal *weights, PetscInt *labels, Petsc
         PetscInt idx_tmp = idx_2;
         idx_2 = idx_1;
         idx_1 = idx_tmp;
+    }
+
+    // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+    if(pvec[idx_2] < pval)
+    {
+        idx_1 = idx_2;
+        idx_2 = idx_1 + 1;
+    }
+
+    if(pvec[idx_1] > pval)
+    {
+        idx_2 = idx_1;
+        idx_1 = idx_2 - 1;
     }
 
     // store the labels

@@ -1808,17 +1808,13 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
                     readSubDictInt   ("ABLProperties.dat", "controllerProperties", "avgSources",       &(abl->averageSource));
                     readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",  &(abl->lowestSrcHt));
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "highestSrcHeight", &(abl->highestSrcHt));
 
                     // allocate memory for the cumulated sources and average velocity at all mesh heights 
                     PetscMalloc(sizeof(Cmpnts) * nLevels, &(abl->cumulatedSourceHt));
 
-                    PetscMalloc(sizeof(Cmpnts) * nLevels, &(abl->avgVel));
-
                     for(PetscInt i = 0; i < nLevels; i++)
                     {
                         abl->cumulatedSourceHt[i] = nSetZero();
-                        abl->avgVel[i] = nSetZero();
                     }
 
                     PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
@@ -2214,7 +2210,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
                 if(abl->controllerTypeT=="indirectProfileAssimilation")
                 {
-                    readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrder",   &(abl->polyOrder));
+                    readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrderT",   &(abl->polyOrderT));
 
                     //precompute the polynomial coefficient matrix using least square regression method.
                     if(abl->controllerType !="indirectProfileAssimilation")

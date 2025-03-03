@@ -160,6 +160,9 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn);
 //! \brief Update effective viscosity boundary conditions
 PetscErrorCode UpdateNutBCs(les_ *les);
 
+//! \brief Update effective diffusivity boundary conditions
+PetscErrorCode UpdateDiffBCs(les_ *les);
+
 //! \brief Update pressure boundary conditions
 PetscErrorCode UpdatePressureBCs(peqn_ *peqn);
 
