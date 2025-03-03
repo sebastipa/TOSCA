@@ -28,24 +28,26 @@ LIBS       = -lpthread \
              -ldl \
              -lstdc++ \
 	     -lpetsc \
-	     -lf2cblas \
+             -lf2cblas \
 	     -lf2clapack \
 	     -lHYPRE \
 	     -lhdf5 \
-#	     -lcatalyst            
+#            -lcatalyst            
 		    
 LDFLAGS    = -L$(PETSC)/$(PETSC_ARCH)/lib\
              -L$(HDF5)/lib \
-             -L$(CATALYST)/lib
+             -L$(CATALYST)/lib \
+	     $(shell python3-config --ldflags) -lpython3.10
 		    
 INC_FLAGS  = -I$(PETSC)/include \
              -I$(PETSC)/$(PETSC_ARCH)/include \
              -I$(HDF5)/include \
-             -I$(CATALYST)/include/catalyst-2.0
+             -I$(CATALYST)/include/catalyst-2.0 \
+	     $(shell python3-config --includes)
 		    
-CFLAGS     = -O3 -g 
+CFLAGS     = $(shell python3 -m pybind11 --includes) -O3 -g 
 
-CPPFLAGS   =  $(INC_FLAGS) -DPARAVIEW_IMPL_DIR=\"\" -DUSE_CATALYST=0
+CPPFLAGS   = $(INC_FLAGS) -DPARAVIEW_IMPL_DIR=\"\" -DUSE_CATALYST=0 -DUSE_PYTHON=1
 
 OBJS_TOSCA =  main.o initialization.o io.o overset.o wallfunctions.o boundary.o \
     mesh.o inflow.o abl.o ueqn.o peqn.o les.o teqn.o turbines.o \
