@@ -199,7 +199,6 @@ struct abl_
     PetscInt     lMesoIndV;
     PetscInt     hMesoIndV;
     PetscReal    lowestSrcHt;
-    PetscReal    highestSrcHt;
 
     Cmpnts       *luMean;
     Cmpnts       *guMean;
@@ -211,15 +210,16 @@ struct abl_
     PetscReal    closestTimeWtT;
     
     PetscInt     polyOrder;
+    PetscInt     polyOrderT;
     word         wtDist;
     PetscReal    **polyCoeffM;
+    PetscReal    **polyCoeffT;
 
     //averaging 
     PetscInt     averageSource;
     PetscReal    currAvgtime;
     PetscReal    tAvgWindow;
     Cmpnts       *avgsrc;
-    Cmpnts       *avgVel;
 
     word         flType;
     word         flTypeT;
@@ -244,7 +244,7 @@ struct abl_
     word        waveExtn;
     word        waveConv;
     PetscInt    waveLevel;
-    PetscInt    waveBlend;
+    PetscInt    waveletBlend;
 
     // concurrent precursor
     precursor_    *precursor;                    //!< concurrent precursor data structure
@@ -275,6 +275,12 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl);
 PetscErrorCode setWeightsYDamping(abl_ *abl);
 
 PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl);
+
+PetscErrorCode computeLSqPolynomialCoefficientMatrixFullDomain(abl_ *abl);
+
+PetscErrorCode computeLSqPolynomialCoefficientMatrixT(abl_ *abl);
+
+PetscErrorCode computeLSqPolynomialCoefficientMatrixTFullDomain(abl_ *abl);
 
 PetscErrorCode findTimeHeightSeriesInterpolationWts(abl_ *abl);
 

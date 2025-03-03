@@ -375,7 +375,104 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 readSubDictInt   ("ABLProperties.dat", "controllerProperties", "avgSources",       &(abl->averageSource));
                 readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingType",   &(abl->flType));
 
-                PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
+                /* ABL Height Calculation*/
+                //allocate memory for ABL height calculation 
+                PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgTotalStress));   
+                PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgHeatFlux));   
+
+                for(j=0; j<nLevels; j++)
+                {
+                    abl->avgHeatFlux[j] = 0.0;
+                    abl->avgTotalStress[j] = 0.0;
+                } 
+
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "hAverageTime",     &(abl->hAvgTime)); 
+
+                // create height directory, check for height file, if exists get ABL height
+                if
+                (
+                    abl->access->clock->it == abl->access->clock->itStart && !rank
+                )
+                {
+                    word postProcessFolder = "./postProcessing/";
+                    errno = 0;
+                    PetscInt dirRes = mkdir(postProcessFolder.c_str(), 0777);
+                    if(dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create %s directory",postProcessFolder.c_str());
+                        fatalErrorInFunction("InitializeABL",  error);
+                    }
+                    else
+                    {
+                        word fileName = postProcessFolder + "/boundaryLayerHeight";
+
+                        FILE *file = fopen(fileName.c_str(), "r");
+
+                        if (file == NULL) 
+                        {
+                            
+                        }
+                        else
+                        {
+                            PetscReal closestAblHeight = 0.0;
+                            PetscReal minTimeDiff = 1.0e20;
+
+                            // Variables for parsing lines
+                            char line[1024];
+                            PetscReal time, ablHtAvg, ablHeight;
+
+                            // Read the file line by line
+                            while (fgets(line, sizeof(line), file)) 
+                            {
+                                // Parse the line (assumes tab-separated values)
+                                PetscInt numFields = sscanf(line, "%lf\t%lf\t%lf",
+                                                    &time, &ablHtAvg, &ablHeight);
+
+                                // Ensure the line has valid data
+                                if (numFields == 3) {
+                                    // Calculate the time difference
+                                    PetscReal timeDiff = fabs(time - abl->access->clock->startTime);
+
+                                    // Update the closest match if this is closer
+                                    if (timeDiff < minTimeDiff) {
+                                        minTimeDiff = timeDiff;
+                                        closestAblHeight = ablHtAvg;
+                                    }
+                                }
+                            }
+
+                            fclose(file);
+
+                            if(closestAblHeight == 0.0)
+                            {
+                                abl->ablHt = abl->hRef;
+                            }
+                            else
+                            {
+                                abl->ablHt = closestAblHeight;
+                            }
+                            
+                        }
+                    }
+                }
+
+                if(abl->flType == "constantHeight")
+                {
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",  &(abl->lowestSrcHt));
+                }
+                else if(abl->flType == "mesoDataHeight")
+                {
+
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "unknown lower layer mesoscale forcing type, available types are:\n        1 : constantHeight\n        2 : ablHeight\n        3 : mesoDataHeight\n");
+                    fatalErrorInFunction("ABLInitialize",  error);  
+                }
+
+                PetscPrintf(mesh->MESH_COMM, "   controller type velocity: %s\n", abl->controllerType.c_str());
 
                 // allocate memory for the cumulated sources at all mesh heights
                 PetscMalloc(sizeof(Cmpnts) * nLevels, &(abl->cumulatedSourceHt));
@@ -3376,6 +3473,159 @@ PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl)
     PetscInt      zs   = info.zs, ze = info.zs + info.zm;
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
+    PetscInt     i,j,k,col;
+
+    PetscReal *cellLevels;
+    PetscReal **Z, **Zt, **betaMat, **ZtWZ, **ZtWZInv, **W;
+    cellLevels  = abl->cellLevels;
+    PetscInt    gLevels = abl->highestIndV - abl->lowestIndV + 1;
+    col         = abl->polyOrder + 1;
+
+    //allocate memory for the matrix of cell levels polynomials 
+    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(Z));
+    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(abl->polyCoeffM));
+    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(W));
+
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(Zt));
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(betaMat));
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZ));
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZInv));
+
+    for(j=0; j<gLevels; j++)
+    {
+        PetscMalloc(sizeof(PetscReal)  * (col), &(Z[j]));
+        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(abl->polyCoeffM[j]));
+        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(W[j]));
+    }
+
+    for(j=0; j<col; j++)
+    {
+        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(Zt[j]));
+        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(betaMat[j]));
+
+        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZ[j]));
+        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZInv[j]));
+    }
+
+    //set the polynomial matrix Z values 
+    for(i=0; i<gLevels; i++)
+    {
+        for(j=0; j<col; j++)
+        {
+            Z[i][j] = std::pow(cellLevels[i+abl->lowestIndV], j);
+        }
+    }
+
+    //set the polynomial matrix Zt values 
+    for(i=0; i<col; i++)
+    {
+        for(j=0; j<gLevels; j++)
+        {
+            Zt[i][j] = Z[j][i];
+        }
+    }
+
+    //set uniform weights for now 
+    abl->wtDist = "uniform";
+
+    if(abl->wtDist == "uniform")
+    {
+        //define weight matrix 
+        for(i=0; i<gLevels; i++)
+        {
+            for(j=0; j<gLevels; j++)
+            {
+                if(i == j)
+                {
+                    W[i][j] = 1;
+                }
+                else
+                {
+                    W[i][j] = 0;
+                }
+            }
+        }
+
+        //find Z'W
+        matMatProduct(Zt, W, betaMat, col, gLevels, gLevels, gLevels);
+        
+        //find Z'WZ
+        matMatProduct(betaMat, Z, ZtWZ, col, gLevels, gLevels, col);
+
+        //invert the matrix Z'WZ
+        if (col == 4)
+        {
+            inv_4by4(ZtWZ, ZtWZInv, col);
+        }
+        else if (col == 3)
+        {
+            inv_3by3(ZtWZ, ZtWZInv, col);
+        }
+        else if (col == 2)
+        {
+            PetscReal det = ZtWZ[0][0]*ZtWZ[1][1] - ZtWZ[0][1]*ZtWZ[1][0];
+            det = 1/det;
+
+            ZtWZInv[0][0] =  ZtWZ[1][1] * det;
+            ZtWZInv[0][1] = -ZtWZ[0][1] * det;
+            ZtWZInv[1][0] = -ZtWZ[1][0] * det;
+            ZtWZInv[1][1] =  ZtWZ[0][0] * det;
+
+        }
+        else 
+        {
+            inverseMatrix(ZtWZ, ZtWZInv, col);
+        }
+
+        //find the beta coefficient matrix inv(Z'WZ)Z'
+        matMatProduct(ZtWZInv, Zt, betaMat, col, col, col, gLevels);
+
+        //inv(Z'WZ)Z'W
+        matMatProduct(betaMat, W, Zt, col, gLevels, gLevels, gLevels);
+
+        // Z inv(Z'WZ)Z'W
+        matMatProduct(Z, Zt, abl->polyCoeffM, gLevels, col, col, gLevels);
+    }
+
+    //delete temp array 
+    for(j=0; j<gLevels; j++)
+    {
+        PetscFree(Z[j]);
+        PetscFree(W[j]);
+    }
+
+    for(j=0; j<col; j++)
+    {
+        PetscFree(Zt[j]);
+        PetscFree(betaMat[j]);
+        PetscFree(ZtWZ[j]);
+        PetscFree(ZtWZInv[j]);
+    }
+
+    PetscFree(W); 
+    PetscFree(Z); 
+    PetscFree(Zt); 
+    PetscFree(betaMat); 
+    PetscFree(ZtWZ); 
+    PetscFree(ZtWZInv);
+
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeLSqPolynomialCoefficientMatrixFullDomain(abl_ *abl)
+{
+    mesh_  *mesh  = abl->access->mesh;
+    clock_ *clock = abl->access->clock;
+
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
     PetscInt     i,j,k, nlevels, col;
 
     PetscReal *cellLevels;
@@ -3438,8 +3688,8 @@ PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl)
         {
             for(j=0; j<nlevels; j++)
             {
-                if((i == j) && (cellLevels[i] > abl->lowestSrcHt) && (cellLevels[i] < abl->highestSrcHt))
-                // if(i == j)
+                // if((i == j) && (cellLevels[i] > abl->lowestSrcHt) && (cellLevels[i] < abl->highestSrcHt))
+                if(i == j)
                 {
                     W[i][j] = 1;
                 }
@@ -3515,3 +3765,1020 @@ PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl)
 
     return (0);
 }
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeLSqPolynomialCoefficientMatrixT(abl_ *abl)
+{
+    mesh_  *mesh  = abl->access->mesh;
+    clock_ *clock = abl->access->clock;
+
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt     i,j,k,col;
+
+    PetscReal *cellLevels;
+    PetscReal **Z, **Zt, **betaMat, **ZtWZ, **ZtWZInv, **W;
+    cellLevels  = abl->cellLevels;
+    PetscInt    gLevels = abl->highestIndT - abl->lowestIndT + 1;
+    col         = abl->polyOrderT + 1;
+
+    //allocate memory for the matrix of cell levels polynomials 
+    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(Z));
+    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(abl->polyCoeffT));
+    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(W));
+
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(Zt));
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(betaMat));
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZ));
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZInv));
+
+    for(j=0; j<gLevels; j++)
+    {
+        PetscMalloc(sizeof(PetscReal)  * (col), &(Z[j]));
+        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(abl->polyCoeffT[j]));
+        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(W[j]));
+    }
+
+    for(j=0; j<col; j++)
+    {
+        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(Zt[j]));
+        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(betaMat[j]));
+
+        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZ[j]));
+        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZInv[j]));
+    }
+
+    //set the polynomial matrix Z values 
+    for(i=0; i<gLevels; i++)
+    {
+        for(j=0; j<col; j++)
+        {
+            Z[i][j] = std::pow(cellLevels[i+abl->lowestIndT], j);
+        }
+    }
+
+    //set the polynomial matrix Zt values 
+    for(i=0; i<col; i++)
+    {
+        for(j=0; j<gLevels; j++)
+        {
+            Zt[i][j] = Z[j][i];
+        }
+    }
+
+    //set uniform weights for now 
+    abl->wtDist = "uniform";
+
+    if(abl->wtDist == "uniform")
+    {
+        //define weight matrix 
+        for(i=0; i<gLevels; i++)
+        {
+            for(j=0; j<gLevels; j++)
+            {
+                if(i == j)
+                {
+                    W[i][j] = 1;
+                }
+                else
+                {
+                    W[i][j] = 0;
+                }
+            }
+        }
+
+        //find Z'W
+        matMatProduct(Zt, W, betaMat, col, gLevels, gLevels, gLevels);
+        
+        //find Z'WZ
+        matMatProduct(betaMat, Z, ZtWZ, col, gLevels, gLevels, col);
+
+        //invert the matrix Z'WZ
+        if (col == 4)
+        {
+            inv_4by4(ZtWZ, ZtWZInv, col);
+        }
+        else if (col == 3)
+        {
+            inv_3by3(ZtWZ, ZtWZInv, col);
+        }
+        else if (col == 2)
+        {
+            PetscReal det = ZtWZ[0][0]*ZtWZ[1][1] - ZtWZ[0][1]*ZtWZ[1][0];
+            det = 1/det;
+
+            ZtWZInv[0][0] =  ZtWZ[1][1] * det;
+            ZtWZInv[0][1] = -ZtWZ[0][1] * det;
+            ZtWZInv[1][0] = -ZtWZ[1][0] * det;
+            ZtWZInv[1][1] =  ZtWZ[0][0] * det;
+
+        }
+        else 
+        {
+            inverseMatrix(ZtWZ, ZtWZInv, col);
+        }
+
+        //find the beta coefficient matrix inv(Z'WZ)Z'
+        matMatProduct(ZtWZInv, Zt, betaMat, col, col, col, gLevels);
+
+        //inv(Z'WZ)Z'W
+        matMatProduct(betaMat, W, Zt, col, gLevels, gLevels, gLevels);
+
+        // Z inv(Z'WZ)Z'W
+        matMatProduct(Z, Zt, abl->polyCoeffT, gLevels, col, col, gLevels);
+    }
+
+    //delete temp array 
+    for(j=0; j<gLevels; j++)
+    {
+        PetscFree(Z[j]);
+        PetscFree(W[j]);
+    }
+
+    for(j=0; j<col; j++)
+    {
+        PetscFree(Zt[j]);
+        PetscFree(betaMat[j]);
+        PetscFree(ZtWZ[j]);
+        PetscFree(ZtWZInv[j]);
+    }
+
+    PetscFree(W); 
+    PetscFree(Z); 
+    PetscFree(Zt); 
+    PetscFree(betaMat); 
+    PetscFree(ZtWZ); 
+    PetscFree(ZtWZInv);
+
+    return (0);
+}
+
+PetscErrorCode computeLSqPolynomialCoefficientMatrixTFullDomain(abl_ *abl)
+{
+    mesh_  *mesh  = abl->access->mesh;
+    clock_ *clock = abl->access->clock;
+
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt     i,j,k, nlevels, col;
+
+    PetscReal *cellLevels;
+    PetscReal **Z, **Zt, **betaMat, **ZtWZ, **ZtWZInv, **W;
+    cellLevels  = abl->cellLevels;
+    nlevels     = my-2;
+    col         = abl->polyOrder + 1;
+
+    //allocate memory for the matrix of cell levels polynomials 
+    PetscMalloc(sizeof(PetscReal *)  * (nlevels), &(Z));
+    PetscMalloc(sizeof(PetscReal *)  * (nlevels), &(abl->polyCoeffT));
+    PetscMalloc(sizeof(PetscReal *)  * (nlevels), &(W));
+
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(Zt));
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(betaMat));
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZ));
+    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZInv));
+
+    for(j=0; j<nlevels; j++)
+    {
+        PetscMalloc(sizeof(PetscReal)  * (col), &(Z[j]));
+        PetscMalloc(sizeof(PetscReal)  * (nlevels), &(abl->polyCoeffT[j]));
+        PetscMalloc(sizeof(PetscReal)  * (nlevels), &(W[j]));
+    }
+
+    for(j=0; j<col; j++)
+    {
+        PetscMalloc(sizeof(PetscReal)  * (nlevels), &(Zt[j]));
+        PetscMalloc(sizeof(PetscReal)  * (nlevels), &(betaMat[j]));
+
+        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZ[j]));
+        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZInv[j]));
+    }
+
+    //set the polynomial matrix Z values 
+    for(i=0; i<nlevels; i++)
+    {
+        for(j=0; j<col; j++)
+        {
+            Z[i][j] = std::pow(cellLevels[i], j);
+        }
+    }
+
+    //set the polynomial matrix Zt values 
+    for(i=0; i<col; i++)
+    {
+        for(j=0; j<nlevels; j++)
+        {
+            Zt[i][j] = Z[j][i];
+        }
+    }
+
+    //set uniform weights for now 
+    abl->wtDist = "uniform";
+
+    if(abl->wtDist == "uniform")
+    {
+        //define weight matrix 
+        for(i=0; i<nlevels; i++)
+        {
+            for(j=0; j<nlevels; j++)
+            {
+                // if((i == j) && (cellLevels[i] > abl->lowestSrcHt) && (cellLevels[i] < abl->highestSrcHt))
+                if(i == j)
+                {
+                    W[i][j] = 1;
+                }
+                else
+                {
+                    W[i][j] = 0;
+                }
+            }
+        }
+
+        //find Z'W
+        matMatProduct(Zt, W, betaMat, col, nlevels, nlevels, nlevels);
+        
+        //find Z'WZ
+        matMatProduct(betaMat, Z, ZtWZ, col, nlevels, nlevels, col);
+
+        //invert the matrix Z'WZ
+        if (col == 4)
+        {
+            inv_4by4(ZtWZ, ZtWZInv, col);
+        }
+        else if (col == 3)
+        {
+            inv_3by3(ZtWZ, ZtWZInv, col);
+        }
+        else if (col == 2)
+        {
+            PetscReal det = ZtWZ[0][0]*ZtWZ[1][1] - ZtWZ[0][1]*ZtWZ[1][0];
+            det = 1/det;
+
+            ZtWZInv[0][0] =  ZtWZ[1][1] * det;
+            ZtWZInv[0][1] = -ZtWZ[0][1] * det;
+            ZtWZInv[1][0] = -ZtWZ[1][0] * det;
+            ZtWZInv[1][1] =  ZtWZ[0][0] * det;
+
+        }
+        else 
+        {
+            inverseMatrix(ZtWZ, ZtWZInv, col);
+        }
+
+        //find the beta coefficient matrix inv(Z'WZ)Z'
+        matMatProduct(ZtWZInv, Zt, betaMat, col, col, col, nlevels);
+
+        //inv(Z'WZ)Z'W
+        matMatProduct(betaMat, W, Zt, col, nlevels, nlevels, nlevels);
+
+        // Z inv(Z'WZ)Z'W
+        matMatProduct(Z, Zt, abl->polyCoeffT, nlevels, col, col, nlevels);
+    }
+
+    //delete temp array 
+    for(j=0; j<nlevels; j++)
+    {
+        free(Z[j]);
+        free(W[j]);
+    }
+
+    for(j=0; j<col; j++)
+    {
+        free(Zt[j]);
+        free(betaMat[j]);
+        free(ZtWZ[j]);
+        free(ZtWZInv[j]);
+    }
+
+    free(W); 
+    free(Z); 
+    free(Zt); 
+    free(betaMat); 
+    free(ZtWZ); 
+    free(ZtWZInv);
+
+    return (0);
+}
+//***************************************************************************************************************//
+
+PetscErrorCode findABLHeight(abl_ *abl)
+{
+    mesh_  *mesh   = abl->access->mesh;
+    ueqn_  *ueqn   = abl->access->ueqn;
+    teqn_  *teqn   = abl->access->teqn;
+    clock_ *clock  = abl->access->clock;
+    les_   *les    = abl->access->les;
+
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscMPIInt   rank, nProcs;
+    PetscInt      i, j, k, l;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***csi, ***eta, ***zet;
+    Cmpnts        ***ucat;                     // cartesian vel. and fluct. part
+    PetscReal     ***tmprt, ***nut, ***nvert;  // potential temp. and fluct. part and turb. visc.
+    PetscReal     ***aj, ***ld_t;
+
+    PetscReal     nu = abl->access->constants->nu;
+    PetscReal     ablHeight;
+    PetscReal     aN, m1, m2, n1, n2;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    MPI_Comm_size(mesh->MESH_COMM, &nProcs);
+
+    DMDAVecGetArray(da,  mesh->lAj,       &aj);
+    DMDAVecGetArray(da,  mesh->lNvert,    &nvert);
+    DMDAVecGetArray(fda, ueqn->lUcat,     &ucat);
+    DMDAVecGetArray(fda, mesh->lCsi,      &csi);
+    DMDAVecGetArray(fda, mesh->lEta,      &eta);
+    DMDAVecGetArray(fda, mesh->lZet,      &zet);
+    DMDAVecGetArray(da,  les->lNu_t,      &nut);
+    DMDAVecGetArray(da,  les->lDiff_t,    &ld_t);
+
+    DMDAVecGetArray(da,  teqn->lTmprt,    &tmprt);
+
+	PetscInt nLevels = my-2;
+    PetscInt stabilityFlag = 0, methodFlag = 0;
+    PetscInt zMaxId, zMinId;
+    PetscInt RiCrossId, tkeCrossId;
+    PetscReal maxTempGrad;
+    PetscReal ablHtConv, ablHtStable, ablHtShear, ablHtRiB;
+
+    std::vector<Cmpnts> lVelocity(nLevels);
+    std::vector<Cmpnts> gVelocity(nLevels);
+    std::vector<PetscReal> lTemperature(nLevels);
+    std::vector<PetscReal> gTemperature(nLevels);
+    std::vector<PetscReal> luw(nLevels);
+    std::vector<PetscReal> guw(nLevels);
+    std::vector<PetscReal> lvw(nLevels);
+    std::vector<PetscReal> gvw(nLevels);
+    std::vector<PetscReal> lTw(nLevels);
+    std::vector<PetscReal> gTw(nLevels);
+    std::vector<PetscReal> lRxz(nLevels);
+    std::vector<PetscReal> gRxz(nLevels);
+    std::vector<PetscReal> lRyz(nLevels);
+    std::vector<PetscReal> gRyz(nLevels);
+    std::vector<PetscReal> lRTw(nLevels);
+    std::vector<PetscReal> gRTw(nLevels); 
+
+    PetscReal *RiB;
+    PetscMalloc(sizeof(PetscReal *) * nLevels, &(RiB));
+
+    for(l=0; l<nLevels; l++)
+    {
+        lVelocity[l].x = lVelocity[l].y = lVelocity[l].z = 0.0;
+        gVelocity[l].x = gVelocity[l].y = gVelocity[l].z = 0.0;
+
+        luw[l] = 0.0;
+        guw[l] = 0.0;
+        lvw[l] = 0.0;
+        gvw[l] = 0.0;
+        lRxz[l] = 0.0;
+        gRxz[l] = 0.0;
+        lRyz[l] = 0.0;
+        gRyz[l] = 0.0;
+
+        lTemperature[l] = 0.0;
+        gTemperature[l] = 0.0;
+        lTw[l]          = 0.0;
+        gTw[l]          = 0.0;
+        lRTw[l] = 0.0;
+        gRTw[l] = 0.0;
+    }
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                lVelocity[j-1].x  += ucat[k][j][i].x / aj[k][j][i];
+                lVelocity[j-1].y  += ucat[k][j][i].y / aj[k][j][i];
+                lVelocity[j-1].z  += ucat[k][j][i].z / aj[k][j][i];
+
+                lTemperature[j-1] += tmprt[k][j][i]  / aj[k][j][i];
+            }
+        }
+    }
+
+    MPI_Allreduce(&lVelocity[0], &gVelocity[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lTemperature[0], &gTemperature[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    for(l=0; l<nLevels; l++)
+    {
+        PetscReal totVolPerLevel = abl->totVolPerLevel[l];
+
+        gVelocity[l].x   = gVelocity[l].x / totVolPerLevel;
+        gVelocity[l].y   = gVelocity[l].y / totVolPerLevel;
+        gVelocity[l].z   = gVelocity[l].z / totVolPerLevel;
+
+        gTemperature[l]   = gTemperature[l] / totVolPerLevel;
+    }
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                luw[j-1]  += ((ucat[k][j][i].x - gVelocity[j-1].x) * (ucat[k][j][i].z - gVelocity[j-1].z)) / aj[k][j][i];
+                lvw[j-1]  += ((ucat[k][j][i].y - gVelocity[j-1].y) * (ucat[k][j][i].z - gVelocity[j-1].z)) / aj[k][j][i];
+
+                lTw[j-1]  += ((tmprt[k][j][i] - gTemperature[j-1]) * (ucat[k][j][i].z - gVelocity[j-1].z)) / aj[k][j][i];
+            }
+        }
+    }
+
+    MPI_Allreduce(&luw[0], &guw[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lvw[0], &gvw[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    MPI_Allreduce(&lTw[0], &gTw[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    PetscReal volCell;
+    Cmpnts    uprimeCell;
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                // pre-set base variables for speed
+                PetscReal dudc, dvdc, dwdc,
+                            dude, dvde, dwde,
+                            dudz, dvdz, dwdz;
+                PetscReal du_dx, du_dy, du_dz,
+                            dv_dx, dv_dy, dv_dz,
+                            dw_dx, dw_dy, dw_dz;
+
+                PetscReal dtdc, dtde, dtdz;
+                PetscReal dt_dx, dt_dy, dt_dz;
+
+                PetscReal   ajc  = aj[k][j][i];
+
+                PetscReal   csi0 = csi[k][j][i].x,
+                            csi1 = csi[k][j][i].y,
+                            csi2 = csi[k][j][i].z;
+                PetscReal   eta0 = eta[k][j][i].x,
+                            eta1 = eta[k][j][i].y,
+                            eta2 = eta[k][j][i].z;
+                PetscReal   zet0 = zet[k][j][i].x,
+                            zet1 = zet[k][j][i].y,
+                            zet2 = zet[k][j][i].z;
+
+                volCell     = 1.0 / ajc;
+
+                uprimeCell.x = ucat[k][j][i].x - gVelocity[j-1].x;
+                uprimeCell.y = ucat[k][j][i].x - gVelocity[j-1].x;
+                uprimeCell.z = ucat[k][j][i].x - gVelocity[j-1].x;
+
+                Compute_du_center
+                (
+                    mesh,
+                    i, j, k, mx, my, mz, ucat, nvert, &dudc,
+                    &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz
+                );
+
+                Compute_du_dxyz
+                (
+                    mesh,
+                    csi0, csi1, csi2, eta0, eta1, eta2, zet0,
+                    zet1, zet2, ajc, dudc, dvdc, dwdc, dude, dvde, dwde,
+                    dudz, dvdz, dwdz, &du_dx, &dv_dx, &dw_dx, &du_dy,
+                    &dv_dy, &dw_dy, &du_dz, &dv_dz, &dw_dz
+                );
+
+                PetscReal nuEff = nut[k][j][i];
+                lRxz[j-1] += ( - nuEff * (dw_dx + du_dz)) * volCell;
+                lRyz[j-1] += ( - nuEff * (dv_dz + dw_dy)) * volCell;
+
+                Compute_dscalar_center
+                (
+                    mesh,
+                    i, j, k,
+                    mx, my, mz,
+                    tmprt, nvert,
+                    &dtdc, &dtde, &dtdz
+                );
+
+                // compute temperature derivative w.r.t. the cartesian coordinates
+                Compute_dscalar_dxyz
+                (
+                    mesh,
+                    csi0, csi1, csi2,
+                    eta0, eta1, eta2,
+                    zet0, zet1, zet2,
+                    ajc,
+                    dtdc, dtde, dtdz,
+                    &dt_dx, &dt_dy, &dt_dz
+                );
+
+                PetscReal diffEff = ld_t[k][j][i];
+                lRTw[j-1] += ( - diffEff * dt_dz) * volCell;
+
+            }
+        }
+    }
+
+    MPI_Allreduce(&lRxz[0], &gRxz[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lRyz[0], &gRyz[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    MPI_Allreduce(&lRTw[0], &gRTw[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    aN = 200.0;
+    m1 = (aN)  / ((aN) + clock->dt);
+    m2 = clock->dt / ((aN) + clock->dt);
+
+    for(l=0; l<nLevels; l++)
+    {
+        PetscReal totVolPerLevel = abl->totVolPerLevel[l];
+
+        guw[l]   = guw[l] / totVolPerLevel;
+        gvw[l]   = gvw[l] / totVolPerLevel;
+        gRxz[l]  = gRxz[l] / totVolPerLevel;
+        gRyz[l]  = gRyz[l] / totVolPerLevel;
+
+        gTw[l]  = gTw[l] / totVolPerLevel;
+        gRTw[l] = gRTw[l] / totVolPerLevel;
+
+        abl->avgTotalStress[l] = m1 * abl->avgTotalStress[l] + m2 * pow((pow(guw[l]+gRxz[l],2.0) + pow(gvw[l]+gRyz[l],2.0)),0.5);
+
+        abl->avgHeatFlux[l]    = m1 * abl->avgHeatFlux[l]    + m2 * (gTw[l] + gRTw[l]);
+    }
+
+    //switching condition based on the value of the heat flux close to the surface - second cell above ground
+    abl->heatFluxSwitch = abl->avgHeatFlux[0];
+
+    //convective boundary layer - ABL height based on the heat flux minima after the maxima which occurs near surface
+    //find the heat flux maximum
+    zMaxId = 0, zMinId = -1;
+    PetscReal minValue = 1.0e20;  
+
+    for(l=1; l<nLevels; l++)
+    {
+        if(abl->avgHeatFlux[l] > abl->avgHeatFlux[zMaxId]) zMaxId = l;
+    }
+
+    for(PetscInt l = zMaxId + 1; l < nLevels-1; l++)
+    {
+        if(abl->avgHeatFlux[l] < abl->avgHeatFlux[l-1] && 
+        abl->avgHeatFlux[l] < abl->avgHeatFlux[l+1])
+        {
+            // Track the deepest minima
+            if(abl->avgHeatFlux[l] < minValue){
+                minValue = abl->avgHeatFlux[l];
+                zMinId = l;
+            }
+        }
+    }
+
+    if(zMinId != -1)
+    {
+        ablHtConv = abl->cellLevels[zMinId];
+    }
+    else 
+    {
+        // Use Potential temperature gradient Method
+        maxTempGrad = -1e9;
+        PetscInt gradId = 0;
+
+        for(l=10; l<nLevels-1; l++) 
+        {
+            PetscReal grad = (gTemperature[l+1] - gTemperature[l-1])/(abl->cellLevels[l+1]-abl->cellLevels[l-1]);
+            if(grad > maxTempGrad) 
+            {
+                maxTempGrad = grad;
+                gradId = l;
+            }
+        }
+        ablHtConv = abl->cellLevels[gradId];   
+    }
+
+    // stable and neutral boundary layer - shear stress threshold based 
+    PetscReal tkeMax = -1e9;
+    PetscInt  tkeMaxId = 0;
+    tkeCrossId = -1;
+
+    //find max shear stress in the surface layer
+    for(l=0; l<nLevels; l++)
+    {   
+        if(abl->cellLevels[l] < 300.0)
+        {
+            if(abl->avgTotalStress[l] > tkeMax) 
+            {
+                tkeMax = abl->avgTotalStress[l];
+                tkeMaxId = l;
+            }
+        }
+    }
+
+    for (l = 0; l < nLevels; l++) 
+    {
+        if(abl->cellLevels[l] > abl->cellLevels[tkeMaxId])
+        {
+            if (abl->avgTotalStress[l] <= 0.1*tkeMax) 
+            {
+                tkeCrossId = l; 
+                break;
+            }
+        }
+    }
+
+    ablHtShear = abl->cellLevels[tkeCrossId];
+
+    //based on the bulk richardson number
+    PetscReal g = 9.81;
+    PetscReal thetaRef = gTemperature[0];
+    RiCrossId = -1;
+    
+    // //find RiB
+    // for(l=0; l<nLevels; l++)
+    // {
+    //     PetscReal dtheta = gTemperature[l] - thetaRef;
+    //     PetscReal wind = sqrt(gVelocity[l].x*gVelocity[l].x + gVelocity[l].y*gVelocity[l].y + 1e-6);
+    //     RiB[l] = (g/thetaRef) * (dtheta * abl->cellLevels[l]) / (wind * wind);
+    // }
+
+    // //stable when RiB crosses the critical value of 0.25
+    // for(l=0; l<nLevels; l++)
+    // {
+    //     if(RiB[l] >= 0.25) 
+    //     {
+    //         RiCrossId = l;
+    //         break;
+    //     }
+    // }
+
+    // ablHtRiB = abl->cellLevels[RiCrossId]; 
+
+    // if(fabs(ablHtRiB - ablHtShear) < 300)
+    // {
+        ablHtStable = ablHtShear;            
+    // }
+    // else 
+    // {
+    //     ablHtStable = PetscMin(ablHtShear, ablHtRiB);
+    //     if(ablHtStable == ablHtRiB)
+    //         PetscPrintf(PETSC_COMM_WORLD, "RiB based ABL height used.\n");
+    // }
+
+    if(abl->heatFluxSwitch > 0.02)
+    {
+        // ablHeight = ablHtConv;
+        stabilityFlag = 1;
+    }
+    else 
+    {
+        // ablHeight = ablHtStable;
+        stabilityFlag = 2;
+    }
+    ablHeight = ablHtStable;
+    // aN = abl->hAvgTime;
+    // n1 = aN  / (aN + clock->dt);
+    // n2 = clock->dt / (aN + clock->dt);
+    // abl->ablHt = n1*abl->ablHt + n2*ablHeight;
+    abl->ablHt = ablHeight;
+
+    FILE *f;
+    dataABL *ablStat = abl->access->acquisition->statisticsABL;
+    word          fileName;
+
+    // create the ABL averaging files
+    if
+    (
+        !rank
+    )
+    {
+        fileName = "./postProcessing/" + mesh->meshName + "/boundaryLayerHeight";
+        f = fopen(fileName.c_str(), "a");
+
+        if(!f)
+        {
+            char error[512];
+            sprintf(error, "cannot open file %s\n", fileName.c_str());
+            fatalErrorInFunction("writeAveragingABL",  error);
+        }
+        else 
+        {
+            fprintf(f, "%.5lf\t", clock->time);
+            fprintf(f, "%.5lf\t", abl->ablHt);
+            fprintf(f, "%.5lf\t", ablHeight);
+            fprintf(f, "\n");
+            fclose(f);
+        }
+    }
+    
+    if(stabilityFlag == 1)
+    {
+            PetscPrintf(PETSC_COMM_WORLD, "Convective Boundary Layer, Using heat flux minima method, Avg ABL height = %lf, Inst. Ht = %lf\n", abl->ablHt, ablHeight);
+            // PetscPrintf(PETSC_COMM_WORLD, "SurfaceHeatFlux = %lf, Max heat flux = %lf at %lf, heat flux minima = %lf\n", abl->heatFluxSwitch, abl->avgHeatFlux[zMaxId], abl->cellLevels[zMaxId], abl->avgHeatFlux[zMinId]);
+            PetscPrintf(PETSC_COMM_WORLD, "SurfaceHeatFlux = %lf, Max shear stress = %lf at %lf\n", abl->heatFluxSwitch, tkeMax, abl->cellLevels[tkeMaxId]);
+
+    }
+    else if(stabilityFlag == 2)
+    {
+        if(abl->heatFluxSwitch < -0.005)
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "Stable Boundary Layer, Using turbulent shear stress threshold, Avg ABL height = %lf, Inst. Ht = %lf\n", abl->ablHt, ablHeight);
+            PetscPrintf(PETSC_COMM_WORLD, "SurfaceHeatFlux = %lf, Max shear stress = %lf at %lf\n", abl->heatFluxSwitch, tkeMax, abl->cellLevels[tkeMaxId]);
+        }
+        else 
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "Neutral Boundary Layer, Using turbulent shear stress threshold, Avg ABL height = %lf, Inst. Ht = %lf\n", abl->ablHt, ablHeight);
+            PetscPrintf(PETSC_COMM_WORLD, "SurfaceHeatFlux = %lf, Max shear stress = %lf at %lf\n", abl->heatFluxSwitch, tkeMax, abl->cellLevels[tkeMaxId]);
+        }
+    }
+    
+
+    std::vector<Cmpnts> ().swap(lVelocity);
+    std::vector<Cmpnts> ().swap(gVelocity);
+    std::vector<PetscReal> ().swap(lTemperature);
+    std::vector<PetscReal> ().swap(gTemperature);
+    std::vector<PetscReal> ().swap(luw);
+    std::vector<PetscReal> ().swap(guw);
+    std::vector<PetscReal> ().swap(lvw);
+    std::vector<PetscReal> ().swap(gvw);
+    std::vector<PetscReal> ().swap(lTw);
+    std::vector<PetscReal> ().swap(gTw);
+    std::vector<PetscReal> ().swap(lRxz);
+    std::vector<PetscReal> ().swap(gRxz);
+    std::vector<PetscReal> ().swap(lRyz);
+    std::vector<PetscReal> ().swap(gRyz);
+    std::vector<PetscReal> ().swap(lRTw);
+    std::vector<PetscReal> ().swap(gRTw);
+
+    PetscFree(RiB);
+
+    DMDAVecRestoreArray(da,  mesh->lAj,       &aj);
+    DMDAVecRestoreArray(da,  mesh->lNvert,    &nvert);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,     &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCsi,      &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,      &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,      &zet);
+    DMDAVecRestoreArray(da,  les->lNu_t,      &nut);
+    DMDAVecRestoreArray(da,  les->lDiff_t,    &ld_t);
+
+    DMDAVecRestoreArray(da,  teqn->lTmprt,    &tmprt);
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode waveletTransformContinuousVector(abl_ *abl, Cmpnts *srcPAIn, Cmpnts *srcPAOut, PetscInt sigLength)
+{
+    PetscReal    omega        = abl->omega;         // Central frequency of the wavelet
+    PetscReal    sigma        = abl->sigma;         // Width of the wavelet
+    PetscInt     kernelRadius = abl->kernelRadius;  // Radius of the wavelet kernel (affects smoothing extent)
+
+    PetscInt    kernelLength  = 2 * kernelRadius + 1;
+    PetscInt    paddedLength  = sigLength + 2 * kernelRadius;
+
+    PetscReal   *kernel;
+    Cmpnts      *paddedSignal;
+    
+    PetscMalloc(sizeof(PetscReal) * kernelLength, &kernel);
+    PetscMalloc(sizeof(Cmpnts) * paddedLength, &paddedSignal);
+
+    //add padding
+    for (PetscInt i = 0; i < kernelRadius; i++) {
+        paddedSignal[i] = nSetZero(); 
+    }
+
+    for (PetscInt i = 0; i < sigLength; i++) {
+        paddedSignal[kernelRadius + i] = nSet(srcPAIn[i]);
+    }
+
+    for (PetscInt i = 0; i < kernelRadius; i++) {
+        paddedSignal[kernelRadius + sigLength + i] = nSetZero(); 
+    }
+
+    // Create the wavelet kernel
+    for (PetscInt i = 0; i < kernelLength; i++) 
+    {
+        PetscReal t = i - kernelRadius;
+        kernel[i] = exp(-t * t / (2 * sigma * sigma)) * cos(omega * t);
+    }
+ 
+    // Normalize the kernel to ensure energy conservation
+    PetscReal kernelSum = 0.0;
+
+    for (PetscInt i = 0; i < kernelLength; i++) 
+    {
+        kernelSum += fabs(kernel[i]);
+    }
+
+    for (PetscInt i = 0; i < kernelLength; i++) 
+    {
+        kernel[i] /= kernelSum;
+    }
+
+    // Perform convolution
+    for (PetscInt i = 0; i < sigLength; i++) 
+    {
+        srcPAOut[i] = nSetZero();
+
+        for (PetscInt j = -kernelRadius; j <= kernelRadius; j++) 
+        {
+            PetscInt paddedIndex = i + j + kernelRadius;
+
+            srcPAOut[i].x += paddedSignal[paddedIndex].x * kernel[kernelRadius + j];
+            srcPAOut[i].y += paddedSignal[paddedIndex].y * kernel[kernelRadius + j];
+            srcPAOut[i].z += paddedSignal[paddedIndex].z * kernel[kernelRadius + j];
+        }
+    }
+
+    PetscFree(kernel);
+    PetscFree(paddedSignal);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode waveletTransformContinuousScalar(abl_ *abl, PetscReal *srcPAIn, PetscReal *srcPAOut, PetscInt sigLength)
+{
+
+    PetscReal    omega        = abl->omega;         // Central frequency of the wavelet
+    PetscReal    sigma        = abl->sigma;         // Width of the wavelet
+    PetscInt     kernelRadius = abl->kernelRadius;  // Radius of the wavelet kernel (affects smoothing extent)
+
+    PetscInt    kernelLength  = 2 * kernelRadius + 1;
+    PetscInt    paddedLength  = sigLength + 2 * kernelRadius;
+
+    PetscReal   *kernel, *paddedSignal;
+
+    PetscMalloc(sizeof(PetscReal) * kernelLength, &kernel);
+    PetscMalloc(sizeof(PetscReal) * paddedLength, &paddedSignal);
+
+    //add padding
+    for (PetscInt i = 0; i < kernelRadius; i++) {
+        paddedSignal[i] = 0.0; 
+    }
+
+    for (PetscInt i = 0; i < sigLength; i++) {
+        paddedSignal[kernelRadius + i] = srcPAIn[i];
+    }
+    for (PetscInt i = 0; i < kernelRadius; i++) {
+        paddedSignal[kernelRadius + sigLength + i] = 0.0; 
+    }
+
+    // Create the wavelet kernel
+    for (PetscInt i = 0; i < kernelLength; i++) 
+    {
+        PetscReal t = i - kernelRadius;
+        kernel[i] = exp(-t * t / (2 * sigma * sigma)) * cos(omega * t);
+    }
+ 
+    // Normalize the kernel to ensure energy conservation
+    PetscReal kernelSum = 0.0;
+
+    for (PetscInt i = 0; i < kernelLength; i++) 
+    {
+        kernelSum += fabs(kernel[i]);
+    }
+
+    for (PetscInt i = 0; i < kernelLength; i++) 
+    {
+        kernel[i] /= kernelSum;
+    }
+
+    // Perform convolution
+    for (PetscInt i = 0; i < sigLength; i++) 
+    {
+        srcPAOut[i] = 0.0;
+
+        for (PetscInt j = -kernelRadius; j <= kernelRadius; j++) 
+        {
+            PetscInt paddedIndex = i + j + kernelRadius;
+            srcPAOut[i] += paddedSignal[paddedIndex] * kernel[kernelRadius + j];
+        }
+    }
+
+    PetscFree(kernel);
+    PetscFree(paddedSignal);
+
+    return(0);
+}
+
+//*********************************************************************************************************************
+#if USE_PYTHON
+PetscErrorCode pywavedecVector(abl_ *abl, Cmpnts *srcPAIn, Cmpnts *srcPAOut, PetscInt sigLength)
+{
+    try 
+    {
+        // Import PyWavelets
+        py::module pywt = py::module::import("pywt");
+
+        // Convert C++ arrays to Python lists
+        std::vector<double> signalX(sigLength), signalY(sigLength), signalZ(sigLength);
+        for (PetscInt i = 0; i < sigLength; i++) 
+        {
+            signalX[i] = srcPAIn[i].x;
+            signalY[i] = srcPAIn[i].y;
+            signalZ[i] = srcPAIn[i].z;
+        }
+
+        PetscPrintf(PETSC_COMM_WORLD,"vector %s %ld\n", abl->waveName.c_str(), abl->waveLevel);
+        PetscInt J = abl->waveLevel; // Decomposition level
+
+        // Perform wavelet decomposition (wavedec)
+        py::list coeffsX = pywt.attr("wavedec")(signalX, abl->waveName, py::arg("level") = J, py::arg("mode") = abl->waveExtn);
+        py::list coeffsY = pywt.attr("wavedec")(signalY, abl->waveName, py::arg("level") = J, py::arg("mode") = abl->waveExtn);
+        py::list coeffsZ = pywt.attr("wavedec")(signalZ, abl->waveName, py::arg("level") = J, py::arg("mode") = abl->waveExtn);
+
+        // Get Approximation Coefficients (First element in the list)
+        py::list pApproxCoeffX = coeffsX[0].cast<py::list>();
+        py::list pApproxCoeffY = coeffsY[0].cast<py::list>();
+        py::list pApproxCoeffZ = coeffsZ[0].cast<py::list>();
+
+        // // Print Approximation Coefficients
+        // std::cout << "Approximation Coefficients (X): ";
+        // for (const auto &coeff : pApproxCoeffX) std::cout << coeff.cast<double>() << " ";
+        // std::cout << std::endl;
+
+        // Perform reconstruction using upcoef
+        py::list pRecX = pywt.attr("upcoef")("a", pApproxCoeffX, abl->waveName, py::arg("level") = J, py::arg("take") = sigLength);
+        py::list pRecY = pywt.attr("upcoef")("a", pApproxCoeffY, abl->waveName, py::arg("level") = J, py::arg("take") = sigLength);
+        py::list pRecZ = pywt.attr("upcoef")("a", pApproxCoeffZ, abl->waveName, py::arg("level") = J, py::arg("take") = sigLength);
+
+        // Convert reconstructed signals back to C++ array
+        for (PetscInt i = 0; i < sigLength; i++) 
+        {
+            srcPAOut[i].x = pRecX[i].cast<double>();
+            srcPAOut[i].y = pRecY[i].cast<double>();
+            srcPAOut[i].z = pRecZ[i].cast<double>();
+        }
+    }
+    catch (const py::error_already_set &e) 
+    {
+        std::cerr << "Python error: " << e.what() << std::endl;
+        PetscFunctionReturn(PETSC_ERR_LIB);
+    }
+
+    return(0);
+}
+
+//*****************************************************************/
+PetscErrorCode pywavedecScalar(abl_ *abl, PetscReal *srcPAIn, PetscReal *srcPAOut, PetscInt sigLength)
+{
+
+    try 
+    {
+        // Import PyWavelets
+        py::module pywt = py::module::import("pywt");
+
+        // Convert C++ arrays to Python lists
+        std::vector<double> signal(sigLength);
+
+        for (PetscInt i = 0; i < sigLength; i++) 
+        {
+            signal[i] = srcPAIn[i];
+        }
+        PetscPrintf(PETSC_COMM_WORLD,"scalar %s %ld\n", abl->waveName.c_str(), abl->waveLevel);
+
+        PetscInt J = abl->waveLevel; // Decomposition level
+
+        // Perform wavelet decomposition (wavedec)
+        py::list coeffs = pywt.attr("wavedec")(signal, abl->waveName, py::arg("level") = J, py::arg("mode") = abl->waveExtn);
+
+        py::list pApproxCoeff = coeffs[0].cast<py::list>();
+
+        // Perform reconstruction using upcoef
+        py::list pRec = pywt.attr("upcoef")("a", pApproxCoeff, abl->waveName, py::arg("level") = J, py::arg("take") = sigLength);
+
+        // Convert reconstructed signals back to C++ array
+        for (PetscInt i = 0; i < sigLength; i++) 
+        {
+            srcPAOut[i] = pRec[i].cast<double>();
+        }
+    }
+    catch (const py::error_already_set &e) 
+    {
+        std::cerr << "Python error: " << e.what() << std::endl;
+        PetscFunctionReturn(PETSC_ERR_LIB);
+    }
+
+    return(0);
+}
+#endif
