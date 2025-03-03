@@ -172,10 +172,12 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
     PetscReal nLevels = my-2;
 
-    std::vector<PetscReal> ltMean(nLevels);
-    std::vector<PetscReal> gtMean(nLevels);
-    std::vector<PetscReal> tD(nLevels);
-    std::vector<PetscReal> tM(nLevels);
+    PetscReal *ltMean, *gtMean, *tD, *tM;
+
+    PetscMalloc(sizeof(PetscReal) * (nLevels), &(ltMean));
+    PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMean));
+    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tD));
+    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tM));
 
     for(j=0; j<nLevels; j++)
     {
@@ -217,7 +219,7 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             }
         }
     }
-    else if((abl->controllerTypeT == "directProfileAssimilation") || (abl->controllerTypeT == "indirectProfileAssimilation"))
+    else if((abl->controllerTypeT == "directProfileAssimilation") || (abl->controllerTypeT == "indirectProfileAssimilation") || (abl->controllerTypeT == "waveletProfileAssimilation"))
     {
         PetscInt  idxh1, idxh2, idxt1;
         PetscReal wth1, wth2, wtt1;
@@ -264,6 +266,19 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             PetscInt idx_tmp = idx_2;
             idx_2 = idx_1;
             idx_1 = idx_tmp;
+        }
+
+        // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+        if(abl->timeT[idx_2] < clock->time)
+        {
+            idx_1 = idx_2;
+            idx_2 = idx_1 + 1;
+        }
+
+        if(abl->timeT[idx_1] > clock->time)
+        {
+            idx_2 = idx_1;
+            idx_1 = idx_2 - 1;
         }
 
         // find interpolation weights
@@ -333,7 +348,96 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
                     gtMean[j] = gtMean[abl->lowestIndT];
                 }
 
-                if(abl->cellLevels[i] > abl->hT[abl->numhT - 1])
+        }
+
+        if((abl->controllerTypeT == "waveletProfileAssimilation"))
+        {
+            if(abl->waveletBlend)
+            {
+                if(abl->heatFluxSwitch > 0.02)
+                {
+                    PetscReal *tDesAbove, *gtMeanAbove;
+                    PetscReal *tDesBelow, *gtMeanBelow;
+    
+                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesAbove));
+                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanAbove));
+                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesBelow));
+                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanBelow));
+    
+                    #if USE_PYTHON
+                        pywavedecScalar(abl, tD, tDesBelow, nLevels);
+                        pywavedecScalar(abl, tM, gtMeanBelow, nLevels);
+                    #endif
+    
+                    PetscInt waveLevel = abl->waveLevel;
+                    
+                    //hardcoded value for now
+                    abl->waveLevel = abl->waveLevel - 4;
+                    if(abl->waveLevel <= 0) abl->waveLevel = 1;
+    
+                    #if USE_PYTHON
+                        pywavedecScalar(abl, tD, tDesAbove, nLevels);
+                        pywavedecScalar(abl, tM, gtMeanAbove, nLevels);
+                    #endif
+    
+                    abl->waveLevel = waveLevel;
+                    
+                    // blend between the below and above profiles based on the abl height
+                    PetscReal ablHeight = abl->ablHt, scaleFactor;
+                    PetscReal ablgeoDelta = 300;
+
+                    //blending only in the region above ABL height
+                    PetscReal ablgeoDampTop = ablHeight + 500.0 + 0.5*ablgeoDelta;
+    
+                    for(j=0; j<nLevels; j++)
+                    {
+                        scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
+                        abl->tDes[j] = (1-scaleFactor)*tDesBelow[j] + scaleFactor*tDesAbove[j];                                                                     
+                        gtMean[j] = (1-scaleFactor)*gtMeanBelow[j] + scaleFactor*gtMeanAbove[j];                                                                
+                    }   
+    
+                    PetscFree(tDesAbove);
+                    PetscFree(gtMeanAbove);
+                    PetscFree(tDesBelow);
+                    PetscFree(gtMeanBelow);
+                }
+                else 
+                {
+                    // PetscInt waveLevel = abl->waveLevel;
+                    // abl->waveLevel = abl->waveLevel - 2;
+                    // if(abl->waveLevel <= 0) abl->waveLevel = 1;
+    
+                    #if USE_PYTHON
+                        pywavedecScalar(abl, tD, abl->tDes, nLevels);
+                        pywavedecScalar(abl, tM, gtMean, nLevels);
+                    #endif
+                    // abl->waveLevel = waveLevel;
+                }
+            }
+            else 
+            {
+                #if USE_PYTHON
+                pywavedecScalar(abl, tD, abl->tDes, nLevels);
+                pywavedecScalar(abl, tM, gtMean, nLevels);
+                #endif
+            }
+
+
+            if(abl->flTypeT == "constantHeight")
+            {
+                for(j=0; j<nLevels; j++)    
+                {
+                    if(abl->cellLevels[j] < abl->bottomSrcHtT)
+                    {
+                        abl->tDes[j] = abl->tDes[abl->lowestIndT];
+                        gtMean[j] = gtMean[abl->lowestIndT];
+                    }
+                }
+            }
+
+            for(j=0; j<nLevels; j++)    
+            {
+                if(abl->cellLevels[j] > abl->hT[abl->numhT - 1])
                 {
                     abl->tDes[j] = abl->tDes[abl->highestIndT];
                     gtMean[j] = gtMean[abl->highestIndT];
@@ -430,13 +534,56 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
             fclose(fp);
         }
+
+        fileName = "postProcessing/temperatureSourceDPA_" + getStartTimeName(clock);
+        fp = fopen(fileName.c_str(), "a");
+
+        if(!fp)
+        {
+            char error[512];
+            sprintf(error, "cannot open file postProcessing/temperatureSource\n");
+            fatalErrorInFunction("correctSourceTermT",  error);
+        }
+        else
+        {
+            PetscInt width = -15;
+
+            if(clock->it == clock->itStart)
+            {
+                word w1 = "levels";
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w1.c_str());
+
+                for(j=0; j<nLevels; j++)
+                {
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, abl->cellLevels[j]);
+                }
+
+                PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                word w2 = "time";
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
+            }
+
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
+
+            for(j=0; j<nLevels; j++)
+            {
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e\t", width, tD[j] - tM[j]);
+            }
+
+            PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+            fclose(fp);
+        }
     }
 
-    std::vector<PetscReal> ().swap(ltMean);
-    std::vector<PetscReal> ().swap(gtMean);
+
     std::vector<PetscReal> ().swap(lsource);
-    std::vector<PetscReal> ().swap(tD);
-    std::vector<PetscReal> ().swap(tM);
+    PetscFree(tD);
+    PetscFree(tM);
+    PetscFree(ltMean);
+    PetscFree(gtMean);
+
     return(0);
 }
 
