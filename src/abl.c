@@ -548,6 +548,101 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 }
             }
+            else if(abl->controllerType == "geostrophicProfileAssimilation")
+            {
+                readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingType",   &(abl->flType));
+                if(abl->flType != "ablHeight")
+                {
+                    char error[512];
+                    sprintf(error, "geostrophic profie assimilation requires the lower layer forcing type to be set to ablHeight based\n");
+                    fatalErrorInFunction("ABLInitialize",  error);
+                }
+
+                PetscPrintf(mesh->MESH_COMM, "   controller type velocity: %s\n", abl->controllerType.c_str());
+
+                //allocate memory for ABL height calculation 
+                
+                PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgTotalStress));   
+                PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgHeatFlux));   
+
+                for(j=0; j<nLevels; j++)
+                {
+                    abl->avgHeatFlux[j] = 0.0;
+                    abl->avgTotalStress[j] = 0.0;
+                } 
+
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "hAverageTime",     &(abl->hAvgTime)); 
+
+                // create height directory, check for height file, if exists get ABL height
+                if
+                (
+                    abl->access->clock->it == abl->access->clock->itStart && !rank
+                )
+                {
+                    word postProcessFolder = "./postProcessing/";
+                    errno = 0;
+                    PetscInt dirRes = mkdir(postProcessFolder.c_str(), 0777);
+                    if(dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create %s directory",postProcessFolder.c_str());
+                        fatalErrorInFunction("InitializeABL",  error);
+                    }
+                    else
+                    {
+                        word fileName = postProcessFolder + "/boundaryLayerHeight";
+
+                        FILE *file = fopen(fileName.c_str(), "r");
+
+                        if (file == NULL) 
+                        {
+
+                        }
+                        else
+                        {
+                            PetscReal closestAblHeight = 0.0;
+                            PetscReal minTimeDiff = 1.0e20;
+
+                            // Variables for parsing lines
+                            char line[1024];
+                            PetscReal time, ablHtAvg, ablHeight;
+
+                            // Read the file line by line
+                            while (fgets(line, sizeof(line), file)) 
+                            {
+                                // Parse the line (assumes tab-separated values)
+                                PetscInt numFields = sscanf(line, "%lf\t%lf\t%lf",
+                                                    &time, &ablHtAvg, &ablHeight);
+
+                                // Ensure the line has valid data
+                                if (numFields == 3) {
+                                    // Calculate the time difference
+                                    PetscReal timeDiff = fabs(time - abl->access->clock->startTime);
+
+                                    // Update the closest match if this is closer
+                                    if (timeDiff < minTimeDiff) {
+                                        minTimeDiff = timeDiff;
+                                        closestAblHeight = ablHtAvg;
+                                    }
+                                }
+                            }
+
+                            fclose(file);
+
+                            abl->ablHt = closestAblHeight;
+                        }
+                    }
+                }
+
+                readMesoScaleVelocityData(abl);
+
+                //find the interpolation points and weights for the velocity from the available heights 
+                findVelocityInterpolationWeights(abl);
+
+                PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->srcPA));
+                PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->luMean));
+                PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->guMean));
+            }
             else
             {
                 char error[512];

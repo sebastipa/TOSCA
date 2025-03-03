@@ -643,7 +643,252 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 abl->b.z =   0.0;
             }
         }
-        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+        else if (abl->controllerType=="geostrophicProfileAssimilation")
+        {
+            PetscInt    nlevels = my-2;
+            Cmpnts      uH1, uH2;
+            PetscInt    idxh1, idxh2, idxt1;
+            PetscReal   wth1, wth2, wtt1;
+            PetscReal   alpha = 1.5; 
+
+            Cmpnts    *srcPA  = abl->srcPA;
+            Cmpnts    *luMean = abl->luMean;
+            Cmpnts    *guMean = abl->guMean;
+
+            for(j=0; j<nlevels; j++)
+            {
+                luMean[j] = nSetZero();
+                guMean[j] = nSetZero();
+                srcPA[j]    = nSetZero();
+            }
+
+            DMDAVecGetArray(da, mesh->lAj, &aj);
+
+            //loop through the cells and find the mean at each vertical cell level
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        luMean[j-1].x += ucat[k][j][i].x / aj[k][j][i];
+                        luMean[j-1].y += ucat[k][j][i].y / aj[k][j][i];
+                        luMean[j-1].z += ucat[k][j][i].z / aj[k][j][i];
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+            MPI_Allreduce(&(luMean[0]), &(guMean[0]), 3*nlevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+            for(j=0; j<nlevels; j++)
+            {
+                mScale(1.0/abl->totVolPerLevel[j], guMean[j]);
+            }
+
+            //for cells above the abl height apply geostrophic forcing based on the mesodata 
+            //find the two closest available mesoscale data in time
+            PetscInt idx_1 = abl->closestTimeIndV;
+            PetscInt idx_2 = abl->closestTimeIndV + 1;
+
+            PetscInt lwrBound = 0;
+            PetscInt uprBound = abl->numtV;
+
+            if(clock->it > clock->itStart)
+            {
+                lwrBound = PetscMax(0, (abl->closestTimeIndV - 50));
+                uprBound = PetscMin(abl->numtV, (abl->closestTimeIndV + 50));
+            }
+
+            // build error vector for the time search
+            PetscReal  diff[abl->numtV];
+
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                diff[i] = fabs(abl->timeV[i] - clock->time);
+            }
+
+            // find the two closest times
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                if(diff[i] < diff[idx_1])
+                {
+                    idx_2 = idx_1;
+                    idx_1 = i;
+                }
+                if(diff[i] < diff[idx_2] && i != idx_1)
+                {
+                    idx_2 = i;
+                }
+            }
+
+            // always put the lower time at idx_1 and higher at idx_2
+            if(abl->timeV[idx_2] < abl->timeV[idx_1])
+            {
+                PetscInt idx_tmp = idx_2;
+                idx_2 = idx_1;
+                idx_1 = idx_tmp;
+            }
+
+            // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+            if(abl->timeV[idx_2] < clock->time)
+            {
+                idx_1 = idx_2;
+                idx_2 = idx_1 + 1;
+            }
+
+            if(abl->timeV[idx_1] > clock->time)
+            {
+                idx_2 = idx_1;
+                idx_1 = idx_2 - 1;
+            }
+
+            // find interpolation weights
+            PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
+            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+            PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading mesoscale data\n", w1 * abl->timeV[idx_1] + w2 * abl->timeV[idx_2]);
+            PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+            PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeV[idx_1], abl->timeV[idx_2]);
+
+            // reset the closest index for next iteration
+            abl->closestTimeIndV = idx_1;
+
+            // find the atmospheric boundary layer height 
+            findABLHeight(abl);
+
+            PetscReal ablHeight = abl->ablHt, scaleFactor;
+            PetscReal ablgeoDelta = 100;
+            PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
+
+            for(j=0; j<nlevels; j++)
+            {                
+                idxh1 = abl->velInterpIdx[j][0];
+                idxh2 = abl->velInterpIdx[j][1];
+
+                wth1  = abl->velInterpWts[j][0];
+                wth2  = abl->velInterpWts[j][1];
+
+                //interpolating in time
+                uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+                uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+                //interpolating in vertical direction 
+                uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+                //ensure no damping within the boundary layer
+                scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
+
+                srcPA[j].x =  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].x - uMeso[j].x) - 2.0*abl->fc*uMeso[j].y;
+                srcPA[j].y =  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].y - uMeso[j].y) + 2.0*abl->fc*uMeso[j].x;
+                srcPA[j].z = 0.0;
+            }
+
+            //if abl height is below the lowest mesoscale data point
+            if(ablHeight < abl->hV[0])
+            {   
+                i = 0;    
+                while(abl->cellLevels[i] < abl->hV[0])
+                {
+                    i++;
+                }
+
+                abl->lowestIndV = i;
+                abl->bottomSrcHtV = abl->hV[0];
+            }
+            // if abl height is in between the mesoscale data points
+            else if(ablHeight >= abl->hV[0])
+            {
+                i = 0;    
+
+                while(abl->cellLevels[i] < ablHeight)
+                {
+                    i++;
+                }   
+
+                abl->lowestIndV = i;
+                abl->bottomSrcHtV = ablHeight;
+            }
+
+            for(j=0; j<nlevels; j++)
+            {
+                if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                {
+                    srcPA[j].x = srcPA[abl->lowestIndV].x;
+                    srcPA[j].y = srcPA[abl->lowestIndV].y;
+                    srcPA[j].z = srcPA[abl->lowestIndV].z;
+                } 
+
+                if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
+                {
+                    srcPA[j].x = srcPA[abl->highestIndV].x;
+                    srcPA[j].y = srcPA[abl->highestIndV].y;
+                    srcPA[j].z = srcPA[abl->highestIndV].z;
+                }
+            }
+
+            //write the source terms 
+            if(!rank)
+            {
+                if(clock->it == clock->itStart)
+                {
+                    errno = 0;
+                    PetscInt dirRes = mkdir("./postProcessing", 0777);
+                    if(dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create postProcessing directory\n");
+                        fatalErrorInFunction("correctSourceTerm",  error);
+                    }
+                }
+
+                word fileName = "postProcessing/momentumSource_" + getStartTimeName(clock);
+                FILE *fp = fopen(fileName.c_str(), "a");
+
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file postProcessing/momentumSource\n");
+                    fatalErrorInFunction("correctSourceTermT",  error);
+                }
+                else
+                {
+
+                    PetscInt width = -15;
+
+                    if(clock->it == clock->itStart)
+                    {
+                        word w1 = "levels";
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w1.c_str());
+
+                        for(j=0; j<nlevels; j++)
+                        {
+                            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, abl->cellLevels[j]);
+                        }
+
+                        PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                        word w2 = "time";
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
+                    } 
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
+
+                    for(j=0; j<nlevels; j++)
+                    {
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, srcPA[j].x,  width, srcPA[j].y,  width, srcPA[j].z);
+                    }
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                    fclose(fp);                  
+                
+                }
+            }
+        }
+        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
         {
             PetscReal relax = abl->relax;
             PetscReal alpha = abl->alpha;
@@ -1384,7 +1629,13 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                                 source[k][j][i].z = 0.0;
                             }
                         }
-                        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+                        else if(abl->controllerType=="geostrophicProfileAssimilation")
+                        {
+                            source[k][j][i].x = abl->srcPA[j-1].x * clock->dt;
+                            source[k][j][i].y = abl->srcPA[j-1].y * clock->dt;
+                            source[k][j][i].z = 0.0;
+                        }
+                        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
                         {
                             if(abl->averageSource)
                             {
