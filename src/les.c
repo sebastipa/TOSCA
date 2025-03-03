@@ -38,6 +38,7 @@ PetscErrorCode InitializeLES(les_ *les)
         {
             VecDuplicate(mesh->lAj, &(les->lCs));     VecSet(les->lCs,0.);
             VecDuplicate(mesh->lAj, &(les->lNu_t));   VecSet(les->lNu_t,0.);
+            VecDuplicate(mesh->lAj, &(les->lDiff_t)); VecSet(les->lDiff_t,0.);
             VecDuplicate(mesh->lAj, &(les->lKsgs));   VecSet(les->lKsgs,0.);
 
             if (les->access->flags->isLesActive > 1)
@@ -2018,6 +2019,7 @@ PetscErrorCode UpdateNut(les_ *les)
 {
     mesh_         *mesh = les->access->mesh;
     ueqn_         *eqn  = les->access->ueqn;
+    teqn_         *teqn = les->access->teqn;
     DM            da    = mesh->da, fda = mesh->fda;
 
     DMDALocalInfo info = mesh->info;
@@ -2029,7 +2031,7 @@ PetscErrorCode UpdateNut(les_ *les)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***Cs, ***lnu_t, ***nvert, ***aj, ***ustar, ***ksg;
+    PetscReal     ***Cs, ***lnu_t, ***nvert, ***aj, ***ustar, ***ld_t, ***lt, ***ksg, ***ltempDiff;
     Cmpnts        ***csi, ***eta, ***zet, ***ucat;
 
     PetscReal     ajc;
@@ -2062,6 +2064,39 @@ PetscErrorCode UpdateNut(les_ *les)
 
     DMDAVecGetArray(da,  les->lCs, &Cs);
 
+    if (les->access->flags->isLesActive == 7)
+    {
+
+        if (les->access->flags->isTeqnActive)
+        {
+            VecSet(les->lDiff_t, 0.);
+            DMDAVecGetArray(da,  les->lDiff_t, &ld_t);
+            DMDAVecGetArray(da, teqn->lTmprt, &lt);
+            
+            if(les->access->flags->isAblActive)
+            {
+                //j plane temperature average 
+                tempJAvg = jPlaneScalarMean(mesh, lt, my-2);
+                VecDuplicate(teqn->lTmprt, &tempMAvg);
+                VecSet(tempMAvg, 0.);  
+
+                DMDAVecGetArray(da, tempMAvg, &ltempDiff);
+    
+                for (k=lzs; k<lze; k++)
+                for (j=lys; j<lye; j++)
+                for (i=lxs; i<lxe; i++)
+                {
+                    ltempDiff[k][j][i] = lt[k][j][i] - tempJAvg[j-1];
+                }
+    
+                DMDAVecRestoreArray(da, tempMAvg, &ltempDiff);
+                DMLocalToLocalBegin(da,  tempMAvg, INSERT_VALUES, tempMAvg);
+                DMLocalToLocalEnd  (da,  tempMAvg, INSERT_VALUES, tempMAvg);
+
+                DMDAVecGetArray(da, tempMAvg, &ltempDiff);
+            }
+        }
+    }
 
     for (k=lzs; k<lze; k++)
     for (j=lys; j<lye; j++)
@@ -2203,6 +2238,56 @@ PetscErrorCode UpdateNut(les_ *les)
             
             lnu_t[k][j][i] = nu_e;
 
+            if (les->access->flags->isTeqnActive)
+            {
+                //compute eddy diffusivity 
+                PetscReal dtdc, dtde, dtdz;
+                PetscReal dt_dx, dt_dy, dt_dz;
+                PetscReal num = 0.0, denom = 0.0;
+                PetscReal gradT_hat[3];
+
+                Compute_dscalar_center
+                (
+                    mesh,
+                    i, j, k,
+                    mx, my, mz,
+                    lt, nvert,
+                    &dtdc, &dtde, &dtdz
+                );
+
+                // compute temperature derivative w.r.t. the cartesian coordinates
+                Compute_dscalar_dxyz
+                (
+                    mesh,
+                    csi0, csi1, csi2,
+                    eta0, eta1, eta2,
+                    zet0, zet1, zet2,
+                    ajc,
+                    dtdc, dtde, dtdz,
+                    &dt_dx, &dt_dy, &dt_dz
+                );
+
+                gradT_hat[0] = delta_x * dt_dx;
+                gradT_hat[1] = delta_y * dt_dy;
+                gradT_hat[2] = delta_z * dt_dz;
+
+                for (PetscInt a = 0; a < 3; a++)
+                {
+                    for (PetscInt c = 0; c < 3; c++)
+                    {
+                        num += (-gradU_hat[c][a] * gradT_hat[c] * gradT_hat[a]);
+                    }
+                }
+
+                denom = gradT_hat[0]*gradT_hat[0] + gradT_hat[1]*gradT_hat[1] + gradT_hat[2]*gradT_hat[2];
+
+                PetscReal diff_e = num / (denom + 1e-10);
+
+                diff_e = Cs[k][j][i] * delta2_harm * PetscMax(diff_e, 0.0);
+
+                ld_t[k][j][i] = diff_e;
+            }
+
         }
         else
         {
@@ -2210,7 +2295,7 @@ PetscErrorCode UpdateNut(les_ *les)
             lnu_t[k][j][i] = Cs[k][j][i] * pow(filter, 2.0) * Sabs;
         }
 
-        //compute the subgrid scale kinetic energy 
+        //compute the subgrid scale kinetic energy - from local equilibrium balance (https://caefn.com/openfoam/smagorinsky-sgs-model)
         PetscReal a,b,c;
         PetscReal Ce = 1.08;
         PetscReal Ck = PetscPowReal((PetscPowReal(Cs[k][j][i], 2.0) * Ce), 1.0/3.0);
@@ -2237,6 +2322,25 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecRestoreArray(da,  les->lNu_t, &lnu_t);
     DMDAVecRestoreArray(da,  les->lKsgs, &ksg);
     DMDAVecRestoreArray(da,  les->lCs, &Cs);
+
+    if (les->access->flags->isLesActive == 7)
+    {
+        if (les->access->flags->isTeqnActive)
+        {
+            DMDAVecRestoreArray(da,  les->lDiff_t, &ld_t);
+            DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+            if(les->access->flags->isAblActive)
+            {
+                DMDAVecRestoreArray(da, tempMAvg, &ltempDiff);
+                VecDestroy(&tempMAvg);
+            }
+
+            DMLocalToLocalBegin(da,  les->lDiff_t, INSERT_VALUES, les->lDiff_t);
+            DMLocalToLocalEnd  (da,  les->lDiff_t, INSERT_VALUES, les->lDiff_t); 
+
+            UpdateDiffBCs(les);
+        }
+    }
 
     DMLocalToLocalBegin(da,  les->lNu_t, INSERT_VALUES, les->lNu_t);
     DMLocalToLocalEnd  (da,  les->lNu_t, INSERT_VALUES, les->lNu_t);

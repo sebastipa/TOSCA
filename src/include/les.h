@@ -26,6 +26,8 @@ struct les_
 
     // general
     Vec           lNu_t;                   //!< eddy viscosity
+    Vec           lDiff_t;                 //!< eddy diffusivity
+    Vec           lKsgs;
 
     // initial nut field
     word          initFieldType;
