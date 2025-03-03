@@ -1317,7 +1317,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     Cmpnts        ***div, ***visc, ***viscIBM;                                                // divergence and viscous terms
     Cmpnts        ***limiter;                                                     // flux limiter
     PetscReal     ***aj, ***iaj, ***jaj, ***kaj;                                  // cell and face jacobians
-    PetscReal     ***lnu_t, ***Sabs, ***lch, ***lcs;
+    PetscReal     ***lnu_t, ***Sabs, ***lch, ***lcs, ***ld_t;
 
     PetscReal     dtdc, dtde, dtdz;                                              // velocity der. w.r.t. curvil. coords
     PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;          // surface area vectors components
@@ -1371,6 +1371,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
         if(teqn->access->flags->isLesActive != 2)
         {
             DMDAVecGetArray(da, les->lNu_t, &lnu_t);
+
+            if(teqn->access->flags->isLesActive == 7)
+            {
+                DMDAVecGetArray(da, les->lDiff_t, &ld_t);
+            }
         }
         else
         {
@@ -1441,21 +1446,30 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
 
-                        // compute stability dependent turbulent Prandtl number
-                        PetscReal gradTdotG = dtde*(-9.81);
-                        PetscReal l, delta = pow( 1./ajc, 1./3. );
-                        if(gradTdotG < 0.)
+                        if(teqn->access->flags->isLesActive == 7)
                         {
-                            l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                           PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k][j][i+1]);
+                           kappaEff = (nu / cst->Pr) + diff;
                         }
-                        else
+                        else 
                         {
-                            l = delta;
+                            // compute stability dependent turbulent Prandtl number
+                            PetscReal gradTdotG = dtde*(-9.81);
+                            PetscReal l, delta = pow( 1./ajc, 1./3. );
+                            if(gradTdotG < 0.)
+                            {
+                                l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                            }
+                            else
+                            {
+                                l = delta;
+                            }
+
+                            PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
+                            kappaEff = (nu / cst->Pr) + (nut / Prt);
                         }
 
-                        PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                        kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }
                     else
                     {
@@ -1574,21 +1588,29 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
 
-                        // compute stability depentend turbulent Prandtl number
-                        PetscReal gradTdotG = dtde*(-9.81);
-                        PetscReal l, delta = pow( 1./ajc, 1./3. );
-                        if(gradTdotG < 0.)
+                        if(teqn->access->flags->isLesActive == 7)
                         {
-                            l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                           PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k][j+1][i]);
+                           kappaEff = (nu / cst->Pr) + diff;
                         }
-                        else
+                        else 
                         {
-                            l = delta;
+                            // compute stability dependend turbulent Prandtl number
+                            PetscReal gradTdotG = dtde*(-9.81);
+                            PetscReal l, delta = pow( 1./ajc, 1./3. );
+                            if(gradTdotG < 0.)
+                            {
+                                l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                            }
+                            else
+                            {
+                                l = delta;
+                            }
+
+                            PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
+                            kappaEff = (nu / cst->Pr) + (nut / Prt);
                         }
-
-                        PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                        kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }
                     else
                     {
@@ -1706,21 +1728,29 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
                         
-                        // compute stability depentend turbulent Prandtl number
-                        PetscReal gradTdotG = dtde*(-9.81);
-                        PetscReal l, delta = pow( 1./ajc, 1./3. );
-                        if(gradTdotG < 0.)
+                        if(teqn->access->flags->isLesActive == 7)
                         {
-                            l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                           PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k+1][j][i]);
+                           kappaEff = (nu / cst->Pr) + diff;
                         }
-                        else
+                        else 
                         {
-                            l = delta;
+                            // compute stability depentend turbulent Prandtl number
+                            PetscReal gradTdotG = dtde*(-9.81);
+                            PetscReal l, delta = pow( 1./ajc, 1./3. );
+                            if(gradTdotG < 0.)
+                            {
+                                l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                            }
+                            else
+                            {
+                                l = delta;
+                            }
+
+                            PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
+                            kappaEff = (nu / cst->Pr) + (nut / Prt);
                         }
-
-                        PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                        kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }
                     else
                     {
@@ -1808,6 +1838,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
         if(teqn->access->flags->isLesActive != 2)
         {
             DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
+
+            if(teqn->access->flags->isLesActive == 7)
+            {
+                DMDAVecRestoreArray(da, les->lDiff_t, &ld_t);
+            }
         }
         else
         {
@@ -1864,7 +1899,7 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
     // update wall model (optional)
-    UpdateWallModelsT(teqn);
+    // UpdateWallModelsT(teqn);
 
     // initialize the rhs vector
     VecSet(Rhs, 0.0);
@@ -1912,7 +1947,7 @@ PetscErrorCode FormExplicitRhsT(teqn_ *teqn)
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
     // update wall model (optional)
-    UpdateWallModelsT(teqn);
+    // UpdateWallModelsT(teqn);
 
     // initialize the rhs vector
     VecSet(teqn->Rhs, 0.0);
