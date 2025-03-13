@@ -24,6 +24,7 @@ struct flags_
     PetscInt isKLeftRayleighDampingActive;
     PetscInt isKRightRayleighDampingActive;
     PetscInt isAdvectionDampingActive;
+    PetscInt isAdvectionDampingYActive;
     PetscInt isSideForceActive;
     PetscInt isNonInertialFrameActive;
     PetscInt isGravityWaveModelingActive;

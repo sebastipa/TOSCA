@@ -128,6 +128,10 @@ struct abl_
     PetscReal    xDampingCoeff;                  //!< coeff = |Vend - Vstart| / alpha
     PetscInt    *closestLabelsFringe;            //!< closest height w.r.t. fringe controller height
     PetscReal   *levelWeightsFringe;             //!< weights for variables interpolated at closest heights w.r.t. fringe controller height
+    PetscReal    advDampingYStart;               //!< starting y of the adv damping y layer
+    PetscReal    advDampingYEnd;                 //!< ending y of the adv damping y layer
+    PetscReal    advDampingYDeltaStart;          //!< damping raise/decay distance
+    PetscReal    advDampingYDeltaEnd;            //!< damping raise/decay distance
 
     // y damping layer (can only be applied together with the x damping layer)
     PetscReal    yDampingStart;                  //!< starting y of the fringe layer

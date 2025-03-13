@@ -5406,16 +5406,16 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     }
 
     // damping viscosity for fringe region advection damping
-    PetscReal nuD;
+    PetscReal nuD, nuDY;
 
     // fringe region parameters (set only if active)
-    PetscReal xS;
-    PetscReal xE;
-    PetscReal xDS;
-    PetscReal xDE;
+    PetscReal xS, yS;
+    PetscReal xE, yE;
+    PetscReal xDS, yDS;
+    PetscReal xDE, yDE;
 
-    PetscInt  advectionDamping = 0;
-	PetscReal advDampH = 0;
+    PetscInt  advectionDamping = 0, advectionDampingY = 0;
+	PetscReal advDampH = 0, advDampYH = 0;
 
     if(ueqn->access->flags->isAdvectionDampingActive)
     {
@@ -5431,6 +5431,22 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     else
     {
         nuD = 1.0;
+    }
+
+    if(ueqn->access->flags->isAdvectionDampingYActive)
+    {
+        yS     = ueqn->access->abl->advDampingYStart;
+        xE     = ueqn->access->abl->advDampingYEnd;
+        yDE    = ueqn->access->abl->advDampingYDeltaEnd;
+        yDS    = ueqn->access->abl->advDampingYDeltaStart;
+
+        advectionDampingY = 1;
+
+        advDampYH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
+    }
+    else
+    {
+        nuDY = 1.0;
     }
 
     // i direction
@@ -6080,6 +6096,13 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
 					nuD              = viscStipaDelta(xS, xE, xDS, xDE, cent[k][j][i].x, height, advDampH);
 					fp[k][j][i].z    = nuD * fp[k][j][i].z;
+				}
+
+                if(advectionDampingY)
+				{
+					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
+					nuDY             = viscStipaDelta(yS, yE, yDS, yDE, cent[k][j][i].x, height, advDampYH);
+					fp[k][j][i].x    = nuDY * fp[k][j][i].x;
 				}
 
                 // viscous contribution

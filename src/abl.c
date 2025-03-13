@@ -1867,6 +1867,16 @@ PetscErrorCode InitializeABL(abl_ *abl)
         readSubDictDouble("ABLProperties.dat", "advectionDampingProperties", "advDampingDeltaEnd",         &(abl->advDampingDeltaEnd));
     }
 
+    if(mesh->access->flags->isAdvectionDampingYActive)
+    {
+        PetscPrintf(mesh->MESH_COMM, "   reading advection damping properties\n");
+
+        readSubDictDouble("ABLProperties.dat", "advectionDampingYProperties", "advDampingStart",            &(abl->advDampingYStart));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingYProperties", "advDampingEnd",              &(abl->advDampingYEnd));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingYProperties", "advDampingDeltaStart",       &(abl->advDampingYDeltaStart));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingYProperties", "advDampingDeltaEnd",         &(abl->advDampingYDeltaEnd));
+    }
+
     PetscPrintf(mesh->MESH_COMM, "done\n\n");
 
   }
