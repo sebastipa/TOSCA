@@ -300,9 +300,92 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             PetscReal     T     = abl->timeWindow;
 
             // set the wanted velocity
-            uDes.x = abl->uRef;
-            uDes.y = 0.0;
-            uDes.z = 0.0;
+            if(abl->mesoScaleInputActive)
+            {
+                //find the two closest available mesoscale data in time
+                PetscInt idx_1 = abl->closestTimeIndV;
+                PetscInt idx_2 = abl->closestTimeIndV + 1;
+
+                PetscInt lwrBound = 0;
+                PetscInt uprBound = abl->numtV;
+
+                if(clock->it > clock->itStart)
+                {
+                    lwrBound = PetscMax(0, (abl->closestTimeIndV - 50));
+                    uprBound = PetscMin(abl->numtV, (abl->closestTimeIndV + 50));
+                }
+
+                // build error vector for the time search
+                PetscReal  diff[abl->numtV];
+
+                for(PetscInt i=lwrBound; i<uprBound; i++)
+                {
+                    diff[i] = fabs(abl->timeV[i] - clock->time);
+                }
+
+                // find the two closest times
+                for(PetscInt i=lwrBound; i<uprBound; i++)
+                {
+                    if(diff[i] < diff[idx_1])
+                    {
+                        idx_2 = idx_1;
+                        idx_1 = i;
+                    }
+                    if(diff[i] < diff[idx_2] && i != idx_1)
+                    {
+                        idx_2 = i;
+                    }
+                }
+
+                // always put the lower time at idx_1 and higher at idx_2
+                if(abl->timeV[idx_2] < abl->timeV[idx_1])
+                {
+                    PetscInt idx_tmp = idx_2;
+                    idx_2 = idx_1;
+                    idx_1 = idx_tmp;
+                }
+
+                // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+                if(abl->timeV[idx_2] < clock->time)
+                {
+                    idx_1 = idx_2;
+                    idx_2 = idx_1 + 1;
+                }
+
+                if(abl->timeV[idx_1] > clock->time)
+                {
+                    idx_2 = idx_1;
+                    idx_1 = idx_2 - 1;
+                }
+
+                // find interpolation weights
+                PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
+                PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+                PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+                PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading mesoscale data\n", w1 * abl->timeV[idx_1] + w2 * abl->timeV[idx_2]);
+                PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+                PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeV[idx_1], abl->timeV[idx_2]);
+
+                // reset the closest index for next iteration
+                abl->closestTimeIndV = idx_1;
+
+                PetscInt idxh1 = abl->velInterpIdx[0][0], idxh2 = abl->velInterpIdx[0][1];
+                PetscReal wth1 = abl->velInterpWts[0][0], wth2  = abl->velInterpWts[0][1];
+
+                //interpolating in time
+                Cmpnts uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+                Cmpnts uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+                //interpolating in vertical direction 
+                uDes = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+            }
+            else 
+            {
+                uDes.x = abl->uRef;
+                uDes.y = 0.0;
+                uDes.z = 0.0;
+            }
 
             DMDAVecGetArray(da, mesh->lAj, &aj);
 
@@ -760,8 +843,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             findABLHeight(abl);
 
             PetscReal ablHeight = abl->ablHt, scaleFactor;
-            PetscReal ablgeoDelta = 100;
-            PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
 
             for(j=0; j<nlevels; j++)
             {                
@@ -778,12 +859,9 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 //interpolating in vertical direction 
                 uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
 
-                //ensure no damping within the boundary layer
-                scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
-
-                srcPA[j].x =  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].x - uMeso[j].x) - 2.0*abl->fc*uMeso[j].y;
-                srcPA[j].y =  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].y - uMeso[j].y) + 2.0*abl->fc*uMeso[j].x;
-                srcPA[j].z = 0.0;
+                srcPA[j].x  =  - 2.0*abl->fc*uMeso[j].y;
+                srcPA[j].y  =    2.0*abl->fc*uMeso[j].x;
+                srcPA[j].z  =    0.0;
             }
 
             //if abl height is below the lowest mesoscale data point
@@ -827,6 +905,33 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     srcPA[j].y = srcPA[abl->highestIndV].y;
                     srcPA[j].z = srcPA[abl->highestIndV].z;
                 }
+            }
+
+            //now add the damping term 
+            PetscReal ablgeoDelta = 200;
+            PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
+
+            for(j=0; j<nlevels; j++)
+            {                
+                idxh1 = abl->velInterpIdx[j][0];
+                idxh2 = abl->velInterpIdx[j][1];
+
+                wth1  = abl->velInterpWts[j][0];
+                wth2  = abl->velInterpWts[j][1];
+
+                //interpolating in time
+                uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+                uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+                //interpolating in vertical direction 
+                uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+                //ensure no damping within the boundary layer
+                scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
+
+                srcPA[j].x +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].x - uMeso[j].x);
+                srcPA[j].y +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].y - uMeso[j].y);
+                srcPA[j].z =   0.0;
             }
 
             //write the source terms 
@@ -1113,45 +1218,20 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
             if (abl->controllerType=="indirectProfileAssimilation")
             {
-                PetscInt    gLevels = abl->highestIndV - abl->lowestIndV + 1;
-
-                if(abl->flType == "ablHeight")
+                for (j=0; j<nlevels; j++) 
                 {
-                    computeLSqPolynomialCoefficientMatrix(abl);
+                    PetscReal dotProductx = 0.0, dotProducty = 0.0, dotProductz = 0.0;
 
-                    for (j=0; j<gLevels; j++) 
+                    for (k = 0; k < nlevels; k++) 
                     {
-                        PetscReal dotProductx = 0.0, dotProducty = 0.0, dotProductz = 0.0;
-
-                        for (k = 0; k < gLevels; k++) 
-                        {
-                            dotProductx += abl->polyCoeffM[j][k] * src[k+abl->lowestIndV].x;
-                            dotProducty += abl->polyCoeffM[j][k] * src[k+abl->lowestIndV].y;
-                            dotProductz += abl->polyCoeffM[j][k] * src[k+abl->lowestIndV].z;
-                        }
-
-                        srcPA[j+abl->lowestIndV].x = dotProductx;
-                        srcPA[j+abl->lowestIndV].y = dotProducty;
-                        srcPA[j+abl->lowestIndV].z = dotProductz;
+                        dotProductx += abl->polyCoeffM[j][k] * src[k].x;
+                        dotProducty += abl->polyCoeffM[j][k] * src[k].y;
+                        dotProductz += abl->polyCoeffM[j][k] * src[k].z;
                     }
-                }
-                else 
-                {
-                    for (j=0; j<nlevels; j++) 
-                    {
-                        PetscReal dotProductx = 0.0, dotProducty = 0.0, dotProductz = 0.0;
 
-                        for (k = 0; k < nlevels; k++) 
-                        {
-                            dotProductx += abl->polyCoeffM[j][k] * src[k].x;
-                            dotProducty += abl->polyCoeffM[j][k] * src[k].y;
-                            dotProductz += abl->polyCoeffM[j][k] * src[k].z;
-                        }
-
-                        srcPA[j].x = dotProductx;
-                        srcPA[j].y = dotProducty;
-                        srcPA[j].z = dotProductz;
-                    }
+                    srcPA[j].x = dotProductx;
+                    srcPA[j].y = dotProducty;
+                    srcPA[j].z = dotProductz;
                 }
 
                 for (j=0; j<nlevels; j++) 
@@ -1192,77 +1272,51 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
                     // PetscPrintf(PETSC_COMM_WORLD, "src[%ld] = %lf %lf %lf, avgsrc[%ld] = %lf %lf %lf\n", j, srcPA[j].x, srcPA[j].y, srcPA[j].z);
                 }
-
-                if(abl->flType == "ablHeight")
-                {
-                    //deallocate polyCoeff matrix
-                    for(j=0; j<gLevels; j++)
-                    {
-                        free(abl->polyCoeffM[j]);
-                    }
-
-                    free(abl->polyCoeffM);
-                }
             }
 
             if (abl->controllerType=="waveletProfileAssimilation")
-            {
-                findABLHeight(abl);
-                
+            {                
                 if(abl->waveletBlend)
                 {
-                    if(abl->heatFluxSwitch > 0.02)
+                    Cmpnts *srcAbove, *srcBelow;                                                                                                                
+                    PetscMalloc(sizeof(Cmpnts) * (nlevels), &(srcAbove));
+                    PetscMalloc(sizeof(Cmpnts) * (nlevels), &(srcBelow));
+
+                    #if USE_PYTHON
+                        pywavedecVector(abl, src, srcBelow, nlevels);
+                    #endif
+    
+                    PetscInt waveLevel = abl->waveLevel;
+                    
+                    //hardcoded for now
+                    abl->waveLevel = abl->waveLevel - 4;
+                    if(abl->waveLevel <= 0) abl->waveLevel = 1;
+    
+                    #if USE_PYTHON
+                        pywavedecVector(abl, src, srcAbove, nlevels);
+                    #endif
+    
+                    abl->waveLevel = waveLevel;
+
+                    // blend between the below and above profiles 
+                    PetscReal blendHeight = mesh->bounds.zmax-500.0, scaleFactor;
+                    PetscReal ablgeoDelta = 300;
+                    PetscReal blendTop = blendHeight + 0.5*ablgeoDelta;
+    
+                    for(j=0; j<nlevels; j++)
                     {
-                        Cmpnts *srcAbove, *srcBelow;                                                                                                                
-                        PetscMalloc(sizeof(Cmpnts) * (nlevels), &(srcAbove));
-                        PetscMalloc(sizeof(Cmpnts) * (nlevels), &(srcBelow));
+                        scaleFactor = scaleHyperTangTop(abl->cellLevels[j], blendTop, ablgeoDelta);
     
-                        #if USE_PYTHON
-                            pywavedecVector(abl, src, srcBelow, nlevels);
-                        #endif
-        
-                        PetscInt waveLevel = abl->waveLevel;
-                        
-                        //hardcoded for now
-                        abl->waveLevel = abl->waveLevel - 4;
-                        if(abl->waveLevel <= 0) abl->waveLevel = 1;
-        
-                        #if USE_PYTHON
-                            pywavedecVector(abl, src, srcAbove, nlevels);
-                        #endif
-        
-                        abl->waveLevel = waveLevel;
+                        srcPA[j].x = (1-scaleFactor)*srcBelow[j].x + scaleFactor*srcAbove[j].x;
+                        srcPA[j].y = (1-scaleFactor)*srcBelow[j].y + scaleFactor*srcAbove[j].y;
+                        srcPA[j].z = (1-scaleFactor)*srcBelow[j].z + scaleFactor*srcAbove[j].z;
+                        // PetscPrintf(PETSC_COMM_WORLD, "%lf %lf %lf %lf\n", src[j].x, srcBelow[j].x, srcAbove[j].x, srcPA[j].x);
     
-                        // blend between the below and above profiles based on the abl height
-                        PetscReal ablHeight = abl->ablHt, scaleFactor;
-                        PetscReal ablgeoDelta = 300;
-                        PetscReal ablgeoDampTop = ablHeight + 500 + 0.5*ablgeoDelta;
-        
-                        for(j=0; j<nlevels; j++)
-                        {
-                            scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
-        
-                            srcPA[j].x = (1-scaleFactor)*srcBelow[j].x + scaleFactor*srcAbove[j].x;
-                            srcPA[j].y = (1-scaleFactor)*srcBelow[j].y + scaleFactor*srcAbove[j].y;
-                            srcPA[j].z = (1-scaleFactor)*srcBelow[j].z + scaleFactor*srcAbove[j].z;
-                            // PetscPrintf(PETSC_COMM_WORLD, "%lf %lf %lf %lf\n", src[j].x, srcBelow[j].x, srcAbove[j].x, srcPA[j].x);
-        
-                        }
-        
-                        PetscFree(srcAbove);
-                        PetscFree(srcBelow);
                     }
-                    else
-                    {
-                        // PetscInt waveLevel = abl->waveLevel;
-                        // abl->waveLevel = abl->waveLevel - 2;
-                        // if(abl->waveLevel <= 0) abl->waveLevel = 1;
     
-                        #if USE_PYTHON
-                        pywavedecVector(abl, src, srcPA, nlevels);
-                        #endif 
-                        // abl->waveLevel = waveLevel;
-                    }
+                    PetscFree(srcAbove);
+                    PetscFree(srcBelow);
+
                 }
                 else
                 {
@@ -1584,7 +1638,12 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             }           
  
         }
-
+        else if(abl->controllerType=="timeSeriesFromPrecursor")
+        {
+            s.x = abl->preCompSources[0][1];
+            s.y = abl->preCompSources[0][2];
+            s.z = abl->preCompSources[0][3];
+        }
     }
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
@@ -1665,7 +1724,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     }
                     else if(abl->controllerAction == "read")
                     {
-                        if(abl->controllerType == "timeSeries" || abl->controllerType == "timeAverageSeries")
+                        if(abl->controllerType == "timeSeries" || abl->controllerType == "timeAverageSeries" || abl->controllerType == "timeSeriesFromPrecursor")
                         {
                             source[k][j][i].x = s.x;
                             source[k][j][i].y = s.y;
@@ -1875,6 +1934,8 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
     PetscInt      i, j, k, p, l;
     PetscInt      imin, imax, jmin, jmax, kmin, kmax;
     PetscInt      iminSrc, jminSrc, kminSrc;
+    PetscInt      imaxSrc, jmaxSrc, kmaxSrc;
+
     PetscInt      numDestBounds = abl->yDampingNumPeriods;
     PetscInt      k_src_left, k_src_right;
     PetscReal     w_left, w_right;
@@ -1921,6 +1982,10 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
                     jminSrc = abl->srcMinInd[p].j;
                     kminSrc = abl->srcMinInd[p].k;
 
+                    imaxSrc = abl->srcMaxInd[p].i;
+                    jmaxSrc = abl->srcMaxInd[p].j;
+                    kmaxSrc = abl->srcMaxInd[p].k;
+
                     for(l=0; l < numDestBounds; l++)
                     {
                         imin = abl->destMinInd[p][l].i;
@@ -1949,20 +2014,26 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
                                     {
                                         k_src_left    = abl->closestKCell[k][0];
                                         k_src_right   = abl->closestKCell[k][1];
+
+                                        //if the k closest index go out of processor bounds
+                                        if(k_src_left  < kminSrc)  k_src_left  = kminSrc;
+                                        if(k_src_right > kmaxSrc)  k_src_right = kmaxSrc;
+
                                         w_left        = abl->wtsKCell[k][0];
                                         w_right       = abl->wtsKCell[k][1];
 
-                                        Cmpnts uLeft  = nSet(velMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)]);
-                                        Cmpnts uRight = nSet(velMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)]);
+                                        //Note: k index has been converted to indices of source processors, j and i are still based on destination processors
+                                        Cmpnts uLeft  = nSet(velMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jmin) * numI + (i-imin)]);
+                                        Cmpnts uRight = nSet(velMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jmin) * numI + (i-imin)]);
 
                                         ubar[k][j][i] = nSum(nScale(w_left, uLeft), nScale(w_right, uRight));
-
+                                        
                                         if(flags->isTeqnActive)
                                         {
-                                            PetscReal tLeft  = tMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)];
-                                            PetscReal tRight = tMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)];
+                                            PetscReal tLeft  = tMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jmin) * numI + (i-imin)];
+                                            PetscReal tRight = tMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jmin) * numI + (i-imin)];
 
-                                            tbar[k][j][i] = w_left * tLeft + w_right * tRight;    
+                                            tbar[k][j][i] = w_left * tLeft + w_right * tRight;                                                
                                         }
                                         // PetscPrintf(PETSC_COMM_SELF, "ubar[%ld][%ld][%ld] = %lf %lf %lf\n", k, j, i, ubar[k][j][i].x, ubar[k][j][i].y, ubar[k][j][i].z);
                                     }
@@ -2760,6 +2831,8 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     numI = abl->srcNumI[p];
                     numJ = abl->srcNumJ[p];
                     numK = abl->srcNumK[p];
+
+                    // PetscPrintf(PETSC_COMM_SELF, "p = %ld,rank = %d, src kmin = %ld %ld, jmin = %ld %ld , imin = %ld %ld, num k,j, i = %ld %ld %ld\n", p,  rank, kmin, kmax, jmin, jmax, imin, imax, numK, numJ, numI);
 
                     //loop through the sub domain of this processor
                     for (k=kmin; k<=kmax; k++)
