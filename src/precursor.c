@@ -880,6 +880,12 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         WriteAcquisition(domain);
     }
 
+    //save source term from precursor to successor domain
+    if(abl->controllerActive && abl->controllerAction == "read" && abl->controllerType=="timeSeriesFromPrecursor")
+    {
+        saveSourcePrecursor2Successor(domain->abl, abl);
+    }
+
     // sync processors
     MPI_Barrier(abl->access->mesh->MESH_COMM);
 
@@ -1530,19 +1536,6 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
             readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
         }
 
-		if(abl->controllerActive)
-		{
-            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerType",   &(abl->controllerType));
-
-            // overwrite controller type if precursor is periodic, use same as successor otherwise
-		    if(!flags->isPrecursorSpinUp)
-			{
-				// use the same as successor (average) because this may introduce
-				// streamwise oscillations in the successor from the fringe
-				// abl->controllerType = "pressure";
-			}
-		}
-
         // initialize some useful parameters used in fringe and velocity controller 'write'
         {
             PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->cellLevels));
@@ -1612,8 +1605,14 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         if(abl->controllerActive)
         {
-            readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerMaxHeight", &(abl->controllerMaxHeight));
-            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerAction",   &(abl->controllerAction));
+            readDictInt  ("ABLProperties.dat", "precursorControllerTypeMismatch",   &(abl->controllerTypeMismatch));
+
+            const char* controllerProp = "controllerProperties";
+            if(abl->controllerTypeMismatch) controllerProp = "fringeControllerProperties";
+    
+            readSubDictWord  ("ABLProperties.dat", controllerProp, "controllerType",   &(abl->controllerType));
+            readSubDictDouble("ABLProperties.dat", controllerProp, "controllerMaxHeight", &(abl->controllerMaxHeight));
+            readSubDictWord  ("ABLProperties.dat", controllerProp, "controllerAction",   &(abl->controllerAction));
 
             abl->cumulatedSource.x = 0.0;
             abl->cumulatedSource.y = 0.0;
@@ -1625,9 +1624,9 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                 {
 
                     // read PI controller properties
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "alphaPI",          &(abl->alpha));
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "timeWindowPI",     &(abl->timeWindow));
 
                     // calculating levels interpolation weights at reference height
                     {
@@ -1674,7 +1673,8 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                         if(abl->controllerType == "pressure")
                         {
                             // read if geostrophic damping is active
-                            readSubDictInt("ABLProperties.dat", "controllerProperties", "geostrophicDamping", &(abl->geostrophicDampingActive));
+                            readSubDictInt("ABLProperties.dat", controllerProp, "geostrophicDamping", &(abl->geostrophicDampingActive));
+                            readSubDictInt("ABLProperties.dat", controllerProp, "mesoScaleInput", &(abl->mesoScaleInputActive));
 
                             if(abl->geostrophicDampingActive)
                             {
@@ -1728,6 +1728,12 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                                     abl->geoDampUBar = nScale(1.0 / (2.0 * abl->fc * abl->geoDampAvgDT), nSetFromComponents(abl->geoDampAvgS.y, abl->geoDampAvgS.x, 0.0));
                                     PetscPrintf(mesh->MESH_COMM, "   -> reading filtered geostrophic wind: Ug = (%.3lf, %.3lf, 0.000)\n",abl->geoDampUBar.x, abl->geoDampUBar.y);
                                 }
+                            }
+                            
+                            if(abl->mesoScaleInputActive)
+                            {
+                                readMesoScaleVelocityData(abl);
+                                findVelocityInterpolationWeightsOnePt(abl);
                             }
                         }
                     }
@@ -2254,4 +2260,73 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
     }
 
     return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode saveSourcePrecursor2Successor(abl_ *precursorABL, abl_ *successorABL)
+{
+    precursor_    *precursor     = successorABL->precursor;
+    mesh_         *meshSuccessor = successorABL->access->mesh;
+
+    PetscMPIInt  worldRank;
+    MPI_Comm_rank(meshSuccessor->MESH_COMM, &worldRank);
+
+    Cmpnts  ***source, pGradSrc, pGradSrcGlobal;
+
+    pGradSrc        = nSetZero(); 
+    pGradSrcGlobal  = nSetZero();
+
+    if(precursor->thisProcessorInFringe)
+    {
+        ueqn_         *ueqn = precursorABL->access->ueqn;
+        mesh_         *mesh = precursorABL->access->mesh;
+        DM            da    = mesh->da, fda = mesh->fda;
+        DMDALocalInfo info  = mesh->info;
+        PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+        PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+        PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+        PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+        PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+        lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+        lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+        lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+        PetscMPIInt   rank;
+        MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+        DMDAVecGetArray(fda, ueqn->sourceU, &source);
+
+        if(!rank)
+        {
+            pGradSrc = nSet(source[lzs][lys][lxs]);
+        }
+    
+        DMDAVecRestoreArray(fda, ueqn->sourceU, &source);
+
+        //send from precursor 0 to world 0 processor
+        if(!rank)
+        {
+            MPI_Send(&pGradSrc, 3, MPIU_REAL, 0, 0, meshSuccessor->MESH_COMM);
+        }
+    }
+
+    //receive from precursor 0 to world 0 processor
+    if (!worldRank) 
+    {
+        MPI_Recv(&pGradSrcGlobal, 3, MPIU_REAL, MPI_ANY_SOURCE, 0, meshSuccessor->MESH_COMM, MPI_STATUS_IGNORE);
+    }
+
+    // Broadcast from rank 0 of world to all processes
+    MPI_Bcast(&pGradSrcGlobal, 3, MPIU_REAL, 0, meshSuccessor->MESH_COMM);
+
+    // save the source in successor abl variable
+    successorABL->preCompSources[0][0] = 0.0;
+    successorABL->preCompSources[0][1] = pGradSrcGlobal.x;
+    successorABL->preCompSources[0][2] = pGradSrcGlobal.y;
+    successorABL->preCompSources[0][3] = pGradSrcGlobal.z;
+
+    // printf("rank = %d, source term precursor = %lf %lf %lf\n", worldRank, pGradSrcGlobal.x, pGradSrcGlobal.y, pGradSrcGlobal.z);
+    return 0;
 }

@@ -5166,6 +5166,24 @@ PetscErrorCode readSurfaceTempData(Shumann *wm)
 
     PetscPrintf(PETSC_COMM_WORLD, "   reading surface temperature and Obhukhov Length data\n");
 
+    // Check if "surfTemp" file exists in fileList
+    bool surfTempExists = false;
+    for(PetscInt i = 0; i < nFiles; i++)
+    {
+        if (fileList[i] == "surfTemp")
+        {
+            surfTempExists = true;
+            break;
+        }
+    }
+
+    if (!surfTempExists)
+    {
+        char error[512];
+        sprintf(error, "Error: 'surfTemp' file not found in folder %s\n", filePath.c_str());
+        fatalErrorInFunction("readSurfaceTempData", error);
+    }
+    
     for(PetscInt i=0; i<nFiles; i++)
     {
         fileName = filePath + "/" + fileList[i];

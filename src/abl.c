@@ -232,6 +232,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     {
                         // read if geostrophic damping is active
                         readSubDictInt("ABLProperties.dat", "controllerProperties", "geostrophicDamping", &(abl->geostrophicDampingActive));
+                        readSubDictInt("ABLProperties.dat", "controllerProperties", "mesoScaleInput", &(abl->mesoScaleInputActive));
 
                         if(abl->geostrophicDampingActive)
                         {
@@ -285,6 +286,12 @@ PetscErrorCode InitializeABL(abl_ *abl)
                                 abl->geoDampUBar = nScale(1.0 / (2.0 * abl->fc * abl->geoDampAvgDT), nSetFromComponents(abl->geoDampAvgS.y, abl->geoDampAvgS.x, 0.0));
                                 PetscPrintf(mesh->MESH_COMM, "   -> reading filtered geostrophic wind: Ug = (%.3lf, %.3lf, 0.000)\n",abl->geoDampUBar.x, abl->geoDampUBar.y);
                             }
+                        }
+                        
+                        if(abl->mesoScaleInputActive)
+                        {
+                            readMesoScaleVelocityData(abl);
+                            findVelocityInterpolationWeightsOnePt(abl);
                         }
                     }
                 }
@@ -377,87 +384,89 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 /* ABL Height Calculation*/
                 //allocate memory for ABL height calculation 
-                PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgTotalStress));   
-                PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgHeatFlux));   
-
-                for(j=0; j<nLevels; j++)
+                if(abl->flType == "ablHeight")
                 {
-                    abl->avgHeatFlux[j] = 0.0;
-                    abl->avgTotalStress[j] = 0.0;
-                } 
-
-                readSubDictDouble("ABLProperties.dat", "controllerProperties", "hAverageTime",     &(abl->hAvgTime)); 
-
-                // create height directory, check for height file, if exists get ABL height
-                if
-                (
-                    abl->access->clock->it == abl->access->clock->itStart && !rank
-                )
-                {
-                    word postProcessFolder = "./postProcessing/";
-                    errno = 0;
-                    PetscInt dirRes = mkdir(postProcessFolder.c_str(), 0777);
-                    if(dirRes != 0 && errno != EEXIST)
+                    PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgTotalStress));   
+                    PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgHeatFlux));   
+    
+                    for(j=0; j<nLevels; j++)
                     {
-                        char error[512];
-                        sprintf(error, "could not create %s directory",postProcessFolder.c_str());
-                        fatalErrorInFunction("InitializeABL",  error);
-                    }
-                    else
+                        abl->avgHeatFlux[j] = 0.0;
+                        abl->avgTotalStress[j] = 0.0;
+                    } 
+    
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "hAverageTime",     &(abl->hAvgTime)); 
+    
+                    // create height directory, check for height file, if exists get ABL height
+                    if
+                    (
+                        abl->access->clock->it == abl->access->clock->itStart && !rank
+                    )
                     {
-                        word fileName = postProcessFolder + "/boundaryLayerHeight";
-
-                        FILE *file = fopen(fileName.c_str(), "r");
-
-                        if (file == NULL) 
+                        word postProcessFolder = "./postProcessing/";
+                        errno = 0;
+                        PetscInt dirRes = mkdir(postProcessFolder.c_str(), 0777);
+                        if(dirRes != 0 && errno != EEXIST)
                         {
-                            
+                            char error[512];
+                            sprintf(error, "could not create %s directory",postProcessFolder.c_str());
+                            fatalErrorInFunction("InitializeABL",  error);
                         }
                         else
                         {
-                            PetscReal closestAblHeight = 0.0;
-                            PetscReal minTimeDiff = 1.0e20;
-
-                            // Variables for parsing lines
-                            char line[1024];
-                            PetscReal time, ablHtAvg, ablHeight;
-
-                            // Read the file line by line
-                            while (fgets(line, sizeof(line), file)) 
+                            word fileName = postProcessFolder + "/boundaryLayerHeight";
+    
+                            FILE *file = fopen(fileName.c_str(), "r");
+    
+                            if (file == NULL) 
                             {
-                                // Parse the line (assumes tab-separated values)
-                                PetscInt numFields = sscanf(line, "%lf\t%lf\t%lf",
-                                                    &time, &ablHtAvg, &ablHeight);
-
-                                // Ensure the line has valid data
-                                if (numFields == 3) {
-                                    // Calculate the time difference
-                                    PetscReal timeDiff = fabs(time - abl->access->clock->startTime);
-
-                                    // Update the closest match if this is closer
-                                    if (timeDiff < minTimeDiff) {
-                                        minTimeDiff = timeDiff;
-                                        closestAblHeight = ablHtAvg;
-                                    }
-                                }
-                            }
-
-                            fclose(file);
-
-                            if(closestAblHeight == 0.0)
-                            {
-                                abl->ablHt = abl->hRef;
+                                
                             }
                             else
                             {
-                                abl->ablHt = closestAblHeight;
+                                PetscReal closestAblHeight = 0.0;
+                                PetscReal minTimeDiff = 1.0e20;
+    
+                                // Variables for parsing lines
+                                char line[1024];
+                                PetscReal time, ablHtAvg, ablHeight;
+    
+                                // Read the file line by line
+                                while (fgets(line, sizeof(line), file)) 
+                                {
+                                    // Parse the line (assumes tab-separated values)
+                                    PetscInt numFields = sscanf(line, "%lf\t%lf\t%lf",
+                                                        &time, &ablHtAvg, &ablHeight);
+    
+                                    // Ensure the line has valid data
+                                    if (numFields == 3) {
+                                        // Calculate the time difference
+                                        PetscReal timeDiff = fabs(time - abl->access->clock->startTime);
+    
+                                        // Update the closest match if this is closer
+                                        if (timeDiff < minTimeDiff) {
+                                            minTimeDiff = timeDiff;
+                                            closestAblHeight = ablHtAvg;
+                                        }
+                                    }
+                                }
+    
+                                fclose(file);
+    
+                                if(closestAblHeight == 0.0)
+                                {
+                                    abl->ablHt = abl->hRef;
+                                }
+                                else
+                                {
+                                    abl->ablHt = closestAblHeight;
+                                }
+                                
                             }
-                            
                         }
-                    }
+                    }    
                 }
-
-                if(abl->flType == "constantHeight")
+                else if(abl->flType == "constantHeight")
                 {
                     readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",  &(abl->lowestSrcHt));
                 }
@@ -520,11 +529,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrder",   &(abl->polyOrder));
 
                     //precompute the polynomial coefficient matrix using least square regression method.
-                    if(abl->flType == "ablHeight")
-                        computeLSqPolynomialCoefficientMatrix(abl); 
-                    else
-                        computeLSqPolynomialCoefficientMatrixFullDomain(abl);
-
+                    computeLSqPolynomialCoefficientMatrix(abl); 
                 }
 
                 if(abl->controllerType=="waveletProfileAssimilation")
@@ -962,6 +967,12 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     findTimeHeightSeriesInterpolationWts(abl);
                 }
             }
+            // source terms are computed in concurrent precursor, they need to be transferred to successor. 
+            else if(abl->controllerType=="timeSeriesFromPrecursor")
+            {
+                PetscMalloc(sizeof(PetscReal *) * 1, &(abl->preCompSources));
+                PetscMalloc(sizeof(PetscReal) * 4, &(abl->preCompSources[0]));
+            }
             else
             {
                 char error[512];
@@ -979,6 +990,14 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
     if(abl->controllerActiveT)
     {
+
+        if(!(abl->access->flags->isTeqnActive))
+        {
+            char error[512];
+            sprintf(error, "temperature controller cannot be used without potential temperature flag on\n");
+            fatalErrorInFunction("ABLInitialize",  error);
+        }
+        
         PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
 
         for(l=0; l<nLevels; l++)
@@ -1028,10 +1047,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrderT",   &(abl->polyOrderT));
 
             //precompute the polynomial coefficient matrix using least square regression method.
-            if(abl->flType == "ablHeight")
-                computeLSqPolynomialCoefficientMatrixT(abl); 
-            else
-                computeLSqPolynomialCoefficientMatrixTFullDomain(abl); 
+            computeLSqPolynomialCoefficientMatrixT(abl); 
         }
 
         if(abl->controllerTypeT=="waveletProfileAssimilation")
@@ -2481,6 +2497,118 @@ PetscErrorCode findTimeHeightSeriesInterpolationWts(abl_ *abl)
 
 //***************************************************************************************************************//
 
+PetscErrorCode findVelocityInterpolationWeightsOnePt(abl_ *abl)
+{
+    mesh_ *mesh = abl->access->mesh;
+    clock_ *clock = abl->access->clock;
+
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt     i,j;
+
+    //local pointers to the abl cellLevels and available mesoscale data levels
+    PetscReal *cellLevels, *hVel;
+
+    cellLevels  = abl->cellLevels;
+    hVel        = abl->hV;
+
+    // allocate memory for abl->velInterpPts and abl->velInterpWts 
+    PetscMalloc(sizeof(PetscInt *)  * (1), &(abl->velInterpIdx));
+    PetscMalloc(sizeof(PetscReal *) * (1), &(abl->velInterpWts));
+
+    PetscMalloc(sizeof(PetscInt)  * 2, &(abl->velInterpIdx[0]));
+    PetscMalloc(sizeof(PetscReal) * 2, &(abl->velInterpWts[0]));
+
+    //local variables
+    PetscReal wt1, wt2, total;
+    PetscInt  idx1, idx2;
+
+    PetscReal currPt = abl->hRef;
+
+    idx1 = 0;
+    idx2 = abl->numhV - 1;
+
+    //loop through the mesoscale data points to find the closest points
+    for(j=0; j<abl->numhV; j++)
+    {
+        if (hVel[j] <= currPt && hVel[j] > hVel[idx1])
+        {
+            idx1 = j;
+        }
+        if (hVel[j] >= currPt && hVel[j] < hVel[idx2])
+        {
+            idx2 = j;
+        }
+    }
+
+    //ensure index are not same
+    if(idx1 == idx2)
+    {
+        idx2 = idx1+1;
+    }
+
+    // Calculate interpolation weights
+    wt1 = currPt - hVel[idx1];
+    wt2 = hVel[idx2] - currPt;
+    total = hVel[idx2] - hVel[idx1];
+    abl->velInterpWts[0][0] = wt2 / total;
+    abl->velInterpWts[0][1] = wt1 / total;
+
+    if(idx2 > abl->numhV - 1) idx2 = abl->numhV - 1;
+
+    abl->velInterpIdx[0][0] = idx1;
+    abl->velInterpIdx[0][1] = idx2;
+
+    // find the initial time assimilation index and weights
+    PetscReal tim = clock->startTime;
+
+    idx1 = 0;
+    idx2 = abl->numtV - 1;
+
+    if(tim < abl->timeV[0] || tim > abl->timeV[abl->numtV - 1])
+    {
+        char error[512];
+        sprintf(error, "initial assimilation time out of bounds of the available mesoscale time data\n");
+        fatalErrorInFunction("findVelocityInterpolationWeights",  error);
+    }
+
+    for(j=0; j<abl->numtV; j++)
+    {
+        if (abl->timeV[j] <= tim && abl->timeV[j] > abl->timeV[idx1])
+        {
+            idx1 = j;
+        }
+        if (abl->timeV[j] >= tim && abl->timeV[j] < abl->timeV[idx2])
+        {
+            idx2 = j;
+        }
+    }
+
+    //ensure index are not same
+    if(idx1 == idx2)
+    {
+        idx2 = idx1+1;
+    }
+
+    // Calculate interpolation weights
+    wt1 = tim - abl->timeV[idx1];
+    wt2 = abl->timeV[idx2] - tim;
+    total = abl->timeV[idx2] - abl->timeV[idx1];
+    abl->closestTimeWtV = wt2 / total;
+    abl->closestTimeIndV = idx1;
+
+    //other wt2 = 1-wt1, idx2 = idx1 + 1
+
+    // PetscPrintf(PETSC_COMM_WORLD, "time interp id = %ld %ld, at time = %lf %lf, for time = %lf, wts = %lf %lf\n", abl->closestTimeIndV, (abl->closestTimeIndV) + 1, abl->timeV[idx1], abl->timeV[idx2], tim, abl->closestTimeWtV, 1 - (abl->closestTimeWtV) );
+
+    return (0);
+}
+//***************************************************************************************************************//
 PetscErrorCode findVelocityInterpolationWeights(abl_ *abl)
 {
     mesh_ *mesh = abl->access->mesh;
@@ -2889,7 +3017,7 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl)
 
     //create min and max coordinate for each source processor
     Cmpnts lminCoor[numSourceProc], lmaxCoor[numSourceProc], gminCoor[numSourceProc], gmaxCoor[numSourceProc];
-    cellIds lsrcMinInd[numSourceProc];
+    cellIds lsrcMinInd[numSourceProc], lsrcMaxInd[numSourceProc];
 
     //create list of source processors
     PetscInt lsrcPrc[numSourceProc], gsrcPrc[numSourceProc];
@@ -2900,12 +3028,16 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl)
         lmaxCoor[p] = nSetZero();
         gminCoor[p] = nSetZero();
         gmaxCoor[p] = nSetZero();
-        lsrcPrc[p] = 0;
-        gsrcPrc[p] = 0;
+        lsrcPrc[p]  = 0;
+        gsrcPrc[p]  = 0;
 
         lsrcMinInd[p].i = 0;
         lsrcMinInd[p].j = 0;
         lsrcMinInd[p].k = 0;
+
+        lsrcMaxInd[p].i = 0;
+        lsrcMaxInd[p].j = 0;
+        lsrcMaxInd[p].k = 0;
     }
 
     if(sourceBoundFlag == 0)
@@ -2964,7 +3096,7 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl)
                             ymax = cent[k][j][i].y;
                         }
 
-                        if(cent[k][j][i].z >= zmin)
+                        if(cent[k][j][i].z >= zmax)
                         {
                             zmax = cent[k][j][i].z;
                         }
@@ -3020,7 +3152,7 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl)
                             imax = i;
                         }
 
-                        if(cent[k][j][i].z >= zmin)
+                        if(cent[k][j][i].z >= zmax)
                         {
                             zmax = cent[k][j][i].z;
                             jmax = j;
@@ -3035,10 +3167,9 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl)
         lsrcMinInd[srcRank].j = jmin;
         lsrcMinInd[srcRank].k = kmin;
 
-        abl->srcMaxInd[srcRank].i = imax;
-        abl->srcMaxInd[srcRank].j = jmax;
-        abl->srcMaxInd[srcRank].k = kmax;
-
+        lsrcMaxInd[srcRank].i = imax;
+        lsrcMaxInd[srcRank].j = jmax;
+        lsrcMaxInd[srcRank].k = kmax;
 
         MPI_Reduce(&(lminCoor[0]), &(gminCoor[0]), numSourceProc * 3, MPIU_REAL, MPIU_SUM, 0, SOURCE_BOUND_COMM);
         MPI_Reduce(&(lmaxCoor[0]), &(gmaxCoor[0]), numSourceProc * 3, MPIU_REAL, MPIU_SUM,  0, SOURCE_BOUND_COMM);
@@ -3053,6 +3184,7 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl)
     // get the global rank of the sending processor
     MPI_Allreduce(&(lsrcRoot), &(gsrcRoot), 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
 
+    // broadcast variables local to SOURCE_BOUND_COMM comm to world
     MPI_Bcast(&(gminCoor[0]), numSourceProc * 3, MPIU_REAL, gsrcRoot, mesh->MESH_COMM);
     MPI_Bcast(&(gmaxCoor[0]), numSourceProc * 3, MPIU_REAL, gsrcRoot, mesh->MESH_COMM);
     MPI_Bcast(&(gsrcPrc[0]), numSourceProc, MPIU_INT, gsrcRoot, mesh->MESH_COMM);
@@ -3178,7 +3310,7 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl)
                                     imax = i;
                                 }
 
-                                if(cent[k][j][i].z >= zmin)
+                                if(cent[k][j][i].z >= zmax)
                                 {
                                     zmax = cent[k][j][i].z;
                                     jmax = j;
@@ -3241,11 +3373,11 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl)
                 MPI_Comm_rank(abl->yDamp_comm[p], &lsrcLocal);
 
                 imin = lsrcMinInd[p].i;
-                imax = abl->srcMaxInd[p].i;
+                imax = lsrcMaxInd[p].i;
                 jmin = lsrcMinInd[p].j;
-                jmax = abl->srcMaxInd[p].j;
+                jmax = lsrcMaxInd[p].j;
                 kmin = lsrcMinInd[p].k;
-                kmax = abl->srcMaxInd[p].k;
+                kmax = lsrcMaxInd[p].k;
 
                 lnumI = imax - imin + 1;
                 lnumJ = jmax - jmin + 1;
@@ -3257,6 +3389,7 @@ PetscErrorCode initializeYDampingMapping(abl_ *abl)
             MPI_Allreduce(&(lnumJ), &(gnumJ), 1, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
             MPI_Allreduce(&(lnumK), &(gnumK), 1, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
             MPI_Allreduce(&(lsrcMinInd[p]), &(abl->srcMinInd[p]), 3, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
+            MPI_Allreduce(&(lsrcMaxInd[p]), &(abl->srcMaxInd[p]), 3, MPIU_INT, MPIU_SUM, abl->yDamp_comm[p]);
 
             abl->srcCommLocalRank[p] = gsrcLocal;
             abl->srcNumI[p] = gnumI;
@@ -3425,12 +3558,14 @@ PetscErrorCode setWeightsYDamping(abl_ *abl)
     kDirectionCenters.resize(numK);
     kDirectionOrgIndex.resize(numK);
 
-    for(i=0;i<numkCells;i++)
+    for(j=0;j<abl->yDampingNumPeriods;j++)
     {
-        for(j=0;j<abl->yDampingNumPeriods;j++)
+        for(i=0;i<numkCells;i++)
         {
             kDirectionCenters[j*numkCells + i] = gkSrcCellCoor[i] + j*(abl->xDampingEnd - abl->xDampingStart);
             kDirectionOrgIndex[j*numkCells + i] = gkSrcCellInd[i];
+
+            // PetscPrintf(PETSC_COMM_WORLD, "num = %ld, kcenter = %lf, kOrgIndex = %ld\n", j*numkCells + i, kDirectionCenters[j*numkCells + i], kDirectionOrgIndex[j*numkCells + i]);
         }
     }
 
@@ -3438,8 +3573,8 @@ PetscErrorCode setWeightsYDamping(abl_ *abl)
     for (k=lzs; k<lze; k++)
     {
         PetscReal  minDistMag = 1e20;
-        PetscInt closestkInd;
-        PetscInt dir;
+        PetscInt closestkInd = -1;
+        PetscInt dir = 0;
 
         for(b=0;b<numK;b++)
         {
@@ -3466,6 +3601,12 @@ PetscErrorCode setWeightsYDamping(abl_ *abl)
             }
         }
 
+        if (closestkInd == -1)
+        {
+            PetscPrintf(PETSC_COMM_SELF, "Warning: No valid closest k-cell found for rank %d, k = %ld\n", rank, k);
+            closestkInd = 0; // Assign default to avoid crashes
+        }
+        
         PetscInt    k1, k2;
         PetscReal   x1, x2;
 
@@ -3473,10 +3614,10 @@ PetscErrorCode setWeightsYDamping(abl_ *abl)
         {
             if(dir == -1)
             {
-                k1 = numK-1;
+                k1 = closestkInd;
                 k2 = closestkInd;
-
-                //weights set directly
+                x1 = kDirectionCenters[k1];
+                x2 = kDirectionCenters[k2];
             }
             else
             {
@@ -3490,10 +3631,10 @@ PetscErrorCode setWeightsYDamping(abl_ *abl)
         {
             if(dir == 1)
             {
-                k1 = numK-1;
-                k2 = 0;
+                k1 = closestkInd;
+                k2 = closestkInd;
                 x1 = kDirectionCenters[k1];
-                x2 = kDirectionCenters[k2] + abl->yDampingNumPeriods*(abl->xDampingEnd - abl->xDampingStart);
+                x2 = kDirectionCenters[k2];
             }
             else
             {
@@ -3511,6 +3652,14 @@ PetscErrorCode setWeightsYDamping(abl_ *abl)
                 k2 = closestkInd;
                 x1 = kDirectionCenters[k1];
                 x2 = kDirectionCenters[k2];
+
+                if(fabs(kDirectionOrgIndex[k1]-kDirectionOrgIndex[k2]) > 1)
+                {
+                    k1 = closestkInd;
+                    k2 = closestkInd;
+                    x1 = kDirectionCenters[k1];
+                    x2 = kDirectionCenters[k2];
+                }
             }
             else
             {
@@ -3518,36 +3667,35 @@ PetscErrorCode setWeightsYDamping(abl_ *abl)
                 k2 = closestkInd+1;
                 x1 = kDirectionCenters[k1];
                 x2 = kDirectionCenters[k2];
+
+                if(fabs(kDirectionOrgIndex[k1]-kDirectionOrgIndex[k2]) > 1)
+                {
+                    k1 = closestkInd;
+                    k2 = closestkInd;
+                    x1 = kDirectionCenters[k1];
+                    x2 = kDirectionCenters[k2];
+                }
             }
         }
-
-        abl->closestKCell[k][0] = kDirectionOrgIndex[k1];
-        abl->closestKCell[k][1] = kDirectionOrgIndex[k2];
 
         PetscReal coeff = (x2 - x1);
 
-        // compute weights
-
-        if(closestkInd == 0)
+        if(fabs(coeff) < 1e-10)
         {
-            if(dir == -1)
-            {
-                abl->wtsKCell[k][0] = 0;
-                abl->wtsKCell[k][1] = 1;
-            }
-            else
-            {
-                abl->wtsKCell[k][0] = (x2 - cent[k][lys][lxs].x)/coeff;
-                abl->wtsKCell[k][1] = (cent[k][lys][lxs].x - x1)/coeff;
-            }
+            abl->wtsKCell[k][0] = 0.5;
+            abl->wtsKCell[k][1] = 0.5;
         }
-        else
+        else 
         {
             abl->wtsKCell[k][0] = (x2 - cent[k][lys][lxs].x)/coeff;
             abl->wtsKCell[k][1] = (cent[k][lys][lxs].x - x1)/coeff;
         }
 
-        // PetscPrintf(PETSC_COMM_SELF, "cell k= %ld, cell center = %lf, closest cells = %ld %ld, wts  = %lf %lf, closest cell = %ld, cell coord = %lf %lf, dir = %ld\n", k, cent[k][lys][lxs].x, abl->closestKCell[k][0], abl->closestKCell[k][1], abl->wtsKCell[k][0], abl->wtsKCell[k][1], closestkInd, x1, x2, dir);
+        abl->closestKCell[k][0] = kDirectionOrgIndex[k1];
+        abl->closestKCell[k][1] = kDirectionOrgIndex[k2];
+
+        // if(lxs==1 && lys==1)
+        // PetscPrintf(PETSC_COMM_SELF, "rank = %d, cell k= %ld, cell center = %lf, closest cells = %ld %ld, wts  = %lf %lf, closest cell = %ld, cell coord = %lf %lf, dir = %ld\n", rank, k, cent[k][lys][lxs].x, abl->closestKCell[k][0], abl->closestKCell[k][1], abl->wtsKCell[k][0], abl->wtsKCell[k][1], closestkInd, x1, x2, dir);
     }
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
@@ -3557,159 +3705,6 @@ PetscErrorCode setWeightsYDamping(abl_ *abl)
 //***************************************************************************************************************//
 
 PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl)
-{
-    mesh_  *mesh  = abl->access->mesh;
-    clock_ *clock = abl->access->clock;
-
-    DM            da   = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info = mesh->info;
-    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt     i,j,k,col;
-
-    PetscReal *cellLevels;
-    PetscReal **Z, **Zt, **betaMat, **ZtWZ, **ZtWZInv, **W;
-    cellLevels  = abl->cellLevels;
-    PetscInt    gLevels = abl->highestIndV - abl->lowestIndV + 1;
-    col         = abl->polyOrder + 1;
-
-    //allocate memory for the matrix of cell levels polynomials 
-    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(Z));
-    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(abl->polyCoeffM));
-    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(W));
-
-    PetscMalloc(sizeof(PetscReal *)  * (col), &(Zt));
-    PetscMalloc(sizeof(PetscReal *)  * (col), &(betaMat));
-    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZ));
-    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZInv));
-
-    for(j=0; j<gLevels; j++)
-    {
-        PetscMalloc(sizeof(PetscReal)  * (col), &(Z[j]));
-        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(abl->polyCoeffM[j]));
-        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(W[j]));
-    }
-
-    for(j=0; j<col; j++)
-    {
-        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(Zt[j]));
-        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(betaMat[j]));
-
-        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZ[j]));
-        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZInv[j]));
-    }
-
-    //set the polynomial matrix Z values 
-    for(i=0; i<gLevels; i++)
-    {
-        for(j=0; j<col; j++)
-        {
-            Z[i][j] = std::pow(cellLevels[i+abl->lowestIndV], j);
-        }
-    }
-
-    //set the polynomial matrix Zt values 
-    for(i=0; i<col; i++)
-    {
-        for(j=0; j<gLevels; j++)
-        {
-            Zt[i][j] = Z[j][i];
-        }
-    }
-
-    //set uniform weights for now 
-    abl->wtDist = "uniform";
-
-    if(abl->wtDist == "uniform")
-    {
-        //define weight matrix 
-        for(i=0; i<gLevels; i++)
-        {
-            for(j=0; j<gLevels; j++)
-            {
-                if(i == j)
-                {
-                    W[i][j] = 1;
-                }
-                else
-                {
-                    W[i][j] = 0;
-                }
-            }
-        }
-
-        //find Z'W
-        matMatProduct(Zt, W, betaMat, col, gLevels, gLevels, gLevels);
-        
-        //find Z'WZ
-        matMatProduct(betaMat, Z, ZtWZ, col, gLevels, gLevels, col);
-
-        //invert the matrix Z'WZ
-        if (col == 4)
-        {
-            inv_4by4(ZtWZ, ZtWZInv, col);
-        }
-        else if (col == 3)
-        {
-            inv_3by3(ZtWZ, ZtWZInv, col);
-        }
-        else if (col == 2)
-        {
-            PetscReal det = ZtWZ[0][0]*ZtWZ[1][1] - ZtWZ[0][1]*ZtWZ[1][0];
-            det = 1/det;
-
-            ZtWZInv[0][0] =  ZtWZ[1][1] * det;
-            ZtWZInv[0][1] = -ZtWZ[0][1] * det;
-            ZtWZInv[1][0] = -ZtWZ[1][0] * det;
-            ZtWZInv[1][1] =  ZtWZ[0][0] * det;
-
-        }
-        else 
-        {
-            inverseMatrix(ZtWZ, ZtWZInv, col);
-        }
-
-        //find the beta coefficient matrix inv(Z'WZ)Z'
-        matMatProduct(ZtWZInv, Zt, betaMat, col, col, col, gLevels);
-
-        //inv(Z'WZ)Z'W
-        matMatProduct(betaMat, W, Zt, col, gLevels, gLevels, gLevels);
-
-        // Z inv(Z'WZ)Z'W
-        matMatProduct(Z, Zt, abl->polyCoeffM, gLevels, col, col, gLevels);
-    }
-
-    //delete temp array 
-    for(j=0; j<gLevels; j++)
-    {
-        PetscFree(Z[j]);
-        PetscFree(W[j]);
-    }
-
-    for(j=0; j<col; j++)
-    {
-        PetscFree(Zt[j]);
-        PetscFree(betaMat[j]);
-        PetscFree(ZtWZ[j]);
-        PetscFree(ZtWZInv[j]);
-    }
-
-    PetscFree(W); 
-    PetscFree(Z); 
-    PetscFree(Zt); 
-    PetscFree(betaMat); 
-    PetscFree(ZtWZ); 
-    PetscFree(ZtWZInv);
-
-    return (0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode computeLSqPolynomialCoefficientMatrixFullDomain(abl_ *abl)
 {
     mesh_  *mesh  = abl->access->mesh;
     clock_ *clock = abl->access->clock;
@@ -3864,157 +3859,6 @@ PetscErrorCode computeLSqPolynomialCoefficientMatrixFullDomain(abl_ *abl)
 //***************************************************************************************************************//
 
 PetscErrorCode computeLSqPolynomialCoefficientMatrixT(abl_ *abl)
-{
-    mesh_  *mesh  = abl->access->mesh;
-    clock_ *clock = abl->access->clock;
-
-    DM            da   = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info = mesh->info;
-    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt     i,j,k,col;
-
-    PetscReal *cellLevels;
-    PetscReal **Z, **Zt, **betaMat, **ZtWZ, **ZtWZInv, **W;
-    cellLevels  = abl->cellLevels;
-    PetscInt    gLevels = abl->highestIndT - abl->lowestIndT + 1;
-    col         = abl->polyOrderT + 1;
-
-    //allocate memory for the matrix of cell levels polynomials 
-    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(Z));
-    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(abl->polyCoeffT));
-    PetscMalloc(sizeof(PetscReal *)  * (gLevels), &(W));
-
-    PetscMalloc(sizeof(PetscReal *)  * (col), &(Zt));
-    PetscMalloc(sizeof(PetscReal *)  * (col), &(betaMat));
-    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZ));
-    PetscMalloc(sizeof(PetscReal *)  * (col), &(ZtWZInv));
-
-    for(j=0; j<gLevels; j++)
-    {
-        PetscMalloc(sizeof(PetscReal)  * (col), &(Z[j]));
-        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(abl->polyCoeffT[j]));
-        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(W[j]));
-    }
-
-    for(j=0; j<col; j++)
-    {
-        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(Zt[j]));
-        PetscMalloc(sizeof(PetscReal)  * (gLevels), &(betaMat[j]));
-
-        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZ[j]));
-        PetscMalloc(sizeof(PetscReal)  * (col), &(ZtWZInv[j]));
-    }
-
-    //set the polynomial matrix Z values 
-    for(i=0; i<gLevels; i++)
-    {
-        for(j=0; j<col; j++)
-        {
-            Z[i][j] = std::pow(cellLevels[i+abl->lowestIndT], j);
-        }
-    }
-
-    //set the polynomial matrix Zt values 
-    for(i=0; i<col; i++)
-    {
-        for(j=0; j<gLevels; j++)
-        {
-            Zt[i][j] = Z[j][i];
-        }
-    }
-
-    //set uniform weights for now 
-    abl->wtDist = "uniform";
-
-    if(abl->wtDist == "uniform")
-    {
-        //define weight matrix 
-        for(i=0; i<gLevels; i++)
-        {
-            for(j=0; j<gLevels; j++)
-            {
-                if(i == j)
-                {
-                    W[i][j] = 1;
-                }
-                else
-                {
-                    W[i][j] = 0;
-                }
-            }
-        }
-
-        //find Z'W
-        matMatProduct(Zt, W, betaMat, col, gLevels, gLevels, gLevels);
-        
-        //find Z'WZ
-        matMatProduct(betaMat, Z, ZtWZ, col, gLevels, gLevels, col);
-
-        //invert the matrix Z'WZ
-        if (col == 4)
-        {
-            inv_4by4(ZtWZ, ZtWZInv, col);
-        }
-        else if (col == 3)
-        {
-            inv_3by3(ZtWZ, ZtWZInv, col);
-        }
-        else if (col == 2)
-        {
-            PetscReal det = ZtWZ[0][0]*ZtWZ[1][1] - ZtWZ[0][1]*ZtWZ[1][0];
-            det = 1/det;
-
-            ZtWZInv[0][0] =  ZtWZ[1][1] * det;
-            ZtWZInv[0][1] = -ZtWZ[0][1] * det;
-            ZtWZInv[1][0] = -ZtWZ[1][0] * det;
-            ZtWZInv[1][1] =  ZtWZ[0][0] * det;
-
-        }
-        else 
-        {
-            inverseMatrix(ZtWZ, ZtWZInv, col);
-        }
-
-        //find the beta coefficient matrix inv(Z'WZ)Z'
-        matMatProduct(ZtWZInv, Zt, betaMat, col, col, col, gLevels);
-
-        //inv(Z'WZ)Z'W
-        matMatProduct(betaMat, W, Zt, col, gLevels, gLevels, gLevels);
-
-        // Z inv(Z'WZ)Z'W
-        matMatProduct(Z, Zt, abl->polyCoeffT, gLevels, col, col, gLevels);
-    }
-
-    //delete temp array 
-    for(j=0; j<gLevels; j++)
-    {
-        PetscFree(Z[j]);
-        PetscFree(W[j]);
-    }
-
-    for(j=0; j<col; j++)
-    {
-        PetscFree(Zt[j]);
-        PetscFree(betaMat[j]);
-        PetscFree(ZtWZ[j]);
-        PetscFree(ZtWZInv[j]);
-    }
-
-    PetscFree(W); 
-    PetscFree(Z); 
-    PetscFree(Zt); 
-    PetscFree(betaMat); 
-    PetscFree(ZtWZ); 
-    PetscFree(ZtWZInv);
-
-    return (0);
-}
-
-PetscErrorCode computeLSqPolynomialCoefficientMatrixTFullDomain(abl_ *abl)
 {
     mesh_  *mesh  = abl->access->mesh;
     clock_ *clock = abl->access->clock;
@@ -4507,53 +4351,55 @@ PetscErrorCode findABLHeight(abl_ *abl)
     PetscReal thetaRef = gTemperature[0];
     RiCrossId = -1;
     
-    // //find RiB
-    // for(l=0; l<nLevels; l++)
-    // {
-    //     PetscReal dtheta = gTemperature[l] - thetaRef;
-    //     PetscReal wind = sqrt(gVelocity[l].x*gVelocity[l].x + gVelocity[l].y*gVelocity[l].y + 1e-6);
-    //     RiB[l] = (g/thetaRef) * (dtheta * abl->cellLevels[l]) / (wind * wind);
-    // }
+    //find RiB
+    for(l=0; l<nLevels; l++)
+    {
+        PetscReal dtheta = gTemperature[l] - thetaRef;
+        PetscReal wind = sqrt(gVelocity[l].x*gVelocity[l].x + gVelocity[l].y*gVelocity[l].y + 1e-6);
+        RiB[l] = (g/thetaRef) * (dtheta * abl->cellLevels[l]) / (wind * wind);
+    }
 
-    // //stable when RiB crosses the critical value of 0.25
-    // for(l=0; l<nLevels; l++)
-    // {
-    //     if(RiB[l] >= 0.25) 
-    //     {
-    //         RiCrossId = l;
-    //         break;
-    //     }
-    // }
+    //stable when RiB crosses the critical value of 0.25
+    for(l=0; l<nLevels; l++)
+    {
+        if(RiB[l] >= 0.25) 
+        {
+            RiCrossId = l;
+            break;
+        }
+    }
 
-    // ablHtRiB = abl->cellLevels[RiCrossId]; 
+    ablHtRiB = abl->cellLevels[RiCrossId]; 
 
-    // if(fabs(ablHtRiB - ablHtShear) < 300)
-    // {
+    if(ablHtRiB < 100) ablHtRiB = 100;
+
+    if(fabs(ablHtRiB - ablHtShear) < 500)
+    {
         ablHtStable = ablHtShear;            
-    // }
-    // else 
-    // {
-    //     ablHtStable = PetscMin(ablHtShear, ablHtRiB);
-    //     if(ablHtStable == ablHtRiB)
-    //         PetscPrintf(PETSC_COMM_WORLD, "RiB based ABL height used.\n");
-    // }
+    }
+    else 
+    {
+        ablHtStable = PetscMin(ablHtShear, ablHtRiB);
+
+        if(ablHtStable == ablHtRiB)
+            PetscPrintf(PETSC_COMM_WORLD, "RiB based ABL height used.\n");
+    }
 
     if(abl->heatFluxSwitch > 0.02)
     {
-        // ablHeight = ablHtConv;
+        ablHeight = ablHtConv;
         stabilityFlag = 1;
     }
     else 
     {
-        // ablHeight = ablHtStable;
+        ablHeight = ablHtStable;
         stabilityFlag = 2;
     }
-    ablHeight = ablHtStable;
-    // aN = abl->hAvgTime;
-    // n1 = aN  / (aN + clock->dt);
-    // n2 = clock->dt / (aN + clock->dt);
-    // abl->ablHt = n1*abl->ablHt + n2*ablHeight;
-    abl->ablHt = ablHeight;
+
+    aN = abl->hAvgTime;
+    n1 = aN  / (aN + clock->dt);
+    n2 = clock->dt / (aN + clock->dt);
+    abl->ablHt = n1*abl->ablHt + n2*ablHeight;
 
     FILE *f;
     dataABL *ablStat = abl->access->acquisition->statisticsABL;
@@ -4587,8 +4433,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
     if(stabilityFlag == 1)
     {
             PetscPrintf(PETSC_COMM_WORLD, "Convective Boundary Layer, Using heat flux minima method, Avg ABL height = %lf, Inst. Ht = %lf\n", abl->ablHt, ablHeight);
-            // PetscPrintf(PETSC_COMM_WORLD, "SurfaceHeatFlux = %lf, Max heat flux = %lf at %lf, heat flux minima = %lf\n", abl->heatFluxSwitch, abl->avgHeatFlux[zMaxId], abl->cellLevels[zMaxId], abl->avgHeatFlux[zMinId]);
-            PetscPrintf(PETSC_COMM_WORLD, "SurfaceHeatFlux = %lf, Max shear stress = %lf at %lf\n", abl->heatFluxSwitch, tkeMax, abl->cellLevels[tkeMaxId]);
+            PetscPrintf(PETSC_COMM_WORLD, "SurfaceHeatFlux = %lf, Max heat flux = %lf at %lf, heat flux minima = %lf\n", abl->heatFluxSwitch, abl->avgHeatFlux[zMaxId], abl->cellLevels[zMaxId], abl->avgHeatFlux[zMinId]);
 
     }
     else if(stabilityFlag == 2)

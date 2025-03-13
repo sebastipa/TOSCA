@@ -367,65 +367,48 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
         {
             if(abl->waveletBlend)
             {
-                if(abl->heatFluxSwitch > 0.02)
-                {
-                    PetscReal *tDesAbove, *gtMeanAbove;
-                    PetscReal *tDesBelow, *gtMeanBelow;
-    
-                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesAbove));
-                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanAbove));
-                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesBelow));
-                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanBelow));
-    
-                    #if USE_PYTHON
-                        pywavedecScalar(abl, tD, tDesBelow, nLevels);
-                        pywavedecScalar(abl, tM, gtMeanBelow, nLevels);
-                    #endif
-    
-                    PetscInt waveLevel = abl->waveLevel;
-                    
-                    //hardcoded value for now
-                    abl->waveLevel = abl->waveLevel - 4;
-                    if(abl->waveLevel <= 0) abl->waveLevel = 1;
-    
-                    #if USE_PYTHON
-                        pywavedecScalar(abl, tD, tDesAbove, nLevels);
-                        pywavedecScalar(abl, tM, gtMeanAbove, nLevels);
-                    #endif
-    
-                    abl->waveLevel = waveLevel;
-                    
-                    // blend between the below and above profiles based on the abl height
-                    PetscReal ablHeight = abl->ablHt, scaleFactor;
-                    PetscReal ablgeoDelta = 300;
+                PetscReal *tDesAbove, *gtMeanAbove;
+                PetscReal *tDesBelow, *gtMeanBelow;
 
-                    //blending only in the region above ABL height
-                    PetscReal ablgeoDampTop = ablHeight + 500.0 + 0.5*ablgeoDelta;
-    
-                    for(j=0; j<nLevels; j++)
-                    {
-                        scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
-                        abl->tDes[j] = (1-scaleFactor)*tDesBelow[j] + scaleFactor*tDesAbove[j];                                                                     
-                        gtMean[j] = (1-scaleFactor)*gtMeanBelow[j] + scaleFactor*gtMeanAbove[j];                                                                
-                    }   
-    
-                    PetscFree(tDesAbove);
-                    PetscFree(gtMeanAbove);
-                    PetscFree(tDesBelow);
-                    PetscFree(gtMeanBelow);
-                }
-                else 
+                PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesAbove));
+                PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanAbove));
+                PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesBelow));
+                PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanBelow));
+
+                #if USE_PYTHON
+                    pywavedecScalar(abl, tD, tDesBelow, nLevels);
+                    pywavedecScalar(abl, tM, gtMeanBelow, nLevels);
+                #endif
+
+                PetscInt waveLevel = abl->waveLevel;
+                
+                //hardcoded value for now
+                abl->waveLevel = abl->waveLevel - 4;
+                if(abl->waveLevel <= 0) abl->waveLevel = 1;
+
+                #if USE_PYTHON
+                    pywavedecScalar(abl, tD, tDesAbove, nLevels);
+                    pywavedecScalar(abl, tM, gtMeanAbove, nLevels);
+                #endif
+
+                abl->waveLevel = waveLevel;
+                
+                // blend between the below and above profiles 
+                PetscReal blendHeight = mesh->bounds.zmax-500.0, scaleFactor;
+                PetscReal ablgeoDelta = 300;
+                PetscReal blendTop = blendHeight + 0.5*ablgeoDelta;
+
+                for(j=0; j<nLevels; j++)
                 {
-                    // PetscInt waveLevel = abl->waveLevel;
-                    // abl->waveLevel = abl->waveLevel - 2;
-                    // if(abl->waveLevel <= 0) abl->waveLevel = 1;
-    
-                    #if USE_PYTHON
-                        pywavedecScalar(abl, tD, abl->tDes, nLevels);
-                        pywavedecScalar(abl, tM, gtMean, nLevels);
-                    #endif
-                    // abl->waveLevel = waveLevel;
-                }
+                    scaleFactor = scaleHyperTangTop(abl->cellLevels[j], blendTop, ablgeoDelta);
+                    abl->tDes[j] = (1-scaleFactor)*tDesBelow[j] + scaleFactor*tDesAbove[j];                                                                     
+                    gtMean[j] = (1-scaleFactor)*gtMeanBelow[j] + scaleFactor*gtMeanAbove[j];                                                                
+                }   
+
+                PetscFree(tDesAbove);
+                PetscFree(gtMeanAbove);
+                PetscFree(tDesBelow);
+                PetscFree(gtMeanBelow);
             }
             else 
             {

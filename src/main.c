@@ -88,18 +88,6 @@ int main(int argc, char **argv)
                 UpdateFluxLimiter(domain[d].ueqn);
             }
 
-            if(flags.isAblActive)
-            {
-                if(domain[d].abl->controllerActive)
-                {
-                    CorrectSourceTerms(domain[d].ueqn, 1);
-                }
-                if(domain[d].abl->controllerActiveT && flags.isTeqnActive)
-                {
-                    CorrectSourceTermsT(domain[d].teqn, 1);
-                }
-            }
-
             if(flags.isLesActive)
             {
                 UpdateCs (domain[d].les);
@@ -120,6 +108,18 @@ int main(int argc, char **argv)
                 correctDampingSources(domain[d].ueqn);
             }
 
+            if(flags.isAblActive)
+            {
+                if(domain[d].abl->controllerActive)
+                {
+                    CorrectSourceTerms(domain[d].ueqn, 1);
+                }
+                if(domain[d].abl->controllerActiveT && flags.isTeqnActive)
+                {
+                    CorrectSourceTermsT(domain[d].teqn, 1);
+                }
+            }
+            
             // update wind turbines
             if(flags.isWindFarmActive)
             {

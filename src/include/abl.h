@@ -9,6 +9,7 @@ struct abl_
     // flags
     PetscInt     controllerActive;               //!< activate velocity controller
     PetscInt     controllerActiveT;              //!< activate temperature controller
+    PetscInt     controllerTypeMismatch;         //!< activate if the controllers used in successor and precursor differ
     PetscInt     coriolisActive;                 //!< activate coriolis force
 
     // physical quantities
@@ -48,7 +49,9 @@ struct abl_
 
     // geostrophic damping for pressure controller
     PetscInt     geostrophicDampingActive;       //!< geosptrophic oscillation damping
-	PetscReal    geoDampAvgDT;                   //!< average time step from simulation start
+	PetscInt     mesoScaleInputActive;           //!< use mesoscale data for pressure controller uDes
+    
+    PetscReal    geoDampAvgDT;                   //!< average time step from simulation start
 	Cmpnts       geoDampAvgS;                    //!< expected geostrophic velocity
 	Cmpnts       geoDampUBar;                    //!< expected geostrophic velocity
 	Cmpnts       *geoDampU;                      //!< average horizontal velocity at current iteration
@@ -140,7 +143,7 @@ struct abl_
     MPI_Comm     *yDamp_comm;                    //!< communicator that links each source processor to its corresponding periodization processors(destination) in the lateral fringe region - each source processor has a separate communicator for its set of source-destination processors
     PetscMPIInt  *srcCommLocalRank;              //!< global to communicator procs - local rank of the source processor within the source-destination communicator
     cellIds      *srcMinInd;                     //!< global to communicator procs - minimum k,j,i index of each processor within the source domain
-    cellIds      *srcMaxInd;                     //!< local to each proc - maximum k,j,i index of each processor within the source domain
+    cellIds      *srcMaxInd;                     //!< global to communicator procs - maximum k,j,i index of each processor within the source domain
     PetscInt     *isdestProc;                    //!< flag indicating if a given processor is within the destination region of a source processor
     cellIds      **destMinInd;                   //!< local to each proc - minimum k,j,i index of a processor in the destination domain
     cellIds      **destMaxInd;                   //!< local to each proc - maximum k,j,i index of a processor in the destination domain
@@ -268,6 +271,8 @@ PetscErrorCode readMesoScaleVelocityData(abl_ *abl);
 
 PetscErrorCode findVelocityInterpolationWeights(abl_ *abl);
 
+PetscErrorCode findVelocityInterpolationWeightsOnePt(abl_ *abl);
+
 PetscErrorCode findTemperatureInterpolationWeights(abl_ *abl);
 
 PetscErrorCode initializeYDampingMapping(abl_ *abl);
@@ -276,11 +281,7 @@ PetscErrorCode setWeightsYDamping(abl_ *abl);
 
 PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl);
 
-PetscErrorCode computeLSqPolynomialCoefficientMatrixFullDomain(abl_ *abl);
-
 PetscErrorCode computeLSqPolynomialCoefficientMatrixT(abl_ *abl);
-
-PetscErrorCode computeLSqPolynomialCoefficientMatrixTFullDomain(abl_ *abl);
 
 PetscErrorCode findTimeHeightSeriesInterpolationWts(abl_ *abl);
 
