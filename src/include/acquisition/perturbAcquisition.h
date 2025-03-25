@@ -10,6 +10,7 @@ struct perturbFields
     // time controls
     PetscReal     avgStartTime;
     PetscReal     avgPrd;
+    PetscReal     avgWindowTime;
 
     Cmpnts        **bkgU;
     PetscReal     **bkgP;
@@ -26,6 +27,7 @@ struct perturbFields
     // flags
     PetscInt      read;
     PetscInt      initialized;
+    PetscInt      movAvgActive;
 };
 
 #endif

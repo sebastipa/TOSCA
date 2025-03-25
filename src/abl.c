@@ -1020,7 +1020,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
             readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
             readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingTypeT",   &(abl->flTypeT));
 
-            PetscPrintf(mesh->MESH_COMM, "   controller type temperature: %s\n", abl->controllerType.c_str());
+            PetscPrintf(mesh->MESH_COMM, "   controller type temperature: %s\n", abl->controllerTypeT.c_str());
 
             if(abl->flTypeT == "constantHeight")
             {
@@ -1683,13 +1683,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 fatalErrorInFunction("ABLInitialize",  error);
             }
 
-            if(abl->yDampingEnd != mesh->bounds.ymax)
-            {
-                char error[512];
-                sprintf(error, "Set yDampingEnd to domain end in y direction. lateral fringe function is currently defined to be in the end of the y direction\n");
-                fatalErrorInFunction("ABLInitialize",  error);
-            }
-
             if(abl->yDampingStart >= abl->yDampingEnd)
             {
                 char error[512];
@@ -1869,7 +1862,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
     if(mesh->access->flags->isAdvectionDampingYActive)
     {
-        PetscPrintf(mesh->MESH_COMM, "   reading advection damping properties\n");
+        PetscPrintf(mesh->MESH_COMM, "   reading advection damping Y properties\n");
 
         readSubDictDouble("ABLProperties.dat", "advectionDampingYProperties", "advDampingStart",            &(abl->advDampingYStart));
         readSubDictDouble("ABLProperties.dat", "advectionDampingYProperties", "advDampingEnd",              &(abl->advDampingYEnd));

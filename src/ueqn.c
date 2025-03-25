@@ -3768,7 +3768,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 }
 
                 // now do the computation on cell centers just to check
-                /*
+                
                 uSource             = nMag(ucat[k][j][i]);
                 PetscReal vCell     = 1.0/aj[k][j][i];
                 PetscReal forceMag  = 0.5*cft*uSource*uSource/Hc;
@@ -3778,19 +3778,19 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 // integrate the cell-thrust in the canopy
                 ltotalIntThrust += coeff*forceMag*vCell;
-                */
+                
             }
         }
     }
 
-    /*
+    
     MPI_Allreduce(&ltotalIntU,      &gtotalIntU,      1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&ltotalIntThrust, &gtotalIntThrust, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
     PetscReal totalThrust = 0.5*cft*gtotalIntU*gtotalIntU*V/Hc;
 
     PetscPrintf(mesh->MESH_COMM, "Canopy: actual thrust = %.2f, integrated thrust = %.2f, error % = %.2f\n", totalThrust, gtotalIntThrust, fabs(totalThrust-gtotalIntThrust)/totalThrust*100);
-    */
+    
 
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
@@ -5436,7 +5436,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     if(ueqn->access->flags->isAdvectionDampingYActive)
     {
         yS     = ueqn->access->abl->advDampingYStart;
-        xE     = ueqn->access->abl->advDampingYEnd;
+        yE     = ueqn->access->abl->advDampingYEnd;
         yDE    = ueqn->access->abl->advDampingYDeltaEnd;
         yDS    = ueqn->access->abl->advDampingYDeltaStart;
 
@@ -6101,7 +6101,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 if(advectionDampingY)
 				{
 					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
-					nuDY             = viscStipaDelta(yS, yE, yDS, yDE, cent[k][j][i].x, height, advDampYH);
+					nuDY             = viscStipaDelta(yS, yE, yDS, yDE, cent[k][j][i].y, height, advDampYH);
 					fp[k][j][i].x    = nuDY * fp[k][j][i].x;
 				}
 
@@ -6521,6 +6521,7 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     if
     (
         ueqn->access->flags->isXDampingActive ||
+        ueqn->access->flags->isYDampingActive ||
         ueqn->access->flags->isZDampingActive ||
         ueqn->access->flags->isKLeftRayleighDampingActive ||
         ueqn->access->flags->isKRightRayleighDampingActive
