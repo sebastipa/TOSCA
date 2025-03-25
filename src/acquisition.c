@@ -173,7 +173,7 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
             acquisition->isAverageABLActive = 1;
             acquisition->isAverage3LMActive = 0;
             acquisition->isPerturbABLActive = 0;
-
+            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averageABL",    &(acquisition->isAverageABLActive), PETSC_NULL);
             PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &(acquisition->isSectionsActive),   PETSC_NULL);
         }
 
@@ -5116,8 +5116,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
             }
         }
 
-        // write perturbation sections only at run-time write since they are averages
-        if(acquisition->isPerturbABLActive && io->runTimeWrite)
+        if(acquisition->isPerturbABLActive)
         {
             perturbFields *perturbABL = acquisition->perturbABL;
 
@@ -5126,20 +5125,45 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
             {
                 sections *iSections = acquisition->iSections;
 
-                PetscPrintf(mesh->MESH_COMM, "Saving i-sections perturbation fields:\n");
+                PetscReal timeStart    = iSections->timeStart;
+                PetscReal timeInterval = iSections->timeInterval;
+                PetscReal epsilon      = 1e-8;
 
-                for(PetscInt i=0; i<iSections->nSections; i++)
+                // check the time and see if must write
+                if
+                (
+                    clock->time >= timeStart && // write only if past acquisition start
+                    (
+                        // adjustableTime: write only if clock->time is multiple of time interval
+                        (
+                            iSections->intervalType == "adjustableTime" &&
+                            mustWrite(clock->time, timeStart, timeInterval)
+                        ) ||
+                        // timeStep: write every timeInterval iterations
+                        (
+                            iSections->intervalType == "timeStep" &&
+                            (clock->it / timeInterval - std::floor(clock->it / timeInterval + epsilon) < 1e-10)
+                        )
+                    )
+
+                )
                 {
-                    PetscInt iplane = iSections->indices[i];
-
-                    // exclude ghost nodes
-                    if (iplane<1 || iplane>mx-2) continue;
-
-                    // store data
-                    iSectionSaveVector(mesh, iSections, iplane, perturbABL->pertU, "UpABL");
-                    iSectionSaveScalar(mesh, iSections, iplane, perturbABL->pertP, "PpABL");
-                    iSectionSaveScalar(mesh, iSections, iplane, perturbABL->pertT, "TpABL");
+                    PetscPrintf(mesh->MESH_COMM, "Saving i-sections perturbation fields:\n");
+                    
+                    for(PetscInt i=0; i<iSections->nSections; i++)
+                    {
+                        PetscInt iplane = iSections->indices[i];
+    
+                        // exclude ghost nodes
+                        if (iplane<1 || iplane>mx-2) continue;
+    
+                        // store data
+                        iSectionSaveVector(mesh, iSections, iplane, perturbABL->pertU, "UpABL");
+                        iSectionSaveScalar(mesh, iSections, iplane, perturbABL->pertP, "PpABL");
+                        iSectionSaveScalar(mesh, iSections, iplane, perturbABL->pertT, "TpABL");
+                    }
                 }
+
             }
 
             // write j sections
@@ -5147,19 +5171,42 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
             {
                 sections *jSections = acquisition->jSections;
 
-                PetscPrintf(mesh->MESH_COMM, "Saving j-sections perturbation fields:\n");
-
-                for(PetscInt j=0; j<jSections->nSections; j++)
+                PetscReal timeStart    = jSections->timeStart;
+                PetscReal timeInterval = jSections->timeInterval;
+                PetscReal epsilon      = 1e-8;
+                // check the time and see if must write
+                if
+                (
+                    clock->time >= timeStart && // write only if past acquisition start
+                    (
+                        // adjustableTime: write only if clock->time is multiple of time interval
+                        (
+                            jSections->intervalType == "adjustableTime" &&
+                            mustWrite(clock->time, timeStart, timeInterval)
+                        ) ||
+                        // timeStep: write every timeInterval iterations
+                        (
+                            jSections->intervalType == "timeStep" &&
+                            (clock->it / timeInterval - std::floor(clock->it / timeInterval + epsilon) < 1e-10)
+                        )
+                    )
+    
+                )
                 {
-                    PetscInt jplane = jSections->indices[j];
+                    PetscPrintf(mesh->MESH_COMM, "Saving j-sections perturbation fields:\n");
 
-                    // exclude ghost nodes
-                    if (jplane<1 || jplane>my-2) continue;
-
-                    // store data
-                    jSectionSaveVector(mesh, jSections, jplane, perturbABL->pertU, "UpABL");
-                    jSectionSaveScalar(mesh, jSections, jplane, perturbABL->pertP, "PpABL");
-                    jSectionSaveScalar(mesh, jSections, jplane, perturbABL->pertT, "TpABL");
+                    for(PetscInt j=0; j<jSections->nSections; j++)
+                    {
+                        PetscInt jplane = jSections->indices[j];
+    
+                        // exclude ghost nodes
+                        if (jplane<1 || jplane>my-2) continue;
+    
+                        // store data
+                        jSectionSaveVector(mesh, jSections, jplane, perturbABL->pertU, "UpABL");
+                        jSectionSaveScalar(mesh, jSections, jplane, perturbABL->pertP, "PpABL");
+                        jSectionSaveScalar(mesh, jSections, jplane, perturbABL->pertT, "TpABL");
+                    }
                 }
             }
 
@@ -5168,19 +5215,43 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
             {
                 sections *kSections = acquisition->kSections;
 
-                PetscPrintf(mesh->MESH_COMM, "Saving k-sections perturbation fields:\n");
-
-                for(PetscInt k=0; k<kSections->nSections; k++)
+                PetscReal timeStart    = kSections->timeStart;
+                PetscReal timeInterval = kSections->timeInterval;
+                PetscReal epsilon      = 1e-8;
+    
+                // check the time and see if must write
+                if
+                (
+                    clock->time >= timeStart && // write only if past acquisition start
+                    (
+                        // adjustableTime: write only if clock->time is multiple of time interval
+                        (
+                            kSections->intervalType == "adjustableTime" &&
+                            mustWrite(clock->time, timeStart, timeInterval)
+                        ) ||
+                        // timeStep: write every timeInterval iterations
+                        (
+                            kSections->intervalType == "timeStep" &&
+                            (clock->it / timeInterval - std::floor(clock->it / timeInterval + epsilon) < 1e-10)
+                        )
+                    )
+    
+                )
                 {
-                    PetscInt kplane = kSections->indices[k];
+                    PetscPrintf(mesh->MESH_COMM, "Saving k-sections perturbation fields:\n");
 
-                    // exclude ghost nodes
-                    if (kplane<1 || kplane>mz-2) continue;
-
-                    // store data
-                    kSectionSaveVector(mesh, kSections, kplane, perturbABL->pertU, "UpABL");
-                    kSectionSaveScalar(mesh, kSections, kplane, perturbABL->pertP, "PpABL");
-                    kSectionSaveScalar(mesh, kSections, kplane, perturbABL->pertT, "TpABL");
+                    for(PetscInt k=0; k<kSections->nSections; k++)
+                    {
+                        PetscInt kplane = kSections->indices[k];
+    
+                        // exclude ghost nodes
+                        if (kplane<1 || kplane>mz-2) continue;
+    
+                        // store data
+                        kSectionSaveVector(mesh, kSections, kplane, perturbABL->pertU, "UpABL");
+                        kSectionSaveScalar(mesh, kSections, kplane, perturbABL->pertP, "PpABL");
+                        kSectionSaveScalar(mesh, kSections, kplane, perturbABL->pertT, "TpABL");
+                    }
                 }
             }
         }
@@ -7554,13 +7625,28 @@ PetscErrorCode perturbationABLInitialize(acquisition_ *acquisition)
         sprintf(path2dict, "./sampling/perturbABL");
 
         // read input file located inside sampling/ and called 3LM
-        readDictDouble(path2dict, "avgStartTime",  &(perturbABL->avgStartTime));
-        readDictDouble(path2dict, "avgPeriod",     &(perturbABL->avgPrd));
-        readDictDouble(path2dict, "xSample",       &(perturbABL->xSample));
-        readDictInt   (path2dict, "readAverages",  &(perturbABL->read));
+        readDictDouble(path2dict, "avgStartTime",         &(perturbABL->avgStartTime));
+        readDictDouble(path2dict, "avgPeriod",            &(perturbABL->avgPrd));
+        readDictDouble(path2dict, "xSample",              &(perturbABL->xSample));
+        readDictInt   (path2dict, "readAverages",         &(perturbABL->read));
+        readDictInt   (path2dict, "movingAverageActive",  &(perturbABL->movAvgActive));
+
+        if(perturbABL->movAvgActive)
+        {
+            readDictDouble(path2dict, "avgWindowTime",        &(perturbABL->avgWindowTime));
+        }
 
         // initialize snapshot weighting to zero
-        perturbABL->avgWeight     = 0;
+
+        if(perturbABL->movAvgActive)
+        {
+            perturbABL->avgWeight     = perturbABL->avgWindowTime;
+        }
+        else 
+        {
+            perturbABL->avgWeight     = 0;
+        }
+
         perturbABL->initialized   = 0;
 
         perturbABL->bkgU          = (Cmpnts**)malloc(my*sizeof(Cmpnts*));
@@ -7901,7 +7987,12 @@ PetscErrorCode averagePerturbationABL(acquisition_ *acquisition)
             DMDAVecRestoreArray(da,  peqn->lP, &p);
             DMDAVecRestoreArray(da,  teqn->lTmprt, &t);
 
-            perturbABL->avgWeight++;
+            // if moving average, the average weight is set to a constant window time.
+            if(!perturbABL->movAvgActive)
+            {
+                perturbABL->avgWeight++;
+            }
+           
 
             PetscTime(&te);
             PetscPrintf(mesh->MESH_COMM, "Averaged ABL perturbations in %f s\n", te-ts);
