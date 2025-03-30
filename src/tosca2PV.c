@@ -495,6 +495,18 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
         mesh->Nvert
     );
 
+    writeScalarToXMF
+    (
+        domain,
+        filexmf,
+        hdfileName.c_str(),
+        &file_id,
+        &dataspace_id,
+        time,
+        "meshTag",
+        mesh->meshTag
+    );
+
     if(domain->flags.isLesActive)
     {
         writeScalarToXMF

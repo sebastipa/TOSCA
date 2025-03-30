@@ -4280,7 +4280,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     PetscInt      b, c, s;
     cellIds       initCp;
     Cmpnts        ***ucat, ***lucat, ***cent, ***csi, ***eta, ***zet;
-    PetscReal     ***lt, ***temp, ***aj, ***nvert, ***lp, ***p;
+    PetscReal     ***lt, ***temp, ***aj, ***nvert, ***meshTag, ***lp, ***p;
     Cmpnts        bPt, bPtInit;
     Cmpnts        bPtVel, ibmPtVel, ibmPtVelPrev;
     PetscReal     nfMag, cellSize, bPtTemp, bPtPres, elemDist;
@@ -4290,6 +4290,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     DMDAVecGetArray(fda, ueqn->Ucat, &ucat);
     DMDAVecGetArray(da, mesh->lAj, &aj);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(da, peqn->lP, &lp);
     DMDAVecGetArray(da, peqn->P, &p);
     DMDAVecGetArray(fda, mesh->lCsi,   &csi);
@@ -4616,7 +4617,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                 Compute_dscalar_center
                 (
                     mesh,
-                    i, j, k, mx, my, mz, lp, nvert, &dpdc, &dpde, &dpdz
+                    i, j, k, mx, my, mz, lp, nvert, meshTag, &dpdc, &dpde, &dpdz
                 );
 
                 Compute_dscalar_dxyz
@@ -4686,6 +4687,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     DMDAVecRestoreArray(fda, ueqn->Ucat, &ucat);
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da, peqn->lP, &lp);
     DMDAVecRestoreArray(da, peqn->P, &p);
     DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
@@ -5993,7 +5995,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     Cmpnts        uC, uN, uT, uB;                          // background point velocity, its normal and tangential components
     Cmpnts        bPtVel, bPt, bPtInit;
     Cmpnts        eN, eT1, eT2;                          // local wall normal co-ordinate system
-    PetscReal     ***nvert, ***iaj, ***jaj, ***kaj, ***aj, ***lt, ***lnu_t;
+    PetscReal     ***nvert, ***meshTag, ***iaj, ***jaj, ***kaj, ***aj, ***lt, ***lnu_t;
     PetscReal     bPtTemp;
 
     //local pointer for ibmFluidCells
@@ -6021,6 +6023,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     DMDAVecGetArray(fda, Coor, &coor);
 
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(da, mesh->lAj, &aj);
     DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
     DMDAVecGetArray(fda, mesh->lCent, &cent);
@@ -6458,7 +6461,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
                         // compute cartesian velocity derivatives w.r.t. curvilinear coords
                         Compute_du_i
-                        (   mesh, i1, j1, k1, mx, my, mz, ucat, nvert,
+                        (   mesh, i1, j1, k1, mx, my, mz, ucat, nvert, meshTag,
                             &dudc, &dvdc, &dwdc,
                             &dude, &dvde, &dwde,
                             &dudz, &dvdz, &dwdz
@@ -6553,7 +6556,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
                         // compute cartesian velocity derivatives w.r.t. curvilinear coords
                         Compute_du_j
-                        (   mesh, i1, j1, k1, mx, my, mz, ucat, nvert,
+                        (   mesh, i1, j1, k1, mx, my, mz, ucat, nvert, meshTag, 
                             &dudc, &dvdc, &dwdc,
                             &dude, &dvde, &dwde,
                             &dudz, &dvdz, &dwdz
@@ -6647,7 +6650,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
                         // compute cartesian velocity derivatives w.r.t. curvilinear coords
                         Compute_du_k
-                        (   mesh, i1, j1, k1, mx, my, mz, ucat, nvert,
+                        (   mesh, i1, j1, k1, mx, my, mz, ucat, nvert, meshTag, 
                             &dudc, &dvdc, &dwdc,
                             &dude, &dvde, &dwde,
                             &dudz, &dvdz, &dwdz
@@ -6742,6 +6745,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
 
     DMDAVecRestoreArray(fda, Coor, &coor);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
@@ -7944,8 +7948,8 @@ PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm)
             }
         }
 
-        PetscPrintf(PETSC_COMM_WORLD, "\nCreated half edge data structure for IBM body:%s \n", ibm->ibmBody[b]->bodyName.c_str());
-        PetscPrintf(PETSC_COMM_WORLD, "Num nodes: %ld, Num elements: %ld\n\n", nodes, elems);
+        PetscPrintf(PETSC_COMM_WORLD, "     Created half edge data structure for IBM body:%s \n", ibm->ibmBody[b]->bodyName.c_str());
+        PetscPrintf(PETSC_COMM_WORLD, "     Num nodes: %ld, Num elements: %ld\n\n", nodes, elems);
 
     }
     return 0;
@@ -7995,7 +7999,7 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 
         if(ibm->checkNormal)
         {
-            PetscPrintf(PETSC_COMM_WORLD, "Checking IBM element normal direction for body: %s...", ibm->ibmBody[b]->bodyName.c_str());
+            PetscPrintf(PETSC_COMM_WORLD, "     Checking IBM element normal direction for body: %s...", ibm->ibmBody[b]->bodyName.c_str());
             // set offset distance
             minBound = PetscMin( PetscMin(ibBox->Lx, ibBox->Ly), ibBox->Lz);
             offset   = 1.0e-7;

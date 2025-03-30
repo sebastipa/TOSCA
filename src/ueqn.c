@@ -1825,7 +1825,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***source, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert;
+    PetscReal     ***nvert, ***meshTag;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
@@ -1838,6 +1838,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     DMDAVecGetArray(fda, Rhs,  &rhs);
@@ -1852,7 +1853,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 if
                 (
-                    isFluidIFace(k, j, i, i+1, nvert)
+                    isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag)
                 )
                 {
                     rhs[k][j][i].x
@@ -1867,7 +1868,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 if
                 (
-                        isFluidJFace(k, j, i, j+1, nvert)
+                        isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag)
                 )
                 {
                     rhs[k][j][i].y
@@ -1882,7 +1883,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 if
                 (
-                        isFluidKFace(k, j, i, k+1, nvert)
+                        isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag)
                 )
                 {
                     rhs[k][j][i].z
@@ -1903,6 +1904,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
 
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
@@ -3528,7 +3530,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***ucat, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert;
+    PetscReal     ***nvert, ***meshTag;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
@@ -3550,6 +3552,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     DMDAVecGetArray(fda, Rhs,  &rhs);
@@ -3561,7 +3564,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if(isFluidIFace(k, j, i, i+1, nvert))
+                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
                     rhs[k][j][i].x
                     +=
@@ -3575,7 +3578,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
-                if(isFluidJFace(k, j, i, j+1, nvert))
+                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
                     rhs[k][j][i].y
                     +=
@@ -3589,7 +3592,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
-                if(isFluidKFace(k, j, i, k+1, nvert))
+                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
                     rhs[k][j][i].z
                     +=
@@ -3610,6 +3613,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
@@ -3632,7 +3636,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***ucat, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert, ***aj;
+    PetscReal     ***nvert, ***meshTag, ***aj;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
@@ -3662,6 +3666,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
@@ -3711,7 +3716,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 Cmpnts    forceI    = nScale(forceMagI, diskNormal);
 
                 // body force i-flux
-                if(isFluidIFace(k, j, i, i+1, nvert))
+                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
                     rhs[k][j][i].x
                     +=
@@ -3733,7 +3738,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 Cmpnts    forceJ    = nScale(forceMagJ, diskNormal);
 
                 // body force j-flux
-                if(isFluidJFace(k, j, i, j+1, nvert))
+                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
                     rhs[k][j][i].y
                     +=
@@ -3755,7 +3760,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 Cmpnts    forceK    = nScale(forceMagK, diskNormal);
 
                 // body force k-flux
-                if(isFluidKFace(k, j, i, k+1, nvert))
+                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
                     rhs[k][j][i].z
                     +=
@@ -3796,6 +3801,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
@@ -3821,7 +3827,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
 
     Cmpnts        ***btheta, ***gcont;
     Cmpnts        ***icsi, ***jeta, ***kzet, ***cent;
-    PetscReal     ***nvert, ***tmprt, ***aj;
+    PetscReal     ***nvert, ***tmprt, ***aj, ***meshTag;
 
     PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
@@ -3900,6 +3906,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
 
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
     for (k=lzs; k<lze; k++)
     {
@@ -3912,7 +3919,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
                 PetscReal tempJ    =  0.5*(tmprt[k][j][i] + tmprt[k][j+1][i]);
                 PetscReal tempK    =  0.5*(tmprt[k][j][i] + tmprt[k+1][j][i]);
 
-                if(isFluidIFace(k, j, i, i+1, nvert))
+                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
                     btheta[k][j][i].x
                     +=
@@ -3925,7 +3932,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
                     );
                 }
 
-                if(isFluidJFace(k, j, i, j+1, nvert))
+                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
                     btheta[k][j][i].y
                     +=
@@ -3938,7 +3945,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
                     );
                 }
 
-                if(isFluidKFace(k, j, i, k+1, nvert))
+                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
                     btheta[k][j][i].z
                     +=
@@ -3957,6 +3964,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
     DMDAVecRestoreArray(fda, ueqn->bTheta,  &btheta);
     DMDAVecRestoreArray(da,  teqn->lTmprt,  &tmprt);
     DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, ueqn->gCont,   &gcont);
     DMDAVecRestoreArray(fda, mesh->lCent,   &cent);
 
@@ -3980,7 +3988,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
 
     PetscReal        mat[3][3], det, det0, det1, det2;
 
-    PetscReal        ***aj, ***nvert;
+    PetscReal        ***aj, ***nvert, ***meshTag;
     Cmpnts           ***ucat, ***lucont;
 
     PetscReal q[3];  // local working array
@@ -3997,6 +4005,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
     DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
     DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
 
@@ -4009,7 +4018,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if ( isFluidCell(k, j, i, nvert) )
+                if ( isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     mat[0][0] = (csi[k][j][i].x);
                     mat[0][1] = (csi[k][j][i].y);
@@ -4064,6 +4073,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
     DMDAVecRestoreArray (fda, ueqn->lUcont, &lucont);
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
     DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
@@ -4088,7 +4098,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
 
     PetscReal        mat[3][3], det, det0, det1, det2;
 
-    PetscReal        ***aj, ***nvert;
+    PetscReal        ***aj, ***nvert, ***meshTag;
     Cmpnts           ***lcat, ***lcont;
     Cmpnts           ***csi,  ***eta,  ***zet;
 
@@ -4104,6 +4114,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
     DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, lCont, &lcont);
     DMDAVecGetArray(fda, lCat,  &lcat);
 
@@ -4116,7 +4127,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
         {
             for (i=lxs; i<lxe; i++)
             {
-                if ( isFluidCell(k, j, i, nvert) )
+                if ( isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     mat[0][0] = (csi[k][j][i].x);
                     mat[0][1] = (csi[k][j][i].y);
@@ -4171,6 +4182,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
     DMDAVecRestoreArray (fda, lCont, &lcont);
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
     DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
@@ -5318,7 +5330,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     Cmpnts           ***kcsi, ***keta, ***kzet;
     Cmpnts           ***cent;
 
-    PetscReal        ***nvert, ***lnu_t;
+    PetscReal        ***nvert, ***lnu_t, ***meshTag;
 
     Cmpnts           ***div1,  ***div2,  ***div3;                               // divergence & cumulative fluxes
     Cmpnts           ***visc1, ***visc2, ***visc3;
@@ -5369,6 +5381,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
 
@@ -5468,7 +5481,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                 // compute metric tensor - WARNING: there is a factor of 1/J^2 if using face area vectors
                 //                                  must multiply for ajc in viscous term!!!
@@ -5491,7 +5504,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    iL, iR;
                 PetscReal denom;
-                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert);
+                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
 
                 // test: inviscid flow or weno3Div
                 if(ueqn->inviscid || ueqn->weno3Div)
@@ -5659,7 +5672,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                 // compute metric tensor
                 g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
@@ -5681,7 +5694,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    jL, jR;
                 PetscReal denom;
-                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert);
+                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
 
                 // test: inviscid flow or weno3Div
                 if( ueqn->inviscid || ueqn->weno3Div)
@@ -5849,7 +5862,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                 // compute metric tensor
                 g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
@@ -5871,7 +5884,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    kL, kR;
                 PetscReal denom;
-                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert);
+                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
                 // inviscid flow or weno3Div
                 if(ueqn->inviscid || ueqn->weno3Div)
@@ -6206,9 +6219,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 PetscInt    iL, iR;
                 PetscInt    jL, jR;
                 PetscInt    kL, kR;
-                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert);
-                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert);
-                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert);
+                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
+                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
+                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
                 PetscReal v0, v1, v2, v3;
                 PetscReal d0, d1, d2, d3;
@@ -6309,6 +6322,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
 
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->fluxLimiter, &limiter);
 
     DMDAVecRestoreArray(fda, ueqn->lFp, &fp);
@@ -6353,6 +6367,12 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     if(ueqn->access->flags->isIBMActive)
     {
         UpdateImmersedBCs(ueqn->access->ibm);
+    }
+
+    if(ueqn->access->flags->isOversetActive)
+    {
+        if(mesh->meshName == "background")
+        setBackgroundBC(mesh);;
     }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
@@ -6468,6 +6488,12 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     if(ueqn->access->flags->isIBMActive)
     {
         UpdateImmersedBCs(ueqn->access->ibm);
+    }
+
+    if(ueqn->access->flags->isOversetActive)
+    {
+        if(mesh->meshName == "background")
+        setBackgroundBC(mesh);;
     }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
@@ -6691,6 +6717,12 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     if(ueqn->access->flags->isIBMActive)
     {
         UpdateImmersedBCs(ueqn->access->ibm);
+    }
+
+    if(ueqn->access->flags->isOversetActive)
+    {
+        if(mesh->meshName == "background")
+        setBackgroundBC(mesh);;
     }
 
     // adjust inflow/outflow fluxes to ensure mass conservation

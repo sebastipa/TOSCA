@@ -173,7 +173,7 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
             acquisition->isAverageABLActive = 1;
             acquisition->isAverage3LMActive = 0;
             acquisition->isPerturbABLActive = 0;
-            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-averageABL",    &(acquisition->isAverageABLActive), PETSC_NULL);
+
             PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &(acquisition->isSectionsActive),   PETSC_NULL);
         }
 
@@ -1186,7 +1186,7 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
             PetscInt       lxs, lxe, lys, lye, lzs, lze;
 
             Cmpnts         ***ucat, ***csi, ***eta, ***zet;
-            PetscReal      ***p, ***nut, ***cs, ***nvert, ***aj;
+            PetscReal      ***p, ***nut, ***cs, ***nvert, ***meshTag, ***aj;
 
             Cmpnts         ***u_mean, ***maguu_mean, ***w_mean,
                            ***u_phase, ***maguu_phase, ***w_phase;
@@ -1213,6 +1213,7 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
             DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
             DMDAVecGetArray(da,  mesh->lAj,    &aj);
             DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+            DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
             DMDAVecGetArray(fda, mesh->lCsi,   &csi);
             DMDAVecGetArray(fda, mesh->lEta,   &eta);
             DMDAVecGetArray(fda, mesh->lZet,   &zet);
@@ -1327,14 +1328,14 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
                         Compute_du_center
                         (
                             mesh,
-                            i, j, k, mx, my, mz, ucat, nvert, &dudc,
+                            i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc,
                             &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz
                         );
 
                         Compute_dscalar_center
                         (
                             mesh,
-                            i, j, k, mx, my, mz, p, nvert, &dpdc, &dpde, &dpdz
+                            i, j, k, mx, my, mz, p, nvert, meshTag, &dpdc, &dpde, &dpdz
                         );
 
                         Compute_du_dxyz
@@ -1511,6 +1512,7 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
             DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
             DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
             DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+            DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
             DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
             DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
             DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
@@ -2094,7 +2096,7 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
             PetscInt       i, j, k;
             PetscInt       lxs, lxe, lys, lye, lzs, lze;
 
-            PetscReal      ***p,    ***nut,   ***cs, ***nvert, ***t,
+            PetscReal      ***p,    ***nut,   ***cs, ***nvert, ***meshTag, ***t,
                            ***aj;
 
             Cmpnts         ***ucat, ***ucont, ***bf,
@@ -2134,6 +2136,7 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
             DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
             DMDAVecGetArray(da,  mesh->lAj,    &aj);
             DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+            DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
             DMDAVecGetArray(fda, mesh->lCsi,   &csi);
             DMDAVecGetArray(fda, mesh->lEta,   &eta);
             DMDAVecGetArray(fda, mesh->lZet,   &zet);
@@ -2249,7 +2252,7 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
                         Compute_du_center
                         (
                             mesh,
-                            i, j, k, mx, my, mz, ucat, nvert, &dudc,
+                            i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc,
                             &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz
                         );
 
@@ -2627,6 +2630,7 @@ PetscErrorCode averageKEBudgetsCat(acquisition_ *acquisition)
             DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
             DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
             DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+            DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
             DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
             DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
             DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
@@ -2749,7 +2753,7 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
             Cmpnts         ***kcsi, ***keta, ***kzet;
             PetscReal      ***aj,   ***iaj,  ***jaj, ***kaj;
 
-            PetscReal      ***p,    ***nut,   ***cs,     ***nvert, ***t;
+            PetscReal      ***p,    ***nut,   ***cs,     ***nvert, ***meshTag, ***t;
             PetscReal      ***pinf, ***pf,    ***ptheta, ***keeps, ***em, ***error, ***kedc, ***kefc;
             Cmpnts         ***kef,  ***kedum, ***kedup,  ***kedpm, ***kedpp;
 
@@ -2810,6 +2814,7 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
             DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
             DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
             DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+            DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
             DMDAVecGetArray(da,  peqn->lP,     &p);
 
             if(flags->isLesActive)
@@ -2974,7 +2979,7 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
                             zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
 
                             // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                            Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                            Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                             g11 = csi0 * csi0 + csi1 * csi1 + csi2 * csi2;
                             g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
@@ -3096,7 +3101,7 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
                             zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
 
                             // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                            Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                            Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                             // compute metric tensor
                             g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
@@ -3220,7 +3225,7 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
                             zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
 
                             // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                            Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                            Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                             // compute metric tensor
                             g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
@@ -3303,7 +3308,7 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
                         Compute_du_center
                         (
                             mesh,
-                            i, j, k, mx, my, mz, ucat, nvert, &dudc,
+                            i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc,
                             &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz
                         );
 
@@ -3541,6 +3546,7 @@ PetscErrorCode averageKEBudgetsCont(acquisition_ *acquisition)
             DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
             DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
             DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+            DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
             DMDAVecRestoreArray(da,  peqn->lP,     &p);
 
             if(flags->isLesActive)
@@ -6652,7 +6658,7 @@ PetscErrorCode computeQCritIO(acquisition_ *acquisition)
 
     Cmpnts        ***ucat;
     Cmpnts        ***csi, ***eta, ***zet;
-    PetscReal     ***nvert, ***aj, ***q, ***ocode;
+    PetscReal     ***nvert, ***meshTag, ***aj, ***q, ***ocode;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -6664,6 +6670,7 @@ PetscErrorCode computeQCritIO(acquisition_ *acquisition)
     DMDAVecGetArray(fda, mesh->lEta, &eta);
     DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(da, mesh->lAj, &aj);
     DMDAVecGetArray(da, acquisition->fields->Q, &q);
 
@@ -6671,7 +6678,7 @@ PetscErrorCode computeQCritIO(acquisition_ *acquisition)
     for (j=lys; j<lye; j++)
     for (i=lxs; i<lxe; i++)
     {
-        if( isIBMSolidCell(k, j, i, nvert))
+        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
         {
             continue;
         }
@@ -6687,7 +6694,7 @@ PetscErrorCode computeQCritIO(acquisition_ *acquisition)
         (
             mesh, i, j, k,
             mx, my, mz,
-            ucat, nvert,
+            ucat, nvert, meshTag, 
             &dudc, &dvdc, &dwdc,
             &dude, &dvde, &dwde,
             &dudz, &dvdz, &dwdz
@@ -6730,6 +6737,7 @@ PetscErrorCode computeQCritIO(acquisition_ *acquisition)
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
     DMDAVecRestoreArray(fda, mesh->lZet, &zet);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
     DMDAVecRestoreArray(da, acquisition->fields->Q, &q);
 
@@ -6756,7 +6764,7 @@ PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
 
     Cmpnts        ***source, ***ucat, ***cent;
     Cmpnts        ***csi, ***eta, ***zet;
-    PetscReal     ***nvert;
+    PetscReal     ***nvert, ***meshTag;
 
     PetscReal     fc = ueqn->access->abl->fc; // coriolis parameter / 2
 
@@ -6770,6 +6778,7 @@ PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
     DMDAVecGetArray(fda, mesh->lEta,  &eta);
     DMDAVecGetArray(fda, mesh->lZet,  &zet);
     DMDAVecGetArray(da,  mesh->lNvert,&nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag,&meshTag);
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     DMDAVecGetArray(fda, acquisition->fields->Coriolis,  &source);
@@ -6783,7 +6792,7 @@ PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
             {
                 if
                 (
-                    isFluidCell(k, j, i, nvert)
+                    isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag)
                 )
                 {
                     source[k][j][i].x
@@ -6824,6 +6833,7 @@ PetscErrorCode computeCoriolisIO(acquisition_ *acquisition)
     DMDAVecRestoreArray(fda, mesh->lEta,  &eta);
     DMDAVecRestoreArray(fda, mesh->lZet,  &zet);
     DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,&meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
     DMDAVecRestoreArray(fda, acquisition->fields->Coriolis,  &source);
@@ -6850,7 +6860,7 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
 
     Cmpnts        ***source, ***sourceu, ***ucat, ***cent;
     Cmpnts        ***csi, ***eta, ***zet;
-    PetscReal     ***nvert;
+    PetscReal     ***nvert, ***meshTag;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -6862,6 +6872,7 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
     DMDAVecGetArray(fda, mesh->lEta,  &eta);
     DMDAVecGetArray(fda, mesh->lZet,  &zet);
     DMDAVecGetArray(da,  mesh->lNvert,&nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag,&meshTag);
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     DMDAVecGetArray(fda, acquisition->fields->Driving,  &source);
@@ -6876,7 +6887,7 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
             {
                 if
                 (
-                    isFluidCell(k, j, i, nvert)
+                    isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag)
                 )
                 {
                     source[k][j][i].x
@@ -6914,6 +6925,7 @@ PetscErrorCode computeDrivingSourceIO(acquisition_ *acquisition)
     DMDAVecRestoreArray(fda, mesh->lEta,  &eta);
     DMDAVecRestoreArray(fda, mesh->lZet,  &zet);
     DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,&meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
     DMDAVecRestoreArray(fda, acquisition->fields->Driving,  &source);
@@ -10130,7 +10142,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             Cmpnts        ***ucat, ***uprime;           // cartesian vel. and fluct. part
             Cmpnts        ***csi, ***eta, ***zet;
             PetscReal     ***tmprt, ***tprime, ***nut, ***ksg;  // potential temp. and fluct. part and turb. visc.
-            PetscReal     ***aj, ***nvert, ***ldt;
+            PetscReal     ***aj, ***nvert, ***meshTag, ***ldt;
 
             word          fileName;
 
@@ -10149,6 +10161,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
             DMDAVecGetArray(da,  mesh->lAj,       &aj);
             DMDAVecGetArray(da,  mesh->lNvert,    &nvert);
+            DMDAVecGetArray(da,  mesh->lmeshTag,  &meshTag);
             DMDAVecGetArray(fda, mesh->lCsi,      &csi);
             DMDAVecGetArray(fda, mesh->lEta,      &eta);
             DMDAVecGetArray(fda, mesh->lZet,      &zet);
@@ -10359,7 +10372,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         Compute_du_center
                         (
                             mesh,
-                            i, j, k, mx, my, mz, ucat, nvert, &dudc,
+                            i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc,
                             &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz
                         );
 
@@ -10401,7 +10414,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                                 mesh,
                                 i, j, k,
                                 mx, my, mz,
-                                tmprt, nvert,
+                                tmprt, nvert, meshTag, 
                                 &dtdc, &dtde, &dtdz
                             );
 
@@ -10500,6 +10513,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
             DMDAVecRestoreArray(da,  mesh->lAj,       &aj);
             DMDAVecRestoreArray(da,  mesh->lNvert,    &nvert);
+            DMDAVecRestoreArray(da,  mesh->lmeshTag,  &meshTag);
             DMDAVecRestoreArray(fda, mesh->lCsi,      &csi);
             DMDAVecRestoreArray(fda, mesh->lEta,      &eta);
             DMDAVecRestoreArray(fda, mesh->lZet,      &zet);

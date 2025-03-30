@@ -4036,7 +4036,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
 
     Cmpnts        ***csi, ***eta, ***zet;
     Cmpnts        ***ucat;                     // cartesian vel. and fluct. part
-    PetscReal     ***tmprt, ***nut, ***nvert;  // potential temp. and fluct. part and turb. visc.
+    PetscReal     ***tmprt, ***nut, ***nvert, ***meshTag;  // potential temp. and fluct. part and turb. visc.
     PetscReal     ***aj, ***ld_t;
 
     PetscReal     nu = abl->access->constants->nu;
@@ -4052,6 +4052,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
 
     DMDAVecGetArray(da,  mesh->lAj,       &aj);
     DMDAVecGetArray(da,  mesh->lNvert,    &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag,  &meshTag);
     DMDAVecGetArray(fda, ueqn->lUcat,     &ucat);
     DMDAVecGetArray(fda, mesh->lCsi,      &csi);
     DMDAVecGetArray(fda, mesh->lEta,      &eta);
@@ -4198,7 +4199,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
                 Compute_du_center
                 (
                     mesh,
-                    i, j, k, mx, my, mz, ucat, nvert, &dudc,
+                    i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc,
                     &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz
                 );
 
@@ -4220,7 +4221,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
                     mesh,
                     i, j, k,
                     mx, my, mz,
-                    tmprt, nvert,
+                    tmprt, nvert, meshTag,
                     &dtdc, &dtde, &dtdz
                 );
 
@@ -4475,6 +4476,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
 
     DMDAVecRestoreArray(da,  mesh->lAj,       &aj);
     DMDAVecRestoreArray(da,  mesh->lNvert,    &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,  &meshTag);
     DMDAVecRestoreArray(fda, ueqn->lUcat,     &ucat);
     DMDAVecRestoreArray(fda, mesh->lCsi,      &csi);
     DMDAVecRestoreArray(fda, mesh->lEta,      &eta);

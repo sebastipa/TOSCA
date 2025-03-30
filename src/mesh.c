@@ -416,11 +416,15 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
     VecDuplicate(mesh->lAj, &(mesh->lNvert_o));
 
     VecDuplicate(mesh->Nvert, &(mesh->Nvert_o));
+    VecDuplicate(mesh->Nvert, &(mesh->meshTag));
+    VecDuplicate(mesh->lNvert, &(mesh->lmeshTag));
 
     VecSet(mesh->Nvert, 0.0);
     VecSet(mesh->lNvert, 0.0);
     VecSet(mesh->Nvert_o, 0.0);
     VecSet(mesh->lNvert_o, 0.0);
+    VecSet(mesh->meshTag, 0.0);
+    VecSet(mesh->lmeshTag, 0.0);
 
     return(0);
 }

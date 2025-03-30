@@ -246,8 +246,6 @@ int main(int argc, char **argv)
             MPI_Barrier(domain[d].mesh->MESH_COMM);
         }
 
-        WriteAcquisition(domain);
-
         if(flags.isPvCatalystActive)
         {
             #if USE_CATALYST
@@ -259,6 +257,8 @@ int main(int argc, char **argv)
         {
             UpdateOversetInterpolation(domain);
         }
+
+        WriteAcquisition(domain);
 
         clock.it ++;
 

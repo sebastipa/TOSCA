@@ -278,6 +278,14 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     VecLoad(mesh->Nvert,viewer);
     PetscViewerDestroy(&viewer);
 
+    //read overset meshTag field
+    PetscPrintf(mesh->MESH_COMM, "Reading meshTag...\n");
+    field = "/meshTag";
+    fileName = location + field;
+    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+    VecLoad(mesh->meshTag,viewer);
+    PetscViewerDestroy(&viewer);
+
     // read temperature
     if(domain->flags.isTeqnActive)
     {
@@ -1965,6 +1973,11 @@ PetscErrorCode writeFields(io_ *io)
         // write nvert
         fieldName = timeName + "/nv";
         writeBinaryField(mesh->MESH_COMM, mesh->Nvert, fieldName.c_str());
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // write nvert
+        fieldName = timeName + "/meshTag";
+        writeBinaryField(mesh->MESH_COMM, mesh->meshTag, fieldName.c_str());
         MPI_Barrier(mesh->MESH_COMM);
 
         // write temperature

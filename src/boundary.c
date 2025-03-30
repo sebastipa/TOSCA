@@ -879,7 +879,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     Cmpnts        ***cent;
 
     PetscReal     ***aj, ***iaj;
-    PetscReal     ***nvert, ***ustar;
+    PetscReal     ***nvert, ***ustar, ***meshTag;
     Cmpnts        ***ucat,  ***lucat,
                   ***lucont;
 
@@ -907,6 +907,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
     DMDAVecGetArray(da,  mesh->lIAj,  &iaj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
     DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
@@ -999,6 +1000,12 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     continue;
                 }
 
+                if(isZeroedCell(k, j, i, meshTag))
+                {
+                    mSetValue(ucat[k][j][i], 0);
+                    continue;
+                }
+
                 // wall functions: directly look at the wall function type,
                 //                 note: zero means not allocated
                 if
@@ -1057,6 +1064,12 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         {
                             mSetValue(Ughost, 0.0);
                         }
+
+                        if(isOversetCell(k, j, i, meshTag))
+                        {
+                            mSetValue(Ughost, 0.0);
+                        }
+
                         else
                         {
                             PetscReal tau_w = ustar[k][j][i]*ustar[k][j][i];
@@ -1139,6 +1152,11 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     else
                     {
                         if(isIBMCell(k,j,i,nvert))
+                        {
+                            mSetValue(Ughost, 0.0);
+                        }
+
+                        if(isOversetCell(k,j,i,meshTag))
                         {
                             mSetValue(Ughost, 0.0);
                         }
@@ -1720,6 +1738,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i-1],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i-1],0);
                 }
 
                 // slip on X right boundary - set on the physical ghost cell
@@ -1747,6 +1767,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i+1],0.0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i+1],0.0);
+
                 }
 
                 // slip on Y left boundary - set on the physical ghost cell
@@ -1774,6 +1797,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j-1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j-1][i],0);
+
                 }
 
                 // slip on Y right boundary - set on the physical ghost cell
@@ -1801,6 +1827,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j+1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j+1][i],0);
+
                 }
 
                 // slip on Z left boundary - set on the physical ghost cell
@@ -1828,6 +1857,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k-1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k-1][j][i],0);
+
                 }
 
                 // slip on Y right boundary - set on the physical ghost cell
@@ -1855,6 +1887,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k+1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k+1][j][i],0);
+
                 }
 
                 // no-slip on X left boundary - set on the physical ghost cell
@@ -1907,6 +1942,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     ucat[k][j][i-1].z = 2*lucat[k][j][i].z - lucat[k][j][i+1].z;
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i-1],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i-1],0);
+
                 }
                 // outflow (zero gradient) in X right boundary
                 if (mesh->boundaryU.iRight=="zeroGradient" && i==mx-2)
@@ -1916,6 +1954,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     ucat[k][j][i+1].z = 2*lucat[k][j][i].z - lucat[k][j][i-1].z;
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i+1],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i+1],0);
+
                 }
                 // outflow (zero gradient) in Y left boundary
                 if (mesh->boundaryU.jLeft=="zeroGradient" && j==1)
@@ -1925,6 +1966,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     ucat[k][j-1][i].z = 2*lucat[k][j][i].z - lucat[k][j+1][i].z;
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j-1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j-1][i],0);
+
                 }
                 // outflow (zero gradient) in Y right boundary
                 if (mesh->boundaryU.jRight=="zeroGradient" && j==my-2)
@@ -1935,6 +1979,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j+1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j+1][i],0);
+
                 }
                 // outflow (zero gradient) in Z left boundary
                 if (mesh->boundaryU.kLeft=="zeroGradient" && k==1)
@@ -1945,6 +1992,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k-1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k-1][j][i],0);
+
                 }
                 // outflow (zero gradient) in Z right boundary
                 if (mesh->boundaryU.kRight=="zeroGradient" && k==mz-2)
@@ -1954,6 +2004,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     ucat[k+1][j][i].z = 2*lucat[k][j][i].z - lucat[k-1][j][i].z;
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k+1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k+1][j][i],0);
+
                 }
 
                 // i-periodic boundary condition on i-left patch
@@ -1963,6 +2016,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     else if (mesh->ii_periodic) ucat[k][j][i-1] = lucat[k][j][-2];
 
                     if ( isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i-1],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i-1],0);
+
                 }
                 // i-periodic boundary condition on i-right patch
                 if (mesh->boundaryU.iRight=="periodic" && i==mx-2)
@@ -1972,6 +2028,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     else if (mesh->ii_periodic) ucat[k][j][i+1] = lucat[k][j][mx+1];
 
                     if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j][i+1],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i+1],0);
+
                 }
                 // j-periodic boundary condition on j-left patch
                 if (mesh->boundaryU.jLeft=="periodic" && j==1)
@@ -1981,6 +2040,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     else if(mesh->jj_periodic) ucat[k][j-1][i] = lucat[k][-2][i];
 
                     if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j-1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j-1][i],0);
+
                 }
                 // j-periodic boundary condition on j-right patch
                 if (mesh->boundaryU.jRight=="periodic" && j==my-2)
@@ -1989,6 +2051,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     else if(mesh->jj_periodic) ucat[k][j+1][i] = lucat[k][my+1][i];
 
                     if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j+1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j+1][i],0);
+
                 }
                 // k-periodic boundary condition on k-left patch
                 if (mesh->boundaryU.kLeft=="periodic" && k==1)
@@ -1998,6 +2063,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     else if(mesh->kk_periodic) ucat[k-1][j][i] = lucat[-2][j][i];
 
                     if ( isIBMCell(k,j,i,nvert)) mSetValue(ucat[k-1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k-1][j][i],0);
+
                 }
                 // k-periodic boundary condition on k-right patch
                 if (mesh->boundaryU.kRight=="periodic" && k==mz-2)
@@ -2006,6 +2074,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     else if(mesh->kk_periodic) ucat[k+1][j][i] = lucat[mz+1][j][i];
 
                     if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k+1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k+1][j][i],0);
+
                 }
             }
         }
@@ -2021,6 +2092,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
     DMDAVecRestoreArray(da,  mesh->lIAj,  &iaj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &lucat);
@@ -2051,7 +2123,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***t, ***lt, ***nvert;
+    PetscReal     ***t, ***lt, ***nvert, ***meshTag;
     PetscReal     ***aj, ***iaj;
     Cmpnts        ***csi, ***eta, ***zet, ***icsi, ***cent;
 
@@ -2152,6 +2224,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     DMDAVecGetArray(da,  mesh->lAj,    &aj);
     DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecGetArray(da, teqn->lTmprt, &lt);
     DMDAVecGetArray(da, teqn->Tmprt,  &t);
@@ -2163,7 +2236,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
             for (i=lxs; i<lxe; i++)
             {
                 // set to zero if solid
-                if(isIBMSolidCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
                     t[k][j][i] = teqn->access->abl->tRef;
                     continue;
@@ -2590,6 +2663,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
     DMDAVecRestoreArray(da,  mesh->lIAj,   &iaj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
     DMDAVecRestoreArray(da, teqn->Tmprt,  &t);
@@ -2618,7 +2692,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***nut, ***nvert, ***iaj;
+    PetscReal     ***nut, ***nvert, ***meshTag, ***iaj;
     Cmpnts        ***icsi, ***cent;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
@@ -2627,6 +2701,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
 
     DMDAVecGetArray(da, les->lNu_t, &nut);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
     DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
@@ -2694,7 +2769,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // set to zero at solid internal cells and skip
-                if(isIBMSolidCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
                     nut[k][j][i] = 0.0;
                     continue;
@@ -2889,6 +2964,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
 
     DMDAVecRestoreArray(da, les->lNu_t, &nut);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(da,  mesh->lIAj,   &iaj);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
@@ -2917,7 +2993,7 @@ PetscErrorCode UpdateDiffBCs(les_ *les)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***diff, ***nvert;
+    PetscReal     ***diff, ***nvert, ***meshTag;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -2925,6 +3001,7 @@ PetscErrorCode UpdateDiffBCs(les_ *les)
 
     DMDAVecGetArray(da, les->lDiff_t, &diff);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
     for (k=lzs; k<lze; k++)
     {
@@ -2933,7 +3010,7 @@ PetscErrorCode UpdateDiffBCs(les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // set to zero at solid internal cells and skip
-                if(isIBMSolidCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
                     diff[k][j][i] = 0.0;
                     continue;
@@ -3011,6 +3088,7 @@ PetscErrorCode UpdateDiffBCs(les_ *les)
 
     DMDAVecRestoreArray(da, les->lDiff_t, &diff);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
 
     // scatter difft from local to local
     DMLocalToLocalBegin(da, les->lDiff_t, INSERT_VALUES, les->lDiff_t);
@@ -3217,7 +3295,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscScalar   ***aj, ***nvert, ***t;
+    PetscScalar   ***aj, ***nvert, ***meshTag, ***t;
     Cmpnts        ***csi, ***eta, ***zet;
     Cmpnts        ***jeta;
     Cmpnts        ***ucat;
@@ -3249,6 +3327,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(da,  mesh->lAj,    &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
 
     if(flags->isTeqnActive)
@@ -3341,7 +3420,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             // increment velocity
                             lUParallelMeanMag += nMag(UcellParallel);
@@ -3480,7 +3559,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         );
                     }
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         //printf("uFilt.x = %f, u.x = %f\n", ueqn->jLWM->uFilt.x[k_wm][i_wm], UcellParallel.x);
 
@@ -3580,7 +3659,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             // increment velocity
                             lUParallelMeanMag += nMag(UcellParallel);
@@ -3719,7 +3798,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         );
                     }
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         // wall shear stress in cartesian coords
                         PetscReal TauXZ = - frictionVel*frictionVel * (ueqn->jRWM->uFilt.x[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
@@ -3741,6 +3820,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
 
     if(flags->isTeqnActive)
@@ -3775,7 +3855,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
     PetscInt      my_wm = ye-ys;
     PetscInt      mz_wm = ze-zs;
 
-    PetscScalar   ***aj, ***nvert, ***t;
+    PetscScalar   ***aj, ***nvert, ***meshTag, ***t;
     Cmpnts        ***csi, ***eta, ***zet;
     Cmpnts        ***jeta;
     Cmpnts        ***ucat;
@@ -3795,6 +3875,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(da,  mesh->lAj,    &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecGetArray(da,  teqn->lTmprt, &t);
 
@@ -3890,7 +3971,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             // update surface temperature
                             if(updateTemp) wm->surfaceTheta[k_wm][i_wm] += wm->heatingRate * clock->dt;
@@ -3989,7 +4070,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         );
                     }
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
                         teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
@@ -4015,7 +4096,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                     PetscInt k_wm = k - zs;
                     PetscInt i_wm = i - xs;
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
                         teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
@@ -4094,7 +4175,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             ldeltaTheta += (cellTheta - surfaceTemp);
 
@@ -4187,7 +4268,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                     if(i  == 5 && k == 5 && !teqn->access->flags->isIBMActive)
                         PetscPrintf(PETSC_COMM_SELF, "surfTemp = %lf, L = %lf, bPtTemp = %lf, deltaTheta = %lf, qWall = %lf, ustar = %lf, utmag = %lf, walldist = %lf\n", surfaceTemp, L, cellTheta, deltaTheta, qWall, frictionVel, UParallelMeanMag, 0.5/aj[k][j][i]/area);
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
                         teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
@@ -4291,7 +4372,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             // update surface temperature
                             if(updateTemp) wm->surfaceTheta[k_wm][i_wm] += wm->heatingRate * clock->dt;
@@ -4390,7 +4471,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         );
                     }
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
                         teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
@@ -4407,6 +4488,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecRestoreArray(da,  teqn->lTmprt, &t);
 

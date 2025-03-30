@@ -1295,7 +1295,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     Cmpnts        ***jcsi, ***jeta, ***jzet;
     Cmpnts        ***kcsi, ***keta, ***kzet;
 
-    PetscReal     ***tmprt, ***rhs, ***nvert;
+    PetscReal     ***tmprt, ***rhs, ***nvert, ***meshTag;
 
     Cmpnts        ***div, ***visc, ***viscIBM;                                                // divergence and viscous terms
     Cmpnts        ***limiter;                                                     // flux limiter
@@ -1336,6 +1336,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(da,  mesh->lKAj,        &kaj);
     DMDAVecGetArray(fda, mesh->lCent,       &cent);
     DMDAVecGetArray(da,  mesh->lNvert,      &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag,    &meshTag);
     DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
 
     if(flags->isIBMActive)
@@ -1396,11 +1397,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
                 g31 = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
 
-                Compute_dscalar_i(mesh, i, j, k, mx, my, mz, tmprt, nvert, &dtdc, &dtde, &dtdz);
+                Compute_dscalar_i(mesh, i, j, k, mx, my, mz, tmprt, nvert, meshTag, &dtdc, &dtde, &dtdz);
 
                 PetscInt    iL, iR;
                 PetscReal denom;
-                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert);
+                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
 
                 div[k][j][i].x =
                 - ucont[k][j][i].x
@@ -1539,11 +1540,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 g21 = eta0 * eta0 + eta1 * eta1 + eta2 * eta2;
                 g31 = zet0 * eta0 + zet1 * eta1 + zet2 * eta2;
 
-                Compute_dscalar_j(mesh, i, j, k, mx, my, mz, tmprt, nvert, &dtdc, &dtde, &dtdz);
+                Compute_dscalar_j(mesh, i, j, k, mx, my, mz, tmprt, nvert, meshTag, &dtdc, &dtde, &dtdz);
 
                 PetscInt    jL, jR;
                 PetscReal denom;
-                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert);
+                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
 
                 div[k][j][i].y =
                 - ucont[k][j][i].y
@@ -1679,11 +1680,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 g21 = eta0 * zet0 + eta1 * zet1 + eta2 * zet2;
                 g31 = zet0 * zet0 + zet1 * zet1 + zet2 * zet2;
 
-                Compute_dscalar_k(mesh, i, j, k, mx, my, mz, tmprt, nvert, &dtdc, &dtde, &dtdz);
+                Compute_dscalar_k(mesh, i, j, k, mx, my, mz, tmprt, nvert, meshTag, &dtdc, &dtde, &dtdz);
 
                 PetscInt    kL, kR;
                 PetscReal denom;
-                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert);
+                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
                 div[k][j][i].z =
                 - ucont[k][j][i].z
@@ -1860,6 +1861,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(da,  mesh->lKAj,        &kaj);
     DMDAVecRestoreArray(fda, mesh->lCent,       &cent);
     DMDAVecRestoreArray(da,  mesh->lNvert,      &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,    &meshTag);
     DMDAVecRestoreArray(fda, mesh->fluxLimiter, &limiter);
 
     return(0);

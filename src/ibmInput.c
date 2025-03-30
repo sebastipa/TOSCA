@@ -737,7 +737,7 @@ PetscErrorCode readIBMBodyFileAbaqusInp(ibmObject *ibmBody)
 
     nodeList.resize(4);
 
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmBody->bodyName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmBody->bodyName.c_str());
 
     sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
 
@@ -1231,7 +1231,7 @@ PetscErrorCode readIBMSurfaceFileAbaqusInp(surface *ibmSurface)
 
     nodeList.resize(4);
 
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmSurface->surfaceName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmSurface->surfaceName.c_str());
 
     sprintf(ibmFile, "./IBM/%s", ibmSurface->surfaceName.c_str());
 
@@ -1699,7 +1699,7 @@ PetscErrorCode readIBMBodyFileASCII(ibmObject *ibmBody)
     char      string[128], tmpS[128];
     ibmMesh   *ibMesh = ibmBody->ibMsh;
 
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmBody->bodyName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmBody->bodyName.c_str());
 
     sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
 
@@ -1810,7 +1810,7 @@ PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
     char      string[128];
     ibmMesh   *ibMesh = ibmBody->ibMsh;
 
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmBody->bodyName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmBody->bodyName.c_str());
 
     sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
 
@@ -1911,7 +1911,7 @@ PetscErrorCode readIBMSurfaceFileGRD(surface *ibmSurface)
     char      string[128];
     ibmMesh   *ibMesh = ibmSurface->ibMsh;
 
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmSurface->surfaceName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmSurface->surfaceName.c_str());
 
     sprintf(ibmFile, "./IBM/%s", ibmSurface->surfaceName.c_str());
 
@@ -2178,7 +2178,7 @@ PetscErrorCode writeSTLFile(ibm_ *ibm, PetscInt b)
 PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody)
 {
 
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmBody->bodyName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmBody->bodyName.c_str());
 
     char ibmFile[256];
     sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
@@ -2270,7 +2270,7 @@ PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody)
 PetscErrorCode readIBMBodyFileUCD2(ibmObject *ibmBody)
 {
 
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmBody->bodyName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmBody->bodyName.c_str());
 
     char ibmFile[256];
     sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
@@ -2362,7 +2362,7 @@ PetscErrorCode readIBMBodyFileUCD2(ibmObject *ibmBody)
 PetscErrorCode readIBMSurfaceFileUCD(surface *ibmSurface)
 {
 
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmSurface->surfaceName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmSurface->surfaceName.c_str());
 
     char ibmFile[256];
     sprintf(ibmFile, "./IBM/%s", ibmSurface->surfaceName.c_str());
@@ -2455,7 +2455,7 @@ PetscErrorCode readIBMSurfaceFileUCD(surface *ibmSurface)
 PetscErrorCode readIBMSurfaceFileUCD2(surface *ibmSurface)
 {
 
-    PetscPrintf(PETSC_COMM_WORLD, "Reading IBM body: %s\n", ibmSurface->surfaceName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmSurface->surfaceName.c_str());
 
     char ibmFile[256];
     sprintf(ibmFile, "./IBM/%s", ibmSurface->surfaceName.c_str());

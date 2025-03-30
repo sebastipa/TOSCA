@@ -128,7 +128,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
     PetscReal     ***iaj, ***jaj, ***kaj, ***aj;
 
-    PetscReal     ***nvert, ***Cs;
+    PetscReal     ***nvert, ***Cs, ***meshTag;
 
     Cmpnts        ***Ax, ***Ay, ***Az, ***cent;
     PetscReal     ***LM, ***MM, ***QN, ***NN;
@@ -188,6 +188,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
     // get IBM markup and cell centers
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     // 1 - loop over internal cells and compute strain rate tensor S and |S|
@@ -198,7 +199,7 @@ PetscErrorCode UpdateCs (les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // if on body skip
-                if( isIBMSolidCell(k, j, i, nvert))
+                if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
                     continue;
                 }
@@ -218,7 +219,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     mesh,
                     i, j, k,
                     mx, my, mz,
-                    ucat, nvert,
+                    ucat, nvert, meshTag, 
                     &dudc, &dvdc, &dwdc,
                     &dude, &dvde, &dwde,
                     &dudz, &dvdz, &dwdz
@@ -325,7 +326,7 @@ PetscErrorCode UpdateCs (les_ *les)
                 mesh,
                 i, j, k,
                 mx, my, mz,
-                tmprt, nvert,
+                tmprt, nvert, meshTag,
                 &dtdc, &dtde, &dtdz
             );
 
@@ -368,7 +369,7 @@ PetscErrorCode UpdateCs (les_ *les)
         for (i=lxs; i<lxe; i++)
         {
             // set to zero if solid and skip
-            if(isIBMSolidCell(k, j, i, nvert))
+            if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
             {
                 LM[k][j][i] = MM[k][j][i] = 0;
                 continue;
@@ -533,7 +534,7 @@ PetscErrorCode UpdateCs (les_ *les)
                 // fluid
                 if
                 (
-                    (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                    ((isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) && isCalculatedCell(K, J, I, meshTag)) &&
                     //!isOnCornerCellCenters(I, J, K, mesh->info) <- use also ghost? Not for now
                     (I!=0 && I!=mx-1 && J!=0 && J!=my-1 && K!=0 && K!=mz-1)
                 )
@@ -722,7 +723,7 @@ PetscErrorCode UpdateCs (les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // set to zero if solid and skip
-                if(isIBMSolidCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
                     QN[k][j][i] = NN[k][j][i] = 0;
                     continue;
@@ -902,7 +903,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     // fluid
                     if
                     (
-                        (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                        ((isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) && isCalculatedCell(K, J, I, meshTag)) &&
                         //!isOnCornerCellCenters(I, J, K, mesh->info) <- use also ghost? Not for now
                         (I>0 && I<mx-1 && J>0 && J<my-1 && K>0 && K<mz-1)
                     )
@@ -1194,7 +1195,7 @@ PetscErrorCode UpdateCs (les_ *les)
                             k1>=1 && k1<mz-1 &&
                             j1>=1 && j1<my-1 &&
                             i1>=1 && i1<mx-1
-                        ) && (!isIBMSolidCell(k1, j1, i1, nvert)) )
+                        ) && ( !(isIBMSolidCell(k1, j1, i1, nvert) || isZeroedCell(k1, j1, i1, meshTag)) ) )
                         {
                             d = pow((X_old.x - cent[k1][j1][i1].x), 2) +
                                 pow((X_old.y - cent[k1][j1][i1].y), 2) +
@@ -1217,7 +1218,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
                     // interpolate the value at the exat old point (slower)
                     // if there is an IBM or overset cell around the given cell, use nearest cell
-                    if(isBoxIBMCell(k_old, j_old, i_old, nvert))
+                    if(isBoxIBMCell(k_old, j_old, i_old, nvert)|| isBoxOversetCell(k_old, j_old, i_old, meshTag))
                     {
                         PetscInt intId[6];
                         PetscInt ibmCellCtr = 0;
@@ -1237,7 +1238,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         for (PetscInt jj = 0; jj<2; jj++)
                         for (PetscInt ii = 0; ii<2; ii++)
                         {
-                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert) || isZeroedCell(intId[kk], intId[jj+2], intId[ii+4], meshTag))
                             {
                                 ibmCellCtr ++;
                             }
@@ -1472,7 +1473,7 @@ PetscErrorCode UpdateCs (les_ *les)
                             k1>=1 && k1<mz-1 &&
                             j1>=1 && j1<my-1 &&
                             i1>=1 && i1<mx-1
-                        ) && (!isIBMSolidCell(k1, j1, i1, nvert)) )
+                        ) && ( !(isIBMSolidCell(k1, j1, i1, nvert) || isZeroedCell(k1, j1, i1, meshTag)) ) )
                         {
                             d = pow((X_old.x - cent[k1][j1][i1].x), 2) +
                                 pow((X_old.y - cent[k1][j1][i1].y), 2) +
@@ -1495,7 +1496,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
                     // interpolate the value at the exact old point (slower)
                     // if there is an IBM or overset cell around the given cell, use nearest cell
-                    if(isBoxIBMCell(k_old, j_old, i_old, nvert))
+                    if(isBoxIBMCell(k_old, j_old, i_old, nvert)|| isBoxOversetCell(k_old, j_old, i_old, meshTag))
                     {
                         PetscInt intId[6];
                         PetscInt ibmCellCtr = 0;
@@ -1515,7 +1516,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         for (PetscInt jj = 0; jj<2; jj++)
                         for (PetscInt ii = 0; ii<2; ii++)
                         {
-                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert) || isZeroedCell(intId[kk], intId[jj+2], intId[ii+4], meshTag))
                             {
                                 ibmCellCtr ++;
                             }
@@ -1682,7 +1683,7 @@ PetscErrorCode UpdateCs (les_ *les)
     for (i=lxs; i<lxe; i++)
     {
         // body
-        if(isIBMSolidCell(k, j, i, nvert))
+        if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
         {
             Cs[k][j][i] = 0.0;
             continue;
@@ -1777,7 +1778,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     // volume weighting the mean
                     weight[R][Q][P] = 1./aj[K][J][I];
 
-                    if(isIBMSolidCell(K, J, I, nvert))
+                    if(isIBMSolidCell(K, J, I, nvert) || isZeroedCell(K, J, I, meshTag))
                     {
                         weight[R][Q][P] = 0;
                     }
@@ -1864,7 +1865,7 @@ PetscErrorCode UpdateCs (les_ *les)
         }
 
         // set Cs to zero if solid or on box corners
-        if( isIBMSolidCell(k, j, i, nvert) )
+        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
         {
             Cs[k][j][i] = 0;
         }
@@ -1899,7 +1900,7 @@ PetscErrorCode UpdateCs (les_ *les)
         for (j=lys; j<lye; j++)
         for (i=lxs; i<lxe; i++)
         {
-            if(isFluidCell(k,j,i, nvert)) 
+            if(isFluidCell(k,j,i, nvert) && isCalculatedCell(k, j, i, meshTag)) 
             {
                 LM_tmp[j] += LM[k][j][i];
                 MM_tmp[j] += MM[k][j][i];
@@ -1933,7 +1934,7 @@ PetscErrorCode UpdateCs (les_ *les)
         for (i=lxs; i<lxe; i++)
         {
             // body
-            if(isIBMSolidCell(k, j, i, nvert))
+            if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
             {
                 Cs[k][j][i] = 0.0;
                 continue;
@@ -2001,6 +2002,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
     // restore IB markup and cell centers
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     // scatter the model coefficient
@@ -2031,7 +2033,7 @@ PetscErrorCode UpdateNut(les_ *les)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***Cs, ***lnu_t, ***nvert, ***aj, ***ustar, ***ld_t, ***lt, ***ksg, ***ltempDiff;
+    PetscReal     ***Cs, ***lnu_t, ***nvert, ***meshTag, ***aj, ***ustar, ***ld_t, ***lt, ***ksg, ***ltempDiff;
     Cmpnts        ***csi, ***eta, ***zet, ***ucat;
 
     PetscReal     ajc;
@@ -2060,6 +2062,7 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecGetArray(fda, mesh->lEta, &eta);
     DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(da,  mesh->lAj, &aj);
 
     DMDAVecGetArray(da,  les->lNu_t, &lnu_t);
@@ -2105,7 +2108,7 @@ PetscErrorCode UpdateNut(les_ *les)
     for (j=lys; j<lye; j++)
     for (i=lxs; i<lxe; i++)
     {
-        if(isIBMSolidCell(k, j, i, nvert))
+        if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
         {
             lnu_t[k][j][i]=0;
             ksg[k][j][i]=0;
@@ -2126,7 +2129,7 @@ PetscErrorCode UpdateNut(les_ *les)
             mesh,
             i, j, k,
             mx, my, mz,
-            ucat, nvert,
+            ucat, nvert, meshTag,
             &dudc, &dvdc, &dwdc,
             &dude, &dvde, &dwde,
             &dudz, &dvdz, &dwdz
@@ -2254,7 +2257,7 @@ PetscErrorCode UpdateNut(les_ *les)
                         mesh,
                         i, j, k,
                         mx, my, mz,
-                        ltempDiff, nvert,
+                        ltempDiff, nvert, meshTag,
                         &dtdc, &dtde, &dtdz
                     );
 
@@ -2302,7 +2305,7 @@ PetscErrorCode UpdateNut(les_ *les)
                     mesh,
                     i, j, k,
                     mx, my, mz,
-                    lt, nvert,
+                    lt, nvert, meshTag, 
                     &dtdc, &dtde, &dtdz
                 );
 
@@ -2368,6 +2371,7 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
     DMDAVecRestoreArray(fda, mesh->lZet, &zet);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da,  mesh->lAj, &aj);
 
     DMDAVecRestoreArray(da,  les->lNu_t, &lnu_t);
