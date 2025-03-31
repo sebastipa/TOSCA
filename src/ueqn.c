@@ -33,10 +33,14 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     // default parameters
     ueqn->inviscid          = 0;
     ueqn->centralDiv        = 0;
+    ueqn->central4Div       = 0;
     ueqn->centralUpwindDiv  = 0;
     ueqn->centralUpwindWDiv = 0;
     ueqn->weno3Div          = 0;
     ueqn->quickDiv          = 0;
+
+    ueqn->centralVisc       = 0;
+    ueqn->central4Visc      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-inviscid", &(ueqn->inviscid),   PETSC_NULL);
 
@@ -45,13 +49,20 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     // read divergence scheme
     readDictWord("control.dat", "-divScheme", &(ueqn->divScheme));
+    
+    // read diffusion term scheme
+    readDictWord("control.dat", "-viscScheme", &(ueqn->viscScheme));
 
     if(     ueqn->divScheme == "centralUpwind")  ueqn->centralUpwindDiv  = 1;
     else if(ueqn->divScheme == "centralUpwindW") ueqn->centralUpwindWDiv = 1;
     else if(ueqn->divScheme == "central")        ueqn->centralDiv        = 1;
+    else if(ueqn->divScheme == "central4")       ueqn->central4Div       = 1;
     else if(ueqn->divScheme == "weno3")          ueqn->weno3Div          = 1;
     else if(ueqn->divScheme == "quickDiv")       ueqn->quickDiv          = 1;
 
+    if(     ueqn->viscScheme == "central")        ueqn->centralVisc  = 1;
+    else if(ueqn->viscScheme == "central4")       ueqn->central4Visc = 1;
+    
     VecDuplicate(mesh->Cent, &(ueqn->Utmp));      VecSet(ueqn->Utmp,    0.0);
     VecDuplicate(mesh->Cent, &(ueqn->Rhs));       VecSet(ueqn->Rhs,     0.0);
     VecDuplicate(mesh->Cent, &(ueqn->Rhs_o));     VecSet(ueqn->Rhs_o,   0.0);
@@ -5481,7 +5492,14 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                if(ueqn->viscScheme == "central4")
+                { 
+                    Compute_du_i_4 (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                }
+                else
+                {
+                    Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                }
 
                 // compute metric tensor - WARNING: there is a factor of 1/J^2 if using face area vectors
                 //                                  must multiply for ajc in viscous term!!!
@@ -5531,6 +5549,21 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             centralVec
                             (
                                 ucat[k][j][i], ucat[k][j][i+1]
+                            )
+                        );
+                    }
+                    else if(ueqn->central4Div)
+                    {
+                        
+                        div1[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].x,
+                            centralVec4th
+                            (
+                                ucat[k][j][i-1],  
+                                ucat[k][j][i],    
+                                ucat[k][j][i+1],  
+                                ucat[k][j][i+2] 
                             )
                         );
                     }
@@ -5672,7 +5705,14 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                if(ueqn->viscScheme == "central4")
+                { 
+                    Compute_du_j_4 (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                }
+                else
+                {
+                    Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                }
 
                 // compute metric tensor
                 g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
@@ -5720,6 +5760,21 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             centralVec
                             (
                                 ucat[k][j][i], ucat[k][j+1][i]
+                            )
+                        );
+                    }
+                    else if(ueqn->central4Div)
+                    {
+                        
+                        div2[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].y,
+                            centralVec4th
+                            (
+                                ucat[k][j-1][i],  
+                                ucat[k][j][i],   
+                                ucat[k][j+1][i],  
+                                ucat[k][j+2][i]  
                             )
                         );
                     }
@@ -5862,7 +5917,14 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                if(ueqn->viscScheme == "central4")
+                { 
+                    Compute_du_k_4 (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                }
+                else
+                {
+                    Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                }
 
                 // compute metric tensor
                 g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
@@ -5911,6 +5973,21 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             centralVec
                             (
                                 ucat[k][j][i], ucat[k+1][j][i]
+                            )
+                        );
+                    }
+                    else if(ueqn->central4Div)
+                    {
+                        
+                        div3[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].z,
+                            centralVec4th
+                            (
+                                ucat[k-1][j][i],  
+                                ucat[k][j][i],    
+                                ucat[k+1][j][i], 
+                                ucat[k+2][j][i]
                             )
                         );
                     }
@@ -6125,29 +6202,58 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 }
                 else
                 {
-                    fp[k][j][i].x
-                    +=
-                    (
-                        visc1[k][j][i].x - visc1[k][j][i-1].x +
-                        visc2[k][j][i].x - visc2[k][j-1][i].x +
-                        visc3[k][j][i].x - visc3[k-1][j][i].x
-                    );
-
-                    fp[k][j][i].y
-                    +=
-                    (
-                        visc1[k][j][i].y - visc1[k][j][i-1].y +
-                        visc2[k][j][i].y - visc2[k][j-1][i].y +
-                        visc3[k][j][i].y - visc3[k-1][j][i].y
-                    );
-
-                    fp[k][j][i].z
-                    +=
-                    (
-                        visc1[k][j][i].z - visc1[k][j][i-1].z +
-                        visc2[k][j][i].z - visc2[k][j-1][i].z +
-                        visc3[k][j][i].z - visc3[k-1][j][i].z
-                    );
+                    if(ueqn->viscScheme == "central4")
+                    {
+                        fp[k][j][i].x 
+                        += 
+                        (
+                            (-visc1[k][j][i+1].x + 7.0 * visc1[k][j][i].x - 7.0 * visc1[k][j][i-1].x + visc1[k][j][i-2].x) +
+                            (-visc2[k][j+1][i].x + 7.0 * visc2[k][j][i].x - 7.0 * visc2[k][j-1][i].x + visc2[k][j-2][i].x) +
+                            (-visc3[k+1][j][i].x + 7.0 * visc3[k][j][i].x - 7.0 * visc3[k-1][j][i].x + visc3[k-2][j][i].x)
+                        ) / 12.0;
+    
+                        fp[k][j][i].y 
+                        += 
+                        (
+                            (-visc1[k][j][i+1].y + 7.0 * visc1[k][j][i].y - 7.0 * visc1[k][j][i-1].y + visc1[k][j][i-2].y) +
+                            (-visc2[k][j+1][i].y + 7.0 * visc2[k][j][i].y - 7.0 * visc2[k][j-1][i].y + visc2[k][j-2][i].y) +
+                            (-visc3[k+1][j][i].y + 7.0 * visc3[k][j][i].y - 7.0 * visc3[k-1][j][i].y + visc3[k-2][j][i].y)
+                        ) / 12.0;
+    
+                        fp[k][j][i].z 
+                        += 
+                        (
+                            (-visc1[k][j][i+1].z + 7.0 * visc1[k][j][i].z - 7.0 * visc1[k][j][i-1].z + visc1[k][j][i-2].z) +
+                            (-visc2[k][j+1][i].z + 7.0 * visc2[k][j][i].z - 7.0 * visc2[k][j-1][i].z + visc2[k][j-2][i].z) +
+                            (-visc3[k+1][j][i].z + 7.0 * visc3[k][j][i].z - 7.0 * visc3[k-1][j][i].z + visc3[k-2][j][i].z)
+                        ) / 12.0;
+                    }
+                    else 
+                    {
+                        fp[k][j][i].x
+                        +=
+                        (
+                            visc1[k][j][i].x - visc1[k][j][i-1].x +
+                            visc2[k][j][i].x - visc2[k][j-1][i].x +
+                            visc3[k][j][i].x - visc3[k-1][j][i].x
+                        );
+    
+                        fp[k][j][i].y
+                        +=
+                        (
+                            visc1[k][j][i].y - visc1[k][j][i-1].y +
+                            visc2[k][j][i].y - visc2[k][j-1][i].y +
+                            visc3[k][j][i].y - visc3[k-1][j][i].y
+                        );
+    
+                        fp[k][j][i].z
+                        +=
+                        (
+                            visc1[k][j][i].z - visc1[k][j][i-1].z +
+                            visc2[k][j][i].z - visc2[k][j-1][i].z +
+                            visc3[k][j][i].z - visc3[k-1][j][i].z
+                        );
+                    }
 
                     if( (i == 1) && !(mesh->i_periodic) && !(mesh->ii_periodic))
                     {

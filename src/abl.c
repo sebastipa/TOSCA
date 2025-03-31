@@ -1070,6 +1070,13 @@ PetscErrorCode InitializeABL(abl_ *abl)
         }
     }
 
+    if(mesh->meshName == "overset")
+    {
+        // explicitly set damping to 0 for overset domains - ensure overset mesh dont intersect with damping region
+        mesh->access->flags->isXDampingActive = 0;
+        mesh->access->flags->isYDampingActive = 0;
+    }
+
     // read the recycling fringe region properties
     if(mesh->access->flags->isXDampingActive)
     {
@@ -1649,12 +1656,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
             sprintf(error, "unknown xFringeUBarSelectionType %ld, available types are:\n\t0: log law\n\t1: unsteadyMappedPeriodizedUniform\n\t2: unsteadyInterpPeriodizedUniform\n\t3: concurrentPrecursor\n\t4: Nieuwstadt model\n", abl->xFringeUBarSelectionType);
             fatalErrorInFunction("ABLInitialize",  error);
         }
-    }
-
-    // explicitly set ydamping to 0 for overset domains - ensure they dont intersect with y damping region
-    if(mesh->meshName == "overset")
-    {
-        mesh->access->flags->isYDampingActive = 0;
     }
 
     // read the y damping layer properties

@@ -35,6 +35,7 @@ struct ueqn_
     // momentum settings
     word          ddtScheme;                  //!< time derivative scheme
     word          divScheme;                  //!< divergence scheme
+    word          viscScheme;
     PetscReal     relExitTol;                 //!< relative exit tolerance
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscInt      inviscid;                   //!< inviscid run
@@ -44,11 +45,15 @@ struct ueqn_
 
     // divergence schemes
     PetscInt      centralDiv;                 //!< linear divergence scheme
+    PetscInt      central4Div;
     PetscInt      centralUpwindDiv;           //!< blending between linear and upwind scheme
     PetscInt      centralUpwindWDiv;          //!< blending between linear and upwind scheme for non-uniform mesh
     PetscInt      quickDiv;                   //!< 3rd order QUICK scheme
     PetscInt      weno3Div;                   //!< 3rd order WENO scheme
 
+    PetscInt      centralVisc;
+    PetscInt      central4Visc;
+    
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch
     wallModel     *iRWM;                      //!< wall model on the i-right patch

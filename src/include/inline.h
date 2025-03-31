@@ -2452,6 +2452,283 @@ inline void Compute_du_k
 
 //***************************************************************************************************************//
 
+inline void Compute_du_i_4
+(
+    mesh_ *mesh,
+    PetscInt i, PetscInt j, PetscInt k, PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***ucat, PetscReal ***nvert, PetscReal ***meshTag,
+    PetscReal *dudc, PetscReal *dvdc, PetscReal *dwdc,
+    PetscReal *dude, PetscReal *dvde, PetscReal *dwde,
+    PetscReal *dudz, PetscReal *dvdz, PetscReal *dwdz
+)
+{
+    if(i >= 1 && i <= mx - 3) 
+    {
+        *dudc = (-ucat[k][j][i+2].x + 7.0 * ucat[k][j][i+1].x - 7.0 * ucat[k][j][i].x + ucat[k][j][i-1].x) / 12.0;
+        *dvdc = (-ucat[k][j][i+2].y + 7.0 * ucat[k][j][i+1].y - 7.0 * ucat[k][j][i].y + ucat[k][j][i-1].y) / 12.0;
+        *dwdc = (-ucat[k][j][i+2].z + 7.0 * ucat[k][j][i+1].z - 7.0 * ucat[k][j][i].z + ucat[k][j][i-1].z) / 12.0;
+    } 
+
+    else 
+    {
+        *dudc = ucat[k][j][i+1].x - ucat[k][j][i].x;
+        *dvdc = ucat[k][j][i+1].y - ucat[k][j][i].y;
+        *dwdc = ucat[k][j][i+1].z - ucat[k][j][i].z;
+    }
+
+    if(j >= 1 && j <= my - 3 
+       && !(isIBMSolidIFace(k, j+1, i, i+1, nvert) || isZeroedIFace(k, j+1, i, i+1, meshTag))
+       && !(isIBMSolidIFace(k, j-1, i, i+1, nvert) || isZeroedIFace(k, j-1, i, i+1, meshTag)) )
+    {
+        *dude = (- (ucat[k][j+2][i+1].x + ucat[k][j+2][i].x) + 7.0 * (ucat[k][j+1][i+1].x + ucat[k][j+1][i].x) - 7.0 * (ucat[k][j][i+1].x + ucat[k][j][i].x) + (ucat[k][j-1][i+1].x + ucat[k][j-1][i].x)) / 24.0;
+        *dvde = (- (ucat[k][j+2][i+1].y + ucat[k][j+2][i].y) + 7.0 * (ucat[k][j+1][i+1].y + ucat[k][j+1][i].y) - 7.0 * (ucat[k][j][i+1].y + ucat[k][j][i].y) + (ucat[k][j-1][i+1].y + ucat[k][j-1][i].y)) / 24.0;
+        *dwde = (- (ucat[k][j+2][i+1].z + ucat[k][j+2][i].z) + 7.0 * (ucat[k][j+1][i+1].z + ucat[k][j+1][i].z) - 7.0 * (ucat[k][j][i+1].z + ucat[k][j][i].z) + (ucat[k][j-1][i+1].z + ucat[k][j-1][i].z)) / 24.0;
+    } 
+    
+    else if (isIBMSolidIFace(k, j+1, i, i+1, nvert) || isZeroedIFace(k, j+1, i, i+1, meshTag) || 
+    (j==my-2 && (i==0 || i==mx-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
+    {
+        *dude = (ucat[k][j][i+1].x + ucat[k][j][i].x - ucat[k][j-1][i+1].x - ucat[k][j-1][i].x) * 0.5;
+        *dvde = (ucat[k][j][i+1].y + ucat[k][j][i].y - ucat[k][j-1][i+1].y - ucat[k][j-1][i].y) * 0.5;
+        *dwde = (ucat[k][j][i+1].z + ucat[k][j][i].z - ucat[k][j-1][i+1].z - ucat[k][j-1][i].z) * 0.5;
+    } 
+    
+    else if  (isIBMSolidIFace(k, j-1, i, i+1, nvert) || isZeroedIFace(k, j-1, i, i+1, meshTag) || 
+            (j==1 && (i==0 || i==mx-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
+    {
+        *dude = (ucat[k][j+1][i+1].x + ucat[k][j+1][i].x - ucat[k][j][i+1].x - ucat[k][j][i].x) * 0.5;
+        *dvde = (ucat[k][j+1][i+1].y + ucat[k][j+1][i].y - ucat[k][j][i+1].y - ucat[k][j][i].y) * 0.5;
+        *dwde = (ucat[k][j+1][i+1].z + ucat[k][j+1][i].z - ucat[k][j][i+1].z - ucat[k][j][i].z) * 0.5;
+    }
+
+    else 
+    {
+        *dude = (ucat[k][j+1][i+1].x + ucat[k][j+1][i].x - ucat[k][j-1][i+1].x - ucat[k][j-1][i].x) * 0.25;
+        *dvde = (ucat[k][j+1][i+1].y + ucat[k][j+1][i].y - ucat[k][j-1][i+1].y - ucat[k][j-1][i].y) * 0.25;
+        *dwde = (ucat[k][j+1][i+1].z + ucat[k][j+1][i].z - ucat[k][j-1][i+1].z - ucat[k][j-1][i].z) * 0.25;
+    }
+
+    if(k >= 1 && k <= mz - 3 
+        && !(isIBMSolidIFace(k+1, j, i, i+1, nvert) || isZeroedIFace(k+1, j, i, i+1, meshTag))
+        && !(isIBMSolidIFace(k-1, j, i, i+1, nvert) || isZeroedIFace(k-1, j, i, i+1, meshTag)) )
+    {
+        *dudz = (- (ucat[k+2][j][i+1].x + ucat[k+2][j][i].x) + 7.0 * (ucat[k+1][j][i+1].x + ucat[k+1][j][i].x) - 7.0 * (ucat[k][j][i+1].x + ucat[k][j][i].x) + (ucat[k-1][j][i+1].x + ucat[k-1][j][i].x)) / 24.0;
+        *dvdz = (- (ucat[k+2][j][i+1].y + ucat[k+2][j][i].y) + 7.0 * (ucat[k+1][j][i+1].y + ucat[k+1][j][i].y) - 7.0 * (ucat[k][j][i+1].y + ucat[k][j][i].y) + (ucat[k-1][j][i+1].y + ucat[k-1][j][i].y)) / 24.0;
+        *dwdz = (- (ucat[k+2][j][i+1].z + ucat[k+2][j][i].z) + 7.0 * (ucat[k+1][j][i+1].z + ucat[k+1][j][i].z) - 7.0 * (ucat[k][j][i+1].z + ucat[k][j][i].z) + (ucat[k-1][j][i+1].z + ucat[k-1][j][i].z)) / 24.0;
+    } 
+    
+    else if(isIBMSolidIFace(k+1, j, i, i+1, nvert) || isZeroedIFace(k+1, j, i, i+1, meshTag) || 
+    (k==mz-2 && (i==0 || i==mx-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
+    {
+        *dudz = (ucat[k][j][i+1].x + ucat[k][j][i].x - ucat[k-1][j][i+1].x - ucat[k-1][j][i].x) * 0.5;
+        *dvdz = (ucat[k][j][i+1].y + ucat[k][j][i].y - ucat[k-1][j][i+1].y - ucat[k-1][j][i].y) * 0.5;
+        *dwdz = (ucat[k][j][i+1].z + ucat[k][j][i].z - ucat[k-1][j][i+1].z - ucat[k-1][j][i].z) * 0.5;
+    }
+
+    else if (isIBMSolidIFace(k-1, j, i, i+1, nvert) || isZeroedIFace(k-1, j, i, i+1, meshTag) || 
+            (k==1 && (i==0 || i==mx-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
+    {
+        *dudz = (ucat[k+1][j][i+1].x + ucat[k+1][j][i].x - ucat[k][j][i+1].x - ucat[k][j][i].x) * 0.5;
+        *dvdz = (ucat[k+1][j][i+1].y + ucat[k+1][j][i].y - ucat[k][j][i+1].y - ucat[k][j][i].y) * 0.5;
+        *dwdz = (ucat[k+1][j][i+1].z + ucat[k+1][j][i].z - ucat[k][j][i+1].z - ucat[k][j][i].z) * 0.5;
+    } 
+    
+    else 
+    {
+        *dudz = (ucat[k+1][j][i+1].x + ucat[k+1][j][i].x - ucat[k-1][j][i+1].x - ucat[k-1][j][i].x) * 0.25;
+        *dvdz = (ucat[k+1][j][i+1].y + ucat[k+1][j][i].y - ucat[k-1][j][i+1].y - ucat[k-1][j][i].y) * 0.25;
+        *dwdz = (ucat[k+1][j][i+1].z + ucat[k+1][j][i].z - ucat[k-1][j][i+1].z - ucat[k-1][j][i].z) * 0.25;
+    }
+
+}
+//***************************************************************************************************************//
+inline void Compute_du_j_4
+(
+    mesh_ *mesh,
+    PetscInt i, PetscInt j, PetscInt k, PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***ucat, PetscReal ***nvert, PetscReal ***meshTag,
+    PetscReal *dudc, PetscReal *dvdc, PetscReal *dwdc,
+    PetscReal *dude, PetscReal *dvde, PetscReal *dwde,
+    PetscReal *dudz, PetscReal *dvdz, PetscReal *dwdz
+)
+
+{
+    if(i >= 1 && i <= mx - 3 
+        && !(isIBMSolidJFace(k, j, i+1, j+1, nvert) || isZeroedJFace(k, j, i+1, j+1, meshTag))
+        && !(isIBMSolidJFace(k, j, i-1, j+1, nvert) || isZeroedJFace(k, j, i-1, j+1, meshTag)) )
+    {
+        *dudc = (- (ucat[k][j][i+2].x + ucat[k][j+1][i+2].x) + 7.0*(ucat[k][j][i+1].x + ucat[k][j+1][i+1].x) - 7.0*(ucat[k][j][i].x + ucat[k][j+1][i].x) + (ucat[k][j][i-1].x + ucat[k][j+1][i-1].x)) / 24.0;
+        *dvdc = (- (ucat[k][j][i+2].y + ucat[k][j+1][i+2].y) + 7.0*(ucat[k][j][i+1].y + ucat[k][j+1][i+1].y) - 7.0*(ucat[k][j][i].y + ucat[k][j+1][i].y) + (ucat[k][j][i-1].y + ucat[k][j+1][i-1].y)) / 24.0;
+        *dwdc = (- (ucat[k][j][i+2].z + ucat[k][j+1][i+2].z) + 7.0*(ucat[k][j][i+1].z + ucat[k][j+1][i+1].z) - 7.0*(ucat[k][j][i].z + ucat[k][j+1][i].z) + (ucat[k][j][i-1].z + ucat[k][j+1][i-1].z)) / 24.0;
+    }
+
+    else if (isIBMSolidJFace(k, j, i+1, j+1, nvert) || isZeroedJFace(k, j, i+1, j+1, meshTag) ||
+    (i==mx-2 && (j==0 || j==my-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) )) 
+    {
+        *dudc = (ucat[k][j+1][i].x + ucat[k][j][i].x - ucat[k][j+1][i-1].x - ucat[k][j][i-1].x) * 0.5;
+        *dvdc = (ucat[k][j+1][i].y + ucat[k][j][i].y - ucat[k][j+1][i-1].y - ucat[k][j][i-1].y) * 0.5;
+        *dwdc = (ucat[k][j+1][i].z + ucat[k][j][i].z - ucat[k][j+1][i-1].z - ucat[k][j][i-1].z) * 0.5;
+    }
+
+    else if (isIBMSolidJFace(k, j, i-1, j+1, nvert) || isZeroedJFace(k, j, i-1, j+1, meshTag) || 
+            (i==1 && (j==0 || j==my-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) )) 
+    {
+        *dudc = (ucat[k][j+1][i+1].x + ucat[k][j][i+1].x - ucat[k][j+1][i].x - ucat[k][j][i].x) * 0.5;
+        *dvdc = (ucat[k][j+1][i+1].y + ucat[k][j][i+1].y - ucat[k][j+1][i].y - ucat[k][j][i].y) * 0.5;
+        *dwdc = (ucat[k][j+1][i+1].z + ucat[k][j][i+1].z - ucat[k][j+1][i].z - ucat[k][j][i].z) * 0.5;
+    } 
+    
+    else 
+    {
+        *dudc = (ucat[k][j+1][i+1].x + ucat[k][j][i+1].x - ucat[k][j+1][i-1].x - ucat[k][j][i-1].x) * 0.25;
+        *dvdc = (ucat[k][j+1][i+1].y + ucat[k][j][i+1].y - ucat[k][j+1][i-1].y - ucat[k][j][i-1].y) * 0.25;
+        *dwdc = (ucat[k][j+1][i+1].z + ucat[k][j][i+1].z - ucat[k][j+1][i-1].z - ucat[k][j][i-1].z) * 0.25;
+    }
+
+    if(j >= 1 && j <= my - 3) 
+    {
+        *dude = (-ucat[k][j+2][i].x + 7.0*ucat[k][j+1][i].x - 7.0*ucat[k][j][i].x + ucat[k][j-1][i].x)/12.0;
+        *dvde = (-ucat[k][j+2][i].y + 7.0*ucat[k][j+1][i].y - 7.0*ucat[k][j][i].y + ucat[k][j-1][i].y)/12.0;
+        *dwde = (-ucat[k][j+2][i].z + 7.0*ucat[k][j+1][i].z - 7.0*ucat[k][j][i].z + ucat[k][j-1][i].z)/12.0;
+    } 
+    else 
+    {
+        *dude = ucat[k][j+1][i].x - ucat[k][j][i].x;
+        *dvde = ucat[k][j+1][i].y - ucat[k][j][i].y;
+        *dwde = ucat[k][j+1][i].z - ucat[k][j][i].z;
+    }
+
+    if(k >= 1 && k <= mz - 3 
+        && !(isIBMSolidJFace(k+1, j, i, j+1, nvert) || isZeroedJFace(k+1, j, i, j+1, meshTag))
+        && !(isIBMSolidJFace(k-1, j, i, j+1, nvert) || isZeroedJFace(k-1, j, i, j+1, meshTag)) ) 
+    {
+        *dudz = (- (ucat[k+2][j][i].x + ucat[k+2][j+1][i].x) + 7.0*(ucat[k+1][j][i].x + ucat[k+1][j+1][i].x) - 7.0*(ucat[k][j][i].x + ucat[k][j+1][i].x) + (ucat[k-1][j][i].x + ucat[k-1][j+1][i].x)) / 24.0;
+        *dvdz = (- (ucat[k+2][j][i].y + ucat[k+2][j+1][i].y) + 7.0*(ucat[k+1][j][i].y + ucat[k+1][j+1][i].y) - 7.0*(ucat[k][j][i].y + ucat[k][j+1][i].y) + (ucat[k-1][j][i].y + ucat[k-1][j+1][i].y)) / 24.0;
+        *dwdz = (- (ucat[k+2][j][i].z + ucat[k+2][j+1][i].z) + 7.0*(ucat[k+1][j][i].z + ucat[k+1][j+1][i].z) - 7.0*(ucat[k][j][i].z + ucat[k][j+1][i].z) + (ucat[k-1][j][i].z + ucat[k-1][j+1][i].z)) / 24.0;
+    } 
+    
+    else if (isIBMSolidJFace(k+1, j, i, j+1, nvert) || isZeroedJFace(k+1, j, i, j+1, meshTag) || 
+    (k==mz-2 && (j==0 || j==my-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
+    {
+        *dudz = (ucat[k][j+1][i].x + ucat[k][j][i].x - ucat[k-1][j+1][i].x - ucat[k-1][j][i].x) * 0.5;
+        *dvdz = (ucat[k][j+1][i].y + ucat[k][j][i].y - ucat[k-1][j+1][i].y - ucat[k-1][j][i].y) * 0.5;
+        *dwdz = (ucat[k][j+1][i].z + ucat[k][j][i].z - ucat[k-1][j+1][i].z - ucat[k-1][j][i].z) * 0.5;
+    } 
+    
+    else if (isIBMSolidJFace(k-1, j, i, j+1, nvert) || isZeroedJFace(k-1, j, i, j+1, meshTag) ||
+    (k==1 && (j==0 || j==my-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
+    {
+        *dudz = (ucat[k+1][j+1][i].x + ucat[k+1][j][i].x - ucat[k][j+1][i].x - ucat[k][j][i].x) * 0.5;
+        *dvdz = (ucat[k+1][j+1][i].y + ucat[k+1][j][i].y - ucat[k][j+1][i].y - ucat[k][j][i].y) * 0.5;
+        *dwdz = (ucat[k+1][j+1][i].z + ucat[k+1][j][i].z - ucat[k][j+1][i].z - ucat[k][j][i].z) * 0.5;
+    }
+
+    else 
+    {
+        *dudz = (ucat[k+1][j+1][i].x + ucat[k+1][j][i].x - ucat[k-1][j+1][i].x - ucat[k-1][j][i].x) * 0.25;
+        *dvdz = (ucat[k+1][j+1][i].y + ucat[k+1][j][i].y - ucat[k-1][j+1][i].y - ucat[k-1][j][i].y) * 0.25;
+        *dwdz = (ucat[k+1][j+1][i].z + ucat[k+1][j][i].z - ucat[k-1][j+1][i].z - ucat[k-1][j][i].z) * 0.25;
+    }
+    
+    return;
+
+}
+//***************************************************************************************************************//
+inline void Compute_du_k_4
+(
+    mesh_ *mesh,
+    PetscInt i, PetscInt j, PetscInt k, PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***ucat, PetscReal ***nvert, PetscReal ***meshTag,
+    PetscReal *dudc, PetscReal *dvdc, PetscReal *dwdc,
+    PetscReal *dude, PetscReal *dvde, PetscReal *dwde,
+    PetscReal *dudz, PetscReal *dvdz, PetscReal *dwdz
+)
+
+{
+    if(i >= 1 && i <= mx - 3 
+        && !(isIBMSolidKFace(k, j, i+1, k+1, nvert) || isZeroedKFace(k, j, i+1, k+1, meshTag))
+        && !(isIBMSolidKFace(k, j, i-1, k+1, nvert) || isZeroedKFace(k, j, i-1, k+1, meshTag)) )
+    {
+        *dudc = (- (ucat[k+1][j][i+2].x + ucat[k][j][i+2].x) + 7.0*(ucat[k+1][j][i+1].x + ucat[k][j][i+1].x) - 7.0*(ucat[k+1][j][i].x + ucat[k][j][i].x) + (ucat[k+1][j][i-1].x + ucat[k][j][i-1].x)) / 24.0;
+        *dvdc = (- (ucat[k+1][j][i+2].y + ucat[k][j][i+2].y) + 7.0*(ucat[k+1][j][i+1].y + ucat[k][j][i+1].y) - 7.0*(ucat[k+1][j][i].y + ucat[k][j][i].y) + (ucat[k+1][j][i-1].y + ucat[k][j][i-1].y)) / 24.0;
+        *dwdc = (- (ucat[k+1][j][i+2].z + ucat[k][j][i+2].z) + 7.0*(ucat[k+1][j][i+1].z + ucat[k][j][i+1].z) - 7.0*(ucat[k+1][j][i].z + ucat[k][j][i].z) + (ucat[k+1][j][i-1].z + ucat[k][j][i-1].z)) / 24.0;
+    }
+
+    else if (isIBMSolidKFace(k, j, i+1, k+1, nvert) || isZeroedKFace(k, j, i+1, k+1, meshTag) || 
+    (i==mx-2 && (k==0 || k==mz-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
+    {
+        *dudc = (ucat[k+1][j][i].x + ucat[k][j][i].x - ucat[k+1][j][i-1].x - ucat[k][j][i-1].x)*0.5;
+        *dvdc = (ucat[k+1][j][i].y + ucat[k][j][i].y - ucat[k+1][j][i-1].y - ucat[k][j][i-1].y)*0.5;
+        *dwdc = (ucat[k+1][j][i].z + ucat[k][j][i].z - ucat[k+1][j][i-1].z - ucat[k][j][i-1].z)*0.5;
+    } 
+    
+    else if (isIBMSolidKFace(k, j, i-1, k+1, nvert) || isZeroedKFace(k, j, i-1, k+1, meshTag) ||
+    (i==1 && (k==0 || k==mz-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
+    {
+        *dudc = (ucat[k+1][j][i+1].x + ucat[k][j][i+1].x - ucat[k+1][j][i].x - ucat[k][j][i].x)*0.5;
+        *dvdc = (ucat[k+1][j][i+1].y + ucat[k][j][i+1].y - ucat[k+1][j][i].y - ucat[k][j][i].y)*0.5;
+        *dwdc = (ucat[k+1][j][i+1].z + ucat[k][j][i+1].z - ucat[k+1][j][i].z - ucat[k][j][i].z)*0.5;
+    } 
+    
+    else 
+    {
+        *dudc = (ucat[k+1][j][i+1].x + ucat[k][j][i+1].x - ucat[k+1][j][i-1].x - ucat[k][j][i-1].x)*0.25;
+        *dvdc = (ucat[k+1][j][i+1].y + ucat[k][j][i+1].y - ucat[k+1][j][i-1].y - ucat[k][j][i-1].y)*0.25;
+        *dwdc = (ucat[k+1][j][i+1].z + ucat[k][j][i+1].z - ucat[k+1][j][i-1].z - ucat[k][j][i-1].z)*0.25;
+    }
+    
+    if(j >= 1 && j <= my - 3 
+        && !(isIBMSolidKFace(k, j+1, i, k+1, nvert) || isZeroedKFace(k, j+1, i, k+1, meshTag))
+        && !(isIBMSolidKFace(k, j-1, i, k+1, nvert) || isZeroedKFace(k, j-1, i, k+1, meshTag)) ) 
+    {
+        *dude = (- (ucat[k+1][j+2][i].x + ucat[k][j+2][i].x) + 7.0*(ucat[k+1][j+1][i].x + ucat[k][j+1][i].x) - 7.0*(ucat[k+1][j][i].x + ucat[k][j][i].x) + (ucat[k+1][j-1][i].x + ucat[k][j-1][i].x)) / 24.0;
+        *dvde = (- (ucat[k+1][j+2][i].y + ucat[k][j+2][i].y) + 7.0*(ucat[k+1][j+1][i].y + ucat[k][j+1][i].y) - 7.0*(ucat[k+1][j][i].y + ucat[k][j][i].y) + (ucat[k+1][j-1][i].y + ucat[k][j-1][i].y)) / 24.0;
+        *dwde = (- (ucat[k+1][j+2][i].z + ucat[k][j+2][i].z) + 7.0*(ucat[k+1][j+1][i].z + ucat[k][j+1][i].z) - 7.0*(ucat[k+1][j][i].z + ucat[k][j][i].z) + (ucat[k+1][j-1][i].z + ucat[k][j-1][i].z)) / 24.0;
+    } 
+
+    else if (isIBMSolidKFace(k, j+1, i, k+1, nvert) || isZeroedKFace(k, j+1, i, k+1, meshTag) || 
+    (j==my-2 && (k==0 || k==mz-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) )) 
+    {
+        *dude = (ucat[k+1][j][i].x + ucat[k][j][i].x - ucat[k+1][j-1][i].x - ucat[k][j-1][i].x)*0.5;
+        *dvde = (ucat[k+1][j][i].y + ucat[k][j][i].y - ucat[k+1][j-1][i].y - ucat[k][j-1][i].y)*0.5;
+        *dwde = (ucat[k+1][j][i].z + ucat[k][j][i].z - ucat[k+1][j-1][i].z - ucat[k][j-1][i].z)*0.5;
+    }
+
+    else if (isIBMSolidKFace(k, j-1, i, k+1, nvert) || isZeroedKFace(k, j-1, i, k+1, meshTag) || 
+            (j==1 && (k==0 || k==mz-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) )) 
+    {
+        *dude = (ucat[k+1][j+1][i].x + ucat[k][j+1][i].x - ucat[k+1][j][i].x - ucat[k][j][i].x)*0.5;
+        *dvde = (ucat[k+1][j+1][i].y + ucat[k][j+1][i].y - ucat[k+1][j][i].y - ucat[k][j][i].y)*0.5;
+        *dwde = (ucat[k+1][j+1][i].z + ucat[k][j+1][i].z - ucat[k+1][j][i].z - ucat[k][j][i].z)*0.5;
+    } 
+    
+    else 
+    {
+        *dude = (ucat[k+1][j+1][i].x + ucat[k][j+1][i].x - ucat[k+1][j-1][i].x - ucat[k][j-1][i].x)*0.25;
+        *dvde = (ucat[k+1][j+1][i].y + ucat[k][j+1][i].y - ucat[k+1][j-1][i].y - ucat[k][j-1][i].y)*0.25;
+        *dwde = (ucat[k+1][j+1][i].z + ucat[k][j+1][i].z - ucat[k+1][j-1][i].z - ucat[k][j-1][i].z)*0.25;
+    }
+
+    if(k >= 1 && k <= mz-3) 
+    {
+        *dudz = (-ucat[k+2][j][i].x + 7.0*ucat[k+1][j][i].x - 7.0*ucat[k][j][i].x + ucat[k-1][j][i].x) / 12.0;
+        *dvdz = (-ucat[k+2][j][i].y + 7.0*ucat[k+1][j][i].y - 7.0*ucat[k][j][i].y + ucat[k-1][j][i].y) / 12.0;
+        *dwdz = (-ucat[k+2][j][i].z + 7.0*ucat[k+1][j][i].z - 7.0*ucat[k][j][i].z + ucat[k-1][j][i].z) / 12.0;
+    } 
+    
+    else 
+    {
+        *dudz = ucat[k+1][j][i].x - ucat[k][j][i].x;
+        *dvdz = ucat[k+1][j][i].y - ucat[k][j][i].y;
+        *dwdz = ucat[k+1][j][i].z - ucat[k][j][i].z;
+    }
+
+    return;
+
+}
+
+//***************************************************************************************************************//
+
 inline void Compute_dscalar_i
 (
     mesh_ *mesh,
@@ -3441,6 +3718,16 @@ inline Cmpnts centralVec(Cmpnts f0, Cmpnts f1)
     result.y = 0.5 * (f0.y + f1.y);
     result.z = 0.5 * (f0.z + f1.z);
 
+    return result;
+}
+
+//****************************************************************************************************************//
+inline Cmpnts centralVec4th(Cmpnts f_im1, Cmpnts f_i, Cmpnts f_ip1, Cmpnts f_ip2)
+{
+    Cmpnts result;
+    result.x = (-f_im1.x + 8.0 * f_i.x + 8.0 * f_ip1.x - f_ip2.x) / 12.0;
+    result.y = (-f_im1.y + 8.0 * f_i.y + 8.0 * f_ip1.y - f_ip2.y) / 12.0;
+    result.z = (-f_im1.z + 8.0 * f_i.z + 8.0 * f_ip1.z - f_ip2.z) / 12.0;
     return result;
 }
 

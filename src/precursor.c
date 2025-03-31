@@ -129,7 +129,7 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
         SetWallModels(domain->ueqn);
 
         // overwrite mesh name after initialization
-        domain->mesh->meshName = "precursor";
+        domain->mesh->meshName = abl->access->mesh->meshName + "/precursor";
 
         // initialize ibm
         InitializeIBM(domain->ibm);
@@ -169,7 +169,7 @@ PetscErrorCode SetStartTimePrecursor(domain_ *domain, abl_ *abl)
     // check that the startTime is present in the available times
     if(domain->flags.isPrecursorSpinUp == 0)
     {
-        word location = "./fields/precursor/";
+        word location = "./fields/" + abl->access->mesh->meshName + "/precursor/";
         std::vector<PetscReal>        timeSeries;
         PetscInt                      ntimes;
         getTimeList(location.c_str(), timeSeries, ntimes);
@@ -677,13 +677,17 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
 
             DMCreateGlobalVector(da,  &(mesh_p->Nvert));
             DMCreateGlobalVector(da,  &(mesh_p->Nvert_o));
+            VecDuplicate(mesh_p->Nvert, &(mesh_p->meshTag));
+            VecDuplicate(mesh_p->lNvert, &(mesh_p->lmeshTag));
 
             // set to zero
             VecSet(mesh_p->Nvert, 0.0);
             VecSet(mesh_p->lNvert, 0.0);
             VecSet(mesh_p->Nvert_o, 0.0);
             VecSet(mesh_p->lNvert_o, 0.0);
-
+            VecSet(mesh_p->meshTag, 0.0);
+            VecSet(mesh_p->lmeshTag, 0.0);
+            
             PetscPrintf(mesh_p->MESH_COMM, "done\n");
 
             // set curvilinear coordinates metrics
