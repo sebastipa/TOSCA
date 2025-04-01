@@ -12,51 +12,53 @@ We recommend the following versions of the above libraries:
 - HYPRE    : 2.20.0 (https://github.com/hypre-space/hypre/tree/master) (check version in /src/CMakeLists.txt).
 - HDF5     : 1.12.1 (https://www.hdfgroup.org/downloads/hdf5/).
 
-Prior to install TOSCA, we suggest to create a folder named ``Software`` inside ``$HOME``, where the PETSc, HYPRE and TOSCA directories will be located.
+Prior to install TOSCA, we suggest to create a folder named ``software`` inside ``$HOME``, where the PETSc, TOSCA and potentially other libraries directories will be located.
 In order to compile TOSCA on your system, please follow these steps:
 
 1. Check your compiler version with ``gcc --version``
-2. Download PETSc into ``$HOME/Software/``
-3. Download HYPRE into ``$HOME/Software/``
-4. Download Open MPI: you can download the binaries or compile from source (the latter is recommended if using ``environment-modules`` e.g. on an HPC architecture).
+2. Download PETSc into ``$HOME/software/``
+3. Download Open MPI: you can download the binaries or compile from source (the latter is recommended if using ``environment-modules`` e.g. on an HPC architecture).
    If you have only one version of Open MPI installed on your system in the ``/usr`` directory (installed using sudo for example), you can omit the
-   ``--with-mpi-dir='your--path--to--mpicc'`` at point 4: Open MPI will be found by the library locator.
-5. Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:
+   ``--with-mpi-dir='your--path--to--mpicc'`` at point 5: Open MPI will be found by the library locator.
+4. Download HYPRE into ``$HOME/software/``. This can be omitted if you use the ``--download-hypre`` option in the PETSc configure step (suggested).
+5. Download HDF5 into ``$HOME/software/``. This can be omitted if you use the ``--download-hdf5`` option in the PETSc configure step (suggested).
+6. Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:
 
    .. code-block:: bash
    
-   	./configure --with-fc=0 --download-f2cblaslapack --download-hypre --with-64-bit-indices=1 --with-debugging=0
+   	./configure --with-fc=0 --download-f2cblaslapack --download-hypre --download-hdf5 --with-64-bit-indices=1 --with-debugging=0
    	
-   Note that other options are available. For example, if one wants to specify paths to already installed HYPRE and OpenMPI libraries, 
-   the options ``--with-mpi-dir='your--path--to--mpicc'`` and ``--download-hypre='your--path--to--hypre'`` can be used. 
+   Note that other options are available. For example, if one wants to specify paths to already installed OpenMPI libraries, 
+   the options ``--with-mpi-dir='your--path--to--mpicc'`` can be used. We strongly suggest to use the ``--download-hypre`` and ``--download-hdf5`` options, 
+   as they will download and compile the libraries automatically, making hte installation process easier.
 
-6. Make PETSc (PETSc will suggest a command after the configure, we advice to use that):
+7. Make PETSc (PETSc will suggest a command after the configure, we advice to use that):
 	
    .. code-block:: bash
    
    	make all
 
-7. Check the PETSc installation (PETSc will suggest a command after compilation, we advice to use that):
+8. Check the PETSc installation (PETSc will suggest a command after compilation, we advice to use that):
 	
    .. code-block:: bash
    
    	make check
    
-8. Save an environment variable that will tell TOSCA where PETSc is installed in your ``.bashrc``. For HPC installations
+9. Save an environment variable that will tell TOSCA where PETSc is installed in your ``.bashrc``. For HPC installations
    it might be a better practice to use the ``.bash_profile`` instead.
 
    .. code-block:: bash
    
-   	echo "export PETSC_DIR=$HOME/your--path--to--petsc" >> $HOME/.bashrc
+   	echo "export PETSC_DIR=$HOME/your--path--to--petsc--dir" >> $HOME/.bashrc
    	
    or, for HPCs
    
    .. code-block:: bash
    
-   	echo "export PETSC_DIR=$HOME/your--path--to--petsc" >> $HOME/.bash_profile
+   	echo "export PETSC_DIR=$HOME/your--path--to--petsc--dir" >> $HOME/.bash_profile
    
-9. Save an environment variable that will tell TOSCA which PETSc architecture is required in your ``.bashrc``. For HPC installations
-   it might be a better practice to use the ``.bash_profile`` instead.
+10. Save an environment variable that will tell TOSCA which PETSc architecture is required in your ``.bashrc``. For HPC installations
+    it might be a better practice to use the ``.bash_profile`` instead.
 
    .. code-block:: bash
     
@@ -72,7 +74,22 @@ In order to compile TOSCA on your system, please follow these steps:
 
 	This is the folder within ``$PETSC_DIR`` with a name beginning with ``arch-``. In a typical installation, it will be ``arch-linux-c-opt``.
 
-10. Add the PETSc shared libraries to your library path environment variable in your ``.bashrc``. For HPC installations
+11. Save an environment variable that will tell TOSCA where HDF5 libraries/include files will be located in your ``.bashrc``. For HPC installations 
+    it might be a better practice to use the ``.bash_profile`` instead. This variable will be used in the TOSCA ``makefile`` to compile ``tosca2PV``. 
+    If you have installed HDF5 using the ``--download-hdf5`` option in the PETSc configure step, the HDF5 `lib` and `include` directories will be located in 
+    the ``$PETSC_DIR/$PETSC_ARCH/`` folder, together with HYPRE and PETSc ones.
+
+    .. code-block:: bash
+    
+     echo "export HDF5_DIR=$PETSC_DIR/$PETSC_ARCH" >> $HOME/.bashrc
+     
+    or, for HPCs
+    
+    .. code-block:: bash
+    
+     echo "export HDF5_DIR=$PETSC_DIR/$PETSC_ARCH" >> $HOME/.bash_profile
+
+12. Add the PETSc shared libraries to your library path environment variable in your ``.bashrc``. For HPC installations
     it might be a better practice to use the ``.bash_profile`` instead.
 
     .. code-block:: bash
@@ -85,7 +102,7 @@ In order to compile TOSCA on your system, please follow these steps:
    
    	 echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PETSC_DIR/$PETSC_ARCH/lib" >> $HOME/.bash_profile
 
-11. Reload the environment with 
+13. Reload the environment with 
 
 	 .. code-block:: bash
 	
@@ -97,7 +114,7 @@ In order to compile TOSCA on your system, please follow these steps:
 	
 	  source $HOME/.bash_profile
     
-12. Go inside ``TOSCA/src`` directory and compile the executables. Make sure to have added the path to custom libraries (i.e. compiled
+14. Go inside ``TOSCA/src`` directory and compile the executables. Make sure to have added the path to custom libraries (i.e. compiled
     locally by the user) if any, such as OpenMPI and HDF5, to the ``LD_LIBRARY_PATH`` as done for the PETSc libraries at step 10. 
 
     .. code-block:: bash 
@@ -105,7 +122,7 @@ In order to compile TOSCA on your system, please follow these steps:
      make tosca
      make tosca2PV
 
-13. Test the installation by copying ``tosca`` and ``tosca2PV`` in one of the example cases and run the simulation
+15. Test the installation by copying ``tosca`` and ``tosca2PV`` in one of the example cases and run the simulation
     and the post-processing with ``./tosca`` and ``./tosca2PV`` respectively. To run in parallel you have to use
     ``mpirun -np 'your-number-of-processors' ./tosca``
     
