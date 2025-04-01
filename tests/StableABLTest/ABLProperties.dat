@@ -2,7 +2,7 @@
 # ------------------------------------------- 
 
 # Reference velocity and height for the velocity controller. 
-uRef 8.0
+uRef (8.0 0.0)
 hRef 90.0
 
 # Reference potential temperature. 
@@ -57,6 +57,7 @@ controllerProperties
 
     # Perform geostrophic damping (only pressure controller)
     geostrophicDamping 0
+    mesoScaleInput     0
 
     # Velocity controller max height of influence 
     controllerMaxHeight 100000.0

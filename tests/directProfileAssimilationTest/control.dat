@@ -35,7 +35,7 @@
 -dUdtScheme                backwardEuler
 -dTdtScheme                backwardEuler
 -divScheme                 centralUpwindW
-
+-viscScheme		   central
 # Wind Turbine
 # ---------------------------------
 -windplant                 0

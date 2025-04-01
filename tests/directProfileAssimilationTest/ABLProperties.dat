@@ -2,7 +2,7 @@
 # --------------------------------- 
 
 # Reference velocity and height for the velocity controller. 
-uRef 4.0
+uRef (4.0 0.0)
 hRef 90.0
 
 # Reference potential temperature. 
@@ -41,14 +41,14 @@ controllerTypeT   directProfileAssimilation
 controllerProperties
 {
     # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
-    controllerAction    write
-    controllerType 	indirectProfileAssimilation
-    avgSources          0
-    movingAvgWindow     20
-    polynomialOrder     5
-    lowestSrcHeight     40
-    highestSrcHeight    9000
-    
+    controllerAction    	write
+    controllerType 		indirectProfileAssimilation
+    avgSources          	0
+    movingAvgWindow     	20
+    polynomialOrder     	5
+    lowestSrcHeight     	40
+    lowerLayerForcingType 	mesoDataHeight
+    lowerLayerForcingTypeT  	mesoDataHeight
     # Velocity controller gain factor 
     relaxPI 0.2
 

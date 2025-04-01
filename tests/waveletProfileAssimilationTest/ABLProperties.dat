@@ -2,7 +2,7 @@
 # --------------------------------- 
 
 # Reference velocity and height for the velocity controller. 
-uRef 11.0
+uRef (11.0 0.0)
 hRef 110.0
 
 # Reference potential temperature. 

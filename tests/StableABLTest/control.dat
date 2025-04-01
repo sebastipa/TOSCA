@@ -38,6 +38,7 @@
 -dUdtScheme                backwardEuler
 -dTdtScheme                rungeKutta4
 -divScheme                 centralUpwindW
+-viscScheme		   central
 
 # Wind Turbine
 # ---------------------------------

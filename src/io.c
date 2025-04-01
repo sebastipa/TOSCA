@@ -279,12 +279,12 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     PetscViewerDestroy(&viewer);
 
     //read overset meshTag field
-    PetscPrintf(mesh->MESH_COMM, "Reading meshTag...\n");
-    field = "/meshTag";
-    fileName = location + field;
-    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-    VecLoad(mesh->meshTag,viewer);
-    PetscViewerDestroy(&viewer);
+    // PetscPrintf(mesh->MESH_COMM, "Reading meshTag...\n");
+    // field = "/meshTag";
+    // fileName = location + field;
+    // PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+    // VecLoad(mesh->meshTag,viewer);
+    // PetscViewerDestroy(&viewer);
 
     // read temperature
     if(domain->flags.isTeqnActive)
@@ -3491,7 +3491,7 @@ PetscErrorCode readDictDouble(const char *dictName, const char *keyword, PetscRe
 
 //***************************************************************************************************************//
 
-PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cmpnts *value)
+PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cpt2D *value)
 {
     std::ifstream indata;
 
@@ -3556,7 +3556,7 @@ PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cmpnt
                    if (last.find (")") != std::string::npos)
                    {
                        // remove ") character from the last component and store
-                       value->z = std::strtod(word, &eptr);
+                       value->y = std::strtod(word, &eptr);
 
                        // check if the second component is a PetscReal, throw error otherwise
                        std::string cmp2(word);

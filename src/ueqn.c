@@ -393,8 +393,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             }
             else 
             {
-                uDes.x = abl->uRef;
-                uDes.y = 0.0;
+                uDes.x = abl->uRef.x;
+                uDes.y = abl->uRef.y;
                 uDes.z = 0.0;
             }
 
@@ -2733,14 +2733,16 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 // predicted angular coefficient for the fringe alpha-relation
                 abl->xDampingCoeff    = abl->xDampingDeltaV / abl->xDampingAlpha;
 
+                PetscReal uRefMag     = PetscSqrtReal(abl->uRef.x*abl->uRef.x + abl->uRef.y*abl->uRef.y);
+
                 PetscReal fringeTime  = clock->time - abl->xDampingTimeStart;
-                PetscReal waitTime    = abl->xDampingTimeWindow; // (abl->xDampingEnd - abl->xDampingStart)/abl->uRef;
+                PetscReal waitTime    = abl->xDampingTimeWindow; // (abl->xDampingEnd - abl->xDampingStart)/uRefMag;
 
 
                 // see if must correct alpha
                 if
                 (
-                    (abl->xDampingError/abl->uRef) > 0.01 && // check if error is greater than 1%
+                    (abl->xDampingError/uRefMag) > 0.01 && // check if error is greater than 1%
                     fringeTime > waitTime                    // check if allowed to override alpha
                 )
                 {
@@ -2752,8 +2754,8 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 abl->xDampingAlpha = std::max(std::min(abl->xDampingAlpha, 1.0), 0.0);
 
                 // compute useful print quantities
-                PetscReal percErrVStart  = fabs(abl->xDampingVBar - abl->vStart) / abl->uRef * 100.0;
-                PetscReal percErrVEnd    = abl->xDampingError / abl->uRef * 100.0;
+                PetscReal percErrVStart  = fabs(abl->xDampingVBar - abl->vStart) / uRefMag * 100.0;
+                PetscReal percErrVEnd    = abl->xDampingError / uRefMag * 100.0;
                 PetscReal percTimeFringe = fringeTime / waitTime * 100.0;
 
                 PetscPrintf(mesh->MESH_COMM, "Correcting fringe region: errStart = %.3lf %%, errEnd = %.3lf %%, vBar = %.3lf m/s, mCoeff = %.3lf, tFringe = %.1lf %%, alpha = %.5lf\n", percErrVStart, percErrVEnd, abl->xDampingVBar, abl->xDampingCoeff, percTimeFringe, abl->xDampingAlpha);

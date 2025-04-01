@@ -528,7 +528,7 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
 
     PetscReal        uTau       = abl->uTau;
     PetscReal        hRough     = abl->hRough;
-    PetscReal        uRef       = abl->uRef;
+    PetscReal        uRef       = PetscSqrtReal(abl->uRef.x*abl->uRef.x + abl->uRef.y*abl->uRef.y);
     PetscReal        hInversion = abl->hInv;
     PetscReal        vkConst    = abl->vkConst;
 
@@ -547,6 +547,8 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
 
     DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
 
+    //note: abl->uRef is in cartesian components, while uCell is the contravariant flux which is in computational coordinate components
+    
     // loop over internal cells
     for(k=lzs; k<lze; k++)
     {
@@ -561,7 +563,8 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                 PetscReal z = cent[k][j][i].z;
 
                 // face area magnitude
-                PetscReal faceArea = nMag(zet[k][j][i]);
+                PetscReal faceArea_z = nMag(zet[k][j][i]);
+                PetscReal faceArea_x = nMag(csi[k][j][i]);
 
                 Cmpnts uCell = nSetZero();
 
@@ -571,14 +574,25 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                     (
                         PetscMax
                         (
-                            (uTau/vkConst)*std::log(h/hRough),
+                            (uTau/vkConst)*std::log(h/hRough)*(abl->uRef.x/uRef),
                             1e-5
                         )
-                    ) * faceArea;
+                    ) * faceArea_z;
+
+                    uCell.x +=
+                    (
+                        PetscMax
+                        (
+                            (uTau/vkConst)*std::log(h/hRough)*(abl->uRef.y/uRef),
+                            1e-5
+                        )
+                    ) * faceArea_x;
                 }
                 else
                 {
-                    uCell.z += (uTau/vkConst)*std::log(hInversion/hRough) * faceArea;
+                    uCell.z += (uTau/vkConst)*std::log(hInversion/hRough) *(abl->uRef.x/uRef) * faceArea_z;
+                    uCell.x += (uTau/vkConst)*std::log(hInversion/hRough) *(abl->uRef.y/uRef) * faceArea_x;
+
                 }
 
                 if(abl->perturbations)
@@ -592,7 +606,7 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                     // perturbations to trigger turbulence
                     uCell.z
                     +=
-                    faceArea *
+                    faceArea_z *
                     deltaU *
                     std::exp(0.5) *
                     std::cos(Uperiods * 2.0 * M_PI * x/Lx) *
@@ -601,7 +615,7 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
 
                     uCell.x
                     +=
-                    faceArea *
+                    faceArea_x *
                     deltaV *
                     std::exp(0.5) *
                     std::sin(Vperiods * 2.0 * M_PI * y/Ly) *

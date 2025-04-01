@@ -141,7 +141,7 @@ PetscErrorCode readDictDouble(const char *dictName, const char *keyword, PetscRe
 PetscErrorCode readDictVector(const char *dictName, const char *keyword, Cmpnts *value);
 
 //! \brief Read mandatory 2D vector from dictionary
-PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cmpnts *value);
+PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cpt2D *value);
 
 //! \brief Read mandatory PetscInt from dictionary
 PetscErrorCode readDictInt(const char *dictName, const char *keyword, PetscInt *value);

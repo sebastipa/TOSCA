@@ -2,7 +2,7 @@
 # --------------------------------- 
 
 # Reference velocity and height for the velocity controller. 
-uRef 8.0
+uRef (8.0 0.0)
 hRef 90.0
 
 # Reference potential temperature. 
@@ -40,6 +40,7 @@ coriolisActive 1
 controllerActive 1
 controllerActiveT 0
 controllerActivePrecursorT 0
+precursorControllerTypeMismatch 0
 
 controllerProperties
 {

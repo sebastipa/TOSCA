@@ -2,7 +2,7 @@
 # --------------------------------- 
 
 # Reference velocity and height for the velocity controller. 
-uRef 8.0
+uRef (8.0 0.0)
 hRef 90.0
 
 # Reference potential temperature. 
@@ -56,7 +56,7 @@ controllerProperties
     controllerMaxHeight 100000.0
     
     # Start time for the given momentum source average (only controller type 'average')
-    controllerAvgStartTime 10000
+    controllerAvgStartTime 9000
     
     # Geostrophic height
     hGeo 900

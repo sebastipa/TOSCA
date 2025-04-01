@@ -2,7 +2,7 @@
 # --------------------------------- 
 
 # Reference velocity and height for the velocity controller. 
-uRef 8.0
+uRef (8.0 0.0)
 hRef 90.0
 
 # Reference potential temperature. 
@@ -54,7 +54,8 @@ controllerProperties
     
     # Perform geostrophic damping (only pressure controller)
     geostrophicDamping 1
-    
+    mesoScaleInput     0
+ 
     geoDampingAlpha      1.0
     geoDampingStartTime  5000
     geoDampingTimeWindow 4500

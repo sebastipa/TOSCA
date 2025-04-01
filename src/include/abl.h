@@ -15,7 +15,7 @@ struct abl_
     // physical quantities
     PetscReal    uTau;                           //!< friction Velocity
     PetscReal    hRough;                         //!< equivalent roughness length
-    PetscReal    uRef;                           //!< reference velocity
+    Cpt2D        uRef;                           //!< reference velocity
     PetscReal    hRef;                           //!< reference height
     PetscReal    hGeo;                           //!< geostrophic height (required for geostrophic controller)
     PetscReal    hInv;                           //!< inversion height

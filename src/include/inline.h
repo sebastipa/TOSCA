@@ -4885,19 +4885,6 @@ inline void findInterpolationWeights(PetscReal *weights, PetscInt *labels, Petsc
         idx_1 = idx_tmp;
     }
 
-    // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
-    if(pvec[idx_2] < pval)
-    {
-        idx_1 = idx_2;
-        idx_2 = idx_1 + 1;
-    }
-
-    if(pvec[idx_1] > pval)
-    {
-        idx_2 = idx_1;
-        idx_1 = idx_2 - 1;
-    }
-
     // store the labels
     labels[0] = idx_1;
     labels[1] = idx_2;

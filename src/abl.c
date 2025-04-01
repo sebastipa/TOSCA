@@ -66,29 +66,31 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
     PetscPrintf(mesh->MESH_COMM, "Reading ABL properties...\n");
 
-    readDictDouble("ABLProperties.dat", "hRough",           &(abl->hRough));
-    readDictDouble("ABLProperties.dat", "uRef",             &(abl->uRef));
-    readDictDouble("ABLProperties.dat", "hRef",             &(abl->hRef));
-    readDictDouble("ABLProperties.dat", "hInv",             &(abl->hInv));
-    readDictDouble("ABLProperties.dat", "dInv",             &(abl->dInv));
-    readDictDouble("ABLProperties.dat", "gInv",             &(abl->gInv));
-    readDictDouble("ABLProperties.dat", "tRef",             &(abl->tRef));
-    readDictDouble("ABLProperties.dat", "gTop",             &(abl->gTop));
-	readDictDouble("ABLProperties.dat", "gABL",             &(abl->gABL));
-    readDictDouble("ABLProperties.dat", "vkConst",          &(abl->vkConst));
-    readDictDouble("ABLProperties.dat", "smearT",           &(abl->smear));
-    readDictInt   ("ABLProperties.dat", "coriolisActive",   &(abl->coriolisActive));
-    readDictInt   ("ABLProperties.dat", "controllerActive", &(abl->controllerActive));
-    readDictInt   ("ABLProperties.dat", "controllerActiveT",&(abl->controllerActiveT));
-    readDictInt   ("ABLProperties.dat", "perturbations",    &(abl->perturbations));
+    readDictDouble  ("ABLProperties.dat", "hRough",           &(abl->hRough));
+    readDictVector2D("ABLProperties.dat", "uRef",             &(abl->uRef));
+    readDictDouble  ("ABLProperties.dat", "hRef",             &(abl->hRef));
+    readDictDouble  ("ABLProperties.dat", "hInv",             &(abl->hInv));
+    readDictDouble  ("ABLProperties.dat", "dInv",             &(abl->dInv));
+    readDictDouble  ("ABLProperties.dat", "gInv",             &(abl->gInv));
+    readDictDouble  ("ABLProperties.dat", "tRef",             &(abl->tRef));
+    readDictDouble  ("ABLProperties.dat", "gTop",             &(abl->gTop));
+	readDictDouble  ("ABLProperties.dat", "gABL",             &(abl->gABL));
+    readDictDouble  ("ABLProperties.dat", "vkConst",          &(abl->vkConst));
+    readDictDouble  ("ABLProperties.dat", "smearT",           &(abl->smear));
+    readDictInt     ("ABLProperties.dat", "coriolisActive",   &(abl->coriolisActive));
+    readDictInt     ("ABLProperties.dat", "controllerActive", &(abl->controllerActive));
+    readDictInt     ("ABLProperties.dat", "controllerActiveT",&(abl->controllerActiveT));
+    readDictInt     ("ABLProperties.dat", "perturbations",    &(abl->perturbations));
 
     if(abl->coriolisActive)
     {
         readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
     }
 
+    PetscReal uRefMag = PetscSqrtReal(abl->uRef.x*abl->uRef.x + abl->uRef.y*abl->uRef.y);
+
     // find friction velocity based on neutral log law
-    abl->uTau = abl->uRef * abl->vkConst / std::log(abl->hRef / abl->hRough);
+    abl->uTau = uRefMag * abl->vkConst / std::log(abl->hRef / abl->hRough);
 
     // initialize mesh levels (used in fringe region and velocity controller type write)
     PetscPrintf(mesh->MESH_COMM, "   initializing levels\n");

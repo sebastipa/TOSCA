@@ -32,6 +32,7 @@
 # ---------------------------------
 -dUdtScheme                backwardEuler
 -divScheme                 centralUpwindW
+-viscScheme		   central
 
 # Wind Turbine
 # ---------------------------------

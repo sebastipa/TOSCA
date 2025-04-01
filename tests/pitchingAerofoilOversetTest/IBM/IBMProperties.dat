@@ -27,7 +27,7 @@ writeSettings
 
 object0
 {
-    bodyName                        NACA0012_AOA_5
+    bodyName			    NACA0012_AOA_five
     bodyType                        closedBody
     thinBody                        0
 
