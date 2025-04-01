@@ -1,0 +1,13 @@
+-iPeriodicType 2
+-jPeriodicType 2
+-kPeriodicType 2
+# X-direction Blocks
+#Xs Xe  Nx    R  S_cellWidth E_cellWidth Meshtype  (R=0.0 for non uniform)
+0.0 4.0  257 0.0 0.098174770424681 0.098174770424681 uniform
+
+# Y-direction Blocks
+0.0 1.0  65 0.0 0.098174770424681 0.098174770424681 uniform
+
+# Z-direction Blocks
+0.0 4.0  257 0.0 0.098174770424681 0.098174770424681 uniform
+

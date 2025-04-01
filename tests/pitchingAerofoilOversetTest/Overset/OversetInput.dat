@@ -1,0 +1,63 @@
+# TOSCA Input file - Overset Input Properties
+# -------------------------------------------
+
+# This file handles the mesh input data and connectivity tree for Overset method simulation
+
+# The sub entries for each mesh are integer arrays indicating the interaction between different overset meshes.
+
+# 	parentMesh - indicates the parent mesh of the current mesh
+# 	childMesh - if the given mesh has another (child) mesh in its domain
+ 	
+# these parameters cannot be left blank. Set value to -1 indicates null value
+# --------------------------------------------------------------------
+
+#General Overset properties
+MeshTotal		2
+
+Mesh0
+{
+    name           background
+    parentMesh 	   (-1)
+    childMesh 	   (1)
+    windplant      0
+    ibm	           0
+}
+
+Mesh1
+{
+    name           overset
+    parentMesh 	   (0)
+    childMesh 	   (-1)
+    windplant      0
+    ibm		   1
+}
+
+holeObject0
+{
+    bodyName                        holeMesh
+    bodyType                        closedBody
+
+    fileType                        ucd
+    baseLocation                    (0.0 0.0 0.0)
+
+    searchCellRatio                 3
+}
+
+#Overset simulation properties
+
+#For mesh motion
+dynamicOverset		0
+
+#Interpolation type - available types: LS1, LS2, LS3, trilinear, inverseDist
+interpolationType	trilinear
+
+#For LS and inverse distance interpolation 
+cellFactor		3.1 #scaling the search radius with the size of local background mesh size
+ 
+#Parameters for dynamic Overset
+oversetMotion
+{
+    setMotion	   1
+    motionType	   Translation
+    prescribedVel  (1.0 0.0 0.0)
+}

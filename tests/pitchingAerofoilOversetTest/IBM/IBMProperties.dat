@@ -1,0 +1,64 @@
+# TOSCA Input file - IBM Properties
+# -------------------------------------------
+
+NumberofBodies                      1
+
+InterpolationMethod                 CURVIB
+CURVIBInterpolationType		    CurvibTrilinear
+interpolationOrder		    linear
+
+debug                               0
+dynamic                             1
+checkNormal                         1
+averageNormal			    0
+computeForce                        1
+writeSTL                            0
+wallShear			    0
+pressureBC			    0
+abl                                 0
+writeSettings
+{
+    timeStart           0
+    intervalType        timeStep #adjustableTime
+    timeInterval        5.0
+}
+
+# IBM object properties
+
+object0
+{
+    bodyName                        NACA0012_AOA_5
+    bodyType                        closedBody
+    thinBody                        0
+
+    fileType 			    ucd
+    bodyMotion                      pitchingOscillation
+    baseLocation     	            (1.5 0.0 2.2) #(2.0 0.0 3.0) #Needs to be adjusted to define center location 
+
+    procBoundCenter                 (0.0 0.0 0.0)
+    procBoundSize                   (10.0 10.0 10.0)
+
+    velocityBCSetType               setHere
+    velocityBC                      velocityWallFunction
+    wallFunctionTypeU               -1
+    roughness                       0.00
+    kappa                           0.4
+
+    angularAmplitude                5.0
+    frequency                       2.0
+    initialAngle                    0.0
+    pitchingAxis                    (0.0 1.0 0.0)
+    pitchingCenter                  (1.75 0.5 2.2)
+
+    maxTipRadius                    0.5
+    angularSpeed     	            9.55
+    angularAcceleration             0.0
+    rotationAxis            	    (1.0 0.0 0.0)
+    rotationCenter                  (0.0 0.0 0.0)
+
+    searchCellRatio                 3
+
+    frontalArea                     1.0
+    refVel                          1.0
+}
+
