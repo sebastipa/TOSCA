@@ -25,64 +25,71 @@ HDF5       = ${HDF5_DIR}
 # required to build with paraview-catalyst off-screen rendering capabilities
 CATALYST   = ${CATALYST_DIR}
 
-# Update LIBS 
-LIBS       = -lpthread \
-             -lrt \
-             -ldl \
-             -lstdc++ \
-             -lpetsc \
-             -lf2cblas \
-             -lf2clapack \
-             -lHYPRE \
-             -lhdf5
-
-ifeq ($(USE_CATALYST), 1)
-LIBS      += -lcatalyst
-endif
-
-# Update LDFLAGS 
-LDFLAGS    = -L$(PETSC)/$(PETSC_ARCH)/lib \
-             -L$(HDF5)/lib
-
-ifeq ($(USE_CATALYST), 1)
-LDFLAGS   += -L$(CATALYST)/lib
-endif
-
-# Update INC_FLAGS 
-INC_FLAGS  = -I$(PETSC)/include \
-             -I$(PETSC)/$(PETSC_ARCH)/include \
-             -I$(HDF5)/include
-
-ifeq ($(USE_CATALYST), 1)
-INC_FLAGS += -I$(CATALYST)/include/catalyst-2.0
-endif
-
-# Update CPPFLAGS 
+# Compiler and flags
+CC         = mpicxx
+CFLAGS     = -O3 -g
 CPPFLAGS   = $(INC_FLAGS) -DPARAVIEW_IMPL_DIR=\"\"
+LDFLAGS    = -L$(PETSC)/$(PETSC_ARCH)/lib -L$(HDF5)/lib
+LIBS       = -lpthread -lrt -ldl -lstdc++ -lpetsc -lf2cblas -lf2clapack -lHYPRE -lhdf5
 
+# Catalyst support
 ifeq ($(USE_CATALYST), 1)
 CPPFLAGS  += -DUSE_CATALYST=1
+LDFLAGS   += -L$(CATALYST)/lib
+INC_FLAGS += -I$(CATALYST)/include/catalyst-2.0
+LIBS      += -lcatalyst
 else
 CPPFLAGS  += -DUSE_CATALYST=0
 endif
 
-CFLAGS     = -O3 -g 
+# Include paths
+INC_FLAGS  = -I$(PETSC)/include -I$(PETSC)/$(PETSC_ARCH)/include -I$(HDF5)/include
 
-OBJS_TOSCA =  main.o initialization.o io.o overset.o wallfunctions.o boundary.o \
-    mesh.o inflow.o abl.o ueqn.o peqn.o les.o teqn.o turbines.o \
-    initialField.o acquisition.o ibm.o clock.o precursor.o ibmInput.o
+# Directories
+BUILD_DIR  = build
+SRC_DIR    = .
+OBJ_DIR    = $(BUILD_DIR)
 
-OBJS_PP   =  tosca2PV.o initialization.o io.o wallfunctions.o overset.o boundary.o \
-    mesh.o inflow.o abl.o ueqn.o peqn.o les.o teqn.o turbines.o \
-    initialField.o acquisition.o ibm.o clock.o precursor.o ibmInput.o
+# Object files
+OBJS_TOSCA = $(OBJ_DIR)/main.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/overset.o \
+             $(OBJ_DIR)/wallfunctions.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
+             $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
+             $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o
 
-tosca:  $(OBJS_TOSCA)
-	$(CC) -o $@ $(OBJS_TOSCA) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBS)
-	
-tosca2PV:   $(OBJS_PP)
-	$(CC) -o $@ $(OBJS_PP) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBS)
-	
-all:    tosca tosca2PV
+OBJS_PP    = $(OBJ_DIR)/tosca2PV.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/wallfunctions.o \
+             $(OBJ_DIR)/overset.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
+             $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
+             $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o
 
+# Targets
+all: $(BUILD_DIR) tosca tosca2PV
+
+tosca: $(OBJS_TOSCA)
+	$(CC) -o $@ $^ $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBS)
+
+tosca2PV: $(OBJS_PP)
+	$(CC) -o $@ $^ $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBS)
+
+# Pattern rule for object files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
+
+# Clean targets
 clean:
-	rm *.o tosca tosca2PV
+	rm -rf $(BUILD_DIR) tosca tosca2PV
+
+# Help target
+help:
+	@echo "Available targets:"
+	@echo "  all         - Build all targets (default)"
+	@echo "  tosca       - Build the TOSCA executable"
+	@echo "  tosca2PV    - Build the TOSCA2PV executable"
+	@echo "  clean       - Remove object files and executables"
+	@echo "  help        - Show this help message"
+
+# Build directory
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)
