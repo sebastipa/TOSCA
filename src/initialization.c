@@ -15,27 +15,32 @@
 
 PetscErrorCode PrintOkWindLogo()
 {
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n   |==================================================|      This file is part of TOSCA.\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |               \\\\        T                        |      TOSCA is free software: you can redistribute it and/or modify it\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                \\\\        O                       |      under the terms of the GNU General Public License as published by\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                 \\\\    \\\\  S                      |      the Free Software Foundation, either version 3 of the License, or\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                  \\\\    \\\\  C                     |      (at your option) any later version.\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                   \\\\    \\\\  A                    |\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                    O ====\\\\=======               |      TOSCA is distributed in the hope that it will be useful, but WITHOUT \n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                   //|     \\\\                     |      ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                  //||      O =============       |      FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                 // ||     //| v0122              |      for more details.\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                //  ||    //||                    |\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |               //   ||   // ||                    |      You should have received a copy of the GNU General Public License\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                    ||  //  ||                    |      along with TOSCA.  If not, see <http://www.gnu.org/licenses/>.\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                    || //   ||                    |\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                    ||      ||                    |      This software was developed by Sebastiano Stipa, Arjun Ajay and Mohammad\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |____________________||______||____________________|      Hadi during their time at the Okanagan CFD-LAB. It is a LES code in\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |            copyright : OK-CFD Lab                |      generalized curvilinear coordinates for the simulation of wind plants\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |            authors   : Stipa - Ajay - Haji       |      immersed in the atmospheric boundary layer. Momentum and pressure equations\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |==================================================|      are solved using operators splitting. If activated, potential temperature\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |  Toolbox for Stratified Convective Atmospheres   |      transport is also solved. Advanced actuator disk/line models and IBM with\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |__________________________________________________|      the moving least squares techinque are also implemented.\n\n\n\n");
+    PetscPrintf(PETSC_COMM_WORLD," \n\n");
+    PetscPrintf(PETSC_COMM_WORLD," |========================================================|  TOSCA: The Toolbox fOr Stratified Convective Atmospheres\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                  \\\\                                    |  \n");
+    PetscPrintf(PETSC_COMM_WORLD," |                   \\\\        T                          |  Copyright (c) 2023, The University of British Columbia. All rights reserved. This code is under\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                    \\\\    \\\\  O                         |  active development at UBC-Okanagan by Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                     \\\\    \\\\  S                        |  \n");
+    PetscPrintf(PETSC_COMM_WORLD," |                      \\\\    \\\\  C                       |  TOSCA is free software: you can redistribute it and/or modify it under the terms of the BSD 2-\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                       \\\\    \\\\  A                      |  Clause Simplified License.\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                        O ====\\\\=========               |  \n");
+    PetscPrintf(PETSC_COMM_WORLD," |                       //|     \\\\                       |  Redistribution and use in source and binary forms, with or without modification, are permitted\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                      //||      O =============         |  provided that the following conditions are met:\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                     // ||     //| v0122                |  1. Redistributions of source code must retain the above copyright notice, this list of conditi\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                    //  ||    //||                      |     ons and the following disclaimer.\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                   //   ||   // ||                      |  2. Redistributions in binary form must reproduce the above copyright notice, this list of cond\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                  //    ||  //  ||                      |     itions and the following disclaimer in the documentation and/or other materials provided wi\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                        || //   ||                      |     th the distribution.\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                        ||//    ||                      |  \n");
+    PetscPrintf(PETSC_COMM_WORLD," |                        ||      ||                      |  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS -AS IS- AND ANY EXPRESS OR\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                        ||      ||                      |  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY A\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                        ||      ||                      |  ND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR \n");
+    PetscPrintf(PETSC_COMM_WORLD," |________________________||______||______________________|  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENT\n");     
+    PetscPrintf(PETSC_COMM_WORLD," |               copyright : OK-CFD Lab                   |  IAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS \n");    
+    PetscPrintf(PETSC_COMM_WORLD," |               authors   : Stipa - Ajay - Haji          |  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABIL\n");    
+    PetscPrintf(PETSC_COMM_WORLD," |========================================================|  ITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISIN\n");        
+    PetscPrintf(PETSC_COMM_WORLD," |     Toolbox for Stratified Convective Atmospheres      |  G IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAG\n");        
+    PetscPrintf(PETSC_COMM_WORLD," |________________________________________________________|  E.\n\n\n\n");       
 
     return(0);
 }
