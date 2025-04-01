@@ -97,21 +97,23 @@ We recommend the following versions of the above libraries:</p>
 <li><p>HYPRE    : 2.20.0 (<a class="reference external" href="https://github.com/hypre-space/hypre/tree/master">https://github.com/hypre-space/hypre/tree/master</a>) (check version in /src/CMakeLists.txt).</p></li>
 <li><p>HDF5     : 1.12.1 (<a class="reference external" href="https://www.hdfgroup.org/downloads/hdf5/">https://www.hdfgroup.org/downloads/hdf5/</a>).</p></li>
 </ul>
-<p>Prior to install TOSCA, we suggest to create a folder named <code class="docutils literal notranslate"><span class="pre">Software</span></code> inside <code class="docutils literal notranslate"><span class="pre">$HOME</span></code>, where the PETSc, HYPRE and TOSCA directories will be located.
+<p>Prior to install TOSCA, we suggest to create a folder named <code class="docutils literal notranslate"><span class="pre">software</span></code> inside <code class="docutils literal notranslate"><span class="pre">$HOME</span></code>, where the PETSc, TOSCA and potentially other libraries directories will be located.
 In order to compile TOSCA on your system, please follow these steps:</p>
 <ol class="arabic">
 <li><p>Check your compiler version with <code class="docutils literal notranslate"><span class="pre">gcc</span> <span class="pre">--version</span></code></p></li>
-<li><p>Download PETSc into <code class="docutils literal notranslate"><span class="pre">$HOME/Software/</span></code></p></li>
-<li><p>Download HYPRE into <code class="docutils literal notranslate"><span class="pre">$HOME/Software/</span></code></p></li>
+<li><p>Download PETSc into <code class="docutils literal notranslate"><span class="pre">$HOME/software/</span></code></p></li>
 <li><p>Download Open MPI: you can download the binaries or compile from source (the latter is recommended if using <code class="docutils literal notranslate"><span class="pre">environment-modules</span></code> e.g. on an HPC architecture).
 If you have only one version of Open MPI installed on your system in the <code class="docutils literal notranslate"><span class="pre">/usr</span></code> directory (installed using sudo for example), you can omit the
-<code class="docutils literal notranslate"><span class="pre">--with-mpi-dir='your--path--to--mpicc'</span></code> at point 4: Open MPI will be found by the library locator.</p></li>
+<code class="docutils literal notranslate"><span class="pre">--with-mpi-dir='your--path--to--mpicc'</span></code> at point 5: Open MPI will be found by the library locator.</p></li>
+<li><p>Download HYPRE into <code class="docutils literal notranslate"><span class="pre">$HOME/software/</span></code>. This can be omitted if you use the <code class="docutils literal notranslate"><span class="pre">--download-hypre</span></code> option in the PETSc configure step (suggested).</p></li>
+<li><p>Download HDF5 into <code class="docutils literal notranslate"><span class="pre">$HOME/software/</span></code>. This can be omitted if you use the <code class="docutils literal notranslate"><span class="pre">--download-hdf5</span></code> option in the PETSc configure step (suggested).</p></li>
 <li><p>Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--with-fc<span class="o">=</span><span class="m">0</span><span class="w"> </span>--download-f2cblaslapack<span class="w"> </span>--download-hypre<span class="w"> </span>--with-64-bit-indices<span class="o">=</span><span class="m">1</span><span class="w"> </span>--with-debugging<span class="o">=</span><span class="m">0</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--with-fc<span class="o">=</span><span class="m">0</span><span class="w"> </span>--download-f2cblaslapack<span class="w"> </span>--download-hypre<span class="w"> </span>--download-hdf5<span class="w"> </span>--with-64-bit-indices<span class="o">=</span><span class="m">1</span><span class="w"> </span>--with-debugging<span class="o">=</span><span class="m">0</span>
 </pre></div>
 </div>
-<p>Note that other options are available. For example, if one wants to specify paths to already installed HYPRE and OpenMPI libraries,
-the options <code class="docutils literal notranslate"><span class="pre">--with-mpi-dir='your--path--to--mpicc'</span></code> and <code class="docutils literal notranslate"><span class="pre">--download-hypre='your--path--to--hypre'</span></code> can be used.</p>
+<p>Note that other options are available. For example, if one wants to specify paths to already installed OpenMPI libraries,
+the options <code class="docutils literal notranslate"><span class="pre">--with-mpi-dir='your--path--to--mpicc'</span></code> can be used. We strongly suggest to use the <code class="docutils literal notranslate"><span class="pre">--download-hypre</span></code> and <code class="docutils literal notranslate"><span class="pre">--download-hdf5</span></code> options,
+as they will download and compile the libraries automatically, making hte installation process easier.</p>
 </li>
 <li><p>Make PETSc (PETSc will suggest a command after the configure, we advice to use that):</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>all
@@ -125,30 +127,43 @@ the options <code class="docutils literal notranslate"><span class="pre">--with-
 </li>
 <li><p>Save an environment variable that will tell TOSCA where PETSc is installed in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>. For HPC installations
 it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc--dir&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
 </pre></div>
 </div>
 <p>or, for HPCs</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc--dir&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
 </pre></div>
 </div>
 </li>
 <li><p>Save an environment variable that will tell TOSCA which PETSc architecture is required in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>. For HPC installations
-it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_ARCH=arch-linux-c-opt&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p></li>
+</ol>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_ARCH=arch-linux-c-opt&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
 </pre></div>
 </div>
 <p>or, for HPCs</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_ARCH=arch-linux-c-opt&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
 </pre></div>
 </div>
-</li>
-</ol>
+</div></blockquote>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This is the folder within <code class="docutils literal notranslate"><span class="pre">$PETSC_DIR</span></code> with a name beginning with <code class="docutils literal notranslate"><span class="pre">arch-</span></code>. In a typical installation, it will be <code class="docutils literal notranslate"><span class="pre">arch-linux-c-opt</span></code>.</p>
 </div>
-<ol class="arabic" start="10">
+<ol class="arabic" start="11">
+<li><p>Save an environment variable that will tell TOSCA where HDF5 libraries/include files will be located in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>. For HPC installations
+it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead. This variable will be used in the TOSCA <code class="docutils literal notranslate"><span class="pre">makefile</span></code> to compile <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>.
+If you have installed HDF5 using the <code class="docutils literal notranslate"><span class="pre">--download-hdf5</span></code> option in the PETSc configure step, the HDF5 <cite>lib</cite> and <cite>include</cite> directories will be located in
+the <code class="docutils literal notranslate"><span class="pre">$PETSC_DIR/$PETSC_ARCH/</span></code> folder, together with HYPRE and PETSc ones.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export HDF5_DIR=</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+</pre></div>
+</div>
+<p>or, for HPCs</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export HDF5_DIR=</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
+</pre></div>
+</div>
+</li>
 <li><p>Add the PETSc shared libraries to your library path environment variable in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>. For HPC installations
 it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export LD_LIBRARY_PATH=</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">:</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">/lib&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
