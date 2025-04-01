@@ -107,7 +107,7 @@ If you have only one version of Open MPI installed on your system in the <code c
 <code class="docutils literal notranslate"><span class="pre">--with-mpi-dir='your--path--to--mpicc'</span></code> at point 6: Open MPI will be found by the library locator.</p></li>
 <li><p>Download HYPRE into <code class="docutils literal notranslate"><span class="pre">$HOME/software/</span></code>. This can be omitted if you use the <code class="docutils literal notranslate"><span class="pre">--download-hypre</span></code> option in the PETSc configure step (suggested).</p></li>
 <li><p>Download HDF5 into <code class="docutils literal notranslate"><span class="pre">$HOME/software/</span></code>. This can be omitted if you use the <code class="docutils literal notranslate"><span class="pre">--download-hdf5</span></code> option in the PETSc configure step (suggested).</p></li>
-<li><p>Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:</p>
+<li><p>Configure PETSc. We suggest the following configure options, which will automatically compile HYPRE and HDF5.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--with-fc<span class="o">=</span><span class="m">0</span><span class="w"> </span>--download-f2cblaslapack<span class="w"> </span>--download-hypre<span class="w"> </span>--download-hdf5<span class="w"> </span>--with-64-bit-indices<span class="o">=</span><span class="m">1</span><span class="w"> </span>--with-debugging<span class="o">=</span><span class="m">0</span>
 </pre></div>
 </div>
