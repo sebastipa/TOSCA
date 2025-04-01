@@ -2,9 +2,10 @@
 # ========================================================================== #
 # 1. A working compiler (only tested with gcc)
 # 2. OpenMPI   (we suggest using the default e.g. from environment-modules)
-# 3. PETSc     (we suggest compiling from source, see README file)
-# 4. HDF5      (we suggest using the default e.g. from environment-modules)
-# 5. Catalyst2 (optional, see README file)
+# 3. PETSc     (we suggest compiling from source, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html)
+# 4. HDF5      (we suggest using the PETSc automatic installation)
+# 5. HYPRE     (we suggest using the PETSc automatic installation)
+# 6. Catalyst2 (optional, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html#paraview-catalyst2-os-rendering)
 # ========================================================================== #
 
 # mpixx compiler should be available with OpenMPI (required)
