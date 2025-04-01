@@ -5,7 +5,7 @@ windFarmName            Piombino
 
 arraySpecification      onebyone
 
-debug                   1
+debug                   0
 
 writeSettings
 {
@@ -19,8 +19,8 @@ turbineArray
     A1
     (
         turbineType         NREL5MW
-        turbineModel        ADM
-        baseLocation        (250.0 100.0 0.0)
+        turbineModel        uniformADM
+        baseLocation        (250.0 250.0 0.0)
         windFarmController  0
     )
 }

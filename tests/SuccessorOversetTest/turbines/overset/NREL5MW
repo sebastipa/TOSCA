@@ -16,7 +16,7 @@ includeNacelle      0
 # Controllers 
 genControllerType   fiveRegionsNREL
 pitchControllerType fiveRegionsNREL
-yawControllerType   none
+yawControllerType   fiveRegionsNREL
 
 # Actuator disk model parameters
 nBlades             3
@@ -24,8 +24,10 @@ rotationDir         cw
 nRadPts             40
 nAziPts             100
 epsilon             8.0
-debug               1
-initialOmega        8
+debug               0
+initialOmega        10.41
+projection          isotropic
+sampleType          rotorDisk
 
 # Uniform actuator disk parameters
 Ct                  0.783

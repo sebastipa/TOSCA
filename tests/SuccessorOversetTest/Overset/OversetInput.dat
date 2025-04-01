@@ -20,6 +20,7 @@ Mesh0
     parentMesh 	   (-1)
     childMesh 	   (1)
     windplant      0
+    ibm	           0
 }
 
 Mesh1
@@ -28,8 +29,19 @@ Mesh1
     parentMesh 	   (0)
     childMesh 	   (-1)
     windplant      1
+    ibm		   0
 }
 
+holeObject0
+{
+    bodyName                        holeMesh
+    bodyType                        closedBody
+
+    fileType                        ucd
+    baseLocation                    (250.0 250.0 0.0)
+
+    searchCellRatio                 3
+}
 
 #Overset simulation properties
 

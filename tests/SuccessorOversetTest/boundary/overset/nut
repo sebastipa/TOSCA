@@ -12,7 +12,7 @@ iLeft   	 zeroGradient
 
 iRight  	 zeroGradient
 
-jLeft   	 zeroGradient
+jLeft   	 fixedValue 0.0
 
 jRight  	 zeroGradient
 

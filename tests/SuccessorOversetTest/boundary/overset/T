@@ -12,7 +12,7 @@ iLeft   	 oversetInterpolate
 
 iRight  	 oversetInterpolate
 
-jLeft   	 oversetInterpolate
+jLeft   	 zeroGradient
 
 jRight  	 oversetInterpolate
 

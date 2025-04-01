@@ -44,7 +44,7 @@ controllerProperties
 {
     # Velocity controller type (write->pressure/geostrophic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
     controllerAction read
-    controllerType timeAverageSeries
+    controllerType   timeAverageSeries
 
     # Velocity controller gain factor 
     relaxPI 0.7
@@ -60,7 +60,9 @@ controllerProperties
     
     # Start time for the given momentum source average (only controller type 'average')
     controllerAvgStartTime 6000.0
-    
+   
+    geostrophicDamping 0
+    mesoScaleInput      0 
     # Geostrophic height
     hGeo 900
     
