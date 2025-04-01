@@ -48,6 +48,7 @@ struct peqn_
 
     // access
     access_            *access;                 //!< access database
+    word               initFieldType;           //!< initial pressure field
 
 };
 

@@ -224,6 +224,16 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetABLInitialFlowU(ueqn);
     }
+    else if (ueqn->initFieldType == "TGVFlow")
+    {
+         PetscReal u0, freq;
+        
+         readSubDictDouble (filename.c_str(), "TGVFlow", "u0", &u0);
+         readSubDictDouble (filename.c_str(), "TGVFlow", "freq",      &freq);
+
+         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
+         SetTaylorGreenFieldU(ueqn, u0, freq);
+    }
     else if (ueqn->initFieldType == "spreadInflow")
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
@@ -318,6 +328,19 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
 
 PetscErrorCode SetInitialFieldP(peqn_ *peqn)
 {
+    
+    if(peqn->initFieldType == "TGVFlow")
+    {
+        // set TGV initial pressure
+        SetTaylorGreenFieldP(peqn);
+    }
+
+    
+    else
+    {
+
+    }
+    
     return(0);
 }
 
@@ -752,6 +775,158 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
     return(0);
 }
 
+//***************************************************************************************************************//
+PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq)
+{
+    mesh_         *mesh = ueqn->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***ucont, ***ucat, ***cent;
+    Cmpnts        ***icsi, ***jeta, ***kzet;
+    Cmpnts           uFaceI, uFaceJ, uFaceK;
+    
+    PetscInt i, j, k;
+    PetscInt lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; lxe = xe; if (xs == 0)    lxs = xs + 1; if (xe == mx) lxe = xe - 1;
+    lys = ys; lye = ye; if (ys == 0)    lys = ys + 1; if (ye == my) lye = ye - 1;
+    lzs = zs; lze = ze; if (zs == 0)    lzs = zs + 1; if (ze == mz) lze = ze - 1;
+
+    PetscReal Lx = mesh->bounds.Lx;
+    PetscReal Ly = mesh->bounds.Ly;
+    PetscReal Lz = mesh->bounds.Lz;
+
+
+
+    PetscReal kx = freq * (2.0 * M_PI / Lx);
+    PetscReal ky = freq * (2.0 * M_PI / Ly);
+    PetscReal kz = freq * (2.0 * M_PI / Lz); 
+
+    //get array
+    DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);    
+
+    // loop on the internal cells and set the reference cartesian velocity
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                // Grab physical coordinates of the cell center
+                PetscReal x = cent[k][j][i].x;
+                PetscReal y = cent[k][j][i].y;
+                PetscReal z = cent[k][j][i].z;
+
+                //set the TGV
+                PetscReal Utgv =  u0 * sin(kx * x) * cos(ky * y) * cos(kz * z);
+                PetscReal Vtgv = -u0 * cos(kx * x) * sin(ky * y) * cos(kz * z);
+                PetscReal Wtgv = 0.0;
+
+                
+                ucat[k][j][i].x = Utgv;
+                ucat[k][j][i].y = Vtgv;
+                ucat[k][j][i].z = Wtgv;
+            }
+        }
+    }
+
+    //restore array
+    DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    //scatter data to local values
+    DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+    DMGlobalToLocalEnd(fda,   ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+
+    
+    UpdateCartesianBCs(ueqn);
+
+    
+    DMDAVecGetArray(fda, mesh->lICsi, &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
+
+    // interpolate contravarient velocity at internal faces
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = xs; i < lxe; i++)
+            {
+                //interpolate ucat at the i,j,k face
+                uFaceI.x = 0.5 * (ucat[k][j][i].x + ucat[k][j][i+1].x);
+                uFaceI.y = 0.5 * (ucat[k][j][i].y + ucat[k][j][i+1].y);
+                uFaceI.z = 0.5 * (ucat[k][j][i].z + ucat[k][j][i+1].z);
+
+                ucont[k][j][i].x =
+                     uFaceI.x * icsi[k][j][i].x +
+                     uFaceI.y * icsi[k][j][i].y +
+                     uFaceI.z * icsi[k][j][i].z;
+            }
+        }
+    }
+    // j-face
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = ys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                
+                uFaceJ.x = 0.5 * (ucat[k][j][i].x + ucat[k][j+1][i].x);
+                uFaceJ.y = 0.5 * (ucat[k][j][i].y + ucat[k][j+1][i].y);
+                uFaceJ.z = 0.5 * (ucat[k][j][i].z + ucat[k][j+1][i].z);
+
+                ucont[k][j][i].y =
+                     uFaceJ.x * jeta[k][j][i].x +
+                     uFaceJ.y * jeta[k][j][i].y +
+                     uFaceJ.z * jeta[k][j][i].z;
+            }
+        }
+    }
+    // k-face
+    for (k = zs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                
+                uFaceK.x = 0.5 * (ucat[k][j][i].x + ucat[k+1][j][i].x);
+                uFaceK.y = 0.5 * (ucat[k][j][i].y + ucat[k+1][j][i].y);
+                uFaceK.z = 0.5 * (ucat[k][j][i].z + ucat[k+1][j][i].z);
+
+                ucont[k][j][i].z =
+                     uFaceK.x * kzet[k][j][i].x +
+                     uFaceK.y * kzet[k][j][i].y +
+                     uFaceK.z * kzet[k][j][i].z;
+            }
+        }
+    }
+
+    //Restore arrays
+    DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+
+    
+    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd(fda,   ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    UpdateContravariantBCs(ueqn);
+
+    return(0);
+}
 //***************************************************************************************************************//
 
 PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
@@ -1447,5 +1622,80 @@ PetscErrorCode SpreadInletFlowT(teqn_ *teqn)
     // update cartesian BCs again (sets cartesian velocity on ghost nodes)
     UpdateTemperatureBCs(teqn);
 
+    return(0);
+}
+//*******************************************************************************//
+
+PetscErrorCode SetTaylorGreenFieldP(peqn_ *peqn)
+{
+    mesh_         *mesh = peqn->access->mesh;
+    DM             da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo  info  = mesh->info;
+
+    PetscInt xs = info.xs, xe = info.xs + info.xm;
+    PetscInt ys = info.ys, ye = info.ys + info.ym;
+    PetscInt zs = info.zs, ze = info.zs + info.zm;
+    PetscInt mx = info.mx, my = info.my, mz = info.mz;
+    
+    
+    Cmpnts        ***cent; 
+    PetscReal     ***pp;   
+
+    
+    PetscInt i, j, k;
+    PetscInt lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; lxe = xe; if (xs == 0)    lxs = xs + 1; if (xe == mx) lxe = xe - 1;
+    lys = ys; lye = ye; if (ys == 0)    lys = ys + 1; if (ye == my) lye = ye - 1;
+    lzs = zs; lze = ze; if (zs == 0)    lzs = zs + 1; if (ze == mz) lze = ze - 1;
+
+    PetscReal Lx = mesh->bounds.Lx; 
+    PetscReal Ly = mesh->bounds.Ly; 
+    PetscReal Lz = mesh->bounds.Lz;
+
+    PetscReal pamp = 1.0;
+    PetscReal rho  = 1.225;
+
+    UpdatePhiBCs(peqn);
+
+ 
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    
+    DMDAVecGetArray(da, peqn->P, &pp);
+    
+    // loop over internal cells
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+  
+                PetscReal xCell = cent[k][j][i].x; 
+                PetscReal yCell = cent[k][j][i].y;
+                PetscReal zCell = cent[k][j][i].z;
+
+                PetscReal Xhat = (2.0 * M_PI / Lx) * xCell;
+                PetscReal Yhat = (2.0 * M_PI / Ly) * yCell;
+                PetscReal Zhat = (2.0 * M_PI / Lz) * zCell;
+
+                PetscReal val = pamp * (rho / 16.0) *
+                                (cos(2.0 * Xhat) + cos(2.0 * Yhat)) *
+                                (cos(2.0 * Zhat) + 2.0);
+
+                pp[k][j][i] = val;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(da,  peqn->P,     &pp);
+
+    DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
+    DMGlobalToLocalEnd(da,   peqn->P, INSERT_VALUES, peqn->lP);
+
+    UpdatePhiBCs(peqn);
+    PetscPrintf(mesh->MESH_COMM, "Initial pressure set to Taylor–Green Vortex field.\n");
     return(0);
 }
