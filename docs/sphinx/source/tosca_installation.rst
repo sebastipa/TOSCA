@@ -22,7 +22,7 @@ In order to compile TOSCA on your system, please follow these steps:
    ``--with-mpi-dir='your--path--to--mpicc'`` at point 6: Open MPI will be found by the library locator.
 4. Download HYPRE into ``$HOME/software/``. This can be omitted if you use the ``--download-hypre`` option in the PETSc configure step (suggested).
 5. Download HDF5 into ``$HOME/software/``. This can be omitted if you use the ``--download-hdf5`` option in the PETSc configure step (suggested).
-6. Configure PETSc (will automatically compile HYPRE). We suggest the following configure options:
+6. Configure PETSc. We suggest the following configure options, which will automatically compile HYPRE and HDF5. 
 
    .. code-block:: bash
    
