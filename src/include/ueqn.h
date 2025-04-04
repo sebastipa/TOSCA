@@ -50,9 +50,6 @@ struct ueqn_
     PetscInt      centralUpwindWDiv;          //!< blending between linear and upwind scheme for non-uniform mesh
     PetscInt      quickDiv;                   //!< 3rd order QUICK scheme
     PetscInt      weno3Div;                   //!< 3rd order WENO scheme
-
-    PetscInt      centralVisc;
-    PetscInt      central4Visc;
     
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch

@@ -2739,11 +2739,13 @@ inline void Compute_dscalar_i
 {
     *dkdc = K[k][j][i+1] - K[k][j][i];
 
-    if (isIBMIFace(k, j+1, i, i+1, nvert) || isOversetIFace(k, j+1, i, i+1, meshTag))
+    if (isIBMSolidIFace(k, j+1, i, i+1, nvert) || isZeroedIFace(k, j+1, i, i+1, meshTag) || 
+            (j==my-2 && (i==0 || i==mx-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
     {
         *dkde = (K[k][j  ][i+1] + K[k][j  ][i] - K[k][j-1][i+1] - K[k][j-1][i]) * 0.5;
     }
-    else if  (isIBMIFace(k, j-1, i, i+1, nvert) || isOversetIFace(k, j-1, i, i+1, meshTag))
+    else if  (isIBMSolidIFace(k, j-1, i, i+1, nvert) || isZeroedIFace(k, j-1, i, i+1, meshTag) || 
+            (j==1 && (i==0 || i==mx-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))    
     {
         *dkde = (K[k][j+1][i+1] + K[k][j+1][i] - K[k][j  ][i+1] - K[k][j  ][i]) * 0.5;
     }
@@ -2751,12 +2753,13 @@ inline void Compute_dscalar_i
     {
         *dkde = (K[k][j+1][i+1] + K[k][j+1][i] - K[k][j-1][i+1] - K[k][j-1][i]) * 0.25;
     }
-
-    if (isIBMIFace(k+1, j, i, i+1, nvert) || isOversetIFace(k+1, j, i, i+1, meshTag))
+    if (isIBMSolidIFace(k+1, j, i, i+1, nvert) || isZeroedIFace(k+1, j, i, i+1, meshTag) || 
+            (k==mz-2 && (i==0 || i==mx-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
     {
         *dkdz = (K[k  ][j][i+1] + K[k  ][j][i] - K[k-1][j][i+1] - K[k-1][j][i]) * 0.5;
     }
-    else if (isIBMIFace(k-1, j, i, i+1, nvert) || isOversetIFace(k-1, j, i, i+1, meshTag))
+    else if (isIBMSolidIFace(k-1, j, i, i+1, nvert) || isZeroedIFace(k-1, j, i, i+1, meshTag) || 
+            (k==1 && (i==0 || i==mx-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->i_periodic && !mesh->ii_periodic)) ))
     {
         *dkdz = (K[k+1][j][i+1] + K[k+1][j][i] - K[k  ][j][i+1] - K[k  ][j][i]) * 0.5;
     }
@@ -2778,11 +2781,13 @@ inline void Compute_dscalar_j
     PetscReal *dkdc, PetscReal *dkde, PetscReal *dkdz
 )
 {
-    if (isIBMJFace(k, j, i+1, j+1, nvert) || isOversetJFace(k, j, i+1, j+1, meshTag))
+    if (isIBMSolidJFace(k, j, i+1, j+1, nvert) || isZeroedJFace(k, j, i+1, j+1, meshTag) ||
+          (i==mx-2 && (j==0 || j==my-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
     {
         *dkdc = (K[k][j+1][i  ] + K[k][j][i  ] - K[k][j+1][i-1] - K[k][j][i-1]) * 0.5;
     }
-    else if (isIBMJFace(k, j, i-1, j+1, nvert) || isOversetJFace(k, j, i-1, j+1, meshTag))
+    else if (isIBMSolidJFace(k, j, i-1, j+1, nvert) || isZeroedJFace(k, j, i-1, j+1, meshTag) || 
+            (i==1 && (j==0 || j==my-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
     {
         *dkdc = (K[k][j+1][i+1] + K[k][j][i+1] - K[k][j+1][i  ] - K[k][j][i  ]) * 0.5;
     }
@@ -2793,11 +2798,13 @@ inline void Compute_dscalar_j
 
     *dkde = K[k][j+1][i] - K[k][j][i];
 
-    if (isIBMJFace(k+1, j, i, j+1, nvert) || isOversetJFace(k+1, j, i, j+1, meshTag))
+    if (isIBMSolidJFace(k+1, j, i, j+1, nvert) || isZeroedJFace(k+1, j, i, j+1, meshTag) || 
+            (k==mz-2 && (j==0 || j==my-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
     {
         *dkdz = (K[k  ][j+1][i] + K[k  ][j][i] - K[k-1][j+1][i] - K[k-1][j][i]) * 0.5;
     }
-    else if (isIBMJFace(k-1, j, i, j+1, nvert) || isOversetJFace(k+1, j, i, j+1, meshTag))
+    else if (isIBMSolidJFace(k-1, j, i, j+1, nvert) || isZeroedJFace(k-1, j, i, j+1, meshTag) ||
+            (k==1 && (j==0 || j==my-2) && ((!mesh->k_periodic && !mesh->kk_periodic) || (!mesh->j_periodic && !mesh->jj_periodic)) ))
     {
         *dkdz = (K[k+1][j+1][i] + K[k+1][j][i] - K[k  ][j+1][i] - K[k  ][j][i]) * 0.5;
     }
@@ -2819,11 +2826,13 @@ inline void Compute_dscalar_k
     PetscReal *dkdc, PetscReal *dkde, PetscReal *dkdz
 )
 {
-    if (isIBMKFace(k, j, i+1, k+1, nvert) || isOversetKFace(k, j, i+1, k+1, meshTag))
+    if (isIBMSolidKFace(k, j, i+1, k+1, nvert) || isZeroedKFace(k, j, i+1, k+1, meshTag) || 
+          (i==mx-2 && (k==0 || k==mz-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
     {
         *dkdc = (K[k+1][j][i  ] + K[k][j][i  ] - K[k+1][j][i-1] - K[k][j][i-1]) * 0.5;
     }
-    else if (isIBMKFace(k, j, i-1, k+1, nvert) || isOversetKFace(k, j, i-1, k+1, meshTag))
+    else if (isIBMSolidKFace(k, j, i-1, k+1, nvert) || isZeroedKFace(k, j, i-1, k+1, meshTag) ||
+            (i==1 && (k==0 || k==mz-2) && ((!mesh->i_periodic && !mesh->ii_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
     {
         *dkdc = (K[k+1][j][i+1] + K[k][j][i+1] - K[k+1][j][i  ] - K[k][j][i  ]) * 0.5;
     }
@@ -2832,11 +2841,13 @@ inline void Compute_dscalar_k
         *dkdc = (K[k+1][j][i+1] + K[k][j][i+1] - K[k+1][j][i-1] - K[k][j][i-1]) * 0.25;
     }
 
-    if (isIBMKFace(k, j+1, i, k+1, nvert) || isOversetKFace(k, j+1, i, k+1, meshTag))
+    if (isIBMSolidKFace(k, j+1, i, k+1, nvert) || isZeroedKFace(k, j+1, i, k+1, meshTag) || 
+            (j==my-2 && (k==0 || k==mz-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
     {
         *dkde = (K[k+1][j  ][i] + K[k][j  ][i] - K[k+1][j-1][i] - K[k][j-1][i]) * 0.5;
     }
-    else if (isIBMKFace(k, j-1, i, k+1, nvert) || isOversetKFace(k, j-1, i, k+1, meshTag))
+    else if (isIBMSolidKFace(k, j-1, i, k+1, nvert) || isZeroedKFace(k, j-1, i, k+1, meshTag) || 
+            (j==1 && (k==0 || k==mz-2) && ((!mesh->j_periodic && !mesh->jj_periodic) || (!mesh->k_periodic && !mesh->kk_periodic)) ))
     {
         *dkde = (K[k+1][j+1][i] + K[k][j+1][i] - K[k+1][j  ][i] - K[k][j  ][i]) * 0.5;
     }
@@ -3725,9 +3736,9 @@ inline Cmpnts centralVec(Cmpnts f0, Cmpnts f1)
 inline Cmpnts centralVec4th(Cmpnts f_im1, Cmpnts f_i, Cmpnts f_ip1, Cmpnts f_ip2)
 {
     Cmpnts result;
-    result.x = (-f_im1.x + 8.0 * f_i.x + 8.0 * f_ip1.x - f_ip2.x) / 12.0;
-    result.y = (-f_im1.y + 8.0 * f_i.y + 8.0 * f_ip1.y - f_ip2.y) / 12.0;
-    result.z = (-f_im1.z + 8.0 * f_i.z + 8.0 * f_ip1.z - f_ip2.z) / 12.0;
+    result.x = (f_im1.x - 27.0 * f_i.x + 27.0 * f_ip1.x - f_ip2.x) / 24.0;
+    result.y = (f_im1.y - 27.0 * f_i.y + 27.0 * f_ip1.y - f_ip2.y) / 24.0;
+    result.z = (f_im1.z - 27.0 * f_i.z + 27.0 * f_ip1.z - f_ip2.z) / 24.0;
     return result;
 }
 

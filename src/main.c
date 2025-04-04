@@ -59,6 +59,9 @@ int main(int argc, char **argv)
 
         for(PetscInt d=0; d<info.nDomains; d++)
         {
+            if(flags.isOversetActive)
+                PetscPrintf(PETSC_COMM_WORLD, "\nDomain: %ld\n\n", *(domain[d].access.domainID));
+
             // reset flags based on domain preferences
             flags = domain[d].flags;
 

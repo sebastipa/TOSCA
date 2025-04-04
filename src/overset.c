@@ -640,6 +640,8 @@ PetscErrorCode setOversetBC(mesh_ *meshA)
 PetscErrorCode setBackgroundBC(mesh_ *meshA)
 {
     ueqn_         *ueqn = meshA->access->ueqn;
+    teqn_         *teqn = meshA->access->teqn;
+    flags_        *flags= meshA->access->flags;
     DM            da    = meshA->da, fda = meshA->fda;
     DMDALocalInfo info  = meshA->info;
     PetscInt      xs    = info.xs, xe = info.xs + info.xm;
@@ -650,7 +652,7 @@ PetscErrorCode setBackgroundBC(mesh_ *meshA)
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
     PetscInt         i, j, k;
 
-    PetscReal        ***meshTag;
+    PetscReal        ***meshTag, ***Temp;
     PetscReal        ucx, ucy, ucz;
 
     Cmpnts           ***lucat, ***ucat, ***ucont, ***icsi, ***jeta, ***kzet;
@@ -666,6 +668,11 @@ PetscErrorCode setBackgroundBC(mesh_ *meshA)
     DMDAVecGetArray(fda, meshA->lJEta, &jeta);
     DMDAVecGetArray(fda, meshA->lKZet, &kzet);
     DMDAVecGetArray(da, meshA->lmeshTag, &meshTag);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecGetArray(da, teqn->Tmprt, &Temp);
+    }
 
     for (k=lzs; k<lze; k++)
     for (j=lys; j<lye; j++)
@@ -715,7 +722,17 @@ PetscErrorCode setBackgroundBC(mesh_ *meshA)
 
         if(isZeroedCell(k, j, i, meshTag))
         {
-          mSetValue(ucat[k][j][i], 0);
+            mSetValue(ucat[k][j][i], 0);
+
+            if (flags->isTeqnActive)
+            {
+                PetscReal tRef;
+
+                if(flags->isAblActive) tRef = teqn->access->abl->tRef;
+                else                   tRef = teqn->access->constants->tRef;
+                
+                Temp[k][j][i] = tRef;
+            }
         }
     }
 
@@ -726,6 +743,14 @@ PetscErrorCode setBackgroundBC(mesh_ *meshA)
     DMDAVecRestoreArray(fda, meshA->lJEta, &jeta);
     DMDAVecRestoreArray(fda, meshA->lKZet, &kzet);
     DMDAVecRestoreArray(da,  meshA->lmeshTag, &meshTag);
+
+    if (flags->isTeqnActive)
+    {
+        DMDAVecRestoreArray(da, teqn->Tmprt, &Temp);
+
+        DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+        DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    }
 
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);

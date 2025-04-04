@@ -39,9 +39,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     ueqn->weno3Div          = 0;
     ueqn->quickDiv          = 0;
 
-    ueqn->centralVisc       = 0;
-    ueqn->central4Visc      = 0;
-
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-inviscid", &(ueqn->inviscid),   PETSC_NULL);
 
     // read time discretization scheme
@@ -49,9 +46,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     // read divergence scheme
     readDictWord("control.dat", "-divScheme", &(ueqn->divScheme));
-    
-    // read diffusion term scheme
-    readDictWord("control.dat", "-viscScheme", &(ueqn->viscScheme));
 
     if(     ueqn->divScheme == "centralUpwind")  ueqn->centralUpwindDiv  = 1;
     else if(ueqn->divScheme == "centralUpwindW") ueqn->centralUpwindWDiv = 1;
@@ -59,9 +53,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     else if(ueqn->divScheme == "central4")       ueqn->central4Div       = 1;
     else if(ueqn->divScheme == "weno3")          ueqn->weno3Div          = 1;
     else if(ueqn->divScheme == "quickDiv")       ueqn->quickDiv          = 1;
-
-    if(     ueqn->viscScheme == "central")        ueqn->centralVisc  = 1;
-    else if(ueqn->viscScheme == "central4")       ueqn->central4Visc = 1;
     
     VecDuplicate(mesh->Cent, &(ueqn->Utmp));      VecSet(ueqn->Utmp,    0.0);
     VecDuplicate(mesh->Cent, &(ueqn->Rhs));       VecSet(ueqn->Rhs,     0.0);
@@ -4223,7 +4214,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                      ***coor;
     PetscReal        epsilon = 1.e-10, ***nvert;
 
-    PetscScalar      ratio;
+    PetscScalar      globalFlux;
     PetscScalar      lFluxIn = 0.0, lFluxOut = 0.0,
                      FluxIn  = 0.0, FluxOut  = 0.0;
 
@@ -4253,9 +4244,16 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k+1, j, i, nvert)) ){
-                        lFluxIn   +=  ucont[k][j][i].z;
-
+                    if(fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k+1, j, i, nvert)) )
+                    {
+                        if (ucont[k][j][i].z > 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].z);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].z);
+                        }
                     }
                     else
                     {
@@ -4279,9 +4277,16 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k, j, i, nvert)) ){
-                        lFluxOut   +=  ucont[k][j][i].z;
-
+                    if(fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k, j, i, nvert)) )
+                    {
+                        if (ucont[k][j][i].z < 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].z);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].z);
+                        }
                     }
                     else
                     {
@@ -4311,8 +4316,16 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j+1, i, nvert)) ){
-                        lFluxIn   +=  ucont[k][j][i].y;
+                    if(fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j+1, i, nvert)) )
+                    {
+                        if (ucont[k][j][i].y > 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].y);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].y);
+                        } 
                     }
                     else
                     {
@@ -4336,8 +4349,16 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j, i, nvert)) ){
-                        lFluxOut   +=  ucont[k][j][i].y;
+                    if(fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j, i, nvert)) )
+                    {
+                        if (ucont[k][j][i].y < 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].y);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].y);
+                        }
                     }
                     else
                     {
@@ -4369,7 +4390,14 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
 
                     if(fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i+1, nvert)) )
                     {
-                        lFluxIn   +=  ucont[k][j][i].x;
+                        if (ucont[k][j][i].x > 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].x);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].x);
+                        }  
                     }
                     else
                     {
@@ -4393,8 +4421,16 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     // cumulate flux
 
-                    if(fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i, nvert)) ){
-                        lFluxOut   +=  ucont[k][j][i].x;
+                    if(fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i, nvert)) )
+                    {
+                        if (ucont[k][j][i].x < 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].x);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].x);
+                        }
                     }
                     else
                     {
@@ -4409,29 +4445,62 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
     // cumulate the net influx and net outflux
     MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    
+    globalFlux = FluxIn - FluxOut;
 
-    //PetscPrintf(mesh->MESH_COMM, "\n fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
+    // PetscPrintf(mesh->MESH_COMM, "\n fluxin = %lf, fluxout = %lf, netFlux = %lf\n", FluxIn, FluxOut, globalFlux);
 
-    if(FluxOut > 1.e-15)
-    {
-        ratio = (FluxIn) / FluxOut;
-    }
-    else
-    {
-        ratio = 1.0;
-    }
+    //compute the correction factor
+    PetscInt flagKRight = 0, flagJRight = 0, flagIRight = 0;
+    PetscInt flagKLeft = 0, flagJLeft = 0, flagILeft = 0;
 
-    // correct only outflow patches - outflow patches are assumed to be the right side patches
-    // this is not generic but for inflow - outflow problems with outflow on the right patches this should work
+    PetscReal scaleK = 0.0,  scaleJ = 0.0, scaleI = 0.0;
+    
     if
     (
         !mesh->k_periodic && !mesh->kk_periodic
     )
     {
+        if ((mesh->boundaryU.kRight!="inletFunction") && (mesh->boundaryU.kRight!="fixedValue")) flagKRight++;
+        if ((mesh->boundaryU.kLeft!="inletFunction") && (mesh->boundaryU.kLeft!="fixedValue"))  flagKLeft++;
 
+        if(flagKRight && flagKLeft) scaleK = 0.5;
+        else scaleK = 1.0;
+    }
+
+    if
+    (
+       !mesh->j_periodic && !mesh->jj_periodic
+    )
+    {
+        if ((mesh->boundaryU.jRight!="inletFunction") && (mesh->boundaryU.jRight!="fixedValue")) flagJRight++;
+        if ((mesh->boundaryU.jLeft!="inletFunction") && (mesh->boundaryU.jLeft!="fixedValue")) flagJLeft++;
+
+        if(flagJRight && flagJLeft) scaleJ = 0.5;
+        else scaleJ = 1.0;
+    }
+
+    if
+    (
+        !mesh->i_periodic && !mesh->ii_periodic
+    )
+    {
+        if ((mesh->boundaryU.iRight!="inletFunction") && (mesh->boundaryU.iRight!="fixedValue")) flagIRight++;
+        if ((mesh->boundaryU.iLeft!="inletFunction") && (mesh->boundaryU.iLeft!="fixedValue")) flagILeft++;
+
+        if(flagIRight && flagILeft) scaleI = 0.5;
+        else scaleI = 1.0;
+    }
+
+    //correct the fluxes
+    if
+    (
+       !mesh->k_periodic && !mesh->kk_periodic
+    )
+    {
         // correct outflow velocity on the k-right patch
 
-            if (ze==mz  && (mesh->boundaryU.kRight!="inletFunction") && (mesh->boundaryU.kRight!="fixedValue"))
+            if (ze==mz  && flagKRight)
             {
                 k = mz-2;
 
@@ -4442,30 +4511,45 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                         if (fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k, j, i, nvert)) )
                         {
                             // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].z *= ratio;
-
+                            if (ucont[k][j][i].z < 0) // Influx 
+                            {
+                                if (FluxIn > 1e-15)
+                                    ucont[k][j][i].z -= scaleK * globalFlux * (ucont[k][j][i].z / FluxIn);
+                            }
+                            else // Outflux 
+                            {
+                                if (FluxOut > 1e-15)
+                                    ucont[k][j][i].z += scaleK * globalFlux * (ucont[k][j][i].z / FluxOut);
+                            }
                         }
                     }
                 }
             }
 
-            // if (zs==0  && (mesh->boundaryU.kLeft!="inletFunction") && (mesh->boundaryU.kLeft!="fixedValue"))
-            // {
-            //     k = 0;
+            if (zs==0  && flagKLeft)
+            {
+                k = 0;
 
-            //     for (j=lys; j<lye; j++)
-            //     {
-            //         for (i=lxs; i<lxe; i++)
-            //         {
-            //             if (fabs(ucont[k][j][i].z) > epsilon)
-            //             {
-            //                 // correct contrav. vel. at boundary faces
-            //                 ucont[k][j][i].z /= ratio;
-
-            //             }
-            //         }
-            //     }
-            // }
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if (fabs(ucont[k][j][i].z) > epsilon)
+                        {
+                            if (ucont[k][j][i].z > 0) // Influx 
+                            {
+                                if (FluxIn > 1e-15)
+                                    ucont[k][j][i].z -= scaleK * globalFlux * (ucont[k][j][i].z / FluxIn);
+                            }
+                            else // Outflux 
+                            {
+                                if (FluxOut > 1e-15)
+                                    ucont[k][j][i].z += scaleK * globalFlux * (ucont[k][j][i].z / FluxOut);
+                            }
+                        }
+                    }
+                }
+            }
 
     }
 
@@ -4477,7 +4561,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
 
         // correct outflow velocity on the j-right patch
 
-            if (ye==my  && (mesh->boundaryU.jRight!="inletFunction") && (mesh->boundaryU.jRight!="fixedValue"))
+            if (ye==my  && flagJRight)
             {
                 j = my-2;
 
@@ -4489,31 +4573,47 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                         {
 
                             // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].y *= ratio;
-
+                            if (ucont[k][j][i].y < 0) // Influx 
+                            {
+                                if (FluxIn > 1e-15)
+                                    ucont[k][j][i].y -= scaleJ * globalFlux * (ucont[k][j][i].y / FluxIn);
+                            }
+                            else // Outflux 
+                            {
+                                if (FluxOut > 1e-15)
+                                    ucont[k][j][i].y += scaleJ * globalFlux * (ucont[k][j][i].y / FluxOut);
+                            }
                         }
                     }
                 }
             }
 
-            // if (ys==0  && (mesh->boundaryU.jLeft!="inletFunction") && (mesh->boundaryU.jLeft!="fixedValue"))
-            // {
-            //     j = 0;
+            if (ys==0  && flagJLeft)
+            {
+                j = 0;
 
-            //     for (k=lzs; k<lze; k++)
-            //     {
-            //         for (i=lxs; i<lxe; i++)
-            //         {
-            //             if (fabs(ucont[k][j][i].y) > epsilon)
-            //             {
+                for (k=lzs; k<lze; k++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if (fabs(ucont[k][j][i].y) > epsilon)
+                        {
 
-            //                 // correct contrav. vel. at boundary faces
-            //                 ucont[k][j][i].y /= ratio;
-
-            //             }
-            //         }
-            //     }
-            // }
+                            // correct contrav. vel. at boundary faces
+                            if (ucont[k][j][i].y > 0) // Influx 
+                            {
+                                if (FluxIn > 1e-15)
+                                    ucont[k][j][i].y -= scaleJ * globalFlux * (ucont[k][j][i].y / FluxIn);
+                            }
+                            else // Outflux 
+                            {
+                                if (FluxOut > 1e-15)
+                                    ucont[k][j][i].y += scaleJ * globalFlux * (ucont[k][j][i].y / FluxOut);
+                            }
+                        }
+                    }
+                }
+            }
 
     }
 
@@ -4525,7 +4625,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
 
         // correct outflow velocity on the i-right patch
 
-        if (xe==mx  && (mesh->boundaryU.iRight!="inletFunction") && (mesh->boundaryU.iRight!="fixedValue"))
+        if (xe==mx  && flagIRight)
         {
             i = mx-2;
 
@@ -4535,213 +4635,270 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 {
                     if (fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i, nvert)) )
                     {
-
-                        // correct contrav. vel. at boundary faces
-                        ucont[k][j][i].x *= ratio;
+                        if (ucont[k][j][i].x < 0) // Influx 
+                        {
+                            if (FluxIn > 1e-15)
+                                ucont[k][j][i].x -= scaleI * globalFlux * (ucont[k][j][i].x / FluxIn);
+                        }
+                        else // Outflux 
+                        {
+                            if (FluxOut > 1e-15)
+                                ucont[k][j][i].x += scaleI * globalFlux * (ucont[k][j][i].x / FluxOut);
+                        }
                     }
                 }
             }
         }
 
-        // if (xs==0  && (mesh->boundaryU.iLeft!="inletFunction") && (mesh->boundaryU.iLeft!="fixedValue"))
-        // {
-        //     i = 0;
-
-        //     for (k=lzs; k<lze; k++)
-        //     {
-        //         for (j=lys; j<lye; j++)
-        //         {
-        //             if (fabs(ucont[k][j][i].x) > epsilon)
-        //             {
-
-        //                 // correct contrav. vel. at boundary faces
-        //                 ucont[k][j][i].x /= ratio;
-        //             }
-        //         }
-        //     }
-        // }
-    }
-
-    // Recalculate flux to check if corrected
-    lFluxIn = 0.0, lFluxOut = 0.0,
-    FluxIn  = 0.0, FluxOut  = 0.0;
-
-    if
-    (
-        !mesh->k_periodic && !mesh->kk_periodic
-    )
-    {
-        // compute inflow flux at k-left boundary
-        if (zs==0)
+        if (xs==0  && flagILeft)
         {
-            // k-right boundary face
-            k = 0;
-
-            // loop on the boundary faces
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].z;
-
-                    }
-                    else
-                    {
-                        ucont[k][j][i].z = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute outflow flux at k-right boundary
-        if (ze==mz)
-        {
-            // k-right boundary face
-            k = mz-2;
-
-            // loop on the boundary cells
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].z;
-
-                    }
-                    else
-                    {
-                        ucont[k][j][i].z = 0.;
-                    }
-
-                }
-            }
-        }
-    }
-
-    if
-    (
-        !mesh->j_periodic && !mesh->jj_periodic
-    )
-    {
-        // compute flux at j-left boundary
-        if (ys==0)
-        {
-            // k-right boundary face
-            j = 0;
-
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].y;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute flux at j-right boundary
-        if (ye==my)
-        {
-            // k-right boundary face
-            j = my-2;
-
-            // loop on the boundary cells
-            for (k=lzs; k<lze; k++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].y;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
-                    }
-
-                }
-            }
-        }
-    }
-
-    if
-    (
-        !mesh->i_periodic && !mesh->ii_periodic
-    )
-    {
-        // compute flux at i-left boundary
-        if (xs==0)
-        {
-            // i-right boundary face
             i = 0;
 
-            // loop on the boundary faces
             for (k=lzs; k<lze; k++)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].x) > epsilon)
+                    if (fabs(ucont[k][j][i].x) > epsilon)
                     {
-                        lFluxIn   +=  ucont[k][j][i].x;
+                        if (ucont[k][j][i].x > 0) // Influx 
+                        {
+                            if (FluxIn > 1e-15)
+                                ucont[k][j][i].x -= scaleI * globalFlux * (ucont[k][j][i].x / FluxIn);
+                        }
+                        else // Outflux 
+                        {
+                            if (FluxOut > 1e-15)
+                                ucont[k][j][i].x += scaleI * globalFlux * (ucont[k][j][i].x / FluxOut);
+                        }
                     }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute flux at i-right boundary
-        if (xe==mx)
-        {
-            // k-right boundary face
-            i = mx-2;
-
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].x) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].x;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
-                    }
-
                 }
             }
         }
     }
 
-    // cumulate the net influx and net outflux
-    MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    // // Recalculate flux to check if corrected
+    // lFluxIn = 0.0, lFluxOut = 0.0,
+    // FluxIn  = 0.0, FluxOut  = 0.0;
 
-    // PetscPrintf(mesh->MESH_COMM, "After correction fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
+    // if
+    // (
+    //     !mesh->k_periodic && !mesh->kk_periodic
+    // )
+    // {
+    //     // compute inflow flux at k-left boundary
+    //     if (zs==0)
+    //     {
+    //         // k-right boundary face
+    //         k = 0;
+
+    //         // loop on the boundary faces
+    //         for (j=lys; j<lye; j++)
+    //         {
+    //             for (i=lxs; i<lxe; i++)
+    //             {
+    //                 // cumulate flux and area
+
+    //                 if(fabs(ucont[k][j][i].z) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].z > 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].z);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].z);
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].z = 0.;
+    //                 }
+
+    //             }
+    //         }
+    //     }
+
+    //     // compute outflow flux at k-right boundary
+    //     if (ze==mz)
+    //     {
+    //         // k-right boundary face
+    //         k = mz-2;
+
+    //         // loop on the boundary cells
+    //         for (j=lys; j<lye; j++)
+    //         {
+    //             for (i=lxs; i<lxe; i++)
+    //             {
+    //                 // cumulate flux 
+    //                 if(fabs(ucont[k][j][i].z) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].z < 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].z);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].z);
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].z = 0.;
+    //                 }
+
+    //             }
+    //         }
+    //     }
+    // }
+
+    // if
+    // (
+    //     !mesh->j_periodic && !mesh->jj_periodic
+    // )
+    // {
+    //     // compute flux at j-left boundary
+    //     if (ys==0)
+    //     {
+    //         // k-right boundary face
+    //         j = 0;
+
+    //         // loop on the boundary faces
+    //         for (k=lzs; k<lze; k++)
+    //         {
+    //             for (i=lxs; i<lxe; i++)
+    //             {
+    //                 // cumulate flux and area
+
+    //                 if(fabs(ucont[k][j][i].y) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].y > 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].y);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].y);
+    //                     }  
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].y = 0.;
+    //                 }
+
+    //             }
+    //         }
+    //     }
+
+    //     // compute flux at j-right boundary
+    //     if (ye==my)
+    //     {
+    //         // k-right boundary face
+    //         j = my-2;
+
+    //         // loop on the boundary cells
+    //         for (k=lzs; k<lze; k++)
+    //         {
+    //             for (i=lxs; i<lxe; i++)
+    //             {
+    //                 // cumulate flux and area
+    //                 if(fabs(ucont[k][j][i].y) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].y < 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].y);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].y);
+    //                     }                    
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].y = 0.;
+    //                 }
+
+    //             }
+    //         }
+    //     }
+    // }
+
+    // if
+    // (
+    //     !mesh->i_periodic && !mesh->ii_periodic
+    // )
+    // {
+    //     // compute flux at i-left boundary
+    //     if (xs==0)
+    //     {
+    //         // i-right boundary face
+    //         i = 0;
+
+    //         // loop on the boundary faces
+    //         for (k=lzs; k<lze; k++)
+    //         {
+    //             for (j=lys; j<lye; j++)
+    //             {
+    //                 // cumulate flux and area
+
+    //                 if(fabs(ucont[k][j][i].x) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].x > 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].x);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].x);
+    //                     }                      
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].x = 0.;
+    //                 }
+
+    //             }
+    //         }
+    //     }
+
+    //     // compute flux at i-right boundary
+    //     if (xe==mx)
+    //     {
+    //         // k-right boundary face
+    //         i = mx-2;
+
+    //         // loop on the boundary faces
+    //         for (k=lzs; k<lze; k++)
+    //         {
+    //             for (j=lys; j<lye; j++)
+    //             {
+    //                 // cumulate flux and area
+    //                 if(fabs(ucont[k][j][i].x) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].x < 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].x);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].x);
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].x = 0.;
+    //                 }
+
+    //             }
+    //         }
+    //     }
+    // }
+
+    // // cumulate the net influx and net outflux
+    // MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    // MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    // globalFlux = FluxIn - FluxOut;
+    // PetscPrintf(mesh->MESH_COMM, "After correction fluxin = %lf, fluxout = %lf, netFlux = %lf\n", FluxIn, FluxOut, globalFlux);
 
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
@@ -4773,7 +4930,7 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                      ***coor;
     PetscReal        epsilon = 1.e-10;
 
-    PetscScalar      ratio;
+    PetscScalar      globalFlux;
     PetscScalar      lFluxIn = 0.0, lFluxOut = 0.0,
                      FluxIn  = 0.0, FluxOut  = 0.0;
 
@@ -4802,9 +4959,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                 {
                     // cumulate flux and area
 
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].z;
-
+                    if(fabs(ucont[k][j][i].z) > epsilon)
+                    {
+                        if (ucont[k][j][i].z > 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].z);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].z);
+                        }
                     }
                     else
                     {
@@ -4828,9 +4992,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                 {
                     // cumulate flux and area
 
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].z;
-
+                    if(fabs(ucont[k][j][i].z) > epsilon)
+                    {
+                        if (ucont[k][j][i].z < 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].z);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].z);
+                        }
                     }
                     else
                     {
@@ -4860,8 +5031,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                 {
                     // cumulate flux and area
 
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].y;
+                    if(fabs(ucont[k][j][i].y) > epsilon)
+                    {
+                        if (ucont[k][j][i].y > 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].y);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].y);
+                        }                    
                     }
                     else
                     {
@@ -4885,8 +5064,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                 {
                     // cumulate flux and area
 
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].y;
+                    if(fabs(ucont[k][j][i].y) > epsilon)
+                    {
+                        if (ucont[k][j][i].y < 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].y);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].y);
+                        }
                     }
                     else
                     {
@@ -4918,7 +5105,14 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
 
                     if(fabs(ucont[k][j][i].x) > epsilon)
                     {
-                        lFluxIn   +=  ucont[k][j][i].x;
+                        if (ucont[k][j][i].x > 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].x);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].x);
+                        }  
                     }
                     else
                     {
@@ -4942,8 +5136,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                 {
                     // cumulate flux and area
 
-                    if(fabs(ucont[k][j][i].x) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].x;
+                    if(fabs(ucont[k][j][i].x) > epsilon)
+                    {
+                        if (ucont[k][j][i].x < 0) // Flow to domain 
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].x);
+                        }
+                        else // Flow from domain 
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].x);
+                        }
                     }
                     else
                     {
@@ -4959,19 +5161,9 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
     MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-    //PetscPrintf(mesh->MESH_COMM, "\n fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
+    globalFlux = FluxIn - FluxOut;
+    // PetscPrintf(mesh->MESH_COMM, "\n fluxin = %lf, fluxout = %lf, netFlux = %lf\n", FluxIn, FluxOut, globalFlux);
 
-    if(FluxOut > 1.e-15)
-    {
-        ratio = (FluxIn) / FluxOut;
-    }
-    else
-    {
-        ratio = 1.0;
-    }
-
-    // correct only outflow patches - outflow patches are assumed to be the right side patches
-    // this is not generic but for inflow - outflow problems with outflow on the right patches this should work
     if
     (
         !mesh->k_periodic && !mesh->kk_periodic
@@ -4990,9 +5182,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                     {
                         if (fabs(ucont[k][j][i].z) > epsilon)
                         {
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].z *= sqrt(ratio);
-
+                            if (ucont[k][j][i].z < 0) // Influx 
+                            {
+                                if (FluxIn > 1e-15)
+                                    ucont[k][j][i].z -= 0.5 * globalFlux * (ucont[k][j][i].z / FluxIn);
+                            }
+                            else // Outflux 
+                            {
+                                if (FluxOut > 1e-15)
+                                    ucont[k][j][i].z += 0.5 * globalFlux * (ucont[k][j][i].z / FluxOut);
+                            }
                         }
                     }
                 }
@@ -5008,9 +5207,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                     {
                         if (fabs(ucont[k][j][i].z) > epsilon)
                         {
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].z /= sqrt(ratio);
-
+                            if (ucont[k][j][i].z > 0) // Influx 
+                            {
+                                if (FluxIn > 1e-15)
+                                    ucont[k][j][i].z -= 0.5 * globalFlux * (ucont[k][j][i].z / FluxIn);
+                            }
+                            else // Outflux 
+                            {
+                                if (FluxOut > 1e-15)
+                                    ucont[k][j][i].z += 0.5 * globalFlux * (ucont[k][j][i].z / FluxOut);
+                            }
                         }
                     }
                 }
@@ -5036,10 +5242,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                     {
                         if (fabs(ucont[k][j][i].y) > epsilon)
                         {
-
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].y *= sqrt(ratio);
-
+                            if (ucont[k][j][i].y < 0) // Influx 
+                            {
+                                if (FluxIn > 1e-15)
+                                    ucont[k][j][i].y -= 0.5 * globalFlux * (ucont[k][j][i].y / FluxIn);
+                            }
+                            else // Outflux 
+                            {
+                                if (FluxOut > 1e-15)
+                                    ucont[k][j][i].y += 0.5 * globalFlux * (ucont[k][j][i].y / FluxOut);
+                            }
                         }
                     }
                 }
@@ -5055,10 +5267,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                     {
                         if (fabs(ucont[k][j][i].y) > epsilon)
                         {
-
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].y /= sqrt(ratio);
-
+                            if (ucont[k][j][i].y > 0) // Influx 
+                            {
+                                if (FluxIn > 1e-15)
+                                    ucont[k][j][i].y -= 0.5 * globalFlux * (ucont[k][j][i].y / FluxIn);
+                            }
+                            else // Outflux 
+                            {
+                                if (FluxOut > 1e-15)
+                                    ucont[k][j][i].y += 0.5 * globalFlux * (ucont[k][j][i].y / FluxOut);
+                            }
                         }
                     }
                 }
@@ -5084,9 +5302,16 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                 {
                     if (fabs(ucont[k][j][i].x) > epsilon)
                     {
-
-                        // correct contrav. vel. at boundary faces
-                        ucont[k][j][i].x *= sqrt(ratio);
+                        if (ucont[k][j][i].x < 0) // Influx 
+                        {
+                            if (FluxIn > 1e-15)
+                                ucont[k][j][i].x -= 0.5 * globalFlux * (ucont[k][j][i].x / FluxIn);
+                        }
+                        else // Outflux 
+                        {
+                            if (FluxOut > 1e-15)
+                                ucont[k][j][i].x += 0.5 * globalFlux * (ucont[k][j][i].x / FluxOut);
+                        }
                     }
                 }
             }
@@ -5102,195 +5327,243 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
                 {
                     if (fabs(ucont[k][j][i].x) > epsilon)
                     {
-
-                        // correct contrav. vel. at boundary faces
-                        ucont[k][j][i].x /= sqrt(ratio);
+                        if (ucont[k][j][i].x > 0) // Influx 
+                        {
+                            if (FluxIn > 1e-15)
+                                ucont[k][j][i].x -= 0.5 * globalFlux * (ucont[k][j][i].x / FluxIn);
+                        }
+                        else // Outflux 
+                        {
+                            if (FluxOut > 1e-15)
+                                ucont[k][j][i].x += 0.5 * globalFlux * (ucont[k][j][i].x / FluxOut);
+                        }
                     }
                 }
             }
         }
     }
 
-    // Recalculate flux to check if corrected
-    lFluxIn = 0.0, lFluxOut = 0.0,
-    FluxIn  = 0.0, FluxOut  = 0.0;
+    // // Recalculate flux to check if corrected
+    // lFluxIn = 0.0, lFluxOut = 0.0,
+    // FluxIn  = 0.0, FluxOut  = 0.0;
 
-    if
-    (
-        !mesh->k_periodic && !mesh->kk_periodic
-    )
-    {
-        // compute inflow flux at k-left boundary
-        if (zs==0)
-        {
-            // k-right boundary face
-            k = 0;
+    // if
+    // (
+    //     !mesh->k_periodic && !mesh->kk_periodic
+    // )
+    // {
+    //     // compute inflow flux at k-left boundary
+    //     if (zs==0)
+    //     {
+    //         // k-right boundary face
+    //         k = 0;
 
-            // loop on the boundary faces
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
+    //         // loop on the boundary faces
+    //         for (j=lys; j<lye; j++)
+    //         {
+    //             for (i=lxs; i<lxe; i++)
+    //             {
+    //                 // cumulate flux and area
 
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].z;
+    //                 if(fabs(ucont[k][j][i].z) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].z > 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].z);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].z);
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].z = 0.;
+    //                 }
 
-                    }
-                    else
-                    {
-                        ucont[k][j][i].z = 0.;
-                    }
+    //             }
+    //         }
+    //     }
 
-                }
-            }
-        }
+    //     // compute outflow flux at k-right boundary
+    //     if (ze==mz)
+    //     {
+    //         // k-right boundary face
+    //         k = mz-2;
 
-        // compute outflow flux at k-right boundary
-        if (ze==mz)
-        {
-            // k-right boundary face
-            k = mz-2;
+    //         // loop on the boundary cells
+    //         for (j=lys; j<lye; j++)
+    //         {
+    //             for (i=lxs; i<lxe; i++)
+    //             {
+    //                 // cumulate flux 
+    //                 if(fabs(ucont[k][j][i].z) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].z < 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].z);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].z);
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].z = 0.;
+    //                 }
 
-            // loop on the boundary cells
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
+    //             }
+    //         }
+    //     }
+    // }
 
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].z;
+    // if
+    // (
+    //     !mesh->j_periodic && !mesh->jj_periodic
+    // )
+    // {
+    //     // compute flux at j-left boundary
+    //     if (ys==0)
+    //     {
+    //         // k-right boundary face
+    //         j = 0;
 
-                    }
-                    else
-                    {
-                        ucont[k][j][i].z = 0.;
-                    }
+    //         // loop on the boundary faces
+    //         for (k=lzs; k<lze; k++)
+    //         {
+    //             for (i=lxs; i<lxe; i++)
+    //             {
+    //                 // cumulate flux and area
+    //                 if(fabs(ucont[k][j][i].y) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].y > 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].y);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].y);
+    //                     }  
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].y = 0.;
+    //                 }
 
-                }
-            }
-        }
-    }
+    //             }
+    //         }
+    //     }
 
-    if
-    (
-        !mesh->j_periodic && !mesh->jj_periodic
-    )
-    {
-        // compute flux at j-left boundary
-        if (ys==0)
-        {
-            // k-right boundary face
-            j = 0;
+    //     // compute flux at j-right boundary
+    //     if (ye==my)
+    //     {
+    //         // k-right boundary face
+    //         j = my-2;
 
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
+    //         // loop on the boundary cells
+    //         for (k=lzs; k<lze; k++)
+    //         {
+    //             for (i=lxs; i<lxe; i++)
+    //             {
+    //                 // cumulate flux and area
+    //                 if(fabs(ucont[k][j][i].y) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].y < 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].y);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].y);
+    //                     }                    
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].y = 0.;
+    //                 }
 
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].y;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
-                    }
+    //             }
+    //         }
+    //     }
+    // }
 
-                }
-            }
-        }
+    // if
+    // (
+    //     !mesh->i_periodic && !mesh->ii_periodic
+    // )
+    // {
+    //     // compute flux at i-left boundary
+    //     if (xs==0)
+    //     {
+    //         // i-right boundary face
+    //         i = 0;
 
-        // compute flux at j-right boundary
-        if (ye==my)
-        {
-            // k-right boundary face
-            j = my-2;
+    //         // loop on the boundary faces
+    //         for (k=lzs; k<lze; k++)
+    //         {
+    //             for (j=lys; j<lye; j++)
+    //             {
+    //                 // cumulate flux and area
+    //                 if(fabs(ucont[k][j][i].x) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].x > 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].x);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].x);
+    //                     }                      
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].x = 0.;
+    //                 }
 
-            // loop on the boundary cells
-            for (k=lzs; k<lze; k++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
+    //             }
+    //         }
+    //     }
 
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].y;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
-                    }
+    //     // compute flux at i-right boundary
+    //     if (xe==mx)
+    //     {
+    //         // k-right boundary face
+    //         i = mx-2;
 
-                }
-            }
-        }
-    }
+    //         // loop on the boundary faces
+    //         for (k=lzs; k<lze; k++)
+    //         {
+    //             for (j=lys; j<lye; j++)
+    //             {
+    //                 // cumulate flux and area
+    //                 if(fabs(ucont[k][j][i].x) > epsilon)
+    //                 {
+    //                     if (ucont[k][j][i].x < 0) // Flow to domain 
+    //                     {
+    //                         lFluxIn += fabs(ucont[k][j][i].x);
+    //                     }
+    //                     else // Flow from domain 
+    //                     {
+    //                         lFluxOut += fabs(ucont[k][j][i].x);
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     ucont[k][j][i].x = 0.;
+    //                 }
 
-    if
-    (
-        !mesh->i_periodic && !mesh->ii_periodic
-    )
-    {
-        // compute flux at i-left boundary
-        if (xs==0)
-        {
-            // i-right boundary face
-            i = 0;
+    //             }
+    //         }
+    //     }
+    // }
 
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    // cumulate flux and area
+    // // cumulate the net influx and net outflux
+    // MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    // MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-                    if(fabs(ucont[k][j][i].x) > epsilon)
-                    {
-                        lFluxIn   +=  ucont[k][j][i].x;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute flux at i-right boundary
-        if (xe==mx)
-        {
-            // k-right boundary face
-            i = mx-2;
-
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].x) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].x;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
-                    }
-
-                }
-            }
-        }
-    }
-
-    // cumulate the net influx and net outflux
-    MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    //PetscPrintf(mesh->MESH_COMM, "After correction fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
+    // globalFlux = FluxIn - FluxOut;
+    // PetscPrintf(mesh->MESH_COMM, "After correction fluxin = %lf, fluxout = %lf, netFlux = %lf\n", FluxIn, FluxOut, globalFlux);
 
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
@@ -5494,14 +5767,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                if(ueqn->viscScheme == "central4")
-                { 
-                    Compute_du_i_4 (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
-                }
-                else
-                {
-                    Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
-                }
+                Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                 // compute metric tensor - WARNING: there is a factor of 1/J^2 if using face area vectors
                 //                                  must multiply for ajc in viscous term!!!
@@ -5562,10 +5828,10 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             - ucont[k][j][i].x,
                             centralVec4th
                             (
-                                ucat[k][j][i-1],  
+                                ucat[k][j][iL],  
                                 ucat[k][j][i],    
                                 ucat[k][j][i+1],  
-                                ucat[k][j][i+2] 
+                                ucat[k][j][iR] 
                             )
                         );
                     }
@@ -5707,14 +5973,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                if(ueqn->viscScheme == "central4")
-                { 
-                    Compute_du_j_4 (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
-                }
-                else
-                {
-                    Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
-                }
+                Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                 // compute metric tensor
                 g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
@@ -5773,10 +6032,10 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             - ucont[k][j][i].y,
                             centralVec4th
                             (
-                                ucat[k][j-1][i],  
+                                ucat[k][jL][i],  
                                 ucat[k][j][i],   
                                 ucat[k][j+1][i],  
-                                ucat[k][j+2][i]  
+                                ucat[k][jR][i]  
                             )
                         );
                     }
@@ -5919,14 +6178,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                if(ueqn->viscScheme == "central4")
-                { 
-                    Compute_du_k_4 (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
-                }
-                else
-                {
-                    Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
-                }
+                Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                 // compute metric tensor
                 g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
@@ -5986,10 +6238,10 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             - ucont[k][j][i].z,
                             centralVec4th
                             (
-                                ucat[k-1][j][i],  
+                                ucat[kL][j][i],  
                                 ucat[k][j][i],    
                                 ucat[k+1][j][i], 
-                                ucat[k+2][j][i]
+                                ucat[kR][j][i]
                             )
                         );
                     }
@@ -6204,58 +6456,29 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 }
                 else
                 {
-                    if(ueqn->viscScheme == "central4")
-                    {
-                        fp[k][j][i].x 
-                        += 
-                        (
-                            (-visc1[k][j][i+1].x + 7.0 * visc1[k][j][i].x - 7.0 * visc1[k][j][i-1].x + visc1[k][j][i-2].x) +
-                            (-visc2[k][j+1][i].x + 7.0 * visc2[k][j][i].x - 7.0 * visc2[k][j-1][i].x + visc2[k][j-2][i].x) +
-                            (-visc3[k+1][j][i].x + 7.0 * visc3[k][j][i].x - 7.0 * visc3[k-1][j][i].x + visc3[k-2][j][i].x)
-                        ) / 12.0;
-    
-                        fp[k][j][i].y 
-                        += 
-                        (
-                            (-visc1[k][j][i+1].y + 7.0 * visc1[k][j][i].y - 7.0 * visc1[k][j][i-1].y + visc1[k][j][i-2].y) +
-                            (-visc2[k][j+1][i].y + 7.0 * visc2[k][j][i].y - 7.0 * visc2[k][j-1][i].y + visc2[k][j-2][i].y) +
-                            (-visc3[k+1][j][i].y + 7.0 * visc3[k][j][i].y - 7.0 * visc3[k-1][j][i].y + visc3[k-2][j][i].y)
-                        ) / 12.0;
-    
-                        fp[k][j][i].z 
-                        += 
-                        (
-                            (-visc1[k][j][i+1].z + 7.0 * visc1[k][j][i].z - 7.0 * visc1[k][j][i-1].z + visc1[k][j][i-2].z) +
-                            (-visc2[k][j+1][i].z + 7.0 * visc2[k][j][i].z - 7.0 * visc2[k][j-1][i].z + visc2[k][j-2][i].z) +
-                            (-visc3[k+1][j][i].z + 7.0 * visc3[k][j][i].z - 7.0 * visc3[k-1][j][i].z + visc3[k-2][j][i].z)
-                        ) / 12.0;
-                    }
-                    else 
-                    {
-                        fp[k][j][i].x
-                        +=
-                        (
-                            visc1[k][j][i].x - visc1[k][j][i-1].x +
-                            visc2[k][j][i].x - visc2[k][j-1][i].x +
-                            visc3[k][j][i].x - visc3[k-1][j][i].x
-                        );
-    
-                        fp[k][j][i].y
-                        +=
-                        (
-                            visc1[k][j][i].y - visc1[k][j][i-1].y +
-                            visc2[k][j][i].y - visc2[k][j-1][i].y +
-                            visc3[k][j][i].y - visc3[k-1][j][i].y
-                        );
-    
-                        fp[k][j][i].z
-                        +=
-                        (
-                            visc1[k][j][i].z - visc1[k][j][i-1].z +
-                            visc2[k][j][i].z - visc2[k][j-1][i].z +
-                            visc3[k][j][i].z - visc3[k-1][j][i].z
-                        );
-                    }
+                    fp[k][j][i].x
+                    +=
+                    (
+                        visc1[k][j][i].x - visc1[k][j][i-1].x +
+                        visc2[k][j][i].x - visc2[k][j-1][i].x +
+                        visc3[k][j][i].x - visc3[k-1][j][i].x
+                    );
+
+                    fp[k][j][i].y
+                    +=
+                    (
+                        visc1[k][j][i].y - visc1[k][j][i-1].y +
+                        visc2[k][j][i].y - visc2[k][j-1][i].y +
+                        visc3[k][j][i].y - visc3[k-1][j][i].y
+                    );
+
+                    fp[k][j][i].z
+                    +=
+                    (
+                        visc1[k][j][i].z - visc1[k][j][i-1].z +
+                        visc2[k][j][i].z - visc2[k][j-1][i].z +
+                        visc3[k][j][i].z - visc3[k-1][j][i].z
+                    );
 
                     if( (i == 1) && !(mesh->i_periodic) && !(mesh->ii_periodic))
                     {
@@ -6480,7 +6703,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     if(ueqn->access->flags->isOversetActive)
     {
         if(mesh->meshName == "background")
-        setBackgroundBC(mesh);;
+        setBackgroundBC(mesh);
     }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
