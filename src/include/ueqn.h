@@ -45,12 +45,14 @@ struct ueqn_
 
     // divergence schemes
     PetscInt      centralDiv;                 //!< linear divergence scheme
-    PetscInt      central4Div;
+    PetscInt      central4Div;                //!< 4th order central scheme
     PetscInt      centralUpwindDiv;           //!< blending between linear and upwind scheme
     PetscInt      centralUpwindWDiv;          //!< blending between linear and upwind scheme for non-uniform mesh
     PetscInt      quickDiv;                   //!< 3rd order QUICK scheme
     PetscInt      weno3Div;                   //!< 3rd order WENO scheme
-    
+
+    PetscReal     hyperVisc;                  //!< hyperviscocity parameter to add artificial diffusion - (b = 0 is blend between 3rd order upwind and 4th order, b = 1 is central 4th order, b = 0.8 is hybrid 3-4 scheme)
+                                              
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch
     wallModel     *iRWM;                      //!< wall model on the i-right patch

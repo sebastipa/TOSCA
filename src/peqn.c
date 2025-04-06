@@ -1517,6 +1517,7 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
+    VecSet(peqn->Phi, 0.0);
     VecGetArray(peqn->phi, &phi1d);
     DMDAVecGetArray(da, peqn->Phi, &phi);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
@@ -1533,6 +1534,7 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
                 if(isIBMCell(k,j,i,nvert) || isOversetCell(k,j,i,meshTag))
                 {
                     phi[k][j][i] = 0;
+                    phi1d[pos]   = 0;
                     pos++;
                 }
                 else
@@ -2315,120 +2317,120 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
 
-    // // Third pass: Recompute flux after correction for debugging
-    // local_influx = 0.0; local_outflux = 0.0;
+    // Third pass: Recompute flux after correction for debugging
+    local_influx = 0.0; local_outflux = 0.0;
 
-    // DMDAVecGetArray(fda, ueqn->Ucont, &ucor);
-    // DMDAVecGetArray(da, mesh->lNvert, &nvert);
-    // DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(fda, ueqn->Ucont, &ucor);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
-    // for (k = lzs; k < lze; k++)
-    // {
-    //     for (j = lys; j < lye; j++)
-    //     {
-    //         for (i = lxs; i < lxe; i++)
-    //         {
-    //             // Left boundary
-    //             if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
-    //             {
-    //                 // i-left boundary
-    //                 if ((isIBMFluidCell(k, j, i+1, nvert) || isInterpolatedCell(k, j, i+1, meshTag)) && i < mx - 2)
-    //                 {
-    //                     if (ucor[k][j][i].x > 0) // Influx (to IBM)
-    //                     {
-    //                         local_influx += fabs(ucor[k][j][i].x);
-    //                     }
-    //                     else // Outflux (from IBM)
-    //                     {
-    //                         local_outflux += fabs(ucor[k][j][i].x);
-    //                     }
-    //                 }
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                // Left boundary
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                {
+                    // i-left boundary
+                    if ((isIBMFluidCell(k, j, i+1, nvert) || isInterpolatedCell(k, j, i+1, meshTag)) && i < mx - 2)
+                    {
+                        if (ucor[k][j][i].x > 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].x);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].x);
+                        }
+                    }
 
-    //                 // j-left boundary
-    //                 if ((isIBMFluidCell(k, j+1, i, nvert) || isInterpolatedCell(k, j+1, i, meshTag)) && j < my - 2)
-    //                 {
-    //                     if (ucor[k][j][i].y > 0) // Influx (to IBM)
-    //                     {
-    //                         local_influx += fabs(ucor[k][j][i].y);
-    //                     }
-    //                     else // Outflux (from IBM)
-    //                     {
-    //                         local_outflux += fabs(ucor[k][j][i].y);
-    //                     }
-    //                 }
+                    // j-left boundary
+                    if ((isIBMFluidCell(k, j+1, i, nvert) || isInterpolatedCell(k, j+1, i, meshTag)) && j < my - 2)
+                    {
+                        if (ucor[k][j][i].y > 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].y);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].y);
+                        }
+                    }
 
-    //                 // k-left boundary
-    //                 if ((isIBMFluidCell(k+1, j, i, nvert) || isInterpolatedCell(k+1, j, i, meshTag)) && k < mz - 2)
-    //                 {
-    //                     if (ucor[k][j][i].z > 0) // Influx (to IBM)
-    //                     {
-    //                         local_influx += fabs(ucor[k][j][i].z);
-    //                     }
-    //                     else // Outflux (from IBM)
-    //                     {
-    //                         local_outflux += fabs(ucor[k][j][i].z);
-    //                     }
-    //                 }
-    //             }
+                    // k-left boundary
+                    if ((isIBMFluidCell(k+1, j, i, nvert) || isInterpolatedCell(k+1, j, i, meshTag)) && k < mz - 2)
+                    {
+                        if (ucor[k][j][i].z > 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].z);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].z);
+                        }
+                    }
+                }
 
-    //             // Right boundary
-    //             if (isIBMFluidCell(k, j, i, nvert) || isInterpolatedCell(k, j, i, meshTag))
-    //             {
-    //                 // i-right boundary
-    //                 if (isFluidCell(k, j, i+1, nvert) && isCalculatedCell(k, j, i+1, meshTag) && i < mx - 2)
-    //                 {
-    //                     if (ucor[k][j][i].x < 0) // Influx (to IBM)
-    //                     {
-    //                         local_influx += fabs(ucor[k][j][i].x);
-    //                     }
-    //                     else // Outflux (from IBM)
-    //                     {
-    //                         local_outflux += fabs(ucor[k][j][i].x);
-    //                     }
-    //                 }
+                // Right boundary
+                if (isIBMFluidCell(k, j, i, nvert) || isInterpolatedCell(k, j, i, meshTag))
+                {
+                    // i-right boundary
+                    if (isFluidCell(k, j, i+1, nvert) && isCalculatedCell(k, j, i+1, meshTag) && i < mx - 2)
+                    {
+                        if (ucor[k][j][i].x < 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].x);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].x);
+                        }
+                    }
 
-    //                 // j-right boundary
-    //                 if (isFluidCell(k, j+1, i, nvert) && isCalculatedCell(k, j+1, i, meshTag) && j < my - 2)
-    //                 {
-    //                     if (ucor[k][j][i].y < 0) // Influx (to IBM)
-    //                     {
-    //                         local_influx += fabs(ucor[k][j][i].y);
-    //                     }
-    //                     else // Outflux (from IBM)
-    //                     {
-    //                         local_outflux += fabs(ucor[k][j][i].y);
-    //                     }
-    //                 }
+                    // j-right boundary
+                    if (isFluidCell(k, j+1, i, nvert) && isCalculatedCell(k, j+1, i, meshTag) && j < my - 2)
+                    {
+                        if (ucor[k][j][i].y < 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].y);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].y);
+                        }
+                    }
 
-    //                 // k-right boundary
-    //                 if (isFluidCell(k+1, j, i, nvert) && isCalculatedCell(k+1, j, i, meshTag) && k < mz - 2)
-    //                 {
-    //                     if (ucor[k][j][i].z < 0) // Influx (to IBM)
-    //                     {
-    //                         local_influx += fabs(ucor[k][j][i].z);
-    //                     }
-    //                     else // Outflux (from IBM)
-    //                     {
-    //                         local_outflux += fabs(ucor[k][j][i].z);
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+                    // k-right boundary
+                    if (isFluidCell(k+1, j, i, nvert) && isCalculatedCell(k+1, j, i, meshTag) && k < mz - 2)
+                    {
+                        if (ucor[k][j][i].z < 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].z);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].z);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-    // DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-    // DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
-    // DMDAVecRestoreArray(fda, ueqn->Ucont, &ucor);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucor);
 
-    // // Compute global net flux after correction
-    // MPI_Allreduce(&local_influx, &global_influx, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    // MPI_Allreduce(&local_outflux, &global_outflux, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    // global_flux = global_influx - global_outflux;
+    // Compute global net flux after correction
+    MPI_Allreduce(&local_influx, &global_influx, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&local_outflux, &global_outflux, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    global_flux = global_influx - global_outflux;
 
-    // // Print global flux for debugging
-    // PetscPrintf(PETSC_COMM_WORLD, "Post-correction global net flux: %e (influx to IBM: %e, outflux from IBM: %e)\n",
-    //             global_flux, global_influx, global_outflux);
+    // Print global flux for debugging
+    PetscPrintf(PETSC_COMM_WORLD, "Post-correction global net flux: %e (influx to IBM: %e, outflux from IBM: %e)\n",
+                global_flux, global_influx, global_outflux);
 
     return(0);
 }
@@ -3257,7 +3259,6 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     if(flags->isIBMActive || flags->isOversetActive)
     {
         AdjustIBMFlux(peqn);
-
         MPI_Barrier(mesh->MESH_COMM);
     }
 

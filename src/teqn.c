@@ -1880,12 +1880,6 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
     DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
 
-    if(teqn->access->flags->isOversetActive)
-    {
-        if(mesh->meshName == "background")
-            setBackgroundBC(mesh);
-    }
-
     // reset temperature periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
