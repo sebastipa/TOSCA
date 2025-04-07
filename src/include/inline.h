@@ -3828,7 +3828,7 @@ inline Cmpnts centralVec4thCsi(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
 
             if(i == mx-2)
             {
-                im1 = i-3, i0 = i-2, ip1 = i-1, ip2 = i;
+                im1 = i-2, i0 = i-1, ip1 = i, ip2 = i+1;
 
                 result.x = (-ucat[k][j][im1].x - ucat[k][j][i0].x + 5.0 * ucat[k][j][ip1].x + 5.0 * ucat[k][j][ip2].x) / 8.0;
                 result.y = (-ucat[k][j][im1].y - ucat[k][j][i0].y + 5.0 * ucat[k][j][ip1].y + 5.0 * ucat[k][j][ip2].y) / 8.0;
@@ -3846,7 +3846,7 @@ inline Cmpnts centralVec4thCsi(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
     }
     else if(isIBMCell(k, j, i+1, nvert) || isOversetCell(k, j, i+1, meshTag))
     {
-        im1 = i-3, i0 = i-2, ip1 = i-1, ip2 = i;
+        im1 = i-2, i0 = i-1, ip1 = i, ip2 = i+1;
 
         result.x = (-ucat[k][j][im1].x - ucat[k][j][i0].x + 5.0 * ucat[k][j][ip1].x + 5.0 * ucat[k][j][ip2].x) / 8.0;
         result.y = (-ucat[k][j][im1].y - ucat[k][j][i0].y + 5.0 * ucat[k][j][ip1].y + 5.0 * ucat[k][j][ip2].y) / 8.0;
@@ -3914,7 +3914,7 @@ inline Cmpnts centralVec4thEta(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             }
             if (j == my-2) // Backward stencil at upper boundary
             {
-                jm1 = j-3, j0 = j-2, jp1 = j-1, jp2 = j;
+                jm1 = j-2, j0 = j-1, jp1 = j, jp2 = j+1;
 
                 result.x = (-ucat[k][jm1][i].x - ucat[k][j0][i].x + 5.0 * ucat[k][jp1][i].x + 5.0 * ucat[k][jp2][i].x) / 8.0;
                 result.y = (-ucat[k][jm1][i].y - ucat[k][j0][i].y + 5.0 * ucat[k][jp1][i].y + 5.0 * ucat[k][jp2][i].y) / 8.0;
@@ -3932,7 +3932,7 @@ inline Cmpnts centralVec4thEta(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
     }
     else if (isIBMCell(k, j+1, i, nvert) || isOversetCell(k, j+1, i, meshTag))
     {
-        jm1 = j-3, j0 = j-2, jp1 = j-1, jp2 = j;
+        jm1 = j-2, j0 = j-1, jp1 = j, jp2 = j+1;
 
         result.x = (-ucat[k][jm1][i].x - ucat[k][j0][i].x + 5.0 * ucat[k][jp1][i].x + 5.0 * ucat[k][jp2][i].x) / 8.0;
         result.y = (-ucat[k][jm1][i].y - ucat[k][j0][i].y + 5.0 * ucat[k][jp1][i].y + 5.0 * ucat[k][jp2][i].y) / 8.0;
@@ -4000,7 +4000,7 @@ inline Cmpnts centralVec4thZet(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             }
             if (k == mz-2) // Backward stencil at upper boundary
             {
-                km1 = k-3, k0 = k-2, kp1 = k-1, kp2 = k;
+                km1 = k-2, k0 = k-1, kp1 = k, kp2 = k+1;
 
                 result.x = (-ucat[km1][j][i].x - ucat[k0][j][i].x + 5.0 * ucat[kp1][j][i].x + 5.0 * ucat[kp2][j][i].x) / 8.0;
                 result.y = (-ucat[km1][j][i].y - ucat[k0][j][i].y + 5.0 * ucat[kp1][j][i].y + 5.0 * ucat[kp2][j][i].y) / 8.0;
@@ -4018,7 +4018,7 @@ inline Cmpnts centralVec4thZet(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
     }
     else if (isIBMCell(k+1, j, i, nvert) || isOversetCell(k+1, j, i, meshTag))
     {
-        km1 = k-3, k0 = k-2, kp1 = k-1, kp2 = k;
+        km1 = k-2, k0 = k-1, kp1 = k, kp2 = k+1;
 
         result.x = (-ucat[km1][j][i].x - ucat[k0][j][i].x + 5.0 * ucat[kp1][j][i].x + 5.0 * ucat[kp2][j][i].x) / 8.0;
         result.y = (-ucat[km1][j][i].y - ucat[k0][j][i].y + 5.0 * ucat[kp1][j][i].y + 5.0 * ucat[kp2][j][i].y) / 8.0;
