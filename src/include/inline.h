@@ -3798,6 +3798,10 @@ inline Cmpnts centralVec4thCsi(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             result.x = (-ucat[k][j][im1].x + 7.0 * ucat[k][j][i0].x + 7.0 * ucat[k][j][ip1].x - ucat[k][j][ip2].x) / 12.0;
             result.y = (-ucat[k][j][im1].y + 7.0 * ucat[k][j][i0].y + 7.0 * ucat[k][j][ip1].y - ucat[k][j][ip2].y) / 12.0;
             result.z = (-ucat[k][j][im1].z + 7.0 * ucat[k][j][i0].z + 7.0 * ucat[k][j][ip1].z - ucat[k][j][ip2].z) / 12.0;
+
+            result.x += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][j][ip2].x - ucat[k][j][im1].x) - 3.0 * (ucat[k][j][ip1].x - ucat[k][j][i0].x));
+            result.y += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][j][ip2].y - ucat[k][j][im1].y) - 3.0 * (ucat[k][j][ip1].y - ucat[k][j][i0].y));
+            result.z += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][j][ip2].z - ucat[k][j][im1].z) - 3.0 * (ucat[k][j][ip1].z - ucat[k][j][i0].z));
         }
         else if(mesh->ii_periodic && i==mx-2)
         {
@@ -3806,6 +3810,10 @@ inline Cmpnts centralVec4thCsi(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             result.x = (-ucat[k][j][im1].x + 7.0 * ucat[k][j][i0].x + 7.0 * ucat[k][j][ip1].x - ucat[k][j][ip2].x) / 12.0;
             result.y = (-ucat[k][j][im1].y + 7.0 * ucat[k][j][i0].y + 7.0 * ucat[k][j][ip1].y - ucat[k][j][ip2].y) / 12.0;
             result.z = (-ucat[k][j][im1].z + 7.0 * ucat[k][j][i0].z + 7.0 * ucat[k][j][ip1].z - ucat[k][j][ip2].z) / 12.0;
+
+            result.x += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][j][ip2].x - ucat[k][j][im1].x) - 3.0 * (ucat[k][j][ip1].x - ucat[k][j][i0].x));
+            result.y += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][j][ip2].y - ucat[k][j][im1].y) - 3.0 * (ucat[k][j][ip1].y - ucat[k][j][i0].y));
+            result.z += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][j][ip2].z - ucat[k][j][im1].z) - 3.0 * (ucat[k][j][ip1].z - ucat[k][j][i0].z));
         }
         else if(mesh->ii_periodic && i==0)
         {
@@ -3814,6 +3822,10 @@ inline Cmpnts centralVec4thCsi(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             result.x = (-ucat[k][j][im1].x + 7.0 * ucat[k][j][i0].x + 7.0 * ucat[k][j][ip1].x - ucat[k][j][ip2].x) / 12.0;
             result.y = (-ucat[k][j][im1].y + 7.0 * ucat[k][j][i0].y + 7.0 * ucat[k][j][ip1].y - ucat[k][j][ip2].y) / 12.0;
             result.z = (-ucat[k][j][im1].z + 7.0 * ucat[k][j][i0].z + 7.0 * ucat[k][j][ip1].z - ucat[k][j][ip2].z) / 12.0;
+
+            result.x += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][j][ip2].x - ucat[k][j][im1].x) - 3.0 * (ucat[k][j][ip1].x - ucat[k][j][i0].x));
+            result.y += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][j][ip2].y - ucat[k][j][im1].y) - 3.0 * (ucat[k][j][ip1].y - ucat[k][j][i0].y));
+            result.z += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][j][ip2].z - ucat[k][j][im1].z) - 3.0 * (ucat[k][j][ip1].z - ucat[k][j][i0].z));
         }
         else
         {
@@ -3885,6 +3897,10 @@ inline Cmpnts centralVec4thEta(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             result.x = (-ucat[k][jm1][i].x + 7.0 * ucat[k][j0][i].x + 7.0 * ucat[k][jp1][i].x - ucat[k][jp2][i].x) / 12.0;
             result.y = (-ucat[k][jm1][i].y + 7.0 * ucat[k][j0][i].y + 7.0 * ucat[k][jp1][i].y - ucat[k][jp2][i].y) / 12.0;
             result.z = (-ucat[k][jm1][i].z + 7.0 * ucat[k][j0][i].z + 7.0 * ucat[k][jp1][i].z - ucat[k][jp2][i].z) / 12.0;
+
+            result.x += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][jp2][i].x - ucat[k][jm1][i].x) - 3.0 * (ucat[k][jp1][i].x - ucat[k][j0][i].x));
+            result.y += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][jp2][i].y - ucat[k][jm1][i].y) - 3.0 * (ucat[k][jp1][i].y - ucat[k][j0][i].y));
+            result.z += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][jp2][i].z - ucat[k][jm1][i].z) - 3.0 * (ucat[k][jp1][i].z - ucat[k][j0][i].z));
         }
         else if (mesh->jj_periodic && j == my-2) // Assuming jj_periodic for y-direction
         {
@@ -3893,6 +3909,10 @@ inline Cmpnts centralVec4thEta(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             result.x = (-ucat[k][jm1][i].x + 7.0 * ucat[k][j0][i].x + 7.0 * ucat[k][jp1][i].x - ucat[k][jp2][i].x) / 12.0;
             result.y = (-ucat[k][jm1][i].y + 7.0 * ucat[k][j0][i].y + 7.0 * ucat[k][jp1][i].y - ucat[k][jp2][i].y) / 12.0;
             result.z = (-ucat[k][jm1][i].z + 7.0 * ucat[k][j0][i].z + 7.0 * ucat[k][jp1][i].z - ucat[k][jp2][i].z) / 12.0;
+
+            result.x += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][jp2][i].x - ucat[k][jm1][i].x) - 3.0 * (ucat[k][jp1][i].x - ucat[k][j0][i].x));
+            result.y += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][jp2][i].y - ucat[k][jm1][i].y) - 3.0 * (ucat[k][jp1][i].y - ucat[k][j0][i].y));
+            result.z += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][jp2][i].z - ucat[k][jm1][i].z) - 3.0 * (ucat[k][jp1][i].z - ucat[k][j0][i].z));
         }
         else if (mesh->jj_periodic && j == 0)
         {
@@ -3901,6 +3921,10 @@ inline Cmpnts centralVec4thEta(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             result.x = (-ucat[k][jm1][i].x + 7.0 * ucat[k][j0][i].x + 7.0 * ucat[k][jp1][i].x - ucat[k][jp2][i].x) / 12.0;
             result.y = (-ucat[k][jm1][i].y + 7.0 * ucat[k][j0][i].y + 7.0 * ucat[k][jp1][i].y - ucat[k][jp2][i].y) / 12.0;
             result.z = (-ucat[k][jm1][i].z + 7.0 * ucat[k][j0][i].z + 7.0 * ucat[k][jp1][i].z - ucat[k][jp2][i].z) / 12.0;
+
+            result.x += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][jp2][i].x - ucat[k][jm1][i].x) - 3.0 * (ucat[k][jp1][i].x - ucat[k][j0][i].x));
+            result.y += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][jp2][i].y - ucat[k][jm1][i].y) - 3.0 * (ucat[k][jp1][i].y - ucat[k][j0][i].y));
+            result.z += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[k][jp2][i].z - ucat[k][jm1][i].z) - 3.0 * (ucat[k][jp1][i].z - ucat[k][j0][i].z));
         }
         else
         {
@@ -3971,6 +3995,10 @@ inline Cmpnts centralVec4thZet(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             result.x = (-ucat[km1][j][i].x + 7.0 * ucat[k0][j][i].x + 7.0 * ucat[kp1][j][i].x - ucat[kp2][j][i].x) / 12.0;
             result.y = (-ucat[km1][j][i].y + 7.0 * ucat[k0][j][i].y + 7.0 * ucat[kp1][j][i].y - ucat[kp2][j][i].y) / 12.0;
             result.z = (-ucat[km1][j][i].z + 7.0 * ucat[k0][j][i].z + 7.0 * ucat[kp1][j][i].z - ucat[kp2][j][i].z) / 12.0;
+
+            result.x += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[kp2][j][i].x - ucat[km1][j][i].x) - 3.0 * (ucat[kp1][j][i].x - ucat[k0][j][i].x));
+            result.y += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[kp2][j][i].y - ucat[km1][j][i].y) - 3.0 * (ucat[kp1][j][i].y - ucat[k0][j][i].y));
+            result.z += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[kp2][j][i].z - ucat[km1][j][i].z) - 3.0 * (ucat[kp1][j][i].z - ucat[k0][j][i].z));
         }
         else if (mesh->kk_periodic && k == mz-2) // Assuming kk_periodic for z-direction
         {
@@ -3979,6 +4007,10 @@ inline Cmpnts centralVec4thZet(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             result.x = (-ucat[km1][j][i].x + 7.0 * ucat[k0][j][i].x + 7.0 * ucat[kp1][j][i].x - ucat[kp2][j][i].x) / 12.0;
             result.y = (-ucat[km1][j][i].y + 7.0 * ucat[k0][j][i].y + 7.0 * ucat[kp1][j][i].y - ucat[kp2][j][i].y) / 12.0;
             result.z = (-ucat[km1][j][i].z + 7.0 * ucat[k0][j][i].z + 7.0 * ucat[kp1][j][i].z - ucat[kp2][j][i].z) / 12.0;
+
+            result.x += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[kp2][j][i].x - ucat[km1][j][i].x) - 3.0 * (ucat[kp1][j][i].x - ucat[k0][j][i].x));
+            result.y += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[kp2][j][i].y - ucat[km1][j][i].y) - 3.0 * (ucat[kp1][j][i].y - ucat[k0][j][i].y));
+            result.z += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[kp2][j][i].z - ucat[km1][j][i].z) - 3.0 * (ucat[kp1][j][i].z - ucat[k0][j][i].z));
         }
         else if (mesh->kk_periodic && k == 0)
         {
@@ -3987,6 +4019,10 @@ inline Cmpnts centralVec4thZet(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
             result.x = (-ucat[km1][j][i].x + 7.0 * ucat[k0][j][i].x + 7.0 * ucat[kp1][j][i].x - ucat[kp2][j][i].x) / 12.0;
             result.y = (-ucat[km1][j][i].y + 7.0 * ucat[k0][j][i].y + 7.0 * ucat[kp1][j][i].y - ucat[kp2][j][i].y) / 12.0;
             result.z = (-ucat[km1][j][i].z + 7.0 * ucat[k0][j][i].z + 7.0 * ucat[kp1][j][i].z - ucat[kp2][j][i].z) / 12.0;
+
+            result.x += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[kp2][j][i].x - ucat[km1][j][i].x) - 3.0 * (ucat[kp1][j][i].x - ucat[k0][j][i].x));
+            result.y += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[kp2][j][i].y - ucat[km1][j][i].y) - 3.0 * (ucat[kp1][j][i].y - ucat[k0][j][i].y));
+            result.z += PetscSign(wavespeed) * ((1.0-hyperVisc)/12.0)*((ucat[kp2][j][i].z - ucat[km1][j][i].z) - 3.0 * (ucat[kp1][j][i].z - ucat[k0][j][i].z));
         }
         else
         {
@@ -6483,6 +6519,221 @@ inline void vectorPointLocalVolumeInterpolation
     c5.z * deltaEta * deltaZet +
     c6.z * deltaZet * deltaCsi +
     c7.z * deltaCsi * deltaEta * deltaZet;
+
+    return;
+}
+
+//***************************************************************************************************************//
+//! \brief Quadratic B-spline interpolation for a scalar field
+
+inline void scalarPointB2SplineVolumeInterpolation(
+    mesh_ *mesh,
+    PetscReal px, PetscReal py, PetscReal pz, // Query point coordinates
+    PetscInt ic, PetscInt jc, PetscInt kc,    // Closest cell center indices
+    Cmpnts ***cent,                           // Cell center coordinates
+    PetscReal ***v,                           // Scalar field 
+    PetscReal &result                         // Interpolated result
+) 
+{
+    // Performs quadratic B-spline interpolation using a 3x3x3 stencil centered at
+    // (ic, jc, kc). Assumes ic, jc, kc are internal cells (not ghosts). Normalizes
+    // weights near boundaries to handle incomplete stencils.
+
+    DMDALocalInfo info = mesh->info;
+    PetscInt xs = info.xs, xe = info.xs + info.xm;
+    PetscInt ys = info.ys, ye = info.ys + info.ym;
+    PetscInt zs = info.zs, ze = info.zs + info.zm;
+    PetscInt mx = info.mx, my = info.my, mz = info.mz;
+    PetscInt gxs = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt gys = info.gys, gye = info.gys + info.gym;
+    PetscInt gzs = info.gzs, gze = info.gzs + info.gzm;
+
+    // Check that the center point is not in ghost cells
+    if (ic < 1 || ic >= mx - 1 || jc < 1 || jc >= my - 1 || kc < 1 || kc >= mz - 1) {
+        char error[512];
+        sprintf(error, "Center indices (%ld, %ld, %ld) are in ghost cells or out of bounds\n", ic, jc, kc);
+        fatalErrorInFunction("scalarPointLocalVolumeInterpolationQuad", error);
+    }
+
+    if(ic == 1 || ic == mx-2 || jc == 1 || jc == my-2 || kc == 1 || kc == mz-2)
+    {
+        scalarPointLocalVolumeInterpolation
+        (
+                mesh,
+                px, py, pz,
+                ic, jc, kc,
+                cent,
+                v,
+                result
+        );
+    }
+    else
+    {
+        // Define the 3x3x3 stencil bounds
+        PetscInt iL = ic - 1, iR = ic + 1;
+        PetscInt jL = jc - 1, jR = jc + 1;
+        PetscInt kL = kc - 1, kR = kc + 1;
+
+        // Compute cell sizes for normalization (assuming graded mesh)
+        PetscReal dx = (cent[kR][jc][ic].x - cent[kL][jc][ic].x) / 2.0; 
+        PetscReal dy = (cent[kc][jc][iR].y - cent[kc][jc][iL].y) / 2.0;
+        PetscReal dz = (cent[kc][jR][ic].z - cent[kc][jL][ic].z) / 2.0; 
+
+        // Normalized distances from the center cell (ic, jc, kc)
+        PetscReal xd = (px - cent[kc][jc][ic].x) / dx; // [-1.5, 1.5] maps to splineB2 support
+        PetscReal yd = (py - cent[kc][jc][ic].y) / dy;
+        PetscReal zd = (pz - cent[kc][jc][ic].z) / dz;
+
+        // Interpolation using splineB2 over 3x3x3 stencil
+        result = 0.0;
+        PetscReal weightSum = 0.0; // For normalization near boundaries
+
+        for (PetscInt k = kL; k <= kR; k++) 
+        {
+            for (PetscInt j = jL; j <= jR; j++) 
+            {
+                for (PetscInt i = iL; i <= iR; i++) 
+                {
+                    // Compute weights based on distance from center
+                    PetscReal wx = splineB2(xd - (k - kc)); 
+                    PetscReal wy = splineB2(yd - (i - ic)); 
+                    PetscReal wz = splineB2(zd - (j - jc)); 
+                    PetscReal weight = wx * wy * wz;
+
+                    // Clamp indices to valid range (no extrapolation)
+                    PetscInt ii = PetscMax(0, PetscMin(i, mx - 1));
+                    PetscInt jj = PetscMax(0, PetscMin(j, my - 1));
+                    PetscInt kk = PetscMax(0, PetscMin(k, mz - 1));
+
+                    // Only contribute if within local domain (avoid ghosts)
+                    if (ii >= gxs && ii < gxe && jj >= gys && jj < gye && kk >= gzs && kk < gze) 
+                    {
+                        result += v[kk][jj][ii] * weight;
+                        weightSum += weight;
+                    }
+                }
+            }
+        }
+
+        // Normalize result to account for incomplete stencils near boundaries
+        if (weightSum > 1e-10) {
+            result /= weightSum;
+        } else {
+            result = v[kc][jc][ic]; // Fallback to nearest value if no valid weights
+        }
+    }
+
+    return;
+}
+
+//! \brief Quadratic B-spline interpolation for a vector field
+
+inline void vectorPointB2SplineVolumeInterpolation(
+    mesh_ *mesh,
+    PetscReal px, PetscReal py, PetscReal pz, // Query point coordinates
+    PetscInt ic, PetscInt jc, PetscInt kc,    // Closest cell center indices
+    Cmpnts ***cent,                           // Cell center coordinates
+    Cmpnts ***v,                              // Vector field 
+    Cmpnts &result                            // Interpolated result (vector)
+) {
+    // Performs quadratic B-spline interpolation using a 3x3x3 stencil centered at
+    // (ic, jc, kc) for a vector field. Assumes ic, jc, kc are internal cells (not ghosts).
+    // Falls back to trilinear interpolation near boundaries. Normalizes weights to handle
+    // incomplete stencils.
+
+    DMDALocalInfo info = mesh->info;
+    PetscInt xs = info.xs, xe = info.xs + info.xm; 
+    PetscInt ys = info.ys, ye = info.ys + info.ym; 
+    PetscInt zs = info.zs, ze = info.zs + info.zm; 
+    PetscInt mx = info.mx, my = info.my, mz = info.mz;
+    PetscInt gxs = info.gxs, gxe = info.gxs + info.gxm;
+    PetscInt gys = info.gys, gye = info.gys + info.gym;
+    PetscInt gzs = info.gzs, gze = info.gzs + info.gzm;
+
+    // Check that the center point is not in ghost cells
+    if (ic < 1 || ic >= mx - 1 || jc < 1 || jc >= my - 1 || kc < 1 || kc >= mz - 1) {
+        char error[512];
+        sprintf(error, "Center indices (i=%ld, j=%ld, k=%ld) are in ghost cells or out of bounds\n", ic, jc, kc);
+        fatalErrorInFunction("vectorPointB2SplineVolumeInterpolation", error);
+    }
+
+    // Near boundaries, fall back to trilinear interpolation
+    if (ic == 1 || ic == mx - 2 || jc == 1 || jc == my - 2 || kc == 1 || kc == mz - 2) 
+    {
+        vectorPointLocalVolumeInterpolation
+        (
+            mesh,
+            px, py, pz,
+            ic, jc, kc,
+            cent,
+            v,
+            result
+        );
+    }         
+    else 
+    {
+        // Define the 3x3x3 stencil bounds
+        PetscInt iL = ic - 1, iR = ic + 1; 
+        PetscInt jL = jc - 1, jR = jc + 1; 
+        PetscInt kL = kc - 1, kR = kc + 1; 
+
+        // Compute cell sizes for normalization 
+        PetscReal dx = (cent[kR][jc][ic].x - cent[kL][jc][ic].x) / 2.0; 
+        PetscReal dy = (cent[kc][jc][iR].y - cent[kc][jc][iL].y) / 2.0;
+        PetscReal dz = (cent[kc][jR][ic].z - cent[kc][jL][ic].z) / 2.0; 
+
+        // Normalized distances from the center cell (ic, jc, kc)
+        PetscReal xd = (px - cent[kc][jc][ic].x) / dx; // [-1.5, 1.5] maps to splineB2 support
+        PetscReal yd = (py - cent[kc][jc][ic].y) / dy; 
+        PetscReal zd = (pz - cent[kc][jc][ic].z) / dz; 
+
+        // Interpolation using splineB2 over 3x3x3 stencil
+        result.x = 0.0; result.y = 0.0; result.z = 0.0;
+        PetscReal weightSum = 0.0; // For normalization near boundaries
+
+        for (PetscInt k = kL; k <= kR; k++) 
+        {      
+            for (PetscInt j = jL; j <= jR; j++) 
+            {  
+                for (PetscInt i = iL; i <= iR; i++) 
+                { 
+                    // Compute weights based on distance from center
+                    PetscReal wx = splineB2(xd - (k - kc)); 
+                    PetscReal wy = splineB2(yd - (i - ic)); 
+                    PetscReal wz = splineB2(zd - (j - jc)); 
+                    PetscReal weight = wx * wy * wz;
+
+                    // Clamp indices to valid range (no extrapolation)
+                    PetscInt ii = PetscMax(0, PetscMin(i, mx - 1)); 
+                    PetscInt jj = PetscMax(0, PetscMin(j, my - 1)); 
+                    PetscInt kk = PetscMax(0, PetscMin(k, mz - 1)); 
+
+                    // Only contribute if within local domain (avoid ghosts)
+                    if (ii >= gxs && ii < gxe && jj >= gys && jj < gye && kk >= gzs && kk < gze) 
+                    {
+                        result.x += v[kk][jj][ii].x * weight;
+                        result.y += v[kk][jj][ii].y * weight;
+                        result.z += v[kk][jj][ii].z * weight;
+                        weightSum += weight;
+                    }
+                }
+            }
+        }
+
+        // PetscPrintf(PETSC_COMM_SELF, "Bspline for point %ld %ld %ld %lf %lf %lf weight sum = %lf\n", kc, jc, ic, xd, yd, zd, weightSum);
+
+        // Normalize result to account for incomplete stencils near boundaries
+        if (weightSum > 1e-10) {
+            result.x /= weightSum;
+            result.y /= weightSum;
+            result.z /= weightSum;
+        } else {
+            // Fallback to nearest value if no valid weights
+            result.x = v[kc][jc][ic].x;
+            result.y = v[kc][jc][ic].y;
+            result.z = v[kc][jc][ic].z;
+        }
+    }
 
     return;
 }
