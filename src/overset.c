@@ -178,6 +178,24 @@ PetscErrorCode UpdateOversetInterpolation(domain_ *domain)
                     // }
 
                     interpolateACellTrilinear(parentMesh, mesh);
+
+                    //set source terms in the overset mesh
+                    if(os->access->flags->isAblActive)
+                    {
+                        abl_ *ablP = parentMesh->access->abl;
+
+                        if(ablP->controllerActive && ablP->controllerAction == "read" && ablP->controllerType=="timeSeriesFromPrecursor")
+                        {
+                            //NOTE: this assumes the current architecture where the parent and child meshes are shared by all the processors.  
+                            abl_ *ablC = mesh->access->abl;
+
+                            ablC->preCompSources[0][0] = ablP->preCompSources[0][0];
+                            ablC->preCompSources[0][1] = ablP->preCompSources[0][1];
+                            ablC->preCompSources[0][2] = ablP->preCompSources[0][2];
+                            ablC->preCompSources[0][3] = ablP->preCompSources[0][3];   
+                        }
+                    }
+
                     MPI_Barrier(mesh->MESH_COMM);
                 }
             }
@@ -204,6 +222,7 @@ PetscErrorCode UpdateOversetInterpolation(domain_ *domain)
                     // }
 
                     interpolateACellTrilinear(childMesh, mesh);
+
                     MPI_Barrier(mesh->MESH_COMM);
                 }
             }
@@ -416,10 +435,9 @@ PetscErrorCode interpolateACellTrilinear(mesh_ *meshD, mesh_ *meshA)
             if(AcellProcMat[n][rankD] !=MPI_UNDEFINED)
             {
 
-              // loop through the aCell cells of a given processor n
-              for(b = sum_ind1; b < sum_ind1 + NumAcellPerProc[n]; b++)
-              {
-
+                // loop through the aCell cells of a given processor n
+                for(b = sum_ind1; b < sum_ind1 + NumAcellPerProc[n]; b++)
+                {
                     // aCell cell index
                     i = aCell[b].indi;
                     j = aCell[b].indj;
@@ -529,6 +547,183 @@ PetscErrorCode interpolateACellTrilinear(mesh_ *meshD, mesh_ *meshA)
 
 //***************************************************************************************************************//
 
+// PetscErrorCode setOversetBC(mesh_ *meshA)
+// {
+//     ueqn_         *ueqn = meshA->access->ueqn;
+//     DM            da    = meshA->da, fda = meshA->fda;
+//     DMDALocalInfo info  = meshA->info;
+//     PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+//     PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+//     PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+//     PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+//     PetscInt      lxs, lxe, lys, lye, lzs, lze;
+//     PetscInt      i, j, k;
+
+//     PetscReal     ucx, ucy, ucz;
+
+//     Cmpnts        ***lucat, ***ucont, ***icsi, ***jeta, ***kzet;
+//     vectorBC      boundaryU = meshA->boundaryU;
+
+//     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+//     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+//     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+//     DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
+//     DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+//     DMDAVecGetArray(fda, meshA->lICsi, &icsi);
+//     DMDAVecGetArray(fda, meshA->lJEta, &jeta);
+//     DMDAVecGetArray(fda, meshA->lKZet, &kzet);
+
+//     for (k=zs; k<lze; k++)
+//     for (j=ys; j<lye; j++)
+//     for (i=xs; i<lxe; i++)
+//     {
+
+//         if (i == 0 && boundaryU.iLeft=="oversetInterpolate")
+//         {
+//             if(lucat[k][j][i].y > 0.0)
+//             {
+//                 ucx = (lucat[k][j][i].x + lucat[k][j][i+1].x) * 0.5;
+//                 ucy = (lucat[k][j][i].y + lucat[k][j][i+1].y) * 0.5;
+//                 ucz = (lucat[k][j][i].z + lucat[k][j][i+1].z) * 0.5;
+//             }
+//             else 
+//             {
+//                 ucx = 0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j][i+1].x - (lucat[k][j][i].x + lucat[k][j][i+2].x));
+//                 ucy = 0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j][i+1].y - (lucat[k][j][i].y + lucat[k][j][i+2].y));
+//                 ucz = 0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j][i+1].z - (lucat[k][j][i].z + lucat[k][j][i+2].z));
+//             }
+
+//             ucont[k][j][i].x = (ucx * icsi[k][j][i].x + ucy * icsi[k][j][i].y + ucz * icsi[k][j][i].z);
+//         }
+
+//         if (i == mx-2 && boundaryU.iRight=="oversetInterpolate")
+//         {
+//             if(lucat[k][j][i].y > 0.0)
+//             {
+//                 ucx = 0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j][i].x - (lucat[k][j][i+1].x + lucat[k][j][i-1].x));
+//                 ucy = 0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j][i].y - (lucat[k][j][i+1].y + lucat[k][j][i-1].y));
+//                 ucz = 0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j][i].z - (lucat[k][j][i+1].z + lucat[k][j][i-1].z));
+//             }
+//             else
+//             {
+//                 ucx = (lucat[k][j][i].x + lucat[k][j][i+1].x) * 0.5;
+//                 ucy = (lucat[k][j][i].y + lucat[k][j][i+1].y) * 0.5;
+//                 ucz = (lucat[k][j][i].z + lucat[k][j][i+1].z) * 0.5;
+//             }
+//             // ucx = (lucat[k][j][i].x + lucat[k][j][i+1].x) * 0.5;
+//             // ucy = (lucat[k][j][i].y + lucat[k][j][i+1].y) * 0.5;
+//             // ucz = (lucat[k][j][i].z + lucat[k][j][i+1].z) * 0.5;
+
+//             ucont[k][j][i].x = (ucx * icsi[k][j][i].x + ucy * icsi[k][j][i].y + ucz * icsi[k][j][i].z);
+//         }
+
+//         if (j == 0 && boundaryU.jLeft=="oversetInterpolate")
+//         {
+
+//             if(lucat[k][j][i].z > 0.0)
+//             {
+//                 ucx = (lucat[k][j][i].x + lucat[k][j+1][i].x) * 0.5;
+//                 ucy = (lucat[k][j][i].y + lucat[k][j+1][i].y) * 0.5;
+//                 ucz = (lucat[k][j][i].z + lucat[k][j+1][i].z) * 0.5;
+//             }
+//             else 
+//             {
+//                 ucx = 0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j+1][i].x - (lucat[k][j][i].x + lucat[k][j+2][i].x));
+//                 ucy = 0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j+1][i].y - (lucat[k][j][i].y + lucat[k][j+2][i].y));
+//                 ucz = 0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j+1][i].z - (lucat[k][j][i].z + lucat[k][j+2][i].z));
+//             }
+
+//             // ucx = (lucat[k][j+1][i].x + lucat[k][j][i].x) * 0.5;
+//             // ucy = (lucat[k][j+1][i].y + lucat[k][j][i].y) * 0.5;
+//             // ucz = (lucat[k][j+1][i].z + lucat[k][j][i].z) * 0.5;
+
+//             ucont[k][j][i].y = (ucx * jeta[k][j][i].x + ucy * jeta[k][j][i].y + ucz * jeta[k][j][i].z);
+//         }
+
+//         if (j == my-2 && boundaryU.jRight=="oversetInterpolate")
+//         {
+
+//             if(lucat[k][j][i].z > 0.0)
+//             {
+//                 ucx = 0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j][i].x - (lucat[k][j+1][i].x + lucat[k][j-1][i].x));
+//                 ucy = 0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j][i].y - (lucat[k][j+1][i].y + lucat[k][j-1][i].y));
+//                 ucz = 0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j][i].z - (lucat[k][j+1][i].z + lucat[k][j-1][i].z));
+//             }
+//             else 
+//             {
+//                 ucx = (lucat[k][j][i].x + lucat[k][j+1][i].x) * 0.5;
+//                 ucy = (lucat[k][j][i].y + lucat[k][j+1][i].y) * 0.5;
+//                 ucz = (lucat[k][j][i].z + lucat[k][j+1][i].z) * 0.5;
+//             }
+
+//             // ucx = (lucat[k][j+1][i].x + lucat[k][j][i].x) * 0.5;
+//             // ucy = (lucat[k][j+1][i].y + lucat[k][j][i].y) * 0.5;
+//             // ucz = (lucat[k][j+1][i].z + lucat[k][j][i].z) * 0.5;
+
+//             ucont[k][j][i].y = (ucx * jeta[k][j][i].x + ucy * jeta[k][j][i].y + ucz * jeta[k][j][i].z);
+//         }
+
+//         if (k == 0 && boundaryU.kLeft=="oversetInterpolate")
+//         {
+
+//             if(lucat[k][j][i].x > 0.0)
+//             {
+//                 ucx = (lucat[k][j][i].x + lucat[k+1][j][i].x) * 0.5;
+//                 ucy = (lucat[k][j][i].y + lucat[k+1][j][i].y) * 0.5;
+//                 ucz = (lucat[k][j][i].z + lucat[k+1][j][i].z) * 0.5;
+//             }
+//             else 
+//             {
+//                 ucx = 0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k+1][j][i].x - (lucat[k][j][i].x + lucat[k+2][j][i].x));
+//                 ucy = 0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k+1][j][i].y - (lucat[k][j][i].y + lucat[k+2][j][i].y));
+//                 ucz = 0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k+1][j][i].z - (lucat[k][j][i].z + lucat[k+2][j][i].z));
+//             }
+
+//             // ucx = (lucat[k+1][j][i].x + lucat[k][j][i].x) * 0.5;
+//             // ucy = (lucat[k+1][j][i].y + lucat[k][j][i].y) * 0.5;
+//             // ucz = (lucat[k+1][j][i].z + lucat[k][j][i].z) * 0.5;
+
+//             ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z );
+//         }
+
+//         if (k == mz-2 && boundaryU.kRight == "oversetInterpolate")
+//         {
+//             if(lucat[k][j][i].x > 0.0)
+//             {
+//                 ucx = 0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j][i].x - (lucat[k+1][j][i].x + lucat[k-1][j][i].x));
+//                 ucy = 0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j][i].y - (lucat[k+1][j][i].y + lucat[k-1][j][i].y));
+//                 ucz = 0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j][i].z - (lucat[k+1][j][i].z + lucat[k-1][j][i].z));
+//             }
+//             else 
+//             {
+//                 ucx = (lucat[k][j][i].x + lucat[k+1][j][i].x) * 0.5;
+//                 ucy = (lucat[k][j][i].y + lucat[k+1][j][i].y) * 0.5;
+//                 ucz = (lucat[k][j][i].z + lucat[k+1][j][i].z) * 0.5;
+//             }
+//             // ucx = (lucat[k+1][j][i].x + lucat[k][j][i].x) * 0.5;
+//             // ucy = (lucat[k+1][j][i].y + lucat[k][j][i].y) * 0.5;
+//             // ucz = (lucat[k+1][j][i].z + lucat[k][j][i].z) * 0.5;
+
+//             ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z );
+//         }
+//     }
+
+//     DMDAVecRestoreArray(fda, ueqn->lUcat, &lucat);
+//     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+//     DMDAVecRestoreArray(fda, meshA->lICsi, &icsi);
+//     DMDAVecRestoreArray(fda, meshA->lJEta, &jeta);
+//     DMDAVecRestoreArray(fda, meshA->lKZet, &kzet);
+
+//     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+//     DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+//     return 0;
+// }
+
+//***************************************************************************************************************//
+
 PetscErrorCode setOversetBC(mesh_ *meshA)
 {
     ueqn_         *ueqn = meshA->access->ueqn;
@@ -545,11 +740,28 @@ PetscErrorCode setOversetBC(mesh_ *meshA)
     PetscReal     ucx, ucy, ucz;
 
     Cmpnts        ***lucat, ***ucont, ***icsi, ***jeta, ***kzet;
-    vectorBC      boundaryU = meshA->boundaryU;
+    vectorBC      *boundaryU = &(meshA->boundaryU);
+
+    // Variables to store the local sum of velocities and counts for each boundary plane
+    PetscReal     local_sum_iLeft[3] = {0.0, 0.0, 0.0}, local_sum_iRight[3] = {0.0, 0.0, 0.0};
+    PetscReal     local_sum_jLeft[3] = {0.0, 0.0, 0.0}, local_sum_jRight[3] = {0.0, 0.0, 0.0};
+    PetscReal     local_sum_kLeft[3] = {0.0, 0.0, 0.0}, local_sum_kRight[3] = {0.0, 0.0, 0.0};
+    PetscInt      local_count_iLeft = 0, local_count_iRight = 0;
+    PetscInt      local_count_jLeft = 0, local_count_jRight = 0;
+    PetscInt      local_count_kLeft = 0, local_count_kRight = 0;
+
+    // Variables to store the global sum of velocities and counts
+    PetscReal     global_sum_iLeft[3], global_sum_iRight[3], global_sum_jLeft[3];
+    PetscReal     global_sum_jRight[3], global_sum_kLeft[3], global_sum_kRight[3];
+    PetscInt      global_count_iLeft, global_count_iRight, global_count_jLeft;
+    PetscInt      global_count_jRight, global_count_kLeft, global_count_kRight;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    word location = "./boundary/" + meshA->meshName + "/";
+    readVectorBC(location, "U", &(meshA->boundaryU));
 
     DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
     DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
@@ -561,65 +773,148 @@ PetscErrorCode setOversetBC(mesh_ *meshA)
     for (j=ys; j<lye; j++)
     for (i=xs; i<lxe; i++)
     {
-
-        if (i == 0 && boundaryU.iLeft=="oversetInterpolate")
+        if (i == 0 && (*boundaryU).iLeft=="oversetInterpolate" && (j!=0 || k!=0 || j!=my-1 || k!=mz-1))
         {
-
-            ucx = (lucat[k][j][i].x);
-            ucy = (lucat[k][j][i].y);
-            ucz = (lucat[k][j][i].z);
+            if(lucat[k][j][i].y > 0.0)
+            {
+                ucx = (lucat[k][j][i].x + lucat[k][j][i+1].x) * 0.5;
+                ucy = (lucat[k][j][i].y + lucat[k][j][i+1].y) * 0.5;
+                ucz = (lucat[k][j][i].z + lucat[k][j][i+1].z) * 0.5;
+            }
+            else 
+            {
+                ucx = 0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j][i+1].x - (lucat[k][j][i].x + lucat[k][j][i+2].x));
+                ucy = 0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j][i+1].y - (lucat[k][j][i].y + lucat[k][j][i+2].y));
+                ucz = 0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j][i+1].z - (lucat[k][j][i].z + lucat[k][j][i+2].z));
+            }
 
             ucont[k][j][i].x = (ucx * icsi[k][j][i].x + ucy * icsi[k][j][i].y + ucz * icsi[k][j][i].z);
+
+            // Accumulate the local velocity components for iLeft
+            local_sum_iLeft[0] += ucx;
+            local_sum_iLeft[1] += ucy;
+            local_sum_iLeft[2] += ucz;
+            local_count_iLeft++;
         }
 
-        if (i == mx-2 && boundaryU.iRight=="oversetInterpolate")
+        if (i == mx-2 && (*boundaryU).iRight=="oversetInterpolate" && (j!=0 || k!=0 || j!=my-1 || k!=mz-1))
         {
-
-            ucx = (lucat[k][j][i+1].x);
-            ucy = (lucat[k][j][i+1].y);
-            ucz = (lucat[k][j][i+1].z);
+            if(lucat[k][j][i].y > 0.0)
+            {
+                ucx = 0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j][i].x - (lucat[k][j][i+1].x + lucat[k][j][i-1].x));
+                ucy = 0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j][i].y - (lucat[k][j][i+1].y + lucat[k][j][i-1].y));
+                ucz = 0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j][i].z - (lucat[k][j][i+1].z + lucat[k][j][i-1].z));
+            }
+            else
+            {
+                ucx = (lucat[k][j][i].x + lucat[k][j][i+1].x) * 0.5;
+                ucy = (lucat[k][j][i].y + lucat[k][j][i+1].y) * 0.5;
+                ucz = (lucat[k][j][i].z + lucat[k][j][i+1].z) * 0.5;
+            }
 
             ucont[k][j][i].x = (ucx * icsi[k][j][i].x + ucy * icsi[k][j][i].y + ucz * icsi[k][j][i].z);
+
+            // Accumulate the local velocity components for iRight
+            local_sum_iRight[0] += ucx;
+            local_sum_iRight[1] += ucy;
+            local_sum_iRight[2] += ucz;
+            local_count_iRight++;
         }
 
-        if (j == 0 && boundaryU.jLeft=="oversetInterpolate")
+        if (j == 0 && (*boundaryU).jLeft=="oversetInterpolate" && (i!=0 || k!=0 || i!=mx-1 || k!=mz-1))
         {
-
-            ucx = (lucat[k][j][i].x);
-            ucy = (lucat[k][j][i].y);
-            ucz = (lucat[k][j][i].z);
+            if(lucat[k][j][i].z > 0.0)
+            {
+                ucx = (lucat[k][j][i].x + lucat[k][j+1][i].x) * 0.5;
+                ucy = (lucat[k][j][i].y + lucat[k][j+1][i].y) * 0.5;
+                ucz = (lucat[k][j][i].z + lucat[k][j+1][i].z) * 0.5;
+            }
+            else 
+            {
+                ucx = 0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j+1][i].x - (lucat[k][j][i].x + lucat[k][j+2][i].x));
+                ucy = 0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j+1][i].y - (lucat[k][j][i].y + lucat[k][j+2][i].y));
+                ucz = 0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j+1][i].z - (lucat[k][j][i].z + lucat[k][j+2][i].z));
+            }
 
             ucont[k][j][i].y = (ucx * jeta[k][j][i].x + ucy * jeta[k][j][i].y + ucz * jeta[k][j][i].z);
+
+            // Accumulate the local velocity components for jLeft
+            local_sum_jLeft[0] += ucx;
+            local_sum_jLeft[1] += ucy;
+            local_sum_jLeft[2] += ucz;
+            local_count_jLeft++;
         }
 
-        if (j == my-2 && boundaryU.jRight=="oversetInterpolate")
+        if (j == my-2 && (*boundaryU).jRight=="oversetInterpolate" && (i!=0 || k!=0 || i!=mx-1 || k!=mz-1))
         {
-
-            ucx = (lucat[k][j+1][i].x);
-            ucy = (lucat[k][j+1][i].y);
-            ucz = (lucat[k][j+1][i].z);
+            if(lucat[k][j][i].z > 0.0)
+            {
+                ucx = 0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j][i].x - (lucat[k][j+1][i].x + lucat[k][j-1][i].x));
+                ucy = 0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j][i].y - (lucat[k][j+1][i].y + lucat[k][j-1][i].y));
+                ucz = 0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j][i].z - (lucat[k][j+1][i].z + lucat[k][j-1][i].z));
+            }
+            else 
+            {
+                ucx = (lucat[k][j][i].x + lucat[k][j+1][i].x) * 0.5;
+                ucy = (lucat[k][j][i].y + lucat[k][j][i+1].y) * 0.5;
+                ucz = (lucat[k][j][i].z + lucat[k][j+1][i].z) * 0.5;
+            }
 
             ucont[k][j][i].y = (ucx * jeta[k][j][i].x + ucy * jeta[k][j][i].y + ucz * jeta[k][j][i].z);
+
+            // Accumulate the local velocity components for jRight
+            local_sum_jRight[0] += ucx;
+            local_sum_jRight[1] += ucy;
+            local_sum_jRight[2] += ucz;
+            local_count_jRight++;
         }
 
-        if (k == 0 && boundaryU.kLeft=="oversetInterpolate")
+        if (k == 0 && (*boundaryU).kLeft=="oversetInterpolate" && (i!=0 || j!=0 || i!=mx-1 || j!=my-1))
         {
+            if(lucat[k][j][i].x > 0.0)
+            {
+                ucx = (lucat[k][j][i].x + lucat[k+1][j][i].x) * 0.5;
+                ucy = (lucat[k][j][i].y + lucat[k+1][j][i].y) * 0.5;
+                ucz = (lucat[k][j][i].z + lucat[k+1][j][i].z) * 0.5;
+            }
+            else 
+            {
+                ucx = 0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k+1][j][i].x - (lucat[k][j][i].x + lucat[k+2][j][i].x));
+                ucy = 0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k+1][j][i].y - (lucat[k][j][i].y + lucat[k+2][j][i].y));
+                ucz = 0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k+1][j][i].z - (lucat[k][j][i].z + lucat[k+2][j][i].z));
+            }
 
-            ucx = (lucat[k][j][i].x);
-            ucy = (lucat[k][j][i].y);
-            ucz = (lucat[k][j][i].z);
+            ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z);
 
-            ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z );
+            // Accumulate the local velocity components for kLeft
+            local_sum_kLeft[0] += ucx;
+            local_sum_kLeft[1] += ucy;
+            local_sum_kLeft[2] += ucz;
+            local_count_kLeft++;
         }
 
-        if (k == mz-2 && boundaryU.kRight == "oversetInterpolate")
+        if (k == mz-2 && (*boundaryU).kRight=="oversetInterpolate" && (i!=0 || j!=0 || i!=mx-1 || j!=my-1))
         {
+            if(lucat[k][j][i].x > 0.0)
+            {
+                ucx = 0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) + 0.125 * (2.0 * lucat[k][j][i].x - (lucat[k+1][j][i].x + lucat[k-1][j][i].x));
+                ucy = 0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) + 0.125 * (2.0 * lucat[k][j][i].y - (lucat[k+1][j][i].y + lucat[k-1][j][i].y));
+                ucz = 0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) + 0.125 * (2.0 * lucat[k][j][i].z - (lucat[k+1][j][i].z + lucat[k-1][j][i].z));
+            }
+            else 
+            {
+                ucx = (lucat[k][j][i].x + lucat[k+1][j][i].x) * 0.5;
+                ucy = (lucat[k][j][i].y + lucat[k+1][j][i].y) * 0.5;
+                ucz = (lucat[k][j][i].z + lucat[k+1][j][i].z) * 0.5;
+            }
 
-            ucx = (lucat[k+1][j][i].x);
-            ucy = (lucat[k+1][j][i].y);
-            ucz = (lucat[k+1][j][i].z);
+            ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z);
 
-            ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z );
+            // Accumulate the local velocity components for kRight
+            local_sum_kRight[0] += ucx;
+            local_sum_kRight[1] += ucy;
+            local_sum_kRight[2] += ucz;
+            local_count_kRight++;
         }
     }
 
@@ -632,10 +927,171 @@ PetscErrorCode setOversetBC(mesh_ *meshA)
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
 
+    // Perform MPI reduction to compute global sums and counts
+    MPI_Allreduce(local_sum_iLeft, global_sum_iLeft, 3, MPIU_REAL, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(local_sum_iRight, global_sum_iRight, 3, MPIU_REAL, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(local_sum_jLeft, global_sum_jLeft, 3, MPIU_REAL, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(local_sum_jRight, global_sum_jRight, 3, MPIU_REAL, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(local_sum_kLeft, global_sum_kLeft, 3, MPIU_REAL, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(local_sum_kRight, global_sum_kRight, 3, MPIU_REAL, MPI_SUM, meshA->MESH_COMM);
+
+    MPI_Allreduce(&local_count_iLeft, &global_count_iLeft, 1, MPIU_INT, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(&local_count_iRight, &global_count_iRight, 1, MPIU_INT, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(&local_count_jLeft, &global_count_jLeft, 1, MPIU_INT, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(&local_count_jRight, &global_count_jRight, 1, MPIU_INT, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(&local_count_kLeft, &global_count_kLeft, 1, MPIU_INT, MPI_SUM, meshA->MESH_COMM);
+    MPI_Allreduce(&local_count_kRight, &global_count_kRight, 1, MPIU_INT, MPI_SUM, meshA->MESH_COMM);
+
+    Cmpnts gUiLeft, gUiRight, gUjLeft, gUjRight, gUkLeft, gUkRight;
+
+    // Compute and store the global mean velocities in Cmpnts structures
+    if (global_count_iLeft > 0) {
+        gUiLeft.x = global_sum_iLeft[0] / global_count_iLeft;
+        gUiLeft.y = global_sum_iLeft[1] / global_count_iLeft;
+        gUiLeft.z = global_sum_iLeft[2] / global_count_iLeft;
+    } else {
+        gUiLeft.x = 0.0;
+        gUiLeft.y = 0.0;
+        gUiLeft.z = 0.0;
+    }
+
+    if (global_count_iRight > 0) {
+        gUiRight.x = global_sum_iRight[0] / global_count_iRight;
+        gUiRight.y = global_sum_iRight[1] / global_count_iRight;
+        gUiRight.z = global_sum_iRight[2] / global_count_iRight;
+    } else {
+        gUiRight.x = 0.0;
+        gUiRight.y = 0.0;
+        gUiRight.z = 0.0;
+    }
+
+    if (global_count_jLeft > 0) {
+        gUjLeft.x = global_sum_jLeft[0] / global_count_jLeft;
+        gUjLeft.y = global_sum_jLeft[1] / global_count_jLeft;
+        gUjLeft.z = global_sum_jLeft[2] / global_count_jLeft;
+    } else {
+        gUjLeft.x = 0.0;
+        gUjLeft.y = 0.0;
+        gUjLeft.z = 0.0;
+    }
+
+    if (global_count_jRight > 0) {
+        gUjRight.x = global_sum_jRight[0] / global_count_jRight;
+        gUjRight.y = global_sum_jRight[1] / global_count_jRight;
+        gUjRight.z = global_sum_jRight[2] / global_count_jRight;
+    } else {
+        gUjRight.x = 0.0;
+        gUjRight.y = 0.0;
+        gUjRight.z = 0.0;
+    }
+
+    if (global_count_kLeft > 0) {
+        gUkLeft.x = global_sum_kLeft[0] / global_count_kLeft;
+        gUkLeft.y = global_sum_kLeft[1] / global_count_kLeft;
+        gUkLeft.z = global_sum_kLeft[2] / global_count_kLeft;
+    } else {
+        gUkLeft.x = 0.0;
+        gUkLeft.y = 0.0;
+        gUkLeft.z = 0.0;
+    }
+
+    if (global_count_kRight > 0) {
+        gUkRight.x = global_sum_kRight[0] / global_count_kRight;
+        gUkRight.y = global_sum_kRight[1] / global_count_kRight;
+        gUkRight.z = global_sum_kRight[2] / global_count_kRight;
+    } else {
+        gUkRight.x = 0.0;
+        gUkRight.y = 0.0;
+        gUkRight.z = 0.0;
+    }
+
+    // PetscPrintf(meshA->MESH_COMM, "Stored mean velocity at iLeft (ucx, ucy, ucz): %e, %e, %e\n",
+    //             gUiLeft.x, gUiLeft.y, gUiLeft.z);
+    // PetscPrintf(meshA->MESH_COMM, "Stored mean velocity at iRight (ucx, ucy, ucz): %e, %e, %e\n",
+    //             gUiRight.x, gUiRight.y, gUiRight.z);
+    // PetscPrintf(meshA->MESH_COMM, "Stored mean velocity at jLeft (ucx, ucy, ucz): %e, %e, %e\n",
+    //             gUjLeft.x, gUjLeft.y, gUjLeft.z);
+    // PetscPrintf(meshA->MESH_COMM, "Stored mean velocity at jRight (ucx, ucy, ucz): %e, %e, %e\n",
+    //             gUjRight.x, gUjRight.y, gUjRight.z);
+    // PetscPrintf(meshA->MESH_COMM, "Stored mean velocity at kLeft (ucx, ucy, ucz): %e, %e, %e\n",
+    //             gUkLeft.x, gUkLeft.y, gUkLeft.z);
+    // PetscPrintf(meshA->MESH_COMM, "Stored mean velocity at kRight (ucx, ucy, ucz): %e, %e, %e\n",
+    //             gUkRight.x, gUkRight.y, gUkRight.z);
+    
+    if ((*boundaryU).iLeft=="oversetInterpolate")
+    {
+        if(gUiLeft.y > 0)
+        {
+
+        }
+        else if (gUiLeft.y < 0 && fabs(gUiLeft.y) > 1.0e-4)
+        {
+            (*boundaryU).iLeft = "zeroGradient";
+        }
+    }
+
+    if ((*boundaryU).iRight=="oversetInterpolate")
+    {
+        if(gUiRight.y > 0 && fabs(gUiRight.y) > 1.0e-4)
+        {
+            (*boundaryU).iRight = "zeroGradient";
+        }
+        else
+        {
+            
+        }
+    }
+
+    if ((*boundaryU).jLeft=="oversetInterpolate")
+    {
+        if(gUjLeft.z > 0)
+        {
+
+        }
+        else if(gUjLeft.z < 0 && fabs(gUjLeft.z) > 1.0e-4)
+        {
+            (*boundaryU).jLeft = "zeroGradient";
+        }
+    }
+
+    if ((*boundaryU).jRight=="oversetInterpolate")
+    {
+        if(gUjRight.z > 0 && fabs(gUjRight.z) > 1.0e-4)
+        {
+            (*boundaryU).jRight = "zeroGradient";
+        }
+        else
+        {
+            
+        }
+    }
+
+    if ((*boundaryU).kLeft=="oversetInterpolate")
+    {
+        if(gUkLeft.x > 0)
+        {
+
+        }
+        else if (gUkLeft.x < 0 && fabs(gUkLeft.x) > 1.0e-4)
+        {
+            (*boundaryU).kLeft = "zeroGradient";
+        }
+    }
+
+    if ((*boundaryU).kRight=="oversetInterpolate")
+    {
+        if(gUkRight.x > 0 && fabs(gUkRight.x) > 1.0e-4)
+        {
+            (*boundaryU).kRight = "zeroGradient";
+        }
+        else
+        {
+            
+        }
+    }
+
     return 0;
 }
-
-//***************************************************************************************************************//
 
 PetscErrorCode setBackgroundBC(mesh_ *meshA)
 {
