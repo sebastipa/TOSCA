@@ -4,9 +4,20 @@
 #ifndef _LES_H_
 #define _LES_H_
 
+typedef enum {
+    SMAGORINSKY,
+    STABILITY_BASED,
+    DSM,
+    DLASI,
+    DLASD,
+    DPASD,
+    AMD
+} LesModel;
+
 //! \brief struct storing LES model
 struct les_
 {
+    LesModel      model;
     PetscReal     maxCs;
 
     // Dynamic Smagorisnky

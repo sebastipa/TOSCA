@@ -362,7 +362,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         VecDestroy(&Cs);
         VecDestroy(&Nut);
 
-        if(domain->flags.isLesActive == 2)
+        if(domain->les->model == STABILITY_BASED)
         {
             PetscPrintf(mesh->MESH_COMM, "Reading sgsL...\n");
             field = "/sgsL";
@@ -1976,9 +1976,9 @@ PetscErrorCode writeFields(io_ *io)
         MPI_Barrier(mesh->MESH_COMM);
 
         // write nvert
-        fieldName = timeName + "/meshTag";
-        writeBinaryField(mesh->MESH_COMM, mesh->meshTag, fieldName.c_str());
-        MPI_Barrier(mesh->MESH_COMM);
+        // fieldName = timeName + "/meshTag";
+        // writeBinaryField(mesh->MESH_COMM, mesh->meshTag, fieldName.c_str());
+        // MPI_Barrier(mesh->MESH_COMM);
 
         // write temperature
         if(flags->isTeqnActive)
@@ -2005,7 +2005,7 @@ PetscErrorCode writeFields(io_ *io)
             VecDestroy(&Cs);
             VecDestroy(&Nut);
 
-            if(flags->isLesActive == 2)
+            if(les->model == STABILITY_BASED)
             {
                 fieldName = timeName + "/sgsL";
                 writeBinaryField(mesh->MESH_COMM, les->L, fieldName.c_str());

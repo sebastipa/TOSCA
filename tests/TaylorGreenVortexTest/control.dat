@@ -28,15 +28,15 @@
 
 # Turbulence Model
 # ---------------------------------
--les                       7 #AMD model
+-les                       1
+-lesModel                  AMD
 -max_cs                    10
 
 # Numerical Schemes
 # ---------------------------------
 -dUdtScheme                rungeKutta4 #backwardEuler
 -dTdtScheme                backwardEuler
--divScheme                 central4 #centralUpwinidW
--viscScheme                central4
+-divScheme                 central4 
 # Wind Turbine
 # ---------------------------------
 -windplant                 0

@@ -757,16 +757,17 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerAvgStartTime", &(abl->sourceAvgStartTime));
 
                     // check that average start time is in the list
-                    if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
+                    // if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
+                    // {
+                    //     char error[512];
+                    //     sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
+                    //     fatalErrorInFunction("ABLInitialize",  error);
+                    // }
+                    // check that more than 100 s of history are used to average
+                    
+                    if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
                     {
                         char error[512];
-                        sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
-                        fatalErrorInFunction("ABLInitialize",  error);
-                    }
-                    // check that more than 100 s of history are used to average
-                    else if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
-                    {
-                    char error[512];
                         sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average is too poor (less than 100 s)");
                         fatalErrorInFunction("ABLInitialize",  error);
                     }
@@ -974,6 +975,11 @@ PetscErrorCode InitializeABL(abl_ *abl)
             {
                 PetscMalloc(sizeof(PetscReal *) * 1, &(abl->preCompSources));
                 PetscMalloc(sizeof(PetscReal) * 4, &(abl->preCompSources[0]));
+
+                abl->preCompSources[0][0] = abl->access->clock->startTime;
+                abl->preCompSources[0][1] = 0.0;
+                abl->preCompSources[0][2] = 0.0;
+                abl->preCompSources[0][3] = 0.0;  
             }
             else
             {

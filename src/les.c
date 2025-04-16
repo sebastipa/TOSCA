@@ -11,6 +11,17 @@ const PetscReal std_cs  = 0.0289; // standard Cs value for HIT
 const PetscReal amd_cs  =  0.3334;
 //***************************************************************************************************************//
 
+static const char *LesModelNames[] = {
+    "smagorinsky",
+    "stabilityDependent",
+    "dynamicSmagorinsky",
+    "dynamicLASI",
+    "dynamicLASD",
+    "dynamicPASD",
+    "AMD",
+    "LesModel", "", PETSC_NULL
+};
+
 PetscErrorCode InitializeLES(les_ *les)
 {
     // TOSCA LES models
@@ -36,49 +47,88 @@ PetscErrorCode InitializeLES(les_ *les)
 
         if(les->access->flags->isLesActive)
         {
-            VecDuplicate(mesh->lAj, &(les->lCs));     VecSet(les->lCs,0.);
-            VecDuplicate(mesh->lAj, &(les->lNu_t));   VecSet(les->lNu_t,0.);
-            VecDuplicate(mesh->lAj, &(les->lDiff_t)); VecSet(les->lDiff_t,0.);
-            VecDuplicate(mesh->lAj, &(les->lKsgs));   VecSet(les->lKsgs,0.);
+            PetscBool modelSet;
+            PetscOptionsGetEnum(PETSC_NULL, PETSC_NULL, "-lesModel", LesModelNames, (PetscEnum*)&(les->model), &modelSet);
 
-            if (les->access->flags->isLesActive > 1)
+            // Check if a valid model was set
+            if (!modelSet)
             {
-                VecDuplicate(mesh->lCsi, &les->lSx);   VecSet(les->lSx,0.);
-                VecDuplicate(mesh->lCsi, &les->lSy);   VecSet(les->lSy,0.);
-                VecDuplicate(mesh->lCsi, &les->lSz);   VecSet(les->lSz,0.);
-                VecDuplicate(mesh->lAj, &(les->lS));   VecSet(les->lS,0.);
-
-                if (les->access->flags->isLesActive == 2)
+                PetscPrintf(PETSC_COMM_WORLD, "Error: No valid LES model specified with -lesModel in control.dat.\n");
+                PetscPrintf(PETSC_COMM_WORLD, "Available models:\n");
+                for (int i = 0; LesModelNames[i] != PETSC_NULL && strcmp(LesModelNames[i], "LesModel") != 0; i++)
                 {
-                    VecDuplicate(mesh->lAj,  &(les->lN));  VecSet(les->lN,0.);
-                    VecDuplicate(mesh->lAj,  &(les->lCh)); VecSet(les->lCh,0.);
-                    VecDuplicate(mesh->Nvert,&(les->L));   VecSet(les->L,0.);
+                    PetscPrintf(PETSC_COMM_WORLD, "  %s\n", LesModelNames[i]);
                 }
+                char error[512];
+                sprintf(error, "\nUse one of the available models.\n");
+                fatalErrorInFunction("InitializeLES",  error);
+            }    
 
-                if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
-                {
-                    VecDuplicate(mesh->lAj, &(les->lLM));  VecSet(les->lLM,0.);
-                    VecDuplicate(mesh->lAj, &(les->lMM));  VecSet(les->lMM,0.);
+            VecDuplicate(mesh->lAj, &(les->lCs));     VecSet(les->lCs, 0.);
+            VecDuplicate(mesh->lAj, &(les->lNu_t));   VecSet(les->lNu_t, 0.);
+            VecDuplicate(mesh->lAj, &(les->lDiff_t)); VecSet(les->lDiff_t, 0.);
+            VecDuplicate(mesh->lAj, &(les->lKsgs));   VecSet(les->lKsgs, 0.);
 
-                    if (les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5)
-                    {
-                        VecDuplicate(mesh->lAj, &(les->lLM_old));   VecSet(les->lLM_old,0.);
-                        VecDuplicate(mesh->lAj, &(les->lMM_old));   VecSet(les->lMM_old,0.);
-                    }
-
-                    if (les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
-                    {
-                        VecDuplicate(mesh->lAj, &(les->lQN));  VecSet(les->lQN,0.);
-                        VecDuplicate(mesh->lAj, &(les->lNN));  VecSet(les->lNN,0.);
-
-                        if(les->access->flags->isLesActive == 5)
-                        {
-                            VecDuplicate(mesh->lAj, &(les->lQN_old));   VecSet(les->lQN_old,0.);
-                            VecDuplicate(mesh->lAj, &(les->lNN_old));   VecSet(les->lNN_old,0.);
-                        }
-                    }
-                }
+            if (les->model == STABILITY_BASED ||
+                les->model == DSM ||
+                les->model == DLASI ||
+                les->model == DLASD ||
+                les->model == DPASD ||
+                les->model == AMD)
+            {
+                VecDuplicate(mesh->lCsi, &(les->lSx)); VecSet(les->lSx, 0.);
+                VecDuplicate(mesh->lCsi, &(les->lSy)); VecSet(les->lSy, 0.);
+                VecDuplicate(mesh->lCsi, &(les->lSz)); VecSet(les->lSz, 0.);
+                VecDuplicate(mesh->lAj, &(les->lS));   VecSet(les->lS, 0.);
             }
+
+            // STABILITY_BASED specific
+            if (les->model == STABILITY_BASED)
+            {
+                VecDuplicate(mesh->lAj, &(les->lN));   VecSet(les->lN, 0.);
+                VecDuplicate(mesh->lAj, &(les->lCh));  VecSet(les->lCh, 0.);
+                VecDuplicate(mesh->Nvert, &(les->L));  VecSet(les->L, 0.);
+            }
+
+            // Dynamic models (DSM, DLASI, DLASD, DPASD)
+            if (les->model == DSM ||
+                les->model == DLASI ||
+                les->model == DLASD ||
+                les->model == DPASD)
+            {
+                VecDuplicate(mesh->lAj, &(les->lLM)); VecSet(les->lLM, 0.);
+                VecDuplicate(mesh->lAj, &(les->lMM)); VecSet(les->lMM, 0.);
+            }
+
+            // Lagrangian averaging (DLASI, DLASD)
+            if (les->model == DLASI || les->model == DLASD)
+            {
+                VecDuplicate(mesh->lAj, &(les->lLM_old)); VecSet(les->lLM_old, 0.);
+                VecDuplicate(mesh->lAj, &(les->lMM_old)); VecSet(les->lMM_old, 0.);
+            }
+
+            // Scale-dependent dynamic models (DLASD, DPASD)
+            if (les->model == DLASD || les->model == DPASD)
+            {
+                VecDuplicate(mesh->lAj, &(les->lQN)); VecSet(les->lQN, 0.);
+                VecDuplicate(mesh->lAj, &(les->lNN)); VecSet(les->lNN, 0.);
+            }
+
+            // DLASD-specific
+            if (les->model == DLASD)
+            {
+                VecDuplicate(mesh->lAj, &(les->lQN_old)); VecSet(les->lQN_old, 0.);
+                VecDuplicate(mesh->lAj, &(les->lNN_old)); VecSet(les->lNN_old, 0.);
+            }
+        }
+
+        if (les->access->flags->isLesActive)
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "Selected LES Model: %s\n", LesModelNames[les->model]);
+        }
+        else
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "Selected LES Model: none (LES inactive)\n");
         }
     }
 
@@ -95,7 +145,7 @@ PetscErrorCode UpdateCs (les_ *les)
     DM             da     = mesh->da, fda = mesh->fda;
 
     // standard smagorinsky model
-    if(les->access->flags->isLesActive==1)
+    if(les->model == SMAGORINSKY)
     {
         VecSet(les->lCs, std_cs);
         DMLocalToLocalBegin(da, les->lCs, INSERT_VALUES, les->lCs);
@@ -103,7 +153,7 @@ PetscErrorCode UpdateCs (les_ *les)
         return(0);
     }
 
-    if(les->access->flags->isLesActive==7)
+    if(les->model == AMD)
     {
         VecSet(les->lCs, amd_cs);
         DMLocalToLocalBegin(da, les->lCs, INSERT_VALUES, les->lCs);
@@ -297,7 +347,7 @@ PetscErrorCode UpdateCs (les_ *les)
     resetCellPeriodicFluxes(mesh, les->lS,  les->lS,  "scalar", "localToLocal");
 
     // 2 - loop over cells and compute specific model parameters (LijMij and MijMij for dynamic model and N for stability dep. model)
-    if(les->access->flags->isLesActive == 2)
+    if(les->model == STABILITY_BASED)
     {
         DMDAVecGetArray(da,  les->lN, &n);
 
@@ -350,7 +400,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da, les->lN, INSERT_VALUES, les->lN);
         DMLocalToLocalEnd  (da, les->lN, INSERT_VALUES, les->lN);
     }
-    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         // get arrays
         DMDAVecGetArray(fda, les->lSx, &Ax);
@@ -711,7 +761,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalEnd  (da, les->lMM, INSERT_VALUES, les->lMM);
 
         //second test filter - compute Qij and Nij
-        if(les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+        if(les->model == DLASD || les->model == DPASD)
         {
             VecSet(les->lQN, 0.0);
             VecSet(les->lNN, 0.0);
@@ -1077,7 +1127,7 @@ PetscErrorCode UpdateCs (les_ *les)
         PetscReal ***LM_old, ***MM_old, ***QN_old, ***NN_old;
 
         // local convective weighting
-        if(les->access->flags->isLesActive==4 || les->access->flags->isLesActive==5)
+        if(les->model == DLASI || les->model == DLASD)
         {
             PetscInt initializeLes4;
             if (clock->it <= clock->itStart + 1) initializeLes4 = 1;
@@ -1355,7 +1405,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
         }
 
-        if(les->access->flags->isLesActive==5)
+        if(les->model == DLASD)
         {
             PetscInt initializeLes4;
             if (clock->it <= clock->itStart + 1) initializeLes4 = 1;
@@ -1655,7 +1705,7 @@ PetscErrorCode UpdateCs (les_ *les)
     }
 
     // 3 - Compute Cs
-    if(les->access->flags->isLesActive == 2)
+    if(les->model == STABILITY_BASED)
     {
         // reset to zero for eventual IBM
         VecSet(les->lCh, 0.0);
@@ -1665,12 +1715,12 @@ PetscErrorCode UpdateCs (les_ *les)
         DMDAVecGetArray(da,  les->lCh, &lch);
         DMDAVecGetArray(da,  les->L,   &scale);
     }
-    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         DMDAVecGetArray(da, les->lLM, &LM);
         DMDAVecGetArray(da, les->lMM, &MM);
 
-        if(les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+        if(les->model == DLASD || les->model == DPASD)
         {
             DMDAVecGetArray(da,  les->lQN, &QN);
             DMDAVecGetArray(da,  les->lNN, &NN);
@@ -1693,7 +1743,7 @@ PetscErrorCode UpdateCs (les_ *les)
         PetscReal C = 0.0;
 
         // stability dependent model
-        if(les->access->flags->isLesActive == 2)
+        if(les->model == STABILITY_BASED)
         {
             // model coefficients
             PetscReal cm_les2  = 0.1,
@@ -1754,12 +1804,12 @@ PetscErrorCode UpdateCs (les_ *les)
             C = C / pow (delta, 2.0);
         }
         // dynamic Smagorinsky models
-        else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4)
+        else if(les->model == DSM || les->model == DLASI)
         {
             PetscReal LM_avg, MM_avg;
 
             // box averaging
-            if(les->access->flags->isLesActive == 3)
+            if(les->model == DSM)
             {
                 PetscReal weight[3][3][3];
 
@@ -1840,7 +1890,7 @@ PetscErrorCode UpdateCs (les_ *les)
                 MM_avg = integrateTestfilterSimpson(MM0, weight);
             }
             // lagrangian averaging
-            else if(les->access->flags->isLesActive == 4)
+            else if(les->model == DLASI)
             {
                 // no average procedure
                 LM_avg = LM[k][j][i];
@@ -1850,7 +1900,7 @@ PetscErrorCode UpdateCs (les_ *les)
             // set Smagorinsky coefficient
             C = 0.5 * LM_avg / (MM_avg + 1e-10);
         }
-        else if(les->access->flags->isLesActive == 5)
+        else if(les->model == DLASD)
         {
             PetscReal num, denom, beta;
 
@@ -1877,7 +1927,7 @@ PetscErrorCode UpdateCs (les_ *les)
         }
     }
 
-    if(les->access->flags->isLesActive == 6)
+    if(les->model == DPASD)
     {
         std::vector<PetscInt> count, total_count;
         std::vector<PetscReal> J_LM(my), J_MM(my), J_QN(my), J_NN(my), LM_tmp(my), MM_tmp(my), QN_tmp(my), NN_tmp(my);
@@ -1948,7 +1998,7 @@ PetscErrorCode UpdateCs (les_ *les)
         }
     }
 
-    if(les->access->flags->isLesActive == 2)
+    if(les->model == STABILITY_BASED)
     {
         DMDAVecRestoreArray(da,  les->lS,  &Sabs);
         DMDAVecRestoreArray(da,  les->lN,  &n);
@@ -1958,12 +2008,12 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da,  les->lCh,  INSERT_VALUES, les->lCh);
         DMLocalToLocalEnd  (da,  les->lCh,  INSERT_VALUES, les->lCh);
     }
-    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         DMDAVecRestoreArray(da, les->lLM, &LM);
         DMDAVecRestoreArray(da, les->lMM, &MM);
 
-        if(les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+        if(les->model == DLASD || les->model == DPASD)
         {
             DMDAVecRestoreArray(da,  les->lQN, &QN);
             DMDAVecRestoreArray(da,  les->lNN, &NN);
@@ -2070,7 +2120,7 @@ PetscErrorCode UpdateNut(les_ *les)
 
     DMDAVecGetArray(da,  les->lCs, &Cs);
 
-    if (les->access->flags->isLesActive == 7)
+    if (les->model == AMD)
     {
 
         if (les->access->flags->isTeqnActive)
@@ -2165,7 +2215,7 @@ PetscErrorCode UpdateNut(les_ *les)
                                         S[2][0]*S[2][0] + S[2][1]*S[2][1] + S[2][2]*S[2][2]
                                     ));
 
-        if (les->access->flags->isLesActive == 7)
+        if (les->model == AMD)
         {
 
             // Compute volume
@@ -2378,7 +2428,7 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecRestoreArray(da,  les->lKsgs, &ksg);
     DMDAVecRestoreArray(da,  les->lCs, &Cs);
 
-    if (les->access->flags->isLesActive == 7)
+    if (les->model == AMD)
     {
         if (les->access->flags->isTeqnActive)
         {

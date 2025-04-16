@@ -1352,11 +1352,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
     if (teqn->access->flags->isLesActive)
     {
-        if(teqn->access->flags->isLesActive != 2)
+        if(les->model != STABILITY_BASED)
         {
             DMDAVecGetArray(da, les->lNu_t, &lnu_t);
 
-            if(teqn->access->flags->isLesActive == 7)
+            if(les->model == AMD)
             {
                 DMDAVecGetArray(da, les->lDiff_t, &ld_t);
             }
@@ -1426,11 +1426,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 {
                     nu = 0;
 
-                    if(teqn->access->flags->isLesActive != 2)
+                    if(les->model != STABILITY_BASED)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
 
-                        if(teqn->access->flags->isLesActive == 7)
+                        if(les->model == AMD)
                         {
                            PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k][j][i+1]);
                            kappaEff = (nu / cst->Pr) + diff;
@@ -1568,11 +1568,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 {
                     nu = 0;
 
-                    if(teqn->access->flags->isLesActive != 2)
+                    if(les->model != STABILITY_BASED)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
 
-                        if(teqn->access->flags->isLesActive == 7)
+                        if(les->model == AMD)
                         {
                            PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k][j+1][i]);
                            kappaEff = (nu / cst->Pr) + diff;
@@ -1708,11 +1708,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 {
                     nu = 0;
                     
-                    if(teqn->access->flags->isLesActive != 2)
+                    if(les->model != STABILITY_BASED)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
                         
-                        if(teqn->access->flags->isLesActive == 7)
+                        if(les->model == AMD)
                         {
                            PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k+1][j][i]);
                            kappaEff = (nu / cst->Pr) + diff;
@@ -1819,11 +1819,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
     if(teqn->access->flags->isLesActive)
     {
-        if(teqn->access->flags->isLesActive != 2)
+        if(les->model != STABILITY_BASED)
         {
             DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
 
-            if(teqn->access->flags->isLesActive == 7)
+            if(les->model == AMD)
             {
                 DMDAVecRestoreArray(da, les->lDiff_t, &ld_t);
             }

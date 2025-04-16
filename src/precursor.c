@@ -1973,15 +1973,16 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     {
                         readDictDouble("ABLProperties.dat", "controllerAvgStartTime", &(abl->sourceAvgStartTime));
 
-                        // check that average start time is in the list
-                        if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
-                        {
-                        char error[512];
-                            sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
-                            fatalErrorInFunction("ABLInitializePrecursor",  error);
-                        }
+                        // // check that average start time is in the list
+                        // if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
+                        // {
+                        // char error[512];
+                        //     sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
+                        //     fatalErrorInFunction("ABLInitializePrecursor",  error);
+                        // }
+                        
                         // check that more than 100 s of history are used to average
-                        else if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
+                        if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
                         {
                         char error[512];
                             sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average is too poor (less than 100 s)");
@@ -2332,7 +2333,7 @@ PetscErrorCode saveSourcePrecursor2Successor(abl_ *precursorABL, abl_ *successor
     successorABL->preCompSources[0][0] = 0.0;
     successorABL->preCompSources[0][1] = pGradSrcGlobal.x;
     successorABL->preCompSources[0][2] = pGradSrcGlobal.y;
-    successorABL->preCompSources[0][3] = pGradSrcGlobal.z;
+    successorABL->preCompSources[0][3] = pGradSrcGlobal.z;      
 
     // printf("rank = %d, source term precursor = %lf %lf %lf\n", worldRank, pGradSrcGlobal.x, pGradSrcGlobal.y, pGradSrcGlobal.z);
     return 0;

@@ -34,7 +34,7 @@ object0
 
     fileType                        ucd
     bodyMotion                      static
-    baseLocation                    (0.0 0.0 0.0)
+    baseLocation                    (10.0 0.0 0.0)
 
     #wall model
     velocityBCSetType               setHere

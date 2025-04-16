@@ -31,7 +31,8 @@
 
 # Turbulence Model
 # ---------------------------------
--les                       4
+-les                       1
+-lesModel                  dynamicLASI
 -max_cs                    10
 
 # Numerical Schemes
@@ -39,7 +40,6 @@
 -dUdtScheme                backwardEuler
 -dTdtScheme                backwardEuler
 -divScheme                 centralUpwindW
--viscScheme		   central
 # Wind Turbine
 # ---------------------------------
 -windplant                1

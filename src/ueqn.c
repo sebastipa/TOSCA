@@ -56,7 +56,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     
     if(ueqn->divScheme == "central4")
     {
-        ueqn->hyperVisc = 0.8;
+        ueqn->hyperVisc = 1.0;
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,  "-hyperVisc", &(ueqn->hyperVisc),   PETSC_NULL);
     }
 
@@ -6435,6 +6435,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
 					nuDY             = viscStipaDelta(yS, yE, yDS, yDE, cent[k][j][i].y, height, advDampYH);
 					fp[k][j][i].x    = nuDY * fp[k][j][i].x;
+                    // fp[k][j][i].z    = nuDY * fp[k][j][i].z;
 				}
 
                 // viscous contribution
@@ -6691,7 +6692,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     if(ueqn->access->flags->isOversetActive)
     {
         if(mesh->meshName == "background")
-        setBackgroundBC(mesh);
+            setBackgroundBC(mesh);
     }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic

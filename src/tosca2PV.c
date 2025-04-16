@@ -533,7 +533,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             domain->les->lCs
         );
 
-        if(domain->flags.isLesActive == 2)
+        if(domain->les->model == STABILITY_BASED)
         {
             writeScalarToXMF
             (

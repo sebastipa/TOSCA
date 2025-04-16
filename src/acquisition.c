@@ -9646,7 +9646,7 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
 			if(acquisition->access->flags->isTeqnActive)
 			{
-                if(acquisition->access->flags->isLesActive == 7)
+                if(acquisition->access->les->model == AMD)
                 {
                     // q1_mean file
                     sprintf(fileName, "%s/q1_mean", ablStat->timeName.c_str());
@@ -10177,7 +10177,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 				DMDAVecGetArray(da,  teqn->lTmprt,    &tmprt);
 				DMDAVecGetArray(da,  ablStat->TPrime, &tprime);
 
-                if (acquisition->access->flags->isLesActive == 7)
+                if (acquisition->access->les->model == AMD)
                 {
                     DMDAVecGetArray(da,  les->lDiff_t, &ldt);
                 }
@@ -10234,7 +10234,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 						{
 							lTemperature[j-1] += tmprt[k][j][i]  / aj[k][j][i];
 
-                            if (acquisition->access->flags->isLesActive == 7)
+                            if (acquisition->access->les->model == AMD)
                             {
                                 ldiffT[j-1] += ldt[k][j][i]/ aj[k][j][i];
                             }
@@ -10251,7 +10251,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 			{
 				MPI_Allreduce(&lTemperature[0], &gTemperature[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-                if(acquisition->access->flags->isLesActive == 7)
+                if(acquisition->access->les->model == AMD)
                 {
 				    MPI_Allreduce(&ldiffT[0], &gdiffT[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
                 }
@@ -10271,7 +10271,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 				{
 					ablStat->TMean[l]   = gTemperature[l] / totVolPerLevel;
 
-                    if(acquisition->access->flags->isLesActive == 7)
+                    if(acquisition->access->les->model == AMD)
                     {
                         ablStat->diffTMean[l]   = gdiffT[l] / totVolPerLevel;
 				    }
@@ -10429,7 +10429,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                                 &dt_dx, &dt_dy, &dt_dz
                             );
 
-                            if(acquisition->access->flags->isLesActive == 7)
+                            if(acquisition->access->les->model == AMD)
                             {
                                 PetscReal diffT = ldt[k][j][i];
 
@@ -10463,7 +10463,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 			{
 				MPI_Allreduce(&lTU[0], &gTU[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-                if(acquisition->access->flags->isLesActive == 7)
+                if(acquisition->access->les->model == AMD)
                 {
 				    MPI_Allreduce(&lq[0], &gq[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
                 }
@@ -10502,7 +10502,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 					ablStat->TvMean[l] = gTU[l].y / totVolPerLevel;
 					ablStat->TwMean[l] = gTU[l].z / totVolPerLevel;
 
-                    if(acquisition->access->flags->isLesActive == 7)
+                    if(acquisition->access->les->model == AMD)
                     {
                         ablStat->q1Mean[l] = gq[l].x / totVolPerLevel;
                         ablStat->q2Mean[l] = gq[l].y / totVolPerLevel;
@@ -10527,7 +10527,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 				DMDAVecRestoreArray(da,  teqn->lTmprt,    &tmprt);
 				DMDAVecRestoreArray(da,  ablStat->TPrime, &tprime);
 
-                if (acquisition->access->flags->isLesActive == 7)
+                if (acquisition->access->les->model == AMD)
                 {
                     DMDAVecRestoreArray(da,  les->lDiff_t, &ldt);
                 }
@@ -10614,7 +10614,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
 				if(acquisition->access->flags->isTeqnActive)
 				{
-                    if(acquisition->access->flags->isLesActive == 7)
+                    if(acquisition->access->les->model == AMD)
                     {
                         // q1_mean file
                         fileName = ablStat->timeName + "/q1_mean";
