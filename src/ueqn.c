@@ -6422,7 +6422,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     div3[k][j][i].z - div3[k-1][j][i].z
                 );
 
-				// compute Stipa viscosity at i,j,k,  point
+                //damp convective term in vertical momentum equation for streamwise fringe
 				if(advectionDamping)
 				{
 					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
@@ -6430,12 +6430,12 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 					fp[k][j][i].z    = nuD * fp[k][j][i].z;
 				}
 
+                //damp convective term in vertical momentum equation for lateral fringe
                 if(advectionDampingY)
 				{
 					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
 					nuDY             = viscStipaDelta(yS, yE, yDS, yDE, cent[k][j][i].y, height, advDampYH);
-					fp[k][j][i].x    = nuDY * fp[k][j][i].x;
-                    // fp[k][j][i].z    = nuDY * fp[k][j][i].z;
+                    fp[k][j][i].z    = nuDY * fp[k][j][i].z;
 				}
 
                 // viscous contribution

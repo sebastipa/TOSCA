@@ -18,7 +18,7 @@ static const char *LesModelNames[] = {
     "dynamicLASI",
     "dynamicLASD",
     "dynamicPASD",
-    "AMD",
+    "amd",
     "LesModel", "", PETSC_NULL
 };
 
