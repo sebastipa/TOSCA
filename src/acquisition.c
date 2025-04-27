@@ -177,6 +177,39 @@ PetscErrorCode InitializeAcquisitionPrecursor(domain_ *domain)
             PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &(acquisition->isSectionsActive),   PETSC_NULL);
         }
 
+        // create meshname folder 
+        std::string meshName = domain->mesh->meshName;
+
+        // Remove leading "./" if present
+        if (meshName.rfind("./", 0) == 0) { // if meshName starts with "./"
+            meshName = meshName.substr(2);
+        }
+
+        // Find the first '/'
+        std::size_t pos = meshName.find('/');
+
+        std::string baseFolderName;
+        std::string subFolderName;
+
+        if (pos != std::string::npos) {
+            baseFolderName = meshName.substr(0, pos);
+            subFolderName = meshName.substr(pos + 1);
+        } else {
+            baseFolderName = meshName;
+        }
+        
+        // Create the base folder
+        if(!rank)
+        {
+            std::string basePath = "./postProcessing/" + baseFolderName;
+            PetscInt dirRes = mkdir(basePath.c_str(), 0777);
+            if (dirRes != 0 && errno != EEXIST) {
+                char error[512];
+                sprintf(error, "could not create %s directory", basePath.c_str());
+                fatalErrorInFunction("InitializeAcquisition", error);
+            }
+        }
+
         // create precursor folders
         if(!rank)
         {

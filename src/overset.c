@@ -41,8 +41,12 @@ PetscErrorCode InitializeOverset(domain_ *domain)
 
                     createAcceptorCellOverset(os);
 
+                    PetscPrintf(mesh->MESH_COMM, "created acceptor cells\n");
+
                     findClosestDonor(parentMesh, mesh);
                     
+                    PetscPrintf(mesh->MESH_COMM, "found closest donor cells\n");
+
                     // if(os->interpolationType != "trilinear")
                     // {
                     //     acell1Dcell0Connectivity(parentMesh, mesh);
@@ -2000,20 +2004,7 @@ PetscErrorCode findClosestDonor(mesh_ *meshDonor, mesh_ *meshAcceptor)
     overset_         *os  = meshAcceptor->access->os;
     DM               da   = meshDonor->da, fda = meshDonor->fda;
     DMDALocalInfo    info = meshDonor->info;
-    PetscInt         xs   = info.xs, xe = info.xs + info.xm;
-    PetscInt         ys   = info.ys, ye = info.ys + info.ym;
-    PetscInt         zs   = info.zs, ze = info.zs + info.zm;
-    PetscInt         mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt         lxs, lxe, lys, lye, lzs, lze;
-    PetscInt         i, j, k, b, m;
-
     PetscMPIInt      rankD, sizeD, rankA, sizeA;
-    PetscReal        ds, ***aj;
-
-    Dcell            dCell;
-
-    Cmpnts           ***cent;
 
     MPI_Comm_size(meshDonor->MESH_COMM, &sizeD);
     MPI_Comm_rank(meshDonor->MESH_COMM, &rankD);
@@ -2021,146 +2012,328 @@ PetscErrorCode findClosestDonor(mesh_ *meshDonor, mesh_ *meshAcceptor)
     MPI_Comm_size(meshAcceptor->MESH_COMM, &sizeA);
     MPI_Comm_rank(meshAcceptor->MESH_COMM, &rankA);
 
-    std::vector <Acell> aCell = os->aCell;
+    std::vector<Acell> aCell = os->aCell;
+    std::vector<PetscInt> NumAcellPerProc = os->NumAcellPerProc;
+    std::vector<std::vector<PetscInt>> lAcellProcMat(sizeA);
 
-    std::vector <PetscInt> NumAcellPerProc = os->NumAcellPerProc;                  // vector that stores the number of aCell cells in each processor
-
-    std::vector <std::vector<PetscInt>> lAcellProcMat(sizeA);                         //Acell processor matrix - shows the processor connectivity between the acceptor and donor cell processors
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
+    Cmpnts  ***cent;
+    PetscReal ***aj;
     DMDAVecGetArray(fda, meshDonor->lCent, &cent);
     DMDAVecGetArray(da, meshDonor->lAj, &aj);
 
-    //vector that stores the closest donor cell of all acceptor cells
-    os->closestDonor.resize( aCell.size() );
+    PetscInt lxs = info.xs, lxe = info.xs + info.xm;
+    PetscInt lys = info.ys, lye = info.ys + info.ym;
+    PetscInt lzs = info.zs, lze = info.zs + info.zm;
+    PetscInt mx  = info.mx, my = info.my, mz = info.mz;
 
+    if (lxs == 0) lxs++; if (lxe == mx) lxe--;
+    if (lys == 0) lys++; if (lye == my) lye--;
+    if (lzs == 0) lzs++; if (lze == mz) lze--;
+
+    // 1. Estimate local average donor cell spacing
+    PetscReal dxSum = 0.0, dySum = 0.0, dzSum = 0.0;
+    PetscInt count = 0;
+    for (PetscInt k = lzs; k < lze; k++)
+    for (PetscInt j = lys; j < lye; j++)
+    for (PetscInt i = lxs; i < lxe; i++) {
+        PetscReal cellSize = pow(1.0/aj[k][j][i], 1.0/3.0);
+        dxSum += cellSize;
+        dySum += cellSize;
+        dzSum += cellSize;
+        count++;
+    }
+
+    PetscReal localSpacing[3] = {count > 0 ? dxSum/count : 0.0, 
+                                count > 0 ? dySum/count : 0.0, 
+                                count > 0 ? dzSum/count : 0.0};
+    PetscReal globalSpacing[3];
+
+    // 2. Gather global maximum spacing
+    MPI_Allreduce(&localSpacing[0], &globalSpacing[0], 1, MPIU_REAL, MPI_MAX, meshDonor->MESH_COMM);
+    MPI_Allreduce(&localSpacing[1], &globalSpacing[1], 1, MPIU_REAL, MPI_MAX, meshDonor->MESH_COMM);
+    MPI_Allreduce(&localSpacing[2], &globalSpacing[2], 1, MPIU_REAL, MPI_MAX, meshDonor->MESH_COMM);
+
+    PetscReal binSize = 2.0 * PetscMax(PetscMax(globalSpacing[0], globalSpacing[1]), globalSpacing[2]);
+
+    // 3. Build bins
+    std::unordered_map<BinIndex, std::vector<std::tuple<PetscInt, PetscInt, PetscInt>>> bins;
+
+    for (PetscInt k = lzs; k < lze; k++)
+    for (PetscInt j = lys; j < lye; j++)
+    for (PetscInt i = lxs; i < lxe; i++) {
+        BinIndex idx;
+        idx.ix = floor(cent[k][j][i].x / binSize);
+        idx.iy = floor(cent[k][j][i].y / binSize);
+        idx.iz = floor(cent[k][j][i].z / binSize);
+        bins[idx].emplace_back(k, j, i);
+    }
+
+    // Resize vectors
+    os->closestDonor.resize(aCell.size());
     os->AcellProcMat.resize(sizeA);
 
-    for(b = 0; b < sizeA; b++)
-    {
+    for(PetscInt b = 0; b < sizeA; b++) {
         lAcellProcMat[b].resize(sizeD);
         os->AcellProcMat[b].resize(sizeD);
     }
 
-    // loop through the query acceptor cells
-    for(b = 0; b < aCell.size(); b++)
-    {
-
-        // max perturbation amplitude
-        PetscReal maxPerturb   = 1e-10;
-        PetscReal lClosestSize = 0.0;
-
-        // initialize donor rank to -1
+    // 4. Find closest donor for each acceptor cell
+    for(PetscInt b = 0; b < aCell.size(); b++) {
+        Dcell dCell;
         dCell.rank = -1;
-
-        // processor perturbation (changes between processors)
+        PetscReal maxPerturb = 1e-10;
         PetscReal procContrib = maxPerturb * ((PetscReal)rankD + 1) / (PetscReal)sizeD;
-
-        // test for points accounted for twice or none
         PetscReal lminDist = 1e20;
-        PetscReal gminDist = 1e20;
-        std::vector<PetscInt> indices {0, 0, 0} ;
+        std::vector<PetscInt> indices {0, 0, 0};
 
-        //!!!! this needs to be optimized
-        for (k=lzs; k<lze; k++)
-        for (j=lys; j<lye; j++)
-        for (i=lxs; i<lxe; i++)
-        {
+        BinIndex query;
+        query.ix = floor(aCell[b].coorx / binSize); // Remove procContrib from bin index
+        query.iy = floor(aCell[b].coory / binSize);
+        query.iz = floor(aCell[b].coorz / binSize);
 
-            ds = sqrt
-            (
-                (cent[k][j][i].x - aCell[b].coorx - procContrib) * (cent[k][j][i].x - aCell[b].coorx - procContrib) +
-                (cent[k][j][i].y - aCell[b].coory - procContrib) * (cent[k][j][i].y - aCell[b].coory - procContrib) +
-                (cent[k][j][i].z - aCell[b].coorz - procContrib) * (cent[k][j][i].z - aCell[b].coorz - procContrib)
-            );
-
-            if (ds < lminDist)
-            {
-
-                // save distance value
-                lminDist = ds + procContrib;
-                // save indices
-                indices[0] = k;
-                indices[1] = j;
-                indices[2] = i;
-
+        // Search neighboring bins (5x5x5 for robustness)
+        for (int dx = -1; dx <= 1; dx++)
+        for (int dy = -1; dy <= 1; dy++)
+        for (int dz = -1; dz <= 1; dz++) {
+            BinIndex neighbor = {query.ix + dx, query.iy + dy, query.iz + dz};
+            if (bins.find(neighbor) != bins.end()) {
+                for (auto& idx : bins[neighbor]) {
+                    PetscInt k = std::get<0>(idx);
+                    PetscInt j = std::get<1>(idx);
+                    PetscInt i = std::get<2>(idx);
+                    PetscReal ds = sqrt(
+                        (cent[k][j][i].x - aCell[b].coorx - procContrib) * (cent[k][j][i].x - aCell[b].coorx - procContrib) +
+                        (cent[k][j][i].y - aCell[b].coory - procContrib) * (cent[k][j][i].y - aCell[b].coory - procContrib) +
+                        (cent[k][j][i].z - aCell[b].coorz - procContrib) * (cent[k][j][i].z - aCell[b].coorz - procContrib)
+                    );
+                    if (ds < lminDist) {
+                        lminDist = ds + procContrib;
+                        indices[0] = k;
+                        indices[1] = j;
+                        indices[2] = i;
+                    }
+                }
             }
-
         }
 
-        // scatter the local distance to global using MIN operator
-        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, meshDonor->MESH_COMM);
+        PetscReal gminDist;
+        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPI_MIN, meshDonor->MESH_COMM);
 
-        // now compare the distances: where they agree, this processor controls the probe
-        if(lminDist == gminDist)
-        {
-            // store the closest donor cell for all the acceptor cells
-            dCell.indi   = indices[2];
-            dCell.indj   = indices[1];
-            dCell.indk   = indices[0];
+        if (lminDist == gminDist && lminDist < 1e19) {
+            dCell.indi = indices[2];
+            dCell.indj = indices[1];
+            dCell.indk = indices[0];
             dCell.dist2p = gminDist;
-            dCell.rank   = rankD;
-
-            // PetscInt ia, ja, ka;
-            // ia = aCell[b].indi;
-            // ja = aCell[b].indj;
-            // ka = aCell[b].indk;
-
-            // if(ka == 25 && ja == 25 && ia == 20)
-            //     PetscPrintf(PETSC_COMM_SELF, "donor cell = %ld %ld %ld, dist = %lf, rank = %d\n", dCell.indk, dCell.indj, dCell.indi, dCell.dist2p, dCell.rank);
-            
-            lClosestSize = pow( 1./aj[dCell.indk][dCell.indj][dCell.indi], 1./3.);
+            dCell.rank = rankD;
             os->closestDonor[b] = dCell;
-
-            //set the procmatrix for this rank to 1 as the closest donor has been found
             lAcellProcMat[aCell[b].rank][rankD] = 1;
         }
 
-        //scatter the cell size of the closest donor cell, to be used as search radius for Least square method
+        PetscReal lClosestSize = (lminDist < 1e19) ? pow(1./aj[indices[0]][indices[1]][indices[2]], 1./3.) : 0.0;
         MPI_Allreduce(&lClosestSize, &os->aCell[b].cell_size, 1, MPIU_REAL, MPI_SUM, meshDonor->MESH_COMM);
-
-        // scatter the donor rank for acceptor cell b to all processes
         MPI_Allreduce(&dCell.rank, &os->closestDonor[b].rank, 1, MPI_INT, MPI_MAX, meshDonor->MESH_COMM);
 
-    }
-
-    // reduce the local processor matrix to get the global processor matrix
-    // this is a matrix of dim - sizeA x sizeD - rows - processors of aCell cells, columns- processors of dCell cells
-    for(b = 0; b < sizeA; b++){
-        MPI_Allreduce(&lAcellProcMat[b][0], &os->AcellProcMat[b][0], sizeD, MPIU_INT, MPI_SUM, meshDonor->MESH_COMM);
-    }
-
-    // ensure the communicator colours are set right - include the diagonal element and set all that are 0 - MPI_UNDEFINED
-    // communicators will be created for each row of the processor matrix
-
-    if(sizeA != sizeD)
-    {
-     char error[512];
-      sprintf(error, "current implementation requires the 2 meshes to have same number of processors. Recheck findClosestDonor function\n");
-      fatalErrorInFunction("findClosestDonor", error);
-    }
-
-    for(b = 0; b < sizeA; b++){
-        if(NumAcellPerProc[b] != 0)
-            os->AcellProcMat[b][b] = 1; // set to 1  if the aCell cells are within the given processor
-        for(m = 0; m < sizeD; m++){
-            if (os->AcellProcMat[b][m] == 0)
-                os->AcellProcMat[b][m] = MPI_UNDEFINED;
+        // Safeguard: Check if no valid donor was found
+        if (os->aCell[b].cell_size == 0.0 && rankD == 0) {
+            PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %d\n", b);
         }
     }
 
-    std::vector <Acell> ().swap(aCell);
-    std::vector <PetscInt>   ().swap(NumAcellPerProc);
-    std::vector<std::vector<PetscInt>> ().swap(lAcellProcMat);
+    // 5. Finalize processor matrix
+    for(PetscInt b = 0; b < sizeA; b++) {
+        MPI_Allreduce(&lAcellProcMat[b][0], &os->AcellProcMat[b][0], sizeD, MPIU_INT, MPI_SUM, meshDonor->MESH_COMM);
+    }
+
+    if (sizeA != sizeD) {
+        char error[512];
+        sprintf(error, "Meshes must have same number of processors.\n");
+        fatalErrorInFunction("findClosestDonor", error);
+    }
+
+    for(PetscInt b = 0; b < sizeA; b++) {
+        if (NumAcellPerProc[b] != 0) os->AcellProcMat[b][b] = 1;
+        for(PetscInt m = 0; m < sizeD; m++) {
+            if (os->AcellProcMat[b][m] == 0) os->AcellProcMat[b][m] = MPI_UNDEFINED;
+        }
+    }
+
+    // 6. Cleanup
+    std::vector<Acell>().swap(aCell);
+    std::vector<PetscInt>().swap(NumAcellPerProc);
+    std::vector<std::vector<PetscInt>>().swap(lAcellProcMat);
 
     DMDAVecRestoreArray(fda, meshDonor->lCent, &cent);
     DMDAVecRestoreArray(da, meshDonor->lAj, &aj);
 
     return 0;
 }
+
+// PetscErrorCode findClosestDonor(mesh_ *meshDonor, mesh_ *meshAcceptor)
+// {
+//     overset_         *os  = meshAcceptor->access->os;
+//     DM               da   = meshDonor->da, fda = meshDonor->fda;
+//     DMDALocalInfo    info = meshDonor->info;
+//     PetscInt         xs   = info.xs, xe = info.xs + info.xm;
+//     PetscInt         ys   = info.ys, ye = info.ys + info.ym;
+//     PetscInt         zs   = info.zs, ze = info.zs + info.zm;
+//     PetscInt         mx   = info.mx, my = info.my, mz = info.mz;
+
+//     PetscInt         lxs, lxe, lys, lye, lzs, lze;
+//     PetscInt         i, j, k, b, m;
+
+//     PetscMPIInt      rankD, sizeD, rankA, sizeA;
+//     PetscReal        ds, ***aj;
+
+//     Dcell            dCell;
+
+//     Cmpnts           ***cent;
+
+//     MPI_Comm_size(meshDonor->MESH_COMM, &sizeD);
+//     MPI_Comm_rank(meshDonor->MESH_COMM, &rankD);
+
+//     MPI_Comm_size(meshAcceptor->MESH_COMM, &sizeA);
+//     MPI_Comm_rank(meshAcceptor->MESH_COMM, &rankA);
+
+//     std::vector <Acell> aCell = os->aCell;
+
+//     std::vector <PetscInt> NumAcellPerProc = os->NumAcellPerProc;                  // vector that stores the number of aCell cells in each processor
+
+//     std::vector <std::vector<PetscInt>> lAcellProcMat(sizeA);                         //Acell processor matrix - shows the processor connectivity between the acceptor and donor cell processors
+
+//     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+//     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+//     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+//     DMDAVecGetArray(fda, meshDonor->lCent, &cent);
+//     DMDAVecGetArray(da, meshDonor->lAj, &aj);
+
+//     //vector that stores the closest donor cell of all acceptor cells
+//     os->closestDonor.resize( aCell.size() );
+
+//     os->AcellProcMat.resize(sizeA);
+
+//     for(b = 0; b < sizeA; b++)
+//     {
+//         lAcellProcMat[b].resize(sizeD);
+//         os->AcellProcMat[b].resize(sizeD);
+//     }
+
+//     // loop through the query acceptor cells
+//     for(b = 0; b < aCell.size(); b++)
+//     {
+
+//         // max perturbation amplitude
+//         PetscReal maxPerturb   = 1e-10;
+//         PetscReal lClosestSize = 0.0;
+
+//         // initialize donor rank to -1
+//         dCell.rank = -1;
+
+//         // processor perturbation (changes between processors)
+//         PetscReal procContrib = maxPerturb * ((PetscReal)rankD + 1) / (PetscReal)sizeD;
+
+//         // test for points accounted for twice or none
+//         PetscReal lminDist = 1e20;
+//         PetscReal gminDist = 1e20;
+//         std::vector<PetscInt> indices {0, 0, 0} ;
+
+//         //!!!! this needs to be optimized
+//         for (k=lzs; k<lze; k++)
+//         for (j=lys; j<lye; j++)
+//         for (i=lxs; i<lxe; i++)
+//         {
+
+//             ds = sqrt
+//             (
+//                 (cent[k][j][i].x - aCell[b].coorx - procContrib) * (cent[k][j][i].x - aCell[b].coorx - procContrib) +
+//                 (cent[k][j][i].y - aCell[b].coory - procContrib) * (cent[k][j][i].y - aCell[b].coory - procContrib) +
+//                 (cent[k][j][i].z - aCell[b].coorz - procContrib) * (cent[k][j][i].z - aCell[b].coorz - procContrib)
+//             );
+
+//             if (ds < lminDist)
+//             {
+
+//                 // save distance value
+//                 lminDist = ds + procContrib;
+//                 // save indices
+//                 indices[0] = k;
+//                 indices[1] = j;
+//                 indices[2] = i;
+
+//             }
+
+//         }
+
+//         // scatter the local distance to global using MIN operator
+//         MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, meshDonor->MESH_COMM);
+
+//         // now compare the distances: where they agree, this processor controls the probe
+//         if(lminDist == gminDist)
+//         {
+//             // store the closest donor cell for all the acceptor cells
+//             dCell.indi   = indices[2];
+//             dCell.indj   = indices[1];
+//             dCell.indk   = indices[0];
+//             dCell.dist2p = gminDist;
+//             dCell.rank   = rankD;
+
+//             // PetscInt ia, ja, ka;
+//             // ia = aCell[b].indi;
+//             // ja = aCell[b].indj;
+//             // ka = aCell[b].indk;
+
+//             // if(ka == 25 && ja == 25 && ia == 20)
+//             //     PetscPrintf(PETSC_COMM_SELF, "donor cell = %ld %ld %ld, dist = %lf, rank = %d\n", dCell.indk, dCell.indj, dCell.indi, dCell.dist2p, dCell.rank);
+            
+//             lClosestSize = pow( 1./aj[dCell.indk][dCell.indj][dCell.indi], 1./3.);
+//             os->closestDonor[b] = dCell;
+
+//             //set the procmatrix for this rank to 1 as the closest donor has been found
+//             lAcellProcMat[aCell[b].rank][rankD] = 1;
+//         }
+
+//         //scatter the cell size of the closest donor cell, to be used as search radius for Least square method
+//         MPI_Allreduce(&lClosestSize, &os->aCell[b].cell_size, 1, MPIU_REAL, MPI_SUM, meshDonor->MESH_COMM);
+
+//         // scatter the donor rank for acceptor cell b to all processes
+//         MPI_Allreduce(&dCell.rank, &os->closestDonor[b].rank, 1, MPI_INT, MPI_MAX, meshDonor->MESH_COMM);
+
+//     }
+
+//     // reduce the local processor matrix to get the global processor matrix
+//     // this is a matrix of dim - sizeA x sizeD - rows - processors of aCell cells, columns- processors of dCell cells
+//     for(b = 0; b < sizeA; b++){
+//         MPI_Allreduce(&lAcellProcMat[b][0], &os->AcellProcMat[b][0], sizeD, MPIU_INT, MPI_SUM, meshDonor->MESH_COMM);
+//     }
+
+//     // ensure the communicator colours are set right - include the diagonal element and set all that are 0 - MPI_UNDEFINED
+//     // communicators will be created for each row of the processor matrix
+
+//     if(sizeA != sizeD)
+//     {
+//      char error[512];
+//       sprintf(error, "current implementation requires the 2 meshes to have same number of processors. Recheck findClosestDonor function\n");
+//       fatalErrorInFunction("findClosestDonor", error);
+//     }
+
+//     for(b = 0; b < sizeA; b++){
+//         if(NumAcellPerProc[b] != 0)
+//             os->AcellProcMat[b][b] = 1; // set to 1  if the aCell cells are within the given processor
+//         for(m = 0; m < sizeD; m++){
+//             if (os->AcellProcMat[b][m] == 0)
+//                 os->AcellProcMat[b][m] = MPI_UNDEFINED;
+//         }
+//     }
+
+//     std::vector <Acell> ().swap(aCell);
+//     std::vector <PetscInt>   ().swap(NumAcellPerProc);
+//     std::vector<std::vector<PetscInt>> ().swap(lAcellProcMat);
+
+//     DMDAVecRestoreArray(fda, meshDonor->lCent, &cent);
+//     DMDAVecRestoreArray(da, meshDonor->lAj, &aj);
+
+//     return 0;
+// }
 
 //***************************************************************************************************************//
 

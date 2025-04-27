@@ -4,6 +4,24 @@
 #ifndef _OVERSET_H_
 #define _OVERSET_H_
 
+#include <unordered_map>
+
+struct BinIndex {
+    int ix, iy, iz;
+    bool operator==(const BinIndex& other) const {
+        return ix == other.ix && iy == other.iy && iz == other.iz;
+    }
+};
+
+namespace std {
+    template <>
+    struct hash<BinIndex> {
+        std::size_t operator()(const BinIndex& b) const {
+            return ((std::hash<int>()(b.ix) ^ (std::hash<int>()(b.iy) << 1)) >> 1) ^ (std::hash<int>()(b.iz) << 1);
+        }
+    };
+}
+
 //! \brief Overset acceptor cell (used for both overset and base mesh acceptor cells)
 typedef struct {
     PetscInt      indi, indj, indk;  //!< cell indices
