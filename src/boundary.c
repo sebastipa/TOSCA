@@ -117,7 +117,7 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue",
                                         "periodic", "oversetInterpolate"};
 
-    std::vector<word> wallPatchTypes = {"noSlip", "slip", "velocityWallFunction", "fixedValue"};
+    std::vector<word> wallPatchTypes = {"noSlip", "slip", "velocityWallFunction"};
 
     for(PetscInt i = 0; i < UAvailableBC.size(); i++)
     {
