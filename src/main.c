@@ -138,7 +138,7 @@ int main(int argc, char **argv)
                 mapYDamping(domain[d].ueqn);
             }
 
-            // Predictor Step
+            // Predictor Step (adjusts fluxes)
             SolveUEqn(domain[d].ueqn);
 
             // Pressure Correction

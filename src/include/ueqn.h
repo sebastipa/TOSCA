@@ -96,6 +96,9 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn);
 //! \brief Adjust fluxes to obey mass conservation in the overset domain
 PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn);
 
+//! \brief Adjust fluxes to obey mass conservation (on a per-cell basis)
+PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn);
+
 //! \brief Compute driving source term
 PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 

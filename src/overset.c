@@ -160,6 +160,7 @@ PetscErrorCode UpdateOversetInterpolation(domain_ *domain)
 
         if(os != NULL)
         {
+            // see if this domain has parent meshes and update cartesian velocity 
             for(PetscInt pi = 0; pi < os->parentMeshId.size(); pi++)
             {
                 if(os->parentMeshId.size() > 0 && os->parentMeshId[pi] != -1)
@@ -181,6 +182,7 @@ PetscErrorCode UpdateOversetInterpolation(domain_ *domain)
                     //     interpolateACellTrilinear(parentMesh, mesh);
                     // }
 
+                    // interpolate cartesian velocity on child's acceptor cells
                     interpolateACellTrilinear(parentMesh, mesh);
 
                     //set source terms in the overset mesh
@@ -204,6 +206,7 @@ PetscErrorCode UpdateOversetInterpolation(domain_ *domain)
                 }
             }
             
+            // see if this domain has child meshes and update cartesian velocity
             for(PetscInt ci = 0; ci < os->childMeshId.size(); ci++)
             {
                 if(os->childMeshId.size() > 0 && os->childMeshId[ci] != -1)
@@ -225,6 +228,7 @@ PetscErrorCode UpdateOversetInterpolation(domain_ *domain)
                     //     interpolateACellTrilinear(childMesh, mesh);
                     // }
 
+                    // interpolate cartesian velocity on parent's acceptor cells
                     interpolateACellTrilinear(childMesh, mesh);
 
                     MPI_Barrier(mesh->MESH_COMM);
@@ -539,7 +543,17 @@ PetscErrorCode interpolateACellTrilinear(mesh_ *meshD, mesh_ *meshA)
 
     if(meshA->meshName == "overset")
     {
-        setOversetBC(meshA);
+        // Seba on 28-04-25: 
+        // this acts on contra flux but it is wrong. Just for my understanding, it does the following:
+        // 1. if the flow incoming: linear interpolation at boundary
+        // 2. if the flow outgoing: upwinded interpolation at boundary 
+        // 3. if the flow is outgoing sets the BC to zeroGradient: no need to do that 
+        // my reasoning is that we can always linearly interpolate, so this can be treated by the UpdateContravariantBCs
+        // function directly. Then, we can still solve if the flow is outgoing by non-zeroing contra flux at those faces 
+        // (see modified resetNonResolvedCellFaces in inline.h). 
+        // Moreover: flux should be adjusted on a per-cell basis, if the flow is outgoing (see modified AdjustFlux in ueqn.c). 
+
+        // setOversetBC(meshA);
     }
     else if(meshA->meshName == "background")
     {
