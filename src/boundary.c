@@ -105,15 +105,15 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
 
     std::vector<PetscInt> flagU(6,0), flagT(6,0), flagNut(6,0), patchType(6,0);
 
-    std::vector<word> UAvailableBC   = {"inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
+    std::vector<word> UAvailableBC   = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "noSlip", "slip", "velocityWallFunction",
                                         "fixedValue", "zeroGradient", "periodic", "oversetInterpolate"};
 
-    std::vector<word> TAvailableBC   = {"inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
+    std::vector<word> TAvailableBC   = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue", "thetaWallFunction",
                                         "fixedGradient", "periodic", "oversetInterpolate"};
 
-    std::vector<word> nutAvailableBC = {"inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
+    std::vector<word> nutAvailableBC = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue",
                                         "periodic", "oversetInterpolate"};
 
