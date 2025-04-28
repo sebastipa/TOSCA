@@ -10,6 +10,12 @@ struct scalarBC
     word      iLeft, iRight,  //!< type of boundary condition
               jLeft, jRight,
               kLeft, kRight;
+    PetscInt  iLeftPatchType, //!< patch type (0 is open, 1 is wall)
+              iRightPatchType,  
+              jLeftPatchType, 
+              jRightPatchType,
+              kLeftPatchType,
+              kRightPatchType;
     PetscReal iLval, iRval ,  //!< value (defined if BC prefix is 'fixed' only )
               jLval, jRval ,
               kLval, kRval ;
@@ -25,6 +31,12 @@ struct  vectorBC
     word     iLeft, iRight,  //!< type of boundary condition
              jLeft, jRight,
              kLeft, kRight;
+    PetscInt iLeftPatchType, //!< patch type (0 is open, 1 is wall)
+             iRightPatchType,  
+             jLeftPatchType, 
+             jRightPatchType,
+             kLeftPatchType,
+             kRightPatchType;
     Cmpnts   iLval, iRval ,  //!< value (defined if BC prefix is 'fixed' only )
              jLval, jRval ,
              kLval, kRval ;
@@ -140,7 +152,7 @@ PetscErrorCode readVectorBC(const word &location, const word &field, vectorBC *b
 PetscErrorCode SetBoundaryConditions(mesh_ *mesh);
 
 //! \brief Checks available boundary conditions
-PetscErrorCode checkBoundaryConditions(mesh_ *mesh);
+PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh);
 
 //! \brief Set periodicconnectivity type
 PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName);

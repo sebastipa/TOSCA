@@ -224,6 +224,7 @@ int main(int argc, char **argv)
 
             if(flags.isTeqnActive)
             {
+                // update temperature BC
                 UpdateTemperatureBCs(domain[d].teqn);
             }
 
