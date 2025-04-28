@@ -87,7 +87,7 @@ PetscErrorCode SetBoundaryConditions(mesh_ *mesh)
     }
 
     // check boundary conditions
-    checkBoundaryConditions(mesh);
+    checkBCsAndSetPatchTypes(mesh);
 
     PetscBarrier(NULL);
 
@@ -96,86 +96,90 @@ PetscErrorCode SetBoundaryConditions(mesh_ *mesh)
 
 //***************************************************************************************************************//
 
-PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
+PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
 {
 
     word location = "./boundary/" + mesh->meshName + "/";
 
     vectorBC boundaryU   = mesh->boundaryU;
 
-    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagNut(6,0);
+    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagNut(6,0), patchType(6,0);
 
-    std::vector<word> UAvailableBC = {"noSlip", "slip", "velocityWallFunction",
-                                        "fixedValue", "inletFunction", "zeroGradient",
-                                         "periodic", "oversetInterpolate"};
+    std::vector<word> UAvailableBC   = {"inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
+                                        "inletFunctioniLeft", "inletFunctioniRight", "noSlip", "slip", "velocityWallFunction",
+                                        "fixedValue", "zeroGradient", "periodic", "oversetInterpolate"};
 
-    std::vector<word> TAvailableBC = {"inletFunction", "zeroGradient", "fixedValue", "thetaWallFunction",
+    std::vector<word> TAvailableBC   = {"inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
+                                        "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue", "thetaWallFunction",
                                         "fixedGradient", "periodic", "oversetInterpolate"};
 
-    std::vector<word> nutAvailableBC = {"inletFunction", "zeroGradient", "fixedValue",
-                                          "periodic", "oversetInterpolate"};
+    std::vector<word> nutAvailableBC = {"inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
+                                        "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue",
+                                        "periodic", "oversetInterpolate"};
+
+    std::vector<word> wallPatchTypes = {"noSlip", "slip", "velocityWallFunction", "fixedValue"};
 
     for(PetscInt i = 0; i < UAvailableBC.size(); i++)
     {
-        if( boundaryU.kLeft.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.kLeft  == UAvailableBC[i])
             flagU[0] = 1;
 
-        if( boundaryU.kRight.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.kRight == UAvailableBC[i]) 
             flagU[1] = 1;
 
-        if( boundaryU.jLeft.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.jLeft  == UAvailableBC[i])
             flagU[2] = 1;
 
-        if( boundaryU.jRight.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.jRight == UAvailableBC[i]) 
             flagU[3] = 1;
 
-        if( boundaryU.iLeft.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.iLeft  == UAvailableBC[i])
             flagU[4] = 1;
 
-        if( boundaryU.iRight.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.iRight == UAvailableBC[i])
             flagU[5] = 1;
     }
 
     if(flagU[0] == 0)
     {
-       char error[512];
+        char error[512];
         sprintf(error, "In %s/U, U boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.kLeft.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[1] == 0)
     {
-       char error[512];
-        sprintf(error, "In %s/U, U boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.kRight.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        char error[512];
+        sprintf(error, "In %sU, U boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.kRight.c_str());
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[2] == 0)
     {
-       char error[512];
-        sprintf(error, "In %s/U, U boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jLeft.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        char error[512];
+        sprintf(error, "In %sU, U boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jLeft.c_str());
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[3] == 0)
     {
-       char error[512];
-        sprintf(error, "In %s/U, U boundary condition at jRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jRight.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        char error[512];
+        sprintf(error, "In %sU, U boundary condition at jRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jRight.c_str());
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[4] == 0)
     {
-       char error[512];
-        sprintf(error, "In %s/U, U boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.iLeft.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        char error[512];
+        sprintf(error, "In %sU, U boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.iLeft.c_str());
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[5] == 0)
     {
-       char error[512];
+        char error[512];
         sprintf(error, "In %s/U, U boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.iRight.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(mesh->access->flags->isTeqnActive)
@@ -184,65 +188,65 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
 
         for(PetscInt i = 0; i < TAvailableBC.size(); i++)
         {
-            if( boundaryT.kLeft.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.kLeft  == TAvailableBC[i])
                 flagT[0] = 1;
 
-            if( boundaryT.kRight.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.kRight == TAvailableBC[i]) 
                 flagT[1] = 1;
 
-            if( boundaryT.jLeft.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.jLeft  == TAvailableBC[i])
                 flagT[2] = 1;
 
-            if( boundaryT.jRight.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.jRight == TAvailableBC[i])
                 flagT[3] = 1;
 
-            if( boundaryT.iLeft.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.iLeft  == TAvailableBC[i]) 
                 flagT[4] = 1;
 
-            if( boundaryT.iRight.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.iRight == TAvailableBC[i])
                 flagT[5] = 1;
         }
 
         if(flagT[0] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.kLeft.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[1] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.kRight.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[2] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.jLeft.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[3] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at jRight = '%s' does not match with available BC\n", location.c_str(), boundaryT.jRight.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[4] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.iLeft.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[5] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.iRight.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
     }
 
@@ -252,66 +256,96 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
 
         for(PetscInt i = 0; i < nutAvailableBC.size(); i++)
         {
-            if( boundaryNut.kLeft.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.kLeft == nutAvailableBC[i]) 
                 flagNut[0] = 1;
 
-            if( boundaryNut.kRight.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.kRight == nutAvailableBC[i]) 
                 flagNut[1] = 1;
 
-            if( boundaryNut.jLeft.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.jLeft == nutAvailableBC[i]) 
                 flagNut[2] = 1;
 
-            if( boundaryNut.jRight.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.jRight == nutAvailableBC[i]) 
                 flagNut[3] = 1;
 
-            if( boundaryNut.iLeft.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.iLeft == nutAvailableBC[i]) 
                 flagNut[4] = 1;
 
-            if( boundaryNut.iRight.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.iRight == nutAvailableBC[i]) 
                 flagNut[5] = 1;
         }
 
         if(flagNut[0] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.kLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[1] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.kRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[2] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.jLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[3] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at jRight = '%s' does not match with available BC\n", location.c_str(), boundaryNut.jRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[4] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.iLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[5] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.iRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
+    }
+
+    // set patch types to zero
+    mesh->boundaryU.iLeftPatchType  = 0;
+    mesh->boundaryU.iRightPatchType = 0;
+    mesh->boundaryU.jLeftPatchType  = 0;
+    mesh->boundaryU.jRightPatchType = 0;      
+    mesh->boundaryU.kLeftPatchType  = 0;
+    mesh->boundaryU.kRightPatchType = 0;
+
+    // set patch types based on velocity BCs
+    for(PetscInt i = 0; i < wallPatchTypes.size(); i++)
+    {
+        if( boundaryU.kLeft  == wallPatchTypes[i])
+            mesh->boundaryU.kLeftPatchType = 1;
+
+        if( boundaryU.kRight == wallPatchTypes[i])
+            mesh->boundaryU.kRightPatchType = 1;
+
+        if( boundaryU.jLeft  == wallPatchTypes[i])
+            mesh->boundaryU.jLeftPatchType = 1;
+
+        if( boundaryU.jRight == wallPatchTypes[i])
+            mesh->boundaryU.jRightPatchType = 1;
+
+        if( boundaryU.iLeft  == wallPatchTypes[i])
+            mesh->boundaryU.iLeftPatchType = 1;
+
+        if( boundaryU.iRight == wallPatchTypes[i])
+            mesh->boundaryU.iRightPatchType = 1;
     }
 
     return 0;

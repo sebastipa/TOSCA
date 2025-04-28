@@ -5821,7 +5821,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
     )
     {
         // k-left boundary
-        if (zs==0)
+        if (zs==0 && mesh->boundaryU.kLeftPatchType == 0)
         {
             // k-left boundary face
             k = 0;
@@ -5842,7 +5842,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
         }
 
         // correct outflow flux at k-right boundary
-        if (ze==mz)
+        if (ze==mz && mesh->boundaryU.kRightPatchType == 0)
         {
             // k-right boundary face
             k = mz-2;
@@ -5869,7 +5869,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
     )
     {
         // compute flux at j-left boundary
-        if (ys==0)
+        if (ys==0 && mesh->boundaryU.jLeftPatchType == 0)
         {
             // j-left boundary face
             j = 0;
@@ -5890,7 +5890,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
         }
 
         // compute flux at j-right boundary
-        if (ye==my)
+        if (ye==my && mesh->boundaryU.jRightPatchType == 0)
         {
             // j-right boundary face
             j = my-2;
@@ -5917,7 +5917,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
     )
     {
         // compute flux at i-left boundary
-        if (xs==0)
+        if (xs==0 && mesh->boundaryU.iLeftPatchType == 0)
         {
             // i-left boundary face
             i = 0;
@@ -5938,7 +5938,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
         }
 
         // compute flux at i-right boundary
-        if (xe==mx)	
+        if (xe==mx && mesh->boundaryU.kLeftPatchType == 0)	
         {
             // i-right boundary face
             i = mx-2;
