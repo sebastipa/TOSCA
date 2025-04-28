@@ -7443,11 +7443,11 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     // adjust inflow/outflow fluxes to ensure mass conservation
     if(ueqn->access->flags->isOversetActive && *(ueqn->access->domainID) != 0)
     {
-        adjustFluxesLocal(ueqn);
+        adjustFluxesOverset(ueqn);
     }
     else
     {
-        adjustFluxesLocal(ueqn);
+        adjustFluxes(ueqn);
     }
 
     return(0);
