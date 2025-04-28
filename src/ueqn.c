@@ -7437,7 +7437,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     if(ueqn->access->flags->isOversetActive)
     {
         if(mesh->meshName == "background")
-        setBackgroundBC(mesh);;
+        setBackgroundBC(mesh);
     }
 
     // adjust inflow/outflow fluxes to ensure mass conservation

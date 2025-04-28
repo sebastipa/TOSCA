@@ -362,7 +362,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         VecDestroy(&Cs);
         VecDestroy(&Nut);
 
-        if(domain->les->model == STABILITY_BASED)
+        if(domain->flags.isLesActive && domain->les->model == STABILITY_BASED)
         {
             PetscPrintf(mesh->MESH_COMM, "Reading sgsL...\n");
             field = "/sgsL";
@@ -2005,7 +2005,7 @@ PetscErrorCode writeFields(io_ *io)
             VecDestroy(&Cs);
             VecDestroy(&Nut);
 
-            if(les->model == STABILITY_BASED)
+            if(flags->isLesActive && les->model == STABILITY_BASED)
             {
                 fieldName = timeName + "/sgsL";
                 writeBinaryField(mesh->MESH_COMM, les->L, fieldName.c_str());

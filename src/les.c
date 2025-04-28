@@ -2400,18 +2400,25 @@ PetscErrorCode UpdateNut(les_ *les)
         }
 
         //compute the subgrid scale kinetic energy - from local equilibrium balance (https://caefn.com/openfoam/smagorinsky-sgs-model)
-        PetscReal a,b,c;
-        PetscReal Ce = 1.08;
-        PetscReal Ck = PetscPowReal((PetscPowReal(Cs[k][j][i], 2.0) * Ce), 1.0/3.0);
-        PetscReal filter = pow( 1./aj[k][j][i], 1./3.);
+        PetscReal Ck = 0.094;
+        PetscReal V = 1.0 / aj[k][j][i]; 
 
-        a = Ce/filter;
-        b = 2.0/3.0 * (S[0][0] + S[1][1] + S[2][2]);
-        c = 2 * Ck * filter * (S[0][0]*S[0][0] + S[0][1]*S[0][1] + S[0][2]*S[0][2] + 
-                                        S[1][0]*S[1][0] + S[1][1]*S[1][1] + S[1][2]*S[1][2] +
-                                        S[2][0]*S[2][0] + S[2][1]*S[2][1] + S[2][2]*S[2][2]);
+        PetscReal A_x = nMag(zet[k][j][i]);
+        PetscReal A_y = nMag(csi[k][j][i]);
+        PetscReal A_z = nMag(eta[k][j][i]);
 
-        ksg[k][j][i] = pow((-b + sqrt(b*b + 4.0*a*c))/(2*a), 2.0);
+        PetscReal delta_x = V / A_x;
+        PetscReal delta_y = V / A_y;
+        PetscReal delta_z = V / A_z;
+
+        PetscReal invDelta2Sum =
+              1.0 / (delta_x * delta_x)
+            + 1.0 / (delta_y * delta_y)
+            + 1.0 / (delta_z * delta_z);
+
+        PetscReal delta2_harm = 3.0 / invDelta2Sum; 
+
+        ksg[k][j][i] = PetscPowReal(lnu_t[k][j][i], 2.0)/(PetscPowReal(Ck, 2.0) * delta2_harm);
     }
 
     DMDAVecRestoreArray(fda, eqn->lUcat,  &ucat);
