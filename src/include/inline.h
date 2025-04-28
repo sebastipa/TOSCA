@@ -1446,7 +1446,7 @@ inline void ContravariantToCartesianPoint(Cmpnts &csi, Cmpnts &eta, Cmpnts &zet,
 };
 
 //***************************************************************************************************************//
-//! \brief Resets the value at the non-solved faces to zero except for zeroGradient, overset and periodic
+//! \brief Resets the value at the non-solved faces to zero except for zeroGradient, outgoing flux and periodic
 inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
 {
     DMDALocalInfo    info = mesh->info;
@@ -1459,9 +1459,10 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
     PetscInt         i, j, k;
 
     PetscReal        ***nvert, ***meshTag;
-    Cmpnts           ***v;
+    Cmpnts           ***v, ***lucont;
 
     DMDAVecGetArray(mesh->fda, V, &v);
+    DMDAVecGetArray(mesh->fda, mesh->access->ueqn->lUcont, &lucont);
     DMDAVecGetArray(mesh->da,  mesh->lNvert, &nvert);
     DMDAVecGetArray(mesh->da,  mesh->lmeshTag, &meshTag);
 
@@ -1475,119 +1476,133 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
         {
             for (i=xs; i<xe; i++)
             {
-              //iface
-              if(i==0)
-              {
-                if(mesh->boundaryU.iLeft=="zeroGradient")
+                // iLeft face
+                if(i==0)
                 {
-                    //
+                // zero gradient or flow exiting
+                    if(mesh->boundaryU.iLeft=="zeroGradient" || lucont[k][j][i].x < 0)
+                    {
+                        // here the value is solved 
+                    }
+                    else
+                    {
+                        v[k][j][i].x = 0.0;
+                    }
                 }
-                else
+                // unused face                
+                else if(i==mx-1)
                 {
-                  v[k][j][i].x = 0.0;
+                    v[k][j][i].x = 0.0;
                 }
-              }
-              else if(i==mx-1)
-              {
-                  v[k][j][i].x = 0.0;
-              }
-              else if(i==mx-2 && !(mesh->i_periodic) && !(mesh->ii_periodic))
-              {
-                if(mesh->boundaryU.iRight=="zeroGradient")
+                // iRight face 
+                else if(i==mx-2 && !(mesh->i_periodic) && !(mesh->ii_periodic))
                 {
-                  //
+                    // zero gradient or flow exiting
+                    if(mesh->boundaryU.iRight=="zeroGradient" || lucont[k][j][i].x > 0)
+                    {
+                        // here the value is solved 
+                    }
+                    else
+                    {
+                        v[k][j][i].x = 0.0;
+                    }
                 }
-                else
+                // IBM face 
+                else if(isIBMIFace(k, j, i, i+1, nvert))
                 {
-                  v[k][j][i].x = 0.0;
+                    v[k][j][i].x = 0.0;
                 }
-              }
-              else if(isIBMIFace(k, j, i, i+1, nvert))
-              {
-                  v[k][j][i].x = 0.0;
-              }
-              else if(isOversetIFace(k, j, i, i+1, meshTag))
-              {
-                  v[k][j][i].x = 0.0;
-              }
+                // OS Blanked face
+                else if(isOversetIFace(k, j, i, i+1, meshTag))
+                {
+                    v[k][j][i].x = 0.0;
+                }
 
-              //jface
-              if(j==0)
-              {
-                if(mesh->boundaryU.jLeft=="zeroGradient")
+                // jLeft face 
+                if(j==0)
                 {
-                    //
+                    if(mesh->boundaryU.jLeft=="zeroGradient" || lucont[k][j][i].y < 0)
+                    {
+                        // here the value is solved 
+                    }
+                    else
+                    {
+                        v[k][j][i].y = 0.0;
+                    }
                 }
-                else
+                // unused face 
+                else if(j==my-1)
                 {
-                  v[k][j][i].y = 0.0;
+                    v[k][j][i].y = 0.0;
                 }
-              }
-              else if(j==my-1)
-              {
-                  v[k][j][i].y = 0.0;
-              }
-              else if(j==my-2 && !(mesh->j_periodic) && !(mesh->jj_periodic))
-              {
-                if(mesh->boundaryU.jRight=="zeroGradient")
+                // jRight face
+                else if(j==my-2 && !(mesh->j_periodic) && !(mesh->jj_periodic))
                 {
-                  //
+                    if(mesh->boundaryU.jRight=="zeroGradient" || lucont[k][j][i].x > 0)
+                    {
+                        // here the value is solved
+                    }
+                    else
+                    {
+                        v[k][j][i].y = 0.0;
+                    }
                 }
-                else
+                // IBM face
+                else if(isIBMJFace(k, j, i, j+1, nvert))
                 {
-                  v[k][j][i].y = 0.0;
+                    v[k][j][i].y = 0.0;
                 }
-              }
-              else if(isIBMJFace(k, j, i, j+1, nvert))
-              {
-                  v[k][j][i].y = 0.0;
-              }
-              else if(isOversetJFace(k, j, i, j+1, meshTag))
-              {
-                  v[k][j][i].y = 0.0;
-              }
+                // OS Blanked face
+                else if(isOversetJFace(k, j, i, j+1, meshTag))
+                {
+                    v[k][j][i].y = 0.0;
+                }
 
-              //kface
-              if(k==0)
-              {
-                if(mesh->boundaryU.kLeft=="zeroGradient")
+                // kLeft face
+                if(k==0)
                 {
-                    //
+                    if(mesh->boundaryU.kLeft=="zeroGradient" || lucont[k][j][i].z < 0)
+                    {
+                        // here the value is solved
+                    }
+                    else
+                    {
+                        v[k][j][i].z = 0.0;
+                    }
                 }
-                else
+                // unused face
+                else if(k==mz-1)
                 {
-                  v[k][j][i].z = 0.0;
+                    v[k][j][i].z = 0.0;
                 }
-              }
-              else if(k==mz-1)
-              {
-                  v[k][j][i].z = 0.0;
-              }
-              else if(k==mz-2 && !(mesh->k_periodic) && !(mesh->kk_periodic))
-              {
-                if(mesh->boundaryU.kRight=="zeroGradient")
+                // kRight face
+                else if(k==mz-2 && !(mesh->k_periodic) && !(mesh->kk_periodic))
                 {
-                  //
+                    if(mesh->boundaryU.kRight=="zeroGradient" || lucont[k][j][i].z > 0)
+                    {
+                        // here the value is solved
+                    }
+                    else
+                    {
+                        v[k][j][i].z = 0.0;
+                    }
                 }
-                else
+                // IBM face
+                else if(isIBMKFace(k, j, i, k+1, nvert))
                 {
-                  v[k][j][i].z = 0.0;
+                    v[k][j][i].z = 0.0;
                 }
-              }
-              else if(isIBMKFace(k, j, i, k+1, nvert))
-              {
-                  v[k][j][i].z = 0.0;
-              }
-              else if(isOversetKFace(k, j, i, k+1, meshTag))
-              {
-                  v[k][j][i].z = 0.0;
-              }
-
+                // OS Blanked face
+                else if(isOversetKFace(k, j, i, k+1, meshTag))
+                {
+                    v[k][j][i].z = 0.0;
+                }
             }
         }
     }
 
     DMDAVecRestoreArray(mesh->fda, V, &v);
+    DMDAVecRestoreArray(mesh->fda, mesh->access->ueqn->lUcont, &lucont);
     DMDAVecRestoreArray(mesh->da,  mesh->lNvert, &nvert);
     DMDAVecRestoreArray(mesh->da,  mesh->lmeshTag, &meshTag);
 

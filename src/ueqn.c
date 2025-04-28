@@ -4470,7 +4470,9 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
         if ((mesh->boundaryU.kRight!="inletFunction") && (mesh->boundaryU.kRight!="fixedValue")) flagKRight++;
         if ((mesh->boundaryU.kLeft!="inletFunction") && (mesh->boundaryU.kLeft!="fixedValue"))  flagKLeft++;
 
+        // if both are not fixed value type BC, set scale to 0.5
         if(flagKRight && flagKLeft) scaleK = 0.5;
+        // if at least one of them is fixed value type BC, set scale to 1.0
         else scaleK = 1.0;
     }
 
@@ -5573,6 +5575,398 @@ PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
 
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
+
+    // scatter new contravariant velocity values
+    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
+{
+    mesh_           *mesh = ueqn->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k;
+
+    Cmpnts           ***ucont, ***lucont,
+                     ***coor;
+    PetscReal        epsilon = 1.e-10, ***nvert;
+
+    PetscScalar      globalFlux;
+    PetscScalar      lFluxIn = 0.0, lFluxOut = 0.0,
+                     FluxIn  = 0.0, FluxOut  = 0.0;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->Ucont,  &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+
+    // instead of saying that fluxin is on left patches and fluxout is on right patches
+    // we can say that fluxin is on the patches with negative velocity and fluxout is on the patches with positive velocity
+    // The mass imbalance is then distributed to the cells with positive velocity based on the ratio between their area and
+    // the cumulative area of the outflow faces
+
+    if
+    (
+        !mesh->k_periodic && !mesh->kk_periodic
+    )
+    {
+        // k-left boundary
+        if (zs==0)
+        {
+            // k-left boundary face
+            k = 0;
+
+            // loop on the boundary faces
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].z > 0.0 && (!isIBMCell(k+1, j, i, nvert)))
+                    {
+                        lFluxIn += ucont[k][j][i].z;
+                    }
+                    else if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k+1, j, i, nvert)))
+                    {
+                        lFluxOut += fabs(ucont[k][j][i].z);
+                    }
+                    else 
+                    {
+                        ucont[k][j][i].z = 0.;
+                    }
+                }
+            }
+        }
+
+        // compute outflow flux at k-right boundary
+        if (ze==mz)
+        {
+            // k-right boundary face
+            k = mz-2;
+
+            // loop on the boundary cells
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].z > 0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxOut += ucont[k][j][i].z;
+                    }
+                    else if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxIn += fabs(ucont[k][j][i].z);
+                    }
+                    else
+                    {
+                        ucont[k][j][i].z = 0.;
+                    }
+                }
+            }
+        }
+    }
+
+    if
+    (
+        !mesh->j_periodic && !mesh->jj_periodic
+    )
+    {
+        // compute flux at j-left boundary
+        if (ys==0)
+        {
+            // j-left boundary face
+            j = 0;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].y > 0.0 && (!isIBMCell(k, j+1, i, nvert)))
+                    {
+                        lFluxIn += ucont[k][j][i].y;
+                    }
+                    else if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j+1, i, nvert)))
+                    {
+                        lFluxOut += fabs(ucont[k][j][i].y);
+                    }
+                    else
+                    {
+                        ucont[k][j][i].y = 0.;
+                    }
+                }
+            }
+        }
+
+        // compute flux at j-right boundary
+        if (ye==my)
+        {
+            // j-right boundary face
+            j = my-2;
+
+            // loop on the boundary cells
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].y > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxOut += ucont[k][j][i].y;
+                    }
+                    else if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxIn += fabs(ucont[k][j][i].y);
+                    }
+                    else
+                    {
+                        ucont[k][j][i].y = 0.;
+                    }
+                }
+            }
+        }
+    }
+
+    if
+    (
+        !mesh->i_periodic && !mesh->ii_periodic
+    )
+    {
+        // compute flux at i-left boundary
+        if (xs==0)
+        {
+            // i-left boundary face
+            i = 0;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].x > 0.0 && (!isIBMCell(k, j, i+1, nvert)))
+                    {
+                        lFluxIn += ucont[k][j][i].x;
+                    }
+                    else if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i+1, nvert)))
+                    {
+                        lFluxOut += fabs(ucont[k][j][i].x);
+                    }
+                    else
+                    {
+                        ucont[k][j][i].x = 0.;
+                    }
+                }
+            }
+        }
+
+        // compute flux at i-right boundary
+        if (xe==mx)
+        {
+            // i-right boundary face
+            i = mx-2;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].x > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxOut += ucont[k][j][i].x;
+                    }
+                    else if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxIn += fabs(ucont[k][j][i].x);
+                    }
+                    else
+                    {
+                        ucont[k][j][i].x = 0.;
+                    }
+                }
+            }
+        }
+    }
+
+    // cumulate the net influx and net outflux
+    MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    PetscPrintf(mesh->MESH_COMM, "Pre correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
+
+    globalFlux = FluxOut - FluxIn;
+
+    lFluxOut = 0.0;
+
+    if
+    (
+        !mesh->k_periodic && !mesh->kk_periodic
+    )
+    {
+        // k-left boundary
+        if (zs==0)
+        {
+            // k-left boundary face
+            k = 0;
+
+            // loop on the boundary faces
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k+1, j, i, nvert)))
+                    {
+                        ucont[k][j][i].z += globalFlux * (ucont[k][j][i].z / FluxOut);
+                        lFluxOut += fabs(ucont[k][j][i].z);   
+                    }
+                }
+            }
+        }
+
+        // correct outflow flux at k-right boundary
+        if (ze==mz)
+        {
+            // k-right boundary face
+            k = mz-2;
+
+            // loop on the boundary cells
+            for (j=lys; j<lye; j++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].z > 0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        ucont[k][j][i].z -= globalFlux * (ucont[k][j][i].z / FluxOut);
+                        lFluxOut += ucont[k][j][i].z;
+                    }
+                }
+            }
+        }
+    }
+
+    if
+    (
+        !mesh->j_periodic && !mesh->jj_periodic
+    )
+    {
+        // compute flux at j-left boundary
+        if (ys==0)
+        {
+            // j-left boundary face
+            j = 0;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j+1, i, nvert)))
+                    {
+                        ucont[k][j][i].y += globalFlux * (ucont[k][j][i].y / FluxOut);
+                        lFluxOut += fabs(ucont[k][j][i].y);
+                    }
+                }
+            }
+        }
+
+        // compute flux at j-right boundary
+        if (ye==my)
+        {
+            // j-right boundary face
+            j = my-2;
+
+            // loop on the boundary cells
+            for (k=lzs; k<lze; k++)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].y > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        ucont[k][j][i].y -= globalFlux * (ucont[k][j][i].y / FluxOut);
+                        lFluxOut += ucont[k][j][i].y;
+                    }
+                }
+            }
+        }
+    }
+
+    if
+    (
+        !mesh->i_periodic && !mesh->ii_periodic
+    )
+    {
+        // compute flux at i-left boundary
+        if (xs==0)
+        {
+            // i-left boundary face
+            i = 0;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i+1, nvert)))
+                    {
+                        ucont[k][j][i].x += globalFlux * (ucont[k][j][i].x / FluxOut);
+                        lFluxOut += fabs(ucont[k][j][i].x);
+                    }
+                }
+            }
+        }
+
+        // compute flux at i-right boundary
+        if (xe==mx)	
+        {
+            // i-right boundary face
+            i = mx-2;
+
+            // loop on the boundary faces
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    // cumulate flux
+                    if(ucont[k][j][i].x > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        ucont[k][j][i].x -= globalFlux * (ucont[k][j][i].x / FluxOut);
+                        lFluxOut += ucont[k][j][i].x;
+                    }
+                }
+            }
+        }
+    }
+
+    // cumulate the net influx and net outflux
+    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    PetscPrintf(mesh->MESH_COMM, "Post correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
+
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
     // scatter new contravariant velocity values
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
@@ -7039,6 +7433,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
         UpdateImmersedBCs(ueqn->access->ibm);
     }
 
+    // updates BCs around blanked cells
     if(ueqn->access->flags->isOversetActive)
     {
         if(mesh->meshName == "background")
@@ -7048,11 +7443,11 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     // adjust inflow/outflow fluxes to ensure mass conservation
     if(ueqn->access->flags->isOversetActive && *(ueqn->access->domainID) != 0)
     {
-        adjustFluxesOverset(ueqn);
+        adjustFluxesLocal(ueqn);
     }
     else
     {
-        adjustFluxes(ueqn);
+        adjustFluxesLocal(ueqn);
     }
 
     return(0);
