@@ -1469,7 +1469,6 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
     // Resets to zero the values of a vector field at the non-resolved
     // faces of the mesh. Note: doesn't scatter to local.
 
-
     for (k=zs; k<ze; k++)
     {
         for (j=ys; j<ye; j++)
