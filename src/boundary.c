@@ -665,13 +665,13 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     ) ||
                     (
                         mesh->boundaryU.kLeft == "unsteadyMappedInflow"  && k==0
-                    ) ||
+                    ) /*||
                     (
                         mesh->boundaryU.kLeft == "oversetInterpolate"  && k==0
                     ) ||
                     (
                         mesh->boundaryU.kRight == "oversetInterpolate" && k==mz-2
-                    )
+                    )*/
                 )
                 {
                     ucont[k][j][i].z
@@ -689,13 +689,13 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     ) ||
                     (
                         mesh->boundaryU.jRight == "fixedValue" && j==my-2
-                    ) ||
+                    )/* ||
                     (
                         mesh->boundaryU.jLeft == "oversetInterpolate"  && j==0
                     ) ||
                     (
                         mesh->boundaryU.jRight == "oversetInterpolate" && j==my-2
-                    )
+                    )*/
                 )
                 {
                     ucont[k][j][i].y
@@ -714,13 +714,13 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     ) ||
                     (
                         mesh->boundaryU.iRight == "fixedValue" && i==mx-2
-                    ) ||
+                    )/* ||
                     (
                         mesh->boundaryU.iLeft == "oversetInterpolate"  && i==0
                     ) ||
                     (
                         mesh->boundaryU.iRight == "oversetInterpolate" && i==mx-2
-                    )
+                    )*/
                 )
                 {
                     ucont[k][j][i].x
