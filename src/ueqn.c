@@ -5834,7 +5834,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                     // cumulate flux
                     if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k+1, j, i, nvert)))
                     {
-                        ucont[k][j][i].z += globalFlux * (ucont[k][j][i].z / FluxOut);
+                        ucont[k][j][i].z += globalFlux * (fabs(ucont[k][j][i].z) / FluxOut);
                         lFluxOut += fabs(ucont[k][j][i].z);   
                     }
                 }
@@ -5882,7 +5882,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                     // cumulate flux
                     if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j+1, i, nvert)))
                     {
-                        ucont[k][j][i].y += globalFlux * (ucont[k][j][i].y / FluxOut);
+                        ucont[k][j][i].y += globalFlux * (fabs(ucont[k][j][i].y) / FluxOut);
                         lFluxOut += fabs(ucont[k][j][i].y);
                     }
                 }
@@ -5930,7 +5930,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                     // cumulate flux
                     if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i+1, nvert)))
                     {
-                        ucont[k][j][i].x += globalFlux * (ucont[k][j][i].x / FluxOut);
+                        ucont[k][j][i].x += globalFlux * (fabs(ucont[k][j][i].x) / FluxOut);
                         lFluxOut += fabs(ucont[k][j][i].x);
                     }
                 }
