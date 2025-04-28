@@ -5777,7 +5777,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
         }
 
         // compute flux at i-right boundary
-        if (xe==mx && mesh->boundaryU.kLeftPatchType == 0)
+        if (xe==mx && mesh->boundaryU.iRightPatchType == 0)
         {
             // i-right boundary face
             i = mx-2;
@@ -5938,7 +5938,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
         }
 
         // compute flux at i-right boundary
-        if (xe==mx && mesh->boundaryU.kLeftPatchType == 0)	
+        if (xe==mx && mesh->boundaryU.iRightPatchType == 0)	
         {
             // i-right boundary face
             i = mx-2;
