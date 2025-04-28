@@ -1538,7 +1538,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // jRight face
                 else if(j==my-2 && !(mesh->j_periodic) && !(mesh->jj_periodic))
                 {
-                    if(mesh->boundaryU.jRight=="zeroGradient" || lucont[k][j][i].x > 0)
+                    if(mesh->boundaryU.jRight=="zeroGradient" || lucont[k][j][i].y > 0)
                     {
                         // here the value is solved
                     }
