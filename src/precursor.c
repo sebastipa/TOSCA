@@ -943,7 +943,7 @@ PetscErrorCode SetBoundaryConditionsPrecursor(mesh_ *mesh)
     }
 
     // check boundary conditions
-    checkBoundaryConditions(mesh);
+    checkBCsAndSetPatchTypes(mesh);
 
     // get name of precursor mesh file and read perodic connectivity info
     word meshFileName;
