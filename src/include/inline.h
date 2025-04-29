@@ -1459,10 +1459,10 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
     PetscInt         i, j, k;
 
     PetscReal        ***nvert, ***meshTag;
-    Cmpnts           ***v, ***lucont;
+    Cmpnts           ***v, ***ucont_o;
 
     DMDAVecGetArray(mesh->fda, V, &v);
-    DMDAVecGetArray(mesh->fda, mesh->access->ueqn->lUcont, &lucont);
+    DMDAVecGetArray(mesh->fda, mesh->access->ueqn->Ucont_o, &ucont_o);
     DMDAVecGetArray(mesh->da,  mesh->lNvert, &nvert);
     DMDAVecGetArray(mesh->da,  mesh->lmeshTag, &meshTag);
 
@@ -1479,7 +1479,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 if(i==0)
                 {
                 // zero gradient or flow exiting
-                    if(mesh->boundaryU.iLeft=="zeroGradient" || lucont[k][j][i].x < 0)
+                    if(mesh->boundaryU.iLeft=="zeroGradient" || ucont_o[k][j][i].x < 0)
                     {
                         // here the value is solved 
                     }
@@ -1497,7 +1497,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 else if(i==mx-2 && !(mesh->i_periodic) && !(mesh->ii_periodic))
                 {
                     // zero gradient or flow exiting
-                    if(mesh->boundaryU.iRight=="zeroGradient" || lucont[k][j][i].x > 0)
+                    if(mesh->boundaryU.iRight=="zeroGradient" || ucont_o[k][j][i].x > 0)
                     {
                         // here the value is solved 
                     }
@@ -1520,7 +1520,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // jLeft face 
                 if(j==0)
                 {
-                    if(mesh->boundaryU.jLeft=="zeroGradient" || lucont[k][j][i].y < 0)
+                    if(mesh->boundaryU.jLeft=="zeroGradient" || ucont_o[k][j][i].y < 0)
                     {
                         // here the value is solved 
                     }
@@ -1537,7 +1537,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // jRight face
                 else if(j==my-2 && !(mesh->j_periodic) && !(mesh->jj_periodic))
                 {
-                    if(mesh->boundaryU.jRight=="zeroGradient" || lucont[k][j][i].y > 0)
+                    if(mesh->boundaryU.jRight=="zeroGradient" || ucont_o[k][j][i].y > 0)
                     {
                         // here the value is solved
                     }
@@ -1560,7 +1560,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // kLeft face
                 if(k==0)
                 {
-                    if(mesh->boundaryU.kLeft=="zeroGradient" || lucont[k][j][i].z < 0)
+                    if(mesh->boundaryU.kLeft=="zeroGradient" || ucont_o[k][j][i].z < 0)
                     {
                         // here the value is solved
                     }
@@ -1577,7 +1577,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // kRight face
                 else if(k==mz-2 && !(mesh->k_periodic) && !(mesh->kk_periodic))
                 {
-                    if(mesh->boundaryU.kRight=="zeroGradient" || lucont[k][j][i].z > 0)
+                    if(mesh->boundaryU.kRight=="zeroGradient" || ucont_o[k][j][i].z > 0)
                     {
                         // here the value is solved
                     }
@@ -1601,7 +1601,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
     }
 
     DMDAVecRestoreArray(mesh->fda, V, &v);
-    DMDAVecRestoreArray(mesh->fda, mesh->access->ueqn->lUcont, &lucont);
+    DMDAVecRestoreArray(mesh->fda, mesh->access->ueqn->Ucont_o, &ucont_o);
     DMDAVecRestoreArray(mesh->da,  mesh->lNvert, &nvert);
     DMDAVecRestoreArray(mesh->da,  mesh->lmeshTag, &meshTag);
 
