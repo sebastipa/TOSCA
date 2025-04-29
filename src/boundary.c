@@ -1967,6 +1967,58 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k+1][j][i],0);
 
                 }
+
+                // i-periodic boundary condition on i-left patch
+                if (mesh->boundaryU.iLeft=="periodic" && i==1)
+                {
+                    if(mesh->i_periodic) ucat[k][j][i-1] = lucat[k][j][mx-2];
+                    else if (mesh->ii_periodic) ucat[k][j][i-1] = lucat[k][j][-2];
+
+                    if ( isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i-1],0);
+                }
+                // i-periodic boundary condition on i-right patch
+                if (mesh->boundaryU.iRight=="periodic" && i==mx-2)
+                {
+
+                    if(mesh->i_periodic) ucat[k][j][i+1] = lucat[k][j][1];
+                    else if (mesh->ii_periodic) ucat[k][j][i+1] = lucat[k][j][mx+1];
+
+                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j][i+1],0);
+                }
+                // j-periodic boundary condition on j-left patch
+                if (mesh->boundaryU.jLeft=="periodic" && j==1)
+                {
+
+                    if(mesh->j_periodic) ucat[k][j-1][i] = lucat[k][my-2][i];
+                    else if(mesh->jj_periodic) ucat[k][j-1][i] = lucat[k][-2][i];
+
+                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j-1][i],0);
+                }
+                // j-periodic boundary condition on j-right patch
+                if (mesh->boundaryU.jRight=="periodic" && j==my-2)
+                {
+                    if(mesh->j_periodic) ucat[k][j+1][i] = lucat[k][1][i];
+                    else if(mesh->jj_periodic) ucat[k][j+1][i] = lucat[k][my+1][i];
+
+                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j+1][i],0);
+                }
+                // k-periodic boundary condition on k-left patch
+                if (mesh->boundaryU.kLeft=="periodic" && k==1)
+                {
+
+                    if(mesh->k_periodic) ucat[k-1][j][i] = lucat[mz-2][j][i];
+                    else if(mesh->kk_periodic) ucat[k-1][j][i] = lucat[-2][j][i];
+
+                    if ( isIBMCell(k,j,i,nvert)) mSetValue(ucat[k-1][j][i],0);
+                }
+                // k-periodic boundary condition on k-right patch
+                if (mesh->boundaryU.kRight=="periodic" && k==mz-2)
+                {
+                    if(mesh->k_periodic) ucat[k+1][j][i] = lucat[1][j][i];
+                    else if(mesh->kk_periodic) ucat[k+1][j][i] = lucat[mz+1][j][i];
+
+                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k+1][j][i],0);
+                }
             }
         }
     }
