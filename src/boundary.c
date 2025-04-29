@@ -648,30 +648,11 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
         {
             for (i=xs; i<lxe; i++)
             {
-                // fixedValue type BCs on k-direction: interpolate the contravariant velocity
+                // fixedValue type: interpolate the contravariant velocity
                 if
                 (
-                    (
-                        mesh->boundaryU.kLeft == "fixedValue" && k==0
-                    ) ||
-                    (
-                        mesh->boundaryU.kRight == "fixedValue" && k==mz-2
-                    ) ||
-                    (
-                        mesh->boundaryU.kLeft == "inletFunction" && k==0
-                    ) ||
-                    (
-                        mesh->boundaryU.kRight == "inletFunction" && k==mz-2
-                    ) ||
-                    (
-                        mesh->boundaryU.kLeft == "unsteadyMappedInflow"  && k==0
-                    ) ||
-                    (
-                        mesh->boundaryU.kLeft == "oversetInterpolate"  && k==0
-                    ) ||
-                    (
-                        mesh->boundaryU.kRight == "oversetInterpolate" && k==mz-2
-                    )
+                    (mesh->boundaryU.kLeftPatchType == 0 && k == 0) ||
+                    (mesh->boundaryU.kRightPatchType == 0 && k == mz-2)
                 )
                 {
                     ucont[k][j][i].z
@@ -681,21 +662,10 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
                 }
 
-                // fixedValue type BCs on j-direction: interpolate the contravariant velocity
-                if
+                if 
                 (
-                    (
-                        mesh->boundaryU.jLeft == "fixedValue" && j==0
-                    ) ||
-                    (
-                        mesh->boundaryU.jRight == "fixedValue" && j==my-2
-                    )||
-                    (
-                        mesh->boundaryU.jLeft == "oversetInterpolate"  && j==0
-                    ) ||
-                    (
-                        mesh->boundaryU.jRight == "oversetInterpolate" && j==my-2
-                    )
+                    (mesh->boundaryU.jLeftPatchType == 0 && j == 0) ||
+                    (mesh->boundaryU.jRightPatchType == 0 && j == my-2)
                 )
                 {
                     ucont[k][j][i].y
@@ -703,24 +673,12 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
                     0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
                     0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
-
                 }
 
-                // fixedValue type BCs on i-direction: interpolate the contravariant velocity
-                if
+                if 
                 (
-                    (
-                        mesh->boundaryU.iLeft == "fixedValue" && i==0
-                    ) ||
-                    (
-                        mesh->boundaryU.iRight == "fixedValue" && i==mx-2
-                    )||
-                    (
-                        mesh->boundaryU.iLeft == "oversetInterpolate"  && i==0
-                    ) ||
-                    (
-                        mesh->boundaryU.iRight == "oversetInterpolate" && i==mx-2
-                    )
+                    (mesh->boundaryU.iLeftPatchType == 0 && i == 0) ||
+                    (mesh->boundaryU.iRightPatchType == 0 && i == mx-2)
                 )
                 {
                     ucont[k][j][i].x
@@ -728,85 +686,35 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
                     0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
                     0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
-
                 }
 
-                // no slip, shear stress 1, shear stress 2 , slip:
-                // set velocity at the boundary faces to zero
+                // no penetration type: set velocity at the boundary faces to zero
                 if
                 (
-                    (
-                        mesh->boundaryU.iLeft=="noSlip" ||
-                        mesh->boundaryU.iLeft=="slip"   ||
-                        mesh->boundaryU.iLeft=="velocityWallFunction"
-                    )
-                    && i==0
+                    (mesh->boundaryU.iLeftPatchType == 1 && i==0) || 
+                    (mesh->boundaryU.iRightPatchType == 1 && i==mx-2) 
                 )
                 {
                     ucont[k][j][i].x = 0.0;
                 }
                 if
                 (
-                    (
-                        mesh->boundaryU.iRight=="noSlip" ||
-                        mesh->boundaryU.iRight=="slip"   ||
-                        mesh->boundaryU.iRight=="velocityWallFunction"
-                    )
-                    && i==mx-2
-                )
-                {
-                    ucont[k][j][i].x = 0;
-                }
-                if
-                (
-                    (
-                        mesh->boundaryU.jLeft=="noSlip" ||
-                        mesh->boundaryU.jLeft=="slip"   ||
-                        mesh->boundaryU.jLeft=="velocityWallFunction"
-                    )
-                    && j==0
+                    (mesh->boundaryU.jLeftPatchType == 1 && j==0) || 
+                    (mesh->boundaryU.jRightPatchType == 1 && j==my-2) 
                 )
                 {
                     ucont[k][j][i].y = 0.0;
                 }
                 if
                 (
-                    (
-                        mesh->boundaryU.jRight=="noSlip" ||
-                        mesh->boundaryU.jRight=="slip"   ||
-                        mesh->boundaryU.jRight=="velocityWallFunction"
-                    )
-                    && j==my-2
-                )
-                {
-                    ucont[k][j][i].y = 0;
-                }
-                if
-                (
-                    (
-                        mesh->boundaryU.kLeft=="noSlip" ||
-                        mesh->boundaryU.kLeft=="slip"   ||
-                        mesh->boundaryU.kLeft=="velocityWallFunction"
-                    )
-                    && k==0
+                    (mesh->boundaryU.kLeftPatchType == 1 && k==0) || 
+                    (mesh->boundaryU.kRightPatchType == 1 && k==mz-2) 
                 )
                 {
                     ucont[k][j][i].z = 0.0;
                 }
-                if
-                (
-                    (
-                        mesh->boundaryU.kRight=="noSlip" ||
-                        mesh->boundaryU.kRight=="slip"   ||
-                        mesh->boundaryU.kRight=="velocityWallFunction"
-                    )
-                    && k==mz-2
-                )
-                {
-                    ucont[k][j][i].z = 0;
-                }
 
-                // zero gradient is solved, but set flux to zero if reverse flow
+                // zero gradient type: velocity is solved, but set flux to zero if reverse flow
                 if (mesh->boundaryU.iLeft=="zeroGradient" && i==0)
                 {
                     if(ucont[k][j][i].x > 0.0) ucont[k][j][i].x = 0.0;
@@ -832,10 +740,9 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
                 }
 
-                // i,j,k  or ii, jj, kk periodic boundary conditions: the right
+                // i,j,k  or ii, jj, kk periodic type: the right
                 // boundary velocity has been solved in this case: put it on the
                 // left boundary
-
                 if
                 (
                     mesh->boundaryU.iLeft=="periodic" &&
@@ -1987,7 +1894,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                 }
 
                 // outflow (zero gradient) in X left boundary
-                if (mesh->boundaryU.iLeft=="zeroGradient" && i==1)
+                if(mesh->boundaryU.iLeft=="zeroGradient" && i==1)
                 {
                     ucat[k][j][i-1].x = 2*lucat[k][j][i].x - lucat[k][j][i+1].x;
                     ucat[k][j][i-1].y = 2*lucat[k][j][i].y - lucat[k][j][i+1].y;
@@ -2056,76 +1963,6 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     ucat[k+1][j][i].z = 2*lucat[k][j][i].z - lucat[k-1][j][i].z;
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k+1][j][i],0);
-
-                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k+1][j][i],0);
-
-                }
-
-                // i-periodic boundary condition on i-left patch
-                if (mesh->boundaryU.iLeft=="periodic" && i==1)
-                {
-                    if(mesh->i_periodic) ucat[k][j][i-1] = lucat[k][j][mx-2];
-                    else if (mesh->ii_periodic) ucat[k][j][i-1] = lucat[k][j][-2];
-
-                    if ( isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i-1],0);
-
-                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i-1],0);
-
-                }
-                // i-periodic boundary condition on i-right patch
-                if (mesh->boundaryU.iRight=="periodic" && i==mx-2)
-                {
-
-                    if(mesh->i_periodic) ucat[k][j][i+1] = lucat[k][j][1];
-                    else if (mesh->ii_periodic) ucat[k][j][i+1] = lucat[k][j][mx+1];
-
-                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j][i+1],0);
-
-                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i+1],0);
-
-                }
-                // j-periodic boundary condition on j-left patch
-                if (mesh->boundaryU.jLeft=="periodic" && j==1)
-                {
-
-                    if(mesh->j_periodic) ucat[k][j-1][i] = lucat[k][my-2][i];
-                    else if(mesh->jj_periodic) ucat[k][j-1][i] = lucat[k][-2][i];
-
-                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j-1][i],0);
-
-                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j-1][i],0);
-
-                }
-                // j-periodic boundary condition on j-right patch
-                if (mesh->boundaryU.jRight=="periodic" && j==my-2)
-                {
-                    if(mesh->j_periodic) ucat[k][j+1][i] = lucat[k][1][i];
-                    else if(mesh->jj_periodic) ucat[k][j+1][i] = lucat[k][my+1][i];
-
-                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j+1][i],0);
-
-                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j+1][i],0);
-
-                }
-                // k-periodic boundary condition on k-left patch
-                if (mesh->boundaryU.kLeft=="periodic" && k==1)
-                {
-
-                    if(mesh->k_periodic) ucat[k-1][j][i] = lucat[mz-2][j][i];
-                    else if(mesh->kk_periodic) ucat[k-1][j][i] = lucat[-2][j][i];
-
-                    if ( isIBMCell(k,j,i,nvert)) mSetValue(ucat[k-1][j][i],0);
-
-                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k-1][j][i],0);
-
-                }
-                // k-periodic boundary condition on k-right patch
-                if (mesh->boundaryU.kRight=="periodic" && k==mz-2)
-                {
-                    if(mesh->k_periodic) ucat[k+1][j][i] = lucat[1][j][i];
-                    else if(mesh->kk_periodic) ucat[k+1][j][i] = lucat[mz+1][j][i];
-
-                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k+1][j][i],0);
 
                     if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k+1][j][i],0);
 

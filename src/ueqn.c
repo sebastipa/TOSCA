@@ -7431,7 +7431,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     if(ueqn->access->flags->isIBMActive)
     {
         UpdateImmersedBCs(ueqn->access->ibm);
-    }
+    }    
 
     // updates BCs around blanked cells
     if(ueqn->access->flags->isOversetActive)

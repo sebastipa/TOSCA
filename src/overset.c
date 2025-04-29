@@ -10,6 +10,26 @@
 #include "include/overset.h"
 #include "include/ibmInput.h"
 
+// Comments on TOSCA's overset method: 
+// Overset is a mesh refinement technique where two disconnected meshes are overalpped. A finer mesh is fully contained 
+// whithin a coarser mesh. At the ghost nodes of the finer mesh, we interpolate the values from the coarser mesh. For 
+// the coarser mesh, we introduce a blanking region where the fields are not solved. This blanking region is treated as an
+// IBM body and must be offset by 2/3 cells inward with respect to the finer mesh. The boundary conditions for the coarser mesh at the  
+// boundaries of the blanking regions are taken from the finer mesh and applied at the interface cells, as done for the IBM method. 
+// In order to preserve overall continuity in the finer domain while being able to prescribe fixedValue-type BCs at all 
+// boundaries, we need a way to correct for mass imbalance. In TOSCA, while the values of the cartesian velocity at the ghost nodes 
+// are always interpolated from the coarser mesh, the contravariant fluxes (the variable that is actually being solved) are
+// treated like a fixedValue BC if the flow is entering the domain, while they are solved, similarly to the zeroGradient BC, if the flow is 
+// leaving the domain. Mass imbalance is corrected on a per-cell basis, only at those cells where the flow is outgoing. 
+// This ensures that the solution remains "attached" to that of the outer domain through the formation of the RHS (which requires the 
+// cartesian velocity), but also that the solver is somewhat free to develop its own outflow contravariant fluxes when the flow
+// is leaving the domain. This is particularly important in those cases where the mean flow switches direction over the course of the 
+// simulation. In fact, when the switch in flow direction happens, the BC has to switch from zeroGradient to fixedValue. If a pure zero 
+// gradient would be applied for the outgoing flow, the flow close to the bopundary would have no knowledge of the flow in the outer domain 
+// and in some cases they could be largely different when the switch is performed, causing instability. With our method instead, the solution 
+// is maintained close to the coarse solution by applying the interpolated cartesian velocity at the ghost nodes all while the flow has been exiting. 
+// This makes the transition from zeroGradient to fixedValue less hard on the solver and more stable. 
+
 //***************************************************************************************************************//
 //! \brief Initialize overset coupling (both overset and base mesh updates)
 //!        For a domain that is an overset (child) mesh, the donor cells are found from its parent(s).
