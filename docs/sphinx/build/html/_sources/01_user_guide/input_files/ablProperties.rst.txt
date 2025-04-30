@@ -460,7 +460,8 @@ xDampingProperties
    ``xDampingAlphaControlType``  string             type of alpha computation, only for concurrent precursor method (i.e. 
                                                     ``uBarSelectionType`` = 3). Most used type is *alphaFixed*, where the damping 
                                                     coefficient is specified by ``xDampingAlpha``. Moreover, we developed an experimental 
-                                                    variable-alpha fringe region where the damping coefficient is optimized in time. 
+                                                    variable-alpha fringe region, selectable using *alphaOptimized*, where the damping 
+                                                    coefficient is optimized in time. 
                                                     In particular, TOSCA tries to find the minimum :math:`\alpha` that allows to obtain an 
                                                     average velocity over a line spanning the domain along y, located at ``hRef`` and 
                                                     close to the exit of the fringe region, which is as close as possibe to the velocity 
@@ -470,11 +471,14 @@ xDampingProperties
                                                     *alphaFixed* for production runs. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``xDampingLineSamplingYmin``  scalar             minimum y of the line located at the fringe exit and at a height of ``hRef``. 
+                                                    Only required if ``xDampingAlphaControlType`` is set to *alphaOptimized*.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``xDampingLineSamplingYmax``  scalar             maximum y of the line located at the fringe exit and at a height of ``hRef``. 
+   ``xDampingLineSamplingYmax``  scalar             maximum y of the line located at the fringe exit and at a height of ``hRef``.   
+                                                    Only required if ``xDampingAlphaControlType`` is set to *alphaOptimized*.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``xDampingTimeWindow``        scalar             time window for error filtering. Sould be greater or equal than a fringe flow 
                                                     turnover time. 
+                                                    Only required if ``xDampingAlphaControlType`` is set to *alphaOptimized*.
    ============================= ================== =====================================================================================
    
 yDampingProperties
