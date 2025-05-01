@@ -11,88 +11,83 @@
 
 PetscErrorCode SetInitialField(domain_ *domain)
 {
-    PetscInt    nDomains = domain[0].info.nDomains;
+    flags_ *flags      = domain->access.flags;
+    mesh_  *mesh       = domain->mesh;
+    word   filenameU   = "./boundary/" + mesh->meshName + "/U";
+    word   filenameT   = "./boundary/" + mesh->meshName + "/T";
+    word   filenameNut = "./boundary/" + mesh->meshName + "/nut";
 
-    for(PetscInt d=0; d<nDomains; d++)
+    // read the internal field U
+    readDictWord(filenameU.c_str(), "internalField", &(domain->ueqn->initFieldType));
+
+    // read the internal field T
+    if(flags->isTeqnActive)
     {
-        flags_ *flags      = domain[d].access.flags;
-        mesh_  *mesh       = domain[d].mesh;
-        word   filenameU   = "./boundary/" + mesh->meshName + "/U";
-        word   filenameT   = "./boundary/" + mesh->meshName + "/T";
-        word   filenameNut = "./boundary/" + mesh->meshName + "/nut";
+        readDictWord(filenameT.c_str(), "internalField", &(domain->teqn->initFieldType));
+    }
 
-        // read the internal field U
-        readDictWord(filenameU.c_str(), "internalField", &(domain[d].ueqn->initFieldType));
+    // read the internal field nut
+    if(flags->isLesActive)
+    {
+        readDictWord(filenameNut.c_str(), "internalField", &(domain->les->initFieldType));
+    }
 
-        // read the internal field T
-        if(flags->isTeqnActive)
+    // if the startFrom is set to latestTime in control.dat and internalField is not set to readField
+    // give error: the user forgot to switch it
+
+    if(domain->clock->startFrom == "latestTime")
+    {
+        if(domain->ueqn->initFieldType != "readField")
         {
-            readDictWord(filenameT.c_str(), "internalField", &(domain[d].teqn->initFieldType));
+            char error[512];
+            sprintf(error, "-startFrom latestTime only available with readField option in boundary/U");
+            fatalErrorInFunction("SetInitialField", error);
         }
-
-        // read the internal field nut
-        if(flags->isLesActive)
-        {
-            readDictWord(filenameNut.c_str(), "internalField", &(domain[d].les->initFieldType));
-        }
-
-        // if the startFrom is set to latestTime in control.dat and internalField is not set to readField
-        // give error: the user forgot to switch it
-
-        if(domain[d].clock->startFrom == "latestTime")
-        {
-            if(domain[d].ueqn->initFieldType != "readField")
-            {
-                char error[512];
-                sprintf(error, "-startFrom latestTime only available with readField option in boundary/U");
-                fatalErrorInFunction("SetInitialField", error);
-            }
-
-            if(flags->isTeqnActive)
-            if(domain[d].teqn->initFieldType != "readField")
-            {
-                char error[512];
-                sprintf(error, "-startFrom latestTime only available with readField option in boundary/T");
-                fatalErrorInFunction("SetInitialField", error);
-            }
-
-            if(flags->isLesActive)
-            if(domain[d].les->initFieldType != "readField")
-            {
-                char error[512];
-                sprintf(error, "-startFrom latestTime only available with readField option in boundary/nut");
-                fatalErrorInFunction("SetInitialField", error);
-            }
-        }
-
-        SetInitialFieldU(domain[d].ueqn);
 
         if(flags->isTeqnActive)
+        if(domain->teqn->initFieldType != "readField")
         {
-            SetInitialFieldT(domain[d].teqn);
+            char error[512];
+            sprintf(error, "-startFrom latestTime only available with readField option in boundary/T");
+            fatalErrorInFunction("SetInitialField", error);
         }
-
-        SetInitialFieldP(domain[d].peqn);
 
         if(flags->isLesActive)
+        if(domain->les->initFieldType != "readField")
         {
-            SetInitialFieldLES(domain[d].les);
+            char error[512];
+            sprintf(error, "-startFrom latestTime only available with readField option in boundary/nut");
+            fatalErrorInFunction("SetInitialField", error);
         }
+    }
 
-        // if readFields is on, read all the fields
-        if(domain[d].ueqn->initFieldType == "readField")
-        {
-            PetscPrintf(mesh->MESH_COMM, "Setting initial field: %s\n\n", domain[d].ueqn->initFieldType.c_str());
-            readFields(&domain[d], domain[d].clock->startTime);
-        }
+    SetInitialFieldU(domain->ueqn);
 
-        // save old fields
-        VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
+    if(flags->isTeqnActive)
+    {
+        SetInitialFieldT(domain->teqn);
+    }
 
-        if(flags->isTeqnActive)
-        {
-            VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
-        }
+    SetInitialFieldP(domain->peqn);
+
+    if(flags->isLesActive)
+    {
+        SetInitialFieldLES(domain->les);
+    }
+
+    // if readFields is on, read all the fields
+    if(domain->ueqn->initFieldType == "readField")
+    {
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field: %s\n\n", domain->ueqn->initFieldType.c_str());
+        readFields(domain, domain->clock->startTime);
+    }
+
+    // save old fields
+    VecCopy(domain->ueqn->Ucont, domain->ueqn->Ucont_o);
+
+    if(flags->isTeqnActive)
+    {
+        VecCopy(domain->teqn->Tmprt, domain->teqn->Tmprt_o);
     }
 
     return(0);

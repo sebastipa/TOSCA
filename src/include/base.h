@@ -52,6 +52,7 @@ struct simInfo_
 {
     PetscInt nDomains;
     PetscInt periodic;
+    PetscInt nHoleRegions;
 };
 
 struct constants_

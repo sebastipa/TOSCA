@@ -6,21 +6,15 @@
 
 #include <unordered_map>
 
-struct BinIndex {
-    int ix, iy, iz;
-    bool operator==(const BinIndex& other) const {
-        return ix == other.ix && iy == other.iy && iz == other.iz;
-    }
-};
-
-namespace std {
-    template <>
-    struct hash<BinIndex> {
-        std::size_t operator()(const BinIndex& b) const {
-            return ((std::hash<int>()(b.ix) ^ (std::hash<int>()(b.iy) << 1)) >> 1) ^ (std::hash<int>()(b.iz) << 1);
-        }
-    };
-}
+// Structure to hold hole object data
+typedef struct {
+    word bodyName;
+    PetscInt ownerMesh;
+    PetscInt donorMesh;
+    word fileType;
+    Cmpnts baseLocation;
+    PetscInt searchCellRatio;
+} HoleObject;
 
 //! \brief Overset acceptor cell (used for both overset and base mesh acceptor cells)
 typedef struct {
@@ -29,6 +23,7 @@ typedef struct {
     PetscMPIInt   rank;              //!< owning processor
     PetscReal     cell_size;         //!< representative cell size
     PetscInt      face;              //!< face indicator (used for BCs etc.)
+    PetscInt      donorId;
 } Acell;
 
 //! \brief Overset donor cell (contains donor cell indices, owner, and distance)
@@ -64,25 +59,52 @@ struct overset_
     PetscInt                    procChange;     //!< Flag if background processor intersections have changed
     oversetMotion               *oMotion;       //!< Pointer to overset motion data
 
-    // MLS (Least–Squares) interpolation parameters
-    PetscReal                   cellAvg;        //!< Average cell size (optional)
-    PetscReal                   cellFactor;     //!< Factor to scale cell size for search radius
+    // In general there are 2 sets of acceptor cells, acceptor cell at domain boundary(aCellDb) and acceptor cell at holeCut boundary(aCellHc)
+    // All variables need to be created for both sets of acceptors 
+
+    std::vector<std::vector<PetscInt>>      AcellProcMatDb;    //!< Processor connectivity matrix for acceptor cells
+    std::vector<std::vector<PetscInt>>      AcellProcMatHc;    //!< Processor connectivity matrix for acceptor cells
+
+    std::vector<PetscInt>                   NumAcellPerProcDb; //!< Number of acceptor cells per processor
+    std::vector<PetscInt>                   NumAcellPerProcHc; //!< Number of acceptor cells per processor
+
+    std::vector<Acell>                      aCellDb;           //!< List of acceptor cells
+    std::vector<Acell>                      aCellHc;           //!< List of acceptor cells
+ 
+    std::vector<Dcell>                      closestDonorDb;    //!< For trilinear interpolation: closest donor cell per acceptor at domain boundary
+    std::vector<Dcell>                      closestDonorHc;    //!< For trilinear interpolation: closest donor cell per acceptor at hole cut boundary
+
+    //for other interpolation methods
+    std::vector<std::vector<PetscReal>>     DWeights;        //!< MLS weights for overset interpolation 
+    std::vector<std::vector<Dcell>>         dCell;           //!< List of donor cell 
 
     // Communication-related arrays for processor connectivity (for donor/acceptor mapping)
     std::vector<MPI_Comm>       oset_comm;  
 
-    std::vector<std::vector<PetscInt>>      AcellProcMat; //!< Processor connectivity matrix for acceptor cells
-    std::vector<PetscInt>                   NumAcellPerProc; //!< Number of acceptor cells per processor
+    // MLS (Least–Squares) interpolation parameters
+    PetscReal                   cellAvg;        //!< Average cell size (optional)
+    PetscReal                   cellFactor;     //!< Factor to scale cell size for search radius
     
-    std::vector<Acell>                      aCell;         //!< List of acceptor cells
-    std::vector<std::vector<Dcell>>         dCell;    //!< List of donor cell  
-    std::vector<Dcell>                      closestDonor;  //!< For trilinear interpolation: closest donor cell per acceptor
-
-    std::vector<std::vector<PetscReal>>     DWeights; //!< MLS weights for overset interpolation 
-
     ibm_    *oibm;
     access_ *access;
 };
+
+//structs for 3D binning 
+struct BinIndex {
+    int ix, iy, iz;
+    bool operator==(const BinIndex& other) const {
+        return ix == other.ix && iy == other.iy && iz == other.iz;
+    }
+};
+
+namespace std {
+    template <>
+    struct hash<BinIndex> {
+        std::size_t operator()(const BinIndex& b) const {
+            return ((std::hash<int>()(b.ix) ^ (std::hash<int>()(b.iy) << 1)) >> 1) ^ (std::hash<int>()(b.iz) << 1);
+        }
+    };
+}
 
 #endif
 
@@ -92,20 +114,37 @@ PetscErrorCode InitializeOverset(domain_ *dm);
 
 PetscErrorCode UpdateOversetInterpolation(domain_ *domain);
 
+PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt level);
+
+PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt level, const std::vector<HoleObject> &holeObjects); 
+
+PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level, 
+    const std::vector<HoleObject> &holeObjects);
+
 PetscErrorCode readOversetProperties(overset_ *os);
 
-PetscErrorCode readBlankingIBMObject(overset_ *os, domain_ *domain);
+PetscErrorCode readBlankingIBMObject(overset_ *os, domain_ *domain, char *holeObjectName, const std::vector<HoleObject> &holeObjects);
+
+PetscErrorCode readHoleObjects(std::vector<HoleObject> &holeObjects, PetscInt numHoleObjects);
+
+PetscErrorCode FindHoleObject(const std::vector<HoleObject> &holeObjects, 
+    PetscInt parentId, PetscInt childId, 
+    char **holeObjectName);
 
 PetscErrorCode updateAcceptorCoordinates(overset_ *os);
 
 PetscErrorCode createAcceptorCellOverset(overset_ *os);
 
-PetscErrorCode createAcceptorCellBackground(overset_ *os); 
+PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId);
 
-PetscErrorCode findClosestDonor(mesh_ *meshDonor, mesh_ *meshAcceptor);
+PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscInt donorId);
+
+PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor);
 
 // Interpolation routines for overset (child) mesh
-PetscErrorCode interpolateACellTrilinear(mesh_ *donorMesh, mesh_ *acceptorMesh);
+PetscErrorCode interpolateACellTrilinearParent2Current(mesh_ *donorMesh, mesh_ *acceptorMesh);
+
+PetscErrorCode interpolateACellTrilinearChild2Current(mesh_ *meshD, mesh_ *meshA, PetscInt donorId);
 
 PetscErrorCode oversetContravariantBC(mesh_ *mesh, PetscInt i, PetscInt j, PetscInt k, Cmpnts ucart, PetscInt face);
 

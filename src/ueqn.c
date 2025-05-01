@@ -7085,8 +7085,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
 
     if(ueqn->access->flags->isOversetActive)
     {
-        if(mesh->meshName == "background")
-            setBackgroundBC(mesh);
+        setBackgroundBC(mesh);
     }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
@@ -7206,7 +7205,6 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
 
     if(ueqn->access->flags->isOversetActive)
     {
-        if(mesh->meshName == "background")
         setBackgroundBC(mesh);;
     }
 
@@ -7436,7 +7434,6 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     // updates BCs around blanked cells
     if(ueqn->access->flags->isOversetActive)
     {
-        if(mesh->meshName == "background")
         setBackgroundBC(mesh);
     }
 

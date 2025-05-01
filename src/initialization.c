@@ -149,10 +149,15 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
     PetscPrintf(PETSC_COMM_WORLD, "Acquisition initialization time = %lf s\n", timeEnd - timeStart);
 
     // Set the initial field
-    SetInitialField(domain);
-
-    // initialize overset
-    InitializeOverset(domain);
+    if(info->nDomains == 1)
+    {
+        SetInitialField(&domain[0]);
+    }
+    else
+    {
+        // initialize overset
+        InitializeOverset(domain);
+    }
 
     return(0);
 
@@ -304,7 +309,8 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
     // set the overset pointer
     if(flags->isOversetActive)
     {
-        readDictInt("Overset/OversetInput.dat", "MeshTotal", &(info->nDomains));
+        readDictInt("overset/oversetInput.dat", "MeshTotal", &(info->nDomains));
+        readDictInt("overset/oversetInput.dat", "numHoleObjects", &(info->nHoleRegions));
 
         // allocate memory for the number of domains
         *domainAddr = new domain_[info->nDomains];
@@ -322,12 +328,12 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
             //set domain specific flags
             if(domain[d].flags.isIBMActive)
             {
-                readSubDictInt("Overset/OversetInput.dat", userName,"ibm", &(domain[d].flags.isIBMActive));
+                readSubDictInt("overset/oversetInput.dat", userName,"ibm", &(domain[d].flags.isIBMActive));
             }
 
             if(domain[d].flags.isWindFarmActive)
             {
-                readSubDictInt("Overset/OversetInput.dat", userName,"windplant", &(domain[d].flags.isWindFarmActive));
+                readSubDictInt("overset/oversetInput.dat", userName,"windplant", &(domain[d].flags.isWindFarmActive));
             }
 
             // allocate memory for domain objects
@@ -339,11 +345,11 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
             overset_ *os = domain[d].os;
 
 
-            readSubDictIntArray("Overset/OversetInput.dat", userName, "parentMesh", os->parentMeshId);
-            readSubDictIntArray("Overset/OversetInput.dat", userName, "childMesh",  os->childMeshId);
+            readSubDictIntArray("overset/oversetInput.dat", userName, "parentMesh", os->parentMeshId);
+            readSubDictIntArray("overset/oversetInput.dat", userName, "childMesh",  os->childMeshId);
 
             // set mesh name
-            readSubDictWord("Overset/OversetInput.dat", userName, "name",  &(domain[d].mesh->meshName));
+            readSubDictWord("overset/oversetInput.dat", userName, "name",  &(domain[d].mesh->meshName));
 
         }
     }
