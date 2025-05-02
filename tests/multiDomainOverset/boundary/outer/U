@@ -1,0 +1,25 @@
+ # OKWind Input file - U boundary conditions 
+# ----------------------
+
+
+internalField     uniform {
+				value (1.0 0.0 0.0)
+				perturbations 0
+			  }
+#internalField    readField
+
+# boundary patches
+
+iLeft            periodic
+
+iRight           periodic
+
+jLeft            periodic
+
+jRight           periodic
+
+kLeft            fixedValue (1.0 0.0 0.0)
+
+kRight           zeroGradient
+
+
