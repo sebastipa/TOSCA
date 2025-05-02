@@ -5,7 +5,7 @@
 #define _OVERSET_H_
 
 #include <unordered_map>
-
+#include <map>
 // Structure to hold hole object data
 typedef struct {
     word bodyName;
@@ -24,6 +24,7 @@ typedef struct {
     PetscReal     cell_size;         //!< representative cell size
     PetscInt      face;              //!< face indicator (used for BCs etc.)
     PetscInt      donorId;
+    PetscInt      parentCellId;
 } Acell;
 
 //! \brief Overset donor cell (contains donor cell indices, owner, and distance)
@@ -112,6 +113,8 @@ namespace std {
 // Initialization and update
 PetscErrorCode InitializeOverset(domain_ *dm);
 
+PetscErrorCode SetInitialFieldsOverset(PetscInt d, domain_ *domain);
+
 PetscErrorCode UpdateOversetInterpolation(domain_ *domain);
 
 PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt level);
@@ -142,9 +145,9 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
 PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor);
 
 // Interpolation routines for overset (child) mesh
-PetscErrorCode interpolateACellTrilinearParent2Current(mesh_ *donorMesh, mesh_ *acceptorMesh);
+PetscErrorCode interpolateACellTrilinearP2C(mesh_ *donorMesh, mesh_ *acceptorMesh);
 
-PetscErrorCode interpolateACellTrilinearChild2Current(mesh_ *meshD, mesh_ *meshA, PetscInt donorId);
+PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt donorId);
 
 PetscErrorCode oversetContravariantBC(mesh_ *mesh, PetscInt i, PetscInt j, PetscInt k, Cmpnts ucart, PetscInt face);
 
