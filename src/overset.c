@@ -49,33 +49,6 @@ PetscErrorCode InitializeOverset(domain_ *domain)
     std::vector<HoleObject> holeObjects;
     readHoleObjects(holeObjects, domain[0].info.nHoleRegions);
 
-    // Set initial fields for all domains
-    for (PetscInt d = 0; d < nDomains; d++)
-    {
-        // Only process domains that are not already processed as children
-        PetscBool isChild = PETSC_FALSE;
-        for (PetscInt other = 0; other < nDomains; other++)
-        {
-            if (other != d && domain[other].os != NULL)
-            {
-                for (PetscInt ci = 0; ci < domain[other].os->childMeshId.size(); ci++)
-                {
-                    if (domain[other].os->childMeshId[ci] == d)
-                    {
-                        isChild = PETSC_TRUE;
-                        break;
-                    }
-                }
-            }
-            if (isChild) break;
-        }
-
-        if (!isChild)
-        {
-            SetInitialFieldsOverset(d, domain);
-        }
-    }
-
     // find acceptor cells starting from the top level
     for (PetscInt d = 0; d < nDomains; d++)
     {
@@ -255,34 +228,6 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
 
 //***************************************************************************************************************//
 
-// set initial field for a domain and its children recursively
-PetscErrorCode SetInitialFieldsOverset(PetscInt d, domain_ *domain)
-{
-    PetscInt nDomains = domain[0].info.nDomains;
-    if (d < 0 || d >= nDomains) return 0;
-    if (domain[d].os == NULL)   return 0;
-
-    overset_ *os    = domain[d].os;
-    mesh_    *mesh  = domain[d].mesh;
-    
-    SetInitialField(&domain[d]);
-
-    for (PetscInt ci = 0; ci < os->childMeshId.size(); ci++)
-    {
-        if (os->childMeshId[ci] != -1)
-        {
-            mesh_ *childMesh = domain[os->childMeshId[ci]].mesh;
-            PetscInt childId = os->childMeshId[ci];
-
-            // Recursively initialize child domain
-            SetInitialFieldsOverset(childId, domain);
-        }
-    }
-    return 0;
-}
-
-//***************************************************************************************************************//
-
 // function to find acceptors cells for a domain and its children recursively
 PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level, 
                             const std::vector<HoleObject> &holeObjects)
@@ -401,6 +346,8 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
             PetscPrintf(mesh->MESH_COMM, "     Elapsed time = %lf\n", timeEnd - timeStart); 
         }
     }
+
+    SetInitialField(&domain[d]);
 
     // Branch 2: find closest donor cells for hole cut boundary acceptor cells
     for (PetscInt ci = 0; ci < os->childMeshId.size(); ci++)
