@@ -19,6 +19,8 @@ typedef struct{
     Vec Kres;
     Vec avgNut;
     Vec avgCs;
+    Vec avgSm0;
+    Vec avgSm0Full;
     Vec VpVp;
 }TKEFields;
 

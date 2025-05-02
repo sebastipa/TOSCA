@@ -80,6 +80,7 @@ PetscErrorCode InitializeIO(io_ *io)
 
         // initialize snapshot weighting (overwrittten if read averages)
         io->tkeAvgWeight = 0;
+        io->tkeAvgWeightReset = 0;
 
     }
 
@@ -325,7 +326,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscViewerDestroy(&viewer);
         }
 
-        PetscPrintf(mesh->MESH_COMM, "Reading quant...\n");
+        /*PetscPrintf(mesh->MESH_COMM, "Reading quant...\n");
         field = "/quant";
         fileName = location + field;
         PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
@@ -337,13 +338,41 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         fileName = location + field;
         PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
         VecLoad(smObject->Dq, viewer);
-        PetscViewerDestroy(&viewer);
+        PetscViewerDestroy(&viewer);*/
 
         PetscPrintf(mesh->MESH_COMM, "Reading probI...\n");
         field = "/probI";
         fileName = location + field;
         PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
         VecLoad(smObject->probI, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading divP...\n");
+        field = "/divP";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->sm[0]->divPrint, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading viscP...\n");
+        field = "/viscP";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->sm[0]->viscPrint, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading devP...\n");
+        field = "/devP";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->sm[0]->devPrint, viewer);
+        PetscViewerDestroy(&viewer);
+
+        PetscPrintf(mesh->MESH_COMM, "Reading sedP...\n");
+        field = "/sedP";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(smObject->sm[0]->sedPrint, viewer);
         PetscViewerDestroy(&viewer);
 
         PetscPrintf(mesh->MESH_COMM, "Reading coag0...\n");
@@ -803,6 +832,44 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
                 tkeAvailable++;
             }
             MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        if(flags->isScalarMomentsActive)
+        {
+            // read avgSm0
+            field = "/avgSm0";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading avgSm0...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->TKE->avgSm0,viewer);
+                PetscViewerDestroy(&viewer);
+                tkeAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // read avgSm0
+            field = "/avgSm0Full";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading avgSm0Full...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->TKE->avgSm0Full,viewer);
+                PetscViewerDestroy(&viewer);
+                tkeAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+
         }
     }
 
@@ -2231,7 +2298,7 @@ PetscErrorCode writeFields(io_ *io)
                 MPI_Barrier(mesh->MESH_COMM);
             }
 
-            // write nvert
+            /*// write nvert
             fieldName = timeName + "/quant";
             writeBinaryField(mesh->MESH_COMM, smObject->quant, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
@@ -2239,39 +2306,59 @@ PetscErrorCode writeFields(io_ *io)
             // write nvert
             fieldName = timeName + "/Dq";
             writeBinaryField(mesh->MESH_COMM, smObject->Dq, fieldName.c_str());
-            MPI_Barrier(mesh->MESH_COMM);
+            MPI_Barrier(mesh->MESH_COMM);*/
 
-            // write nvert
+            // write probI
             fieldName = timeName + "/probI";
             writeBinaryField(mesh->MESH_COMM, smObject->probI, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
-            // write nvert
+            // write divP
+            fieldName = timeName + "/divP";
+            writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->divPrint, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write viscP
+            fieldName = timeName + "/viscP";
+            writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->viscPrint, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write devP
+            fieldName = timeName + "/devP";
+            writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->devPrint, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write sedP
+            fieldName = timeName + "/sedP";
+            writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->sedPrint, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write coag0
             fieldName = timeName + "/coag0";
             writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->coagSource, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
-            // write nvert
+            // write dep0
             fieldName = timeName + "/dep0";
             writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->Dep, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
-            // write nvert
+            // write depCount0
             fieldName = timeName + "/depCount0";
             writeBinaryField(mesh->MESH_COMM, smObject->DepCount, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
-            // write nvert
+            // write sed0
             fieldName = timeName + "/sed0";
             writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->Sed, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
-            // write nvert
+            // write exCount0
             fieldName = timeName + "/exCount0";
             writeBinaryField(mesh->MESH_COMM, smObject->ExCount, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
-            // write nvert
+            // write dev0 note that dev0 and sed0 are not multuplied by aj but devP sedP are.
             fieldName = timeName + "/dev0";
             writeBinaryField(mesh->MESH_COMM, smObject->sm[0]->Dev, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
@@ -2435,6 +2522,19 @@ PetscErrorCode writeFields(io_ *io)
                 MPI_Barrier(mesh->MESH_COMM);
             }
 
+            if(flags->isScalarMomentsActive)
+            {
+                // write avgNut
+                fieldName = timeName + "/avgSm0";
+                writeBinaryField(mesh->MESH_COMM, acquisition->TKE->avgSm0, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+
+                // write avgCs
+                fieldName = timeName + "/avgSm0Full";
+                writeBinaryField(mesh->MESH_COMM, acquisition->TKE->avgSm0Full, fieldName.c_str());
+                MPI_Barrier(mesh->MESH_COMM);
+            }
+
 
 
             // write weights
@@ -2452,6 +2552,7 @@ PetscErrorCode writeFields(io_ *io)
                 }
 
                 fprintf(f, "avgWeight\t\t%ld\n", io->tkeAvgWeight);
+                //fprintf(f, "avgWeight\t\t%ld\n", io->tkeAvgWeightReset);
 
                 fclose(f);
             }

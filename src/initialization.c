@@ -16,27 +16,25 @@
 
 PetscErrorCode PrintOkWindLogo()
 {
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n   |==================================================|      This file is part of TOSCA.\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |               \\\\        T                        |      TOSCA is free software: you can redistribute it and/or modify it\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                \\\\        O                       |      under the terms of the GNU General Public License as published by\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                 \\\\    \\\\  S                      |      the Free Software Foundation, either version 3 of the License, or\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                  \\\\    \\\\  C                     |      (at your option) any later version.\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                   \\\\    \\\\  A                    |\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                    O ====\\\\=======               |      TOSCA is distributed in the hope that it will be useful, but WITHOUT \n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                   //|     \\\\                     |      ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                  //||      O =============       |      FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                 // ||     //| v0122              |      for more details.\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                //  ||    //||                    |\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |               //   ||   // ||                    |      You should have received a copy of the GNU General Public License\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                    ||  //  ||                    |      along with TOSCA.  If not, see <http://www.gnu.org/licenses/>.\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                    || //   ||                    |\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |                    ||      ||                    |      This software was developed by Sebastiano Stipa, Arjun Ajay and Mohammad\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |____________________||______||____________________|      Hadi during their time at the Okanagan CFD-LAB. It is a LES code in\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |            copyright : OK-CFD Lab                |      generalized curvilinear coordinates for the simulation of wind plants\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |            authors   : Stipa - Ajay - Haji       |      immersed in the atmospheric boundary layer. Momentum and pressure equations\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |==================================================|      are solved using operators splitting. If activated, potential temperature\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |  Toolbox for Stratified Convective Atmospheres   |      transport is also solved. Advanced actuator disk/line models and IBM with\n");
-    PetscPrintf(PETSC_COMM_WORLD,"   |__________________________________________________|      the moving least squares techinque are also implemented.\n\n\n\n");
+    PetscPrintf(PETSC_COMM_WORLD,"\n\n   |========================|      This file is part of TOSVA.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |            S           |      TOSVA is free software: you can redistribute it and/or modify it\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |         O  o  V        |      under the terms of the GNU General Public License as published by\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |       T o  |  o A      |      the Free Software Foundation, either version 3 of the License, or\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |          \\ | /         |      (at your option) any later version.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |       o -- O -- o      |\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |          / | \\         |\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |         o  |  o        |      TOSVA is distributed in the hope that it will be useful, but WITHOUT \n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |            o           |      ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |                        |      FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |  copyright: OK-CFD Lab |      for more details.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |  authors: Stipa - Ajay |\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |  Haji - Christianson   |      You should have received a copy of the GNU General Public License\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |========================|      along with TOSCA.  If not, see <http://www.gnu.org/licenses/>.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   | Toolbox fOr Simulating |      This software was developed by Sebastiano Stipa, Arjun Ajay, Mohammad\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |       Ventilation      |      Hadi and Cole Chrsitianson during their time at the Okanagan CFD-LAB.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |           and          |      It is a LES code in generalized curvilinear coordinates for the \n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |         Aerosols       |      simulation of ventilation and aerosols.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   |========================|\n\n\n\n");
 
     return(0);
 }

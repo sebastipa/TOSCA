@@ -311,6 +311,12 @@ PetscErrorCode TKEFieldsInitialize(acquisition_ *acquisition)
             VecDuplicate(mesh->Nvert, &(tke->avgCs));  VecSet(tke->avgCs, 0.);
         }
 
+        if(flags->isScalarMomentsActive)
+        {
+            VecDuplicate(mesh->Nvert, &(tke->avgSm0)); VecSet(tke->avgSm0, 0.);
+            VecDuplicate(mesh->Nvert, &(tke->avgSm0Full));  VecSet(tke->avgSm0Full, 0.);
+        }
+
     }
 
     return(0);
@@ -1179,21 +1185,43 @@ PetscErrorCode TKEField(acquisition_ *acquisition)
 
         PetscReal startTimeAvg         = io->tkeStartTime;
         PetscReal timeIntervalAvg      = io->tkePrd;
+
+        TKEFields *tke = acquisition->TKE;
+        flags_ *flags  = acquisition->access->flags;
+
         // check if must accumulate averaged fields
         if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg))
         {
             accumulate = 1;
         }
 
+        if(flags->isScalarMomentsActive)
+        {
+            // reset smAvg set every "timeInterval" seconds
+
+            if (std::fmod(io->timeInterval, timeIntervalAvg) == 0.0)
+            {
+                if(mustWrite(clock->time - timeIntervalAvg, clock->startTime, io->timeInterval))
+                {
+                    io->tkeAvgWeightReset = 0.0;
+                    VecSet(tke->avgSm0,0.);
+                }
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "TKEavg period and write interval need to be divisible\n");
+                fatalErrorInFunction("TKEField",  error);
+            }
+
+        }
+
         if(accumulate)
         {
             mesh_  *mesh   = acquisition->access->mesh;
-            flags_ *flags  = acquisition->access->flags;
 
             ueqn_  *ueqn   = acquisition->access->ueqn;
             les_   *les    = NULL;
-
-            TKEFields *tke = acquisition->TKE;
 
             DMDALocalInfo info = mesh->info;
             DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
@@ -1207,11 +1235,11 @@ PetscErrorCode TKEField(acquisition_ *acquisition)
             PetscInt       lxs, lxe, lys, lye, lzs, lze;
 
             Cmpnts         ***ucat, ***csi, ***eta, ***zet;
-            PetscReal      ***p, ***nut, ***cs, ***nvert, ***aj;
+            PetscReal      ***p, ***nut, ***cs, ***nvert, ***aj, ***sm0;
 
             Cmpnts         ***u_mean, ***up;
 
-            PetscReal      ***nut_mean, ***cs_mean;
+            PetscReal      ***nut_mean, ***cs_mean, ***sm0_mean, ***sm0_meanFull;
 
             PetscReal      ***k_res, ***keeps;
 
@@ -1220,8 +1248,8 @@ PetscErrorCode TKEField(acquisition_ *acquisition)
             PetscReal      ts, te;
 
             // averaging weights
-            PetscReal       aN, pN;
-            PetscReal       m1, m2, p1, p2;
+            PetscReal       aN, pN, aNreset;
+            PetscReal       m1, m2, p1, p2, m1reset, m2reset;
 
             PetscTime(&ts);
 
@@ -1247,6 +1275,17 @@ PetscErrorCode TKEField(acquisition_ *acquisition)
 
                 DMDAVecGetArray(da, tke->avgNut, &nut_mean);
                 DMDAVecGetArray(da, tke->avgCs,  &cs_mean);
+            }
+
+            if(flags->isScalarMomentsActive)
+            {
+                DMDAVecGetArray(da, acquisition->access->smObject->sm[0]->smVal, &sm0);
+                DMDAVecGetArray(da, tke->avgSm0,  &sm0_mean);
+                DMDAVecGetArray(da, tke->avgSm0Full,  &sm0_meanFull);
+
+                aNreset = (PetscReal)io->tkeAvgWeightReset;
+                m1reset = aNreset  / (aNreset + 1.0);
+                m2reset = 1.0 / (aNreset + 1.0);
             }
 
             aN = (PetscReal)io->tkeAvgWeight;
@@ -1349,6 +1388,13 @@ PetscErrorCode TKEField(acquisition_ *acquisition)
 
                         }
 
+                        if (flags->isScalarMomentsActive)
+                        {
+                            // cumulate avgNut and avgCs
+                            sm0_mean[k][j][i] = m1reset * sm0_mean[k][j][i] + m2reset * sm0[k][j][i];
+                            sm0_meanFull[k][j][i]  = m1 * sm0_meanFull[k][j][i]  + m2 * sm0[k][j][i];
+                        }
+
                         tau11_SGS = - nuEff*(2.0*du_dx);
                         tau12_SGS = - nuEff*(du_dy + dv_dx);
                         tau13_SGS = - nuEff*(du_dz + dw_dx);
@@ -1390,6 +1436,15 @@ PetscErrorCode TKEField(acquisition_ *acquisition)
                 DMDAVecRestoreArray(da, tke->avgCs,  &cs_mean);
             }
 
+            if(flags->isScalarMomentsActive)
+            {
+                DMDAVecRestoreArray(da, acquisition->access->smObject->sm[0]->smVal, &sm0);
+                DMDAVecRestoreArray(da, tke->avgSm0,  &sm0_mean);
+                DMDAVecRestoreArray(da, tke->avgSm0Full,  &sm0_meanFull);
+
+                io->tkeAvgWeightReset++;
+            }
+
             // restore averaged arrays
             if(accumulate)
             {
@@ -1408,6 +1463,8 @@ PetscErrorCode TKEField(acquisition_ *acquisition)
             PetscTime(&te);
             PetscPrintf(mesh->MESH_COMM, "Averaged tke fields in %lf s\n", te-ts);
         }
+
+
     }
 
     return(0);
@@ -5002,13 +5059,13 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
 
                 // allocate memory
                 acquisition->userSections->uSection[s] = new uSections;
-                
+
                 uSections *uSection = acquisition->userSections->uSection[s];
-                
+
                 userSecName = userSecPath + "/" + surfaceSeries[s];
 
-                //set surface name 
-                uSection->sectionName = surfaceSeries[s]; 
+                //set surface name
+                uSection->sectionName = surfaceSeries[s];
 
                 // read acquisition start time and type of interval
                 readDictDouble(userSecName.c_str(), "timeStart", &(uSection->timeStart));
@@ -5056,7 +5113,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 }
 
                 if(flipIndexOrder == 1)
-                { 
+                {
                     PetscInt tempIndex;
                     tempIndex = uSection->ny;
                     uSection->ny = uSection->nx;
@@ -5090,7 +5147,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
 
                 indata.close();
 
-                //allocate memory 
+                //allocate memory
                 uSection->closestId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
 
                 for(j=0; j<ny; j++)
@@ -5156,7 +5213,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
 
                                 }
                             }
-                        }   
+                        }
 
                         MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
 
@@ -5188,7 +5245,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                     free(localId[j]);
                 }
 
-                free(localId);  
+                free(localId);
 
                 atLeastOneVector++;
                 if(flags->isTeqnActive) atLeastOneScalar++;
@@ -5216,7 +5273,7 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                     }
                 }
             }
-            
+
         }
         else
         {
@@ -6431,7 +6488,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
 								remove_subdirs(probes->rakes[r].RAKE_COMM, probes->rakes[r].timeName.c_str());
 							}
                         }
-					
+
 						if(postProcessing)
 						{
 							if(domain[0].access.io->averaging)
@@ -7223,7 +7280,7 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
     PetscReal yS     = abl->yDampingStart;
     PetscReal yE     = abl->yDampingEnd;
     PetscReal yD     = abl->yDampingDelta;
-    
+
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
@@ -7342,8 +7399,8 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                     if(abl->xFringeUBarSelectionType == 3)
                     {
                         source[k][j][i].x
-                        += 
-                        nu_fringe * nu_scale * 
+                        +=
+                        nu_fringe * nu_scale *
                         (
                             (uBarY[k][j][i].x - ucat[k][j][i].x) * csi[k][j][i].x +
                             (uBarY[k][j][i].y - ucat[k][j][i].y) * csi[k][j][i].y +
@@ -7351,8 +7408,8 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                         );
 
                         source[k][j][i].y
-                        += 
-                        nu_fringe * nu_scale * 
+                        +=
+                        nu_fringe * nu_scale *
                         (
                             (uBarY[k][j][i].x - ucat[k][j][i].x) * eta[k][j][i].x +
                             (uBarY[k][j][i].y - ucat[k][j][i].y) * eta[k][j][i].y +
@@ -7360,8 +7417,8 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                         );
 
                         source[k][j][i].z
-                        += 
-                        nu_fringe * nu_scale * 
+                        +=
+                        nu_fringe * nu_scale *
                         (
                             (uBarY[k][j][i].x - ucat[k][j][i].x) * zet[k][j][i].x +
                             (uBarY[k][j][i].y - ucat[k][j][i].y) * zet[k][j][i].y +

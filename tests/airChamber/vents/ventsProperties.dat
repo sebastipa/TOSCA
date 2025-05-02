@@ -1,0 +1,81 @@
+
+numberOfVents       2
+
+vent0
+{
+    #ventLocationInfo
+
+    face            jRight #jRight/Left is top/bottom z face. i is y, k is x
+    dir             inlet
+    shape           circle #rectangle
+
+    diameter      0.1
+    center       (1.1775 1.4625 1.9)
+    
+    #rectangular coordinates
+    #xBound1	 1.135
+    #xBound2     1.23
+    #yBound1	 1.42
+    #yBound2     1.52
+
+
+    #U_BC_info
+    #ventBC		fixedValue
+    #ventDesiredFlux    0.0127 #m3/s
+
+    ventBC              inletFunction
+
+                        type 7
+                        #Urms 0.5
+                        #meanU  (0.0 0.0 10.0)
+			TI  0.05
+			ventDesiredFlux    0.0127
+                        kolLScale 0.00029
+                        intLScale 0.04
+                        fourierSumNum 200
+                        genType isotropic
+                        iterTKE 10
+
+    #Nut_BC_info
+    ventBCNut           zeroGradient
+
+    #T_BC_info
+    ventTBC             fixedValue
+    ventTBCVal		294.15
+
+    #C_BC_info
+    ventSMBC	           fixedValue
+    ventSMBCVal0	   0.161323043
+    ventSMBCVal1	   0.049452625
+    ventSMBCVal2	   0.015827987
+    ventSMBCVal3	   0.005289388
+    ventSMBCVal4	   0.001845561
+    ventSMBCVal5	   0.000672349
+}
+
+vent1
+{
+    #ventLocationInfo
+
+    face            jRight
+    dir             outlet
+    shape           circle
+
+    diameter        0.1
+    center          (0.7125 0.3225 1.9)
+
+    #U_BC_info
+    ventBC fixedValue
+    ventDesiredFlux    0.0127
+
+    #Nut_BC_info
+    ventBCNut          zeroGradient
+    #ventBCNutReal      0.0
+
+    #T_BC_info
+    ventTBC            fixedValue
+    ventTBCVal		   294.15
+
+    #C_BC_info
+    ventSMBC	           zeroGradient
+}

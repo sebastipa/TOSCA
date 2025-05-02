@@ -2,11 +2,7 @@
 # ----------------------
 
 
-internalField     uniform
-{
-   value (0.0 0.0 0.0)
-   perturbations 0
-}
+internalField     spreadInflow
 #internalField    readField
 
 # boundary patches
@@ -19,8 +15,8 @@ jLeft            noSlip
 
 jRight           noSlip
 
-kLeft            noSlip
+kLeft            fixedValue (1.0 0.0 0.0)
 
-kRight           noSlip
+kRight           zeroGradient
 
 

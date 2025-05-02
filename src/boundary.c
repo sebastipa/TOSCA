@@ -1443,8 +1443,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
             {
                 ventInletFunction *ifPtr = vents->vent[q]->inletF;
 
-                 if (ifPtr->typeU == 6)
-                {
+                 if (ifPtr->typeU == 7)
+                 {
 
                     if (rank == 0)
                     {
@@ -2046,13 +2046,17 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     {
                         ventInletFunction *ifPtr = vents->vent[q]->inletF;
 
-                        if (ifPtr->typeU == 6)
+                        if (ifPtr->typeU == 7)
                         {
-                           // complete fourier series using shared random variables
-                           Cmpnts uFluct = {};
-                           PetscReal dotKnX;
-                           PetscInt n;
 
+                            // complete fourier series using shared random variables
+                            Cmpnts uFluct = {};
+                            PetscReal dotKnX;
+                            PetscInt n;
+
+                            uFluct.x = 0.;
+                            uFluct.y = 0.;
+                            uFluct.z = 0.;
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
@@ -2063,10 +2067,60 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                                uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
                            }
 
-                           ucat[k][j][i-1].x = ifPtr->meanU.x + uFluct.x;
-                           ucat[k][j][i-1].y = ifPtr->meanU.y + uFluct.y;
-                           ucat[k][j][i-1].z = ifPtr->meanU.z + uFluct.z;
+                           if (ifPtr->genType == "transverse")
+                           {
+                               uFluct.x *= sqrt(1.5);
+                               uFluct.y *= 0;
+                               uFluct.z *= sqrt(1.5);
+                           }
+                           else if (ifPtr->genType == "streamwise")
+                           {
+                               uFluct.x *= 0;
+                               uFluct.y *= sqrt(3.);
+                               uFluct.z *= 0;
+                           }
+                           else if (ifPtr->genType == "isotropic")
+                           {
 
+                           }
+                           else
+                           {
+                               char error[512];
+                               sprintf(error, "invalid shape function. Please use isotropic, transverse, or streamwise \n");
+                               fatalErrorInFunction("UpdateCartesianBCs", error);
+                           }
+
+
+                           if (vents->vent[q]->shape == "circle")
+                           {
+                               //make it a parabolic shape.
+                               /*PetscReal ventRad = sqrt(pow((cent[k][j][i].x - vents->vent[q]->ventCentX), 2) + pow((cent[k][j][i].z - vents->vent[q]->ventCentZ), 2));
+                               PetscReal paraCoef = (1-pow(ventRad, 2));
+                               // Umax for a parabola = 1.5Uavg
+                               ucat[k][j][i-1].x = 1.5*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k][j][i-1].y = 1.5*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k][j][i-1].z = 1.5*ifPtr->meanU.z*paraCoef + uFluct.z;*/
+
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 2*sqrt(pow((cent[k][j][i].x - vents->vent[q]->ventCentX), 2) + pow((cent[k][j][i].z - vents->vent[q]->ventCentZ), 2))/vents->vent[q]->dia;
+                               PetscReal paraCoef = pow((1-ventRad), 1./7.);
+
+                               ucat[k][j][i-1].x = 1.225*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k][j][i-1].y = 1.225*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k][j][i-1].z = 1.225*ifPtr->meanU.z*paraCoef + uFluct.z;
+                           }
+                           else //rectangle
+                           {
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 1-2*fabs(cent[k][j][i].x - vents->vent[q]->ventCentX)/fabs(vents->vent[q]->xBound2 - vents->vent[q]->xBound1);
+                               PetscReal ventRad2 = 1-2*fabs(cent[k][j][i].z - vents->vent[q]->ventCentZ)/fabs(vents->vent[q]->zBound2 - vents->vent[q]->zBound1);
+                               PetscReal paraCoef1 = pow(ventRad, 1./7.);
+                               PetscReal paraCoef2 = pow(ventRad2, 1./7.);
+
+                               ucat[k][j][i-1].x = 1.306*ifPtr->meanU.x*paraCoef1*paraCoef2 + uFluct.x;
+                               ucat[k][j][i-1].y = 1.306*ifPtr->meanU.y*paraCoef1*paraCoef2 + uFluct.y;
+                               ucat[k][j][i-1].z = 1.306*ifPtr->meanU.z*paraCoef1*paraCoef2 + uFluct.z;
+                           }
 
                         }
                     }
@@ -2075,65 +2129,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     {
                         ventInletFunction *ifPtr = vents->vent[q]->inletF;
 
-                        if (ifPtr->typeU == 6)
-                        {
-                           // complete fourier series using shared random variables
-                           Cmpnts uFluct = {};
-                           PetscReal dotKnX;
-                           PetscInt n;
-
-
-                           for (n = 0; n < ifPtr->FSumNum; n++)
-                           {
-                               //y-comp is 0
-                               dotKnX = ifPtr->kn[n].x*(cent[k][j][i].x - vents->vent[q]->ventCentX) + ifPtr->kn[n].z*(cent[k][j][i].z - vents->vent[q]->ventCentZ);
-                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
-                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
-                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
-                           }
-
-                           ucat[k][j][i+1].x = ifPtr->meanU.x + uFluct.x;
-                           ucat[k][j][i+1].y = ifPtr->meanU.y + uFluct.y;
-                           ucat[k][j][i+1].z = ifPtr->meanU.z + uFluct.z;
-
-
-                        }
-                    }
-
-                    if (j == 1 && vents->vent[q]->ventBC == "inletFunction")
-                    {
-                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
-
-                        if (ifPtr->typeU == 6)
-                        {
-                           // complete fourier series using shared random variables
-                           Cmpnts uFluct = {};
-                           PetscReal dotKnX;
-                           PetscInt n;
-
-
-                           for (n = 0; n < ifPtr->FSumNum; n++)
-                           {
-                               //z-comp is 0
-                               dotKnX = ifPtr->kn[n].x*(cent[k][j][i].x - vents->vent[q]->ventCentX) + ifPtr->kn[n].y*(cent[k][j][i].y - vents->vent[q]->ventCentY);
-                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
-                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
-                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
-                           }
-
-                           ucat[k][j-1][i].x = ifPtr->meanU.x + uFluct.x;
-                           ucat[k][j-1][i].y = ifPtr->meanU.y + uFluct.y;
-                           ucat[k][j-1][i].z = ifPtr->meanU.z + uFluct.z;
-
-
-                        }
-                    }
-
-                    if (j == my-2 && vents->vent[q]->ventBC == "inletFunction")
-                    {
-                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
-
-                        if (ifPtr->typeU == 6)
+                        if (ifPtr->typeU == 7)
                         {
                            // complete fourier series using shared random variables
                            Cmpnts uFluct = {};
@@ -2144,19 +2140,93 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                            uFluct.y = 0.;
                            uFluct.z = 0.;
 
-                           //printf("\nCellCent %f %f %f  ... %li %li %li", cent[k][j][i].x, cent[k][j][i].y, cent[k][j][i].z, k ,j ,i);
-                           //printf("\n CellCentDIF %f %f %f  ... %li %li %li", cent[k][j][i].x - vents->vent[q]->ventCentX, cent[k][j][i].y - vents->vent[q]->ventCentY, cent[k][j][i].z - vents->vent[q]->ventCentZ, k ,j ,i);
+                           for (n = 0; n < ifPtr->FSumNum; n++)
+                           {
+                               //y-comp is 0
+                               dotKnX = ifPtr->kn[n].x*(cent[k][j][i].x - vents->vent[q]->ventCentX) + ifPtr->kn[n].z*(cent[k][j][i].z - vents->vent[q]->ventCentZ);
+                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                           }
+
+                           if (ifPtr->genType == "transverse")
+                           {
+                               uFluct.x *= sqrt(1.5);
+                               uFluct.y *= 0;
+                               uFluct.z *= sqrt(1.5);;
+                           }
+                           else if (ifPtr->genType == "streamwise")
+                           {
+                               uFluct.x *= 0;
+                               uFluct.y *= sqrt(3.);
+                               uFluct.z *= 0;
+                           }
+                           else if (ifPtr->genType == "isotropic")
+                           {
+
+                           }
+                           else
+                           {
+                               char error[512];
+                               sprintf(error, "invalid shape function. Please use isotropic, transverse, or streamwise \n");
+                               fatalErrorInFunction("UpdateCartesianBCs", error);
+                           }
+
+                           if (vents->vent[q]->shape == "circle")
+                           {
+                               //make it a parabolic shape.
+                               /*PetscReal ventRad = sqrt(pow((cent[k][j][i].x - vents->vent[q]->ventCentX), 2) + pow((cent[k][j][i].z - vents->vent[q]->ventCentZ), 2));
+                               PetscReal paraCoef = (1-pow(ventRad, 2));
+
+                               ucat[k][j][i+1].x = 1.5*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k][j][i+1].y = 1.5*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k][j][i+1].z = 1.5*ifPtr->meanU.z*paraCoef + uFluct.z;*/
+
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 2*sqrt(pow((cent[k][j][i].x - vents->vent[q]->ventCentX), 2) + pow((cent[k][j][i].z - vents->vent[q]->ventCentZ), 2))/vents->vent[q]->dia;
+                               PetscReal paraCoef = pow((1-ventRad), 1./7.);
+
+                               ucat[k][j][i+1].x = 1.225*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k][j][i+1].y = 1.225*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k][j][i+1].z = 1.225*ifPtr->meanU.z*paraCoef + uFluct.z;
+                           }
+                           else //rectangle
+                           {
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 1-2*fabs(cent[k][j][i].x - vents->vent[q]->ventCentX)/fabs(vents->vent[q]->xBound2 - vents->vent[q]->xBound1);
+                               PetscReal ventRad2 = 1-2*fabs(cent[k][j][i].z - vents->vent[q]->ventCentZ)/fabs(vents->vent[q]->zBound2 - vents->vent[q]->zBound1);
+                               PetscReal paraCoef1 = pow(ventRad, 1./7.);
+                               PetscReal paraCoef2 = pow(ventRad2, 1./7.);
+
+                               ucat[k][j][i+1].x = 1.306*ifPtr->meanU.x*paraCoef1*paraCoef2 + uFluct.x;
+                               ucat[k][j][i+1].y = 1.306*ifPtr->meanU.y*paraCoef1*paraCoef2 + uFluct.y;
+                               ucat[k][j][i+1].z = 1.306*ifPtr->meanU.z*paraCoef1*paraCoef2 + uFluct.z;
+                           }
+
+                        }
+                    }
+
+                    if (j == 1 && vents->vent[q]->ventBC == "inletFunction")
+                    {
+                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
+
+                        if (ifPtr->typeU == 7)
+                        {
+                           // complete fourier series using shared random variables
+                           Cmpnts uFluct = {};
+                           PetscReal dotKnX;
+                           PetscInt n;
+
+                           uFluct.x = 0.;
+                           uFluct.y = 0.;
+                           uFluct.z = 0.;
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
-                               //z-component is 0.
                                dotKnX = ifPtr->kn[n].x*(cent[k][j][i].x - vents->vent[q]->ventCentX) + ifPtr->kn[n].y*(cent[k][j][i].y - vents->vent[q]->ventCentY);
-
-                               uFluct.x += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
-                               uFluct.y += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
-                               uFluct.z += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
-
-                               //printf("\n n-terms %f %f %f %f %f %f %f %f %f %f %f %f ... %li %li %li %li", dotKnX, ifPtr->phaseN[n], ifPtr->Gn[n].x, ifPtr->Gn[n].y, ifPtr->Gn[n].z, ifPtr->uMagN[n], uFluct.x, uFluct.y, uFluct.z, ifPtr->kn[n].x, ifPtr->kn[n].y, ifPtr->kn[n].z, k ,j ,i, n);
+                               uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                               uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                               uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
                            }
 
                            if (ifPtr->genType == "transverse")
@@ -2182,19 +2252,128 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                                fatalErrorInFunction("UpdateCartesianBCs", error);
                            }
 
-                           //printf("%f %f %f, %li, %li, %li\n", uFluct.x, uFluct.y, uFluct.z, k, j, i);
 
-                           ucat[k][j+1][i].x = ifPtr->meanU.x + uFluct.x;
-                           ucat[k][j+1][i].y = ifPtr->meanU.y + uFluct.y;
-                           ucat[k][j+1][i].z = ifPtr->meanU.z + uFluct.z;
+                           if (vents->vent[q]->shape == "circle")
+                           {
+                               //make it a parabolic shape.
+                               /*PetscReal ventRad = sqrt(pow((cent[k][j][i].x - vents->vent[q]->ventCentX), 2) + pow((cent[k][j][i].y - vents->vent[q]->ventCentY), 2));
+                               PetscReal paraCoef = (1-pow(ventRad, 2));
 
-                           /*uFluctSumX += uFluct.x;
-                           uFluctSumY += uFluct.y;
-                           uFluctSumZ += uFluct.z;
+                               ucat[k][j-1][i].x = 1.5*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k][j-1][i].y = 1.5*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k][j-1][i].z = 1.5*ifPtr->meanU.z*paraCoef + uFluct.z;*/
 
-                           uFluctSumSX += uFluct.x*uFluct.x/(vents->vent[q]->nCellsVent);
-                           uFluctSumSY += uFluct.y*uFluct.y/(vents->vent[q]->nCellsVent);
-                           uFluctSumSZ += uFluct.z*uFluct.z/(vents->vent[q]->nCellsVent);*/
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 2*sqrt(pow((cent[k][j][i].x - vents->vent[q]->ventCentX), 2) + pow((cent[k][j][i].y - vents->vent[q]->ventCentY), 2))/vents->vent[q]->dia;
+                               PetscReal paraCoef = pow((1-ventRad), 1./7.);
+
+                               ucat[k][j-1][i].x = 1.225*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k][j-1][i].y = 1.225*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k][j-1][i].z = 1.225*ifPtr->meanU.z*paraCoef + uFluct.z;
+                           }
+                           else //rectangle
+                           {
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 1-2*fabs(cent[k][j][i].x - vents->vent[q]->ventCentX)/fabs(vents->vent[q]->xBound2 - vents->vent[q]->xBound1);
+                               PetscReal ventRad2 = 1-2*fabs(cent[k][j][i].y - vents->vent[q]->ventCentY)/fabs(vents->vent[q]->yBound2 - vents->vent[q]->yBound1);
+                               PetscReal paraCoef1 = pow(ventRad, 1./7.);
+                               PetscReal paraCoef2 = pow(ventRad2, 1./7.);
+
+                               ucat[k][j-1][i].x = 1.306*ifPtr->meanU.x*paraCoef1*paraCoef2 + uFluct.x;
+                               ucat[k][j-1][i].y = 1.306*ifPtr->meanU.y*paraCoef1*paraCoef2 + uFluct.y;
+                               ucat[k][j-1][i].z = 1.306*ifPtr->meanU.z*paraCoef1*paraCoef2 + uFluct.z;
+                           }
+
+                        }
+                    }
+
+                    if (j == my-2 && vents->vent[q]->ventBC == "inletFunction")
+                    {
+                        ventInletFunction *ifPtr = vents->vent[q]->inletF;
+
+                        if (ifPtr->typeU == 7)
+                        {
+                            // complete fourier series using shared random variables
+                            Cmpnts uFluct = {};
+                            PetscReal dotKnX;
+                            PetscInt n;
+
+                            uFluct.x = 0.;
+                            uFluct.y = 0.;
+                            uFluct.z = 0.;
+
+                            //printf("\nCellCent %f %f %f  ... %li %li %li", cent[k][j][i].x, cent[k][j][i].y, cent[k][j][i].z, k ,j ,i);
+                            //printf("\n CellCentDIF %f %f %f  ... %li %li %li", cent[k][j][i].x - vents->vent[q]->ventCentX, cent[k][j][i].y - vents->vent[q]->ventCentY, cent[k][j][i].z - vents->vent[q]->ventCentZ, k ,j ,i);
+
+                            for (n = 0; n < ifPtr->FSumNum; n++)
+                            {
+                                //z-component is 0.
+                                dotKnX = ifPtr->kn[n].x*(cent[k][j][i].x - vents->vent[q]->ventCentX) + ifPtr->kn[n].y*(cent[k][j][i].y - vents->vent[q]->ventCentY);
+
+                                uFluct.x += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                                uFluct.y += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                                uFluct.z += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+
+                                //printf("\n n-terms %f %f %f %f %f %f %f %f %f %f %f %f ... %li %li %li %li", dotKnX, ifPtr->phaseN[n], ifPtr->Gn[n].x, ifPtr->Gn[n].y, ifPtr->Gn[n].z, ifPtr->uMagN[n], uFluct.x, uFluct.y, uFluct.z, ifPtr->kn[n].x, ifPtr->kn[n].y, ifPtr->kn[n].z, k ,j ,i, n);
+                            }
+
+                            if (ifPtr->genType == "transverse")
+                            {
+                                uFluct.x *= sqrt(1.5);
+                                uFluct.y *= sqrt(1.5);
+                                uFluct.z *= 0;
+                            }
+                            else if (ifPtr->genType == "streamwise")
+                            {
+                                uFluct.x *= 0;
+                                uFluct.y *= 0;
+                                uFluct.z *= sqrt(3.);
+                            }
+                            else if (ifPtr->genType == "isotropic")
+                            {
+
+                            }
+                            else
+                            {
+                                char error[512];
+                                sprintf(error, "invalid shape function. Please use isotropic, transverse, or streamwise \n");
+                                fatalErrorInFunction("UpdateCartesianBCs", error);
+                            }
+
+
+
+                            if (vents->vent[q]->shape == "circle")
+                            {
+                                //printf("%f %f %f, %li, %li, %li\n", uFluct.x, uFluct.y, uFluct.z, k, j, i);
+
+                                /*//make it a parabolic shape.
+                                PetscReal ventRad = sqrt(pow((cent[k][j][i].x - vents->vent[q]->center.x), 2) + pow((cent[k][j][i].y - vents->vent[q]->center.y), 2));
+                                PetscReal paraCoef = (1-pow(ventRad/(vents->vent[q]->dia/2), 2));
+
+                                ucat[k][j+1][i].x = 1.5*ifPtr->meanU.x*paraCoef + uFluct.x;
+                                ucat[k][j+1][i].y = 1.5*ifPtr->meanU.y*paraCoef + uFluct.y;
+                                ucat[k][j+1][i].z = 1.5*ifPtr->meanU.z*paraCoef + uFluct.z;*/
+
+                                //make it a 1/7th power law shape.
+                                PetscReal ventRad = 2*sqrt(pow((cent[k][j][i].x - vents->vent[q]->ventCentX), 2) + pow((cent[k][j][i].y - vents->vent[q]->ventCentY), 2))/vents->vent[q]->dia;
+                                PetscReal paraCoef = pow((1-ventRad), 1./7.);
+
+                                ucat[k][j+1][i].x = 1.225*ifPtr->meanU.x*paraCoef + uFluct.x;
+                                ucat[k][j+1][i].y = 1.225*ifPtr->meanU.y*paraCoef + uFluct.y;
+                                ucat[k][j+1][i].z = 1.225*ifPtr->meanU.z*paraCoef + uFluct.z;
+                            }
+                            else //rectangle
+                            {
+                                //make it a 1/7th power law shape.
+                                PetscReal ventRad = 1-2*fabs(cent[k][j][i].x - vents->vent[q]->ventCentX)/fabs(vents->vent[q]->xBound2 - vents->vent[q]->xBound1);
+                                PetscReal ventRad2 = 1-2*fabs(cent[k][j][i].y - vents->vent[q]->ventCentY)/fabs(vents->vent[q]->yBound2 - vents->vent[q]->yBound1);
+                                PetscReal paraCoef1 = pow(ventRad, 1./7.);
+                                PetscReal paraCoef2 = pow(ventRad2, 1./7.);
+
+                                ucat[k][j+1][i].x = 1.306*ifPtr->meanU.x*paraCoef1*paraCoef2 + uFluct.x;
+                                ucat[k][j+1][i].y = 1.306*ifPtr->meanU.y*paraCoef1*paraCoef2 + uFluct.y;
+                                ucat[k][j+1][i].z = 1.306*ifPtr->meanU.z*paraCoef1*paraCoef2 + uFluct.z;
+                            }
 
                         }
                     }
@@ -2203,13 +2382,16 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     {
                         ventInletFunction *ifPtr = vents->vent[q]->inletF;
 
-                        if (ifPtr->typeU == 6)
+                        if (ifPtr->typeU == 7)
                         {
                            // complete fourier series using shared random variables
                            Cmpnts uFluct = {};
                            PetscReal dotKnX;
                            PetscInt n;
 
+                           uFluct.x = 0.;
+                           uFluct.y = 0.;
+                           uFluct.z = 0.;
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
@@ -2220,10 +2402,59 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                                uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
                            }
 
-                           ucat[k-1][j][i].x = ifPtr->meanU.x + uFluct.x;
-                           ucat[k-1][j][i].y = ifPtr->meanU.y + uFluct.y;
-                           ucat[k-1][j][i].z = ifPtr->meanU.z + uFluct.z;
+                           if (ifPtr->genType == "transverse")
+                           {
+                               uFluct.x *= 0;
+                               uFluct.y *= sqrt(1.5);
+                               uFluct.z *= sqrt(1.5);
+                           }
+                           else if (ifPtr->genType == "streamwise")
+                           {
+                               uFluct.x *= sqrt(3.);
+                               uFluct.y *= 0;
+                               uFluct.z *= 0;
+                           }
+                           else if (ifPtr->genType == "isotropic")
+                           {
 
+                           }
+                           else
+                           {
+                               char error[512];
+                               sprintf(error, "invalid shape function. Please use isotropic, transverse, or streamwise \n");
+                               fatalErrorInFunction("UpdateCartesianBCs", error);
+                           }
+
+                           if (vents->vent[q]->shape == "circle")
+                           {
+                               //make it a parabolic shape.
+                               /*PetscReal ventRad = sqrt(pow((cent[k][j][i].y - vents->vent[q]->ventCentY), 2) + pow((cent[k][j][i].z - vents->vent[q]->ventCentZ), 2));
+                               PetscReal paraCoef = (1-pow(ventRad, 2));
+
+                               ucat[k-1][j][i].x = 1.5*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k-1][j][i].y = 1.5*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k-1][j][i].z = 1.5*ifPtr->meanU.z*paraCoef + uFluct.z;*/
+
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 2*sqrt(pow((cent[k][j][i].y - vents->vent[q]->ventCentY), 2) + pow((cent[k][j][i].z - vents->vent[q]->ventCentZ), 2))/vents->vent[q]->dia;
+                               PetscReal paraCoef = pow((1-ventRad), 1./7.);
+
+                               ucat[k-1][j][i].x = 1.225*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k-1][j][i].y = 1.225*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k-1][j][i].z = 1.225*ifPtr->meanU.z*paraCoef + uFluct.z;
+                           }
+                           else //rectangle
+                           {
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 1-2*fabs(cent[k][j][i].y - vents->vent[q]->ventCentY)/fabs(vents->vent[q]->yBound2 - vents->vent[q]->yBound1);
+                               PetscReal ventRad2 = 1-2*fabs(cent[k][j][i].z - vents->vent[q]->ventCentZ)/fabs(vents->vent[q]->zBound2 - vents->vent[q]->zBound1);
+                               PetscReal paraCoef1 = pow(ventRad, 1./7.);
+                               PetscReal paraCoef2 = pow(ventRad2, 1./7.);
+
+                               ucat[k-1][j][i].x = 1.306*ifPtr->meanU.x*paraCoef1*paraCoef2 + uFluct.x;
+                               ucat[k-1][j][i].y = 1.306*ifPtr->meanU.y*paraCoef1*paraCoef2 + uFluct.y;
+                               ucat[k-1][j][i].z = 1.306*ifPtr->meanU.z*paraCoef1*paraCoef2 + uFluct.z;
+                           }
 
                         }
                     }
@@ -2232,13 +2463,16 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     {
                         ventInletFunction *ifPtr = vents->vent[q]->inletF;
 
-                        if (ifPtr->typeU == 6)
+                        if (ifPtr->typeU == 7)
                         {
                            // complete fourier series using shared random variables
                            Cmpnts uFluct = {};
                            PetscReal dotKnX;
                            PetscInt n;
 
+                           uFluct.x = 0.;
+                           uFluct.y = 0.;
+                           uFluct.z = 0.;
 
                            for (n = 0; n < ifPtr->FSumNum; n++)
                            {
@@ -2249,11 +2483,59 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                                uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
                            }
 
-                           ucat[k+1][j][i].x = ifPtr->meanU.x + uFluct.x;
-                           ucat[k+1][j][i].y = ifPtr->meanU.y + uFluct.y;
-                           ucat[k+1][j][i].z = ifPtr->meanU.z + uFluct.z;
+                           if (ifPtr->genType == "transverse")
+                           {
+                               uFluct.x *= 0;
+                               uFluct.y *= sqrt(1.5);
+                               uFluct.z *= sqrt(1.5);
+                           }
+                           else if (ifPtr->genType == "streamwise")
+                           {
+                               uFluct.x *= sqrt(3.);
+                               uFluct.y *= 0;
+                               uFluct.z *= 0;
+                           }
+                           else if (ifPtr->genType == "isotropic")
+                           {
 
+                           }
+                           else
+                           {
+                               char error[512];
+                               sprintf(error, "invalid shape function. Please use isotropic, transverse, or streamwise \n");
+                               fatalErrorInFunction("UpdateCartesianBCs", error);
+                           }
 
+                           if (vents->vent[q]->shape == "circle")
+                           {
+                               /*//make it a parabolic shape.
+                               PetscReal ventRad = sqrt(pow((cent[k][j][i].y - vents->vent[q]->ventCentY), 2) + pow((cent[k][j][i].z - vents->vent[q]->ventCentZ), 2));
+                               PetscReal paraCoef = (1-pow(ventRad, 2));
+
+                               ucat[k+1][j][i].x = 1.5*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k+1][j][i].y = 1.5*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k+1][j][i].z = 1.5*ifPtr->meanU.z*paraCoef + uFluct.z;*/
+
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 2*sqrt(pow((cent[k][j][i].y - vents->vent[q]->ventCentY), 2) + pow((cent[k][j][i].z - vents->vent[q]->ventCentZ), 2))/vents->vent[q]->dia;
+                               PetscReal paraCoef = pow((1-ventRad), 1./7.);
+
+                               ucat[k+1][j][i].x = 1.225*ifPtr->meanU.x*paraCoef + uFluct.x;
+                               ucat[k+1][j][i].y = 1.225*ifPtr->meanU.y*paraCoef + uFluct.y;
+                               ucat[k+1][j][i].z = 1.225*ifPtr->meanU.z*paraCoef + uFluct.z;
+                           }
+                           else //rectangle
+                           {
+                               //make it a 1/7th power law shape.
+                               PetscReal ventRad = 1-2*fabs(cent[k][j][i].y - vents->vent[q]->ventCentY)/fabs(vents->vent[q]->yBound2 - vents->vent[q]->yBound1);
+                               PetscReal ventRad2 = 1-2*fabs(cent[k][j][i].z - vents->vent[q]->ventCentZ)/fabs(vents->vent[q]->zBound2 - vents->vent[q]->zBound1);
+                               PetscReal paraCoef1 = pow(ventRad, 1./7.);
+                               PetscReal paraCoef2 = pow(ventRad2, 1./7.);
+
+                               ucat[k+1][j][i].x = 1.306*ifPtr->meanU.x*paraCoef1*paraCoef2 + uFluct.x;
+                               ucat[k+1][j][i].y = 1.306*ifPtr->meanU.y*paraCoef1*paraCoef2 + uFluct.y;
+                               ucat[k+1][j][i].z = 1.306*ifPtr->meanU.z*paraCoef1*paraCoef2 + uFluct.z;
+                           }
                         }
                     }
 
@@ -2704,7 +2986,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                             ucat[k-1][j][i] = nSet(uGhost);
                         }
                     }
-                    else if (ifPtr->typeU == 6)
+                    else if (ifPtr->typeU == 7)
                     {
                        // complete fourier series using shared random variables
                        Cmpnts uFluct = {};
@@ -2716,15 +2998,14 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                        {
                            // dot KnX is 0 in x-dir since on k face
                            dotKnX =  ifPtr->kn[n].y*(cent[k][j][i].y - mesh->bounds.Ly/2)+ ifPtr->kn[n].z*(cent[k][j][i].z - mesh->bounds.Lz/2);
-                           uFluct.x += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
-                           uFluct.y += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
-                           uFluct.z += 2*ifPtr->uMagN[n]*sin(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
+                           uFluct.x += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].x;
+                           uFluct.y += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].y;
+                           uFluct.z += 2*ifPtr->uMagN[n]*cos(dotKnX + ifPtr->phaseN[n])*ifPtr->Gn[n].z;
                        }
 
                        ucat[k-1][j][i].x = ifPtr->meanU.x + uFluct.x;
                        ucat[k-1][j][i].y = ifPtr->meanU.y + uFluct.y;
                        ucat[k-1][j][i].z = ifPtr->meanU.z + uFluct.z;
-
 
                     }
                 }

@@ -8,7 +8,7 @@
 #include "include/catalystAdaptor.h"
 #endif
 
-static char head[] = "TOSCA - Developed at UBC Okanagan CFDLab, Kelowna";
+static char head[] = "TOSVA - Developed at UBC Okanagan CFDLab, Kelowna";
 
 int main(int argc, char **argv)
 {
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
             // compute pressure gradient term
             GradP(domain[d].peqn);
 
-            // finish the y-damping layer processor mapping 
+            // finish the y-damping layer processor mapping
             if(flags.isYDampingActive)
             {
                 mapYDamping(domain[d].ueqn);
@@ -200,7 +200,7 @@ int main(int argc, char **argv)
                         {
                             CurvibInterpolationInternalCell(domain[d].ibm);
                         }
-                        else 
+                        else
                         {
                             if(domain[d].ibm->curvibType == "CurvibTrilinear")
                             {
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
                         findIBMWallShearChester(domain[d].ibm);
                     }
 
-                    UpdateImmersedBCs(domain[d].ibm);
+                    //UpdateImmersedBCs(domain[d].ibm);
                 }
 
                 FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);

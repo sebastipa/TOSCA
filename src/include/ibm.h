@@ -4,7 +4,7 @@
 #ifndef IBM_H
 #define IBM_H
 
-#define MAX_ELEMENTS_PER_NODE 20
+#define MAX_ELEMENTS_PER_NODE 200
 
 typedef struct Vertex Vertex;
 typedef struct HalfEdge HalfEdge;
@@ -147,13 +147,16 @@ typedef struct
 
     ibmMesh  *ibMsh;
 
-    //ibm temp bc
-    word          tempBC;
-    word          tBCSetType;
-    PetscInt      wallFunctionTypeT;
-    PetscReal     fixedTemp;
-    PetscReal     fixedFluxT;              //characteristic velocity used to find Nusselt number for fixedFLux BC only. Recomended to select average inlet velocoity or IBM tranalation speed.
-
+    //ibm source variables
+    Cmpnts     fixedU;                                       //!< fixed velocity for IB sources
+    PetscReal     fixedTemp;                                    //!< surface temperature of fixed temp IB sources
+    PetscReal     IBTFlux;                                     //!< surface temperature of fixed temp IB sources
+    PetscReal     fixedSM0;                                       //!< fixed velocity scalar moment values at IB spurce
+    PetscReal     fixedSM1;
+    PetscReal     fixedSM2;
+    PetscReal     fixedSM3;
+    PetscReal     fixedSM4;
+    PetscReal     fixedSM5;
 
 }surface;
 
@@ -236,7 +239,9 @@ typedef struct
 
     //flags
     PetscInt       ibmControlled;                             //!< flag which tells if this proc controls this IBM body
-    PetscInt       tSourceFlag;                               //!< set to 0 if no source, 1 if if fixed surface temp. and 2 if fixed heat flux
+    PetscInt       tSourceFlag;                               //!< set to 0 if no source, 1 if if fixed surface temp.
+    PetscInt       uSourceFlag;                               //!< set to 0 if no source, 1 if if fixed surface temp.
+    PetscInt       smSourceFlag;                               //!< set to 0 if no source, 1 if if fixed surface temp.
 
     // communication color
     MPI_Comm            IBM_COMM;                             //!< communicator for this IBM

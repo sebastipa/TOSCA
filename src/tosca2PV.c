@@ -503,18 +503,6 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
         mesh->Nvert
     );
 
-    writeScalarToXMF
-    (
-        domain,
-        filexmf,
-        hdfileName.c_str(),
-        &file_id,
-        &dataspace_id,
-        time,
-        "vents",
-        mesh->ventMarkers
-    );
-
     if(domain->flags.isLesActive)
     {
         writeScalarToXMF
@@ -592,7 +580,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             );
         }
 
-        writeScalarToXMF
+        /*writeScalarToXMF
         (
             domain,
             filexmf,
@@ -614,7 +602,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             time,
             "Dq",
             domain->smObject->Dq
-        );
+        );*/
 
         writeScalarToXMF
         (
@@ -626,6 +614,54 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             time,
             "probI",
             domain->smObject->probI
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "divP",
+            domain->smObject->sm[0]->divPrint
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "viscP",
+            domain->smObject->sm[0]->viscPrint
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "devP",
+            domain->smObject->sm[0]->devPrint
+        );
+
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "sedP",
+            domain->smObject->sm[0]->sedPrint
         );
 
         writeScalarToXMF
@@ -911,6 +947,33 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                 time,
                 "avgCs",
                 acquisition->TKE->avgCs
+            );
+        }
+
+        if(domain->flags.isScalarMomentsActive)
+        {
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "avgSm0",
+                acquisition->TKE->avgSm0
+            );
+
+            writeScalarToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "avgSm0Full",
+                acquisition->TKE->avgSm0Full
             );
         }
 

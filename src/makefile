@@ -61,13 +61,13 @@ OBJS_PP   =  tosca2PV.o initialization.o io.o wallfunctions.o overset.o boundary
     mesh.o inflow.o abl.o ueqn.o peqn.o les.o teqn.o turbines.o \
     initialField.o acquisition.o ibm.o clock.o precursor.o ibmInput.o vents.o sm.o
 
-tosca:  $(OBJS_TOSCA)
+tosva:  $(OBJS_TOSCA)
 	$(CC) -o $@ $(OBJS_TOSCA) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBS)
 
-tosca2PV:   $(OBJS_PP)
+tosva2PV:   $(OBJS_PP)
 	$(CC) -o $@ $(OBJS_PP) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBS)
 
-all:    tosca tosca2PV
+all:    tosva tosva2PV
 
 clean:
-	rm *.o tosca tosca2PV
+	rm *.o tosva tosva2PV

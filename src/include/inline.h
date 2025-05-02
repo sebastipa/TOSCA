@@ -64,7 +64,7 @@ inline PetscInt mustWrite(PetscReal time, PetscReal startTime, PetscReal timeInt
 // MATH FUNCTIONS
 // ============================================================================================================= //
 
-//find the matrix product of two matrices 
+//find the matrix product of two matrices
 
 inline void matMatProduct(PetscReal **A, PetscReal **B, PetscReal **C, PetscInt numRowA, PetscInt numColA, PetscInt numRowB, PetscInt numColB)
 {
@@ -75,13 +75,13 @@ inline void matMatProduct(PetscReal **A, PetscReal **B, PetscReal **C, PetscInt 
         fatalErrorInFunction("matMatProduct",  error);
     }
 
-        for (PetscInt i = 0; i < numRowA; i++) 
+        for (PetscInt i = 0; i < numRowA; i++)
         {
-            for (PetscInt j = 0; j < numColB; j++) 
+            for (PetscInt j = 0; j < numColB; j++)
             {
                 PetscReal dotProduct = 0.0;
 
-                for (PetscInt k = 0; k < numColA; k++) 
+                for (PetscInt k = 0; k < numColA; k++)
                 {
                     dotProduct += A[i][k] * B[k][j];
                 }
@@ -101,11 +101,11 @@ inline void matVecProduct(PetscReal **A, PetscReal *b, PetscReal *c, PetscInt nu
         fatalErrorInFunction("matVecProduct",  error);
     }
 
-    for (PetscInt i = 0; i < numRowA; i++) 
+    for (PetscInt i = 0; i < numRowA; i++)
     {
         PetscReal dotProduct = 0.0;
 
-        for (PetscInt k = 0; k < numColA; k++) 
+        for (PetscInt k = 0; k < numColA; k++)
         {
             dotProduct += A[i][k] * b[k];
         }
@@ -1154,7 +1154,7 @@ inline bool isIBMSolidIFace (PetscInt k, PetscInt j, PetscInt iL, PetscInt iR, P
 
 //***************************************************************************************************************//
 
-//! \brief Resets the value at the non-solved centers to zero 
+//! \brief Resets the value at the non-solved centers to zero
 inline void resetNonResolvedCellCentersScalar(mesh_ *mesh,  Vec &V)
 {
     DMDALocalInfo    info = mesh->info;
@@ -1830,7 +1830,7 @@ inline void getFace2Cell4StencilCsi(mesh_ *mesh, PetscInt k, PetscInt j, PetscIn
     {
         *iL = i;
         *iR = i + 2;
-        *denom = 3.; 
+        *denom = 3.;
     }
     else if(isIBMCell(k, j, i+1, nvert))
     {
@@ -1894,7 +1894,7 @@ inline void getFace2Cell4StencilEta(mesh_ *mesh, PetscInt k, PetscInt j, PetscIn
     {
         *jL = j;
         *jR = j + 2;
-        *denom = 3.; 
+        *denom = 3.;
     }
     else if(isIBMCell(k, j+1, i, nvert))
     {
@@ -1958,7 +1958,7 @@ inline void getFace2Cell4StencilZet(mesh_ *mesh, PetscInt k, PetscInt j, PetscIn
     {
         *kL = k;
         *kR = k + 2;
-        *denom = 3.; 
+        *denom = 3.;
     }
     else if(isIBMCell(k+1, j, i, nvert))
     {
@@ -4123,6 +4123,32 @@ inline PetscReal minmod(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, 
 	return
     (
        C + (1.0-lim)*corr
+    );
+}
+
+//***************************************************************************************************************//
+
+inline PetscReal quickSM(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal wavespeed)
+{
+    PetscReal fUU, fU, fD, C;
+
+    if(wavespeed>0)
+    {
+        fUU = f0; fU = f1; fD = f2;
+
+        // quickDiv correction to the central scheme
+        C = ((6.0*fU + 3.0*fUU - 1.0*fD) / 8.0);
+	}
+	else
+    {
+        fUU = f3; fU = f2; fD = f1;
+        // upwind
+        C  = ((6.0*fU + 3.0*fUU - 1.0*fD) / 8.0) - C;
+	}
+
+	return
+    (
+       C
     );
 }
 
@@ -6785,7 +6811,7 @@ inline void reorderMatrix(PetscReal **A, PetscReal **B, PetscInt N, PetscInt piv
     {
         if ( fabs(A[row][pivot]) > fabs(A[maxrow][pivot]) ) maxrow = row;
     }
-        
+
 
    if (fabs(A[maxrow][pivot])<1.e-11)
    {
@@ -6793,7 +6819,7 @@ inline void reorderMatrix(PetscReal **A, PetscReal **B, PetscInt N, PetscInt piv
         sprintf(error, "matrix inverse reorder algorithm failed\n");
         fatalErrorInFunction("reorderMatrix",  error);
    }
-       
+
     if (maxrow != pivot)
     {
         for (col=0; col<N; col++)
@@ -6815,19 +6841,19 @@ inline void reorderMatrix(PetscReal **A, PetscReal **B, PetscInt N, PetscInt piv
 
 inline void elimJordanAlg(PetscReal **A, PetscReal **B, PetscInt N, PetscInt pivot)
 {
-    
+
     PetscInt row,col;
 
     for (col=pivot+1; col<N; col++)
     {
         A[pivot][col] = A[pivot][col]/A[pivot][pivot];
-    } 
+    }
 
     for (col=0; col<N; col++)
     {
         B[pivot][col] = B[pivot][col]/A[pivot][pivot];
     }
-        
+
     A[pivot][pivot]=1.;
 
     for (row=0; row<N; row++)
@@ -6843,7 +6869,7 @@ inline void elimJordanAlg(PetscReal **A, PetscReal **B, PetscInt N, PetscInt piv
 }
 
 //***************************************************************************************************************//
-// inverse of generic matrix of any order 
+// inverse of generic matrix of any order
 inline void inverseMatrix(PetscReal **A, PetscReal **inv_A, PetscInt size)
 {
     PetscInt i,j,k;
@@ -6855,11 +6881,11 @@ inline void inverseMatrix(PetscReal **A, PetscReal **inv_A, PetscInt size)
             inv_A[i][j]=0.;
         }
     }
-        
+
     for (i=0; i<size; i++)
     {
         inv_A[i][i]=1.0;
-    } 
+    }
 
     PetscInt pivot=0;
 

@@ -1,0 +1,171 @@
+
+numberOfVents       8
+
+vent0
+{
+    #ventLocationInfo
+    face            jRight
+    dir             outlet
+    shape           circle
+
+    diameter      0.1
+    center       (4.0 4.0 4.0)
+
+    #U_BC_info
+    ventBC		fixedValue
+    ventDesiredFlux    0.0005
+
+    #Nut_BC_info
+    ventBCNut          zeroGradient
+
+    #T_BC_info
+    ventTBC			   zeroGradient
+}
+
+vent1
+{
+    #ventLocationInfo
+    face            jRight
+    dir             outlet
+    shape           circle
+
+    diameter      0.1
+    center       (1.0 4.0 4.0)
+
+    #U_BC_info
+    ventBC		fixedValue
+    ventDesiredFlux    0.0005
+
+    #Nut_BC_info
+    ventBCNut          zeroGradient
+
+    #T_BC_info
+    ventTBC			   zeroGradient
+}
+
+vent2
+{
+    #ventLocationInfo
+    face            jRight
+    dir             outlet
+    shape           circle
+
+    diameter      0.1
+    center       (1.0 1.0 4.0)
+
+    #U_BC_info
+    ventBC		fixedValue
+    ventDesiredFlux    0.0005
+
+    #Nut_BC_info
+    ventBCNut          zeroGradient
+
+    #T_BC_info
+    ventTBC			   zeroGradient
+}
+
+vent3
+{
+    #ventLocationInfo
+    face            jRight
+    dir             outlet
+    shape           circle
+
+    diameter      0.1
+    center       (4.0 1.0 4.0)
+
+    #U_BC_info
+    ventBC		fixedValue
+    ventDesiredFlux    0.0005
+
+    #Nut_BC_info
+    ventBCNut          zeroGradient
+
+    #T_BC_info
+    ventTBC			   zeroGradient
+}
+
+vent4
+{
+    #ventLocationInfo
+    face            jLeft
+    dir             inlet
+    shape           circle
+
+    diameter      0.1
+    center       (4.0 4.0 4.0)
+
+    #U_BC_info
+    ventBC		fixedValue
+    ventDesiredFlux    0.0005
+
+    #Nut_BC_info
+    ventBCNut          zeroGradient
+
+    #T_BC_info
+    ventTBC			   zeroGradient
+}
+
+vent5
+{
+    #ventLocationInfo
+    face            jLeft
+    dir             inlet
+    shape           circle
+
+    diameter      0.1
+    center       (1.0 4.0 4.0)
+
+    #U_BC_info
+    ventBC		fixedValue
+    ventDesiredFlux    0.0005
+
+    #Nut_BC_info
+    ventBCNut          zeroGradient
+
+    #T_BC_info
+    ventTBC			   zeroGradient
+}
+
+vent6
+{
+    #ventLocationInfo
+    face            jLeft
+    dir             inlet
+    shape           circle
+
+    diameter      0.1
+    center       (1.0 1.0 4.0)
+
+    #U_BC_info
+    ventBC		fixedValue
+    ventDesiredFlux    0.0005
+
+    #Nut_BC_info
+    ventBCNut          zeroGradient
+
+    #T_BC_info
+    ventTBC			   zeroGradient
+}
+
+vent7
+{
+    #ventLocationInfo
+    face            jLeft
+    dir             inlet
+    shape           circle
+
+    diameter      0.1
+    center       (4.0 1.0 4.0)
+
+    #U_BC_info
+    ventBC		fixedValue
+    ventDesiredFlux    0.0005
+
+    #Nut_BC_info
+    ventBCNut          zeroGradient
+
+    #T_BC_info
+    ventTBC			   zeroGradient
+
+}

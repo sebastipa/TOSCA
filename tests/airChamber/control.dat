@@ -1,0 +1,86 @@
+# TOSCA Input file - control dictionary
+# ---------------------------------
+
+# Simulation
+# ---------------------------------
+-startFrom                 startTime
+-startTime                 0
+-endTime                   900
+-cfl                       0.8
+-adjustTimeStep            1
+-timeStep                  1.0
+-timePrecision             3
+
+# Write Data
+# ---------------------------------
+-intervalType              adjustableTime
+-timeInterval              10.0
+-purgeWrite                0
+
+# Solution
+# ---------------------------------
+-potentialT                0
+-abl                       0
+-zDampingLayer             0
+-ibm                       1
+-overset                   0
+-absTolU                   1e-8
+-poissonIt                 20
+-poissonTol                1e-8
+-poissonSolver             HYPRE
+-hypreSolverType           1
+-sources                   0
+-scalarMoments	           6
+-vents 			   1
+
+# Turbulence Model
+# ---------------------------------
+-les                       4
+-max_cs                    10
+
+# Numerical Schemes
+# ---------------------------------
+-dUdtScheme                backwardEuler
+-dTdtScheme                backwardEuler
+-dSMdtScheme		   rungeKutta4
+-divScheme                 centralUpwind
+
+# Wind Turbine
+# ---------------------------------
+-windplant                0
+
+# Constants
+# ---------------------------------
+-nu                        1.532e-5
+-rho                       1.191
+-Pr                        0.709
+-tRef                      297.15
+-Sc	                   0.7
+-ScT			   0.7
+
+# Mesh
+# ---------------------------------
+-meshFileType             cartesian
+
+
+# Acquisition
+# ---------------------------------
+-sections                 1
+-probes                   0
+
+-tke                      1
+-tkePeriod                0.5
+-tkeStartTime             0
+
+# PostProcessing
+# ---------------------------------
+-writeRaster              0
+-postProcessFields        1
+
+# smSource
+# ---------------------------------
+-coagSource               1
+-groSource                0
+-depoSource               1
+-sediFlux                 1
+-deviFlux                 1

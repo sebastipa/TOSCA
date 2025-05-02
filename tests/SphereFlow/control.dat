@@ -31,8 +31,8 @@
 -poissonTol                1e-10
 -poissonSolver             PETSc
 -hypreSolverType           1
--scalarMoments             6
--vents                     1
+-scalarMoments             0
+-vents                     0
 
 # Turbulence Model
 # ---------------------------------

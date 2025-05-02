@@ -11,18 +11,6 @@
 
 //***************************************************************************************************************//
 
-PetscErrorCode SNESMonitorSM(SNES snes, PetscInt iter, PetscReal rnorm, void* comm)
-{
-    MPI_Comm SNES_COMM = *(MPI_Comm*)comm;
-    if(iter==1)
-    {
-        PetscPrintf(SNES_COMM,"%e, ", rnorm);
-    }
-    return(0);
-}
-
-//***************************************************************************************************************//
-
 PetscErrorCode InitializeSMObject(SMObj_ *smObject)
 {
     if(smObject != NULL)
@@ -69,6 +57,7 @@ PetscErrorCode InitializeSM(sm_ *sm)
         // input file
         PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
+        //vecs needed for RK4-PD scheme
         VecDuplicate(mesh->Nvert, &(sm->smTmp));    VecSet(sm->smTmp, 0.0);
         VecDuplicate(mesh->Nvert, &(sm->smVal));       VecSet(sm->smVal,    0.0);
         VecDuplicate(mesh->Nvert, &(sm->sm_o));     VecSet(sm->sm_o,  0.0);
@@ -77,25 +66,35 @@ PetscErrorCode InitializeSM(sm_ *sm)
         VecDuplicate(mesh->lAj,   &(sm->lsmVal));      VecSet(sm->lsmVal,   0.0);
         VecDuplicate(mesh->lAj,   &(sm->lsm_o));    VecSet(sm->lsm_o, 0.0);
 
+        //divergence and viscous terms in QMOM equations
         VecDuplicate(mesh->lCent, &(sm->lDivSM));       VecSet(sm->lDivSM,    0.0);
         VecDuplicate(mesh->lCent, &(sm->lViscSM));      VecSet(sm->lViscSM,   0.0);
 
-        VecDuplicate(mesh->Cent, &(sm->Sed));      VecSet(sm->Sed,   0.0);
+        //source and flux terms in QMOM equations
+        VecDuplicate(mesh->Cent, &(sm->Sed));      VecSet(sm->Sed,   0.0); // Sedimentation values are first calcualted at cell centers, then projected to faces using contravriant gravitational accel.
         VecDuplicate(mesh->lCent, &(sm->lSed));      VecSet(sm->lSed,   0.0);
-
         VecDuplicate(mesh->Nvert, &(sm->sedCent));       VecSet(sm->sedCent,    0.0);
         VecDuplicate(mesh->lAj,   &(sm->lSedCent));      VecSet(sm->lSedCent,   0.0);
 
-        VecDuplicate(mesh->Cent, &(sm->Dev));      VecSet(sm->Dev,   0.0);
+        VecDuplicate(mesh->Cent, &(sm->Dev));      VecSet(sm->Dev,   0.0); // Deviation values are first calcualted at cell centers, then projected to faces using contravriant material accel.
         VecDuplicate(mesh->lCent, &(sm->lDev));      VecSet(sm->lDev,   0.0);
-
         VecDuplicate(mesh->Nvert, &(sm->devCent));       VecSet(sm->devCent,    0.0);
         VecDuplicate(mesh->lAj,   &(sm->lDevCent));      VecSet(sm->lDevCent,   0.0);
 
-        VecDuplicate(mesh->Cent, &(sm->Dep));      VecSet(sm->Dep,   0.0);
+        VecDuplicate(mesh->Cent, &(sm->Dep));      VecSet(sm->Dep,   0.0); // Deposition only occurs at IBs or domain boundaries.
         VecDuplicate(mesh->lCent, &(sm->lDep));      VecSet(sm->lDep,   0.0);
 
-        VecDuplicate(mesh->Nvert, &(sm->coagSource));      VecSet(sm->coagSource,   0.0);
+        VecDuplicate(mesh->Nvert, &(sm->coagSource));      VecSet(sm->coagSource,   0.0); //local vec not needed as spatial gradients are not includedd with this term.
+
+        //vecs needed to see QMOM budgets after J multiplication.
+        //coagSource is not multiplied by J (not a flux) so a print Vec is not needed.
+        //J multiplication is built into dep calculation at each cell.
+        //This is possible becasue deposition only occurs at boundaries where one cell center
+        //is spatially discretised with a boundary at a 0-value and the wall model for deposition takes over.
+        VecDuplicate(mesh->Nvert, &(sm->viscPrint));      VecSet(sm->viscPrint,   0.0);
+        VecDuplicate(mesh->Nvert, &(sm->divPrint));      VecSet(sm->divPrint,   0.0);
+        VecDuplicate(mesh->Nvert, &(sm->devPrint));      VecSet(sm->devPrint,   0.0);
+        VecDuplicate(mesh->Nvert, &(sm->sedPrint));      VecSet(sm->sedPrint,   0.0);
 
         // read time discretization scheme
         readDictWord("control.dat", "-dSMdtScheme", &(sm->ddtScheme));
@@ -146,7 +145,7 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
     Cmpnts        ***jcsi, ***jeta, ***jzet;
     Cmpnts        ***kcsi, ***keta, ***kzet;
 
-    PetscReal     ***lsmVal, ***rhs, ***nvert;
+    PetscReal     ***lsmVal, ***rhs, ***nvert, ***viscP, ***divP;
 
     Cmpnts        ***div, ***visc;                                                // divergence and viscous terms
     Cmpnts        ***limiter;                                                     // flux limiter
@@ -224,41 +223,44 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                 //skip all solid cells and fluid cells with solid on right face
                 if (isIBMSolidCell(k, j, i, nvert) || isIBMSolidCell(k, j, i+1, nvert)) continue;
 
-                //divergence term using central4 scheme
+                //divergence term using quick scheme
                 if (i == 0 || isIBMSolidCell(k, j, i-1, nvert))
                 {
                     div[k][j][i].x =
                     - ucont[k][j][i].x
-                    * central4
+                    * quickSM
                     (
                         lsmVal[k][j][i],
                         lsmVal[k][j][i],
                         lsmVal[k][j][i+1],
-                        lsmVal[k][j][i+2]
+                        lsmVal[k][j][i+2],
+                        ucont[k][j][i].x
                     );
                 }
                 else if (i == mx-2 || isIBMSolidCell(k, j, i+2, nvert))
                 {
                     div[k][j][i].x =
                     - ucont[k][j][i].x
-                    * central4
+                    * quickSM
                     (
                         lsmVal[k][j][i-1],
                         lsmVal[k][j][i],
                         lsmVal[k][j][i+1],
-                        lsmVal[k][j][i+1]
+                        lsmVal[k][j][i+1],
+                        ucont[k][j][i].x
                     );
                 }
                 else
                 {
                     div[k][j][i].x =
                     - ucont[k][j][i].x
-                    * central4
+                    * quickSM
                     (
                         lsmVal[k][j][i-1],
                         lsmVal[k][j][i],
                         lsmVal[k][j][i+1],
-                        lsmVal[k][j][i+2]
+                        lsmVal[k][j][i+2],
+                        ucont[k][j][i].x
                     );
                 }
 
@@ -281,7 +283,7 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                 Compute_dscalar_i(mesh, i, j, k, mx, my, mz, lsmVal, nvert, &dsdc, &dsde, &dsdz);
 
                 PetscReal nu = cst->nu, nut;
-                PetscReal gammaEff;
+                PetscReal gammaEff; //gammaEff2;
 
                 // viscous terms
                 if
@@ -352,41 +354,44 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                 //skip all solid cells and fluid cells with solid on right face
                 if (isIBMSolidCell(k, j, i, nvert) || isIBMSolidCell(k, j+1, i, nvert)) continue;
 
-                //divergence term using central4 scheme
+                //divergence term using quick scheme
                 if (j == 0 || isIBMSolidCell(k, j-1, i, nvert))
                 {
                     div[k][j][i].y =
                     - ucont[k][j][i].y
-                    * central4
+                    * quickSM
                     (
                         lsmVal[k][j][i],
                         lsmVal[k][j][i],
                         lsmVal[k][j+1][i],
-                        lsmVal[k][j+2][i]
+                        lsmVal[k][j+2][i],
+                        ucont[k][j][i].y
                     );
                 }
                 else if (j == my-2 || isIBMSolidCell(k, j+2, i, nvert))
                 {
                     div[k][j][i].y =
                     - ucont[k][j][i].y
-                    * central4
+                    * quickSM
                     (
                         lsmVal[k][j-1][i],
                         lsmVal[k][j][i],
                         lsmVal[k][j+1][i],
-                        lsmVal[k][j+1][i]
+                        lsmVal[k][j+1][i],
+                        ucont[k][j][i].y
                     );
                 }
                 else
                 {
                     div[k][j][i].y =
                     - ucont[k][j][i].y
-                    * central4
+                    * quickSM
                     (
                         lsmVal[k][j-1][i],
                         lsmVal[k][j][i],
                         lsmVal[k][j+1][i],
-                        lsmVal[k][j+2][i]
+                        lsmVal[k][j+2][i],
+                        ucont[k][j][i].y
                     );
                 }
 
@@ -406,7 +411,7 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                 Compute_dscalar_j(mesh, i, j, k, mx, my, mz, lsmVal, nvert, &dsdc, &dsde, &dsdz);
 
                 PetscReal nu = cst->nu, nut;
-                PetscReal gammaEff;
+                PetscReal gammaEff; //gammaEff2;
 
                 if
                 (
@@ -476,41 +481,44 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                 //skip all solid cells and fluid cells with solid on right face
                 if (isIBMSolidCell(k, j, i, nvert) || isIBMSolidCell(k+1, j, i, nvert)) continue;
 
-                //divergence term using central4 scheme
+                //divergence term using quick scheme
                 if (k == 0 || isIBMSolidCell(k-1, j, i, nvert))
                 {
                     div[k][j][i].z =
                     - ucont[k][j][i].z
-                    * central4
+                    * quickSM
                     (
                         lsmVal[k][j][i],
                         lsmVal[k][j][i],
                         lsmVal[k+1][j][i],
-                        lsmVal[k+2][j][i]
+                        lsmVal[k+2][j][i],
+                        ucont[k][j][i].z
                     );
                 }
                 else if (k == mz-2 || isIBMSolidCell(k+2, j, i, nvert))
                 {
                     div[k][j][i].z =
                     - ucont[k][j][i].z
-                    * central4
+                    * quickSM
                     (
                         lsmVal[k-1][j][i],
                         lsmVal[k][j][i],
                         lsmVal[k+1][j][i],
-                        lsmVal[k+1][j][i]
+                        lsmVal[k+1][j][i],
+                        ucont[k][j][i].z
                     );
                 }
                 else
                 {
                     div[k][j][i].z =
                     - ucont[k][j][i].z
-                    * central4
+                    * quickSM
                     (
                         lsmVal[k-1][j][i],
                         lsmVal[k][j][i],
                         lsmVal[k+1][j][i],
-                        lsmVal[k+2][j][i]
+                        lsmVal[k+2][j][i],
+                        ucont[k][j][i].z
                     );
                 }
 
@@ -530,7 +538,7 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                 Compute_dscalar_k(mesh, i, j, k, mx, my, mz, lsmVal, nvert, &dsdc, &dsde, &dsdz);
 
                 PetscReal nu = cst->nu, nut;
-                PetscReal gammaEff;
+                PetscReal gammaEff; //gammaEff2;
 
                 if
                 (
@@ -599,6 +607,9 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
     DMDAVecGetArray(fda, sm->lDivSM, &div);
     DMDAVecGetArray(fda, sm->lViscSM, &visc);
 
+    DMDAVecGetArray(da, sm->divPrint,       &divP);
+    DMDAVecGetArray(da, sm->viscPrint,      &viscP);
+
     // ---------------------------------------------------------------------- //
     //                      FORM THE CUMULATIVE FLUXES                        //
     // ---------------------------------------------------------------------- //
@@ -609,7 +620,7 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
         {
             for (i=lxs; i<lxe; i++)
             {
-                //don't skip ibfluid in this caseto allow for SM build up
+                //don't skip ibfluid in this case to allow for SM build up at walls
                 if (isIBMSolidCell(k, j, i, nvert))
                 {
                     rhs[k][j][i] = 0;
@@ -617,7 +628,7 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                 else
                 {
                     rhs[k][j][i]
-                    =
+                    +=
                     scale *
                     (
                          div[k][j][i].x  - div[k  ][j  ][i-1].x       +
@@ -626,6 +637,25 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                          visc[k][j][i].x - visc[k  ][j  ][i-1].x      +
                          visc[k][j][i].y - visc[k  ][j-1][i  ].y      +
                          visc[k][j][i].z - visc[k-1][j  ][i  ].z
+                    ) * aj[k][j][i];
+
+                    //save the actual visc and div values applied to QMOM equation for paraview
+                    viscP[k][j][i]
+                    =
+                    scale *
+                    (
+                         visc[k][j][i].x - visc[k  ][j  ][i-1].x      +
+                         visc[k][j][i].y - visc[k  ][j-1][i  ].y      +
+                         visc[k][j][i].z - visc[k-1][j  ][i  ].z
+                    ) * aj[k][j][i];
+
+                    divP[k][j][i]
+                    =
+                    scale *
+                    (
+                        div[k][j][i].x  - div[k  ][j  ][i-1].x       +
+                        div[k][j][i].y  - div[k  ][j-1][i  ].y       +
+                        div[k][j][i].z  - div[k-1][j  ][i  ].z
                     ) * aj[k][j][i];
 
                 }
@@ -651,6 +681,9 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 
     DMDAVecRestoreArray(fda, sm->lDivSM,       &div);
     DMDAVecRestoreArray(fda, sm->lViscSM,      &visc);
+
+    DMDAVecRestoreArray(da, sm->divPrint,       &divP);
+    DMDAVecRestoreArray(da, sm->viscPrint,      &viscP);
 
     DMDAVecRestoreArray(da,  Rhs,              &rhs);
     DMDAVecRestoreArray(da,  sm->lsmVal,      &lsmVal);
@@ -685,7 +718,7 @@ PetscErrorCode FormSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 PetscErrorCode FormExplicitRhsSM(sm_ *sm, PetscInt ii)
 {
     mesh_ *mesh   = sm->access->mesh;
-    PetscReal ts1,te1;
+    //PetscReal ts1,te1;
 
     // reset scalarMoment periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, sm->smVal, sm->lsmVal, "scalar", "globalToLocal");
@@ -704,10 +737,9 @@ PetscErrorCode FormExplicitRhsSM(sm_ *sm, PetscInt ii)
     {
         //PetscTime(&ts1);
         formCoagSourceExp(sm, ii);
-        sourceSMCoag(sm, sm->Rhs, -1.0);
+        sourceSMCoag(sm, sm->Rhs, 1.0);
         //PetscTime(&te1);
         //PetscPrintf(mesh->MESH_COMM,"%li Elapsed Time COAG = %f\n", ii, te1-ts1);
-
     }
 
     // add deposition source terms
@@ -719,7 +751,6 @@ PetscErrorCode FormExplicitRhsSM(sm_ *sm, PetscInt ii)
         sourceSMDep(sm, sm->Rhs, 1.0);
         //PetscTime(&te1);
         //PetscPrintf(mesh->MESH_COMM,"%li Elapsed Time DEP = %f\n", ii, te1-ts1);
-
     }
 
     // add deposition source terms
@@ -744,7 +775,7 @@ PetscErrorCode FormExplicitRhsSM(sm_ *sm, PetscInt ii)
 
     }
 
-    // set to zero at non-resolved cell faces, this deos not includeIBFluid for SM values!
+    // set to zero at non-resolved cell faces, this does not includeIBFluid for SM values!
     resetNonResolvedCellCentersScalarIBMSolid(mesh, sm->Rhs);
 
     return(0);
@@ -781,7 +812,7 @@ PetscErrorCode SMRK4(SMObj_ *smObject)
 
     for (PetscInt ii = 0; ii < flags->isScalarMomentsActive; ii++)
     {
-        // Ucont_o contribution
+        // sm_o contribution
         VecCopy(smObject->sm[ii]->sm_o, smObject->sm[ii]->smTmp);
     }
 
@@ -822,7 +853,6 @@ PetscErrorCode SMRK4(SMObj_ *smObject)
             // add contribution from K1, K2, K3, K4
             VecAXPY(smObject->sm[ii]->smTmp, dt * b[i], smObject->sm[ii]->Rhs);
         }
-
 
     }
 
@@ -871,6 +901,7 @@ PetscErrorCode SolveSM(SMObj_ *smObject)
 
 PetscErrorCode quickUpdateWeightsAndAbscissi(SMObj_ *smObject)
 {
+    //uses the Product Difference method to find the weights and abscissa used to describe the particle distribution at each RK4 stage.
 
     mesh_          *mesh = smObject->sm[0]->access->mesh; //just needs to use the access from any sm, sm[0] will always be available if sm flag is 1 or greater.
     DM             da = mesh->da, fda = mesh->fda;
@@ -1004,14 +1035,8 @@ PetscErrorCode quickUpdateWeightsAndAbscissi(SMObj_ *smObject)
                     }
                     else
                     {
-                        //MatGetValue(Pmat, 0, rows+1, &p1);
-                        //p1 = Pmat[0][rows+1];
                         p1 = Vec0[rows + 1];
-                        //MatGetValue(Pmat, 0, rows, &p2);
-                        //p2 = Pmat[0][rows];
                         p2 = Vec0[rows];
-                        //MatGetValue(Pmat, 0, rows-1, &p3);
-                        //p3 = Pmat[0][rows-1];
                         p3 = Vec0[rows-1];
 
                         if (p3 == 0)
@@ -1117,6 +1142,12 @@ PetscErrorCode quickUpdateWeightsAndAbscissi(SMObj_ *smObject)
     DMDAVecRestoreArray(da, smObject->sm[5]->smVal, &sm5);
     //PetscPrintf(PETSC_COMM_WORLD, "mesh POST LOOP\n");
 
+    for (PetscInt ii = 0; ii < smObject->sm[0]->access->flags->isScalarMomentsActive; ii++)
+    {
+        DMGlobalToLocalBegin(mesh->da, smObject->sm[ii]->smVal, INSERT_VALUES, smObject->sm[ii]->lsmVal);
+        DMGlobalToLocalEnd(mesh->da, smObject->sm[ii]->smVal, INSERT_VALUES, smObject->sm[ii]->lsmVal);
+    }
+
     DMDAVecRestoreArray(da, smObject->weightAbsc[0]->weight, &weight0);
     DMDAVecRestoreArray(da, smObject->weightAbsc[0]->absc, &absc0);
     DMDAVecRestoreArray(da, smObject->weightAbsc[1]->weight, &weight1);
@@ -1145,6 +1176,8 @@ PetscErrorCode quickUpdateWeightsAndAbscissi(SMObj_ *smObject)
 
 PetscErrorCode DissipationCalc(SMObj_ *smObject)
 {
+    //find turbulent dissipation needed for coagulation coefficient
+
     mesh_  *mesh   = smObject->sm[0]->access->mesh;
     flags_ *flags  = smObject->sm[0]->access->flags;
 
@@ -1315,8 +1348,9 @@ PetscErrorCode DissipationCalc(SMObj_ *smObject)
 
 PetscErrorCode infectProb(SMObj_ *smObject)
 {
+    //uses motamedi's infection risk formula and SM0 values to estimate infection probability at each cell.
+
     mesh_          *mesh = smObject->sm[0]->access->mesh; //just needs to use the access from any sm, sm[0] will always be available if sm flag is 1 or greater.
-    //flags_         *flags = smObject->sm[0]->access->flags;
     ibm_           *ibm = smObject->sm[0]->access->ibm;
     clock_         *clock = smObject->sm[0]->access->clock;
     vents_         *vents = smObject->sm[0]->access->vents;
@@ -1407,8 +1441,9 @@ PetscErrorCode infectProb(SMObj_ *smObject)
 
 PetscErrorCode partCount(SMObj_ *smObject)
 {
+    //tracks cumulation of exhausted and deposited particles
+
     mesh_          *mesh = smObject->sm[0]->access->mesh; //just needs to use the access from any sm, sm[0] will always be available if sm flag is 1 or greater.
-    //flags_         *flags = smObject->sm[0]->access->flags;
     ibm_           *ibm = smObject->sm[0]->access->ibm;
     clock_         *clock = smObject->sm[0]->access->clock;
     vents_         *vents = smObject->sm[0]->access->vents;
@@ -1589,9 +1624,12 @@ PetscErrorCode formCoagSourceExp(sm_ *sm, PetscInt ii)
                   term1, term2, term3, term4, power, temp, kk, a1f, a2f;
 
     PetscScalar   c0, c1, c2, c3, c4, c5, c6, c7, m3Dia;
-    PetscScalar   ap0, ap1, ap2;
-    PetscScalar   cap0, cap1, cap2;
-    PetscScalar   c6p, expMfp;
+    PetscScalar   ap0, ap1, ap2, abPow0, abPow1, abPow2;
+    PetscScalar   abPow00, abPow01, abPow02, abPow11, abPow12, abPow22;
+    PetscScalar   cap0, cap1, cap2, cap00, cap01, cap02, cap11, cap12, cap22;
+    PetscScalar   m3Pow00, m3Pow01, m3Pow02, m3Pow11, m3Pow12, m3Pow22;
+    PetscScalar   at00, at01, at02, at11, at12, at22;
+    PetscScalar   c6p, expMfp, iiScalar;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1629,6 +1667,8 @@ PetscErrorCode formCoagSourceExp(sm_ *sm, PetscInt ii)
     c6 = 0;
     c4 = sqrt(8*M_PI)*smObject->OGConc*pow(10, -18);
     c7 = M_PI/2;
+
+    iiScalar = ((PetscScalar)ii);
 
     //loop to all cells
     for (k=lzs; k<lze; k++)
@@ -1675,105 +1715,160 @@ PetscErrorCode formCoagSourceExp(sm_ *sm, PetscInt ii)
 
                 m3Dia = sm_o4[k][j][i]/sm_o3[k][j][i]; //volume mean diameter of previous it.
 
-                ap0 = PetscPowScalar(absc[k][j][i], 3.);
-                ap1 = PetscPowScalar(absc1[k][j][i], 3.);
-                ap2 = PetscPowScalar(absc2[k][j][i], 3.);
-                cap0 = PetscPowScalar(c1*absc[k][j][i]/(m3Dia), (3.0/D_f));
-                cap1 = PetscPowScalar(c1*absc1[k][j][i]/(m3Dia), (3.0/D_f));
-                cap2 = PetscPowScalar(c1*absc2[k][j][i]/(m3Dia), (3.0/D_f));
-                expMfp = exp(-0.88/(2*mfp/(m3Dia)));
-                c6p = PetscPowScalar(c6/((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia)), 1./2.);
+                ap0 = pow(absc[k][j][i], 3.);
+                ap1 = pow(absc1[k][j][i], 3.);
+                ap2 = pow(absc2[k][j][i], 3.);
 
+                cap0 = pow(c1*absc[k][j][i]/(m3Dia), (3.0/D_f));
+                cap1 = pow(c1*absc1[k][j][i]/(m3Dia), (3.0/D_f));
+                cap2 = pow(c1*absc2[k][j][i]/(m3Dia), (3.0/D_f));
+
+                cap00 = pow(cap0 + cap0, 2.0);
+                cap01 = pow(cap0 + cap1, 2.0);
+                cap02 = pow(cap0 + cap2, 2.0);
+                cap11 = pow(cap1 + cap1, 2.0);
+                cap12 = pow(cap1 + cap2, 2.0);
+                cap22 = pow(cap2 + cap2, 2.0);
+
+                abPow0 = pow(absc[k][j][i], iiScalar);
+                abPow1 = pow(absc1[k][j][i], iiScalar);
+                abPow2 = pow(absc2[k][j][i], iiScalar);
+
+                abPow00 = pow((ap0 + ap0), iiScalar/3.);
+                abPow01 = pow((ap0 + ap1), iiScalar/3.);
+                abPow02 = pow((ap0 + ap2), iiScalar/3.);
+                abPow11 = pow((ap1 + ap1), iiScalar/3.);
+                abPow12 = pow((ap1 + ap2), iiScalar/3.);
+                abPow22 = pow((ap2 + ap2), iiScalar/3.);
+
+                m3Pow00 = pow(c2*((m3Dia)*(m3Dia)*cap00) + c3*(ap0 + ap0)/(ap0*ap0), 1./2.);
+                m3Pow01 = pow(c2*((m3Dia)*(m3Dia)*cap01) + c3*(ap0 + ap1)/(ap0*ap1), 1./2.);
+                m3Pow02 = pow(c2*((m3Dia)*(m3Dia)*cap02) + c3*(ap0 + ap2)/(ap0*ap2), 1./2.);
+                m3Pow11 = pow(c2*((m3Dia)*(m3Dia)*cap11) + c3*(ap1 + ap1)/(ap1*ap1), 1./2.);
+                m3Pow12 = pow(c2*((m3Dia)*(m3Dia)*cap12) + c3*(ap1 + ap2)/(ap1*ap2), 1./2.);
+                m3Pow22 = pow(c2*((m3Dia)*(m3Dia)*cap22) + c3*(ap2 + ap2)/(ap2*ap2), 1./2.);
+
+                expMfp = exp(-0.88/(2*mfp/(m3Dia)));
+                c6p = pow(c6/((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia)), 1./2.);
+
+                at00 = atan(c0 * ((m3Dia)*(cap0 + cap0)) * c6p);
+                at01 = atan(c0 * ((m3Dia)*(cap0 + cap1)) * c6p);
+                at02 = atan(c0 * ((m3Dia)*(cap0 + cap2)) * c6p);
+                at11 = atan(c0 * ((m3Dia)*(cap1 + cap1)) * c6p);
+                at12 = atan(c0 * ((m3Dia)*(cap1 + cap2)) * c6p);
+                at22 = atan(c0 * ((m3Dia)*(cap2 + cap2)) * c6p);
+
+                //set coag source value, beta = 1 case.
+                /*coag[k][j][i] =
+
+                (0.5*abPow00 - abPow0) * weight[k][j][i]*weight[k][j][i] +
+
+                (0.5*abPow01 - abPow0)*weight[k][j][i]*weight1[k][j][i] +
+
+                (0.5*abPow02 - abPow0)*weight[k][j][i]*weight2[k][j][i] +
+
+                (0.5*abPow01 - abPow1)*weight1[k][j][i]*weight[k][j][i] +
+
+                (0.5*abPow11 - abPow1)*weight1[k][j][i]*weight1[k][j][i] +
+
+                (0.5*abPow12 - abPow1)*weight1[k][j][i]*weight2[k][j][i] +
+
+                (0.5*abPow02 - abPow2)*weight2[k][j][i]*weight[k][j][i] +
+
+                (0.5*abPow12 - abPow2)*weight2[k][j][i]*weight1[k][j][i] +
+
+                (0.5*abPow22 - abPow2)*weight2[k][j][i]*weight2[k][j][i];
+
+                if (ii == 0 && i == 5 && j == 5 && k == 5)
+                {
+                    //printf("%f, %f, %f, %f, %f, %f, %f\n", coag[k][j][i], absc[k][j][i], absc1[k][j][i], absc2[k][j][i], weight[k][j][i], weight1[k][j][i], weight2[k][j][i]);
+
+                }*/
 
                 //set coag source value
                 coag[k][j][i] =
 
-                (0.5*PetscPowScalar((ap0 + ap0), ((PetscScalar)ii)/3.) - PetscPowScalar(absc[k][j][i], ((PetscScalar)ii))) * weight[k][j][i]*weight[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*PetscPowScalar(cap0 + cap0, 2.0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap0 + cap0, 2.0)) + c3*(ap0 + ap0)/(ap0*ap0), 1./2.) /
+                (0.5*abPow00 - abPow0) * weight[k][j][i]*weight[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*cap00) *
+                m3Pow00 /
                 (1 + c5 * ((m3Dia)*(cap0 + cap0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap0 + cap0, 2.0)) + c3*(ap0 + ap0)/(ap0*ap0), 1./2.) *
+                m3Pow00 *
                 (1 - c7*c0 * ((m3Dia)*(cap0 + cap0)) * c6p + c0 * ((m3Dia)*(cap0 + cap0)) *
                 c6p *
-                atan(c0 * ((m3Dia)*(cap0 + cap0)) * c6p)) /
-                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) -
+                at00) /
+                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) +
 
-                (0.5*PetscPowScalar((ap0 + ap1), ((PetscScalar)ii)/3.) - PetscPowScalar(absc[k][j][i], ((PetscScalar)ii)))*weight[k][j][i]*weight1[k][j][i]* c4*c0*c0 * ((m3Dia)*(m3Dia)*PetscPowScalar(cap0 + cap1, 2.0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap0 + cap1, 2.0)) + c3*(ap0 + ap1)/(ap0*ap1), 1./2.) /
+                (0.5*abPow01 - abPow0)*weight[k][j][i]*weight1[k][j][i]* c4*c0*c0 * ((m3Dia)*(m3Dia)*cap01) *
+                m3Pow01 /
                 (1 + c5 * ((m3Dia)*(cap0 + cap1)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap0 + cap1, 2.0)) + c3*(ap0 + ap1)/(ap0*ap1), 1./2.) *
+                m3Pow01 *
                 (1 - c7*c0 * ((m3Dia)*(cap0 + cap1)) * c6p + c0 * ((m3Dia)*(cap0 + cap1)) *
                 c6p *
-                atan(c0 * ((m3Dia)*(cap0 + cap1)) * c6p)) /
-                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) -
+                at01) /
+                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) +
 
-                (0.5*PetscPowScalar((ap0 + ap2), ((PetscScalar)ii)/3.) - PetscPowScalar(absc[k][j][i], ((PetscScalar)ii)))*weight[k][j][i]*weight2[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*PetscPowScalar(cap0 + cap2, 2.0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap0 + cap2, 2.0)) + c3*(ap0 + ap2)/(ap0*ap2), 1./2.) /
+                (0.5*abPow02 - abPow0)*weight[k][j][i]*weight2[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*cap02) *
+                m3Pow02 /
                 (1 + c5 * ((m3Dia)*(cap0 + cap2)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap0 + cap2, 2.0)) + c3*(ap0 + ap2)/(ap0*ap2), 1./2.) *
+                m3Pow02 *
                 (1 - c7*c0 * ((m3Dia)*(cap0 + cap2)) * c6p + c0 * ((m3Dia)*(cap0 + cap2)) *
                 c6p *
-                atan(c0 * ((m3Dia)*(cap0 + cap2)) * c6p)) /
-                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) -
+                at02) /
+                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) +
 
-                (0.5*PetscPowScalar((ap1 + ap0), ((PetscScalar)ii)/3.) - PetscPowScalar(absc1[k][j][i], ((PetscScalar)ii)))*weight1[k][j][i]*weight[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*PetscPowScalar(cap1 + cap0, 2.0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap1 + cap0, 2.0)) + c3*(ap1 + ap0)/(ap1*ap0), 1./2.) /
+                (0.5*abPow01 - abPow1)*weight1[k][j][i]*weight[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*cap01) *
+                m3Pow01 /
                 (1 + c5 * ((m3Dia)*(cap1 + cap0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap1 + cap0, 2.0)) + c3*(ap1 + ap0)/(ap1*ap0), 1./2.) *
+                m3Pow01 *
                 (1 - c7*c0 * ((m3Dia)*(cap1 + cap0)) * c6p + c0 * ((m3Dia)*(cap1 + cap0)) *
                 c6p *
-                atan(c0 * ((m3Dia)*(cap1 + cap0)) * c6p)) /
-                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) -
+                at01) /
+                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) +
 
-                (0.5*PetscPowScalar((ap1 + ap1), ((PetscScalar)ii)/3.) - PetscPowScalar(absc1[k][j][i], ((PetscScalar)ii)))*weight1[k][j][i]*weight1[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*PetscPowScalar(cap1 + cap1, 2.0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap1 + cap1, 2.0)) + c3*(ap1 + ap1)/(ap1*ap1), 1./2.) /
+                (0.5*abPow11 - abPow1)*weight1[k][j][i]*weight1[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*cap11) *
+                m3Pow11 /
                 (1 + c5 * ((m3Dia)*(cap1 + cap1)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap1 + cap1, 2.0)) + c3*(ap1 + ap1)/(ap1*ap1), 1./2.) *
+                m3Pow11 *
                 (1 - c7*c0 * ((m3Dia)*(cap1 + cap1)) * c6p + c0 * ((m3Dia)*(cap1 + cap1)) *
                 c6p *
-                atan(c0 * ((m3Dia)*(cap1 + cap1)) * c6p)) /
-                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) -
+                at11) /
+                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) +
 
-                (0.5*PetscPowScalar((ap1 + ap2), ((PetscScalar)ii)/3.) - PetscPowScalar(absc1[k][j][i], ((PetscScalar)ii)))*weight1[k][j][i]*weight2[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*PetscPowScalar(cap1 + cap2, 2.0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap1 + cap2, 2.0)) + c3*(ap1 + ap2)/(ap1*ap2), 1./2.) /
+                (0.5*abPow12 - abPow1)*weight1[k][j][i]*weight2[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*cap12) *
+                m3Pow12 /
                 (1 + c5 * ((m3Dia)*(cap1 + cap2)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap1 + cap2, 2.0)) + c3*(ap1 + ap2)/(ap1*ap2), 1./2.) *
+                m3Pow12 *
                 (1 - c7*c0 * ((m3Dia)*(cap1 + cap2)) * c6p + c0 * ((m3Dia)*(cap1 + cap2)) *
                 c6p *
-                atan(c0 * ((m3Dia)*(cap1 + cap2)) * c6p)) /
-                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) -
+                at12) /
+                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) +
 
-                (0.5*PetscPowScalar((ap2 + ap0), ((PetscScalar)ii)/3.) - PetscPowScalar(absc2[k][j][i], ((PetscScalar)ii)))*weight2[k][j][i]*weight[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*PetscPowScalar(cap2 + cap0, 2.0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap2 + cap0, 2.0)) + c3*(ap2 + ap0)/(ap2*ap0), 1./2.) /
+                (0.5*abPow02 - abPow2)*weight2[k][j][i]*weight[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*cap02) *
+                m3Pow02 /
                 (1 + c5 * ((m3Dia)*(cap2 + cap0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap2 + cap0, 2.0)) + c3*(ap2 + ap0)/(ap2*ap0), 1./2.) *
+                m3Pow02 *
                 (1 - c7*c0 * ((m3Dia)*(cap2 + cap0)) * c6p + c0 * ((m3Dia)*(cap2 + cap0)) *
                 c6p *
-                atan(c0 * ((m3Dia)*(cap2 + cap0)) * c6p)) /
-                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) -
+                at02) /
+                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) +
 
-                (0.5*PetscPowScalar((ap2 + ap1), ((PetscScalar)ii)/3.) - PetscPowScalar(absc2[k][j][i], ((PetscScalar)ii)))*weight2[k][j][i]*weight1[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*PetscPowScalar(cap2 + cap1, 2.0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap2 + cap1, 2.0)) + c3*(ap2 + ap1)/(ap2*ap1), 1./2.) /
+                (0.5*abPow12 - abPow2)*weight2[k][j][i]*weight1[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*cap12) *
+                m3Pow12 /
                 (1 + c5 * ((m3Dia)*(cap2 + cap1)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap2 + cap1, 2.0)) + c3*(ap2 + ap1)/(ap2*ap1), 1./2.) *
+                m3Pow12 *
                 (1 - c7*c0 * ((m3Dia)*(cap2 + cap1)) * c6p + c0 * ((m3Dia)*(cap2 + cap1)) *
                 c6p *
-                atan(c0 * ((m3Dia)*(cap2 + cap1)) * c6p)) /
-                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) -
+                at12) /
+                ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  ) +
 
-                (0.5*PetscPowScalar((ap2 + ap2), ((PetscScalar)ii)/3.) - PetscPowScalar(absc2[k][j][i], ((PetscScalar)ii)))*weight2[k][j][i]*weight2[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*PetscPowScalar(cap2 + cap2, 2.0)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap2 + cap2, 2.0)) + c3*(ap2 + ap2)/(ap2*ap2), 1./2.) /
+                (0.5*abPow22 - abPow2)*weight2[k][j][i]*weight2[k][j][i] * c4*c0*c0 * ((m3Dia)*(m3Dia)*cap22) *
+                m3Pow22 /
                 (1 + c5 * ((m3Dia)*(cap2 + cap2)) *
-                PetscPowScalar(c2*((m3Dia)*(m3Dia)*PetscPowScalar(cap2 + cap2, 2.0)) + c3*(ap2 + ap2)/(ap2*ap2), 1./2.) *
+                m3Pow22 *
                 (1 - c7*c0 * ((m3Dia)*(cap2 + cap2)) * c6p + c0 * ((m3Dia)*(cap2 + cap2)) *
                 c6p *
-                atan(c0 * ((m3Dia)*(cap2 + cap2)) * c6p)) /
+                at22) /
                 ((1 + 2*mfp*(1.2+0.4*expMfp)/(m3Dia))/(m3Dia))  );
 
-
-                if (coag[k][j][i] != 0)
-                {
-                   //printf("coag = %f\n", coag[k][j][i]);
-                }
             }
         }
     }
@@ -1960,11 +2055,11 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    );
 
                    //friction velocity in cartesian coordinates i-face is y-cart _dy used
-                   ustar.x = PetscPowScalar(cst->nu*fabs(du_dy), 1./2.);
-                   ustar.y = PetscPowScalar(cst->nu*fabs(dv_dy), 1./2.);
-                   ustar.z = PetscPowScalar(cst->nu*fabs(dw_dy), 1./2.);
+                   ustar.x = pow(cst->nu*fabs(du_dy), 1./2.);
+                   ustar.y = pow(cst->nu*fabs(dv_dy), 1./2.);
+                   ustar.z = pow(cst->nu*fabs(dw_dy), 1./2.);
 
-                   ustarMag = PetscPowScalar(PetscPowScalar(ustar.x, 2.) + PetscPowScalar(ustar.y, 2.) + PetscPowScalar(ustar.z, 2.), 1./2.);
+                   ustarMag = pow(pow(ustar.x, 2.) + pow(ustar.y, 2.) + pow(ustar.z, 2.), 1./2.);
 
                    ustarCont // only need ustar at i-face
                    =
@@ -2002,22 +2097,22 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    TauP1 = pow(10, -12)*absc1[k][j][i]*absc1[k][j][i]*smObject->rhoPart*Cu1/(18*cst->nu*cst->rho);
                    TauP2 = pow(10, -12)*absc2[k][j][i]*absc2[k][j][i]*smObject->rhoPart*Cu2/(18*cst->nu*cst->rho);
 
-                   TauP0Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP1Plus = (TauP1 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP2Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
+                   TauP0Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
+                   TauP1Plus = (TauP1 * pow(ustarMag, 2))/cst->nu;
+                   TauP2Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
 
                    //depositon regimes from nerisson et al.
                    if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 0.1)
                    {
-                       Ip0 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip1 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip2 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
+                       Ip0 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip1 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip2 = 1./(pow(cst->Sc, -lamda1)/lamda0);
                    }
                    else if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 10)
                    {
-                       Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                    }
                    else
                    {
@@ -2025,15 +2120,15 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
 
                        if (yPlus > 1)
                        {
-                           Ip0 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                        else
                        {
-                           Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                    }
 
@@ -2044,9 +2139,9 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    // depositon is only at 1 side of cell, so no subtraction is present.
                    dep[k][j][i].y +=
                    - aj[k][j][i] * ustarCont *
-                   ((weight0[k][j][i]*PetscPowScalar(absc0[k][j][i], ii)*uDep0) +
-                    (weight1[k][j][i]*PetscPowScalar(absc1[k][j][i], ii)*uDep1) +
-                    (weight2[k][j][i]*PetscPowScalar(absc2[k][j][i], ii)*uDep2));
+                   ((weight0[k][j][i]*pow(absc0[k][j][i], ii)*uDep0) +
+                    (weight1[k][j][i]*pow(absc1[k][j][i], ii)*uDep1) +
+                    (weight2[k][j][i]*pow(absc2[k][j][i], ii)*uDep2));
 
                }
                //deposition from cell beside IBM solid i-face
@@ -2084,11 +2179,11 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    );
 
                    //friction velocity in cartesian coordinates iface is _dy
-                   ustar.x = PetscPowScalar(cst->nu*fabs(du_dy), 1./2.);
-                   ustar.y = PetscPowScalar(cst->nu*fabs(dv_dy), 1./2.);
-                   ustar.z = PetscPowScalar(cst->nu*fabs(dw_dy), 1./2.);
+                   ustar.x = pow(cst->nu*fabs(du_dy), 1./2.);
+                   ustar.y = pow(cst->nu*fabs(dv_dy), 1./2.);
+                   ustar.z = pow(cst->nu*fabs(dw_dy), 1./2.);
 
-                   ustarMag = PetscPowScalar(PetscPowScalar(ustar.x, 2.) + PetscPowScalar(ustar.y, 2.) + PetscPowScalar(ustar.z, 2.), 1./2.);
+                   ustarMag = pow(pow(ustar.x, 2.) + pow(ustar.y, 2.) + pow(ustar.z, 2.), 1./2.);
 
                    ustarCont // only need ustar at i-face
                    =
@@ -2128,21 +2223,21 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    TauP1 = pow(10, -12)*absc1[k][j][i]*absc1[k][j][i]*smObject->rhoPart*Cu1/(18*cst->nu*cst->rho);
                    TauP2 = pow(10, -12)*absc2[k][j][i]*absc2[k][j][i]*smObject->rhoPart*Cu2/(18*cst->nu*cst->rho);
 
-                   TauP0Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP1Plus = (TauP1 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP2Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
+                   TauP0Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
+                   TauP1Plus = (TauP1 * pow(ustarMag, 2))/cst->nu;
+                   TauP2Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
 
                    if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 0.1)
                    {
-                       Ip0 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip1 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip2 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
+                       Ip0 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip1 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip2 = 1./(pow(cst->Sc, -lamda1)/lamda0);
                    }
                    else if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 10)
                    {
-                       Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                    }
                    else
                    {
@@ -2150,15 +2245,15 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
 
                        if (yPlus > 1)
                        {
-                           Ip0 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                        else
                        {
-                           Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                    }
 
@@ -2169,9 +2264,9 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    // depositon is only at 1 side of cell, so no subtraction is present.
                    dep[k][j][i].y +=
                    - aj[k][j][i] * ustarCont *
-                   ((weight0[k][j][i]*PetscPowScalar(absc0[k][j][i], ii)*uDep0) +
-                    (weight1[k][j][i]*PetscPowScalar(absc1[k][j][i], ii)*uDep1) +
-                    (weight2[k][j][i]*PetscPowScalar(absc2[k][j][i], ii)*uDep2));
+                   ((weight0[k][j][i]*pow(absc0[k][j][i], ii)*uDep0) +
+                    (weight1[k][j][i]*pow(absc1[k][j][i], ii)*uDep1) +
+                    (weight2[k][j][i]*pow(absc2[k][j][i], ii)*uDep2));
 
                }
 
@@ -2211,11 +2306,11 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    );
 
                    //friction velocity in cartesian coordinates at j-face which is _dz
-                   ustar.x = PetscPowScalar(cst->nu*fabs(du_dz), 1./2.);
-                   ustar.y = PetscPowScalar(cst->nu*fabs(dv_dz), 1./2.);
-                   ustar.z = PetscPowScalar(cst->nu*fabs(dw_dz), 1./2.);
+                   ustar.x = pow(cst->nu*fabs(du_dz), 1./2.);
+                   ustar.y = pow(cst->nu*fabs(dv_dz), 1./2.);
+                   ustar.z = pow(cst->nu*fabs(dw_dz), 1./2.);
 
-                   ustarMag = PetscPowScalar(PetscPowScalar(ustar.x, 2.) + PetscPowScalar(ustar.y, 2.) + PetscPowScalar(ustar.z, 2.), 1./2.);
+                   ustarMag = pow(pow(ustar.x, 2.) + pow(ustar.y, 2.) + pow(ustar.z, 2.), 1./2.);
 
                    ustarCont // only need ustar at j-face
                    =
@@ -2252,21 +2347,21 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    TauP1 = pow(10, -12)*absc1[k][j][i]*absc1[k][j][i]*smObject->rhoPart*Cu1/(18*cst->nu*cst->rho);
                    TauP2 = pow(10, -12)*absc2[k][j][i]*absc2[k][j][i]*smObject->rhoPart*Cu2/(18*cst->nu*cst->rho);
 
-                   TauP0Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP1Plus = (TauP1 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP2Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
+                   TauP0Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
+                   TauP1Plus = (TauP1 * pow(ustarMag, 2))/cst->nu;
+                   TauP2Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
 
                    if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 0.1)
                    {
-                       Ip0 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip1 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip2 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
+                       Ip0 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip1 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip2 = 1./(pow(cst->Sc, -lamda1)/lamda0);
                    }
                    else if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 10)
                    {
-                       Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                    }
                    else
                    {
@@ -2274,15 +2369,15 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
 
                        if (yPlus > 1)
                        {
-                           Ip0 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                        else
                        {
-                           Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                    }
 
@@ -2325,9 +2420,9 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    // depositon is only at 1 side of cell, so no subtraction is present.
                    dep[k][j][i].z +=
                    - aj[k][j][i] * ustarCont *
-                   ((weight0[k][j][i]*PetscPowScalar(absc0[k][j][i], ii)*uDep0) +
-                    (weight1[k][j][i]*PetscPowScalar(absc1[k][j][i], ii)*uDep1) +
-                    (weight2[k][j][i]*PetscPowScalar(absc2[k][j][i], ii)*uDep2));
+                   ((weight0[k][j][i]*pow(absc0[k][j][i], ii)*uDep0) +
+                    (weight1[k][j][i]*pow(absc1[k][j][i], ii)*uDep1) +
+                    (weight2[k][j][i]*pow(absc2[k][j][i], ii)*uDep2));
 
                }
                //deposition from cell beside IBM solid j-face
@@ -2363,11 +2458,11 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    );
 
                    //friction velocity in cartesian coordinates at j-face is _dz
-                   ustar.x = PetscPowScalar(cst->nu*fabs(du_dz), 1./2.);
-                   ustar.y = PetscPowScalar(cst->nu*fabs(dv_dz), 1./2.);
-                   ustar.z = PetscPowScalar(cst->nu*fabs(dw_dz), 1./2.);
+                   ustar.x = pow(cst->nu*fabs(du_dz), 1./2.);
+                   ustar.y = pow(cst->nu*fabs(dv_dz), 1./2.);
+                   ustar.z = pow(cst->nu*fabs(dw_dz), 1./2.);
 
-                   ustarMag = PetscPowScalar(PetscPowScalar(ustar.x, 2.) + PetscPowScalar(ustar.y, 2.) + PetscPowScalar(ustar.z, 2.), 1./2.);
+                   ustarMag = pow(pow(ustar.x, 2.) + pow(ustar.y, 2.) + pow(ustar.z, 2.), 1./2.);
 
                    ustarCont // only need ustar at j-face
                    =
@@ -2406,21 +2501,21 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    TauP1 = pow(10, -12)*absc1[k][j][i]*absc1[k][j][i]*smObject->rhoPart*Cu1/(18*cst->nu*cst->rho);
                    TauP2 = pow(10, -12)*absc2[k][j][i]*absc2[k][j][i]*smObject->rhoPart*Cu2/(18*cst->nu*cst->rho);
 
-                   TauP0Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP1Plus = (TauP1 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP2Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
+                   TauP0Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
+                   TauP1Plus = (TauP1 * pow(ustarMag, 2))/cst->nu;
+                   TauP2Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
 
                    if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 0.1)
                    {
-                       Ip0 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip1 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip2 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
+                       Ip0 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip1 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip2 = 1./(pow(cst->Sc, -lamda1)/lamda0);
                    }
                    else if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 10)
                    {
-                       Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                    }
                    else
                    {
@@ -2428,15 +2523,15 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
 
                        if (yPlus > 1)
                        {
-                           Ip0 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                        else
                        {
-                           Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                    }
 
@@ -2478,9 +2573,9 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    // depositon is only at 1 side of cell, so no subtraction is present.
                    dep[k][j][i].z +=
                    - aj[k][j][i] * ustarCont *
-                   ((weight0[k][j][i]*PetscPowScalar(absc0[k][j][i], ii)*uDep0) +
-                    (weight1[k][j][i]*PetscPowScalar(absc1[k][j][i], ii)*uDep1) +
-                    (weight2[k][j][i]*PetscPowScalar(absc2[k][j][i], ii)*uDep2));
+                   ((weight0[k][j][i]*pow(absc0[k][j][i], ii)*uDep0) +
+                    (weight1[k][j][i]*pow(absc1[k][j][i], ii)*uDep1) +
+                    (weight2[k][j][i]*pow(absc2[k][j][i], ii)*uDep2));
 
                }
 
@@ -2521,11 +2616,11 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    );
 
                    //friction velocity in cartesian coordinates at k-face is _dx
-                   ustar.x = PetscPowScalar(cst->nu*fabs(du_dx), 1./2.);
-                   ustar.y = PetscPowScalar(cst->nu*fabs(dv_dx), 1./2.);
-                   ustar.z = PetscPowScalar(cst->nu*fabs(dw_dx), 1./2.);
+                   ustar.x = pow(cst->nu*fabs(du_dx), 1./2.);
+                   ustar.y = pow(cst->nu*fabs(dv_dx), 1./2.);
+                   ustar.z = pow(cst->nu*fabs(dw_dx), 1./2.);
 
-                   ustarMag = PetscPowScalar(PetscPowScalar(ustar.x, 2.) + PetscPowScalar(ustar.y, 2.) + PetscPowScalar(ustar.z, 2.), 1./2.);
+                   ustarMag = pow(pow(ustar.x, 2.) + pow(ustar.y, 2.) + pow(ustar.z, 2.), 1./2.);
 
                    ustarCont // only need ustar at k-face
                    =
@@ -2564,21 +2659,21 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    TauP1 = pow(10, -12)*absc1[k][j][i]*absc1[k][j][i]*smObject->rhoPart*Cu1/(18*cst->nu*cst->rho);
                    TauP2 = pow(10, -12)*absc2[k][j][i]*absc2[k][j][i]*smObject->rhoPart*Cu2/(18*cst->nu*cst->rho);
 
-                   TauP0Plus = (TauP0* PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP1Plus = (TauP1 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP2Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
+                   TauP0Plus = (TauP0* pow(ustarMag, 2))/cst->nu;
+                   TauP1Plus = (TauP1 * pow(ustarMag, 2))/cst->nu;
+                   TauP2Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
 
                    if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 0.1)
                    {
-                       Ip0 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip1 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip2 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
+                       Ip0 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip1 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip2 = 1./(pow(cst->Sc, -lamda1)/lamda0);
                    }
                    else if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 10)
                    {
-                       Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                    }
                    else
                    {
@@ -2586,15 +2681,15 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
 
                        if (yPlus > 1)
                        {
-                           Ip0 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                        else
                        {
-                           Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                    }
 
@@ -2605,9 +2700,9 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    // depositon is only at 1 side of cell, so no subtraction is present.
                    dep[k][j][i].x +=
                    - aj[k][j][i] * ustarCont *
-                   ((weight0[k][j][i]*PetscPowScalar(absc0[k][j][i], ii)*uDep0) +
-                    (weight1[k][j][i]*PetscPowScalar(absc1[k][j][i], ii)*uDep1) +
-                    (weight2[k][j][i]*PetscPowScalar(absc2[k][j][i], ii)*uDep2));
+                   ((weight0[k][j][i]*pow(absc0[k][j][i], ii)*uDep0) +
+                    (weight1[k][j][i]*pow(absc1[k][j][i], ii)*uDep1) +
+                    (weight2[k][j][i]*pow(absc2[k][j][i], ii)*uDep2));
 
                }
                //deposition from cell beside IBM k-face
@@ -2646,11 +2741,11 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    );
 
                    //friction velocity in cartesian coordinates at k-face is _dx
-                   ustar.x = PetscPowScalar(cst->nu*fabs(du_dx), 1./2.);
-                   ustar.y = PetscPowScalar(cst->nu*fabs(dv_dx), 1./2.);
-                   ustar.z = PetscPowScalar(cst->nu*fabs(dw_dx), 1./2.);
+                   ustar.x = pow(cst->nu*fabs(du_dx), 1./2.);
+                   ustar.y = pow(cst->nu*fabs(dv_dx), 1./2.);
+                   ustar.z = pow(cst->nu*fabs(dw_dx), 1./2.);
 
-                   ustarMag = PetscPowScalar(PetscPowScalar(ustar.x, 2.) + PetscPowScalar(ustar.y, 2.) + PetscPowScalar(ustar.z, 2.), 1./2.);
+                   ustarMag = pow(pow(ustar.x, 2.) + pow(ustar.y, 2.) + pow(ustar.z, 2.), 1./2.);
 
                    ustarCont // only need ustar at k-face
                    =
@@ -2689,21 +2784,21 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    TauP1 = pow(10, -12)*absc1[k][j][i]*absc1[k][j][i]*smObject->rhoPart*Cu1/(18*cst->nu*cst->rho);
                    TauP2 = pow(10, -12)*absc2[k][j][i]*absc2[k][j][i]*smObject->rhoPart*Cu2/(18*cst->nu*cst->rho);
 
-                   TauP0Plus = (TauP0* PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP1Plus = (TauP1 * PetscPowScalar(ustarMag, 2))/cst->nu;
-                   TauP2Plus = (TauP0 * PetscPowScalar(ustarMag, 2))/cst->nu;
+                   TauP0Plus = (TauP0* pow(ustarMag, 2))/cst->nu;
+                   TauP1Plus = (TauP1 * pow(ustarMag, 2))/cst->nu;
+                   TauP2Plus = (TauP0 * pow(ustarMag, 2))/cst->nu;
 
                    if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 0.1)
                    {
-                       Ip0 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip1 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
-                       Ip2 = 1./(PetscPowScalar(cst->Sc, -lamda1)/lamda0);
+                       Ip0 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip1 = 1./(pow(cst->Sc, -lamda1)/lamda0);
+                       Ip2 = 1./(pow(cst->Sc, -lamda1)/lamda0);
                    }
                    else if ((TauP0Plus + TauP1Plus + TauP2Plus)/3. < 10)
                    {
-                       Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                       Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                       Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                    }
                    else
                    {
@@ -2711,15 +2806,15 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
 
                        if (yPlus > 1)
                        {
-                           Ip0 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = (cst->ScT/Karman)*log(yPlus) + PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = (cst->ScT/Karman)*log(yPlus) + pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                        else
                        {
-                           Ip0 = PetscPowScalar(((PetscPowScalar(TauP0Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip1 = PetscPowScalar(((PetscPowScalar(TauP1Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
-                           Ip2 = PetscPowScalar(((PetscPowScalar(TauP2Plus, 2)/ome)+(PetscPowScalar(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip0 = pow(((pow(TauP0Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip1 = pow(((pow(TauP1Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
+                           Ip2 = pow(((pow(TauP2Plus, 2)/ome)+(pow(cst->Sc, -lamda1)/lamda0)), -1);
                        }
                    }
 
@@ -2730,9 +2825,9 @@ PetscErrorCode formDepSourceExp(sm_ *sm, PetscInt ii)
                    // depositon is only at 1 side of cell, so no subtraction is present.
                    dep[k][j][i].x +=
                    - aj[k][j][i] * ustarCont *
-                   ((weight0[k][j][i]*PetscPowScalar(absc0[k][j][i], ii)*uDep0) +
-                    (weight1[k][j][i]*PetscPowScalar(absc1[k][j][i], ii)*uDep1) +
-                    (weight2[k][j][i]*PetscPowScalar(absc2[k][j][i], ii)*uDep2));
+                   ((weight0[k][j][i]*pow(absc0[k][j][i], ii)*uDep0) +
+                    (weight1[k][j][i]*pow(absc1[k][j][i], ii)*uDep1) +
+                    (weight2[k][j][i]*pow(absc2[k][j][i], ii)*uDep2));
 
                }
 
@@ -2888,7 +2983,7 @@ PetscErrorCode sedFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 
     Cmpnts        ***gcont, ***sed, ***lsed, ***limiter;
     Cmpnts        ***icsi, ***jeta, ***kzet, ***cent, ***ucont;
-    PetscReal     ***nvert, ***aj, ***tmprt, ***rhs, ***sedCent, ***lSedCent;
+    PetscReal     ***nvert, ***aj, ***tmprt, ***rhs, ***sedCent, ***lSedCent, ***sedP;
     PetscReal     ***weight0, ***absc0, ***weight1, ***absc1, ***weight2, ***absc2, ***TauP0, ***TauP1, ***TauP2, ***sm0;
 
     PetscInt      i, j, k;
@@ -3001,21 +3096,6 @@ PetscErrorCode sedFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
         {
             for(i=lxs; i<lxe; i++)
             {
-
-                //skip edges
-                /*if(i==0 && j==0) continue;
-                if(j==0 && k==0) continue;
-                if(i==0 && k==0) continue;
-                if(i==0 && j==my-1) continue;
-                if(j==0 && k==mz-1) continue;
-                if(i==0 && k==mz-1) continue;
-                if(i==mx-1 && j==my-1) continue;
-                if(j==my-1 && k==mz-1) continue;
-                if(i==mx-1 && k==mz-1) continue;
-                if(i==mx-1 && j==0) continue;
-                if(j==my-1 && k==0) continue;
-                if(i==mx-1 && k==0) continue;*/
-
                 //no need for SM value at solid cells. Will be tracked later on.
                 if (isIBMSolidCell(k, j, i, nvert)) continue;
 
@@ -3055,7 +3135,7 @@ PetscErrorCode sedFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 
                 sedCent[k][j][i]
                 =
-                (TauP0[k][j][i]*weight0[k][j][i]*PetscPowScalar(absc0[k][j][i], ii)  +  TauP1[k][j][i]*weight1[k][j][i]*PetscPowScalar(absc1[k][j][i], ii) +  TauP2[k][j][i]*weight2[k][j][i]*PetscPowScalar(absc2[k][j][i], ii));
+                (TauP0[k][j][i]*weight0[k][j][i]*pow(absc0[k][j][i], ii)  +  TauP1[k][j][i]*weight1[k][j][i]*pow(absc1[k][j][i], ii) +  TauP2[k][j][i]*weight2[k][j][i]*pow(absc2[k][j][i], ii));
 
 
             }
@@ -3078,14 +3158,6 @@ PetscErrorCode sedFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
         {
             for (i=lxs; i<lxe; i++)
             {
-                /*//skip left edges
-                if(i==0 && j==0) continue;
-                if(j==0 && k==0) continue;
-                if(i==0 && k==0) continue;
-
-                //skip right faces
-                if(i==mx-1 || j==my-1 || k==mz-1) continue;*/
-
                 //i-face Sed.y
                 //skip all fluid cells with solid on right face
                 if (isIBMSolidCell(k, j, i+1, nvert) || isIBMSolidCell(k, j, i, nvert))
@@ -3162,6 +3234,7 @@ PetscErrorCode sedFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 
     DMDAVecGetArray(fda, sm->lSed, &lsed);
     DMDAVecGetArray(da, Rhs, &rhs);
+    DMDAVecGetArray(da, sm->sedPrint, &sedP);
 
     // ---------------------------------------------------------------------- //
     //                      FORM THE CUMULATIVE FLUXES                        //
@@ -3188,6 +3261,16 @@ PetscErrorCode sedFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                          lsed[k][j][i].x  - lsed[k-1][j  ][i  ].x
                     ) * aj[k][j][i];
 
+                    //save actual Sed values applied to QMOM for paraview.
+                    sedP[k][j][i]
+                    =
+                    scale *
+                    (
+                         lsed[k][j][i].y  - lsed[k  ][j  ][i-1].y       +
+                         lsed[k][j][i].z  - lsed[k  ][j-1][i  ].z       +
+                         lsed[k][j][i].x  - lsed[k-1][j  ][i  ].x
+                    ) * aj[k][j][i];
+
                 }
 
             }
@@ -3196,6 +3279,7 @@ PetscErrorCode sedFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 
     DMDAVecRestoreArray(fda, sm->lSed, &lsed);
     DMDAVecRestoreArray(da, Rhs, &rhs);
+    DMDAVecRestoreArray(da, sm->sedPrint, &sedP);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
     DMDAVecRestoreArray(fda, sm->access->ueqn->gCont,  &gcont);
 
@@ -3241,7 +3325,7 @@ PetscErrorCode devFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 
     Cmpnts        ***gcont, ***dev, ***ldev, ***limiter;
     Cmpnts        ***cent, ***ucont;
-    PetscReal     ***nvert, ***tmprt, ***rhs, ***devCent, ***lDevCent;
+    PetscReal     ***nvert, ***tmprt, ***rhs, ***devCent, ***lDevCent, ***devP;
     PetscReal     ***weight0, ***absc0, ***weight1, ***absc1, ***weight2, ***absc2, ***TauP0, ***TauP1, ***TauP2, ***sm0;
 
     PetscInt      i, j, k;
@@ -3370,7 +3454,7 @@ PetscErrorCode devFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 
                 devCent[k][j][i]
                 =
-                (TauP0[k][j][i]*weight0[k][j][i]*PetscPowScalar(absc0[k][j][i], ii)  +  TauP1[k][j][i]*weight1[k][j][i]*PetscPowScalar(absc1[k][j][i], ii) +  TauP2[k][j][i]*weight2[k][j][i]*PetscPowScalar(absc2[k][j][i], ii));
+                (TauP0[k][j][i]*weight0[k][j][i]*pow(absc0[k][j][i], ii)  +  TauP1[k][j][i]*weight1[k][j][i]*pow(absc1[k][j][i], ii) +  TauP2[k][j][i]*weight2[k][j][i]*pow(absc2[k][j][i], ii));
 
 
             }
@@ -3565,6 +3649,7 @@ PetscErrorCode devFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 
     DMDAVecGetArray(fda, sm->lDev, &ldev);
     DMDAVecGetArray(da, Rhs, &rhs);
+    DMDAVecGetArray(da, sm->devPrint, &devP);
 
     // ---------------------------------------------------------------------- //
     //                      FORM THE CUMULATIVE FLUXES                        //
@@ -3591,6 +3676,15 @@ PetscErrorCode devFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
                          ldev[k][j][i].x  - ldev[k-1][j  ][i  ].x
                     ) * aj[k][j][i];
 
+                    //save actual dev value applied to QMOM equation for paraview
+                    devP[k][j][i]
+                    =
+                    scale *
+                    (
+                         ldev[k][j][i].y  - ldev[k  ][j  ][i-1].y       +
+                         ldev[k][j][i].z  - ldev[k  ][j-1][i  ].z       +
+                         ldev[k][j][i].x  - ldev[k-1][j  ][i  ].x
+                    ) * aj[k][j][i];
                 }
 
             }
@@ -3617,6 +3711,7 @@ PetscErrorCode devFluxSM(sm_ *sm, Vec &Rhs, PetscReal scale, PetscInt ii)
 
     DMDAVecRestoreArray(fda, sm->lDev, &ldev);
     DMDAVecRestoreArray(da, Rhs, &rhs);
+    DMDAVecRestoreArray(da, sm->devPrint, &devP);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
     DMDAVecRestoreArray(fda, sm->access->ueqn->gCont,  &gcont);
 

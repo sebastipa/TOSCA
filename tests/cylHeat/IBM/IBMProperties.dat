@@ -1,0 +1,50 @@
+NumberofBodies                      1
+
+InterpolationMethod                 CURVIB
+CURVIBInterpolationType             CurvibTrilinear
+interpolationOrder                  linear
+
+debug                               0
+dynamic                             0
+checkNormal                         1
+computeForce                        0
+writeSTL                            1
+wallShear                           0
+pressureBC                          0
+averageNormal                       0
+abl                                 0
+
+
+writeSettings
+{
+    timeStart           0
+    intervalType        timeStep
+    timeInterval        0.1
+}
+
+object0
+{
+
+    bodyName                        skinnyCyl.ucd
+    bodyType                        surfaceBody
+    thinBody                        0
+    numSurfaces                     2
+    surfaceNames            ( noMouth2SkinnyCyl.ucd mouth2SkinnyCyl.ucd )
+    fileType 			    ( ucd ucd )	   
+    bodyMotion                      static
+    baseLocation                    (2.275 2.275 0.0)  	   
+
+    #source properties (surfaceBodies)
+    tSourceFlag                     (1 1)
+    fixedTemp0                      299.75 
+    fixedTemp1			    299.75 	
+
+    uSourceFlag                     (0 0)
+    fixedU			    4
+ 
+    smSourceFlag		    (0 0)
+	
+    searchCellRatio                 3
+
+}
+

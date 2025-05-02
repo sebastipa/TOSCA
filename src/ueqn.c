@@ -6646,7 +6646,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     // apply IBM boundary condition to reset fluxes at IBM interface
     if(ueqn->access->flags->isIBMActive)
     {
-        UpdateImmersedBCs(ueqn->access->ibm);
+        //UpdateImmersedBCs(ueqn->access->ibm);
     }
 
     // adjust inflow/outflow fluxes to ensure mass conservation

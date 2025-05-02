@@ -19,7 +19,7 @@ PetscErrorCode initializeVents(domain_ *domain)
   if(flags.isVentsActive)
   {
 
-    // loop through the domains to set the domain vents pointer
+    // loop through the domains to set the vents labels
     for(PetscInt d = 0; d < nDomains; d++)
     {
       readVentsProperties(domain[d].vents);
@@ -29,8 +29,6 @@ PetscErrorCode initializeVents(domain_ *domain)
       ventSetAndPrint(domain[d].vents);
 
       MPI_Barrier(domain[d].mesh->MESH_COMM);
-
-
     }
 
   }
@@ -53,8 +51,7 @@ PetscErrorCode readVentsProperties(vents_ *vents)
 
   // read number of vents total and room type. This info flags other functions later.
   readDictInt("./vents/ventsProperties.dat", "numberOfVents", &(vents->numberOfVents));
-  //readDictWord("./vents/ventsProperties.dat", "roomPressure", &(vents->roomPressure)); addd IORatio later
-
+  //readDictWord("./vents/ventsProperties.dat", "roomPressure", &(vents->roomPressure)); add IORatio later
 
   // allocate memory for each vent object
   PetscMalloc(vents->numberOfVents * sizeof(ventObject*), &(vents->vent));
@@ -156,7 +153,7 @@ PetscErrorCode readVentsProperties(vents_ *vents)
             readSubDictInt(fileName.c_str(), ventName, "type", &(ifPtr->typeU));
 
             // Inverse Fourier
-            if (ifPtr->typeU == 6)
+            if (ifPtr->typeU == 7)
             {
 
                 PetscPrintf(mesh->MESH_COMM, "... Reading Synthetic Turbulence Inflow for vent%i ...", i);
@@ -189,7 +186,7 @@ PetscErrorCode readVentsProperties(vents_ *vents)
             else
             {
                 char error[512];
-                sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)\n         6 : Sythetic turbulence, Fourier sum");
+                sprintf(error, "unknown inflow profile on vent%li boundary, available profiles are:\n 7 : Sythetic turbulence (inverse fourier)", i);
                 fatalErrorInFunction("SetInflowFunctions",  error);
             }
 
@@ -469,8 +466,8 @@ PetscErrorCode readVentsProperties(vents_ *vents)
 
                      }
                  }
+                }
                }
-              }
 
           }
           else if (vents->vent[q]->shape == "circle")

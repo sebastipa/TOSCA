@@ -30,6 +30,7 @@ struct io_
     PetscInt  pAvgWeight;                     //!< number of phase average snapshots (cumulated at runtime)
     PetscInt  keAvgWeight;                    //!< number of keBudget average snapshots (cumulated at runtime)
     PetscInt  tkeAvgWeight;                    //!< number of tkeBudget average snapshots (cumulated at runtime)
+    PetscInt  tkeAvgWeightReset;                    //!< number of tkeBudget average snapshots (cumulated at runtime)
 
     PetscInt  qCrit;
     PetscInt  l2Crit;

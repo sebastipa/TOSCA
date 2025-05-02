@@ -14,6 +14,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
   PetscMPIInt rank;
 
   mesh_ *mesh = ibm->access->mesh;
+  flags_ *flags = ibm->access->flags;
   io_ *io = ibm->access->io;
 
   MPI_Comm_rank(mesh->MESH_COMM, &rank);
@@ -117,7 +118,6 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     ibmBody->eBox = new elementBox;
 
     char objectName[256];
-    char IBTempName[256];
 
     sprintf(objectName, "object%ld", i);
 
@@ -156,10 +156,27 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
         //read the surfaces array
         std::string* surfaceNames = readSubDictWordArray("./IBM/IBMProperties.dat", objectName, "surfaceNames", numSurf);
 
-        //read the surfaces array
-        readSubDictIntArray("./IBM/IBMProperties.dat", objectName, "tSourceFlag", ibmBody->tSourceFlagSurf);
+        //read source flags arrays
         readSubDictIntArray("./IBM/IBMProperties.dat", objectName, "uSourceFlag", ibmBody->uSourceFlagSurf);
-        readSubDictIntArray("./IBM/IBMProperties.dat", objectName, "smSourceFlag", ibmBody->smSourceFlagSurf);
+
+        char fixedUName[256];
+        char fixedTempName[256];
+        char fixedSM0Name[256];
+        char fixedSM1Name[256];
+        char fixedSM2Name[256];
+        char fixedSM3Name[256];
+        char fixedSM4Name[256];
+        char fixedSM5Name[256];
+
+        if (flags->isTeqnActive)
+        {
+            readSubDictIntArray("./IBM/IBMProperties.dat", objectName, "tSourceFlag", ibmBody->tSourceFlagSurf);
+        }
+
+        if (flags->isScalarMomentsActive)
+        {
+            readSubDictIntArray("./IBM/IBMProperties.dat", objectName, "smSourceFlag", ibmBody->smSourceFlagSurf);
+        }
 
         // loop through the surfaces and allocate memory
         for(PetscInt s = 0; s < numSurf; s++)
@@ -184,18 +201,53 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             //allocate the mesh memory
             ibmSurface->ibMsh = new ibmMesh;
 
-            sprintf(IBTempName, "IBTemp%ld", s);
-
-            //read tSource info if needed
-            if(ibmBody->tSourceFlagSurf[s] == 1)
+            //read uSource info if needed
+            if(ibmBody->uSourceFlagSurf[s] == 1)
             {
-                readSubDictDouble("./IBM/IBMProperties.dat", objectName, IBTempName, &(ibmSurface->fixedTemp));
-
-                //printf("IBTemp%li: %f\n", s, ibmSurface->IBTemp);
+                sprintf(fixedUName, "fixedU%ld", s);
+                readSubDictVector("./IBM/IBMProperties.dat", objectName, fixedUName, &(ibmSurface->fixedU));
             }
-            else if(ibmBody->tSourceFlagSurf[s] == 2)
+            else if(ibmBody->uSourceFlagSurf[s] == 2)
             {
                 //futurework
+            }
+
+            //read tSource info if needed
+            if (flags->isTeqnActive)
+            {
+                //read tSource info if needed
+                if(ibmBody->tSourceFlagSurf[s] == 1)
+                {
+                    sprintf(fixedTempName, "fixedTemp%ld", s);
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, fixedTempName, &(ibmSurface->fixedTemp));
+
+                }
+                else if(ibmBody->tSourceFlagSurf[s] == 2)
+                {
+                    //futurework
+                }
+            }
+
+            //read smSource info if needed
+            if (flags->isScalarMomentsActive)
+            {
+
+                //read tSource info if needed
+                if(ibmBody->smSourceFlagSurf[s] == 1)
+                {
+                    sprintf(fixedSM0Name, "fixedSM0_%ld", s);
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, fixedSM0Name, &(ibmSurface->fixedSM0));
+                    sprintf(fixedSM1Name, "fixedSM1_%ld", s);
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, fixedSM1Name, &(ibmSurface->fixedSM1));
+                    sprintf(fixedSM2Name, "fixedSM2_%ld", s);
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, fixedSM2Name, &(ibmSurface->fixedSM2));
+                    sprintf(fixedSM3Name, "fixedSM3_%ld", s);
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, fixedSM3Name, &(ibmSurface->fixedSM3));
+                    sprintf(fixedSM4Name, "fixedSM4_%ld", s);
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, fixedSM4Name, &(ibmSurface->fixedSM4));
+                    sprintf(fixedSM5Name, "fixedSM5_%ld", s);
+                    readSubDictDouble("./IBM/IBMProperties.dat", objectName, fixedSM5Name, &(ibmSurface->fixedSM5));
+                }
             }
 
         }

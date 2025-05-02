@@ -1,0 +1,70 @@
+# TOSCA Input file - control dictionary
+# ---------------------------------
+
+# Simulation
+# ---------------------------------
+-startFrom                 startTime
+-startTime                 0
+-endTime                   0.64
+-cfl                       0.8
+-adjustTimeStep            0
+-timeStep                  0.005
+-timePrecision             4
+
+# Write Data
+# ---------------------------------
+-intervalType              timeStep
+-timeInterval              0.005
+-purgeWrite                0
+
+# Solution
+# ---------------------------------
+-potentialT                0
+-abl                       0
+-zDampingLayer             0
+-ibm                       0
+-overset                   0
+-absTolU                   1e-8
+-poissonIt                 30
+-poissonTol                1e-8
+-poissonSolver             PETSc
+-hypreSolverType           1
+-sources                   0
+-vents                     0
+-scalarMoments             0
+
+# Turbulence Model
+# ---------------------------------
+-les                       4
+-max_cs                    10
+
+# Numerical Schemes
+# ---------------------------------
+-dUdtScheme                rungeKutta4
+-dTdtScheme                rungeKutta4
+-divScheme                 central
+
+# Wind Turbine
+# ---------------------------------
+-windplant                0
+
+# Constants
+# ---------------------------------
+-nu                        1.49934e-5
+-rho                       1.225
+-Pr                        0.71
+
+# Mesh
+# ---------------------------------
+-meshFileType             cartesian
+
+
+# Acquisition
+# ---------------------------------
+-sections                 1
+-probes                   0
+
+# PostProcessing
+# ---------------------------------
+-writeRaster              0
+-postProcessFields        1

@@ -1104,18 +1104,18 @@ PetscErrorCode UpdateCs (les_ *les)
                     // value, which in turn could be clipped at zero. Hence we have noisier fields.
 
                     // Meneveau time scale
-                    // PetscReal T_scale
-                    // =
-                    // PetscMax
-                    // (
-                    //     2.0*filter*
-                    //     pow
-                    //     (
-                    //         fabs(LM_old[k][j][i]),
-                    //         -1./4.
-                    //     ),
-                    //     1e-20
-                    // );
+                    PetscReal T_scale
+                    =
+                    PetscMax
+                    (
+                        2.0*filter*
+                        pow
+                        (
+                            fabs(LM_old[k][j][i]),
+                            -1./4.
+                        ),
+                        1e-20
+                    );
 
                     // Piomelli time scale
                     /*
@@ -1134,7 +1134,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     */
 
                     // Bou-Zaid scale dependent model time scale
-                    PetscReal T_scale
+                    /*PetscReal T_scale
                     =
                     1.5*filter*
                     pow
@@ -1143,7 +1143,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         1.e-19,
                         -1.0/8.0
                     ) +
-                    1.e-19;
+                    1.e-19;*/
 
 
                     PetscReal LM_new, MM_new;

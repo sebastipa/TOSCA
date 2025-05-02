@@ -1,2 +1,0 @@
-For this test to work properly, gravity needs to be set to 9.81 instead of -9.81 in ueqn.c, Buoyancy fnc line 3265
-Search Buoyancy(ueqn_ *ueqn, PetscReal scale) this is because adjust flux doesnt allow for flow to leave domain in negative direction unless vents are applied.

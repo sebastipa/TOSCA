@@ -13,8 +13,8 @@ typedef struct
 {
 
     Vec     weight;                //!< weight of particles of size absc
-    Vec     absc;                 //!< particle sizes for method of moments
-    Vec     tauP;                 //!< responce time of particles with size absc
+    Vec     absc;                 //!< characteristic particle sizes for method of moments. in micrometers!!!
+    Vec     tauP;                 //!< responce time of particles of size absc
 
 }WandA;
 
@@ -34,7 +34,7 @@ typedef struct
     Vec           Rhs;
     Vec           Rhs_o;
     Vec           smTmp;                   //!< temporary solution
-    Vec           smVal, lsmVal,           //!< global and local sm values of current time step
+    Vec           smVal, lsmVal,           //!< global and local sm values of current time step. in micrometers^k where k is the order of the moment.
                   sm_o, lsm_o;             //!< global and local sm values of old time step
     Vec           lDivSM, lViscSM;         //!< viscou and divergence scalar moment equation fluxes
     Vec           lSed, Sed;               //!< sedimatation values at cell faces and centers
@@ -44,6 +44,7 @@ typedef struct
     Vec           coagSource;              //!< coagulation scalar moment source, only need at cell center
     Vec           lDep, Dep;               //!< deposition scalar moment source, occurs at boundary faces, but external boundary is always 0.
 
+    Vec           viscPrint, divPrint, sedPrint, devPrint;
 
     word          ddtScheme;                  //!< time derivative scheme
 
@@ -72,7 +73,8 @@ struct SMObj_
    Vec          quant;
    Vec          Dq;
    Vec          probI;          //!< infection probability estimated based on qunata (quant) and infectious dose (Dq)
-   Vec          ExCount, DepCount;
+
+   Vec          ExCount, DepCount; //!< cumulation of exhausted and deposited particles.
 
    // initial field type readField or uniform
    word          initFieldType;

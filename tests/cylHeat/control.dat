@@ -1,0 +1,89 @@
+# TOSCA Input file -I control dictionary
+# ---------------------------------
+
+# Simulation
+# ---------------------------------
+-startFrom                 startTime
+-startTime                 0
+-endTime                   120
+-cfl                       0.7
+-adjustTimeStep            1
+-timeStep                  1.0
+-timePrecision             3
+
+# Write Data
+# ---------------------------------
+-intervalType              adjustableTime
+-timeInterval              1.0
+-purgeWrite                0
+
+# Solution
+# ---------------------------------
+-potentialT                1
+-abl                       0
+-zDampingLayer             0
+-ibm                       0
+-overset                   0
+-absTolU                   1e-8
+-poissonIt                 50
+-poissonTol                1e-8
+-poissonSolver             PETSc
+-hypreSolverType           1
+-sources                   0
+-scalarMoments	           0
+-vents 			   1
+
+# Turbulence Model
+# ---------------------------------
+-les                       4
+-max_cs                    10
+
+# Numerical Schemes
+# ---------------------------------
+-dUdtScheme                backwardEuler
+-dTdtScheme                backwardEuler
+-dSMdtScheme		   rungeKutta4
+-divScheme                 centralUpwind
+
+# Wind Turbine
+# ---------------------------------
+-windplant                0
+
+# Constants
+# ---------------------------------
+-nu                        1.532e-5
+-rho                       1.191
+-Pr                        0.709
+-tRef                      294.4
+-Sc	                   0.7
+-ScT			   0.7
+-kCon                      0.026
+-alpha                     2.2e-5
+
+# Mesh
+# ---------------------------------
+-meshFileType             cartesian
+
+
+# Acquisition
+# ---------------------------------
+-sections                 1
+-probes                   0
+-keBudgets                0
+
+-tke                      0
+-tkePeriod                0.5
+-tkeStartTime             0
+
+# PostProcessing
+# ---------------------------------
+-writeRaster              0
+-postProcessFields        0
+
+# smSource
+# ---------------------------------
+-coagSource               1
+-groSource                0
+-depoSource               1
+-sediFlux                 1
+-deviFlux                 1

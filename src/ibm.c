@@ -568,7 +568,7 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
 
         if (ibmBody->bodyType == "surfaceBody")
         {
-
+            //memory allocation and reading done in IBMInput.c
         }
         else
         {
@@ -3282,7 +3282,7 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
         PetscReal     d_center, dmin = 1.0e20, d, t, tmin;
         Cmpnts        pmin, po, pj;
         PetscReal     normProj;                             // normal projection of point to ibm mesh element
-        PetscInt      bodyID;
+        PetscInt      bodyID, sID;
         word          closestType;
 
         // loop through the ibm bodies
@@ -3334,6 +3334,44 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
                                 dmin = d_center - rvec[e];
                                 cellMin = e;
                                 bodyID  = b;
+
+                                //set surfaceID for each ibFluid cell
+                                if (ibmBody->bodyType == "surfaceBody")
+                                {
+                                    PetscInt leftB = 0;
+                                    PetscInt rightB = 0;
+
+                                    for (PetscInt s = 0; s < ibmBody->numSurfaces; s++)
+                                    {
+                                      if (s == 0)
+                                      {
+                                          PetscInt leftB = 0;
+                                          PetscInt rightB = ibmBody->ibmSurface[s]->ibMsh->elems;
+                                          //PetscPrintf(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                          if (e >= leftB && e < rightB)
+                                          {
+                                              sID = s;
+                                              //PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                          }
+
+                                      }
+                                      else
+                                      {
+                                          PetscInt leftB =+ ibmBody->ibmSurface[s-1]->ibMsh->elems;
+                                          PetscInt rightB =+ leftB + ibmBody->ibmSurface[s]->ibMsh->elems;
+                                          //PetscPrintf(PETSC_COMM_WORLD, "e = %li, leftB = %li, rightB = %li, s = %li\n", e, leftB, rightB, s);
+
+                                          if (e >= leftB && e < rightB)
+                                          {
+                                               sID = s;
+                                              //PetscPrintf(PETSC_COMM_WORLD, "S = %li\n", s);
+                                          }
+                                      }
+
+                                    }
+
+                                }
                             }
                         }
 
@@ -3464,29 +3502,38 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
         ibF[c].minDist = dmin;
         ibF[c].bodyID = bodyID;
 
-        // compute the element normal based on the closestType
-        if(closestType == "face")
+        if (ibmBody->bodyType == "surfaceBody")
         {
-            ibF[c].normal = nSet(ibMsh->eN[cellMin]);
-        }
-        else if(closestType == "edgeVertex")
-        {
-            //compute the angle averaged normal
-            if(tmin <=0 || tmin >=1)
-            {
-                ibF[c].normal = nSet(computeVertexAverageNormal(ibMsh, vertexId));
-            }
-            else
-            {
-                ibF[c].normal = nSet(computeEdgeAverageNormal(ibMsh, vertexId, cellMin));
-            }
+            ibF[c].sID = sID; //surface ID for the IBfluid cell. Needed to set sources in curvibinterpolation
 
+            ibF[c].normal = nSet(ibMsh->eN[cellMin]);
         }
         else
         {
-            char error[512];
-            sprintf(error, "closestType not set. possible parallelization error");
-            fatalErrorInFunction("findClosestIBMElement",  error);
+            // compute the element normal based on the closestType
+            if(closestType == "face")
+            {
+                ibF[c].normal = nSet(ibMsh->eN[cellMin]);
+            }
+            else if(closestType == "edgeVertex")
+            {
+                //compute the angle averaged normal
+                if(tmin <=0 || tmin >=1)
+                {
+                    ibF[c].normal = nSet(computeVertexAverageNormal(ibMsh, vertexId));
+                }
+                else
+                {
+                    ibF[c].normal = nSet(computeEdgeAverageNormal(ibMsh, vertexId, cellMin));
+                }
+
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "closestType not set. possible parallelization error");
+                fatalErrorInFunction("findClosestIBMElement",  error);
+            }
         }
 
         Cpt2D     pjp, pj1, pj2, pj3;
@@ -4376,7 +4423,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 
         // background mesh projection point is taken 0.5 cell distance along the normal directional of the closest ibm mesh element
         elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
-        cellSize = 1.0 * elemDist;
+        //cellSize = 1.0 * elemDist;
+        cellSize = pow( 1./aj[k][j][i], 1./3.);
         bPt = nScale(cellSize, eNorm);
         mSum(bPt, cent[k][j][i]);
 
@@ -4397,7 +4445,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                     k1>=1 && k1<mz-1 &&
                     j1>=1 && j1<my-1 &&
                     i1>=1 && i1<mx-1
-                ) && (!isIBMSolidCell(k1, j1, i1, nvert))
+                ) && isFluidCell(k1, j1, i1, nvert) //(!isIBMSolidCell(k1, j1, i1, nvert))
             )
             {
                 d = pow((bPt.x - cent[k1][j1][i1].x), 2) +
@@ -4591,18 +4639,50 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
             kc = initCp.k;
         }
 
-        // interpolate the velocity of the projected point on the IBM solid element from its nodes
-        ibmPtVel.x =   ibMsh->nU[n1].x * ibF[c].cs1
-                     + ibMsh->nU[n2].x * ibF[c].cs2
-                     + ibMsh->nU[n3].x * ibF[c].cs3;
+        if(ibm->ibmBody[ibF[c].bodyID]->bodyType == "surfaceBody")
+        {
+            //printf("SID = %li flag = %li\n", ibF[c].sID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].sID]);
+            if(ibm->ibmBody[ibF[c].bodyID]->uSourceFlagSurf[ibF[c].sID] == 1)
+            {
+                // interpolate the velocity of the projected point on the IBM solid element from its nodes
+                ibmPtVel.x =   ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedU.x;
 
-        ibmPtVel.y =   ibMsh->nU[n1].y * ibF[c].cs1
-                     + ibMsh->nU[n2].y * ibF[c].cs2
-                     + ibMsh->nU[n3].y * ibF[c].cs3;
+                ibmPtVel.y =   ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedU.y;
 
-        ibmPtVel.z =   ibMsh->nU[n1].z * ibF[c].cs1
-                     + ibMsh->nU[n2].z * ibF[c].cs2
-                     + ibMsh->nU[n3].z * ibF[c].cs3;
+                ibmPtVel.z =   ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedU.z;
+            }
+            else
+            {
+                // interpolate the velocity of the projected point on the IBM solid element from its nodes
+                ibmPtVel.x =   ibMsh->nU[n1].x * ibF[c].cs1
+                             + ibMsh->nU[n2].x * ibF[c].cs2
+                             + ibMsh->nU[n3].x * ibF[c].cs3;
+
+                ibmPtVel.y =   ibMsh->nU[n1].y * ibF[c].cs1
+                             + ibMsh->nU[n2].y * ibF[c].cs2
+                             + ibMsh->nU[n3].y * ibF[c].cs3;
+
+                ibmPtVel.z =   ibMsh->nU[n1].z * ibF[c].cs1
+                             + ibMsh->nU[n2].z * ibF[c].cs2
+                             + ibMsh->nU[n3].z * ibF[c].cs3;
+            }
+
+        }
+        else
+        {
+            // interpolate the velocity of the projected point on the IBM solid element from its nodes
+            ibmPtVel.x =   ibMsh->nU[n1].x * ibF[c].cs1
+                         + ibMsh->nU[n2].x * ibF[c].cs2
+                         + ibMsh->nU[n3].x * ibF[c].cs3;
+
+            ibmPtVel.y =   ibMsh->nU[n1].y * ibF[c].cs1
+                         + ibMsh->nU[n2].y * ibF[c].cs2
+                         + ibMsh->nU[n3].y * ibF[c].cs3;
+
+            ibmPtVel.z =   ibMsh->nU[n1].z * ibF[c].cs1
+                         + ibMsh->nU[n2].z * ibF[c].cs2
+                         + ibMsh->nU[n3].z * ibF[c].cs3;
+        }
 
         // interpolate the previous velocity
         ibmPtVelPrev.x =   ibMsh->nUPrev[n1].x * ibF[c].cs1
@@ -4717,83 +4797,151 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 
          if (flags->isTeqnActive)
          {
-             if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "zeroGradient" || ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
+             if(ibm->ibmBody[ibF[c].bodyID]->bodyType == "surfaceBody")
              {
-                 //apply zerogradient boundary condition. effect of boundary through heat flux bc
-                 temp[k][j][i] =  bPtTemp;
-             }
-             else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "fixedValue")
-             {
-                 temp[k][j][i] =  (sb/sc) * bPtTemp + (1.0 - (sb/sc)) * ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
-                 //temp[k][j][i] =  ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
-             }
-             else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "fixedFlux")
-             {
-                 PetscReal ReTGlobal = (ibm->ibmBody[ibF[c].bodyID]->uChar*ibm->ibmBody[ibF[c].bodyID]->lChar)/(cst->nu); //Global Reynolds number
-                 PetscReal GrTGlobal = 9.81*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT*pow(ibm->ibmBody[ibF[c].bodyID]->lChar, 4.0)/(cst->tRef*cst->nu*cst->nu*cst->kCon); //global Grashof numbers
-
-                 PetscReal Ri = GrTGlobal/pow(ReTGlobal, 2.5); // Global modified richardson number for mixed convecion (Kitamura et al 2005)
-
-
-                 if (Ri < 0.35) // forced convection
+                 //PetscPrintf(PETSC_COMM_WORLD, "SID = %li flag = %li\n", ibF[c].surfaceID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID]);
+                 if(ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].sID] == 1)
                  {
-                     PetscReal ReTLocal = (ibm->ibmBody[ibF[c].bodyID]->uChar*cellSize)/(cst->nu); // local Re_x
+                     //printf("IBTemp%li %f\n", s, ibmPtTemp);
+                     temp[k][j][i] =  (sb/sc) * bPtTemp + (1.0 - (sb/sc)) * ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedTemp;
+                     //temp[k][j][i] =  ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
+                 }
+                 else if (ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].sID] == 2)
+                 {
+                     //future work
+                 }
+                 else
+                 {
+                     //ibmPtTemp = ibm->access->constants->tRef;
+                     temp[k][j][i] =  bPtTemp;
+                     //PetscPrintf(PETSC_COMM_WORLD, "SID = %li flag = %li\n", ibF[c].surfaceID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID]);
+                 }                        //}
 
-                     if (ReTLocal < 5000) //laminar Nu model for forced convection
+             }
+             else
+             {
+                 if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "zeroGradient" || ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction")
+                 {
+                     //apply zerogradient boundary condition. effect of boundary through heat flux bc
+                     temp[k][j][i] =  bPtTemp;
+                 }
+                 else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "fixedValue")
+                 {
+                     temp[k][j][i] =  (sb/sc) * bPtTemp + (1.0 - (sb/sc)) * ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
+                     //temp[k][j][i] =  ibm->ibmBody[ibF[c].bodyID]->fixedTemp;
+                 }
+                 /*else if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "fixedFlux")
+                 {
+                     PetscReal ReTGlobal = (ibm->ibmBody[ibF[c].bodyID]->uChar*ibm->ibmBody[ibF[c].bodyID]->lChar)/(cst->nu); //Global Reynolds number
+                     PetscReal GrTGlobal = 9.81*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT*pow(ibm->ibmBody[ibF[c].bodyID]->lChar, 4.0)/(cst->tRef*cst->nu*cst->nu*cst->kCon); //global Grashof numbers
+
+                     PetscReal Ri = GrTGlobal/pow(ReTGlobal, 2.5); // Global modified richardson number for mixed convecion (Kitamura et al 2005)
+                     PetscReal highestPoint = 0.;
+
+                     PetscReal uMagT = sqrt(ucat[k][j][i].x*ucat[k][j][i].x + ucat[k][j][i].y*ucat[k][j][i].y + ucat[k][j][i].z*ucat[k][j][i].z);
+
+                     if (Ri < 0.35) // forced convection
                      {
-                         PetscReal Nu = 0.458*sqrt(ReTLocal)*pow(cst->Pr, 1./3.); //Nusselt number
+                         PetscReal ReTLocal = (ibm->ibmBody[ibF[c].bodyID]->uChar*cellSize)/(cst->nu); // local Re_x
+
+                         if (ReTLocal < 5000) //laminar Nu model for forced convection
+                         {
+                             PetscReal Nu = 0.458*sqrt(ReTLocal)*pow(cst->Pr, 1./3.); //Nusselt number
+                             PetscReal h = Nu*cst->kCon/cellSize; //covection heat transfer coefficient
+                             temp[k][j][i] =  cst->tRef + ibm->ibmBody[ibF[c].bodyID]->fixedFluxT/h;
+                         }
+                         else // turbulent Nu model for forced conventction
+                         {
+                             PetscReal Nu = 0.0037*pow(ReTLocal, 4./5.)*pow(cst->Pr, 1./3.); //Nusselt number
+                             PetscReal h = Nu*cst->kCon/cellSize; //covection heat transfer coefficient
+                             temp[k][j][i] =  cst->tRef + ibm->ibmBody[ibF[c].bodyID]->fixedFluxT/h;
+                         }
+
+                     }
+
+                     else if (Ri < 1.0) //mixed convections
+                     {
+                         PetscReal ReTLocal = (ibm->ibmBody[ibF[c].bodyID]->uChar*cellSize)/(cst->nu); // local Re_x
+                         PetscReal RaTLocal = 9.81*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT*pow(cellSize, 4.0)/(cst->tRef*cst->nu*cst->alpha*cst->kCon); // local Rayleigh number
+
+                         if (ReTLocal < 5000) //laminar Nu model for forced convection and natural convection
+                         {
+                             PetscReal Nuf = 0.458*sqrt(ReTLocal)*pow(cst->Pr, 1./3.);
+                             PetscReal hf = Nuf*cst->kCon/cellSize;
+
+                             PetscReal NuNC = 0.52*pow(RaTLocal, 1./5.);
+                             PetscReal hNC = NuNC*cst->kCon/cellSize;
+
+                             temp[k][j][i] =  cst->tRef + 2*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT/(hf + hNC);
+                         }
+                         else //turbulent Nu model for forced convection and natural convection
+                         {
+                             PetscReal Nuf = 0.0037*pow(ReTLocal, 4./5.)*pow(cst->Pr, 1./3.);
+                             PetscReal hf = Nuf*cst->kCon/cellSize;
+
+                             PetscReal NuNC = 0.52*pow(RaTLocal, 1./5.);
+                             PetscReal hNC = NuNC*cst->kCon/cellSize;
+
+                             temp[k][j][i] =  cst->tRef + 2*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT/(hf + hNC);
+                         }
+
+                     }
+
+                     else //natural convection
+                     {
+
+                         PetscReal RaTLocal = 9.81*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT*pow(cellSize, 4.0)/(cst->tRef*cst->nu*cst->alpha*cst->kCon);  // local Rayleigh number
+                         PetscReal Nu = 0.52*pow(RaTLocal, 1./5.); //Nusselt number
                          PetscReal h = Nu*cst->kCon/cellSize; //covection heat transfer coefficient
+
                          temp[k][j][i] =  cst->tRef + ibm->ibmBody[ibF[c].bodyID]->fixedFluxT/h;
-                     }
-                     else // turbulent Nu model for forced conventction
-                     {
-                         PetscReal Nu = 0.0037*pow(ReTLocal, 4./5.)*pow(cst->Pr, 1./3.); //Nusselt number
-                         PetscReal h = Nu*cst->kCon/cellSize; //covection heat transfer coefficient
-                         temp[k][j][i] =  cst->tRef + ibm->ibmBody[ibF[c].bodyID]->fixedFluxT/h;
+
                      }
 
-                 }
+                 }*/
+             }
+         }
 
-                 else if (Ri < 1.0) //mixed convections
+         if (flags->isScalarMomentsActive)
+         {
+             PetscScalar ***sm0, ***sm1, ***sm2, ***sm3, ***sm4, ***sm5;
+
+             DMDAVecGetArray(da, ibm->access->smObject->sm[0]->smVal, &sm0);
+             DMDAVecGetArray(da, ibm->access->smObject->sm[1]->smVal, &sm1);
+             DMDAVecGetArray(da, ibm->access->smObject->sm[2]->smVal, &sm2);
+             DMDAVecGetArray(da, ibm->access->smObject->sm[3]->smVal, &sm3);
+             DMDAVecGetArray(da, ibm->access->smObject->sm[4]->smVal, &sm4);
+             DMDAVecGetArray(da, ibm->access->smObject->sm[5]->smVal, &sm5);
+
+             if(ibm->ibmBody[ibF[c].bodyID]->bodyType == "surfaceBody")
+             {
+                 //PetscPrintf(PETSC_COMM_WORLD, "SID = %li flag = %li\n", ibF[c].surfaceID, ibm->ibmBody[ibF[c].bodyID]->tSourceFlagSurf[ibF[c].surfaceID]);
+                 if(ibm->ibmBody[ibF[c].bodyID]->smSourceFlagSurf[ibF[c].sID] == 1)
                  {
-                     PetscReal ReTLocal = (ibm->ibmBody[ibF[c].bodyID]->uChar*cellSize)/(cst->nu); // local Re_x
-                     PetscReal RaTLocal = 9.81*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT*pow(cellSize, 4.0)/(cst->tRef*cst->nu*cst->alpha*cst->kCon); // local Rayleigh number
-
-                     if (ReTLocal < 5000) //laminar Nu model for forced convection and natural convection
-                     {
-                         PetscReal Nuf = 0.458*sqrt(ReTLocal)*pow(cst->Pr, 1./3.);
-                         PetscReal hf = Nuf*cst->kCon/cellSize;
-
-                         PetscReal NuNC = 0.52*pow(RaTLocal, 1./5.);
-                         PetscReal hNC = NuNC*cst->kCon/cellSize;
-
-                         temp[k][j][i] =  cst->tRef + 2*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT/(hf + hNC);
-                     }
-                     else //turbulent Nu model for forced convection and natural convection
-                     {
-                         PetscReal Nuf = 0.0037*pow(ReTLocal, 4./5.)*pow(cst->Pr, 1./3.);
-                         PetscReal hf = Nuf*cst->kCon/cellSize;
-
-                         PetscReal NuNC = 0.52*pow(RaTLocal, 1./5.);
-                         PetscReal hNC = NuNC*cst->kCon/cellSize;
-
-                         temp[k][j][i] =  cst->tRef + 2*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT/(hf + hNC);
-                     }
-
+                      sm0[k][j][i] = ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedSM0;
+                      sm1[k][j][i] = ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedSM1;
+                      sm2[k][j][i] = ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedSM2;
+                      sm3[k][j][i] = ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedSM3;
+                      sm4[k][j][i] = ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedSM4;
+                      sm5[k][j][i] = ibm->ibmBody[ibF[c].bodyID]->ibmSurface[ibF[c].sID]->fixedSM5;
                  }
-
-                 else //natural convection
+                 else
                  {
-
-                     PetscReal RaTLocal = 9.81*ibm->ibmBody[ibF[c].bodyID]->fixedFluxT*pow(cellSize, 4.0)/(cst->tRef*cst->nu*cst->alpha*cst->kCon);  // local Rayleigh number
-                     PetscReal Nu = 0.52*pow(RaTLocal, 1./5.); //Nusselt number
-                     PetscReal h = Nu*cst->kCon/cellSize; //covection heat transfer coefficient
-
-                     temp[k][j][i] =  cst->tRef + ibm->ibmBody[ibF[c].bodyID]->fixedFluxT/h;
-
+                     //leave to be solved in RK4 scheme or other. SM values are not neglected in solver if in IBM. Need to turn off deposition if source active.
                  }
 
              }
+             else
+             {
+                 //only surface body sources for sm needed at this point.
+             }
+
+             DMDAVecRestoreArray(da, ibm->access->smObject->sm[0]->smVal, &sm0);
+             DMDAVecRestoreArray(da, ibm->access->smObject->sm[1]->smVal, &sm1);
+             DMDAVecRestoreArray(da, ibm->access->smObject->sm[2]->smVal, &sm2);
+             DMDAVecRestoreArray(da, ibm->access->smObject->sm[3]->smVal, &sm3);
+             DMDAVecRestoreArray(da, ibm->access->smObject->sm[4]->smVal, &sm4);
+             DMDAVecRestoreArray(da, ibm->access->smObject->sm[5]->smVal, &sm5);
          }
 
          // save the element acceleration term (dudt . elementNormal)
@@ -8006,6 +8154,11 @@ PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm)
     // loop through the ibm bodies
     for(b = 0; b < ibm->numBodies; b++)
     {
+        if (ibm->ibmBody[b]->bodyType == "surfaceBody") //skip if surfacebody
+        {
+            continue;
+        }
+
         ibmMesh  *ibMesh = ibm->ibmBody[b]->ibMsh;
 
         nodes    =    ibMesh->nodes;
