@@ -1558,9 +1558,175 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
     return 0;
 }
 
+// experimental octree structure for donor cells
+struct OctreeNode 
+{
+    std::vector<cellIds> donorCells; 
+    Cmpnts minBounds;  // Minimum bounds of the node
+    Cmpnts maxBounds;  // Maximum bounds of the node
+    OctreeNode* children[8]; // Pointers to child nodes (8 for octree)
+
+    OctreeNode(Cmpnts minB, Cmpnts maxB) : minBounds(minB), maxBounds(maxB) 
+    {
+        for (int i = 0; i < 8; i++) children[i] = nullptr;
+    }
+
+    ~OctreeNode() 
+    {
+        for (int i = 0; i < 8; i++) 
+        {
+            if (children[i]) delete children[i];
+        }
+    }
+};
+
+void buildOctree(OctreeNode* node, Cmpnts*** donorCells, 
+    PetscInt lxs, PetscInt lxe, PetscInt lys, PetscInt lye, PetscInt lzs, PetscInt lze,
+    PetscInt maxDepth, PetscInt maxCellsPerNode) 
+{
+    // Count the number of donor cells in the current node's bounds
+    PetscInt cellCount = 0;
+    for (PetscInt k = lzs; k < lze; k++) 
+    for (PetscInt j = lys; j < lye; j++) 
+    for (PetscInt i = lxs; i < lxe; i++) 
+    {
+        Cmpnts centroid = donorCells[k][j][i];
+        if
+        (
+            centroid.x >= node->minBounds.x && centroid.x < node->maxBounds.x &&
+            centroid.y >= node->minBounds.y && centroid.y < node->maxBounds.y &&
+            centroid.z >= node->minBounds.z && centroid.z < node->maxBounds.z
+        ) 
+        {
+            cellCount++;
+        }
+    }
+
+    // ff the number of cells is below the threshold or max depth is reached, store the cells in this node
+    if (cellCount <= maxCellsPerNode || maxDepth == 0) 
+    {
+        for (PetscInt k = lzs; k < lze; k++) 
+        for (PetscInt j = lys; j < lye; j++) 
+        for (PetscInt i = lxs; i < lxe; i++) 
+        {
+            Cmpnts centroid = donorCells[k][j][i];
+
+            if
+            (
+                centroid.x >= node->minBounds.x && centroid.x < node->maxBounds.x &&
+                centroid.y >= node->minBounds.y && centroid.y < node->maxBounds.y &&
+                centroid.z >= node->minBounds.z && centroid.z < node->maxBounds.z
+            ) 
+            {
+                // Store the cell in this node
+                cellIds cell;
+                cell.i = i;
+                cell.j = j;
+                cell.k = k;
+                node->donorCells.push_back(cell);   
+            }
+        }
+        return;
+    }
+
+    // Compute midpoints of the current node's bounds
+    Cmpnts mid;
+    mid.x = (node->minBounds.x + node->maxBounds.x) / 2.0;
+    mid.y = (node->minBounds.y + node->maxBounds.y) / 2.0;
+    mid.z = (node->minBounds.z + node->maxBounds.z) / 2.0;
+
+    // Create child nodes
+    for (int i = 0; i < 8; i++) 
+    {
+        Cmpnts childMin = node->minBounds;
+        Cmpnts childMax = mid;
+
+        if (i & 1) childMin.x = mid.x, childMax.x = node->maxBounds.x;
+        if (i & 2) childMin.y = mid.y, childMax.y = node->maxBounds.y;
+        if (i & 4) childMin.z = mid.z, childMax.z = node->maxBounds.z;
+
+        node->children[i] = new OctreeNode(childMin, childMax);
+    }
+
+    // Recursively build child nodes
+    for (int i = 0; i < 8; i++) 
+    {
+        buildOctree(node->children[i], donorCells, lxs, lxe, lys, lye, lzs, lze, maxDepth - 1, maxCellsPerNode);
+    }
+}
+
+Dcell searchOctree(OctreeNode* node, PetscReal procContrib, const Cmpnts& acceptorCoord, Cmpnts*** centroids, PetscReal& minDist) 
+{
+    Dcell closestDonor;
+    closestDonor.rank   = -1;
+    closestDonor.indi   = -1;
+    closestDonor.indj   = -1;
+    closestDonor.indk   = -1;
+    closestDonor.dist2p = minDist; 
+
+
+    // check if the node is null
+    if (node == nullptr) 
+    {
+        PetscPrintf(PETSC_COMM_SELF, "Error: Octree node is null.\n");
+        return closestDonor;
+    }
+
+    // check if the acceptor is outside the node bounds (this is essential to narrow down the search)
+    if
+    (
+        acceptorCoord.x < node->minBounds.x || acceptorCoord.x >= node->maxBounds.x ||
+        acceptorCoord.y < node->minBounds.y || acceptorCoord.y >= node->maxBounds.y ||
+        acceptorCoord.z < node->minBounds.z || acceptorCoord.z >= node->maxBounds.z
+    ) 
+    {
+        return closestDonor;
+    }
+
+    // check donor cells in this node
+    for(PetscInt c=0; c<node->donorCells.size(); c++)
+    {
+        cellIds cell = node->donorCells[c];
+
+        // Calculate distance to acceptor
+        Cmpnts centroid = centroids[cell.k][cell.j][cell.i];
+        PetscReal dist = sqrt(pow(centroid.x - acceptorCoord.x - procContrib, 2) +
+                              pow(centroid.y - acceptorCoord.y - procContrib, 2) +
+                              pow(centroid.z - acceptorCoord.z - procContrib, 2));
+
+        if (dist < minDist) 
+        {
+            minDist             = dist + procContrib;
+            closestDonor.indi   = cell.i;
+            closestDonor.indj   = cell.j;
+            closestDonor.indk   = cell.k;
+            closestDonor.dist2p = dist;
+            closestDonor.rank   = 1;
+        }
+    }
+
+    // recursively search child nodes
+    for (int i = 0; i < 8; i++) 
+    {
+        if (node->children[i] != nullptr) 
+        {
+            PetscReal childMinDist = minDist;
+            Dcell childClosest = searchOctree(node->children[i], procContrib, acceptorCoord, centroids, childMinDist);
+
+            if (childClosest.rank != -1 && childClosest.dist2p < minDist) 
+            {
+                closestDonor = childClosest;
+                minDist = childClosest.dist2p;
+            }
+        }
+    }
+
+    return closestDonor;
+}
+
 //***************************************************************************************************************//
 
-PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscInt donorId)
+PetscErrorCode findClosestDonorC2P_Bins(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscInt donorId)
 {
     overset_         *os  = meshAcceptor->access->os;
     DM               da   = meshDonor->da, fda = meshDonor->fda;
@@ -1758,7 +1924,332 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     return 0;
 }
 
+PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscInt donorId)
+{
+    overset_         *os  = meshAcceptor->access->os;
+    DM               da   = meshDonor->da, fda = meshDonor->fda;
+    DMDALocalInfo info = meshDonor->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Vec           Coor;
+
+    Cmpnts        ***cent;
+    Cmpnts        ***coor;
+    PetscReal     ***aj;
+
+    PetscMPIInt   rankD, sizeD, rankA, sizeA;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    MPI_Comm_size(meshDonor->MESH_COMM, &sizeD);
+    MPI_Comm_rank(meshDonor->MESH_COMM, &rankD);
+
+    MPI_Comm_size(meshAcceptor->MESH_COMM, &sizeA);
+    MPI_Comm_rank(meshAcceptor->MESH_COMM, &rankA);
+
+    std::vector<Acell> aCell = os->aCellHc;
+    std::vector<PetscInt> NumAcellPerProc = os->NumAcellPerProcHc;
+    std::vector<std::vector<PetscInt>> lAcellProcMat(sizeA);
+
+    DMDAVecGetArray(fda, meshDonor->lCent, &cent);
+    DMDAVecGetArray(da, meshDonor->lAj, &aj);
+    DMGetCoordinatesLocal(meshDonor->da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
+
+    // there has to be not gap between adjacent octrees otherwise we are loosing cells
+    PetscInt bsz = zs; if(zs!=0) bsz = bsz - 1;
+    PetscInt bsy = ys; if(ys!=0) bsy = bsy - 1;
+    PetscInt bsx = xs; if(xs!=0) bsx = bsx - 1;
+
+    // find min and max bounds for this processor (in terms of points coordinates)
+    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x, coor[bsz  ][bsy  ][bsx  ].y, coor[bsz  ][bsy  ][bsx  ].z};
+    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x, coor[lze-1][lye-1][lxe-1].y, coor[lze-2][lye-1][lxe-1].z};
+
+    // build the octree
+    PetscInt maxDepth        = 10;   // Maximum depth of the octree
+    PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
+    OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
+    buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
+
+    // Resize vectors
+    os->closestDonorHc.resize(aCell.size());
+    os->AcellProcMatHc.resize(sizeA);
+
+    for(PetscInt b = 0; b < sizeA; b++) 
+    {
+        lAcellProcMat[b].resize(sizeD);
+        os->AcellProcMatHc[b].resize(sizeD);
+    }
+
+    // initial local processor matrix to previous value
+    for (PetscInt b = 0; b < sizeA; b++) 
+    {
+        if (!os->AcellProcMatHc[b].empty()) 
+        {
+            for (PetscInt m = 0; m < sizeD; m++) 
+            {
+                if (os->AcellProcMatHc[b][m] != MPI_UNDEFINED) 
+                {
+                    lAcellProcMat[b][m] = os->AcellProcMatHc[b][m];
+                }
+            }
+        }
+    }
+
+    // Find closest donor for each acceptor cell
+    for(PetscInt b = 0; b < aCell.size(); b++) 
+    {
+        if(os->aCellHc[b].donorId == donorId)
+        {
+            Dcell dCell, dCellLocal;
+            PetscReal maxPerturb   = 1e-10;
+            PetscReal procContrib  = maxPerturb * ((PetscReal)rankD + 1) / (PetscReal)sizeD;
+            
+            // initialize to huge
+            PetscReal lminDist     = 1e20;
+    
+            // Search the octree for the closest donor cell
+            Cmpnts acceptorCoord   = nSetFromComponents(aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
+
+            // exclude acceptor cell outside of this processor bounds (ocree search is useless)
+            if
+            (
+                acceptorCoord.x >= root->minBounds.x && acceptorCoord.x < root->maxBounds.x &&
+                acceptorCoord.y >= root->minBounds.y && acceptorCoord.y < root->maxBounds.y &&
+                acceptorCoord.z >= root->minBounds.z && acceptorCoord.z < root->maxBounds.z
+            )
+            {
+                dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist);
+                lminDist             = dCellLocal.dist2p;
+            }
+
+            PetscReal gminDist;
+            MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPI_MIN, meshDonor->MESH_COMM);
+            
+            if (lminDist == gminDist && lminDist < 1e19) 
+            {
+                dCell.indi            = dCellLocal.indi;
+                dCell.indj            = dCellLocal.indj;
+                dCell.indk            = dCellLocal.indk;  
+                dCell.dist2p          = gminDist;
+                dCell.rank            = rankD;
+
+                os->closestDonorHc[b] = dCell;
+                lAcellProcMat[aCell[b].rank][rankD] = 1;
+            }
+            else 
+            {
+                dCell.rank            = -1;
+            }
+    
+            PetscReal lClosestSize = (lminDist < 1e19) ? pow(1./aj[dCellLocal.indk][dCellLocal.indj][dCellLocal.indi], 1./3.) : 0.0;
+            MPI_Allreduce(&lClosestSize, &os->aCellHc[b].cell_size, 1, MPIU_REAL, MPI_SUM, meshDonor->MESH_COMM);
+            MPI_Allreduce(&dCell.rank, &os->closestDonorHc[b].rank, 1, MPI_INT, MPI_MAX, meshDonor->MESH_COMM);
+    
+            // Check if no valid donor was found
+            if (os->aCellHc[b].cell_size == 0.0 && rankD == 0) 
+            {
+                PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %d\n", b);
+            }
+        }
+    }
+
+    // Finalize processor matrix
+    for(PetscInt b = 0; b < sizeA; b++) 
+    {
+        MPI_Allreduce(&lAcellProcMat[b][0], &os->AcellProcMatHc[b][0], sizeD, MPIU_INT, MPI_SUM, meshDonor->MESH_COMM);
+    }
+
+    if (sizeA != sizeD) 
+    {
+        char error[512];
+        sprintf(error, "Meshes must have same number of processors.\n");
+        fatalErrorInFunction("findClosestDonor", error);
+    }
+
+    for(PetscInt b = 0; b < sizeA; b++) 
+    {
+        if (NumAcellPerProc[b] != 0) os->AcellProcMatHc[b][b] = 1;
+        for(PetscInt m = 0; m < sizeD; m++) 
+        {
+            if (os->AcellProcMatHc[b][m] == 0) os->AcellProcMatHc[b][m] = MPI_UNDEFINED;
+        }
+    }
+
+    // Cleanup
+    delete root;
+    std::vector<Acell>().swap(aCell);
+    std::vector<PetscInt>().swap(NumAcellPerProc);
+    std::vector<std::vector<PetscInt>>().swap(lAcellProcMat);
+
+    DMDAVecRestoreArray(fda, Coor, &coor);
+    DMDAVecRestoreArray(fda, meshDonor->lCent, &cent);
+    DMDAVecRestoreArray(da, meshDonor->lAj, &aj);
+
+    return 0;
+}
+
+// using octree to find closest donor cell for acceptor cells
 PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
+{
+    overset_      *os  = meshAcceptor->access->os;
+    DM            da   = meshDonor->da, fda = meshDonor->fda;
+    DMDALocalInfo info = meshDonor->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Vec           Coor;
+
+    Cmpnts        ***cent;
+    Cmpnts        ***coor;
+    PetscReal     ***aj;
+
+    PetscMPIInt   rankD, sizeD, rankA, sizeA;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    MPI_Comm_size(meshDonor->MESH_COMM, &sizeD);
+    MPI_Comm_rank(meshDonor->MESH_COMM, &rankD);
+
+    MPI_Comm_size(meshAcceptor->MESH_COMM, &sizeA);
+    MPI_Comm_rank(meshAcceptor->MESH_COMM, &rankA);
+
+    std::vector<Acell> aCell = os->aCellDb;
+    std::vector<PetscInt> NumAcellPerProc = os->NumAcellPerProcDb;
+    std::vector<std::vector<PetscInt>> lAcellProcMat(sizeA);
+
+    DMDAVecGetArray(fda, meshDonor->lCent, &cent);
+    DMDAVecGetArray(da, meshDonor->lAj, &aj);
+    DMGetCoordinatesLocal(meshDonor->da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
+
+    // there has to be not gap between adjacent octrees otherwise we are loosing cells
+    PetscInt bsz = zs; if(zs!=0) bsz = bsz - 1;
+    PetscInt bsy = ys; if(ys!=0) bsy = bsy - 1;
+    PetscInt bsx = xs; if(xs!=0) bsx = bsx - 1;
+
+    // find min and max bounds for this processor (in terms of points coordinates)
+    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x, coor[bsz  ][bsy  ][bsx  ].y, coor[bsz  ][bsy  ][bsx  ].z};
+    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x, coor[lze-1][lye-1][lxe-1].y, coor[lze-2][lye-1][lxe-1].z};
+
+    // build the octree
+    PetscInt maxDepth        = 10;   // Maximum depth of the octree
+    PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
+    OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
+    buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
+
+    // Resize vectors
+    os->closestDonorDb.resize(aCell.size());
+    os->AcellProcMatDb.resize(sizeA);
+
+    for (PetscInt b = 0; b < sizeA; b++) {
+        lAcellProcMat[b].resize(sizeD);
+        os->AcellProcMatDb[b].resize(sizeD);
+    }
+
+    // Find closest donor for each acceptor cell using the octree
+    for (PetscInt b = 0; b < aCell.size(); b++) 
+    {
+        Dcell dCell, dCellLocal;
+        PetscReal maxPerturb   = 1e-10;
+        PetscReal procContrib  = maxPerturb * ((PetscReal)rankD + 1) / (PetscReal)sizeD;
+        
+        // initialize to huge
+        PetscReal lminDist     = 1e20;
+
+        // Search the octree for the closest donor cell
+        Cmpnts acceptorCoord   = nSetFromComponents(aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
+
+        // exclude acceptor cell outside of this processor bounds (ocree search is useless)
+        if
+        (
+            acceptorCoord.x >= root->minBounds.x && acceptorCoord.x < root->maxBounds.x &&
+            acceptorCoord.y >= root->minBounds.y && acceptorCoord.y < root->maxBounds.y &&
+            acceptorCoord.z >= root->minBounds.z && acceptorCoord.z < root->maxBounds.z
+        )
+        {
+            dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist);
+            lminDist             = dCellLocal.dist2p;
+        }
+        
+        PetscReal gminDist;
+        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPI_MIN, meshDonor->MESH_COMM);
+
+        if (lminDist == gminDist && lminDist < 1e19) 
+        {
+            dCell.indi            = dCellLocal.indi;
+            dCell.indj            = dCellLocal.indj;
+            dCell.indk            = dCellLocal.indk;  
+            dCell.dist2p          = gminDist;
+            dCell.rank            = rankD;
+
+            os->closestDonorDb[b] = dCell;
+            lAcellProcMat[aCell[b].rank][rankD] = 1;
+        }
+        else 
+        {
+            dCell.rank            = -1;
+        }
+
+        PetscReal lClosestSize = (lminDist < 1e19) ? pow(1./aj[dCellLocal.indk][dCellLocal.indj][dCellLocal.indi], 1./3.) : 0.0;
+        
+        MPI_Allreduce(&lClosestSize, &os->aCellDb[b].cell_size, 1, MPIU_REAL, MPI_SUM, meshDonor->MESH_COMM);
+        MPI_Allreduce(&dCell.rank, &os->closestDonorDb[b].rank, 1, MPI_INT, MPI_MAX, meshDonor->MESH_COMM);
+
+        // check if no valid donor was found
+        if (os->aCellDb[b].cell_size == 0.0 && rankD == 0) 
+        {
+            PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %d\n", b);
+        }
+    }
+
+    // Finalize processor matrix
+    for (PetscInt b = 0; b < sizeA; b++) 
+    {
+        MPI_Allreduce(&lAcellProcMat[b][0], &os->AcellProcMatDb[b][0], sizeD, MPIU_INT, MPI_SUM, meshDonor->MESH_COMM);
+    }
+
+    if (sizeA != sizeD) 
+    {
+        char error[512];
+        sprintf(error, "Meshes must have the same number of processors.\n");
+        fatalErrorInFunction("findClosestDonorP2C", error);
+    }
+
+    for (PetscInt b = 0; b < sizeA; b++) 
+    {
+        if (NumAcellPerProc[b] != 0) os->AcellProcMatDb[b][b] = 1;
+        for (PetscInt m = 0; m < sizeD; m++) {
+            if (os->AcellProcMatDb[b][m] == 0) os->AcellProcMatDb[b][m] = MPI_UNDEFINED;
+        }
+    }
+
+    // Cleanup
+    delete root;
+    std::vector<Acell>().swap(aCell);
+    std::vector<PetscInt>().swap(NumAcellPerProc);
+    std::vector<std::vector<PetscInt>>().swap(lAcellProcMat);
+
+    DMDAVecRestoreArray(fda, Coor, &coor);
+    DMDAVecRestoreArray(fda, meshDonor->lCent, &cent);
+    DMDAVecRestoreArray(da, meshDonor->lAj, &aj);
+
+    return 0;
+}
+
+
+PetscErrorCode findClosestDonorP2C_Bins(mesh_ *meshDonor, mesh_ *meshAcceptor)
 {
     overset_         *os  = meshAcceptor->access->os;
     DM               da   = meshDonor->da, fda = meshDonor->fda;
@@ -1896,6 +2387,8 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
             os->closestDonorDb[b] = dCell;
             lAcellProcMat[aCell[b].rank][rankD] = 1;
         }
+
+        printf("Rank %d: Acceptor cell %ld, closest donor cell (%ld, %ld, %ld) with distance %f\n", dCell.rank, b, dCell.indi, dCell.indj, dCell.indk, gminDist);
 
         PetscReal lClosestSize = (lminDist < 1e19) ? pow(1./aj[indices[0]][indices[1]][indices[2]], 1./3.) : 0.0;
         MPI_Allreduce(&lClosestSize, &os->aCellDb[b].cell_size, 1, MPIU_REAL, MPI_SUM, meshDonor->MESH_COMM);
