@@ -99,6 +99,7 @@ PetscErrorCode InitializeOverset(domain_ *domain)
 
         if (!isChild)
         {
+            PetscPrintf(domain[d].mesh->MESH_COMM, "\nStarted recursive acceptor search from domain %ld:\n", d);
             findAcceptorCells(d, domain, 0, holeObjects);
         }
     }
@@ -128,10 +129,11 @@ PetscErrorCode InitializeOverset(domain_ *domain)
 
         if (!isChild)
         {
+            PetscPrintf(domain[d].mesh->MESH_COMM, "\nStarted recursive donor search from domain %ld:\n", d);
             findClosestDomainDonors(d, domain, 0, holeObjects);
         }
     }
-
+    
     return 0;
 }
 
@@ -301,10 +303,11 @@ PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level,
     {
         if (os->parentMeshId[pi] != -1)
         {
+            PetscPrintf(mesh->MESH_COMM, "Creating ghost acceptor cells from domain %ld to %ld (level %ld)\n", os->parentMeshId[pi], d, level);
+
             mesh_ *parentMesh = domain[os->parentMeshId[pi]].mesh;
             createAcceptorCellOverset(os);
-            PetscPrintf(mesh->MESH_COMM, "Created acceptor cells\n");
-
+            
             MPI_Barrier(mesh->MESH_COMM);
         }
     }
@@ -314,6 +317,8 @@ PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level,
     {
         if (os->childMeshId[ci] != -1)
         {
+            PetscPrintf(mesh->MESH_COMM, "Creating hole cutting acceptor cells from domain %ld to %ld (level %ld)\n", os->childMeshId[ci], d, level);
+
             mesh_ *childMesh = domain[os->childMeshId[ci]].mesh;
             PetscInt childId = os->childMeshId[ci];
 
@@ -323,8 +328,8 @@ PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level,
 
             if (holeObjectName != NULL)
             {
-                readBlankingIBMObject(os, &domain[d], holeObjectName, holeObjects);
-                PetscPrintf(mesh->MESH_COMM, "Read hole object: %s\n", holeObjectName);
+                PetscPrintf(mesh->MESH_COMM, "     Reading hole object: %s\n", holeObjectName);
+                readBlankingIBMObject(os, &domain[d], holeObjectName, holeObjects);   
             }
 
             createAcceptorCellBackground(os, childId);
@@ -357,18 +362,22 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
     {
         if (os->parentMeshId[pi] != -1)
         {
+            PetscPrintf(mesh->MESH_COMM, "Creating ghost donor cells from domain %ld to %ld (level %ld):\n", os->parentMeshId[pi], d, level);
+            MPI_Barrier(mesh->MESH_COMM);
+
             mesh_ *parentMesh = domain[os->parentMeshId[pi]].mesh;
 
-            PetscPrintf(mesh->MESH_COMM, "\nLevel %d: Initializing %s to %s connectivity...\n", 
-                        level, parentMesh->meshName.c_str(), mesh->meshName.c_str());
+            PetscPrintf(mesh->MESH_COMM, "     Initializing %s to %s connectivity:\n", 
+                        parentMesh->meshName.c_str(), mesh->meshName.c_str());
 
+            PetscPrintf(mesh->MESH_COMM, "     Finding closest donor from parent to child...\n");
             findClosestDonorP2C(parentMesh, mesh);
-            PetscPrintf(mesh->MESH_COMM, "Found closest donor cells\n");
+            
+            PetscPrintf(mesh->MESH_COMM, "     Interpolating fields...\n");
             interpolateACellTrilinearP2C(parentMesh, mesh);
-
+            
+            // sync processors 
             MPI_Barrier(mesh->MESH_COMM);
-            PetscPrintf(mesh->MESH_COMM, "\nLevel %d: Initialization for %s to %s connectivity done\n", 
-                        level, parentMesh->meshName.c_str(), mesh->meshName.c_str());
         }
     }
 
@@ -377,20 +386,25 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
     {
         if (os->childMeshId[ci] != -1)
         {
+            PetscPrintf(mesh->MESH_COMM, "Creating hole cutting donor cells from domain %ld to %ld (level %ld):\n", os->childMeshId[ci], d, level);
+            MPI_Barrier(mesh->MESH_COMM);
+
             mesh_ *childMesh = domain[os->childMeshId[ci]].mesh;
             PetscInt childId = os->childMeshId[ci];
 
-            PetscPrintf(mesh->MESH_COMM, "\nLevel %d: Initializing %s to %s connectivity...\n", 
-                        level, childMesh->meshName.c_str(), mesh->meshName.c_str());
+            PetscPrintf(mesh->MESH_COMM, "     Initializing %s to %s connectivity:\n", 
+                childMesh->meshName.c_str(), mesh->meshName.c_str());
 
+            PetscPrintf(mesh->MESH_COMM, "     Finding closest donor from child to parent...\n");
             findClosestDonorC2P(childMesh, mesh, childId);
+            
+            PetscPrintf(mesh->MESH_COMM, "     Interpolating fields...\n");
             interpolateACellTrilinearC2P(childMesh, mesh, childId);
 
+            // sync processors
             MPI_Barrier(mesh->MESH_COMM);
-            PetscPrintf(mesh->MESH_COMM, "\nLevel %d: Initialization for %s to %s connectivity done\n", 
-                        level, childMesh->meshName.c_str(), mesh->meshName.c_str());
 
-            // Recursively initialize child domain
+            // recursively initialize child domain
             findClosestDomainDonors(childId, domain, level + 1, holeObjects);
         }
     }
@@ -512,7 +526,7 @@ PetscErrorCode readHoleObjects(std::vector<HoleObject> &holeObjects, PetscInt nu
         holeObjects.push_back(hole);
     }
 
-    PetscPrintf(PETSC_COMM_WORLD, "Read %d hole objects from oversetInput.dat\n", (PetscInt)holeObjects.size());
+    PetscPrintf(PETSC_COMM_WORLD, "\nRead %d hole objects from oversetInput.dat\n\n", (PetscInt)holeObjects.size());
     return 0;
 }
 
@@ -1636,10 +1650,10 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
             query.iy = floor(aCell[b].coory / binSize);
             query.iz = floor(aCell[b].coorz / binSize);
     
-            // Search neighboring bins (5x5x5 for robustness)
-            for (int dx = -2; dx <= 2; dx++)
-            for (int dy = -2; dy <= 2; dy++)
-            for (int dz = -2; dz <= 2; dz++) 
+            // Search neighboring bins (3x3x3 for robustness)
+            for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+            for (int dz = -1; dz <= 1; dz++) 
             {
                 BinIndex neighbor = {query.ix + dx, query.iy + dy, query.iz + dz};
                 if (bins.find(neighbor) != bins.end()) 

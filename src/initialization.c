@@ -73,13 +73,17 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
 
     domain_ *domain = *domainAddr;
 
+    // timers 
+    PetscReal timeStart, timeEnd;
+
     // set simulation start time
     SetStartTime(clock, domain,info);
 
+    // domains 
     for(PetscInt d=0; d<info->nDomains; d++)
     {
-        PetscPrintf(PETSC_COMM_WORLD, "\nDomain %ld\n", d);
-        PetscPrintf(PETSC_COMM_WORLD, "--------\n");
+        PetscPrintf(PETSC_COMM_WORLD, "\nInitializing domain %ld\n", d);
+        PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
 
         // set pointer to time controls
         domain[d].clock = clock;
@@ -128,35 +132,56 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // initialize wind farm
         InitializeWindFarm(domain[d].farm);
 
-        PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
+        PetscPrintf(PETSC_COMM_WORLD, "\nFinished initializing domain %ld\n\n", d);        
     }
 
-    PetscReal timeStart, timeEnd;
+    // acquisition system 
+    {
+        PetscPrintf(PETSC_COMM_WORLD, "\nInitializing acquisition system\n");
+        PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
 
-    // sync processors
-    MPI_Barrier(PETSC_COMM_WORLD);
 
-    PetscTime(&timeStart);
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
 
-    // initialize acquisitions
-    InitializeAcquisition(domain);
+        PetscTime(&timeStart);
 
-    // sync processors
-    MPI_Barrier(PETSC_COMM_WORLD);
+        // initialize acquisitions
+        InitializeAcquisition(domain);
 
-    PetscTime(&timeEnd);
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
 
-    PetscPrintf(PETSC_COMM_WORLD, "Acquisition initialization time = %lf s\n", timeEnd - timeStart);
+        PetscTime(&timeEnd);
 
-    // Set the initial field
+        PetscPrintf(PETSC_COMM_WORLD, "Finished initializing acquisition system: elapsed time = %lf s\n\n", timeEnd - timeStart);
+    }
+
+    // overset & initial field
     if(info->nDomains == 1)
     {
         SetInitialField(&domain[0]);
     }
     else
     {
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
+    
+        // get timer 
+        PetscTime(&timeStart);
+    
+        PetscPrintf(PETSC_COMM_WORLD, "\nOverset initialization:\n");
+        PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n");
+
         // initialize overset
         InitializeOverset(domain);
+
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
+
+        PetscTime(&timeEnd);
+
+        PetscPrintf(PETSC_COMM_WORLD, "\nFinished initializing overset: elapsed time = %lf s\n", timeEnd - timeStart);
     }
 
     return(0);
