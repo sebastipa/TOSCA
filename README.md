@@ -1,4 +1,4 @@
-<img src="docs/images/tosvalogo.png" width="400">
+<img src="docs/images/TOSVAlogo.png" width="400">
 
 ## *Welcome to the repository of TOSVA*
 *(Toolbox fOr Simulating Ventilation and Aerosols)*
