@@ -295,6 +295,9 @@ PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level,
     overset_ *os = domain[d].os;
     mesh_ *mesh = domain[d].mesh;
 
+    // timers 
+    PetscReal timeStart, timeEnd;
+
     //Read overset properties for the current domain
     readOversetProperties(os);
 
@@ -303,12 +306,19 @@ PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level,
     {
         if (os->parentMeshId[pi] != -1)
         {
-            PetscPrintf(mesh->MESH_COMM, "Creating ghost acceptor cells from domain %ld to %ld (level %ld)\n", os->parentMeshId[pi], d, level);
-
             mesh_ *parentMesh = domain[os->parentMeshId[pi]].mesh;
-            createAcceptorCellOverset(os);
-            
+
+            PetscPrintf(mesh->MESH_COMM, "Creating ghost acceptor cells from %s to %s (level %ld)\n", parentMesh->meshName.c_str(), mesh->meshName.c_str(), level);
+        
             MPI_Barrier(mesh->MESH_COMM);
+            PetscTime(&timeStart);
+
+            createAcceptorCellOverset(os);
+
+            MPI_Barrier(mesh->MESH_COMM);
+            PetscTime(&timeEnd);
+
+            PetscPrintf(mesh->MESH_COMM, "     Elapsed time = %lf\n", timeEnd - timeStart); 
         }
     }
 
@@ -317,10 +327,13 @@ PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level,
     {
         if (os->childMeshId[ci] != -1)
         {
-            PetscPrintf(mesh->MESH_COMM, "Creating hole cutting acceptor cells from domain %ld to %ld (level %ld)\n", os->childMeshId[ci], d, level);
-
             mesh_ *childMesh = domain[os->childMeshId[ci]].mesh;
             PetscInt childId = os->childMeshId[ci];
+
+            PetscPrintf(mesh->MESH_COMM, "Creating hole cutting acceptor cells from %s to %s (level %ld)\n", childMesh->meshName.c_str(), mesh->meshName.c_str(), level);
+            
+            MPI_Barrier(mesh->MESH_COMM);
+            PetscTime(&timeStart);
 
             // Find the hole object for this parent-child pair
             char *holeObjectName = NULL;
@@ -335,6 +348,9 @@ PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level,
             createAcceptorCellBackground(os, childId);
 
             MPI_Barrier(mesh->MESH_COMM);
+            PetscTime(&timeEnd);
+
+            PetscPrintf(mesh->MESH_COMM, "     Elapsed time = %lf\n", timeEnd - timeStart); 
 
             // Recursively initialize child domain
             findAcceptorCells(childId, domain, level + 1, holeObjects);
@@ -357,18 +373,20 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
     overset_ *os   = domain[d].os;
     mesh_    *mesh = domain[d].mesh;
 
+    // timers 
+    PetscReal timeStart, timeEnd;
+
     // Branch 1: find closest donor cells for domain boundary acceptor cells
     for (PetscInt pi = 0; pi < os->parentMeshId.size(); pi++)
     {
         if (os->parentMeshId[pi] != -1)
         {
-            PetscPrintf(mesh->MESH_COMM, "Creating ghost donor cells from domain %ld to %ld (level %ld):\n", os->parentMeshId[pi], d, level);
-            MPI_Barrier(mesh->MESH_COMM);
-
             mesh_ *parentMesh = domain[os->parentMeshId[pi]].mesh;
 
-            PetscPrintf(mesh->MESH_COMM, "     Initializing %s to %s connectivity:\n", 
-                        parentMesh->meshName.c_str(), mesh->meshName.c_str());
+            PetscPrintf(mesh->MESH_COMM, "Creating ghost donor cells from %s to %s (level %ld):\n", parentMesh->meshName.c_str(), mesh->meshName.c_str(), level);
+            
+            MPI_Barrier(mesh->MESH_COMM);
+            PetscTime(&timeStart);
 
             PetscPrintf(mesh->MESH_COMM, "     Finding closest donor from parent to child...\n");
             findClosestDonorP2C(parentMesh, mesh);
@@ -378,6 +396,9 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
             
             // sync processors 
             MPI_Barrier(mesh->MESH_COMM);
+            PetscTime(&timeEnd);
+
+            PetscPrintf(mesh->MESH_COMM, "     Elapsed time = %lf\n", timeEnd - timeStart); 
         }
     }
 
@@ -386,14 +407,13 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
     {
         if (os->childMeshId[ci] != -1)
         {
-            PetscPrintf(mesh->MESH_COMM, "Creating hole cutting donor cells from domain %ld to %ld (level %ld):\n", os->childMeshId[ci], d, level);
-            MPI_Barrier(mesh->MESH_COMM);
-
             mesh_ *childMesh = domain[os->childMeshId[ci]].mesh;
             PetscInt childId = os->childMeshId[ci];
 
-            PetscPrintf(mesh->MESH_COMM, "     Initializing %s to %s connectivity:\n", 
-                childMesh->meshName.c_str(), mesh->meshName.c_str());
+            PetscPrintf(mesh->MESH_COMM, "Creating hole cutting donor cells from %s to %s (level %ld):\n", childMesh->meshName.c_str(), mesh->meshName.c_str(), level);
+
+            MPI_Barrier(mesh->MESH_COMM);
+            PetscTime(&timeStart);
 
             PetscPrintf(mesh->MESH_COMM, "     Finding closest donor from child to parent...\n");
             findClosestDonorC2P(childMesh, mesh, childId);
@@ -403,6 +423,9 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
 
             // sync processors
             MPI_Barrier(mesh->MESH_COMM);
+            PetscTime(&timeEnd);
+
+            PetscPrintf(mesh->MESH_COMM, "     Elapsed time = %lf\n", timeEnd - timeStart); 
 
             // recursively initialize child domain
             findClosestDomainDonors(childId, domain, level + 1, holeObjects);

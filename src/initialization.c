@@ -52,8 +52,8 @@ PetscErrorCode PrintNumberOfProcs()
     PetscMPIInt nProcs;
 
     MPI_Comm_size(PETSC_COMM_WORLD, &nProcs);
-    PetscPrintf(PETSC_COMM_WORLD,"Simulation running with %ld processors\n", nProcs);
-    PetscPrintf(PETSC_COMM_WORLD,"-----------------------------------\n\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Job running with %ld processors\n", nProcs);
+    PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
 
     return(0);
 }
@@ -82,6 +82,11 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
     // domains 
     for(PetscInt d=0; d<info->nDomains; d++)
     {
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
+
+        PetscTime(&timeStart);
+        
         PetscPrintf(PETSC_COMM_WORLD, "\nInitializing domain %ld\n", d);
         PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
 
@@ -132,7 +137,12 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // initialize wind farm
         InitializeWindFarm(domain[d].farm);
 
-        PetscPrintf(PETSC_COMM_WORLD, "\nFinished initializing domain %ld\n\n", d);        
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
+
+        PetscTime(&timeEnd);
+
+        PetscPrintf(PETSC_COMM_WORLD, "\nFinished initializing domain %ld: elapsed time = %lf s\n\n", d, timeEnd - timeStart); 
     }
 
     // acquisition system 
