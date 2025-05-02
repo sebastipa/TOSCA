@@ -1,0 +1,26 @@
+ # OKWind Input file - U boundary conditions 
+# ----------------------
+
+
+internalField     uniform {
+                                value (1.0 0.0 0.0)
+                                perturbations 0
+                          }
+
+#internalField    readField
+
+# boundary patches
+
+iLeft            oversetInterpolate
+
+iRight           oversetInterpolate
+
+jLeft            oversetInterpolate
+
+jRight           oversetInterpolate
+
+kLeft            oversetInterpolate
+
+kRight           oversetInterpolate
+
+
