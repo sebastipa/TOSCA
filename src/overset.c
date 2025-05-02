@@ -37,6 +37,9 @@
 // acceptor cells. The overset parent child system works like a family tree. Starting with the highest level, we recursively move through each lower level of the 
 //line until we reach the last generation of a line, before moving to the next branch at the previous level. 
 
+// Note: this overset implementation does not handle intersecting domains at the same level. Overset meshes need to be either cascaded (within another domain) or non intersecting if at same level
+//       Use a buffer of alteast 2 cells of the coarser mesh between the donor and acceptor meshes. 
+
 //! \brief Initialize overset coupling 
 PetscErrorCode InitializeOverset(domain_ *domain)
 {
@@ -46,7 +49,34 @@ PetscErrorCode InitializeOverset(domain_ *domain)
     std::vector<HoleObject> holeObjects;
     readHoleObjects(holeObjects, domain[0].info.nHoleRegions);
 
-    // Main loop: Initialize all domains starting from the top level
+    // Set initial fields for all domains
+    for (PetscInt d = 0; d < nDomains; d++)
+    {
+        // Only process domains that are not already processed as children
+        PetscBool isChild = PETSC_FALSE;
+        for (PetscInt other = 0; other < nDomains; other++)
+        {
+            if (other != d && domain[other].os != NULL)
+            {
+                for (PetscInt ci = 0; ci < domain[other].os->childMeshId.size(); ci++)
+                {
+                    if (domain[other].os->childMeshId[ci] == d)
+                    {
+                        isChild = PETSC_TRUE;
+                        break;
+                    }
+                }
+            }
+            if (isChild) break;
+        }
+
+        if (!isChild)
+        {
+            SetInitialFieldsOverset(d, domain);
+        }
+    }
+
+    // find acceptor cells starting from the top level
     for (PetscInt d = 0; d < nDomains; d++)
     {
         // Only process domains that are not already processed as children
@@ -173,7 +203,7 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
         {
             mesh_ *parentMesh = domain[os->parentMeshId[pi]].mesh;
 
-            interpolateACellTrilinearParent2Current(parentMesh, mesh);
+            interpolateACellTrilinearP2C(parentMesh, mesh);
 
             // ABL source term handling
             if (os->access->flags->isAblActive)
@@ -206,7 +236,7 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
             mesh_ *childMesh = domain[os->childMeshId[ci]].mesh;
             PetscInt childId = os->childMeshId[ci];
 
-            interpolateACellTrilinearChild2Current(childMesh, mesh, childId);
+            interpolateACellTrilinearC2P(childMesh, mesh, childId);
 
             MPI_Barrier(mesh->MESH_COMM);
 
@@ -223,7 +253,35 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
 
 //***************************************************************************************************************//
 
-// function to fina acceptors cells for a domain and its children recursively
+// set initial field for a domain and its children recursively
+PetscErrorCode SetInitialFieldsOverset(PetscInt d, domain_ *domain)
+{
+    PetscInt nDomains = domain[0].info.nDomains;
+    if (d < 0 || d >= nDomains) return 0;
+    if (domain[d].os == NULL)   return 0;
+
+    overset_ *os    = domain[d].os;
+    mesh_    *mesh  = domain[d].mesh;
+    
+    SetInitialField(&domain[d]);
+
+    for (PetscInt ci = 0; ci < os->childMeshId.size(); ci++)
+    {
+        if (os->childMeshId[ci] != -1)
+        {
+            mesh_ *childMesh = domain[os->childMeshId[ci]].mesh;
+            PetscInt childId = os->childMeshId[ci];
+
+            // Recursively initialize child domain
+            SetInitialFieldsOverset(childId, domain);
+        }
+    }
+    return 0;
+}
+
+//***************************************************************************************************************//
+
+// function to find acceptors cells for a domain and its children recursively
 PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level, 
                             const std::vector<HoleObject> &holeObjects)
 {
@@ -306,16 +364,13 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
 
             findClosestDonorP2C(parentMesh, mesh);
             PetscPrintf(mesh->MESH_COMM, "Found closest donor cells\n");
-            interpolateACellTrilinearParent2Current(parentMesh, mesh);
+            interpolateACellTrilinearP2C(parentMesh, mesh);
 
             MPI_Barrier(mesh->MESH_COMM);
             PetscPrintf(mesh->MESH_COMM, "\nLevel %d: Initialization for %s to %s connectivity done\n", 
                         level, parentMesh->meshName.c_str(), mesh->meshName.c_str());
         }
     }
-
-    // Set initial fields for the domain
-    SetInitialField(&domain[d]);
 
     // Branch 2: find closest donor cells for hole cut boundary acceptor cells
     for (PetscInt ci = 0; ci < os->childMeshId.size(); ci++)
@@ -329,7 +384,7 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
                         level, childMesh->meshName.c_str(), mesh->meshName.c_str());
 
             findClosestDonorC2P(childMesh, mesh, childId);
-            interpolateACellTrilinearChild2Current(childMesh, mesh, childId);
+            interpolateACellTrilinearC2P(childMesh, mesh, childId);
 
             MPI_Barrier(mesh->MESH_COMM);
             PetscPrintf(mesh->MESH_COMM, "\nLevel %d: Initialization for %s to %s connectivity done\n", 
@@ -593,7 +648,7 @@ PetscErrorCode readOversetProperties(overset_ *os)
 }
 
 //*************************************************************** */
-PetscErrorCode interpolateACellTrilinearParent2Current(mesh_ *meshD, mesh_ *meshA)
+PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
 {
     overset_         *os     = meshA->access->os;
     ueqn_            *ueqnA  = meshA->access->ueqn;
@@ -757,7 +812,7 @@ PetscErrorCode interpolateACellTrilinearParent2Current(mesh_ *meshD, mesh_ *mesh
 
 //***************************************************************************************************************//
 
-PetscErrorCode interpolateACellTrilinearChild2Current(mesh_ *meshD, mesh_ *meshA, PetscInt donorId)
+PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt donorId)
 {
     overset_         *os     = meshA->access->os;
     ueqn_            *ueqnA  = meshA->access->ueqn;
@@ -775,19 +830,19 @@ PetscErrorCode interpolateACellTrilinearChild2Current(mesh_ *meshD, mesh_ *meshA
     PetscInt         zs = infoA.zs, ze = infoA.zs + infoA.zm;
     PetscInt         mx = infoA.mx, my = infoA.my, mz = infoA.mz;
 
-    PetscInt         i, j, k, ic, kc, jc, b, n, m;
+    PetscInt         i, j, k, b, n;
 
-    Cmpnts           ***lucatD, ***ucatA, ***cent, ucart;
-    PetscReal        ***ltempD, ***tempA, Temp;
+    Cmpnts           ***lucatD, ***ucatA, ***cent;
+    PetscReal        ***ltempD, ***tempA;
 
-    Cmpnts           pCoor;
+    Cmpnts           pCoor, ucart;
+    PetscReal        Temp;
 
     PetscMPIInt      rankA, sizeA, rankD, sizeD;
     PetscInt         sum_ind1 = 0;
 
     MPI_Comm_size(meshA->MESH_COMM, &sizeA);
     MPI_Comm_rank(meshA->MESH_COMM, &rankA);
-
     MPI_Comm_size(meshD->MESH_COMM, &sizeD);
     MPI_Comm_rank(meshD->MESH_COMM, &rankD);
 
@@ -806,96 +861,149 @@ PetscErrorCode interpolateACellTrilinearChild2Current(mesh_ *meshD, mesh_ *meshA
         DMDAVecGetArray(daA, teqnA->Tmprt, &tempA);
     }
 
-    // loop through the ranks
-    for(n = 0; n < sizeA; n++)
+    // Map to store interpolated values for each parent cell
+    std::map<PetscInt, std::vector<Cmpnts>> vertexVelocities; // parentCellId -> list of velocities
+    std::map<PetscInt, std::vector<PetscReal>> vertexTemps;   // parentCellId -> list of temperatures
+    std::map<PetscInt, std::tuple<PetscInt, PetscInt, PetscInt>> cellIndices; // parentCellId -> (i, j, k)
+
+    // Loop through the ranks
+    for (n = 0; n < sizeA; n++)
     {
-        if(NumAcellPerProc[n]!=0)
+        if (NumAcellPerProc[n] != 0)
         {
-            if(AcellProcMat[n][rankD] !=MPI_UNDEFINED)
+            if (AcellProcMat[n][rankD] != MPI_UNDEFINED)
             {
-                // loop through the aCell cells of a given processor n
-                for(b = sum_ind1; b < sum_ind1 + NumAcellPerProc[n]; b++)
+                // Loop through the aCell entries (vertices) of a given processor n
+                for (b = sum_ind1; b < sum_ind1 + NumAcellPerProc[n]; b++)
                 {
-                    // aCell cell index
-                    i = aCell[b].indi;
-                    j = aCell[b].indj;
-                    k = aCell[b].indk;
-                    
-                    if(aCell[b].donorId == donorId)
+                    if (aCell[b].donorId == donorId)
                     {
                         pCoor.x = aCell[b].coorx;
                         pCoor.y = aCell[b].coory;
                         pCoor.z = aCell[b].coorz;
-    
+
                         ucart.x = 0.0;
                         ucart.y = 0.0;
                         ucart.z = 0.0;
                         Temp = 0.0;
-    
+
                         if (rankD == dCell[b].rank)
                         {
-                            ic = dCell[b].indi;
-                            jc = dCell[b].indj;
-                            kc = dCell[b].indk;
+                            // Interpolate velocity at the vertex
+                            PetscInt ic = dCell[b].indi;
+                            PetscInt jc = dCell[b].indj;
+                            PetscInt kc = dCell[b].indk;
 
                             vectorPointLocalVolumeInterpolation
                             (
-                                    meshD,
-                                    pCoor.x, pCoor.y, pCoor.z,
-                                    ic, jc, kc,
-                                    cent,
-                                    lucatD,
-                                    ucart
+                                meshD,
+                                pCoor.x, pCoor.y, pCoor.z,
+                                ic, jc, kc,
+                                cent,
+                                lucatD,
+                                ucart
                             );
-    
+
                             if (flags->isTeqnActive)
                             {
                                 scalarPointLocalVolumeInterpolation
                                 (
-                                        meshD,
-                                        pCoor.x, pCoor.y, pCoor.z,
-                                        ic, jc, kc,
-                                        cent,
-                                        ltempD,
-                                        Temp
+                                    meshD,
+                                    pCoor.x, pCoor.y, pCoor.z,
+                                    ic, jc, kc,
+                                    cent,
+                                    ltempD,
+                                    Temp
                                 );
                             }
 
-                            MPI_Send(&ucart, 3, MPIU_REAL, aCell[b].rank, 0, meshD->MESH_COMM);
-                            MPI_Send(&Temp, 1, MPIU_REAL, aCell[b].rank, 1, meshD->MESH_COMM);
-
-                            // if(k == 25 && j == 25 && i == 20)
-                            //     PetscPrintf(PETSC_COMM_SELF, "donor = %ld %ld %ld, ucatD = %lf %lf %lf, ucatA = %lf %lf %lf\n", kc, jc, ic, lucatD[kc][jc][ic].x, lucatD[kc][jc][ic].y, lucatD[kc][jc][ic].z, ucart.x, ucart.y, ucart.z );
-                        }
-    
-                        if (rankA == aCell[b].rank)
-                        {
-    
-                            MPI_Recv(&ucart, 3, MPIU_REAL, dCell[b].rank, 0, meshD->MESH_COMM, MPI_STATUS_IGNORE);
-                            MPI_Recv(&Temp, 1, MPIU_REAL, dCell[b].rank, 1, meshD->MESH_COMM, MPI_STATUS_IGNORE);
-    
-                            ucatA[k][j][i].x = ucart.x;
-                            ucatA[k][j][i].y = ucart.y;
-                            ucatA[k][j][i].z = ucart.z;
-    
+                            // Send interpolated values to acceptor processor
+                            MPI_Send(&ucart, 3, MPIU_REAL, aCell[b].rank, b, meshD->MESH_COMM);
                             if (flags->isTeqnActive)
                             {
-                                tempA[k][j][i] = Temp;
+                                MPI_Send(&Temp, 1, MPIU_REAL, aCell[b].rank, b + sizeA, meshD->MESH_COMM);
                             }
-    
+                        }
+
+                        if (rankA == aCell[b].rank)
+                        {
+                            // Receive interpolated values
+                            MPI_Recv(&ucart, 3, MPIU_REAL, dCell[b].rank, b, meshD->MESH_COMM, MPI_STATUS_IGNORE);
+                            vertexVelocities[aCell[b].parentCellId].push_back(ucart);
+
+                            if (flags->isTeqnActive)
+                            {
+                                MPI_Recv(&Temp, 1, MPIU_REAL, dCell[b].rank, b + sizeA, meshD->MESH_COMM, MPI_STATUS_IGNORE);
+                                vertexTemps[aCell[b].parentCellId].push_back(Temp);
+                            }
+
+                            // Store cell indices for this parentCellId (only once per cell)
+                            if (cellIndices.find(aCell[b].parentCellId) == cellIndices.end())
+                            {
+                                cellIndices[aCell[b].parentCellId] = {aCell[b].indi, aCell[b].indj, aCell[b].indk};
+                            }
                         }
                     }
                 }
             }
 
-            sum_ind1 +=NumAcellPerProc[n];
+            sum_ind1 += NumAcellPerProc[n];
         }
     }
 
-    std::vector<Acell> ().swap(aCell);
-    std::vector<Dcell> ().swap(dCell);
-    std::vector<std::vector<PetscInt>> ().swap(AcellProcMat);
-    std::vector<PetscInt> ().swap(NumAcellPerProc);
+    //perform averaging of the fields in any processor that has the acceptor cells 
+    bool isAcceptorProcessor = aCell.empty();
+    for (const auto& cell : aCell)
+    {
+        if (cell.donorId == donorId && cell.rank == rankA)
+        {
+            isAcceptorProcessor = true;
+            break;
+        }
+    }
+
+    // Average the velocities and temperatures for each parent cell
+    if (isAcceptorProcessor) // Ensure only acceptor processor processes
+    {
+        for (const auto& [parentCellId, velocities] : vertexVelocities)
+        {
+            if (velocities.size() == 8) // Ensure all 8 vertices are present
+            {
+                Cmpnts avgVelocity = {0.0, 0.0, 0.0};
+                for (const auto& v : velocities)
+                {
+                    avgVelocity.x += v.x / 8.0;
+                    avgVelocity.y += v.y / 8.0;
+                    avgVelocity.z += v.z / 8.0;
+                }
+
+                // Get cell indices
+                auto [i, j, k] = cellIndices[parentCellId];
+
+                // Store averaged velocity
+                ucatA[k][j][i].x = avgVelocity.x;
+                ucatA[k][j][i].y = avgVelocity.y;
+                ucatA[k][j][i].z = avgVelocity.z;
+
+                // Handle temperature if active
+                if (flags->isTeqnActive)
+                {
+                    PetscReal avgTemp = 0.0;
+                    for (const auto& t : vertexTemps[parentCellId])
+                    {
+                        avgTemp += t / 8.0;
+                    }
+                    tempA[k][j][i] = avgTemp;
+                }
+            }
+        }
+    }
+
+    // Clean up
+    std::vector<Acell>().swap(aCell);
+    std::vector<Dcell>().swap(dCell);
+    std::vector<std::vector<PetscInt>>().swap(AcellProcMat);
+    std::vector<PetscInt>().swap(NumAcellPerProc);
 
     DMDAVecRestoreArray(fdaD, ueqnD->lUcat, &lucatD);
     DMDAVecRestoreArray(fdaA, ueqnA->Ucat, &ucatA);
@@ -1125,6 +1233,7 @@ PetscErrorCode createAcceptorCellOverset(overset_ *os)
         os->aCellDb[idx].cell_size = 0.0;
         os->aCellDb[idx].face = 0;
         os->aCellDb[idx].donorId = 0;
+        os->aCellDb[idx].parentCellId = -1;
     }
 
     localCells.resize(localCount);
@@ -1149,6 +1258,7 @@ PetscErrorCode createAcceptorCellOverset(overset_ *os)
                     cell.cell_size = 0;
                     cell.face = 0;
                     cell.donorId = 0;
+                    cell.parentCellId = -1;
                     localIndex++;
                 }
             }
@@ -1201,9 +1311,10 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, b;
-
+    
+    Vec           Coor;
     PetscReal     ***aj, ***meshTag;
-    Cmpnts        ***cent, ***csi, ***eta, ***zet;
+    Cmpnts        ***coor, ***cent, ***nvert; // Added nvert for vertex coordinates
 
     PetscMPIInt   rank, size;
     PetscInt      localCount = 0, globalCount = 0, prevGlobalCount = os->aCellHc.size();
@@ -1219,18 +1330,21 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
     lys = ys; lye = ye; if (ys == 0) lys = ys + 1; if (ye == my) lye = ye - 1;
     lzs = zs; lze = ze; if (zs == 0) lzs = zs + 1; if (ze == mz) lze = ze - 1;
 
+    DMGetCoordinatesLocal(da, &Coor);
+    DMDAVecGetArray(fda, Coor, &coor);
+
     DMDAVecGetArray(fda, mesh->lCent, &cent);
     DMDAVecGetArray(da, mesh->lAj, &aj);
-    DMDAVecGetArray(fda, mesh->lCsi, &csi);
-    DMDAVecGetArray(fda, mesh->lEta, &eta);
-    DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
-    for (k = zs; k < ze; k++) 
+    // Counter for unique parent cell IDs (local to this rank)
+    PetscInt localCellId = 0;
+
+    for (k=lzs; k<lze; k++)
     {
-        for (j = ys; j < ye; j++) 
+        for (j=lys; j<lye; j++)
         {
-            for (i = xs; i < xe; i++) 
+            for (i=lxs; i<lxe; i++)
             {
                 if (isInterpolatedCell(k, j, i, meshTag)) 
                 {
@@ -1246,19 +1360,67 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
 
                     if (isNewCell) 
                     {
-                        Acell newCell;
-                        newCell.indi = i;
-                        newCell.indj = j;
-                        newCell.indk = k;
-                        newCell.coorx = cent[k][j][i].x;
-                        newCell.coory = cent[k][j][i].y;
-                        newCell.coorz = cent[k][j][i].z;
-                        newCell.rank = rank;
-                        newCell.cell_size = 0;
-                        newCell.face = 0;
-                        newCell.donorId = donorMeshId;
-                        localNewCells.push_back(newCell);
-                        localCount++;
+                        // Compute the 8 vertex coordinates for the cell (i, j, k)
+
+                        PetscReal vx[8], vy[8], vz[8];
+                        
+                        // Vertex indices: (i-1,i), (j,j-1), (k,k-1)
+
+                        vx[0] = coor[k-1][j-1][i-1].x; // (i-1, j-1, k-1)
+                        vy[0] = coor[k-1][j-1][i-1].y;
+                        vz[0] = coor[k-1][j-1][i-1].z;
+                        
+                        vx[1] = coor[k-1][j-1][i].x;   // (i, j-1, k-1)
+                        vy[1] = coor[k-1][j-1][i].y;
+                        vz[1] = coor[k-1][j-1][i].z;
+                        
+                        vx[2] = coor[k-1][j][i-1].x;   // (i-1, j, k-1)
+                        vy[2] = coor[k-1][j][i-1].y;
+                        vz[2] = coor[k-1][j][i-1].z;
+                        
+                        vx[3] = coor[k-1][j][i].x;     // (i, j, k-1)
+                        vy[3] = coor[k-1][j][i].y;
+                        vz[3] = coor[k-1][j][i].z;
+                        
+                        vx[4] = coor[k][j-1][i-1].x;   // (i-1, j-1, k)
+                        vy[4] = coor[k][j-1][i-1].y;
+                        vz[4] = coor[k][j-1][i-1].z;
+                        
+                        vx[5] = coor[k][j-1][i].x;     // (i, j-1, k)
+                        vy[5] = coor[k][j-1][i].y;
+                        vz[5] = coor[k][j-1][i].z;
+                        
+                        vx[6] = coor[k][j][i-1].x;     // (i-1, j, k)
+                        vy[6] = coor[k][j][i-1].y;
+                        vz[6] = coor[k][j][i-1].z;
+                        
+                        vx[7] = coor[k][j][i].x;       // (i, j, k)
+                        vy[7] = coor[k][j][i].y;
+                        vz[7] = coor[k][j][i].z;
+                        
+
+                        // Assign a unique parentCellId for this acceptor cell
+                        PetscInt parentCellId = rank * 1000000 + localCellId; 
+                        localCellId++;
+
+                        // Add 8 vertices as Acell entries
+                        for (PetscInt v = 0; v < 8; v++) 
+                        {
+                            Acell newCell;
+                            newCell.indi = i;
+                            newCell.indj = j;
+                            newCell.indk = k;
+                            newCell.coorx = vx[v]; 
+                            newCell.coory = vy[v];
+                            newCell.coorz = vz[v];
+                            newCell.rank = rank;
+                            newCell.cell_size = 0;
+                            newCell.face = 0;
+                            newCell.donorId = donorMeshId;
+                            newCell.parentCellId = parentCellId; 
+                            localNewCells.push_back(newCell);
+                            localCount++;
+                        }
                     }
                 }
             }
@@ -1305,6 +1467,7 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
         os->aCellHc[idx].cell_size = 0.0;
         os->aCellHc[idx].face = 0;
         os->aCellHc[idx].donorId = 0;
+        os->aCellHc[idx].parentCellId = -1; // Initialize parentCellId
     }
 
     for (PetscInt idx = 0; idx < localCount; idx++) 
@@ -1313,7 +1476,7 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
     }
 
     MPI_Datatype mpi_Acell;
-    defineStruct_Acell(&mpi_Acell);
+    defineStruct_Acell(&mpi_Acell); // Must include parentCellId in MPI datatype
     MPI_Op sumstruct;
     MPI_Op_create(sum_struct_Acell, 1, &sumstruct);
 
@@ -1322,11 +1485,14 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
         MPI_Allreduce(MPI_IN_PLACE, &os->aCellHc[prevGlobalCount], globalCount, mpi_Acell, sumstruct, mesh->MESH_COMM);
     }
 
-    // Sort os->aCellHc by rank
+    // Sort os->aCellHc by rank and parentCellId for easier grouping
     if (!os->aCellHc.empty()) 
     {
-        // Sort by rank
-        std::sort(os->aCellHc.begin(), os->aCellHc.end(), [](const Acell& a, const Acell& b) { return a.rank < b.rank; });
+        std::sort(os->aCellHc.begin(), os->aCellHc.end(), 
+                  [](const Acell& a, const Acell& b) { 
+                      if (a.rank == b.rank) return a.parentCellId < b.parentCellId;
+                      return a.rank < b.rank; 
+                  });
 
         // Update NumAcellPerProcHc
         std::fill(os->NumAcellPerProcHc.begin(), os->NumAcellPerProcHc.end(), 0);
@@ -1349,13 +1515,12 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
-    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
-    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
-    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
     DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(fda, Coor, &coor);
 
     return 0;
 }
+
 //***************************************************************************************************************//
 
 PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscInt donorId)
@@ -2132,26 +2297,39 @@ PetscErrorCode computeOversetIBMElementNormal(ibm_ *ibm)
 //***************************************************************************************************************//
 
 void defineStruct_Acell(MPI_Datatype *tstype) {
-    const PetscInt    count = 10;
+    const PetscInt    count = 11; 
     int               blocklens[count];
     MPI_Aint          disps[count];
 
-    for (PetscInt i=0; i < count; i++) {
-        blocklens[i] = 1;
+    for (PetscInt i = 0; i < count; i++) {
+        blocklens[i] = 1; // Each field is a single element
     }
 
-    MPI_Datatype types[count] = {MPIU_INT, MPIU_INT, MPIU_INT, MPIU_REAL, MPIU_REAL, MPIU_REAL, MPIU_INT, MPIU_REAL, MPIU_INT, MPIU_INT};
+    MPI_Datatype types[count] = {
+        MPIU_INT,   // indi
+        MPIU_INT,   // indj
+        MPIU_INT,   // indk
+        MPIU_REAL,  // coorx
+        MPIU_REAL,  // coory
+        MPIU_REAL,  // coorz
+        MPIU_INT,   // rank (PetscMPIInt)
+        MPIU_REAL,  // cell_size
+        MPIU_INT,   // face
+        MPIU_INT,   // donorId
+        MPIU_INT    // parentCellId (new)
+    };
 
-    disps[0] = offsetof(Acell,indi);
-    disps[1] = offsetof(Acell,indj);
-    disps[2] = offsetof(Acell,indk);
-    disps[3] = offsetof(Acell,coorx);
-    disps[4] = offsetof(Acell,coory);
-    disps[5] = offsetof(Acell,coorz);
-    disps[6] = offsetof(Acell,rank);
-    disps[7] = offsetof(Acell,cell_size);
-    disps[8] = offsetof(Acell,face);
-    disps[9] = offsetof(Acell,donorId);
+    disps[0] = offsetof(Acell, indi);
+    disps[1] = offsetof(Acell, indj);
+    disps[2] = offsetof(Acell, indk);
+    disps[3] = offsetof(Acell, coorx);
+    disps[4] = offsetof(Acell, coory);
+    disps[5] = offsetof(Acell, coorz);
+    disps[6] = offsetof(Acell, rank);
+    disps[7] = offsetof(Acell, cell_size);
+    disps[8] = offsetof(Acell, face);
+    disps[9] = offsetof(Acell, donorId);
+    disps[10] = offsetof(Acell, parentCellId); // New offset
 
     MPI_Type_create_struct(count, blocklens, disps, types, tstype);
     MPI_Type_commit(tstype);
@@ -2166,7 +2344,7 @@ void sum_struct_Acell(void *in, void *inout, int *len, MPI_Datatype *type) {
     Acell *inoutvals = (Acell*)inout;
 
     for (PetscInt i = 0; i < *len; i++) {
-        // If invals[i] is a valid cell copy it to inoutvals[i]
+        // If invals[i] is a valid cell, copy it to inoutvals[i]
         if (invals[i].rank >= 0) {
             inoutvals[i].indi = invals[i].indi;
             inoutvals[i].indj = invals[i].indj;
@@ -2178,6 +2356,7 @@ void sum_struct_Acell(void *in, void *inout, int *len, MPI_Datatype *type) {
             inoutvals[i].cell_size = invals[i].cell_size;
             inoutvals[i].face = invals[i].face;
             inoutvals[i].donorId = invals[i].donorId;
+            inoutvals[i].parentCellId = invals[i].parentCellId; // New field
         }
         // Otherwise, keep inoutvals unchanged (it should already contain the valid cell or be default)
     }
