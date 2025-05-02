@@ -1,6 +1,6 @@
-<img src="docs/images/tosca.png" width="400">
+<img src="docs/images/tosvalogo.png" width="400">
 
-## *Welcome to the official repository of TOSVA*
+## *Welcome to the repository of TOSVA*
 *(Toolbox fOr Simulating Ventilation and Aerosols)*
 
 TOSVA is a branch of [TOSCA](https://sebastipa.github.io/TOSCA/), an incompressible finite-volume large-eddy simulation code formulated in curvilinear coordinates 
