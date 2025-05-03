@@ -1849,7 +1849,7 @@ PetscErrorCode findClosestDonorC2P_Bins(mesh_ *meshDonor, mesh_ *meshAcceptor, P
             // Check if no valid donor was found
             if (os->aCellHc[b].cell_size == 0.0 && rankD == 0) 
             {
-                PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %d\n", b);
+                PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %ld\n", b);
             }
         }
     }
@@ -1993,7 +1993,7 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
             {
                 if (gminDist == 1e20)
                 {
-                    printf("Warning: No donor cell found for acceptor cell %d\n", b);
+                    printf("Warning: No donor cell found for acceptor cell %ld\n", b);
                 }
 
                 dCell.indi            = dCellLocal.indi;
@@ -2018,7 +2018,7 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
             // Check if no valid donor was found
             if (os->aCellHc[b].cell_size == 0.0 && rankD == 0) 
             {
-                PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %d\n", b);
+                PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %ld\n", b);
             }
         }
     }
@@ -2149,7 +2149,7 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
         {
             if (gminDist == 1e20)
             {
-                printf("Warning: No donor cell found for acceptor cell %d\n", b);
+                printf("Warning: No donor cell found for acceptor cell %ld\n", b);
             }
 
             dCell.indi            = dCellLocal.indi;
@@ -2174,7 +2174,7 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
         // check if no valid donor was found
         if (os->aCellDb[b].cell_size == 0.0 && rankD == 0) 
         {
-            PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %d\n", b);
+            PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %ld\n", b);
         }
     }
 
@@ -2358,7 +2358,7 @@ PetscErrorCode findClosestDonorP2C_Bins(mesh_ *meshDonor, mesh_ *meshAcceptor)
 
         // Check if no valid donor was found
         if (os->aCellDb[b].cell_size == 0.0 && rankD == 0) {
-            PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %d\n", b);
+            PetscPrintf(PETSC_COMM_SELF, "Warning: No donor cell found for acceptor cell %ld\n", b);
         }
     }
 
