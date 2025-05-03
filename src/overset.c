@@ -1508,18 +1508,19 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
 // experimental octree structure for donor cells
 struct OctreeNode 
 {
-    std::vector<cellIds> donorCells; 
     PetscInt hasCells;
-    PetscInt imin, imax, jmin, jmax, kmin, kmax; // Bounds of the node
-    Cmpnts minBounds;  // Minimum bounds of the node
-    Cmpnts maxBounds;  // Maximum bounds of the node
-    OctreeNode* children[8]; // Pointers to child nodes (8 for octree)
+    PetscInt imin, imax, jmin, jmax, kmin, kmax; // node bounding indices
+    Cmpnts minBounds;                            // node minimum physical bounds
+    Cmpnts maxBounds;                            // node maximum physical bounds
+    OctreeNode* children[8];                     // pointed to the 8 child nodes
 
+    // initialize pointers to null 
     OctreeNode(Cmpnts minB, Cmpnts maxB) : minBounds(minB), maxBounds(maxB) 
     {
         for (int i = 0; i < 8; i++) children[i] = nullptr;
     }
 
+    // destructor to delete child nodes
     ~OctreeNode() 
     {
         for (int i = 0; i < 8; i++) 
@@ -1529,16 +1530,19 @@ struct OctreeNode
     }
 };
 
-void buildOctree(OctreeNode* node, Cmpnts*** donorCells, 
+void buildOctree
+(
+    OctreeNode* node, Cmpnts*** donorCells, 
     PetscInt lxs, PetscInt lxe, PetscInt lys, PetscInt lye, PetscInt lzs, PetscInt lze,
-    PetscInt maxDepth, PetscInt maxCellsPerNode) 
+    PetscInt maxDepth, PetscInt maxCellsPerNode
+) 
 {
-    // Count the number of donor cells in the current node's bounds
-    
+    // initialize minmax node indices 
     PetscInt imin = 1000000, imax = 0;
     PetscInt jmin = 1000000, jmax = 0;
     PetscInt kmin = 1000000, kmax = 0;
 
+    // count how many cells are in this node 
     PetscInt cellCount = 0;
     for (PetscInt k = lzs; k < lze; k++) 
     for (PetscInt j = lys; j < lye; j++) 
@@ -1554,6 +1558,7 @@ void buildOctree(OctreeNode* node, Cmpnts*** donorCells,
         {
             cellCount++;
 
+            // set minmax node indices 
             if(i < imin) imin = i;
             if(i > imax) imax = i;
             if(j < jmin) jmin = j;
@@ -1563,39 +1568,17 @@ void buildOctree(OctreeNode* node, Cmpnts*** donorCells,
         }
     }
 
-    // if the number of cells is below the threshold or max depth is reached, store the cells in this node
+    // if the number of cells is below the threshold or max depth is reached, this is a leaf node 
     if (cellCount <= maxCellsPerNode || maxDepth == 0) 
     {
-        /* do not store the cells, too much memory used 
-        for (PetscInt k = lzs; k < lze; k++) 
-        for (PetscInt j = lys; j < lye; j++) 
-        for (PetscInt i = lxs; i < lxe; i++) 
-        {
-            Cmpnts centroid = donorCells[k][j][i];
-
-            if
-            (
-                centroid.x >= node->minBounds.x && centroid.x < node->maxBounds.x &&
-                centroid.y >= node->minBounds.y && centroid.y < node->maxBounds.y &&
-                centroid.z >= node->minBounds.z && centroid.z < node->maxBounds.z
-            ) 
-            {
-                // Store the cell in this node
-                cellIds cell;
-                cell.i = i;
-                cell.j = j;
-                cell.k = k;
-                node->donorCells.push_back(cell);   
-            }
-        }
-        */
-        node->hasCells = 1; // Mark this node as having cells
-        node->imin = imin;
-        node->imax = imax;
-        node->jmin = jmin;
-        node->jmax = jmax;
-        node->kmin = kmin;
-        node->kmax = kmax;
+        node->hasCells = 1; 
+        node->imin     = imin;
+        node->imax     = imax;
+        node->jmin     = jmin;
+        node->jmax     = jmax;
+        node->kmin     = kmin;
+        node->kmax     = kmax;
+        
         return;
     }
 
@@ -1658,6 +1641,7 @@ Dcell searchOctree
         return closestDonor;
     }
     
+    // we are in a leaf node 
     if(node->hasCells)
     {
         for (PetscInt k = node->kmin; k <= node->kmax; k++)
