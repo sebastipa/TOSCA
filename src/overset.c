@@ -2004,6 +2004,11 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
             dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
             lminDist             = dCellLocal.dist2p;
 
+            if(lminDist < 1e19)
+            {
+                printf("lminDist = %f on rank %d\n", lminDist, rankD);
+            }
+
             PetscReal gminDist;
             MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPI_MIN, meshDonor->MESH_COMM);
             
