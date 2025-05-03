@@ -1989,6 +1989,7 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
 
             // exclude acceptor cell outside of this processor bounds (ocree search is useless)
             
+            /*
             if
             (
                 acceptorCoord.x >= root->minBounds.x && acceptorCoord.x < root->maxBounds.x &&
@@ -1996,9 +1997,12 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
                 acceptorCoord.z >= root->minBounds.z && acceptorCoord.z < root->maxBounds.z
             )
             {
-                dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
-                lminDist             = dCellLocal.dist2p;
+                
             }
+            */
+
+            dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
+            lminDist             = dCellLocal.dist2p;
 
             PetscReal gminDist;
             MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPI_MIN, meshDonor->MESH_COMM);
@@ -2117,8 +2121,8 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     PetscInt bsx = xs; if(xs!=0) bsx = bsx - 1;
 
     // find min and max bounds for this processor (in terms of points coordinates)
-    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x-1e-3, coor[bsz  ][bsy  ][bsx  ].y-1e-3, coor[bsz  ][bsy  ][bsx  ].z-1e-3};
-    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+1e-3, coor[lze-1][lye-1][lxe-1].y+1e-3, coor[lze-1][lye-1][lxe-1].z+1e-3};
+    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x-20, coor[bsz  ][bsy  ][bsx  ].y-20, coor[bsz  ][bsy  ][bsx  ].z-20};
+    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+20, coor[lze-1][lye-1][lxe-1].y+20, coor[lze-1][lye-1][lxe-1].z+20};
 
     // build the octree
     PetscInt maxDepth        = 5;    // Maximum depth of the octree
@@ -2178,6 +2182,11 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
 
         if(lminDist == gminDist) 
         {
+            if (gminDist == 1e20)
+            {
+                printf("Warning: No donor cell found for acceptor cell %d\n", b);
+            }
+
             dCell.indi            = dCellLocal.indi;
             dCell.indj            = dCellLocal.indj;
             dCell.indk            = dCellLocal.indk;  
