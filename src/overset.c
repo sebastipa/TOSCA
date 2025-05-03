@@ -2114,6 +2114,9 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
 
+    MPI_Barrier(meshDonor->MESH_COMM);
+    PetscPrintf(meshDonor->MESH_COMM, "---> Resizing vectors...\n");
+
     // Resize vectors
     os->closestDonorDb.resize(aCell.size());
     os->AcellProcMatDb.resize(sizeA);
