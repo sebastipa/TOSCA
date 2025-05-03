@@ -1930,9 +1930,11 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     PetscInt bsx = xs; if(xs!=0) bsx = bsx - 1;
 
     // find min and max bounds for this processor (in terms of points coordinates)
-    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x-20, coor[bsz  ][bsy  ][bsx  ].y-20, coor[bsz  ][bsy  ][bsx  ].z-20};
-    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+20, coor[lze-1][lye-1][lxe-1].y+20, coor[lze-1][lye-1][lxe-1].z+20};
-
+    Cmpnts procDeltas = {coor[lze-1][lye-1][lxe-1].x - coor[bsz  ][bsy  ][bsx  ].x,
+        coor[lze-1][lye-1][lxe-1].y - coor[bsz  ][bsy  ][bsx  ].y,
+        coor[lze-1][lye-1][lxe-1].z - coor[bsz  ][bsy  ][bsx  ].z};
+    Cmpnts minBounds  = {coor[bsz  ][bsy  ][bsx  ].x-procDeltas, coor[bsz  ][bsy  ][bsx  ].y-procDeltas, coor[bsz  ][bsy  ][bsx  ].z-procDeltas};
+    Cmpnts maxBounds  = {coor[lze-1][lye-1][lxe-1].x+procDeltas, coor[lze-1][lye-1][lxe-1].y+procDeltas, coor[lze-1][lye-1][lxe-1].z+procDeltas};
     // build the octree
     PetscInt maxDepth        = 15;    // Maximum depth of the octree
     PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
@@ -2101,8 +2103,11 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     PetscInt bsx = xs; if(xs!=0) bsx = bsx - 1;
 
     // find min and max bounds for this processor (in terms of points coordinates)
-    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x-20, coor[bsz  ][bsy  ][bsx  ].y-20, coor[bsz  ][bsy  ][bsx  ].z-20};
-    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+20, coor[lze-1][lye-1][lxe-1].y+20, coor[lze-1][lye-1][lxe-1].z+20};
+    Cmpnts procDeltas = {coor[lze-1][lye-1][lxe-1].x - coor[bsz  ][bsy  ][bsx  ].x,
+                         coor[lze-1][lye-1][lxe-1].y - coor[bsz  ][bsy  ][bsx  ].y,
+                         coor[lze-1][lye-1][lxe-1].z - coor[bsz  ][bsy  ][bsx  ].z};
+    Cmpnts minBounds  = {coor[bsz  ][bsy  ][bsx  ].x-procDeltas, coor[bsz  ][bsy  ][bsx  ].y-procDeltas, coor[bsz  ][bsy  ][bsx  ].z-procDeltas};
+    Cmpnts maxBounds  = {coor[lze-1][lye-1][lxe-1].x+procDeltas, coor[lze-1][lye-1][lxe-1].y+procDeltas, coor[lze-1][lye-1][lxe-1].z+procDeltas};
 
     // build the octree
     PetscInt maxDepth        = 15;    // Maximum depth of the octree
