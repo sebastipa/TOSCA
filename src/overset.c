@@ -1549,7 +1549,7 @@ void buildOctree(OctreeNode* node, Cmpnts*** donorCells,
         }
     }
 
-    // ff the number of cells is below the threshold or max depth is reached, store the cells in this node
+    // if the number of cells is below the threshold or max depth is reached, store the cells in this node
     if (cellCount <= maxCellsPerNode || maxDepth == 0) 
     {
         for (PetscInt k = lzs; k < lze; k++) 
@@ -1610,7 +1610,6 @@ Dcell searchOctree(OctreeNode* node, PetscReal procContrib, const Cmpnts& accept
     closestDonor.indj   = -1;
     closestDonor.indk   = -1;
     closestDonor.dist2p = minDist; 
-
 
     // check if the node is null
     if (node == nullptr) 
@@ -2118,6 +2117,8 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
         // initialize to huge
         PetscReal lminDist     = 1e20;
 
+        PetscReal lClosestSize = 0.0;
+
         // Search the octree for the closest donor cell
         Cmpnts acceptorCoord   = nSetFromComponents(aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
 
@@ -2146,13 +2147,13 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
 
             os->closestDonorDb[b] = dCell;
             lAcellProcMat[aCell[b].rank][rankD] = 1;
+
+            lClosestSize = pow(1./aj[dCellLocal.indk][dCellLocal.indj][dCellLocal.indi], 1./3.);
         }
         else 
         {
             dCell.rank            = -1;
         }
-
-        PetscReal lClosestSize = (lminDist < 1e19) ? pow(1./aj[dCellLocal.indk][dCellLocal.indj][dCellLocal.indi], 1./3.) : 0.0;
         
         MPI_Allreduce(&lClosestSize, &os->aCellDb[b].cell_size, 1, MPIU_REAL, MPI_SUM, meshDonor->MESH_COMM);
         MPI_Allreduce(&dCell.rank, &os->closestDonorDb[b].rank, 1, MPI_INT, MPI_MAX, meshDonor->MESH_COMM);
