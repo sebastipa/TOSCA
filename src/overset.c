@@ -1554,12 +1554,12 @@ void buildOctree(OctreeNode* node, Cmpnts*** donorCells,
         {
             cellCount++;
 
-            if(imin < i) imin = i;
-            if(imax > i) imax = i;
-            if(jmin < j) jmin = j;
-            if(jmax > j) jmax = j;
-            if(kmin < k) kmin = k;
-            if(kmax > k) kmax = k;
+            if(i < imin) imin = i;
+            if(i > imax) imax = i;
+            if(j < jmin) jmin = j;
+            if(j > jmax) jmax = j;
+            if(k < kmin) kmin = k;
+            if(k > kmax) kmax = k;
         }
     }
 
@@ -1667,26 +1667,18 @@ Dcell searchOctree
             // Calculate distance to acceptor
             Cmpnts centroid = centroids[k][j][i];
 
-            if
-            (
-                centroid.x >= node->minBounds.x && centroid.x < node->maxBounds.x &&
-                centroid.y >= node->minBounds.y && centroid.y < node->maxBounds.y &&
-                centroid.z >= node->minBounds.z && centroid.z < node->maxBounds.z
-            ) 
-            {
-                PetscReal dist = sqrt(pow(centroid.x - acceptorCoord.x - procContrib, 2) +
-                                      pow(centroid.y - acceptorCoord.y - procContrib, 2) +
-                                      pow(centroid.z - acceptorCoord.z - procContrib, 2));
+            PetscReal dist = sqrt(pow(centroid.x - acceptorCoord.x - procContrib, 2) +
+                                  pow(centroid.y - acceptorCoord.y - procContrib, 2) +
+                                  pow(centroid.z - acceptorCoord.z - procContrib, 2));
 
-                if (dist < minDist) 
-                {
-                    minDist             = dist + procContrib;
-                    closestDonor.indi   = i;
-                    closestDonor.indj   = j;
-                    closestDonor.indk   = k;
-                    closestDonor.dist2p = dist;
-                    closestDonor.rank   = 1;
-                }
+            if (dist < minDist) 
+            {
+                minDist             = dist + procContrib;
+                closestDonor.indi   = i;
+                closestDonor.indj   = j;
+                closestDonor.indk   = k;
+                closestDonor.dist2p = dist;
+                closestDonor.rank   = 1;
             }
         }
     }
