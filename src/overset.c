@@ -1939,9 +1939,6 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
 
-    MPI_Barrier(meshDonor->MESH_COMM);
-    PetscPrintf(meshDonor->MESH_COMM, "---> Resizing vectors...\n");
-
     // Resize vectors
     os->closestDonorHc.resize(aCell.size());
     os->AcellProcMatHc.resize(sizeA);
@@ -1967,9 +1964,6 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
         }
     }
 
-    MPI_Barrier(meshDonor->MESH_COMM);
-    PetscPrintf(meshDonor->MESH_COMM, "---> Starting search...\n");
-
     // Find closest donor for each acceptor cell
     for(PetscInt b = 0; b < aCell.size(); b++) 
     {
@@ -1986,20 +1980,6 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     
             // Search the octree for the closest donor cell
             Cmpnts acceptorCoord   = nSetFromComponents(aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
-
-            // exclude acceptor cell outside of this processor bounds (ocree search is useless)
-            
-            /*
-            if
-            (
-                acceptorCoord.x >= root->minBounds.x && acceptorCoord.x < root->maxBounds.x &&
-                acceptorCoord.y >= root->minBounds.y && acceptorCoord.y < root->maxBounds.y &&
-                acceptorCoord.z >= root->minBounds.z && acceptorCoord.z < root->maxBounds.z
-            )
-            {
-                
-            }
-            */
 
             dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
             lminDist             = dCellLocal.dist2p;
@@ -2125,13 +2105,10 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+20, coor[lze-1][lye-1][lxe-1].y+20, coor[lze-1][lye-1][lxe-1].z+20};
 
     // build the octree
-    PetscInt maxDepth        = 5;    // Maximum depth of the octree
+    PetscInt maxDepth        = 15;    // Maximum depth of the octree
     PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
-
-    MPI_Barrier(meshDonor->MESH_COMM);
-    PetscPrintf(meshDonor->MESH_COMM, "---> Resizing vectors...\n");
 
     // Resize vectors
     os->closestDonorDb.resize(aCell.size());
@@ -2141,9 +2118,6 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
         lAcellProcMat[b].resize(sizeD);
         os->AcellProcMatDb[b].resize(sizeD);
     }
-
-    MPI_Barrier(meshDonor->MESH_COMM);
-    PetscPrintf(meshDonor->MESH_COMM, "---> Starting search for closest donor cells...\n");
 
     // Find closest donor for each acceptor cell using the octree
     for (PetscInt b = 0; b < aCell.size(); b++) 
@@ -2159,20 +2133,6 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
 
         // Search the octree for the closest donor cell
         Cmpnts acceptorCoord   = nSetFromComponents(aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
-
-        // only this processor does the search
-        /*
-        if
-        (
-            acceptorCoord.x >= root->minBounds.x && acceptorCoord.x < root->maxBounds.x &&
-            acceptorCoord.y >= root->minBounds.y && acceptorCoord.y < root->maxBounds.y &&
-            acceptorCoord.z >= root->minBounds.z && acceptorCoord.z < root->maxBounds.z
-        )
-        {
-            dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
-            lminDist             = dCellLocal.dist2p;
-        }
-        */
 
         dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
         lminDist             = dCellLocal.dist2p;
