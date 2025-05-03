@@ -2112,8 +2112,13 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     PetscInt maxDepth        = 5;    // Maximum depth of the octree
     PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
+    PetscPrintf(PETSC_COMM_SELF, "Building octree on core %d\n", rankD);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
+    PetscPrintf(PETSC_COMM_SELF, "Finished building octree on core %d\n", rankD);
 
+    MPI_Barrier(meshDonor->MESH_COMM);
+
+    PetscPrintf(PETSC_COMM_SELF, "resizing vectors on core %d\n", rankD);
     // Resize vectors
     os->closestDonorDb.resize(aCell.size());
     os->AcellProcMatDb.resize(sizeA);
@@ -2123,6 +2128,7 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
         os->AcellProcMatDb[b].resize(sizeD);
     }
 
+    PetscPrintf(PETSC_COMM_SELF, "Starting search on core %d\n", rankD);
     // Find closest donor for each acceptor cell using the octree
     for (PetscInt b = 0; b < aCell.size(); b++) 
     {
