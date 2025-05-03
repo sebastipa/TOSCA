@@ -1535,9 +1535,9 @@ void buildOctree(OctreeNode* node, Cmpnts*** donorCells,
 {
     // Count the number of donor cells in the current node's bounds
     
-    PetscInt imin = 1e20, imax = 0;
-    PetscInt jmin = 1e20, jmax = 0;
-    PetscInt kmin = 1e20, kmax = 0;
+    PetscInt imin = 1000000, imax = 0;
+    PetscInt jmin = 1000000, jmax = 0;
+    PetscInt kmin = 1000000, kmax = 0;
 
     PetscInt cellCount = 0;
     for (PetscInt k = lzs; k < lze; k++) 
