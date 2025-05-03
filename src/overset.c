@@ -1667,30 +1667,6 @@ Dcell searchOctree
         }
     }
 
-    /*
-    // check donor cells in this node
-    for(PetscInt c=0; c<node->donorCells.size(); c++)
-    {
-        cellIds cell = node->donorCells[c];
-
-        // Calculate distance to acceptor
-        Cmpnts centroid = centroids[cell.k][cell.j][cell.i];
-        PetscReal dist = sqrt(pow(centroid.x - acceptorCoord.x - procContrib, 2) +
-                              pow(centroid.y - acceptorCoord.y - procContrib, 2) +
-                              pow(centroid.z - acceptorCoord.z - procContrib, 2));
-
-        if (dist < minDist) 
-        {
-            minDist             = dist + procContrib;
-            closestDonor.indi   = cell.i;
-            closestDonor.indj   = cell.j;
-            closestDonor.indk   = cell.k;
-            closestDonor.dist2p = dist;
-            closestDonor.rank   = 1;
-        }
-    }
-    */
-
     // recursively search child nodes
     for (int i = 0; i < 8; i++) 
     {
@@ -1958,7 +1934,7 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+1e-3, coor[lze-1][lye-1][lxe-1].y+1e-3, coor[lze-1][lye-1][lxe-1].z+1e-3};
 
     // build the octree
-    PetscInt maxDepth        = 15;   // Maximum depth of the octree
+    PetscInt maxDepth        = 15;    // Maximum depth of the octree
     PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
@@ -2133,7 +2109,7 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+1e-3, coor[lze-1][lye-1][lxe-1].y+1e-3, coor[lze-1][lye-1][lxe-1].z+1e-3};
 
     // build the octree
-    PetscInt maxDepth        = 15;   // Maximum depth of the octree
+    PetscInt maxDepth        = 5;    // Maximum depth of the octree
     PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
