@@ -1510,6 +1510,7 @@ struct OctreeNode
 {
     std::vector<cellIds> donorCells; 
     PetscInt hasCells;
+    PetscInt imin, imax, jmin, jmax, kmin, kmax; // Bounds of the node
     Cmpnts minBounds;  // Minimum bounds of the node
     Cmpnts maxBounds;  // Maximum bounds of the node
     OctreeNode* children[8]; // Pointers to child nodes (8 for octree)
@@ -1533,6 +1534,11 @@ void buildOctree(OctreeNode* node, Cmpnts*** donorCells,
     PetscInt maxDepth, PetscInt maxCellsPerNode) 
 {
     // Count the number of donor cells in the current node's bounds
+    
+    imin = 1e20, imax = 0;
+    jmin = 1e20, jmax = 0;
+    kmin = 1e20, kmax = 0;
+
     PetscInt cellCount = 0;
     for (PetscInt k = lzs; k < lze; k++) 
     for (PetscInt j = lys; j < lye; j++) 
@@ -1547,6 +1553,13 @@ void buildOctree(OctreeNode* node, Cmpnts*** donorCells,
         ) 
         {
             cellCount++;
+
+            if(imin < i) imin = i;
+            if(imax > i) imax = i;
+            if(jmin < j) jmin = j;
+            if(jmax > j) jmax = j;
+            if(kmin < k) kmin = k;
+            if(kmax > k) kmax = k;
         }
     }
 
@@ -1577,6 +1590,12 @@ void buildOctree(OctreeNode* node, Cmpnts*** donorCells,
         }
         */
         node->hasCells = 1; // Mark this node as having cells
+        node->imin = imin;
+        node->imax = imax;
+        node->jmin = jmin;
+        node->jmax = jmax;
+        node->kmin = kmin;
+        node->kmax = kmax;
         return;
     }
 
@@ -1641,9 +1660,9 @@ Dcell searchOctree
     
     if(node->hasCells)
     {
-        for (PetscInt k = lzs; k < lze; k++) 
-        for (PetscInt j = lys; j < lye; j++) 
-        for (PetscInt i = lxs; i < lxe; i++) 
+        for (PetscInt k = node->kmin; k <= node->kmax; k++)
+        for (PetscInt j = node->jmin; j <= node->jmax; j++)
+        for (PetscInt i = node->imin; i <= node->imax; i++)
         {
             // Calculate distance to acceptor
             Cmpnts centroid = centroids[k][j][i];
