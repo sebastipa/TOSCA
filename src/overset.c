@@ -1939,6 +1939,9 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
 
+    MPI_Barrier(meshDonor->MESH_COMM);
+    PetscPrintf(meshDonor->MESH_COMM, "---> Resizing vectors...\n");
+
     // Resize vectors
     os->closestDonorHc.resize(aCell.size());
     os->AcellProcMatHc.resize(sizeA);
@@ -1964,6 +1967,9 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
         }
     }
 
+    MPI_Barrier(meshDonor->MESH_COMM);
+    PetscPrintf(meshDonor->MESH_COMM, "---> Starting search...\n");
+
     // Find closest donor for each acceptor cell
     for(PetscInt b = 0; b < aCell.size(); b++) 
     {
@@ -1982,6 +1988,7 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
             Cmpnts acceptorCoord   = nSetFromComponents(aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
 
             // exclude acceptor cell outside of this processor bounds (ocree search is useless)
+            /*
             if
             (
                 acceptorCoord.x >= root->minBounds.x && acceptorCoord.x < root->maxBounds.x &&
@@ -1992,6 +1999,10 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
                 dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
                 lminDist             = dCellLocal.dist2p;
             }
+            */
+
+            dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
+            lminDist             = dCellLocal.dist2p;
 
             PetscReal gminDist;
             MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPI_MIN, meshDonor->MESH_COMM);
