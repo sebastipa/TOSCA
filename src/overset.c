@@ -1509,6 +1509,7 @@ PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
 struct OctreeNode 
 {
     std::vector<cellIds> donorCells; 
+    PetscInt hasCells;
     Cmpnts minBounds;  // Minimum bounds of the node
     Cmpnts maxBounds;  // Maximum bounds of the node
     OctreeNode* children[8]; // Pointers to child nodes (8 for octree)
@@ -1575,8 +1576,11 @@ void buildOctree(OctreeNode* node, Cmpnts*** donorCells,
             }
         }
         */
+        node->hasCells = 1; // Mark this node as having cells
         return;
     }
+
+    node->hasCells = 0; 
 
     // Compute midpoints of the current node's bounds
     Cmpnts mid;
@@ -1634,7 +1638,8 @@ Dcell searchOctree
     {
         return closestDonor;
     }
-    else 
+    
+    if(node->hasCells)
     {
         for (PetscInt k = lzs; k < lze; k++) 
         for (PetscInt j = lys; j < lye; j++) 
@@ -1642,18 +1647,27 @@ Dcell searchOctree
         {
             // Calculate distance to acceptor
             Cmpnts centroid = centroids[k][j][i];
-            PetscReal dist = sqrt(pow(centroid.x - acceptorCoord.x - procContrib, 2) +
-                                  pow(centroid.y - acceptorCoord.y - procContrib, 2) +
-                                  pow(centroid.z - acceptorCoord.z - procContrib, 2));
 
-            if (dist < minDist) 
+            if
+            (
+                centroid.x >= node->minBounds.x && centroid.x < node->maxBounds.x &&
+                centroid.y >= node->minBounds.y && centroid.y < node->maxBounds.y &&
+                centroid.z >= node->minBounds.z && centroid.z < node->maxBounds.z
+            ) 
             {
-                minDist             = dist + procContrib;
-                closestDonor.indi   = i;
-                closestDonor.indj   = j;
-                closestDonor.indk   = k;
-                closestDonor.dist2p = dist;
-                closestDonor.rank   = 1;
+                PetscReal dist = sqrt(pow(centroid.x - acceptorCoord.x - procContrib, 2) +
+                                      pow(centroid.y - acceptorCoord.y - procContrib, 2) +
+                                      pow(centroid.z - acceptorCoord.z - procContrib, 2));
+
+                if (dist < minDist) 
+                {
+                    minDist             = dist + procContrib;
+                    closestDonor.indi   = i;
+                    closestDonor.indj   = j;
+                    closestDonor.indk   = k;
+                    closestDonor.dist2p = dist;
+                    closestDonor.rank   = 1;
+                }
             }
         }
     }
