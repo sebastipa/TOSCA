@@ -2112,13 +2112,8 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     PetscInt maxDepth        = 5;    // Maximum depth of the octree
     PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
-    PetscPrintf(PETSC_COMM_SELF, "Building octree on core %d\n", rankD);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
-    PetscPrintf(PETSC_COMM_SELF, "Finished building octree on core %d\n", rankD);
 
-    MPI_Barrier(meshDonor->MESH_COMM);
-
-    PetscPrintf(PETSC_COMM_SELF, "resizing vectors on core %d\n", rankD);
     // Resize vectors
     os->closestDonorDb.resize(aCell.size());
     os->AcellProcMatDb.resize(sizeA);
@@ -2128,7 +2123,9 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
         os->AcellProcMatDb[b].resize(sizeD);
     }
 
-    PetscPrintf(PETSC_COMM_SELF, "Starting search on core %d\n", rankD);
+    MPI_Barrier(meshDonor->MESH_COMM);
+    PetscPrintf(meshDonor->MESH_COMM, "---> Starting search for closest donor cells...\n");
+
     // Find closest donor for each acceptor cell using the octree
     for (PetscInt b = 0; b < aCell.size(); b++) 
     {
@@ -2145,6 +2142,7 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
         Cmpnts acceptorCoord   = nSetFromComponents(aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
 
         // only this processor does the search
+        /*
         if
         (
             acceptorCoord.x >= root->minBounds.x && acceptorCoord.x < root->maxBounds.x &&
@@ -2155,6 +2153,10 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
             dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
             lminDist             = dCellLocal.dist2p;
         }
+        */
+
+        dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
+        lminDist             = dCellLocal.dist2p;
         
         PetscReal gminDist;
         MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPI_MIN, meshDonor->MESH_COMM);
