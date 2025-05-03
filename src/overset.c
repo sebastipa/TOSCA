@@ -1915,11 +1915,11 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     PetscInt bsx = xs; if(xs!=0) bsx = bsx - 1;
 
     // find min and max bounds for this processor (in terms of points coordinates)
-    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x, coor[bsz  ][bsy  ][bsx  ].y, coor[bsz  ][bsy  ][bsx  ].z};
-    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x, coor[lze-1][lye-1][lxe-1].y, coor[lze-2][lye-1][lxe-1].z};
+    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x-1e-3, coor[bsz  ][bsy  ][bsx  ].y-1e-3, coor[bsz  ][bsy  ][bsx  ].z-1e-3};
+    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+1e-3, coor[lze-1][lye-1][lxe-1].y+1e-3, coor[lze-1][lye-1][lxe-1].z+1e-3};
 
     // build the octree
-    PetscInt maxDepth        = 10;   // Maximum depth of the octree
+    PetscInt maxDepth        = 15;   // Maximum depth of the octree
     PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
@@ -1996,6 +1996,7 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
             }
     
             PetscReal lClosestSize = (lminDist < 1e19) ? pow(1./aj[dCellLocal.indk][dCellLocal.indj][dCellLocal.indi], 1./3.) : 0.0;
+            
             MPI_Allreduce(&lClosestSize, &os->aCellHc[b].cell_size, 1, MPIU_REAL, MPI_SUM, meshDonor->MESH_COMM);
             MPI_Allreduce(&dCell.rank, &os->closestDonorHc[b].rank, 1, MPI_INT, MPI_MAX, meshDonor->MESH_COMM);
     
@@ -2087,11 +2088,11 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     PetscInt bsx = xs; if(xs!=0) bsx = bsx - 1;
 
     // find min and max bounds for this processor (in terms of points coordinates)
-    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x, coor[bsz  ][bsy  ][bsx  ].y, coor[bsz  ][bsy  ][bsx  ].z};
-    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x, coor[lze-1][lye-1][lxe-1].y, coor[lze-2][lye-1][lxe-1].z};
+    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x-1e-3, coor[bsz  ][bsy  ][bsx  ].y-1e-3, coor[bsz  ][bsy  ][bsx  ].z-1e-3};
+    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+1e-3, coor[lze-1][lye-1][lxe-1].y+1e-3, coor[lze-1][lye-1][lxe-1].z+1e-3};
 
     // build the octree
-    PetscInt maxDepth        = 10;   // Maximum depth of the octree
+    PetscInt maxDepth        = 15;   // Maximum depth of the octree
     PetscInt maxCellsPerNode = 1000; // Maximum cells per leaf node
     OctreeNode *root         = new OctreeNode(minBounds, maxBounds);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, maxDepth, maxCellsPerNode);
