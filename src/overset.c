@@ -1960,6 +1960,8 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
             
             // initialize to huge
             PetscReal lminDist     = 1e20;
+
+            PetscReal lClosestSize = 0.0;
     
             // Search the octree for the closest donor cell
             Cmpnts acceptorCoord   = nSetFromComponents(aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
@@ -1979,7 +1981,7 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
             PetscReal gminDist;
             MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPI_MIN, meshDonor->MESH_COMM);
             
-            if (lminDist == gminDist && lminDist < 1e19) 
+            if (lminDist == gminDist) 
             {
                 dCell.indi            = dCellLocal.indi;
                 dCell.indj            = dCellLocal.indj;
@@ -1989,13 +1991,13 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
 
                 os->closestDonorHc[b] = dCell;
                 lAcellProcMat[aCell[b].rank][rankD] = 1;
+
+                lClosestSize = pow(1./aj[dCellLocal.indk][dCellLocal.indj][dCellLocal.indi], 1./3.);
             }
             else 
             {
                 dCell.rank            = -1;
             }
-    
-            PetscReal lClosestSize = (lminDist < 1e19) ? pow(1./aj[dCellLocal.indk][dCellLocal.indj][dCellLocal.indi], 1./3.) : 0.0;
             
             MPI_Allreduce(&lClosestSize, &os->aCellHc[b].cell_size, 1, MPIU_REAL, MPI_SUM, meshDonor->MESH_COMM);
             MPI_Allreduce(&dCell.rank, &os->closestDonorHc[b].rank, 1, MPI_INT, MPI_MAX, meshDonor->MESH_COMM);
