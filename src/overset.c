@@ -1988,7 +1988,7 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
             Cmpnts acceptorCoord   = nSetFromComponents(aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
 
             // exclude acceptor cell outside of this processor bounds (ocree search is useless)
-            /*
+            
             if
             (
                 acceptorCoord.x >= root->minBounds.x && acceptorCoord.x < root->maxBounds.x &&
@@ -1999,21 +1999,16 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
                 dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
                 lminDist             = dCellLocal.dist2p;
             }
-            */
-
-            dCellLocal           = searchOctree(root, procContrib, acceptorCoord, cent, lminDist, lxs, lxe, lys, lye, lzs, lze);
-            lminDist             = dCellLocal.dist2p;
-
-            if(lminDist < 1e19)
-            {
-                printf("lminDist = %f on rank %d\n", lminDist, rankD);
-            }
 
             PetscReal gminDist;
             MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPI_MIN, meshDonor->MESH_COMM);
             
             if (lminDist == gminDist) 
             {
+                if (gminDist == 1e20)
+                {
+                    printf("Warning: No donor cell found for acceptor cell %d\n", b);
+                }
                 dCell.indi            = dCellLocal.indi;
                 dCell.indj            = dCellLocal.indj;
                 dCell.indk            = dCellLocal.indk;  
