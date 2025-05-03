@@ -1930,8 +1930,8 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     PetscInt bsx = xs; if(xs!=0) bsx = bsx - 1;
 
     // find min and max bounds for this processor (in terms of points coordinates)
-    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x-1e-3, coor[bsz  ][bsy  ][bsx  ].y-1e-3, coor[bsz  ][bsy  ][bsx  ].z-1e-3};
-    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+1e-3, coor[lze-1][lye-1][lxe-1].y+1e-3, coor[lze-1][lye-1][lxe-1].z+1e-3};
+    Cmpnts minBounds = {coor[bsz  ][bsy  ][bsx  ].x-20, coor[bsz  ][bsy  ][bsx  ].y-20, coor[bsz  ][bsy  ][bsx  ].z-20};
+    Cmpnts maxBounds = {coor[lze-1][lye-1][lxe-1].x+20, coor[lze-1][lye-1][lxe-1].y+20, coor[lze-1][lye-1][lxe-1].z+20};
 
     // build the octree
     PetscInt maxDepth        = 15;    // Maximum depth of the octree
@@ -2009,6 +2009,7 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
                 {
                     printf("Warning: No donor cell found for acceptor cell %d\n", b);
                 }
+
                 dCell.indi            = dCellLocal.indi;
                 dCell.indj            = dCellLocal.indj;
                 dCell.indk            = dCellLocal.indk;  
