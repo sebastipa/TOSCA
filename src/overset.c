@@ -72,7 +72,7 @@ PetscErrorCode InitializeOverset(domain_ *domain)
 
         if (!isChild)
         {
-            PetscPrintf(domain[d].mesh->MESH_COMM, "\nStarted recursive acceptor search from domain %ld:\n", d);
+            PetscPrintf(domain[d].mesh->MESH_COMM, "Started recursive acceptor search from domain %ld:\n", d);
             findAcceptorCells(d, domain, 0, holeObjects);
         }
     }
