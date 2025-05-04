@@ -53,14 +53,8 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             timeStart    = clock->startTime;
             timeInterval = domain[d].io->timeInterval;
 
-            MPI_Barrier(domain[d].mesh->MESH_COMM);
-            PetscPrintf(PETSC_COMM_WORLD, "Domain %ld, barrier 1\n", d);
-
             timeStepSet(clock, timeStart, timeInterval, dxByU_min, flag, cfl);
             predictedDt  = currentDistanceToWriteTime(clock, timeStart, timeInterval);
-
-            MPI_Barrier(domain[d].mesh->MESH_COMM);
-            PetscPrintf(PETSC_COMM_WORLD, "Domain %ld, barrier 2\n", d);
 
             // averaged fields
             if(domain[d].io->averaging)
@@ -117,8 +111,6 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                     predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
                 }
             }
-            MPI_Barrier(domain[d].mesh->MESH_COMM);
-            PetscPrintf(PETSC_COMM_WORLD, "Domain %ld, barrier 3\n", d);
 
             // catalyst
             if(flags->isPvCatalystActive)
@@ -225,9 +217,6 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                         }
                     }
                 }
-
-                MPI_Barrier(domain[d].mesh->MESH_COMM);
-                PetscPrintf(PETSC_COMM_WORLD, "Domain %ld, barrier 4\n", d);
             }
 
             // concurrent precursor
