@@ -92,7 +92,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
             }
 
-            if(flags->isIBMActive)
+            if(domain[d].flags->isIBMActive)
             {
                 ibm_ *ibm = domain[d].ibm;
 
@@ -106,7 +106,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 }
             }
 
-            if(flags->isWindFarmActive)
+            if(domain[d].flags->isWindFarmActive)
             {
                 if(domain[d].farm->intervalType == "adjustableTime")
                 {
