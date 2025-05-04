@@ -69,7 +69,8 @@ PetscErrorCode InitializeLES(les_ *les)
             VecDuplicate(mesh->lAj, &(les->lDiff_t)); VecSet(les->lDiff_t, 0.);
             VecDuplicate(mesh->lAj, &(les->lKsgs));   VecSet(les->lKsgs, 0.);
 
-            if (les->model == STABILITY_BASED ||
+            if (les->model == SMAGORINSKY ||
+                les->model == STABILITY_BASED ||
                 les->model == DSM ||
                 les->model == DLASI ||
                 les->model == DLASD ||
@@ -124,7 +125,7 @@ PetscErrorCode InitializeLES(les_ *les)
 
         if (les->access->flags->isLesActive)
         {
-            PetscPrintf(PETSC_COMM_WORLD, "Selected LES Model: %s\n", LesModelNames[les->model]);
+            PetscPrintf(PETSC_COMM_WORLD, "\nSelected LES Model: %s\n", LesModelNames[les->model]);
         }
         else
         {
