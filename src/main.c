@@ -45,6 +45,9 @@ int main(int argc, char **argv)
         #endif
     }
 
+    PetscPrintf(PETSC_COMM_WORLD, "\nStarting time loop:\n");
+    PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
+
     while(clock.endTime - clock.time > 1e-10)
     {
         PetscTime(&iterationTimeStart);
