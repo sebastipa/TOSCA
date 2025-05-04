@@ -181,7 +181,7 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         PetscTime(&timeStart);
     
         PetscPrintf(PETSC_COMM_WORLD, "\nOverset initialization:\n");
-        PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n");
+        PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
 
         // initialize overset
         InitializeOverset(domain);
