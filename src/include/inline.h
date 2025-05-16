@@ -3843,40 +3843,82 @@ inline Cmpnts centralVec4thCsi(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
         }
         else
         {
-            if(i == 0)
+            i0 = i, ip1 = i+1;
+
+            result.x = 0.5 * (ucat[k][j][i0].x + ucat[k][j][ip1].x);
+            result.y = 0.5 * (ucat[k][j][i0].y + ucat[k][j][ip1].y);
+            result.z = 0.5 * (ucat[k][j][i0].z + ucat[k][j][ip1].z);
+        }
+    }
+    else if ( (i == 1 || i == mx-3) && (!isIBMIFace(k, j, i, i+1, nvert)) && (!isOversetIFace(k, j, i, i+1, nvert)) && (!(mesh->i_periodic || mesh->ii_periodic))) // Quick/Second-order central scheme for j=1 and j=my-3 depending on direction of flow
+    {
+        im1 = i-1, i0 = i, ip1 = i+1, ip2 = i+2;
+        
+        if (i == 1)
+        {
+            if(wavespeed>0)
             {
-                im1 = i, i0 = i+1, ip1 = i+2, ip2 = i+3;
-                
-                result.x = (5.0 * ucat[k][j][im1].x + 5.0 * ucat[k][j][i0].x - ucat[k][j][ip1].x - ucat[k][j][ip2].x) / 8.0;
-                result.y = (5.0 * ucat[k][j][im1].y + 5.0 * ucat[k][j][i0].y - ucat[k][j][ip1].y - ucat[k][j][ip2].y) / 8.0;
-                result.z = (5.0 * ucat[k][j][im1].z + 5.0 * ucat[k][j][i0].z - ucat[k][j][ip1].z - ucat[k][j][ip2].z) / 8.0;
+                result.x = 0.5 * (ucat[k][j][i0].x + ucat[k][j][ip1].x);
+                result.y = 0.5 * (ucat[k][j][i0].y + ucat[k][j][ip1].y);
+                result.z = 0.5 * (ucat[k][j][i0].z + ucat[k][j][ip1].z);
             }
-
-            if(i == mx-2)
+            else
             {
-                im1 = i-2, i0 = i-1, ip1 = i, ip2 = i+1;
+                result.x = 0.5 * (ucat[k][j][ip1].x + ucat[k][j][i0].x) + (2.0*ucat[k][j][ip1].x - ucat[k][j][i0].x - ucat[k][j][ip2].x) / 8.0;
+                result.y = 0.5 * (ucat[k][j][ip1].y + ucat[k][j][i0].y) + (2.0*ucat[k][j][ip1].y - ucat[k][j][i0].y - ucat[k][j][ip2].y) / 8.0;
+                result.z = 0.5 * (ucat[k][j][ip1].z + ucat[k][j][i0].z) + (2.0*ucat[k][j][ip1].z - ucat[k][j][i0].z - ucat[k][j][ip2].z) / 8.0;
+            }
+        }
 
-                result.x = (-ucat[k][j][im1].x - ucat[k][j][i0].x + 5.0 * ucat[k][j][ip1].x + 5.0 * ucat[k][j][ip2].x) / 8.0;
-                result.y = (-ucat[k][j][im1].y - ucat[k][j][i0].y + 5.0 * ucat[k][j][ip1].y + 5.0 * ucat[k][j][ip2].y) / 8.0;
-                result.z = (-ucat[k][j][im1].z - ucat[k][j][i0].z + 5.0 * ucat[k][j][ip1].z + 5.0 * ucat[k][j][ip2].z) / 8.0;
+        if (i == mx-3)
+        {
+            if(wavespeed>0)
+            {
+                result.x = 0.5 * (ucat[k][j][ip1].x + ucat[k][j][i0].x) + (2.0*ucat[k][j][i0].x - ucat[k][j][ip1].x - ucat[k][j][im1].x) / 8.0;
+                result.y = 0.5 * (ucat[k][j][ip1].y + ucat[k][j][i0].y) + (2.0*ucat[k][j][i0].y - ucat[k][j][ip1].y - ucat[k][j][im1].y) / 8.0;
+                result.z = 0.5 * (ucat[k][j][ip1].z + ucat[k][j][i0].z) + (2.0*ucat[k][j][i0].z - ucat[k][j][ip1].z - ucat[k][j][im1].z) / 8.0;
+            }
+            else
+            {
+                result.x = 0.5 * (ucat[k][j][i0].x + ucat[k][j][ip1].x);
+                result.y = 0.5 * (ucat[k][j][i0].y + ucat[k][j][ip1].y);
+                result.z = 0.5 * (ucat[k][j][i0].z + ucat[k][j][ip1].z);
             }
         }
     }
     else if(isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
     {
-        im1 = i, i0 = i+1, ip1 = i+2, ip2 = i+3;
-        result.x = (5.0 * ucat[k][j][im1].x + 5.0 * ucat[k][j][i0].x - ucat[k][j][ip1].x - ucat[k][j][ip2].x) / 8.0;
-        result.y = (5.0 * ucat[k][j][im1].y + 5.0 * ucat[k][j][i0].y - ucat[k][j][ip1].y - ucat[k][j][ip2].y) / 8.0;
-        result.z = (5.0 * ucat[k][j][im1].z + 5.0 * ucat[k][j][i0].z - ucat[k][j][ip1].z - ucat[k][j][ip2].z) / 8.0;
-         
+        im1 = i-1, i0 = i, ip1 = i+1, ip2 = i+2;
+
+        if(wavespeed>0)
+        {
+            result.x = 0.5 * (ucat[k][j][i0].x + ucat[k][j][ip1].x);
+            result.y = 0.5 * (ucat[k][j][i0].y + ucat[k][j][ip1].y);
+            result.z = 0.5 * (ucat[k][j][i0].z + ucat[k][j][ip1].z);
+        }
+        else
+        {
+            result.x = 0.5 * (ucat[k][j][ip1].x + ucat[k][j][i0].x) + (2.0*ucat[k][j][ip1].x - ucat[k][j][i0].x - ucat[k][j][ip2].x) / 8.0;
+            result.y = 0.5 * (ucat[k][j][ip1].y + ucat[k][j][i0].y) + (2.0*ucat[k][j][ip1].y - ucat[k][j][i0].y - ucat[k][j][ip2].y) / 8.0;
+            result.z = 0.5 * (ucat[k][j][ip1].z + ucat[k][j][i0].z) + (2.0*ucat[k][j][ip1].z - ucat[k][j][i0].z - ucat[k][j][ip2].z) / 8.0;
+        }
     }
     else if(isIBMCell(k, j, i+1, nvert) || isOversetCell(k, j, i+1, meshTag))
     {
-        im1 = i-2, i0 = i-1, ip1 = i, ip2 = i+1;
+        im1 = i-1, i0 = i, ip1 = i+1, ip2 = i+2;
 
-        result.x = (-ucat[k][j][im1].x - ucat[k][j][i0].x + 5.0 * ucat[k][j][ip1].x + 5.0 * ucat[k][j][ip2].x) / 8.0;
-        result.y = (-ucat[k][j][im1].y - ucat[k][j][i0].y + 5.0 * ucat[k][j][ip1].y + 5.0 * ucat[k][j][ip2].y) / 8.0;
-        result.z = (-ucat[k][j][im1].z - ucat[k][j][i0].z + 5.0 * ucat[k][j][ip1].z + 5.0 * ucat[k][j][ip2].z) / 8.0;
+        if(wavespeed>0)
+        {
+            result.x = 0.5 * (ucat[k][j][ip1].x + ucat[k][j][i0].x) + (2.0*ucat[k][j][i0].x - ucat[k][j][ip1].x - ucat[k][j][im1].x) / 8.0;
+            result.y = 0.5 * (ucat[k][j][ip1].y + ucat[k][j][i0].y) + (2.0*ucat[k][j][i0].y - ucat[k][j][ip1].y - ucat[k][j][im1].y) / 8.0;
+            result.z = 0.5 * (ucat[k][j][ip1].z + ucat[k][j][i0].z) + (2.0*ucat[k][j][i0].z - ucat[k][j][ip1].z - ucat[k][j][im1].z) / 8.0;
+        }
+        else
+        {
+            result.x = 0.5 * (ucat[k][j][i0].x + ucat[k][j][ip1].x);
+            result.y = 0.5 * (ucat[k][j][i0].y + ucat[k][j][ip1].y);
+            result.z = 0.5 * (ucat[k][j][i0].z + ucat[k][j][ip1].z);
+        }
     }
     else
     {
@@ -3942,39 +3984,83 @@ inline Cmpnts centralVec4thEta(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
         }
         else
         {
-            if (j == 0) // Forward stencil at lower boundary
-            {
-                jm1 = j, j0 = j+1, jp1 = j+2, jp2 = j+3;
+            // use second order central at boundary
+            j0 = j, jp1 = j+1;
 
-                result.x = (5.0 * ucat[k][jm1][i].x + 5.0 * ucat[k][j0][i].x - ucat[k][jp1][i].x - ucat[k][jp2][i].x) / 8.0;
-                result.y = (5.0 * ucat[k][jm1][i].y + 5.0 * ucat[k][j0][i].y - ucat[k][jp1][i].y - ucat[k][jp2][i].y) / 8.0;
-                result.z = (5.0 * ucat[k][jm1][i].z + 5.0 * ucat[k][j0][i].z - ucat[k][jp1][i].z - ucat[k][jp2][i].z) / 8.0;
+            result.x = 0.5 * (ucat[k][jp1][i].x + ucat[k][j0][i].x);
+            result.y = 0.5 * (ucat[k][jp1][i].y + ucat[k][j0][i].y);
+            result.z = 0.5 * (ucat[k][jp1][i].z + ucat[k][j0][i].z);
+        }
+    }
+    else if ( (j == 1 || j == my-3) && (!isIBMJFace(k, j, i, j+1, nvert)) && (!isOversetJFace(k, j, i, j+1, nvert)) && (!(mesh->j_periodic || mesh->jj_periodic))) // Quick/Second-order central scheme for j=1 and j=my-3 depending on direction of flow
+    {
+        jm1 = j-1, j0 = j, jp1 = j+1, jp2 = j+2;
+        
+        if (j == 1)
+        {
+            if(wavespeed>0)
+            {
+                result.x = 0.5 * (ucat[k][j0][i].x + ucat[k][jp1][i].x);
+                result.y = 0.5 * (ucat[k][j0][i].y + ucat[k][jp1][i].y);
+                result.z = 0.5 * (ucat[k][j0][i].z + ucat[k][jp1][i].z);
             }
-            if (j == my-2) // Backward stencil at upper boundary
+            else
             {
-                jm1 = j-2, j0 = j-1, jp1 = j, jp2 = j+1;
+                result.x = 0.5 * (ucat[k][jp1][i].x + ucat[k][j0][i].x) + (2.0*ucat[k][jp1][i].x - ucat[k][j0][i].x - ucat[k][jp2][i].x) / 8.0;
+                result.y = 0.5 * (ucat[k][jp1][i].y + ucat[k][j0][i].y) + (2.0*ucat[k][jp1][i].y - ucat[k][j0][i].y - ucat[k][jp2][i].y) / 8.0;
+                result.z = 0.5 * (ucat[k][jp1][i].z + ucat[k][j0][i].z) + (2.0*ucat[k][jp1][i].z - ucat[k][j0][i].z - ucat[k][jp2][i].z) / 8.0;
+            }
+        }
 
-                result.x = (-ucat[k][jm1][i].x - ucat[k][j0][i].x + 5.0 * ucat[k][jp1][i].x + 5.0 * ucat[k][jp2][i].x) / 8.0;
-                result.y = (-ucat[k][jm1][i].y - ucat[k][j0][i].y + 5.0 * ucat[k][jp1][i].y + 5.0 * ucat[k][jp2][i].y) / 8.0;
-                result.z = (-ucat[k][jm1][i].z - ucat[k][j0][i].z + 5.0 * ucat[k][jp1][i].z + 5.0 * ucat[k][jp2][i].z) / 8.0;
+        if (j == my-3)
+        {
+            if(wavespeed>0)
+            {
+                result.x = 0.5 * (ucat[k][jp1][i].x + ucat[k][j0][i].x) + (2.0*ucat[k][j0][i].x - ucat[k][jp1][i].x - ucat[k][jm1][i].x) / 8.0;
+                result.y = 0.5 * (ucat[k][jp1][i].y + ucat[k][j0][i].y) + (2.0*ucat[k][j0][i].y - ucat[k][jp1][i].y - ucat[k][jm1][i].y) / 8.0;
+                result.z = 0.5 * (ucat[k][jp1][i].z + ucat[k][j0][i].z) + (2.0*ucat[k][j0][i].z - ucat[k][jp1][i].z - ucat[k][jm1][i].z) / 8.0;
+            }
+            else
+            {
+                result.x = 0.5 * (ucat[k][j0][i].x + ucat[k][jp1][i].x);
+                result.y = 0.5 * (ucat[k][j0][i].y + ucat[k][jp1][i].y);
+                result.z = 0.5 * (ucat[k][j0][i].z + ucat[k][jp1][i].z);
             }
         }
     }
     else if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
     {
-        jm1 = j, j0 = j+1, jp1 = j+2, jp2 = j+3;
+        jm1 = j-1, j0 = j, jp1 = j+1, jp2 = j+2;
 
-        result.x = (5.0 * ucat[k][jm1][i].x + 5.0 * ucat[k][j0][i].x - ucat[k][jp1][i].x - ucat[k][jp2][i].x) / 8.0;
-        result.y = (5.0 * ucat[k][jm1][i].y + 5.0 * ucat[k][j0][i].y - ucat[k][jp1][i].y - ucat[k][jp2][i].y) / 8.0;
-        result.z = (5.0 * ucat[k][jm1][i].z + 5.0 * ucat[k][j0][i].z - ucat[k][jp1][i].z - ucat[k][jp2][i].z) / 8.0;
+        if(wavespeed>0)
+        {
+            result.x = 0.5 * (ucat[k][j0][i].x + ucat[k][jp1][i].x);
+            result.y = 0.5 * (ucat[k][j0][i].y + ucat[k][jp1][i].y);
+            result.z = 0.5 * (ucat[k][j0][i].z + ucat[k][jp1][i].z);
+        }
+        else
+        {
+            result.x = 0.5 * (ucat[k][jp1][i].x + ucat[k][j0][i].x) + (2.0*ucat[k][jp1][i].x - ucat[k][j0][i].x - ucat[k][jp2][i].x) / 8.0;
+            result.y = 0.5 * (ucat[k][jp1][i].y + ucat[k][j0][i].y) + (2.0*ucat[k][jp1][i].y - ucat[k][j0][i].y - ucat[k][jp2][i].y) / 8.0;
+            result.z = 0.5 * (ucat[k][jp1][i].z + ucat[k][j0][i].z) + (2.0*ucat[k][jp1][i].z - ucat[k][j0][i].z - ucat[k][jp2][i].z) / 8.0;
+        }
     }
     else if (isIBMCell(k, j+1, i, nvert) || isOversetCell(k, j+1, i, meshTag))
     {
-        jm1 = j-2, j0 = j-1, jp1 = j, jp2 = j+1;
+        jm1 = j-1, j0 = j, jp1 = j+1, jp2 = j+2;
 
-        result.x = (-ucat[k][jm1][i].x - ucat[k][j0][i].x + 5.0 * ucat[k][jp1][i].x + 5.0 * ucat[k][jp2][i].x) / 8.0;
-        result.y = (-ucat[k][jm1][i].y - ucat[k][j0][i].y + 5.0 * ucat[k][jp1][i].y + 5.0 * ucat[k][jp2][i].y) / 8.0;
-        result.z = (-ucat[k][jm1][i].z - ucat[k][j0][i].z + 5.0 * ucat[k][jp1][i].z + 5.0 * ucat[k][jp2][i].z) / 8.0;
+        if(wavespeed>0)
+        {
+            result.x = 0.5 * (ucat[k][jp1][i].x + ucat[k][j0][i].x) + (2.0*ucat[k][j0][i].x - ucat[k][jp1][i].x - ucat[k][jm1][i].x) / 8.0;
+            result.y = 0.5 * (ucat[k][jp1][i].y + ucat[k][j0][i].y) + (2.0*ucat[k][j0][i].y - ucat[k][jp1][i].y - ucat[k][jm1][i].y) / 8.0;
+            result.z = 0.5 * (ucat[k][jp1][i].z + ucat[k][j0][i].z) + (2.0*ucat[k][j0][i].z - ucat[k][jp1][i].z - ucat[k][jm1][i].z) / 8.0;
+        }
+        else
+        {
+            result.x = 0.5 * (ucat[k][j0][i].x + ucat[k][jp1][i].x);
+            result.y = 0.5 * (ucat[k][j0][i].y + ucat[k][jp1][i].y);
+            result.z = 0.5 * (ucat[k][j0][i].z + ucat[k][jp1][i].z);
+        }
     }
     else
     {
@@ -4040,39 +4126,82 @@ inline Cmpnts centralVec4thZet(mesh_ *mesh, PetscInt k, PetscInt j, PetscInt i, 
         }
         else
         {
-            if (k == 0) // Forward stencil at lower boundary
-            {
-                km1 = k, k0 = k+1, kp1 = k+2, kp2 = k+3;
+            k0 = k, kp1 = k+1;
 
-                result.x = (5.0 * ucat[km1][j][i].x + 5.0 * ucat[k0][j][i].x - ucat[kp1][j][i].x - ucat[kp2][j][i].x) / 8.0;
-                result.y = (5.0 * ucat[km1][j][i].y + 5.0 * ucat[k0][j][i].y - ucat[kp1][j][i].y - ucat[kp2][j][i].y) / 8.0;
-                result.z = (5.0 * ucat[km1][j][i].z + 5.0 * ucat[k0][j][i].z - ucat[kp1][j][i].z - ucat[kp2][j][i].z) / 8.0;
+            result.x = 0.5 * (ucat[k0][j][i].x + ucat[kp1][j][i].x);
+            result.y = 0.5 * (ucat[k0][j][i].y + ucat[kp1][j][i].y);
+            result.z = 0.5 * (ucat[k0][j][i].z + ucat[kp1][j][i].z);
+        }
+    }
+    else if ( (k == 1 || k == mz-3) && (!isIBMKFace(k, j, i, k+1, nvert)) && (!isOversetKFace(k, j, i, k+1, nvert)) && (!(mesh->k_periodic || mesh->kk_periodic))) // Quick/Second-order central scheme for k=1 and k=mz-3 depending on direction of flow
+    {
+        km1 = k-1, k0 = k, kp1 = k+1, kp2 = k+2;
+        
+        if (k == 1)
+        {
+            if(wavespeed>0)
+            {
+                result.x = 0.5 * (ucat[k0][j][i].x + ucat[kp1][j][i].x);
+                result.y = 0.5 * (ucat[k0][j][i].y + ucat[kp1][j][i].y);
+                result.z = 0.5 * (ucat[k0][j][i].z + ucat[kp1][j][i].z);
             }
-            if (k == mz-2) // Backward stencil at upper boundary
+            else
             {
-                km1 = k-2, k0 = k-1, kp1 = k, kp2 = k+1;
+                result.x = 0.5 * (ucat[kp1][j][i].x + ucat[k0][j][i].x) + (2.0*ucat[kp1][j][i].x - ucat[k0][j][i].x - ucat[kp2][j][i].x) / 8.0;
+                result.y = 0.5 * (ucat[kp1][j][i].y + ucat[k0][j][i].y) + (2.0*ucat[kp1][j][i].y - ucat[k0][j][i].y - ucat[kp2][j][i].y) / 8.0;
+                result.z = 0.5 * (ucat[kp1][j][i].z + ucat[k0][j][i].z) + (2.0*ucat[kp1][j][i].z - ucat[k0][j][i].z - ucat[kp2][j][i].z) / 8.0;
+            }
+        }
 
-                result.x = (-ucat[km1][j][i].x - ucat[k0][j][i].x + 5.0 * ucat[kp1][j][i].x + 5.0 * ucat[kp2][j][i].x) / 8.0;
-                result.y = (-ucat[km1][j][i].y - ucat[k0][j][i].y + 5.0 * ucat[kp1][j][i].y + 5.0 * ucat[kp2][j][i].y) / 8.0;
-                result.z = (-ucat[km1][j][i].z - ucat[k0][j][i].z + 5.0 * ucat[kp1][j][i].z + 5.0 * ucat[kp2][j][i].z) / 8.0;
+        if (k == mz-3)
+        {
+            if(wavespeed>0)
+            {
+                result.x = 0.5 * (ucat[kp1][j][i].x + ucat[k0][j][i].x) + (2.0*ucat[k0][j][i].x - ucat[kp1][j][i].x - ucat[km1][j][i].x) / 8.0;
+                result.y = 0.5 * (ucat[kp1][j][i].y + ucat[k0][j][i].y) + (2.0*ucat[k0][j][i].y - ucat[kp1][j][i].y - ucat[km1][j][i].y) / 8.0;
+                result.z = 0.5 * (ucat[kp1][j][i].z + ucat[k0][j][i].z) + (2.0*ucat[k0][j][i].z - ucat[kp1][j][i].z - ucat[km1][j][i].z) / 8.0;
+            }
+            else
+            {
+                result.x = 0.5 * (ucat[k0][j][i].x + ucat[kp1][j][i].x);
+                result.y = 0.5 * (ucat[k0][j][i].y + ucat[kp1][j][i].y);
+                result.z = 0.5 * (ucat[k0][j][i].z + ucat[kp1][j][i].z);
             }
         }
     }
     else if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
     {
-        km1 = k, k0 = k+1, kp1 = k+2, kp2 = k+3;
+        km1 = k-1, k0 = k, kp1 = k+1, kp2 = k+2;
 
-        result.x = (5.0 * ucat[km1][j][i].x + 5.0 * ucat[k0][j][i].x - ucat[kp1][j][i].x - ucat[kp2][j][i].x) / 8.0;
-        result.y = (5.0 * ucat[km1][j][i].y + 5.0 * ucat[k0][j][i].y - ucat[kp1][j][i].y - ucat[kp2][j][i].y) / 8.0;
-        result.z = (5.0 * ucat[km1][j][i].z + 5.0 * ucat[k0][j][i].z - ucat[kp1][j][i].z - ucat[kp2][j][i].z) / 8.0;
+        if(wavespeed>0)
+        {
+            result.x = 0.5 * (ucat[k0][j][i].x + ucat[kp1][j][i].x);
+            result.y = 0.5 * (ucat[k0][j][i].y + ucat[kp1][j][i].y);
+            result.z = 0.5 * (ucat[k0][j][i].z + ucat[kp1][j][i].z);
+        }
+        else
+        {
+            result.x = 0.5 * (ucat[kp1][j][i].x + ucat[k0][j][i].x) + (2.0*ucat[kp1][j][i].x - ucat[k0][j][i].x - ucat[kp2][j][i].x) / 8.0;
+            result.y = 0.5 * (ucat[kp1][j][i].y + ucat[k0][j][i].y) + (2.0*ucat[kp1][j][i].y - ucat[k0][j][i].y - ucat[kp2][j][i].y) / 8.0;
+            result.z = 0.5 * (ucat[kp1][j][i].z + ucat[k0][j][i].z) + (2.0*ucat[kp1][j][i].z - ucat[k0][j][i].z - ucat[kp2][j][i].z) / 8.0;
+        }
     }
     else if (isIBMCell(k+1, j, i, nvert) || isOversetCell(k+1, j, i, meshTag))
     {
-        km1 = k-2, k0 = k-1, kp1 = k, kp2 = k+1;
+        km1 = k-1, k0 = k, kp1 = k+1, kp2 = k+2;
 
-        result.x = (-ucat[km1][j][i].x - ucat[k0][j][i].x + 5.0 * ucat[kp1][j][i].x + 5.0 * ucat[kp2][j][i].x) / 8.0;
-        result.y = (-ucat[km1][j][i].y - ucat[k0][j][i].y + 5.0 * ucat[kp1][j][i].y + 5.0 * ucat[kp2][j][i].y) / 8.0;
-        result.z = (-ucat[km1][j][i].z - ucat[k0][j][i].z + 5.0 * ucat[kp1][j][i].z + 5.0 * ucat[kp2][j][i].z) / 8.0;
+        if(wavespeed>0)
+        {
+            result.x = 0.5 * (ucat[kp1][j][i].x + ucat[k0][j][i].x) + (2.0*ucat[k0][j][i].x - ucat[kp1][j][i].x - ucat[km1][j][i].x) / 8.0;
+            result.y = 0.5 * (ucat[kp1][j][i].y + ucat[k0][j][i].y) + (2.0*ucat[k0][j][i].y - ucat[kp1][j][i].y - ucat[km1][j][i].y) / 8.0;
+            result.z = 0.5 * (ucat[kp1][j][i].z + ucat[k0][j][i].z) + (2.0*ucat[k0][j][i].z - ucat[kp1][j][i].z - ucat[km1][j][i].z) / 8.0;
+        }
+        else
+        {
+            result.x = 0.5 * (ucat[k0][j][i].x + ucat[kp1][j][i].x);
+            result.y = 0.5 * (ucat[k0][j][i].y + ucat[kp1][j][i].y);
+            result.z = 0.5 * (ucat[k0][j][i].z + ucat[kp1][j][i].z);
+        }
     }
     else
     {
