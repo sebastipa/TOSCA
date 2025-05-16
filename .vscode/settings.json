@@ -16,6 +16,9 @@
         "thread": "c",
         "functional": "c",
         "tuple": "c",
-        "variant": "c"
+        "variant": "c",
+        "bitset": "c",
+        "initializer_list": "c",
+        "utility": "c"
     }
 }

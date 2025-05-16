@@ -3804,7 +3804,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     PetscReal totalThrust = 0.5*cft*gtotalIntU*gtotalIntU*V/Hc;
 
-    PetscPrintf(mesh->MESH_COMM, "Canopy: actual thrust = %.2f, integrated thrust = %.2f, error % = %.2f\n", totalThrust, gtotalIntThrust, fabs(totalThrust-gtotalIntThrust)/totalThrust*100);
+    //PetscPrintf(mesh->MESH_COMM, "Canopy: actual thrust = %.2f, integrated thrust = %.2f, error % = %.2f\n", totalThrust, gtotalIntThrust, fabs(totalThrust-gtotalIntThrust)/totalThrust*100);
     
 
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
@@ -5809,7 +5809,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
     MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-    PetscPrintf(mesh->MESH_COMM, "Pre correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
+    //PetscPrintf(mesh->MESH_COMM, "Pre correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
 
     globalFlux = FluxOut - FluxIn;
 
@@ -5960,9 +5960,8 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
     }
 
     // cumulate the net influx and net outflux
-    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    PetscPrintf(mesh->MESH_COMM, "Post correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
+    // MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    // PetscPrintf(mesh->MESH_COMM, "Post correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
 
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
