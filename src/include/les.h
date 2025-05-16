@@ -19,6 +19,7 @@ struct les_
 {
     LesModel      model;
     PetscReal     maxCs;
+    PetscReal     amdCs;
 
     // Dynamic Smagorisnky
     Vec           lSx, lSy, lSz, lS;

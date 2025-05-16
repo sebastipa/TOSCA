@@ -44,7 +44,7 @@ PetscErrorCode InitializeLES(les_ *les)
         PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-max_cs",  &(les->maxCs), PETSC_NULL);
-
+        
         if(les->access->flags->isLesActive)
         {
             PetscBool modelSet;
@@ -63,6 +63,13 @@ PetscErrorCode InitializeLES(les_ *les)
                 sprintf(error, "\nUse one of the available models.\n");
                 fatalErrorInFunction("InitializeLES",  error);
             }    
+
+            if(les->model == AMD)
+            {
+                les->amdCs = amd_cs;
+                PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-amd_cs", &(les->amdCs), PETSC_NULL);
+                PetscPrintf(PETSC_COMM_WORLD, "AMD Constant is set to: %.5lf \n",les->amdCs);
+            }
 
             VecDuplicate(mesh->lAj, &(les->lCs));     VecSet(les->lCs, 0.);
             VecDuplicate(mesh->lAj, &(les->lNu_t));   VecSet(les->lNu_t, 0.);
@@ -156,7 +163,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
     if(les->model == AMD)
     {
-        VecSet(les->lCs, amd_cs);
+        VecSet(les->lCs, les->amdCs);
         DMLocalToLocalBegin(da, les->lCs, INSERT_VALUES, les->lCs);
         DMLocalToLocalEnd  (da, les->lCs, INSERT_VALUES, les->lCs);
         return(0);
