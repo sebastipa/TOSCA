@@ -54,7 +54,7 @@
 <li class="toctree-l3"><a class="reference internal" href="turbines.html"><cite>turbines</cite></a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#"><cite>IBM</cite></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#ibmproperties-dat">IBMProperties.dat</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#body-description">Body Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#object-description">Object Description</a></li>
 </ul>
 </li>
 </ul>
@@ -98,13 +98,547 @@
              
   <section id="ibm">
 <span id="ibm-section"></span><h1><cite>IBM</cite><a class="headerlink" href="#ibm" title="Link to this heading"></a></h1>
-<p>This section describes how the immersed boundary method (IBM) can be activated in TOSCA. By setting the <code class="docutils literal notranslate"><span class="pre">-ibm</span></code>
-flag to 1 in the <em>control.dat</em> file, TOSCA is prompted to read additional inputs inside the <code class="docutils literal notranslate"><span class="pre">IBM</span></code> directory.</p>
+<p>This section describes how the immersed boundary method (IBM) can be activated in TOSCA. The code supports both static or dynamic
+IBM, where the latter means that the body can move without limitations inside the computational domain. The IBM has been fully parallelized
+and it features fast algorithms to perform both topology tests (inside-outside) or the search that finds, at every iteration, the
+closest fluid mesh cell for each IBM surface triangle. TOSCA’s IBM is referred to as a sharp-interface method, where boundary conditions
+are not applied my means of momentum source terms, but rather by directly recunstructing the boundary condition at the IBM fluid cells.
+These cells are selected by using the following algorithm. First, all cells whose center lies inside the IBM body are marked as IBM solid cells.
+These cells are blanked when solving the governing equations. Then, wherever an IBM solid cell is adjacent to a fluid cell, this fluid cell is
+transformed into an IBM fluid cell, where BCs are reconstructed, so that IBM solid cells are always enclosed in a layer of IBM fluid cells.
+This distinction, which can be seen as a cell coloring algorithm, is saved in the <em>nv</em> field, which marks each cell based on its IBM
+coloring. For instance, <em>nv</em> is 0, 1 and 2 for fluid cells, IBM fluid cells and IBM solid cells, respectively.</p>
+<p>Both boundary conditions and wall models can be applied to the IBM fluid cells. BCs are reconstructed by first creating a fictitious
+ghost point on the surface normal (pointing outward) through the center of the fluid cell. The field of interest is then interpolated
+here using trilinear interpolation from the surrounding cells. This is then used to apply the boundary condition at the fluid cell, also
+considering the velocity of the IBM body. For wall models, teoretical laws of the wall are used, while for genral BCs a linear interpolation
+is employed. Optionally, one can also use two fictitious ghost points, which lead to a quadratic interpolation instead (less stable).</p>
+<p>The body surface mesh is read from an UCD file, which is a standard format for surface meshes (this format can be generated e.g. by PointWise).
+Notably, to read the UCD file in ParaView, the extension must me changed to <em>.inp</em>. Finally, in TOSCA only the name of the file should be specified,
+thereby dropping the extension. Below is an example of a UCD file for a cuboid body, where each fase is split in two triangles:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># UCD Geometry file crated by custom python script</span>
+<span class="cp">#</span>
+<span class="cp">#</span>
+<span class="mi">8</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span>
+<span class="mi">1</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">2</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">3</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">4</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">5</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">6</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">7</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">8</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">1</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">3</span>
+<span class="mi">2</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">4</span>
+<span class="mi">3</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="mi">7</span>
+<span class="mi">4</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="mi">8</span>
+<span class="mi">5</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">6</span>
+<span class="mi">6</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="mi">5</span>
+<span class="mi">7</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">7</span>
+<span class="mi">8</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="mi">6</span>
+<span class="mi">9</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">8</span>
+<span class="mi">10</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="mi">7</span>
+<span class="mi">11</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">5</span>
+<span class="mi">12</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mi">8</span>
+</pre></div>
+</div>
+<p>Notably, there are 8 vertices and 12 triangles in the example above.</p>
+<p>In order to activate the IBM in TOSCA, the <code class="docutils literal notranslate"><span class="pre">-ibm</span></code> flag has to be set to 1 in the <cite>control.dat`</cite> file. TOSCA is prompted to read additional
+inputs inside the <code class="docutils literal notranslate"><span class="pre">IBM</span></code> directory. These are the <cite>IBMProperties.dat</cite> file and at least one IBM body in the above format, whose name is
+specified in the <cite>IBMProperties.dat</cite> file.</p>
 <section id="ibmproperties-dat">
 <h2>IBMProperties.dat<a class="headerlink" href="#ibmproperties-dat" title="Link to this heading"></a></h2>
+<p>The following tables summarize all available entries for each of the <cite>IBMProperties.dat</cite> file.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">NumberofBodies</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>Number of bodies.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">debug</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>If set to 1, the code will print additional information about the IBM.
+This is useful for debugging purposes.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dynamic</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>0 for static IBM, 1 for dynamic IBM.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">checkNormal</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>if set to 1 checks that all normals are pointing outward and flips them if
+necessary. This option is always recommended.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">averageNormal</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>averages the normal across more IBM triangles, recommended for irregular
+bodies or bodies that are under-resolved by the triangular mesh.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">computeForce</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>computes forces on the IBM body. Moments are only calculated if the IBM is
+dynamic. This will be corrected in the future.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">writeSTL</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>writies the IBM body in STL format based on the <cite>writeSettings</cite>.
+Useful with dynamic IBM, to visualize the body motion.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">wallShear</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>directly computes the wall shear and applies within the momentum equation.
+Recommended for terrains. Requires <cite>interpolationDistance</cite>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">interpolationDistance</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Distance from the body surface where the ghost point is placed. This
+parameter should be set according to the mean mesh size at the wall and it
+it is uniform to avoid spikes in the stress produced by variable IBM fluid
+cell to surface distance.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">abl</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>if set to 1 allows to set <cite>groundLevel</cite>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">groundLevel</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Allows to set a user-defined ground level. This used at differet levels in
+the code when evaluating heigh-dipendend BCs and models.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">writeSettings</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Required when <cite>computeForce</cite> is set to 1. Contains entries for the IBM force
+writing. It is defined as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">writeSettings</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">timeStart</span><span class="w">           </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// start time for writing</span>
+<span class="w">   </span><span class="n">intervalType</span><span class="w">        </span><span class="n">string</span><span class="w"> </span><span class="c1">// timeStep or adjustableTime</span>
+<span class="w">   </span><span class="n">timeInterval</span><span class="w">        </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// number of iters or seconds</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">InterpolationMethod</span></code></p></td>
+<td><p>string</p></td>
+<td><p><cite>CURVIB</cite> (preferred, requires <cite>CURVIBInterpolationType</cite>) or <cite>MSL</cite>
+(Moving Least Squares). The first method is preferred while the last is
+only recommended for simple geometries and for no-slip BCs only.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CURVIBInterpolationType</span></code></p></td>
+<td><p>string</p></td>
+<td><p><cite>CurvibTrilinear</cite> (recommended for terrain) or <cite>CurvibTriangular</cite>. The first
+interpolates the velocity at the ghost node using tri-linera interpolation
+from the 8 surrounding fluid cells. The second uses a triangular
+interpolation from the 3 surrounding fluid cells. The first method is
+preferred, although it is a bit more expensive.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">interpolationOrder</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Only required for <cite>CurvibTrilinear</cite>, can be <cite>linear</cite> (more stable) or
+<cite>quadratic</cite> (less stable). The latter is recommended for smooth terrain or
+smooth static bodies. It referst to how many fictitious ghost points are
+projected from the surface mesh into the fluid domain.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">object&lt;N&gt;</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>specifies the object-specific properties. There are as meny dictionaries as
+the number of bodies. The name of the dictionary is <cite>object</cite> followed by the
+body index. The body index is an integer starting from 0.</p></td>
+</tr>
+</tbody>
+</table>
 </section>
-<section id="body-description">
-<h2>Body Description<a class="headerlink" href="#body-description" title="Link to this heading"></a></h2>
+<section id="object-description">
+<h2>Object Description<a class="headerlink" href="#object-description" title="Link to this heading"></a></h2>
+<p>The object-specific properties are defined in the <code class="docutils literal notranslate"><span class="pre">object&lt;N&gt;</span></code> dictionary. The following table summarizes the mandatory
+entries that are required for each object when the <cite>bodyMotion</cite> flag is set to <em>static</em>. For non-static body motion,
+additional entries are required, which are summarized in the table below.</p>
+<section id="static-ibm">
+<h3>Static IBM<a class="headerlink" href="#static-ibm" title="Link to this heading"></a></h3>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bodyName</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Name of the body. This is the name of the file without the extension.
+The file must be in the <cite>IBM</cite> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bodyType</span></code></p></td>
+<td><p>string</p></td>
+<td><p>This is the type of body, can be <cite>closedBody</cite> or <cite>surfaceBody</cite>. In the
+first case, the body is a closed watertight body, in the second case, the
+is one or more open surfaces, and additional entries are required.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">numSurfaces</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>Number of surfaces that make up the body. Only required for <cite>surfaceBody</cite>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fileType</span></code></p></td>
+<td><p>string or
+vector of string</p></td>
+<td><p>Can be * ucd*, <em>grd</em>, <em>ascii</em>, <em>inp</em> or <em>ucd2</em> for <cite>closedBody</cite>. Can be
+* ucd*, <em>grd</em>, <em>inp</em> or <em>ucd2</em> for <cite>surfaceBody</cite>. For <cite>closedBody</cite>, this is
+a single string, while for <cite>surfaceBody</cite> this is a vector of strings, .e.g
+(<em>ucd</em> <em>grd</em> <em>inp</em>). The size of the vector must be equal to <cite>numSurfaces</cite>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">surfaceNames</span></code></p></td>
+<td><p>vector of string</p></td>
+<td><p>Names of the surface files that make up a body. This is a vecotor whose
+elements are the names of the files. The size of the vector must be equal to
+<cite>numSurfaces</cite>. The files must be in the <cite>IBM</cite> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">elementSet</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Used for both <cite>closedBody</cite> and <cite>surfaceBody</cite> when the <code class="docutils literal notranslate"><span class="pre">fileType</span></code> is set to
+<em>inp</em> to select an element set from the file. Currently is unique for all
+surfaces when there are multiple surfaces. For example, given a finite-
+element model mesh, with strings and longerons, it can be used to only
+select the outer surface of the body for the fluid calculation.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">baseLocation</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>Translation vector that allows to translate each point coordinate by this
+amount in the x, y and z direction. This is useful to move the body directly
+within TOSCA if this is defined with a different coordinate system.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bodyMotion</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Type of body motion, can be <cite>static</cite>, <cite>rotation</cite>, <cite>sinusoidal</cite> or
+<cite>pitchingOscillation</cite>. Moving cases required additional entries (see table
+below).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">searchCellRatio</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Factor that multiplies the average cell size, indicating how far away from a
+given surface triangle to go, when performing the search for the closest
+fluid cell. A value of 3 is recommended for most cases.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">velocityBCSetType</span></code></p></td>
+<td><p>string</p></td>
+<td><p>mode used to set the velocity boundary condition.</p>
+<ul class="simple">
+<li><p><cite>matchUiLeft</cite>: match iLeft patch boundary condition</p></li>
+<li><p><cite>matchUiRight</cite>: match iRight patch boundary condition</p></li>
+<li><p><cite>matchUjLeft</cite>: match jLeft patch boundary condition</p></li>
+<li><p><cite>matchUjRight</cite>: match jRight patch boundary condition</p></li>
+<li><p><cite>setHere</cite>: set in the <em>IBMProperties.dat</em> file, requires
+additional entries.</p></li>
+</ul>
+<p>Match-type boundary conditions are useful for terrain simulations, where the
+IBM body may merge with the bottom patch, in order to ensure that the same
+boundary condition is applied.</p>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">temperatureBCSetType</span></code></p></td>
+<td><p>string</p></td>
+<td><p>mode used to set the temperature boundary condition. Requires <cite>-potentialT</cite>
+to be set to 1 in the <cite>control.dat</cite> file.</p>
+<ul class="simple">
+<li><p><cite>matchTiLeft</cite>: match iLeft patch boundary condition</p></li>
+<li><p><cite>matchTiRight</cite>: match iRight patch boundary condition</p></li>
+<li><p><cite>matchTjLeft</cite>: match jLeft patch boundary condition</p></li>
+<li><p><cite>matchTjRight</cite>: match jRight patch boundary condition</p></li>
+<li><p><cite>setHere</cite>: set in the <em>IBMProperties.dat</em> file, requires
+additional entries.</p></li>
+</ul>
+<p>Match-type boundary conditions are useful for terrain simulations, where the
+IBM body may merge with the bottom patch, in order to ensure that the same
+boundary condition is applied.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">velocityBC</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Only required with <cite>velocityBCSetType</cite> set to <em>setHere</em>.
+Name of the IBM velocity boundary condition. Available entries are
+<cite>noSlip</cite>, <cite>slip</cite> and <cite>velocityWallFunction</cite>. The latter requires additional
+entries, depending on <cite>wallFunctionTypeU</cite>, detailed in the next table.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wallFunctionTypeU</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Requires <cite>velocityBC</cite> to be set to <cite>velocityWallFunction</cite>.
+Used to select the type of wall function for the velocity
+(-1, -3, -4 or -5).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">temperatureBC</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Only required with <cite>temperatureBCSetType</cite> set to <em>setHere</em>.
+Name of the IBM velocity boundary condition. Available entries are
+<cite>zeroGradient</cite>, <cite>fixedValue</cite> (requires <cite>fixedValueT</cite> entry) and
+<cite>thetaWallFunction</cite>. The latter requires additional entries, depending on
+<cite>wallFunctionTypeT</cite>, detailed in the next table.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wallFunctionTypeT</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Requires <cite>temperatureBC</cite> to be set to <cite>thetaWallFunction</cite>.
+Used to select the type of wall function for the potential temperature
+(-2, -3 or -4).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fixedValueT</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Fixed value for the temperature BC. Only required with
+<cite>temperatureBCSetType</cite> set to <em>setHere</em> and <cite>temperatureBC</cite> set
+to <cite>fixedValue</cite>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The following table summarizes the velocity wall functions that can be selected from the <em>IBMProperties.dat</em> file, together with their
+respective entries.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU -1</em> (Cabot wall model)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness height in meters.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kappa</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>von Karman constant.</p></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU -3</em> (Shumann wall model)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uStarEval</span></code></p></td>
+<td><p>string</p></td>
+<td><p><cite>averaged</cite> for laterally-homogeneous flows, <cite>localized</cite> otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kappa</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>von Karman constant.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">thetaRef</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>reference potential temperature in Kelvin.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness height in meters.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gammaM</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Shumann model constant.</p></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU -4</em> (Power law wall model)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness height in meters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kappa</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>von Karman constant.</p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU -5</em> (Log law wall model)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>eqivalent roughness height in meters.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kappa</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>von Karman constant.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The following table summarizes the temperature wall functions that can be selected from the <em>IBMProperties.dat</em> file, together with their
+respective entries.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT -2</em> (Shumann wall model - wall heat flux prescribed)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qWall</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>wall heat flux in J/m2.</p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT -3</em> (Shumann wall model - constant heating rate)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uStarEval</span></code></p></td>
+<td><p>string</p></td>
+<td><p><cite>averaged</cite> for laterally-homogeneous flows, <cite>localized</cite> otherwise.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kappa</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>von Karman constant.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">thetaRef</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>reference potential temperature in Kelvin.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRough</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness height in meters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gammaM</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Shumann model constant.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gammaH</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Shumann model constant.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alphaH</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Shumann model constant.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">heatingRate</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>heating rate in K/s.</p></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeT -4</em> (Shumann wall model - variable heating rate)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uStarEval</span></code></p></td>
+<td><p>string</p></td>
+<td><p><cite>averaged</cite> for laterally-homogeneous flows, <cite>localized</cite> otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kappa</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>von Karman constant.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">thetaRef</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>reference potential temperature in Kelvin.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRough</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness height in meters.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gammaM</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Shumann model constant.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gammaH</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Shumann model constant.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Theta wall function type -4 requires look up tables of time (s), surface temperature (K), and Obhukhov length (m),
+stored in <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/time</span></code>, <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/surfTemp</span></code> and <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/L</span></code>, respectively.
+All vectors should have the same size.</p>
+</section>
+<section id="non-static-ibm">
+<h3>Non-Static IBM<a class="headerlink" href="#non-static-ibm" title="Link to this heading"></a></h3>
+<p>The first two entries in the table are required, for each object, for all kinds of non-static body motion. The remaining entries are
+specific to the type of motion listed in the header.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">procBoundCenter</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>center of the box enclosing the body and its motion throughout the entire
+simulation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">procBoundSize</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>size of the box enclosing the body and its motion throughout the entire
+simulation.</p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>rotation</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">angularSpeed</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>angular speed in rpm.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">angularAcceleration</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>angular acceleration in rpm per second.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rotationAxis</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>rotation axis (normalized by TOSCA).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rotationCenter</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>base of the rotation axis.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">maxTipRadius</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>maximum radius of the body, used to compute an equivalent tip speed far
+from the center of rotation, thus limiting the time step so that the
+fastest triangular elements of the body only crosse one cell per time step.</p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>sinusoidal</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">amplitude</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>motion amplitude in meters.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">frequency</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>frequency in Hz.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">motionDirection</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>direction of the motion (normalized by TOSCA).</p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>pitchingOscillation</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">angularAmplitude</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>angular amplitude in degrees.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">frequency</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>frequency in Hz.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">initialAngle</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>initial angle in degrees.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pitchingAxis</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>pitching axis (normalized by TOSCA).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pitchingCenter</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>base of the pitching axis.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 </section>
 

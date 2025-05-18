@@ -247,10 +247,10 @@ Acquisition Controls
    ------------------------------ ------------------------------------------------------------------------------------------------------------------------
    ``-averageABL``                Activates planar averages at every cell-level in the z-direction. Requires ``-abl`` to be active.
    ------------------------------ ------------------------------------------------------------------------------------------------------------------------
-   ``-averageABLPeriod``          Output period of the ABL planar averages. It is a required parameter, even if ``-averageABL`` is set to 
+   ``-avgABLPeriod``              Output period of the ABL planar averages. It is a required parameter, even if ``-averageABL`` is set to 
                                   0, for concurrent-precursor simulations, where these averages are always active. 
    ------------------------------ ------------------------------------------------------------------------------------------------------------------------
-   ``-averageABLStartTime``       Time at which ABL planar averages are started. It is a required parameter, even if ``-averageABL`` is set to 
+   ``-avgABLStartTime``           Time at which ABL planar averages are started. It is a required parameter, even if ``-averageABL`` is set to 
                                   0, for concurrent-precursor simulations.
    ------------------------------ ------------------------------------------------------------------------------------------------------------------------
    ``-average3LM``                Activates vertical averages within layer at user-defined points. Requires additional inputs in 
