@@ -53,7 +53,7 @@ thereby dropping the extension. Below is an example of a UCD file for a cuboid b
 
 Notably, there are 8 vertices and 12 triangles in the example above. 
 
-In order to activate the IBM in TOSCA, the ``-ibm`` flag has to be set to 1 in the `control.dat`` file. TOSCA is prompted to read additional 
+In order to activate the IBM in TOSCA, the ``-ibm`` flag has to be set to 1 in the `control.dat` file. TOSCA is prompted to read additional 
 inputs inside the ``IBM`` directory. These are the `IBMProperties.dat` file and at least one IBM body in the above format, whose name is 
 specified in the `IBMProperties.dat` file. 
 
