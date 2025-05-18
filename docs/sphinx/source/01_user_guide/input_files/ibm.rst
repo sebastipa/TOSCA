@@ -133,8 +133,8 @@ The following tables summarize all available entries for each of the `IBMPropert
                                                       body index. The body index is an integer starting from 0.
    ============================== =================== ============================================================================
                    
-Object Description 
-******************
+Object<N> Dictionary 
+********************
 
 The object-specific properties are defined in the ``object<N>`` dictionary. The following table summarizes the mandatory 
 entries that are required for each object when the `bodyMotion` flag is set to *static*. For non-static body motion, 
