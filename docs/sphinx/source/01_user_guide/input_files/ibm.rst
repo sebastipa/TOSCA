@@ -138,7 +138,7 @@ Object Description
 
 The object-specific properties are defined in the ``object<N>`` dictionary. The following table summarizes the mandatory 
 entries that are required for each object when the `bodyMotion` flag is set to *static*. For non-static body motion, 
-additional entries are required, which are summarized in the table below.
+additional entries are required, which are summarized below in table :ref:`non-static-ibm-subsubsubsection`.
 
 Static IBM 
 ----------
@@ -232,13 +232,12 @@ Static IBM
                                                       Used to select the type of wall function for the potential temperature 
                                                       (-2, -3 or -4). 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-    ``fixedValueT``               scalar             Fixed value for the temperature BC. Only required with 
+    ``fixedValueT``               scalar              Fixed value for the temperature BC. Only required with 
                                                       `temperatureBCSetType` set to *setHere* and `temperatureBC` set 
                                                       to `fixedValue`.
    ============================== =================== ============================================================================
 
-The following table summarizes the velocity wall functions that can be selected from the *IBMProperties.dat* file, together with their 
-respective entries. 
+The following table summarizes the velocity wall functions selectable from the *IBMProperties.dat* file and their entries.
 
 .. table:: 
    :widths: 30, 20, 50
@@ -278,8 +277,7 @@ respective entries.
    ``kappa``                      scalar              von Karman constant.
    ============================== =================== ============================================================================
 
-The following table summarizes the temperature wall functions that can be selected from the *IBMProperties.dat* file, together with their 
-respective entries. 
+The following table summarizes the temperature wall functions selectable from the *IBMProperties.dat* file and their entries.
 
 .. table:: 
    :widths: 30, 20, 50
@@ -327,13 +325,15 @@ respective entries.
 
 Theta wall function type -4 requires look up tables of time (s), surface temperature (K), and Obhukhov length (m), 
 stored in ``inflowDatabase/mesoscaleData/time``, ``inflowDatabase/mesoscaleData/surfTemp`` and ``inflowDatabase/mesoscaleData/L``, respectively. 
-All vectors should have the same size.
+All vectors should have the same size. Notably, these wall functions are the same as the ones described in :ref:`boundary-subsection`. 
+
+.. _non-static-ibm-subsubsubsection:
 
 Non-Static IBM 
 --------------
 
-The first two entries in the table are required, for each object, for all kinds of non-static body motion. The remaining entries are 
-specific to the type of motion listed in the header. 
+When the `bodyMotion` flag is not set to *static* inside a body's specific dictionary, it means that the IBM can move within the domain. In this case, the additional entries 
+reported in the following table are required. The first two entries are mandatory for all motions, while the remaining entries are specific to the type of motion.
 
 .. table:: 
    :widths: 30, 20, 50

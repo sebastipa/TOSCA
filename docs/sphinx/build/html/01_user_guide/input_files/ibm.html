@@ -220,9 +220,9 @@ the code when evaluating heigh-dipendend BCs and models.</p></td>
 writing. It is defined as follows:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">writeSettings</span>
 <span class="p">{</span>
-<span class="w">   </span><span class="n">timeStart</span><span class="w">           </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// start time for writing</span>
-<span class="w">   </span><span class="n">intervalType</span><span class="w">        </span><span class="n">string</span><span class="w"> </span><span class="c1">// timeStep or adjustableTime</span>
-<span class="w">   </span><span class="n">timeInterval</span><span class="w">        </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// number of iters or seconds</span>
+<span class="w">   </span><span class="n">timeStart</span><span class="w">    </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// start time for writing</span>
+<span class="w">   </span><span class="n">intervalType</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="c1">// timeStep or adjustableTime</span>
+<span class="w">   </span><span class="n">timeInterval</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// number of iters or seconds</span>
 <span class="p">}</span>
 </pre></div>
 </div>
@@ -262,7 +262,7 @@ body index. The body index is an integer starting from 0.</p></td>
 <h2>Object Description<a class="headerlink" href="#object-description" title="Link to this heading"></a></h2>
 <p>The object-specific properties are defined in the <code class="docutils literal notranslate"><span class="pre">object&lt;N&gt;</span></code> dictionary. The following table summarizes the mandatory
 entries that are required for each object when the <cite>bodyMotion</cite> flag is set to <em>static</em>. For non-static body motion,
-additional entries are required, which are summarized in the table below.</p>
+additional entries are required, which are summarized below in table <a class="reference internal" href="#non-static-ibm-subsubsubsection"><span class="std std-ref">Non-Static IBM</span></a>.</p>
 <section id="static-ibm">
 <h3>Static IBM<a class="headerlink" href="#static-ibm" title="Link to this heading"></a></h3>
 <table class="docutils align-center">
@@ -372,7 +372,7 @@ Name of the IBM velocity boundary condition. Available entries are
 entries, depending on <cite>wallFunctionTypeU</cite>, detailed in the next table.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wallFunctionTypeU</span></code></p></td>
-<td><p>string</p></td>
+<td><p>integer</p></td>
 <td><p>Requires <cite>velocityBC</cite> to be set to <cite>velocityWallFunction</cite>.
 Used to select the type of wall function for the velocity
 (-1, -3, -4 or -5).</p></td>
@@ -386,7 +386,7 @@ Name of the IBM velocity boundary condition. Available entries are
 <cite>wallFunctionTypeT</cite>, detailed in the next table.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wallFunctionTypeT</span></code></p></td>
-<td><p>string</p></td>
+<td><p>integer</p></td>
 <td><p>Requires <cite>temperatureBC</cite> to be set to <cite>thetaWallFunction</cite>.
 Used to select the type of wall function for the potential temperature
 (-2, -3 or -4).</p></td>
@@ -399,8 +399,7 @@ to <cite>fixedValue</cite>.</p></td>
 </tr>
 </tbody>
 </table>
-<p>The following table summarizes the velocity wall functions that can be selected from the <em>IBMProperties.dat</em> file, together with their
-respective entries.</p>
+<p>The following table summarizes the velocity wall functions selectable from the <em>IBMProperties.dat</em> file and their entries.</p>
 <table class="docutils align-center">
 <colgroup>
 <col style="width: 30.0%" />
@@ -412,7 +411,7 @@ respective entries.</p>
 <td><p><strong>entry type</strong></p></td>
 <td><p><strong>description</strong></p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU -1</em> (Cabot wall model)</p></td>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU     -1</em>: Cabot wall model</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
 <td><p>scalar</p></td>
@@ -422,7 +421,7 @@ respective entries.</p>
 <td><p>scalar</p></td>
 <td><p>von Karman constant.</p></td>
 </tr>
-<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU -3</em> (Shumann wall model)</p></td>
+<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU     -3</em>: Shumann wall model</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uStarEval</span></code></p></td>
 <td><p>string</p></td>
@@ -444,7 +443,7 @@ respective entries.</p>
 <td><p>scalar</p></td>
 <td><p>Shumann model constant.</p></td>
 </tr>
-<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU -4</em> (Power law wall model)</p></td>
+<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU     -4</em>: Power law wall model</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
 <td><p>scalar</p></td>
@@ -454,7 +453,7 @@ respective entries.</p>
 <td><p>scalar</p></td>
 <td><p>von Karman constant.</p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU -5</em> (Log law wall model)</p></td>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU     -5</em>: Log law wall model</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
 <td><p>scalar</p></td>
@@ -466,8 +465,7 @@ respective entries.</p>
 </tr>
 </tbody>
 </table>
-<p>The following table summarizes the temperature wall functions that can be selected from the <em>IBMProperties.dat</em> file, together with their
-respective entries.</p>
+<p>The following table summarizes the temperature wall functions selectable from the <em>IBMProperties.dat</em> file and their entries.</p>
 <table class="docutils align-center">
 <colgroup>
 <col style="width: 30.0%" />
@@ -479,13 +477,13 @@ respective entries.</p>
 <td><p><strong>entry type</strong></p></td>
 <td><p><strong>description</strong></p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT -2</em> (Shumann wall model - wall heat flux prescribed)</p></td>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT     -2</em>: Shumann wall model - wall heat flux prescribed</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qWall</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>wall heat flux in J/m2.</p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT -3</em> (Shumann wall model - constant heating rate)</p></td>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT     -3</em>: Shumann wall model - constant heating rate</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uStarEval</span></code></p></td>
 <td><p>string</p></td>
@@ -519,7 +517,7 @@ respective entries.</p>
 <td><p>scalar</p></td>
 <td><p>heating rate in K/s.</p></td>
 </tr>
-<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeT -4</em> (Shumann wall model - variable heating rate)</p></td>
+<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeT     -4</em>: Shumann wall model - variable heating rate</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uStarEval</span></code></p></td>
 <td><p>string</p></td>
@@ -549,12 +547,12 @@ respective entries.</p>
 </table>
 <p>Theta wall function type -4 requires look up tables of time (s), surface temperature (K), and Obhukhov length (m),
 stored in <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/time</span></code>, <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/surfTemp</span></code> and <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/L</span></code>, respectively.
-All vectors should have the same size.</p>
+All vectors should have the same size. Notably, these wall functions are the same as the ones described in <a class="reference internal" href="boundary.html#boundary-subsection"><span class="std std-ref">boundary</span></a>.</p>
 </section>
 <section id="non-static-ibm">
-<h3>Non-Static IBM<a class="headerlink" href="#non-static-ibm" title="Link to this heading"></a></h3>
-<p>The first two entries in the table are required, for each object, for all kinds of non-static body motion. The remaining entries are
-specific to the type of motion listed in the header.</p>
+<span id="non-static-ibm-subsubsubsection"></span><h3>Non-Static IBM<a class="headerlink" href="#non-static-ibm" title="Link to this heading"></a></h3>
+<p>When the <cite>bodyMotion</cite> flag is not set to <em>static</em> inside a body’s specific dictionary, it means that the IBM can move within the domain. In this case, the additional entries
+reported in the following table are required. The first two entries are mandatory for all motions, while the remaining entries are specific to the type of motion.</p>
 <table class="docutils align-center">
 <colgroup>
 <col style="width: 30.0%" />
