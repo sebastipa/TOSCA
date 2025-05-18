@@ -108,9 +108,9 @@ The following tables summarize all available entries for each of the `IBMPropert
                                                     
                                                          writeSettings
                                                          {
-                                                            timeStart           scalar // start time for writing
-                                                            intervalType        string // timeStep or adjustableTime
-                                                            timeInterval        scalar // number of iters or seconds
+                                                            timeStart    scalar // start time for writing
+                                                            intervalType string // timeStep or adjustableTime
+                                                            timeInterval scalar // number of iters or seconds
                                                          }
    ------------------------------ ------------------- ---------------------------------------------------------------------------- 
    ``InterpolationMethod``        string              `CURVIB` (preferred, requires `CURVIBInterpolationType`) or `MSL` 
@@ -218,7 +218,7 @@ Static IBM
                                                       `noSlip`, `slip` and `velocityWallFunction`. The latter requires additional 
                                                       entries, depending on `wallFunctionTypeU`, detailed in the next table. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-    ``wallFunctionTypeU``          string             Requires `velocityBC` to be set to `velocityWallFunction`.
+    ``wallFunctionTypeU``         integer             Requires `velocityBC` to be set to `velocityWallFunction`.
                                                       Used to select the type of wall function for the velocity 
                                                       (-1, -3, -4 or -5). 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
@@ -228,11 +228,11 @@ Static IBM
                                                       `thetaWallFunction`. The latter requires additional entries, depending on 
                                                       `wallFunctionTypeT`, detailed in the next table.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``wallFunctionTypeT``          string              Requires `temperatureBC` to be set to `thetaWallFunction`.
+   ``wallFunctionTypeT``          integer             Requires `temperatureBC` to be set to `thetaWallFunction`.
                                                       Used to select the type of wall function for the potential temperature 
                                                       (-2, -3 or -4). 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-    ``fixedValueT``                scalar             Fixed value for the temperature BC. Only required with 
+    ``fixedValueT``               scalar             Fixed value for the temperature BC. Only required with 
                                                       `temperatureBCSetType` set to *setHere* and `temperatureBC` set 
                                                       to `fixedValue`.
    ============================== =================== ============================================================================
@@ -247,13 +247,13 @@ respective entries.
    ============================== =================== ============================================================================
    **entry**                      **entry type**      **description**   
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   *wallFunctionTypeU -1* (Cabot wall model)
+   *wallFunctionTypeU     -1*: Cabot wall model
    -------------------------------------------------------------------------------------------------------------------------------    
    ``roughness``                  scalar              equivalent roughness height in meters. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``kappa``                      scalar              von Karman constant.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-    *wallFunctionTypeU -3* (Shumann wall model)
+    *wallFunctionTypeU     -3*: Shumann wall model
    -------------------------------------------------------------------------------------------------------------------------------    
    ``uStarEval``                  string              `averaged` for laterally-homogeneous flows, `localized` otherwise. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
@@ -265,13 +265,13 @@ respective entries.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``gammaM``                     scalar              Shumann model constant.   
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   *wallFunctionTypeU -4* (Power law wall model)
+   *wallFunctionTypeU     -4*: Power law wall model
    -------------------------------------------------------------------------------------------------------------------------------    
    ``roughness``                  scalar              equivalent roughness height in meters.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``kappa``                      scalar              von Karman constant.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   *wallFunctionTypeU -5* (Log law wall model)
+   *wallFunctionTypeU     -5*: Log law wall model
    -------------------------------------------------------------------------------------------------------------------------------    
    ``roughness``                  scalar              eqivalent roughness height in meters.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
@@ -288,11 +288,11 @@ respective entries.
    ============================== =================== ============================================================================
    **entry**                      **entry type**      **description**   
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   *wallFunctionTypeT -2* (Shumann wall model - wall heat flux prescribed)
+   *wallFunctionTypeT     -2*: Shumann wall model - wall heat flux prescribed
    -------------------------------------------------------------------------------------------------------------------------------    
    ``qWall``                      scalar              wall heat flux in J/m2.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-    *wallFunctionTypeT -3* (Shumann wall model - constant heating rate)
+    *wallFunctionTypeT     -3*: Shumann wall model - constant heating rate
    -------------------------------------------------------------------------------------------------------------------------------    
    ``uStarEval``                  string              `averaged` for laterally-homogeneous flows, `localized` otherwise. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
@@ -310,7 +310,7 @@ respective entries.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``heatingRate``                scalar              heating rate in K/s.  
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   *wallFunctionTypeT -4* (Shumann wall model - variable heating rate)
+   *wallFunctionTypeT     -4*: Shumann wall model - variable heating rate
    -------------------------------------------------------------------------------------------------------------------------------    
    ``uStarEval``                  string              `averaged` for laterally-homogeneous flows, `localized` otherwise. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
