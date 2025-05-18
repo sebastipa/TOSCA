@@ -220,9 +220,9 @@ the code when evaluating heigh-dipendend BCs and models.</p></td>
 writing. It is defined as follows:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">writeSettings</span>
 <span class="p">{</span>
-<span class="w">   </span><span class="n">timeStart</span><span class="w">           </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// start time for writing</span>
-<span class="w">   </span><span class="n">intervalType</span><span class="w">        </span><span class="n">string</span><span class="w"> </span><span class="c1">// timeStep or adjustableTime</span>
-<span class="w">   </span><span class="n">timeInterval</span><span class="w">        </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// number of iters or seconds</span>
+<span class="w">   </span><span class="n">timeStart</span><span class="w">    </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// start time for writing</span>
+<span class="w">   </span><span class="n">intervalType</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="c1">// timeStep or adjustableTime</span>
+<span class="w">   </span><span class="n">timeInterval</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="c1">// number of iters or seconds</span>
 <span class="p">}</span>
 </pre></div>
 </div>
@@ -265,140 +265,6 @@ entries that are required for each object when the <cite>bodyMotion</cite> flag 
 additional entries are required, which are summarized in the table below.</p>
 <section id="static-ibm">
 <h3>Static IBM<a class="headerlink" href="#static-ibm" title="Link to this heading"></a></h3>
-<table class="docutils align-center">
-<colgroup>
-<col style="width: 30.0%" />
-<col style="width: 20.0%" />
-<col style="width: 50.0%" />
-</colgroup>
-<tbody>
-<tr class="row-odd"><td><p><strong>entry</strong></p></td>
-<td><p><strong>entry type</strong></p></td>
-<td><p><strong>description</strong></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bodyName</span></code></p></td>
-<td><p>string</p></td>
-<td><p>Name of the body. This is the name of the file without the extension.
-The file must be in the <cite>IBM</cite> directory.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bodyType</span></code></p></td>
-<td><p>string</p></td>
-<td><p>This is the type of body, can be <cite>closedBody</cite> or <cite>surfaceBody</cite>. In the
-first case, the body is a closed watertight body, in the second case, the
-is one or more open surfaces, and additional entries are required.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">numSurfaces</span></code></p></td>
-<td><p>integer</p></td>
-<td><p>Number of surfaces that make up the body. Only required for <cite>surfaceBody</cite>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fileType</span></code></p></td>
-<td><p>string or
-vector of string</p></td>
-<td><p>Can be * ucd*, <em>grd</em>, <em>ascii</em>, <em>inp</em> or <em>ucd2</em> for <cite>closedBody</cite>. Can be
-* ucd*, <em>grd</em>, <em>inp</em> or <em>ucd2</em> for <cite>surfaceBody</cite>. For <cite>closedBody</cite>, this is
-a single string, while for <cite>surfaceBody</cite> this is a vector of strings, .e.g
-(<em>ucd</em> <em>grd</em> <em>inp</em>). The size of the vector must be equal to <cite>numSurfaces</cite>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">surfaceNames</span></code></p></td>
-<td><p>vector of string</p></td>
-<td><p>Names of the surface files that make up a body. This is a vecotor whose
-elements are the names of the files. The size of the vector must be equal to
-<cite>numSurfaces</cite>. The files must be in the <cite>IBM</cite> directory.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">elementSet</span></code></p></td>
-<td><p>string</p></td>
-<td><p>Used for both <cite>closedBody</cite> and <cite>surfaceBody</cite> when the <code class="docutils literal notranslate"><span class="pre">fileType</span></code> is set to
-<em>inp</em> to select an element set from the file. Currently is unique for all
-surfaces when there are multiple surfaces. For example, given a finite-
-element model mesh, with strings and longerons, it can be used to only
-select the outer surface of the body for the fluid calculation.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">baseLocation</span></code></p></td>
-<td><p>vector</p></td>
-<td><p>Translation vector that allows to translate each point coordinate by this
-amount in the x, y and z direction. This is useful to move the body directly
-within TOSCA if this is defined with a different coordinate system.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bodyMotion</span></code></p></td>
-<td><p>string</p></td>
-<td><p>Type of body motion, can be <cite>static</cite>, <cite>rotation</cite>, <cite>sinusoidal</cite> or
-<cite>pitchingOscillation</cite>. Moving cases required additional entries (see table
-below).</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">searchCellRatio</span></code></p></td>
-<td><p>scalar</p></td>
-<td><p>Factor that multiplies the average cell size, indicating how far away from a
-given surface triangle to go, when performing the search for the closest
-fluid cell. A value of 3 is recommended for most cases.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">velocityBCSetType</span></code></p></td>
-<td><p>string</p></td>
-<td><p>mode used to set the velocity boundary condition.</p>
-<ul class="simple">
-<li><p><cite>matchUiLeft</cite>: match iLeft patch boundary condition</p></li>
-<li><p><cite>matchUiRight</cite>: match iRight patch boundary condition</p></li>
-<li><p><cite>matchUjLeft</cite>: match jLeft patch boundary condition</p></li>
-<li><p><cite>matchUjRight</cite>: match jRight patch boundary condition</p></li>
-<li><p><cite>setHere</cite>: set in the <em>IBMProperties.dat</em> file, requires
-additional entries.</p></li>
-</ul>
-<p>Match-type boundary conditions are useful for terrain simulations, where the
-IBM body may merge with the bottom patch, in order to ensure that the same
-boundary condition is applied.</p>
-</td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">temperatureBCSetType</span></code></p></td>
-<td><p>string</p></td>
-<td><p>mode used to set the temperature boundary condition. Requires <cite>-potentialT</cite>
-to be set to 1 in the <cite>control.dat</cite> file.</p>
-<ul class="simple">
-<li><p><cite>matchTiLeft</cite>: match iLeft patch boundary condition</p></li>
-<li><p><cite>matchTiRight</cite>: match iRight patch boundary condition</p></li>
-<li><p><cite>matchTjLeft</cite>: match jLeft patch boundary condition</p></li>
-<li><p><cite>matchTjRight</cite>: match jRight patch boundary condition</p></li>
-<li><p><cite>setHere</cite>: set in the <em>IBMProperties.dat</em> file, requires
-additional entries.</p></li>
-</ul>
-<p>Match-type boundary conditions are useful for terrain simulations, where the
-IBM body may merge with the bottom patch, in order to ensure that the same
-boundary condition is applied.</p>
-</td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">velocityBC</span></code></p></td>
-<td><p>string</p></td>
-<td><p>Only required with <cite>velocityBCSetType</cite> set to <em>setHere</em>.
-Name of the IBM velocity boundary condition. Available entries are
-<cite>noSlip</cite>, <cite>slip</cite> and <cite>velocityWallFunction</cite>. The latter requires additional
-entries, depending on <cite>wallFunctionTypeU</cite>, detailed in the next table.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wallFunctionTypeU</span></code></p></td>
-<td><p>string</p></td>
-<td><p>Requires <cite>velocityBC</cite> to be set to <cite>velocityWallFunction</cite>.
-Used to select the type of wall function for the velocity
-(-1, -3, -4 or -5).</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">temperatureBC</span></code></p></td>
-<td><p>string</p></td>
-<td><p>Only required with <cite>temperatureBCSetType</cite> set to <em>setHere</em>.
-Name of the IBM velocity boundary condition. Available entries are
-<cite>zeroGradient</cite>, <cite>fixedValue</cite> (requires <cite>fixedValueT</cite> entry) and
-<cite>thetaWallFunction</cite>. The latter requires additional entries, depending on
-<cite>wallFunctionTypeT</cite>, detailed in the next table.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wallFunctionTypeT</span></code></p></td>
-<td><p>string</p></td>
-<td><p>Requires <cite>temperatureBC</cite> to be set to <cite>thetaWallFunction</cite>.
-Used to select the type of wall function for the potential temperature
-(-2, -3 or -4).</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fixedValueT</span></code></p></td>
-<td><p>scalar</p></td>
-<td><p>Fixed value for the temperature BC. Only required with
-<cite>temperatureBCSetType</cite> set to <em>setHere</em> and <cite>temperatureBC</cite> set
-to <cite>fixedValue</cite>.</p></td>
-</tr>
-</tbody>
-</table>
 <p>The following table summarizes the velocity wall functions that can be selected from the <em>IBMProperties.dat</em> file, together with their
 respective entries.</p>
 <table class="docutils align-center">
@@ -412,7 +278,7 @@ respective entries.</p>
 <td><p><strong>entry type</strong></p></td>
 <td><p><strong>description</strong></p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU -1</em> (Cabot wall model)</p></td>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU     -1</em>: Cabot wall model</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
 <td><p>scalar</p></td>
@@ -422,7 +288,7 @@ respective entries.</p>
 <td><p>scalar</p></td>
 <td><p>von Karman constant.</p></td>
 </tr>
-<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU -3</em> (Shumann wall model)</p></td>
+<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU     -3</em>: Shumann wall model</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uStarEval</span></code></p></td>
 <td><p>string</p></td>
@@ -444,7 +310,7 @@ respective entries.</p>
 <td><p>scalar</p></td>
 <td><p>Shumann model constant.</p></td>
 </tr>
-<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU -4</em> (Power law wall model)</p></td>
+<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeU     -4</em>: Power law wall model</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
 <td><p>scalar</p></td>
@@ -454,7 +320,7 @@ respective entries.</p>
 <td><p>scalar</p></td>
 <td><p>von Karman constant.</p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU -5</em> (Log law wall model)</p></td>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeU     -5</em>: Log law wall model</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code></p></td>
 <td><p>scalar</p></td>
@@ -479,13 +345,13 @@ respective entries.</p>
 <td><p><strong>entry type</strong></p></td>
 <td><p><strong>description</strong></p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT -2</em> (Shumann wall model - wall heat flux prescribed)</p></td>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT     -2</em>: Shumann wall model - wall heat flux prescribed</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qWall</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>wall heat flux in J/m2.</p></td>
 </tr>
-<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT -3</em> (Shumann wall model - constant heating rate)</p></td>
+<tr class="row-even"><td colspan="3"><p><em>wallFunctionTypeT     -3</em>: Shumann wall model - constant heating rate</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uStarEval</span></code></p></td>
 <td><p>string</p></td>
@@ -519,7 +385,7 @@ respective entries.</p>
 <td><p>scalar</p></td>
 <td><p>heating rate in K/s.</p></td>
 </tr>
-<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeT -4</em> (Shumann wall model - variable heating rate)</p></td>
+<tr class="row-odd"><td colspan="3"><p><em>wallFunctionTypeT     -4</em>: Shumann wall model - variable heating rate</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uStarEval</span></code></p></td>
 <td><p>string</p></td>
