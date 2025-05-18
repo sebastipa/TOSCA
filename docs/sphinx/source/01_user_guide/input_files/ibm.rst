@@ -7,8 +7,8 @@ This section describes how the immersed boundary method (IBM) can be activated i
 IBM, where the latter means that the body can move without limitations inside the computational domain. The IBM has been fully parallelized 
 and it features fast algorithms to perform both topology tests (inside-outside) or the search that finds, at every iteration, the 
 closest fluid mesh cell for each IBM surface triangle. TOSCA's IBM is referred to as a sharp-interface method, where boundary conditions 
-are not applied my means of momentum source terms, but rather by directly recunstructing the boundary condition at the IBM fluid cells. 
-These cells are selected by using the following algorithm. First, all cells whose center lies inside the IBM body are marked as IBM solid cells.
+are not applied by means of momentum source terms, but rather by directly recunstructing the boundary condition at the IBM fluid cells. 
+These cells are selected through the following algorithm. First, all cells whose center lies inside the IBM body are marked as IBM solid cells.
 These cells are blanked when solving the governing equations. Then, wherever an IBM solid cell is adjacent to a fluid cell, this fluid cell is 
 transformed into an IBM fluid cell, where BCs are reconstructed, so that IBM solid cells are always enclosed in a layer of IBM fluid cells. 
 This distinction, which can be seen as a cell coloring algorithm, is saved in the *nv* field, which marks each cell based on its IBM 
@@ -16,13 +16,13 @@ coloring. For instance, *nv* is 0, 1 and 2 for fluid cells, IBM fluid cells and 
 
 Both boundary conditions and wall models can be applied to the IBM fluid cells. BCs are reconstructed by first creating a fictitious 
 ghost point on the surface normal (pointing outward) through the center of the fluid cell. The field of interest is then interpolated
-here using trilinear interpolation from the surrounding cells. This is then used to apply the boundary condition at the fluid cell, also
-considering the velocity of the IBM body. For wall models, teoretical laws of the wall are used, while for genral BCs a linear interpolation 
-is employed. Optionally, one can also use two fictitious ghost points, which lead to a quadratic interpolation instead (less stable).
+at this point using trilinear or triangular interpolation from the surrounding cells. This is then used to apply the boundary condition at the fluid cell, also
+considering the velocity of the IBM body. For wall models, theoretical laws are used, while for slip and no-slip BCs a linear interpolation 
+is employed. Optionally, one can also use two fictitious ghost points, which lead to a quadratic interpolation instead.
 
 The body surface mesh is read from an UCD file, which is a standard format for surface meshes (this format can be generated e.g. by PointWise). 
-Notably, to read the UCD file in ParaView, the extension must me changed to *.inp*. Finally, in TOSCA only the name of the file should be specified,
-thereby dropping the extension. Below is an example of a UCD file for a cuboid body, where each fase is split in two triangles: 
+Notably, to read the UCD file in ParaView, the extension must be changed to *.inp*. Finally, in TOSCA only the name of the file should be specified,
+thereby dropping the extension. Below is an example of a UCD file for a cuboid, where each face is split in two triangles: 
 
 .. code-block:: C
 
