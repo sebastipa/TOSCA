@@ -54,7 +54,7 @@
 <li class="toctree-l3"><a class="reference internal" href="turbines.html"><cite>turbines</cite></a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#"><cite>IBM</cite></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#ibmproperties-dat">IBMProperties.dat</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#object-description">Object Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#object-n-dictionary">Object&lt;N&gt; Dictionary</a></li>
 </ul>
 </li>
 </ul>
@@ -102,20 +102,20 @@
 IBM, where the latter means that the body can move without limitations inside the computational domain. The IBM has been fully parallelized
 and it features fast algorithms to perform both topology tests (inside-outside) or the search that finds, at every iteration, the
 closest fluid mesh cell for each IBM surface triangle. TOSCA’s IBM is referred to as a sharp-interface method, where boundary conditions
-are not applied my means of momentum source terms, but rather by directly recunstructing the boundary condition at the IBM fluid cells.
-These cells are selected by using the following algorithm. First, all cells whose center lies inside the IBM body are marked as IBM solid cells.
+are not applied by means of momentum source terms, but rather by directly recunstructing the boundary condition at the IBM fluid cells.
+These cells are selected through the following algorithm. First, all cells whose center lies inside the IBM body are marked as IBM solid cells.
 These cells are blanked when solving the governing equations. Then, wherever an IBM solid cell is adjacent to a fluid cell, this fluid cell is
 transformed into an IBM fluid cell, where BCs are reconstructed, so that IBM solid cells are always enclosed in a layer of IBM fluid cells.
 This distinction, which can be seen as a cell coloring algorithm, is saved in the <em>nv</em> field, which marks each cell based on its IBM
 coloring. For instance, <em>nv</em> is 0, 1 and 2 for fluid cells, IBM fluid cells and IBM solid cells, respectively.</p>
 <p>Both boundary conditions and wall models can be applied to the IBM fluid cells. BCs are reconstructed by first creating a fictitious
 ghost point on the surface normal (pointing outward) through the center of the fluid cell. The field of interest is then interpolated
-here using trilinear interpolation from the surrounding cells. This is then used to apply the boundary condition at the fluid cell, also
-considering the velocity of the IBM body. For wall models, teoretical laws of the wall are used, while for genral BCs a linear interpolation
-is employed. Optionally, one can also use two fictitious ghost points, which lead to a quadratic interpolation instead (less stable).</p>
+at this point using trilinear or triangular interpolation from the surrounding cells. This is then used to apply the boundary condition at the fluid cell, also
+considering the velocity of the IBM body. For wall models, theoretical laws are used, while for slip and no-slip BCs a linear interpolation
+is employed. Optionally, one can also use two fictitious ghost points, which lead to a quadratic interpolation instead.</p>
 <p>The body surface mesh is read from an UCD file, which is a standard format for surface meshes (this format can be generated e.g. by PointWise).
-Notably, to read the UCD file in ParaView, the extension must me changed to <em>.inp</em>. Finally, in TOSCA only the name of the file should be specified,
-thereby dropping the extension. Below is an example of a UCD file for a cuboid body, where each fase is split in two triangles:</p>
+Notably, to read the UCD file in ParaView, the extension must be changed to <em>.inp</em>. Finally, in TOSCA only the name of the file should be specified,
+thereby dropping the extension. Below is an example of a UCD file for a cuboid, where each face is split in two triangles:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># UCD Geometry file crated by custom python script</span>
 <span class="cp">#</span>
 <span class="cp">#</span>
@@ -143,7 +143,7 @@ thereby dropping the extension. Below is an example of a UCD file for a cuboid b
 </pre></div>
 </div>
 <p>Notably, there are 8 vertices and 12 triangles in the example above.</p>
-<p>In order to activate the IBM in TOSCA, the <code class="docutils literal notranslate"><span class="pre">-ibm</span></code> flag has to be set to 1 in the <cite>control.dat`</cite> file. TOSCA is prompted to read additional
+<p>In order to activate the IBM in TOSCA, the <code class="docutils literal notranslate"><span class="pre">-ibm</span></code> flag has to be set to 1 in the <cite>control.dat</cite> file. TOSCA is prompted to read additional
 inputs inside the <code class="docutils literal notranslate"><span class="pre">IBM</span></code> directory. These are the <cite>IBMProperties.dat</cite> file and at least one IBM body in the above format, whose name is
 specified in the <cite>IBMProperties.dat</cite> file.</p>
 <section id="ibmproperties-dat">
@@ -258,8 +258,8 @@ body index. The body index is an integer starting from 0.</p></td>
 </tbody>
 </table>
 </section>
-<section id="object-description">
-<h2>Object Description<a class="headerlink" href="#object-description" title="Link to this heading"></a></h2>
+<section id="object-n-dictionary">
+<h2>Object&lt;N&gt; Dictionary<a class="headerlink" href="#object-n-dictionary" title="Link to this heading"></a></h2>
 <p>The object-specific properties are defined in the <code class="docutils literal notranslate"><span class="pre">object&lt;N&gt;</span></code> dictionary. The following table summarizes the mandatory
 entries that are required for each object when the <cite>bodyMotion</cite> flag is set to <em>static</em>. For non-static body motion,
 additional entries are required, which are summarized below in table <a class="reference internal" href="#non-static-ibm-subsubsubsection"><span class="std std-ref">Non-Static IBM</span></a>.</p>
@@ -294,8 +294,8 @@ is one or more open surfaces, and additional entries are required.</p></td>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fileType</span></code></p></td>
 <td><p>string or
 vector of string</p></td>
-<td><p>Can be * ucd*, <em>grd</em>, <em>ascii</em>, <em>inp</em> or <em>ucd2</em> for <cite>closedBody</cite>. Can be
-* ucd*, <em>grd</em>, <em>inp</em> or <em>ucd2</em> for <cite>surfaceBody</cite>. For <cite>closedBody</cite>, this is
+<td><p>Can be <em>ucd</em>, <em>grd</em>, <em>ascii</em>, <em>inp</em> or <em>ucd2</em> for <cite>closedBody</cite>. Can be
+<em>ucd</em>, <em>grd</em>, <em>inp</em> or <em>ucd2</em> for <cite>surfaceBody</cite>. For <cite>closedBody</cite>, this is
 a single string, while for <cite>surfaceBody</cite> this is a vector of strings, .e.g
 (<em>ucd</em> <em>grd</em> <em>inp</em>). The size of the vector must be equal to <cite>numSurfaces</cite>.</p></td>
 </tr>
