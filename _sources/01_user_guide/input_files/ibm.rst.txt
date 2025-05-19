@@ -159,8 +159,8 @@ Static IBM
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``numSurfaces``                integer             Number of surfaces that make up the body. Only required for `surfaceBody`.  
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``fileType``                   string or           Can be * ucd*, *grd*, *ascii*, *inp* or *ucd2* for `closedBody`. Can be   
-                                  vector of string    * ucd*, *grd*, *inp* or *ucd2* for `surfaceBody`. For `closedBody`, this is 
+   ``fileType``                   string or           Can be *ucd*, *grd*, *ascii*, *inp* or *ucd2* for `closedBody`. Can be   
+                                  vector of string    *ucd*, *grd*, *inp* or *ucd2* for `surfaceBody`. For `closedBody`, this is 
                                                       a single string, while for `surfaceBody` this is a vector of strings, .e.g 
                                                       (*ucd* *grd* *inp*). The size of the vector must be equal to `numSurfaces`.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
