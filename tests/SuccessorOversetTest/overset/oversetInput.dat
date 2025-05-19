@@ -13,10 +13,11 @@
 
 #General Overset properties
 MeshTotal		2
+numHoleObjects  1
 
 Mesh0
 {
-    name           background
+    name           outer
     parentMesh 	   (-1)
     childMesh 	   (1)
     windplant      0
@@ -25,22 +26,21 @@ Mesh0
 
 Mesh1
 {
-    name           overset
+    name           inner
     parentMesh 	   (0)
     childMesh 	   (-1)
-    windplant      0
-    ibm		   1
+    windplant      1
+    ibm		       0
 }
 
 holeObject0
 {
-    bodyName                        holeMesh
-    bodyType                        closedBody
-
-    fileType                        ucd
-    baseLocation                    (0.0 0.0 0.0)
-
-    searchCellRatio                 3
+    bodyName          holeMesh
+    ownerMesh         0
+    donorMesh         1
+    fileType          closedBody
+    baseLocation      (0.0 0.0 0.0)
+    searchCellRatio   3
 }
 
 #Overset simulation properties
