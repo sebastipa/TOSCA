@@ -51,6 +51,7 @@
 <li class="toctree-l2"><a class="reference internal" href="spatial_mesh.html">Spatial Mesh</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Overset Mesh</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#oversetinput-dat"><cite>oversetInput.dat</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hole-object-files"><cite>Hole Object Files</cite></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="acquisition.html">Data Acquisition System</a></li>
@@ -91,7 +92,7 @@
 <span id="overset-section"></span><h1>Overset Mesh<a class="headerlink" href="#overset-mesh" title="Link to this heading"></a></h1>
 <p>Overset mesh allows to introduce refinement levels within TOSCA. In this technique, a finer mesh is immersed inside the original
 background mesh. Boundary conditions for the finer mesh are interpolated from the background mesh, while cells in the background mesh
-are blanked when they overlap with the finer mesh. This “hole” is the background mesh is treated as an IBM body (see <a class="reference internal" href="input_files/ibm.html#ibm-section"><span class="std std-ref">IBM</span></a>),
+are blanked when they overlap with the finer mesh. This “hole” in the background mesh is treated as an IBM body (see <a class="reference internal" href="input_files/ibm.html#ibm-section"><span class="std std-ref">IBM</span></a>),
 where the solution at the IBM fluid cells is interpolated from the finer mesh. In order to understand how the overset mesh method works
 in TOSCA, it is worth mentioning some nomenclature used in relation to the following figure:</p>
 <a class="reference internal image-reference" href="../_images/overset-mesh-method.png"><img alt="../_images/overset-mesh-method.png" src="../_images/overset-mesh-method.png" style="width: 100%;" />
@@ -103,8 +104,8 @@ interpolated from the child domain. Vice versa, the solution is interpolated fro
 between the hole and the child domain is required in order to use centered interpolation stencils when interpolating from the parent to the child
 domain. Finally, donor and acceptor cells are those cells that provide and receive the interpolaton data, respectively. Parent and child domains
 have both donor and acceptor cells, depending if the interpolation is from parent to child or vice versa. Regarding the interpolation, when this
-goes from parent to child (coarse to file), a tri-linear scheme is used. Conversely, when going from child to parent (fine to coarse), a tri-linear
-scheme would make the interpolated value too local if the parent to child grid ration is too large. For this reason, TOSCA introduces a
+goes from parent to child (coarse to fine), a tri-linear scheme is used. Conversely, when going from child to parent (fine to coarse), a tri-linear
+scheme would make the interpolated value too local if the parent to child grid ratio is too large. For this reason, TOSCA introduces a
 tri-linear averaged interpolation, where cell corners are first tri-linearly interpolated and then averaged to yield the cell value, as shown
 in the figure above.</p>
 <p>In order to activate the overset mesh method in TOSCA, the first thing to do is to activate the <code class="docutils literal notranslate"><span class="pre">-overset</span></code> flag in the <em>control.dat</em> file.
@@ -220,11 +221,46 @@ TOSCA expects domain-specific directories <em>turbines/meshName</em> for each do
 should be followed. This is not true for the IBM, as TOSCA does not make this distinction. Hence, IBM can only be activated in one domain and
 the directory structure described in <a class="reference internal" href="input_files/ibm.html#ibm-section"><span class="std std-ref">IBM</span></a> should be followed (with the addition of the hole objects).</p>
 <p>Boundary conditions for the overset mesh are defined in the same way as for a normal simulation, except that the boundary condition files should
-be placed inside the <em>boundary/meshName</em> sub-directory, as they are domain-specific. For child domains, at the boundary where one wants to
+be placed inside the <em>boundary/meshName</em> sub-directory, as they are domain-specific. For child domains, at the boundaries where one wants to
 interpolate from the parent domain, the boundary condition should be set to <em>oversetInterpolate</em>. Notably, not all boundaries always have to be
 interpolated from the parent domain. For example, if the bottom boundary of the child domain is a wall, the boundary condition should be set to
 <em>noSlip</em>, or a wall model should be used. Interpolation at the hole interface cells is done automatically by TOSCA, so no boundary condition
 is needed for those cells.</p>
+</section>
+<section id="hole-object-files">
+<h2><cite>Hole Object Files</cite><a class="headerlink" href="#hole-object-files" title="Link to this heading"></a></h2>
+<p>The hole object files should be provided in the same format as the IBM body files (see <a class="reference internal" href="input_files/ibm.html#ibm-section"><span class="std std-ref">IBM</span></a>). Being simple cuboids, these files are
+pretty easy to generate and an advanced mesher is not required. In fact, a simple python script could be used to generate a minimal hole object file
+having 2 triangles per face. The following shows an example of a hole object file that can be used for overset simulations in TOSCA. The user can
+adapt the coordinates of the 8 points in order to define its own hole for its specific case. Notably, it is important that the hole object has an inward offset
+of at least 3 parent domain cells (or more) from the child domain bounds, in order to allow for a centered interpolation stencil. This is not checked by TOSCA, and errors to comply
+with this requirement will lead to a crash during initialization.</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># UCD Geometry file crated by custom python script</span>
+<span class="cp">#</span>
+<span class="cp">#</span>
+<span class="mi">8</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span>
+<span class="mi">1</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">2</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">3</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">4</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">5</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">6</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">7</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">8</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">1</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">3</span>
+<span class="mi">2</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">4</span>
+<span class="mi">3</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="mi">7</span>
+<span class="mi">4</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="mi">8</span>
+<span class="mi">5</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">6</span>
+<span class="mi">6</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="mi">5</span>
+<span class="mi">7</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">7</span>
+<span class="mi">8</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="mi">6</span>
+<span class="mi">9</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">8</span>
+<span class="mi">10</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="mi">7</span>
+<span class="mi">11</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">5</span>
+<span class="mi">12</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mi">8</span>
+</pre></div>
+</div>
 </section>
 </section>
 
