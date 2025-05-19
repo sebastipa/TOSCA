@@ -2511,7 +2511,6 @@ PetscErrorCode oversetIbmSearch(ibm_ *ibm)
     // loop through the ibm bodies
     for(b = 0; b < ibm->numBodies; b++)
     {
-
         boundingBox   *ibBox = ibm->ibmBody[b]->bound;                         // bounding box of the ibm body
         ibmMesh       *ibMsh = ibm->ibmBody[b]->ibMsh;                         // pointer to the ibm body mesh
 
@@ -2528,14 +2527,16 @@ PetscErrorCode oversetIbmSearch(ibm_ *ibm)
 
             // Only if the fluid mesh cell center coordinates are in the IBM bounding box
             // a fluid mesh cell can be inside the bounding box and still not be inside the IBM body due to its shape
-            if(cent[k][j][i].x > ibBox->xmin
+            if
+            (
+                cent[k][j][i].x > ibBox->xmin
                 && cent[k][j][i].x < ibBox->xmax
                 && cent[k][j][i].y > ibBox->ymin
                 && cent[k][j][i].y < ibBox->ymax
                 && cent[k][j][i].z > ibBox->zmin
-                && cent[k][j][i].z < ibBox->zmax )
+                && cent[k][j][i].z < ibBox->zmax 
+            )
             {
-
                 // index of the cells neighbouring the cell i,j,k
                 ip = (i < mx - 2 ? (i + 1) : (i));
                 im = (i > 1 ? (i - 1) : (i));
@@ -2556,7 +2557,7 @@ PetscErrorCode oversetIbmSearch(ibm_ *ibm)
                 val = rayCastingTest(cent[k][j][i], ibMsh, sCell, sBox, ibBox, searchCellList);
                 meshTag[k][j][i] = PetscMax(meshTag[k][j][i], val);
             }
-        }
+        }   
 
         DMDAVecRestoreArray(fda, mesh->lCent, &cent);
         DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
@@ -2636,7 +2637,7 @@ PetscErrorCode oversetIbmSearch(ibm_ *ibm)
 
     //ibm nvert cleanup - make solid, ibm fluid cells that dont have even one fluid cell around it
     DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
-    DMDAVecGetArray(da, mesh->meshTag, &gmeshTag);
+    DMDAVecGetArray(da, mesh->meshTag, &gmeshTag); 
 
     for (k = lzs; k < lze; k++)
     for (j = lys; j < lye; j++)
@@ -2702,7 +2703,7 @@ PetscErrorCode computeOversetIBMElementNormal(ibm_ *ibm)
         {
             PetscPrintf(PETSC_COMM_WORLD, "     Checking IBM element normal direction for body: %s...", ibm->ibmBody[b]->bodyName.c_str());
             // set offset distance
-            minBound = PetscMin( PetscMin(ibBox->Lx, ibBox->Ly), ibBox->Lz);
+            minBound = PetscMin( PetscMin(ibBox->Lx, ibBox->Ly), ibBox->Lz);  
             offset   = 1.0e-7;
 
             // check that the normal points outwards
