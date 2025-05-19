@@ -31,7 +31,7 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                       ``internalField`` is set to *ABLFlow* in the
                                                       ``boundary/U`` file.
    ----------------------------------- -------------- --------------------------------------------------
-   ``uRef``                            scalar         reference velocity in m/s used to set
+   ``uRef``                            2D vector      reference velocity in m/s used to set
                                                       set the initial condition when
                                                       ``internalField`` is set to *ABLFlow* in the
                                                       ``boundary/U`` file. The initial wind will be
@@ -39,7 +39,15 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                       at ``hRef``. It is also used by the
                                                       velocity controller when ``controllerType`` is set
                                                       to *pressure* inside the ``controllerProperties``
-                                                      dictionary.
+                                                      dictionary. Must be specified as: 
+
+                                                        .. code-block:: C
+    
+                                                             uRef (uRef_x uRef_y)
+
+                                                      where ``uRef_x`` and ``uRef_y`` are the x and y
+                                                      velocity components, respectively. The vertical 
+                                                      component is always set to zero.
    ----------------------------------- -------------- --------------------------------------------------
    ``hRef``                            scalar         reference height in m used to set
                                                       set the initial condition when

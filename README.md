@@ -58,7 +58,7 @@ The following is a list of publication where TOSCA has been used. For referencin
 ## Future Implementations:
 
  - Actuator model coupling with OpenFAST
- - Two-way overset interpolation
+ - Coupling with the Weather Research and Forecasting Model
  - Multiphase capabilities 
 
 Credits & Copyright: Sebastiano Stipa - Arjun Ajay - Mohammad Hadi - The University of British Columbia

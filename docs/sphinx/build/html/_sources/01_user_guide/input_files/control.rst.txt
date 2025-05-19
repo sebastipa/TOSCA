@@ -80,15 +80,22 @@ Solution Flags
    :align: center 
                                                                                                            
    ====================== =====================================================================================================  
-   ``-les``               Specifies if and which LES model is active: 
-                          (1) standard Smagorinsky
-                          (2) stability dependent
-                          (3) dynamic Smagorinsky with box averaging
-                          (4) dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
-                          (5) dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
-                          (6) dynamic smagorinsky scale dependent with plane averaging (PASD).
-                          TOSCA has been extensively and most used adopting model (4) for ABL and wind plant simulations. 
-                          Model (5) provides a good alternative in stably stratified flows.
+   ``-les``               Set to 1 to activate the LES model. If set to 0, the simulation runs in DNS mode.
+   ---------------------- -----------------------------------------------------------------------------------------------------
+
+   ``-lesModel``          Required when ``-les`` is set to 1. It specifies the LES model to be used. The available entries are:
+                          
+                          - *smagorinsky*: standard Smagorinsky 
+                          - *stabilityDependent*: stability dependent
+                          - *dynamicSmagorinsky*: dynamic Smagorinsky with box averaging
+                          - *dynamicLASI*: dynamic Smagorinsky scale-invariant with lagrangian averaging
+                          - *dynamicLASD*: dynamic Smagorinsky scale-dependent with lagrangian averaging
+                          - *dynamicPASD*: dynamic Smagorinsky scale-dependent with planar averaging
+                          - *amd*: anisotropic minimum dissipation 
+
+                          TOSCA has been extensively and most used adopting the *dynamicLASI* model for ABL and wind plant 
+                          simulations. Other models have been recently added to the code and might perform better in some 
+                          cases (especially *dynamicLASD* and *amd*).
    ---------------------- -----------------------------------------------------------------------------------------------------
    ``-potentialT``        Specifies if potential temperature transport equation is solved (set to 1) or not (set to 0).
    ---------------------- -----------------------------------------------------------------------------------------------------

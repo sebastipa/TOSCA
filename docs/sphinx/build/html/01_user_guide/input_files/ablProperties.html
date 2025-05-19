@@ -137,7 +137,7 @@ set the initial velocity condition when
 <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uRef</span></code></p></td>
-<td><p>scalar</p></td>
+<td><p>2D vector</p></td>
 <td><p>reference velocity in m/s used to set
 set the initial condition when
 <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
@@ -146,7 +146,16 @@ a logarthmic profile with this value of velocity
 at <code class="docutils literal notranslate"><span class="pre">hRef</span></code>. It is also used by the
 velocity controller when <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> is set
 to <em>pressure</em> inside the <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code>
-dictionary.</p></td>
+dictionary. Must be specified as:</p>
+<blockquote>
+<div><div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">uRef</span><span class="w"> </span><span class="p">(</span><span class="n">uRef_x</span><span class="w"> </span><span class="n">uRef_y</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>where <code class="docutils literal notranslate"><span class="pre">uRef_x</span></code> and <code class="docutils literal notranslate"><span class="pre">uRef_y</span></code> are the x and y
+velocity components, respectively. The vertical
+component is always set to zero.</p>
+</td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hRef</span></code></p></td>
 <td><p>scalar</p></td>

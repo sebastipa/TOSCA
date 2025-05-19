@@ -5,7 +5,7 @@ Overset Mesh
 
 Overset mesh allows to introduce refinement levels within TOSCA. In this technique, a finer mesh is immersed inside the original 
 background mesh. Boundary conditions for the finer mesh are interpolated from the background mesh, while cells in the background mesh 
-are blanked when they overlap with the finer mesh. This "hole" is the background mesh is treated as an IBM body (see :ref:`ibm-section`), 
+are blanked when they overlap with the finer mesh. This "hole" in the background mesh is treated as an IBM body (see :ref:`ibm-section`), 
 where the solution at the IBM fluid cells is interpolated from the finer mesh. In order to understand how the overset mesh method works 
 in TOSCA, it is worth mentioning some nomenclature used in relation to the following figure:
 
@@ -23,8 +23,8 @@ interpolated from the child domain. Vice versa, the solution is interpolated fro
 between the hole and the child domain is required in order to use centered interpolation stencils when interpolating from the parent to the child 
 domain. Finally, donor and acceptor cells are those cells that provide and receive the interpolaton data, respectively. Parent and child domains 
 have both donor and acceptor cells, depending if the interpolation is from parent to child or vice versa. Regarding the interpolation, when this 
-goes from parent to child (coarse to file), a tri-linear scheme is used. Conversely, when going from child to parent (fine to coarse), a tri-linear 
-scheme would make the interpolated value too local if the parent to child grid ration is too large. For this reason, TOSCA introduces a 
+goes from parent to child (coarse to fine), a tri-linear scheme is used. Conversely, when going from child to parent (fine to coarse), a tri-linear 
+scheme would make the interpolated value too local if the parent to child grid ratio is too large. For this reason, TOSCA introduces a 
 tri-linear averaged interpolation, where cell corners are first tri-linearly interpolated and then averaged to yield the cell value, as shown 
 in the figure above. 
 
@@ -67,9 +67,11 @@ domain, with two child domains, and an additional child domain in one of the pre
    # TOSCA Input file - Overset Input Properties
    # -------------------------------------------
 
-   MeshTotal      4 // integer, total number of meshes
-   numHoleObjects 3 // integer, number of hole objects
-   dynamicOverset 0 // (not supported yet) 1 if the overset mesh is moving
+   MeshTotal         4         // integer, total number of meshes
+   numHoleObjects    3         // integer, number of hole objects
+   dynamicOverset    0         // (not supported yet) 1 if the overset mesh is moving
+   interpolationType trilinear // only type of supported interpolation with the 
+                               // latest two-way coupled overset method
 
    Mesh0 
    {
@@ -148,11 +150,47 @@ should be followed. This is not true for the IBM, as TOSCA does not make this di
 the directory structure described in :ref:`ibm-section` should be followed (with the addition of the hole objects).
 
 Boundary conditions for the overset mesh are defined in the same way as for a normal simulation, except that the boundary condition files should 
-be placed inside the *boundary/meshName* sub-directory, as they are domain-specific. For child domains, at the boundary where one wants to 
+be placed inside the *boundary/meshName* sub-directory, as they are domain-specific. For child domains, at the boundaries where one wants to 
 interpolate from the parent domain, the boundary condition should be set to *oversetInterpolate*. Notably, not all boundaries always have to be 
 interpolated from the parent domain. For example, if the bottom boundary of the child domain is a wall, the boundary condition should be set to 
 *noSlip*, or a wall model should be used. Interpolation at the hole interface cells is done automatically by TOSCA, so no boundary condition
 is needed for those cells. 
 
+`Hole Object Files` 
+~~~~~~~~~~~~~~~~~~~~
+
+The hole object files should be provided in the same format as the IBM body files (see :ref:`ibm-section`). Being simple cuboids, these files are 
+pretty easy to generate and an advanced mesher is not required. In fact, a simple python script could be used to generate a minimal hole object file 
+having 2 triangles per face. The following shows an example of a hole object file that can be used for overset simulations in TOSCA. The user can 
+adapt the coordinates of the 8 points in order to define its own hole for its specific case. Notably, it is important that the hole object has an inward offset 
+of at least 3 parent domain cells (or more) from the child domain bounds, in order to allow for a centered interpolation stencil. This is not checked by TOSCA, and errors to comply 
+with this requirement will lead to a crash during initialization.
+
+.. code-block:: C
+
+    # UCD Geometry file crated by custom python script 
+    #
+    #
+    8 12 0 0 0
+    1 -6.83333e+02 -4.33333e+02 0.00000e+00
+    2  6.83333e+02 -4.33333e+02 0.00000e+00
+    3  6.83333e+02  1.13333e+03 0.00000e+00
+    4 -6.83333e+02  1.13333e+03 0.00000e+00
+    5 -6.83333e+02 -4.33333e+02 1.20000e+02
+    6  6.83333e+02 -4.33333e+02 1.20000e+02
+    7  6.83333e+02  1.13333e+03 1.20000e+02
+    8 -6.83333e+02  1.13333e+03 1.20000e+02
+    1  0 tri 1 2 3
+    2  0 tri 1 3 4
+    3  0 tri 5 6 7
+    4  0 tri 5 7 8
+    5  0 tri 1 2 6
+    6  0 tri 1 6 5
+    7  0 tri 2 3 7
+    8  0 tri 2 7 6
+    9  0 tri 3 4 8
+    10 0 tri 3 8 7
+    11 0 tri 4 1 5
+    12 0 tri 4 5 8
 
     
