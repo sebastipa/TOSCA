@@ -10521,7 +10521,6 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 ablStat->wvwMean[l] = gSw[l].yz / totVolPerLevel;
                 ablStat->wwwMean[l] = gSw[l].zz / totVolPerLevel;
 
-                // set to zero remaining statistics (not yet implemented)
                 ablStat->R11Mean[l] = gR[l].xx / totVolPerLevel;
                 ablStat->R12Mean[l] = gR[l].xy / totVolPerLevel;
                 ablStat->R13Mean[l] = gR[l].xz / totVolPerLevel;
@@ -10542,6 +10541,16 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         ablStat->q3Mean[l] = gq[l].z / totVolPerLevel;
                     }
 				}
+            }
+
+            // correct modeled stress tensor at the wall
+            if(acquisition->access->flags->isAblActive)
+            {
+                PetscReal z0        = acquisition->access->abl->hRough;
+                PetscReal uMag_tmp  = sqrt(ablStat->UMean[0] * ablStat->UMean[0] + ablStat->VMean[0] * ablStat->VMean[0]);
+                PetscReal uStar_tmp = 0.4 * uMag_tmp / log(ablStat->cellLevels[0] / z0);
+                ablStat->R13Mean[0] = -uStar_tmp * uStar_tmp * ablStat->UMean[0] / uMag_tmp;
+                ablStat->R23Mean[0] = -uStar_tmp * uStar_tmp * ablStat->VMean[0] / uMag_tmp;
             }
 
             DMDAVecRestoreArray(da,  mesh->lAj,       &aj);
