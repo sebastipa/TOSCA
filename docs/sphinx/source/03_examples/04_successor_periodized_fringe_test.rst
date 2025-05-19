@@ -41,19 +41,19 @@ is turned off.
 In some cases, the concurrent precursor method and inlet fringe region might not be enough to avoid gravity waves reflections, hence an advection damping layer around 
 the exit of the fringe region is added, where the horizontal advection of vertical velocity is turned off in order to avoid the propagation of these verical perturbations 
 downstream. It is always good practice to use this feature, as it is now state of the art in LES of wind farm and terrain induced gravity waves. Finally, lateral fringe 
-region might be needed in some cases (not shown here), and its usage in TOSCA is showcased in the *tests/SuccessorPeriodizedLateralFringeTest*. 
+region might be needed in some cases (not shown here), and its usage in TOSCA is described in the *tests/SuccessorPeriodizedLateralFringeTest*. 
 
-The domain size is the same as the one used in the :ref:`examples_successor_periodized_test`, and the same applies to the wind farm layout. 
-Moreover, instead of mapping the inflow data to the successor domain, the *inflowDatabase* 
+The domain size is the same as the one used in the :ref:`examples_successor_periodized_test`, and the same applies to the wind farm layout with the wind turbine 
+model set to *uniformADM* in the *turbines/windFarmProperties* file. Moreover, instead of mapping the inflow data to the successor domain, the *inflowDatabase* 
 is used to drive the flow in the precursor domain through the ``-precursorSpinUp`` flag set to 1. Notably, setting this flag to 0 will apply lateral periodic boundary 
 conditions on the precursor as well, while a value of 1 reads from the *inflowDatabase* and initializes the flow using ``spreadInflow``. To change the initialization 
-to read the initial condition from the *fields/precursor* directory, for restart, the ``-precursorSpinUp`` needs to be set to 2. Top and bottom 
-boundary conditions are automatically set by TOSCA to be the same as the successor domain. For the latter, boundary conditions are set to *periodic* on all lateral boundaries, 
+to read the initial condition from *fields/precursor* directory, for restart, the ``-precursorSpinUp`` needs to be set to 2. Top and bottom 
+boundary conditions automatically set by TOSCA to be the same as the successor domain. For the latter, boundary conditions are set to *periodic* on all lateral boundary, 
 whereas the same boundary conditions as the :ref:`examples_successor_periodized_test` are used for the top and bottom boundaries. Note that, in order to simplify the simulation 
 set up when the concurrent precursor method is used, the user does not need to specify boundary conditions for the precursor domain, as this operation is done internally 
 by the TOSCA code.
 
-Apart from boundary conditions, the main difference with respect to the :ref:`examples_successor_periodized_test` can be found in the *control.dat* and *ABLProperties.dat* files. 
+Apart from the boundary conditions, the main difference with the :ref:`examples_successor_periodized_test` can be found in the *control.dat* and *ABLProperties.dat* files. 
 In the first, the inlet and top fringe regions are activated through the ``-xDampingLayer`` and ``-zDampingLayer`` options, while the advection damping region is enforced 
 through the ``-advectionDamping`` flag. This prompts the code to read the respective dictionaries in the *ABLProperties.dat* file, where the fringe and advection damping 
 regions properties are defined. The inlet fringe region is defined as follows: 
