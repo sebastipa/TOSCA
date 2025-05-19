@@ -90,12 +90,6 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn);
 //! \brief Transform generic local vector from contravariant to cartesian
 PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCat);
 
-//! \brief Adjust fluxes to obey mass conservation
-PetscErrorCode adjustFluxes(ueqn_ *ueqn);
-
-//! \brief Adjust fluxes to obey mass conservation in the overset domain
-PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn);
-
 //! \brief Adjust fluxes to obey mass conservation (on a per-cell basis)
 PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn);
 
