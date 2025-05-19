@@ -548,7 +548,7 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 else 
                 {
                     char error[512];
-                    sprintf(error, "invalid wall model chosen. Please use option -1 or -3 \n");
+                    sprintf(error, "invalid wall model chosen for U. Please use one between:\n-1: Cabot\n-3: Shumann\n-4: power law\n-5: log law\n");
                     fatalErrorInFunction("setIBMWallModels", error); 
                 }
             }
@@ -564,7 +564,7 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
             else
             {
                 char error[512];
-                sprintf(error, "invalid velocity boundary condition chosen. Please use option velocityWallFunction or slip/noSlip conditions\n");
+                sprintf(error, "invalid velocity boundary condition chosen. Available options are:\nslip\nnoSlip\nvelocityWallFunction\n");
                 fatalErrorInFunction("setIBMWallModels", error);
             }
         }
@@ -908,9 +908,7 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
-                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
-                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "heatingRate", &(wm->heatingRate));
 
@@ -937,9 +935,7 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "thetaRef",    &(wm->thetaRef));
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "kRough",      &(wm->roughness));
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaM",      &(wm->gammaM));
-                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaM",       &(wm->betaM));
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "gammaH",      &(wm->gammaH));
-                        //readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "betaH",       &(wm->betaH));
                         readSubDictDouble(fileNameT.c_str(), "thetaWallFunction", "alphaH",      &(wm->alphaH));
 
                         //read the surface temp and Obhukhov length 
@@ -948,7 +944,7 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                     else
                     {
                         char error[512];
-                        sprintf(error, "invalid wall model chosen. Please use option -3, -4 or -2\n");
+                        sprintf(error, "invalid wall model chosen for T. Please use one between:\n-2: Shumann w/ constant wall heat flux\n-3: Shumann w/ constant wall heating rate\n-4: Shumann w/ time-history of wall T\n");
                         fatalErrorInFunction("SetWallModels", error);
                     } 
                 }
@@ -962,7 +958,7 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
                 else 
                 {
                     char error[512];
-                    sprintf(error, "Invalid temperature BC type, use temperatureWallFunction, zeroGradient or fixedValue\n");
+                    sprintf(error, "invalid temperature boundary condition chosen. Available options are:\nfixedValue\nzeroGradient\nthetaWallFunction\n");
                     fatalErrorInFunction("SetWallModels", error);
                 }
             }
@@ -1362,7 +1358,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
                     //sum total pressure and viscous force
                     mSum(lPForce[b], ibmBody->ibmPForce[e]);
 
-                    if(ibmBody->velocityBC != "Slip")
+                    if(ibmBody->velocityBC != "slip")
                     {
                         mSum(lVForce[b], tauWall);
                     }
@@ -1387,17 +1383,16 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 
                         //net moment per processor
                         mSum(lMoment[b], nSum(pressureMoment, viscousMoment));
-
                     }
-
-
                 }
-
             }
 
             MPI_Allreduce(&(lPForce[b]), &(gPForce[b]), 3, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
             MPI_Allreduce(&(lVForce[b]), &(gVForce[b]), 3, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
             MPI_Allreduce(lElemPressure, gElemPressure, ibMsh->elems, MPIU_REAL, MPIU_SUM, ibmBody->IBM_COMM);
+
+            PetscPrintf(ibmBody->IBM_COMM, "%s: Pressure force [N] = %lf %lf %lf\n", ibmBody->bodyName.c_str(), gPForce[b].x, gPForce[b].y, gPForce[b].z);
+
 
             if(ibmBody->bodyMotion == "rotation")
             {
@@ -1412,10 +1407,9 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
             {
                 ibmPower  = nDot(gMoment[b], nScale(ibmRot->angSpeed, ibmRot->rotAxis));
                 netMoment = nDot(gMoment[b], ibmRot->rotAxis);
-            }
 
-            PetscPrintf(ibmBody->IBM_COMM, "%s: pforce(N) = %lf %lf %lf\n", ibmBody->bodyName.c_str(), gPForce[b].x, gPForce[b].y, gPForce[b].z);
-            PetscPrintf(ibmBody->IBM_COMM, "%s: Moment(Nm) = %lf %lf %lf\n", ibmBody->bodyName.c_str(), gMoment[b].x, gMoment[b].y, gMoment[b].z);
+                PetscPrintf(ibmBody->IBM_COMM, "%s: Moment [Nm] = %lf %lf %lf\n", ibmBody->bodyName.c_str(), gMoment[b].x, gMoment[b].y, gMoment[b].z);
+            }
 
             //write data
             if(ibmrank == 0)
@@ -9945,125 +9939,134 @@ PetscErrorCode rayCastLocal(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts p3, Cmpnts p4
 
 PetscReal rayCastingTest(Cmpnts p, ibmMesh *ibMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList)
 {
-  PetscBool     *Element_Searched;                    //bool to indicate if an element has been searched or not
-  PetscBool      NotDecided = PETSC_TRUE;
-  PetscBool      Singularity = PETSC_FALSE;
+    PetscBool     *Element_Searched;                    //bool to indicate if an element has been searched or not
+    PetscBool      NotDecided = PETSC_TRUE;
+    PetscBool      Singularity = PETSC_FALSE;
 
-  PetscInt       searchtimes = 0, nvertLoc, numInt;                     //number of times search is performed - each time a new ray is cast
-  Cmpnts         dir, nor, dnn[1000];
-  node           *current;                           //pointer to the first element in the current searchCellList node
-  PetscInt            e, i, j, k;
-  PetscInt            n1, n2, n3;                         // vertices of an ibm mesh element
-  PetscReal      epsilon = 1.e-25;
-  PetscReal      dt[1000], ndotn, dirdotn;
-  PetscReal      t, u, v;
+    PetscInt       searchtimes = 0, nvertLoc, numInt;   // number of times search is performed - each time a new ray is cast
+    PetscInt       maxSearchTimes = 1000;               // maximum number of times search is performed
+    Cmpnts         dir, nor, dnn[1000];
+    node           *current;                            //pointer to the first element in the current searchCellList node
+    PetscInt            e, i, j, k;
+    PetscInt            n1, n2, n3;                     // vertices of an ibm mesh element
+    PetscReal      epsilon = 1.e-25;
+    PetscReal      dt[1000], ndotn, dirdotn;
+    PetscReal      t, u, v;
 
-  PetscMalloc(ibMsh->elems * sizeof(PetscBool), &Element_Searched);
+    PetscMalloc(ibMsh->elems * sizeof(PetscBool), &Element_Searched);
 
-  j = sCell.j;
-  i = sCell.i;
+    j = sCell.j;
+    i = sCell.i;
 
-  while (NotDecided)
-  {
-    searchtimes++;
-    numInt = 0;
-    Singularity = PETSC_FALSE;
-
-    for (e = 0; e < ibMsh->elems; e++)
+    while (NotDecided && searchtimes < maxSearchTimes)
     {
-        Element_Searched[e] = PETSC_FALSE;
-    }
+        searchtimes++;
+        numInt = 0;
+        Singularity = PETSC_FALSE;
 
-    //get a random direction from the fluid mesh point in the search box z direction
-    dir = randomdirection(p, sCell, ibBox, sBox, searchtimes);
-
-    // ray cast is done along the z direction of the search cells
-    // as the ray is cast in the positive z cell direction, need to search only between point p.z and ncz
-    for (k = sCell.k; k < sBox->ncz; k++)
-    {
-
-      current = searchCellList[k * sBox->ncx * sBox->ncy + j * sBox->ncx + i].head;
-
-      // loop through the elements in the current search cell
-      while (current)
-      {
-        // element currently pointed to
-        e = current->Node;
-
-        if (!Element_Searched[e])
+        for (e = 0; e < ibMsh->elems; e++)
         {
-          Element_Searched[e] = PETSC_TRUE;
-          n1 = ibMsh->nID1[e];
-          n2 = ibMsh->nID2[e];
-          n3 = ibMsh->nID3[e];
-          nor = ibMsh->eN[e];
+            Element_Searched[e] = PETSC_FALSE;
+        }
 
-          dirdotn = nDot(dir, nor);
+        //get a random direction from the fluid mesh point in the search box z direction
+        dir = randomdirection(p, sCell, ibBox, sBox, searchtimes);
 
-          // t: is the magnitude of the ray (positive ore negative based on the intersection side)
-          // u and v are a and b of the Borazjani, Ge, Sotiropulos 2008 paper
-          nvertLoc = intsectElement(p, dir, ibMsh->nCoor[n1], ibMsh->nCoor[n2], ibMsh->nCoor[n3], &t, &u, &v);
+        // ray cast is done along the z direction of the search cells
+        // as the ray is cast in the positive z cell direction, need to search only between point p.z and ncz
+        for (k = sCell.k; k < sBox->ncz; k++)
+        {
 
-          // if ray intersects element
-          if (nvertLoc > 0 && t > 0)
-          {
-            //store the element normal and dist from point to element at current intersection
-            dt[numInt] = t;
-            dnn[numInt] = nSet(nor);
+            current = searchCellList[k * sBox->ncx * sBox->ncy + j * sBox->ncx + i].head;
 
-            numInt++;
-
-            // if 2 intersections points are at same distance from point p
-            // ensure no singularity. If singularity point, recast and find number of intersections again
-            for( PetscInt tmp = 0; tmp < numInt - 1; tmp++)
+            // loop through the elements in the current search cell
+            while (current)
             {
-              ndotn = nDot(dnn[tmp], nor);
+                // element currently pointed to
+                e = current->Node;
 
-              if(fabs(t - dt[tmp]) < epsilon && ndotn > -0.99)
-              {
-                Singularity = PETSC_TRUE;
-                break;
-              }
+                if (!Element_Searched[e])
+                {
+                    Element_Searched[e] = PETSC_TRUE;
+                    n1 = ibMsh->nID1[e];
+                    n2 = ibMsh->nID2[e];
+                    n3 = ibMsh->nID3[e];
+                    nor = ibMsh->eN[e];
+
+                    dirdotn = nDot(dir, nor);
+
+                    // t: is the magnitude of the ray (positive ore negative based on the intersection side)
+                    // u and v are a and b of the Borazjani, Ge, Sotiropulos 2008 paper
+                    nvertLoc = intsectElement(p, dir, ibMsh->nCoor[n1], ibMsh->nCoor[n2], ibMsh->nCoor[n3], &t, &u, &v);
+
+                    // if ray intersects element
+                    if (nvertLoc > 0 && t > 0)
+                    {
+                    //store the element normal and dist from point to element at current intersection
+                    dt[numInt] = t;
+                    dnn[numInt] = nSet(nor);
+
+                    numInt++;
+
+                    // if 2 intersections points are at same distance from point p
+                    // ensure no singularity. If singularity point, recast and find number of intersections again
+                    for( PetscInt tmp = 0; tmp < numInt - 1; tmp++)
+                    {
+                        ndotn = nDot(dnn[tmp], nor);
+
+                        if(fabs(t - dt[tmp]) < epsilon && ndotn > -0.99)
+                        {
+                            Singularity = PETSC_TRUE;
+                            break;
+                        }
+                    }
+                }
             }
+            if(Singularity)
+            {
+                break;
+            }
+            else
+            {
+                current = current->next;
+            }
+            }
+            if (Singularity)
+            {
+                break;
+            }
+        }
 
-          }
+        if (!Singularity)
+        {
+            // The interception point number is odd, inside body else outise the IBM
+            if (numInt % 2)
+            {
 
+                PetscFree(Element_Searched);
+                return 4.;
+            }
+            else
+            {
+                PetscFree(Element_Searched);
+                return 0.;
+            }
         }
-        if(Singularity)
-        {
-          break;
-        }
-        else
-        {
-          current = current->next;
-        }
-      }
-      if (Singularity)
-      {
-          break;
-      }
+
+        // if code control reaches here, then singularity has occured so recast ray to repeat until no singularity
     }
 
-    if (!Singularity)
+    // if reaches here it means that maximum number of search times has been reached
+    if(searchtimes == maxSearchTimes)
     {
-        // The interception point number is odd, inside body else outise the IBM
-        if (numInt % 2)
-        {
-
-            PetscFree(Element_Searched);
-            return 4.;
-        }
-        else
-        {
-            PetscFree(Element_Searched);
-            return 0.;
-        }
+        char error[530];
+        sprintf(error, "cannot perform raycast: maxSearchTimes reached.\n");
+        fatalErrorInFunction("rayCastingTest",  error);
     }
-    // if code control reaches here, then singularity has occured so recast ray to repeat until no singularity
-  }
-  PetscFree(Element_Searched);
 
-  return 0.;
+    PetscFree(Element_Searched);
+
+    return 0.;
 }
 
 //***************************************************************************************************************//

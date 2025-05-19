@@ -11,92 +11,87 @@
 
 PetscErrorCode readIBMProperties(ibm_ *ibm)
 {
-  PetscMPIInt rank;
+    PetscMPIInt rank;
 
-  mesh_ *mesh = ibm->access->mesh;
-  io_ *io = ibm->access->io;
+    mesh_ *mesh = ibm->access->mesh;
+    io_ *io = ibm->access->io;
 
-  MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
-  PetscPrintf(mesh->MESH_COMM, "\nIBM initialization...\n");
+    PetscPrintf(mesh->MESH_COMM, "\nIBM initialization...\n");
 
-  // read debug switch
-  readDictInt("./IBM/IBMProperties.dat", "debug", &(ibm->dbg));
+    // read debug switch
+    readDictInt("./IBM/IBMProperties.dat", "debug", &(ibm->dbg));
 
-  // read dynamic IBM switch
-  readDictInt("./IBM/IBMProperties.dat", "dynamic", &(ibm->dynamic));
+    // read dynamic IBM switch
+    readDictInt("./IBM/IBMProperties.dat", "dynamic", &(ibm->dynamic));
 
-  // read compute force and moment
-  readDictInt("./IBM/IBMProperties.dat", "computeForce", &(ibm->computeForce));
+    // read compute force and moment
+    readDictInt("./IBM/IBMProperties.dat", "computeForce", &(ibm->computeForce));
 
-  // read check normals
-  readDictInt("./IBM/IBMProperties.dat", "checkNormal", &(ibm->checkNormal));
+    // read check normals
+    readDictInt("./IBM/IBMProperties.dat", "checkNormal", &(ibm->checkNormal));
 
-  // read average normals
-  readDictInt("./IBM/IBMProperties.dat", "averageNormal", &(ibm->averageNormal));
+    // read average normals
+    readDictInt("./IBM/IBMProperties.dat", "averageNormal", &(ibm->averageNormal));
 
-  // set wall shear force from wall model
-  readDictInt("./IBM/IBMProperties.dat", "wallShear", &(ibm->wallShearOn));
+    // set wall shear force from wall model
+    readDictInt("./IBM/IBMProperties.dat", "wallShear", &(ibm->wallShearOn));
 
-  readDictInt("./IBM/IBMProperties.dat", "abl", &(ibm->ibmABL));
+    readDictInt("./IBM/IBMProperties.dat", "abl", &(ibm->ibmABL));
 
-  if(ibm->ibmABL)
-  {
-    readDictDouble("./IBM/IBMProperties.dat", "groundLevel",      &(mesh->grndLevel));
-  }
-  
-  if(ibm->wallShearOn)
-  {
-    readDictDouble("./IBM/IBMProperties.dat", "interpolationDistance", &(ibm->interpDist));
-  }
-  // write stl flag
-  readDictInt("./IBM/IBMProperties.dat", "writeSTL", &(ibm->writeSTL));
+    if(ibm->ibmABL)      readDictDouble("./IBM/IBMProperties.dat", "groundLevel",      &(mesh->grndLevel));
+    if(ibm->wallShearOn) readDictDouble("./IBM/IBMProperties.dat", "interpolationDistance", &(ibm->interpDist));
 
-  // read the number of ibm bodies
-  readDictInt("./IBM/IBMProperties.dat", "NumberofBodies", &(ibm->numBodies));
+    // write stl flag
+    readDictInt("./IBM/IBMProperties.dat", "writeSTL", &(ibm->writeSTL));
 
-  // read the interpolation method - MLS or CURVIB
-  readDictWord("./IBM/IBMProperties.dat", "InterpolationMethod", &(ibm->IBInterpolationModel));
+    // read the number of ibm bodies
+    readDictInt("./IBM/IBMProperties.dat", "NumberofBodies", &(ibm->numBodies));
 
-  if(ibm->IBInterpolationModel == "CURVIB")
-  {
-    readDictWord("./IBM/IBMProperties.dat", "CURVIBInterpolationType", &(ibm->curvibType));
+    // read the interpolation method - MLS or CURVIB
+    readDictWord("./IBM/IBMProperties.dat", "InterpolationMethod", &(ibm->IBInterpolationModel));
 
-    if(ibm->curvibType == "CurvibTrilinear")
+    if(ibm->IBInterpolationModel == "CURVIB")
     {
-        readDictWord("./IBM/IBMProperties.dat", "interpolationOrder", &(ibm->curvibOrder));
+        readDictWord("./IBM/IBMProperties.dat", "CURVIBInterpolationType", &(ibm->curvibType));
+
+        if(ibm->curvibType == "CurvibTrilinear")
+        {
+            readDictWord("./IBM/IBMProperties.dat", "interpolationOrder", &(ibm->curvibOrder));
+        }
+
+        if(ibm->wallShearOn == 1 && ibm->curvibType == "CurvibTriangular")
+        {
+            char error[512];
+            sprintf(error, "IBM wall shear model currently available only with CURVIB trilinear interpolation\n");
+            fatalErrorInFunction("readIBMProperties",  error);
+        }
     }
-    if(ibm->wallShearOn == 1 && ibm->curvibType == "CurvibTriangular")
+
+    // read the write settings
+    if(ibm->computeForce)
     {
-        char error[512];
-        sprintf(error, "IBM wall shear model currently available only with CURVIB trilinear interpolation\n");
-        fatalErrorInFunction("readIBMProperties",  error);
+        readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeStart", &(ibm->timeStart));
+        readSubDictWord  ("./IBM/IBMProperties.dat","writeSettings","intervalType", &(ibm->intervalType));
+        readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeInterval", &(ibm->timeInterval));
     }
-  }
 
-  // read the write settings
-  if(ibm->computeForce)
-  {
-      readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeStart", &(ibm->timeStart));
-      readSubDictWord  ("./IBM/IBMProperties.dat","writeSettings","intervalType", &(ibm->intervalType));
-      readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeInterval", &(ibm->timeInterval));
-  }
+    //counter for number of moving objects
+    int movingObject = 0;
 
-  //counter for number of moving objects
-  int movingObject = 0;
+    // initialize pointers to NULL
+    ibm->ibmFCells = NULL;
+    ibm->sBox      = NULL;
 
-  // initialize pointers to NULL
-  ibm->ibmFCells = NULL;
-  ibm->sBox      = NULL;
+    // allocate memory for each ibm object
+    ibm->ibmBody = new ibmObject*[ibm->numBodies];
 
-  // allocate memory for each ibm object
-  ibm->ibmBody = new ibmObject*[ibm->numBodies];
+    // allocate memory for the search box Parameters
+    ibm->sBox = new searchBox[ibm->numBodies];
 
-  // allocate memory for the search box Parameters
-  ibm->sBox = new searchBox[ibm->numBodies];
-
-  for (PetscInt i=0; i < ibm->numBodies; i++)
-  {
+    for (PetscInt i=0; i < ibm->numBodies; i++)
+    {
     ibm->ibmBody[i] = new ibmObject;
 
     ibmObject   *ibmBody  = ibm->ibmBody[i];
@@ -106,6 +101,9 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     ibmBody->searchCellList = NULL;
     ibmBody->ibMsh          = NULL;
     ibmBody->ibmRot         = NULL;
+
+    // set thin body to false (Arjun, this check is used in ibm.c so what to do?)
+    ibmBody->thinBody = 0;
 
     // allocate memory for the IBM mesh of the object
     ibmBody->ibMsh = new ibmMesh;
@@ -129,7 +127,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     readSubDictVector("./IBM/IBMProperties.dat", objectName, "baseLocation", &(ibmBody->baseLocation));
 
     // read if thinbody or not
-    readSubDictInt("./IBM/IBMProperties.dat", objectName, "thinBody", &(ibmBody->thinBody));
+    // readSubDictInt("./IBM/IBMProperties.dat", objectName, "thinBody", &(ibmBody->thinBody));
 
     //read max processor bounds for the ibm body if dynamic simulation
     if(ibm->dynamic)
@@ -216,15 +214,14 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "rotationCenter", &(ibmRot->rotCenter));
             readSubDictDouble("./IBM/IBMProperties.dat", objectName, "maxTipRadius", &(ibmRot->maxR));
 
-            //normalise the rotation axis
+            // normalise the rotation axis
             mUnit(ibmRot->rotAxis);
 
             //transform angular speed and acceleration from rpm to rad/s
             ibmRot->angSpeed = ibmRot->angSpeed*2*M_PI/60.0;
             ibmRot->angAcc   = ibmRot->angAcc*2*M_PI/60.0;
         }
-
-        if(ibmBody->bodyMotion == "sinusoidal")
+        else if(ibmBody->bodyMotion == "sinusoidal")
         {
             // allocate memory for ibm sinusoidal motion
             ibmBody->ibmSine = new ibmSineMotion;
@@ -234,9 +231,11 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             readSubDictDouble("./IBM/IBMProperties.dat", objectName, "amplitude", &(ibmSine->amplitude));
             readSubDictDouble("./IBM/IBMProperties.dat", objectName, "frequency", &(ibmSine->frequency));
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "motionDirection", &(ibmSine->motionDir));
-        }
 
-        if(ibmBody->bodyMotion == "pitchingOscillation")
+            // normalise motion direction
+            mUnit(ibmSine->motionDir);
+        }
+        else if(ibmBody->bodyMotion == "pitchingOscillation")
         {
             // allocate memory for ibm pitching motion
             ibmBody->ibmPitch = new ibmPitchMotion;
@@ -251,6 +250,12 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             readSubDictVector("./IBM/IBMProperties.dat", objectName, "pitchingCenter", &(ibmPitch->pitchCenter));
 
         }
+        else 
+        {
+            char error[512];
+            sprintf(error, "unknown IBM motion type. Available types are rotation, sinusoidal, pitchingOscillation\n");
+            fatalErrorInFunction("readIBMProperties",  error);
+        }
     }
 
     // read the search cell ratio wrt to the average cell size of the domain mesh
@@ -259,239 +264,236 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     //set the body index as the index of the loop
     ibm->ibmBody[i]->bodyID = i;
 
-  }
+    }
 
-  if(movingObject == 0 && ibm->dynamic == 1)
-  {
-     char error[512];
-      sprintf(error, "ibm dynamic motion set to true but there are no moving objects. Set dynamic to 0 in IBMProperties\n");
-      fatalErrorInFunction("readIBMProperties",  error);
-  }
+    if(movingObject == 0 && ibm->dynamic == 1)
+    {
+        char error[512];
+        sprintf(error, "ibm dynamic motion set to true but there are no moving objects. Set dynamic to 0 in IBMProperties\n");
+        fatalErrorInFunction("readIBMProperties",  error);
+    }
 
-  if(movingObject > 0 && ibm->dynamic == 0)
-  {
-     char error[512];
-      sprintf(error, "ibm dynamic motion set to false but there are moving objects. Set dynamic to 1 in IBMProperties\n");
-      fatalErrorInFunction("readIBMProperties",  error);
-  }
+    if(movingObject > 0 && ibm->dynamic == 0)
+    {
+        char error[512];
+        sprintf(error, "ibm dynamic motion set to false but there are moving objects. Set dynamic to 1 in IBMProperties\n");
+        fatalErrorInFunction("readIBMProperties",  error);
+    }
 
-  for (PetscInt i=0; i < ibm->numBodies; i++)
-  {
-      // read the mesh file for the ibm object
-      readIBMObjectMesh(ibm, i);
-  }
+    for (PetscInt i=0; i < ibm->numBodies; i++)
+    {
+        // read the mesh file for the ibm object
+        readIBMObjectMesh(ibm, i);
+    }
 
-  return 0;
+    return 0;
 }
 
 //***************************************************************************************************************//
 PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm, PetscInt b)
 {
-
     return 0;
 }
 //***************************************************************************************************************//
 
 PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
 {
-  ibmObject     *ibmBody = ibm->ibmBody[b];
-  clock_        *clock   = ibm->access->clock;
-  ibmMesh       *ibMesh  = ibmBody->ibMsh;
+    ibmObject     *ibmBody = ibm->ibmBody[b];
+    clock_        *clock   = ibm->access->clock;
+    ibmMesh       *ibMesh  = ibmBody->ibMsh;
 
-  if(ibmBody->bodyType == "surfaceBody")
-  {
-      //loop through the number of surfaces
-      for (PetscInt i = 0; i < ibmBody->numSurfaces; i++)
-      {
-          surface *ibmSurface = ibmBody->ibmSurface[i];
-
-          if(ibmSurface->surfaceFileType == "ucd")
-          {
-              readIBMSurfaceFileUCD(ibmSurface);
-          }
-          else if(ibmSurface->surfaceFileType == "grd")
-          {
-              readIBMSurfaceFileGRD(ibmSurface);
-          }
-          else if(ibmSurface->surfaceFileType == "inp")
-          {
-              readIBMSurfaceFileAbaqusInp(ibmSurface);
-          }
-          else if(ibmSurface->surfaceFileType == "ucd2")
-          {
-              readIBMSurfaceFileUCD2(ibmSurface);
-          }
-          else
-          {
-              char error[530];
-              sprintf(error, "wrong ibm surface file type. Use ucd, ucd2, grd, ascii, inp\n");
-              fatalErrorInFunction("readIBMObjectMesh",  error);
-          }
-      }
-
-      combineMesh(ibmBody);
-
-  }
-  else
-  {
-      if(ibmBody->fileType == "ucd")
-      {
-          readIBMBodyFileUCD(ibmBody);
-      }
-      else if(ibmBody->fileType == "grd")
-      {
-          readIBMBodyFileGRD(ibmBody);
-      }
-      else if(ibmBody->fileType == "ascii")
-      {
-          readIBMBodyFileASCII(ibmBody);
-      }
-      else if(ibmBody->fileType == "inp")
-      {
-          readIBMBodyFileAbaqusInp(ibmBody);
-      }
-      else if(ibmBody->fileType == "ucd2")
-      {
-          readIBMBodyFileUCD2(ibmBody);
-      }
-      else
-      {
-          char error[530];
-          sprintf(error, "wrong ibm file type. Use ucd, ucd2, ascii, inp or grd\n");
-          fatalErrorInFunction("readIBMObjectMesh",  error);
-      }
-
-  }
-
-  // reset the co-ordinates if the angular position is read
-  if(ibmBody->bodyMotion == "rotation")
-  {
-      word        timeName, dictName;
-      ibmRotation   *ibmRot  = ibmBody->ibmRot;
-
-      //read the angular position from file
-      timeName = "./fields/" + ibm->access->mesh->meshName + "/ibm/" + getTimeName(clock);
-
-      // check if this folder exists, if yes angular position is set, if no, angular position is 0
-      if(dir_exist(timeName.c_str()))
-      {
-          PetscPrintf(ibm->access->mesh->MESH_COMM, "   reading IBM data for time: %s \n",timeName.c_str());
-
-          dictName = timeName + "/" + ibmBody->bodyName;
-
-          readDictDouble(dictName.c_str(), "AngularPosition", &(ibmRot->rotAngle));
-          readDictDouble(dictName.c_str(), "AngularSpeed", &(ibmRot->angSpeed));
-          readDictDouble(dictName.c_str(), "AngularAcceleration", &(ibmRot->angAcc));
-
-          //transform angular speed and acceleration from rpm to rad/s
-          ibmRot->angSpeed = ibmRot->angSpeed*2*M_PI/60.0;
-          ibmRot->angAcc   = ibmRot->angAcc*2*M_PI/60.0;
-      }
-      else
-      {
-          ibmRot->rotAngle = 0.0;
-      }
-
-      for(PetscInt i = 0; i < ibMesh->nodes; i++)
-      {
-          Cmpnts rvec   = nSub(ibMesh->nCoor[i], ibmRot->rotCenter);
-          Cmpnts angVel = nScale(ibmRot->angSpeed, ibmRot->rotAxis);
-
-          // rotate the vector to the required angular position
-          mRot(ibmRot->rotAxis, rvec, ibmRot->rotAngle);
-
-          // find the new co-ordinate
-          ibMesh->nCoor[i] = nSum(rvec, ibmRot->rotCenter);
-
-          ibMesh->nU[i]  = nCross(angVel, rvec);
-
-          ibMesh->nUPrev[i]  = nSet(ibMesh->nU[i]);
-      }
-  }
-
-  if(ibmBody->bodyMotion == "sinusoidal")
-  {
-    //move the body to the initial starting position
-    ibmSineMotion   *ibmSine  = ibmBody->ibmSine;
-
-    ibmSine->tPrev = clock->startTime;
-
-    for(PetscInt i = 0; i < ibMesh->nodes; i++)
+    if(ibmBody->bodyType == "surfaceBody")
     {
-        // find the new co-ordinate
-        ibMesh->nCoor[i] = nSum(ibMesh->nCoor[i], nScale(ibmSine->amplitude * (1.0 - cos(2*M_PI * ibmSine->frequency * ibmSine->tPrev)), ibmSine->motionDir));
+        //loop through the number of surfaces
+        for (PetscInt i = 0; i < ibmBody->numSurfaces; i++)
+        {
+            surface *ibmSurface = ibmBody->ibmSurface[i];
 
-        ibMesh->nU[i]    = nScale(2*M_PI*ibmSine->frequency*ibmSine->amplitude * sin(2*M_PI * ibmSine->frequency * ibmSine->tPrev), ibmSine->motionDir);
+            if(ibmSurface->surfaceFileType == "ucd")
+            {
+                readIBMSurfaceFileUCD(ibmSurface);
+            }
+            else if(ibmSurface->surfaceFileType == "grd")
+            {
+                readIBMSurfaceFileGRD(ibmSurface);
+            }
+            else if(ibmSurface->surfaceFileType == "inp")
+            {
+                readIBMSurfaceFileAbaqusInp(ibmSurface);
+            }
+            else if(ibmSurface->surfaceFileType == "ucd2")
+            {
+                readIBMSurfaceFileUCD2(ibmSurface);
+            }
+            else
+            {
+                char error[530];
+                sprintf(error, "wrong ibm surface file type. Use ucd, ucd2, grd, ascii, inp\n");
+                fatalErrorInFunction("readIBMObjectMesh",  error);
+            }
+        }
 
-        ibMesh->nUPrev[i]  = nSet(ibMesh->nU[i]);
+        combineMesh(ibmBody);
 
     }
-  }
-
-  if(ibmBody->bodyMotion == "pitchingOscillation")
-  {
-    //move the body to the initial starting position
-    ibmPitchMotion   *ibmPitch  = ibmBody->ibmPitch;
-
-    ibmPitch->tPrev = clock->startTime;
-
-    //transform all angles to radian
-    ibmPitch->amplitude       = ibmPitch->amplitude * M_PI/180.0;
-    ibmPitch->initAngPosition = ibmPitch->initAngPosition * M_PI/180.0;
-
-    // initial angular position
-    PetscReal rotAngle = ibmPitch->initAngPosition - ibmPitch->amplitude * cos(2*M_PI * ibmPitch->frequency * ibmPitch->tPrev);
-
-    Cmpnts rvec;
-    Cmpnts angVel = nScale(2*M_PI * ibmPitch->frequency * ibmPitch->amplitude * sin(2*M_PI * ibmPitch->frequency * ibmPitch->tPrev), ibmPitch->pitchAxis);
-
-
-    for(PetscInt i = 0; i < ibMesh->nodes; i++)
+    else
     {
-        rvec    = nSub(ibMesh->nCoor[i], ibmPitch->pitchCenter);
-
-        // rotate the vector to the required angular position
-        mRot(ibmPitch->pitchAxis, rvec, rotAngle);
-
-        // find the new co-ordinate
-        ibMesh->nCoor[i]  = nSum(rvec, ibmPitch->pitchCenter);
-
-        ibMesh->nU[i]     = nCross(angVel, rvec);
-
-        ibMesh->nUPrev[i] = nSet(ibMesh->nU[i]);
+        if(ibmBody->fileType == "ucd")
+        {
+            readIBMBodyFileUCD(ibmBody);
+        }
+        else if(ibmBody->fileType == "grd")
+        {
+            readIBMBodyFileGRD(ibmBody);
+        }
+        else if(ibmBody->fileType == "ascii")
+        {
+            readIBMBodyFileASCII(ibmBody);
+        }
+        else if(ibmBody->fileType == "inp")
+        {
+            readIBMBodyFileAbaqusInp(ibmBody);
+        }
+        else if(ibmBody->fileType == "ucd2")
+        {
+            readIBMBodyFileUCD2(ibmBody);
+        }
+        else
+        {
+            char error[530];
+            sprintf(error, "wrong ibm file type. Use ucd, ucd2, ascii, inp or grd\n");
+            fatalErrorInFunction("readIBMObjectMesh",  error);
+        }
 
     }
-  }
 
-  // allocate memory for the element normal, area and center coordinate
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eN));
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eT1));
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eT2));
+    // reset the co-ordinates if the angular position is read
+    if(ibmBody->bodyMotion == "rotation")
+    {
+        word        timeName, dictName;
+        ibmRotation   *ibmRot  = ibmBody->ibmRot;
 
-  PetscMalloc(ibMesh->elems * sizeof(PetscReal), &(ibMesh->eA));
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eCent));
+        //read the angular position from file
+        timeName = "./fields/" + ibm->access->mesh->meshName + "/ibm/" + getTimeName(clock);
+
+        // check if this folder exists, if yes angular position is set, if no, angular position is 0
+        if(dir_exist(timeName.c_str()))
+        {
+            PetscPrintf(ibm->access->mesh->MESH_COMM, "   reading IBM data for time: %s \n",timeName.c_str());
+
+            dictName = timeName + "/" + ibmBody->bodyName;
+
+            readDictDouble(dictName.c_str(), "AngularPosition", &(ibmRot->rotAngle));
+            readDictDouble(dictName.c_str(), "AngularSpeed", &(ibmRot->angSpeed));
+            readDictDouble(dictName.c_str(), "AngularAcceleration", &(ibmRot->angAcc));
+
+            //transform angular speed and acceleration from rpm to rad/s
+            ibmRot->angSpeed = ibmRot->angSpeed*2*M_PI/60.0;
+            ibmRot->angAcc   = ibmRot->angAcc*2*M_PI/60.0;
+        }
+        else
+        {
+            ibmRot->rotAngle = 0.0;
+        }
+
+        for(PetscInt i = 0; i < ibMesh->nodes; i++)
+        {
+            Cmpnts rvec   = nSub(ibMesh->nCoor[i], ibmRot->rotCenter);
+            Cmpnts angVel = nScale(ibmRot->angSpeed, ibmRot->rotAxis);
+
+            // rotate the vector to the required angular position
+            mRot(ibmRot->rotAxis, rvec, ibmRot->rotAngle);
+
+            // find the new co-ordinate
+            ibMesh->nCoor[i] = nSum(rvec, ibmRot->rotCenter);
+
+            ibMesh->nU[i]  = nCross(angVel, rvec);
+
+            ibMesh->nUPrev[i]  = nSet(ibMesh->nU[i]);
+        }
+    }
+    else if(ibmBody->bodyMotion == "sinusoidal")
+    {
+        //move the body to the initial starting position
+        ibmSineMotion   *ibmSine  = ibmBody->ibmSine;
+
+        ibmSine->tPrev = clock->startTime;
+
+        for(PetscInt i = 0; i < ibMesh->nodes; i++)
+        {
+            // find the new co-ordinate
+            ibMesh->nCoor[i] = nSum(ibMesh->nCoor[i], nScale(ibmSine->amplitude * (1.0 - cos(2*M_PI * ibmSine->frequency * ibmSine->tPrev)), ibmSine->motionDir));
+
+            ibMesh->nU[i]    = nScale(2*M_PI*ibmSine->frequency*ibmSine->amplitude * sin(2*M_PI * ibmSine->frequency * ibmSine->tPrev), ibmSine->motionDir);
+
+            ibMesh->nUPrev[i]  = nSet(ibMesh->nU[i]);
+
+        }
+    }
+    else if(ibmBody->bodyMotion == "pitchingOscillation")
+    {
+        //move the body to the initial starting position
+        ibmPitchMotion   *ibmPitch  = ibmBody->ibmPitch;
+
+        ibmPitch->tPrev = clock->startTime;
+
+        //transform all angles to radian
+        ibmPitch->amplitude       = ibmPitch->amplitude * M_PI/180.0;
+        ibmPitch->initAngPosition = ibmPitch->initAngPosition * M_PI/180.0;
+
+        // initial angular position
+        PetscReal rotAngle = ibmPitch->initAngPosition - ibmPitch->amplitude * cos(2*M_PI * ibmPitch->frequency * ibmPitch->tPrev);
+
+        Cmpnts rvec;
+        Cmpnts angVel = nScale(2*M_PI * ibmPitch->frequency * ibmPitch->amplitude * sin(2*M_PI * ibmPitch->frequency * ibmPitch->tPrev), ibmPitch->pitchAxis);
 
 
-  if(ibm->computeForce)
-  {
-      // allocate memory for pressure and surface stress
-      PetscMalloc( ibMesh->elems * sizeof(Cmpnts), &(ibmBody->ibmPForce));
+        for(PetscInt i = 0; i < ibMesh->nodes; i++)
+        {
+            rvec    = nSub(ibMesh->nCoor[i], ibmPitch->pitchCenter);
 
-      // allocate memory for the closest cell id to the ibm mesh element
-      PetscMalloc( ibMesh->elems * sizeof(cellIds), &(ibmBody->closestCells));
-      PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->thisPtControlled));
-      PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->thisPtControlTransfer));
-  }
+            // rotate the vector to the required angular position
+            mRot(ibmPitch->pitchAxis, rvec, rotAngle);
 
-  //allocate memory for the smallest bounding sphere for each element - used for finding the nearest IBM Mesh element to IBM fluid cell
-  PetscMalloc(ibMesh->elems * sizeof(PetscReal), &(ibMesh->eRVec));
-  PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eQVec));
+            // find the new co-ordinate
+            ibMesh->nCoor[i]  = nSum(rvec, ibmPitch->pitchCenter);
 
-  //allocate memory for the ibm element local control, transfer and delete from each processor
-  PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->eBox->thisElemControlled));
-  PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->eBox->thisElemTransfered));
+            ibMesh->nU[i]     = nCross(angVel, rvec);
 
-  return 0;
+            ibMesh->nUPrev[i] = nSet(ibMesh->nU[i]);
+
+        }
+    }
+
+    // allocate memory for the element normal, area and center coordinate
+    PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eN));
+    PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eT1));
+    PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eT2));
+
+    PetscMalloc(ibMesh->elems * sizeof(PetscReal), &(ibMesh->eA));
+    PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eCent));
+
+
+    if(ibm->computeForce)
+    {
+        // allocate memory for pressure and surface stress
+        PetscMalloc( ibMesh->elems * sizeof(Cmpnts), &(ibmBody->ibmPForce));
+
+        // allocate memory for the closest cell id to the ibm mesh element
+        PetscMalloc( ibMesh->elems * sizeof(cellIds), &(ibmBody->closestCells));
+        PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->thisPtControlled));
+        PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->thisPtControlTransfer));
+    }
+
+    //allocate memory for the smallest bounding sphere for each element - used for finding the nearest IBM Mesh element to IBM fluid cell
+    PetscMalloc(ibMesh->elems * sizeof(PetscReal), &(ibMesh->eRVec));
+    PetscMalloc(ibMesh->elems * sizeof(Cmpnts), &(ibMesh->eQVec));
+
+    //allocate memory for the ibm element local control, transfer and delete from each processor
+    PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->eBox->thisElemControlled));
+    PetscMalloc( ibMesh->elems * sizeof(PetscInt), &(ibmBody->eBox->thisElemTransfered));
+
+    return 0;
 }
 
 //***************************************************************************************************************//
