@@ -219,6 +219,25 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetABLInitialFlowU(ueqn);
     }
+    else if (ueqn->initFieldType == "ABLFlowZilitinkevich")
+    {
+        if(!(ueqn->access->flags->isAblActive))
+        {
+            char error[512];
+            sprintf(error, "activate ABL flag before setting the ABLFlow initial field\n");
+            fatalErrorInFunction("SetInitialFieldU", error);
+        }
+
+        if(!(ueqn->access->abl->controllerType == "geostrophic"))
+        {
+            char error[512];
+            sprintf(error, "the zilitinkevich model is available only for geostrophic controller\n");
+            fatalErrorInFunction("SetInitialFieldU", error);
+        }
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
+        SetABLInitialFlowUZilitinkevich(ueqn);
+    }
     else if (ueqn->initFieldType == "TGVFlow")
     {
          PetscReal u0, freq;
@@ -292,7 +311,7 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for T: %s\n\n", teqn->initFieldType.c_str());
         SetLinearFieldT(teqn, tRef, tLapse);
     }
-    else if (teqn->initFieldType == "ABLFlow")
+    else if (teqn->initFieldType == "ABLFlow" || teqn->initFieldType == "ABLFlowZilitinkevich")
     {
         if(!(teqn->access->flags->isAblActive))
         {
@@ -612,6 +631,251 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                     uCell.x += (uTau/vkConst)*std::log(hInversion/hRough) *(abl->uRef.y/uRef) * faceArea_x;
 
                 }
+
+                if(abl->perturbations)
+                {
+    				PetscReal zPeak    = 0.05;
+                    PetscReal deltaV   = 0.1*uRef;
+                    PetscReal deltaU   = 0.1*uRef;
+                    PetscReal Uperiods = 12;
+                    PetscReal Vperiods = 12;
+
+                    // perturbations to trigger turbulence
+                    uCell.z
+                    +=
+                    faceArea_z *
+                    deltaU *
+                    std::exp(0.5) *
+                    std::cos(Uperiods * 2.0 * M_PI * x/Lx) *
+                    (z/(zPeak*Lz)) *
+                    std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
+
+                    uCell.x
+                    +=
+                    faceArea_x *
+                    deltaV *
+                    std::exp(0.5) *
+                    std::sin(Vperiods * 2.0 * M_PI * y/Ly) *
+                    (z/(zPeak*Lz)) *
+                    std::exp(-0.5*std::pow((z/(zPeak*Lz)),2));
+                }
+
+
+                ContravariantToCartesianPoint
+                (
+                    csi[k][j][i],
+                    eta[k][j][i],
+                    zet[k][j][i],
+                    uCell,
+                    &ucat[k][j][i]
+                );
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,  &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,  &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,  &zet);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+    DMGlobalToLocalEnd(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+
+    // update cartesian BCs (sets cartesian velocity on ghost nodes)
+    UpdateCartesianBCs(ueqn);
+
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
+
+    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+
+    DMDAVecGetArray(da, mesh->lIAj,  &iaj);
+    DMDAVecGetArray(da, mesh->lJAj,  &jaj);
+    DMDAVecGetArray(da, mesh->lKAj,  &kaj);
+
+    // loop over i-face centers
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=xs; i<lxe; i++)
+            {
+                // interpolate cartesian velocity at the i,j,k th face
+                Cmpnts uFaceI;
+                uFaceI.x = 0.5 * (ucat[k][j][i].x + ucat[k][j][i+1].x);
+                uFaceI.y = 0.5 * (ucat[k][j][i].y + ucat[k][j][i+1].y);
+                uFaceI.z = 0.5 * (ucat[k][j][i].z + ucat[k][j][i+1].z);
+
+                ucont[k][j][i].x
+                =
+                (
+                    uFaceI.x * icsi[k][j][i].x +
+                    uFaceI.y * icsi[k][j][i].y +
+                    uFaceI.z * icsi[k][j][i].z
+                );
+            }
+        }
+    }
+
+    // loop over j-face centers
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=ys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                Cmpnts uFaceJ;
+                uFaceJ.x = 0.5 * (ucat[k][j][i].x + ucat[k][j+1][i].x);
+                uFaceJ.y = 0.5 * (ucat[k][j][i].y + ucat[k][j+1][i].y);
+                uFaceJ.z = 0.5 * (ucat[k][j][i].z + ucat[k][j+1][i].z);
+
+                ucont[k][j][i].y
+                =
+                (
+                    uFaceJ.x * jeta[k][j][i].x +
+                    uFaceJ.y * jeta[k][j][i].y +
+                    uFaceJ.z * jeta[k][j][i].z
+                );
+            }
+        }
+    }
+
+    // loop over k-face centers
+    for(k=zs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                Cmpnts uFaceK;
+                uFaceK.x = 0.5 * (ucat[k][j][i].x + ucat[k+1][j][i].x);
+                uFaceK.y = 0.5 * (ucat[k][j][i].y + ucat[k+1][j][i].y);
+                uFaceK.z = 0.5 * (ucat[k][j][i].z + ucat[k+1][j][i].z);
+
+                ucont[k][j][i].z
+                =
+                (
+                    uFaceK.x * kzet[k][j][i].x +
+                    uFaceK.y * kzet[k][j][i].y +
+                    uFaceK.z * kzet[k][j][i].z
+                );
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, mesh->lIAj,  &iaj);
+    DMDAVecRestoreArray(da, mesh->lJAj,  &jaj);
+    DMDAVecRestoreArray(da, mesh->lKAj,  &kaj);
+
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
+
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    // update contravariant BCs
+    UpdateContravariantBCs(ueqn);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetABLInitialFlowUZilitinkevich(ueqn_ *ueqn)
+{
+    mesh_         *mesh = ueqn->access->mesh;
+    abl_          *abl  = ueqn->access->abl;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***iaj, ***jaj, ***kaj;                       // cell face jacobians
+    Cmpnts        ***cent;                                      // cell center coordinates
+    Cmpnts        ***ucat, ***ucont;                            // cartesian and contravariant vel.
+    Cmpnts        ***csi,  ***eta,  ***zet,                     // face area vectors at cell centers
+                ***icsi, ***jeta, ***kzet;                    // face area vectors at cell faces
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal        uTau       = abl->uTau;
+    PetscReal        hRough     = abl->hRough;
+    PetscReal        uRef       = PetscSqrtReal(abl->uRef.x*abl->uRef.x + abl->uRef.y*abl->uRef.y);
+    PetscReal        hInversion = abl->hInv;
+    PetscReal        vkConst    = abl->vkConst;
+    PetscReal        delta      = 100;
+    PetscReal        uComp, vComp;
+
+    PetscReal        Lx = mesh->bounds.Lx;
+    PetscReal        Ly = mesh->bounds.Ly;
+    PetscReal        Lz = mesh->bounds.Lz;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lCsi,  &csi);
+    DMDAVecGetArray(fda, mesh->lEta,  &eta);
+    DMDAVecGetArray(fda, mesh->lZet,  &zet);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
+
+    //note: abl->uRef is in cartesian components, while uCell is the contravariant flux which is in computational coordinate components
+    
+    // loop over internal cells
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+
+                PetscReal h   = cent[k][j][i].z - mesh->grndLevel;
+                PetscReal x   = cent[k][j][i].x;
+                PetscReal y   = cent[k][j][i].y;
+                PetscReal z   = cent[k][j][i].z;
+                PetscReal eta_h = h/hInversion;
+
+                // face area magnitude
+                PetscReal faceArea_z = nMag(zet[k][j][i]);
+                PetscReal faceArea_x = nMag(csi[k][j][i]);
+
+                Cmpnts uCell = nSetZero();
+
+                PetscReal arg = ((eta_h - 0.5) * 2.0 * hInversion / delta);
+                
+                uComp = PetscMax
+                        (
+                            (uTau/vkConst)*( std::log(h/hRough) + 1.57 * eta_h - 2.68 * eta_h * eta_h),
+                            1e-5
+                        );
+
+                vComp = -(uTau/vkConst) * (13.2 * eta_h - 8.7 * eta_h * eta_h ) * PetscSign(2.0*abl->fc);
+
+                // Compute the two components of the velocity - Allaerts2015
+                PetscReal term1 = uComp * (1.0 - tanh(arg)) / 2.0;
+                PetscReal term2 = nMag(abl->uGeoBar) * cos(abl->geoAngle) * (1.0 + tanh(arg)) / 2.0;
+
+                uCell.z += (term1 + term2) * faceArea_z;
+
+                term1 = vComp * (1.0 - tanh(arg)) / 2.0;
+                term2 = nMag(abl->uGeoBar) * sin(abl->geoAngle) * (1.0 + tanh(arg)) / 2.0;
+
+                uCell.x += (term1 + term2) * faceArea_x;
 
                 if(abl->perturbations)
                 {
