@@ -150,19 +150,20 @@ in the <em>ABLProperties.dat</em> file (see <a class="reference internal" href="
 </section>
 <section id="concurrent-precursor-spinup-flag">
 <h2>Concurrent Precursor Spinup Flag<a class="headerlink" href="#concurrent-precursor-spinup-flag" title="Link to this heading"></a></h2>
-<p>The domain size is the same as the one used in the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a>, and the same applies to the wind farm layout with the wind turbine
-model set to <em>uniformADM</em> in the <em>turbines/windFarmProperties</em> file. Moreover, instead of mapping the inflow data to the successor domain, the <em>inflowDatabase</em>
-is used to drive the flow in the precursor domain through the <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> flag set to 1. Notably, setting this flag to 0 will apply lateral periodic boundary
-conditions on the precursor as well, while a value of 1 reads from the <em>inflowDatabase</em> and initializes the flow using <code class="docutils literal notranslate"><span class="pre">spreadInflow</span></code>. To change the initialization
-to read the initial condition from <em>fields/precursor</em> directory, for restart, the <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> needs to be set to 2. Top and bottom
-boundary conditions automatically set by TOSCA to be the same as the successor domain. For the latter, boundary conditions are set to <em>periodic</em> on all lateral boundary,
-whereas the same boundary conditions as the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a> are used for the top and bottom boundaries. Note that, in order to simplify the simulation
-set up when the concurrent precursor method is used, the user does not need to specify boundary conditions for the precursor domain, as this operation is done internally
+<p>In this example, instead of mapping the inflow data to the successor domain, the <em>inflowDatabase</em>
+is used to drive the flow in the precursor domain through the <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> flag, which is set to 1. Notably, setting this flag to 0 applies lateral periodic boundary
+conditions in the precursor as well, while a value of 1 reads data from the <em>inflowDatabase</em> and automatically initializes the flow using <code class="docutils literal notranslate"><span class="pre">spreadInflow</span></code>. To change the initialization
+so that the initial condition is read from <em>fields/precursor</em> directory, e.g. for restarts, the <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> flag needs to be set to 2. Top and bottom
+boundary conditions in the precursor are automatically set by TOSCA to be the same as the successor domain (hence, those listed in the files contained within the <em>boundary</em> directory).
+For the successor, lateral boundary conditions should be set to <em>periodic</em>, while they are arbitrary on the top and bottom patches. In this example,
+we use the same boundary conditions as the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a> for the top and bottom. Note that, in order to simplify the simulation
+set up when the concurrent precursor method is activated, the user does not need to specify boundary conditions for the precursor domain, but instead this operation is done internally
 by the TOSCA code.</p>
 </section>
 <section id="initial-condition">
 <h2>Initial Condition<a class="headerlink" href="#initial-condition" title="Link to this heading"></a></h2>
-<p>Notably, as the successor uses periodic boundary conditions, the simulation <strong>requires a previously calculated initial field</strong> in order to be correctly initialized. In this
+<p>As the successor uses periodic boundary conditions, the simulation <strong>requires a previously calculated initial field</strong> in order to be correctly initialized. Initializing the flow using
+<em>spreadInflow</em> will not work, as no meaningful value is stored at the ghost cells when boundaries are periodic. In this
 example, the initial field is provided, but users would not have this initial conditions if creating a similar case from scratch. In order to generate this data, the simulation
 should be first run for a few interations using the setup described in the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a>, just enough to generate a dummy checkpoint file. Then,
 the methodology described for this example can be applied. In general, the correct steps that should be followed to successfully run concurent-precursor simulations are the
@@ -182,7 +183,9 @@ produced during the second step.</p></li>
 </section>
 <section id="case-explanation">
 <h2>Case Explanation<a class="headerlink" href="#case-explanation" title="Link to this heading"></a></h2>
-<p>Apart from the boundary conditions, the main difference with the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a> can be found in the <em>control.dat</em> and <em>ABLProperties.dat</em> files.
+<p>The domain size is the same as the one used in the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a>, and the same applies to the wind farm layout with the wind turbine
+model set to <em>uniformADM</em> in the <em>turbines/windFarmProperties</em> file.
+Apart from the boundary conditions, the main difference with the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a> can be found in the <em>control.dat</em> and <em>ABLProperties.dat</em> files.
 In the first, the inlet and top fringe regions are activated through the <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> and <code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code> options, while the advection damping region is enforced
 through the <code class="docutils literal notranslate"><span class="pre">-advectionDamping</span></code> flag. This prompts the code to read the respective dictionaries in the <em>ABLProperties.dat</em> file, where the fringe and advection damping
 regions properties are defined. The inlet fringe region is defined as follows:</p>

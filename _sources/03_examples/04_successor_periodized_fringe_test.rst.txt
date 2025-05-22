@@ -62,20 +62,21 @@ in the *ABLProperties.dat* file (see :ref:`ablProperties-section`).
 Concurrent Precursor Spinup Flag
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The domain size is the same as the one used in the :ref:`examples_successor_periodized_test`, and the same applies to the wind farm layout with the wind turbine 
-model set to *uniformADM* in the *turbines/windFarmProperties* file. Moreover, instead of mapping the inflow data to the successor domain, the *inflowDatabase* 
-is used to drive the flow in the precursor domain through the ``-precursorSpinUp`` flag set to 1. Notably, setting this flag to 0 will apply lateral periodic boundary 
-conditions on the precursor as well, while a value of 1 reads from the *inflowDatabase* and initializes the flow using ``spreadInflow``. To change the initialization 
-to read the initial condition from *fields/precursor* directory, for restart, the ``-precursorSpinUp`` needs to be set to 2. Top and bottom 
-boundary conditions automatically set by TOSCA to be the same as the successor domain. For the latter, boundary conditions are set to *periodic* on all lateral boundary, 
-whereas the same boundary conditions as the :ref:`examples_successor_periodized_test` are used for the top and bottom boundaries. Note that, in order to simplify the simulation 
-set up when the concurrent precursor method is used, the user does not need to specify boundary conditions for the precursor domain, as this operation is done internally 
+In this example, instead of mapping the inflow data to the successor domain, the *inflowDatabase* 
+is used to drive the flow in the precursor domain through the ``-precursorSpinUp`` flag, which is set to 1. Notably, setting this flag to 0 applies lateral periodic boundary 
+conditions in the precursor as well, while a value of 1 reads data from the *inflowDatabase* and automatically initializes the flow using ``spreadInflow``. To change the initialization 
+so that the initial condition is read from *fields/precursor* directory, e.g. for restarts, the ``-precursorSpinUp`` flag needs to be set to 2. Top and bottom 
+boundary conditions in the precursor are automatically set by TOSCA to be the same as the successor domain (hence, those listed in the files contained within the *boundary* directory). 
+For the successor, lateral boundary conditions should be set to *periodic*, while they are arbitrary on the top and bottom patches. In this example, 
+we use the same boundary conditions as the :ref:`examples_successor_periodized_test` for the top and bottom. Note that, in order to simplify the simulation 
+set up when the concurrent precursor method is activated, the user does not need to specify boundary conditions for the precursor domain, but instead this operation is done internally 
 by the TOSCA code.
 
 Initial Condition
 ~~~~~~~~~~~~~~~~~
 
-Notably, as the successor uses periodic boundary conditions, the simulation **requires a previously calculated initial field** in order to be correctly initialized. In this 
+As the successor uses periodic boundary conditions, the simulation **requires a previously calculated initial field** in order to be correctly initialized. Initializing the flow using 
+*spreadInflow* will not work, as no meaningful value is stored at the ghost cells when boundaries are periodic. In this 
 example, the initial field is provided, but users would not have this initial conditions if creating a similar case from scratch. In order to generate this data, the simulation 
 should be first run for a few interations using the setup described in the :ref:`examples_successor_periodized_test`, just enough to generate a dummy checkpoint file. Then,
 the methodology described for this example can be applied. In general, the correct steps that should be followed to successfully run concurent-precursor simulations are the 
@@ -95,6 +96,8 @@ following:
 Case Explanation
 ~~~~~~~~~~~~~~~~
 
+The domain size is the same as the one used in the :ref:`examples_successor_periodized_test`, and the same applies to the wind farm layout with the wind turbine 
+model set to *uniformADM* in the *turbines/windFarmProperties* file. 
 Apart from the boundary conditions, the main difference with the :ref:`examples_successor_periodized_test` can be found in the *control.dat* and *ABLProperties.dat* files. 
 In the first, the inlet and top fringe regions are activated through the ``-xDampingLayer`` and ``-zDampingLayer`` options, while the advection damping region is enforced 
 through the ``-advectionDamping`` flag. This prompts the code to read the respective dictionaries in the *ABLProperties.dat* file, where the fringe and advection damping 
