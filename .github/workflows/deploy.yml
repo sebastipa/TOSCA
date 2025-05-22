@@ -1,7 +1,6 @@
 name: Build and Deploy Sphinx Docs
 
 on:
-  # Runs on pushes targeting the default branch and doc version branches
   push:
     branches: 
       - master
@@ -25,37 +24,36 @@ jobs:
       run: |
         pip install sphinx sphinx_rtd_theme
 
-    - name: Build Sphinx Documentation
+    - name: Build and Organize Documentation
       run: |
         cd docs/sphinx
         make html
-        if [[ $GITHUB_REF == refs/heads/release-v* ]]; then
-          version=${GITHUB_REF#refs/heads/}
-          # First, get existing gh-pages content
-          git fetch origin gh-pages
-          git worktree add gh-pages-branch gh-pages
-          # Create version directory if it doesn't exist
-          mkdir -p gh-pages-branch/versions/$version
-          # Copy new docs to version directory
-          cp -r build/html/* gh-pages-branch/versions/$version/
-          # Update version index
-          echo "# TOSCA Documentation Versions" > gh-pages-branch/versions/index.md
-          echo "" >> gh-pages-branch/versions/index.md
-          echo "- [Latest (master)](/TOSCA/)" >> gh-pages-branch/versions/index.md
-          for v in gh-pages-branch/versions/*/; do
-            vname=$(basename $v)
-            [[ $vname != "index.md" ]] && echo "- [$vname](/TOSCA/versions/$vname/)" >> gh-pages-branch/versions/index.md
-          done
-          # Commit and push to gh-pages
-          cd gh-pages-branch
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add .
-          git commit -m "Update documentation for $version"
-          git push origin gh-pages
-        else
-          # For master branch, just deploy current docs
-          cp -r build/html/* .
+        if [[ $GITHUB_REF == refs/heads/master ]]; then
+          # For master branch, ensure versions directory exists
+          mkdir -p build/html/versions
+          # Create/update versions index
+          echo "# TOSCA Documentation Versions" > build/html/versions/index.md
+          echo "" >> build/html/versions/index.md
+          echo "- [Latest (master)](/TOSCA/)" >> build/html/versions/index.md
+          # List existing versions if any
+          if [ -d "build/html/versions" ]; then
+            for v in build/html/versions/*/; do
+              if [ -d "$v" ]; then
+                vname=$(basename $v)
+                echo "- [Version ${vname}](/TOSCA/versions/${vname}/)" >> build/html/versions/index.md
+              fi
+            done
+          fi
+        elif [[ $GITHUB_REF == refs/heads/release-v* ]]; then
+          version=${GITHUB_REF#refs/heads/release-v}
+          mkdir -p build/html/versions/$version
+          # Copy docs to version directory
+          cp -r build/html/* build/html/versions/$version/
+          # Update versions index
+          echo "# TOSCA Documentation Versions" > build/html/versions/index.md
+          echo "" >> build/html/versions/index.md
+          echo "- [Latest (master)](/TOSCA/)" >> build/html/versions/index.md
+          echo "- [Version ${version}](/TOSCA/versions/${version}/)" >> build/html/versions/index.md
         fi
 
     - name: Deploy to GitHub Pages
@@ -63,4 +61,4 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: docs/sphinx/build/html
-
+        keep_files: true
