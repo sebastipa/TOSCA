@@ -135,8 +135,12 @@ is turned off.</p>
 <h2>Advection Damping<a class="headerlink" href="#advection-damping" title="Link to this heading"></a></h2>
 <p>In some cases, the concurrent precursor method and inlet fringe region might not be enough to avoid gravity waves reflections, hence an advection damping layer around
 the exit of the fringe region is added, where the horizontal advection of vertical velocity is turned off in order to avoid the propagation of these verical perturbations
+<<<<<<< HEAD
 downstream. This is activated by setting the <code class="docutils literal notranslate"><span class="pre">-advectionDampingX</span></code> flag to 1 in the <em>control.dat</em> file, and requires the specification of <code class="docutils literal notranslate"><span class="pre">advectionDampingXProperties</span></code> in the <em>ABLProperties.dat</em> file.
 It is always good practice to use this feature, as it is now state of the art in LES of wind farm and terrain induced gravity waves. Finally, lateral fringe
+=======
+downstream. It is always good practice to use this feature, as it is now state of the art in LES of wind farm and terrain induced gravity waves. Finally, lateral fringe
+>>>>>>> 813360f (resolving rebase conflicts)
 region might be needed in some cases (not shown here), and its usage in TOSCA is described in the <em>tests/SuccessorPeriodizedLateralFringeTest</em>.</p>
 </section>
 <section id="temperature-controller">

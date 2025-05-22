@@ -240,6 +240,7 @@ in <code class="docutils literal notranslate"><span class="pre">ABLProperties.da
 in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated. Concurrent precursor <strong>has to</strong> be enabled with this
 flag.</p></td>
 </tr>
+<<<<<<< HEAD
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-advectionDampingX</span></code></p></td>
 <td><p>Specifies if x-direction horizontal inlet advection damping region is present in the simulation.
 Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
@@ -247,8 +248,13 @@ Requires additional input in <code class="docutils literal notranslate"><span cl
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-advectionDampingY</span></code></p></td>
 <td><p>Specifies if y-direction horizontal inlet advection damping region is present in the simulation.
 Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+=======
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-advectionDamping</span></code></p></td>
+<td><p>Specifies if horizontal inlet advection damping region is present in the simulation. Requires
+additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+>>>>>>> 813360f (resolving rebase conflicts)
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code></p></td>
 <td><p>Concurrent precursor <strong>has to</strong> be enabled with this flag. Specifies the type of inlet boundary
 condition and initial condition for the concurrent precursor. If set to 0, streamwise periodic
 boundary conditions are applied and initial condition is read from <code class="docutils literal notranslate"><span class="pre">fields/precursor</span></code> directory.
@@ -259,29 +265,29 @@ domain. If set to 2 is equivalent to 1, but the initial condition is read from t
 has to be continuously feed because the simulation cannot be really self-sustained in the concurrent
 precursor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code></p></td>
 <td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> boundary is present in the simulation.
 Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code></p></td>
 <td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundary is present in the simulation.
 Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-canopy</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-canopy</span></code></p></td>
 <td><p>Specifies if wind farm canopy model is present in the simulation. Requires additional input in
 <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-windplant</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-windplant</span></code></p></td>
 <td><p>Specifies if wind turbines are present in the simulation (set to 1) or not (set to 0). Requires
 turbine models definitions in <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-inviscid</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-inviscid</span></code></p></td>
 <td><p>If set to 1, allows disabling viscous terms. Default value is 0.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeContinuity</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-computeContinuity</span></code></p></td>
 <td><p>Computes the divergence field within the entire domain and writes it to checkpoint files.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-pvCatalyst</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-pvCatalyst</span></code></p></td>
 <td><p>Enables <cite>ParaView-Catalyst</cite> off-screen rendering capabilities. Useful to create nice videos of very
 large simulations. More details are given in Sec. <a class="reference internal" href="../../tosca_installation.html#paraview-catalyst-section"><span class="std std-ref">Paraview-Catalyst2 OS-Rendering</span></a>.</p></td>
 </tr>
