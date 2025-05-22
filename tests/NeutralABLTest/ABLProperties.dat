@@ -32,14 +32,21 @@ vkConst 0.4
 # Rampanelli and Zardi temperature model parameter.
 smearT 0.33
 
-# Activation flags
+# Activate Coriolis force 
 coriolisActive 1
+
+# Activate velocity controller 
 controllerActive 1
+
+# Activate temperature controller 
 controllerActiveT 1
+
+# Type of temperature controller 
 controllerTypeT   initial
+
 controllerProperties
 {
-    # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
+    # Velocity controller parameters
     controllerAction write
     controllerType pressure
 
@@ -52,26 +59,20 @@ controllerProperties
     # Velocity controller time filter
     timeWindowPI 3600
     
-    # Perform geostrophic damping (only pressure controller)
-    geostrophicDamping 1
-    mesoScaleInput     0
- 
+    # Geostrophic damping parameters (only pressure controller)
+    geostrophicDamping   1
     geoDampingAlpha      1.0
     geoDampingStartTime  5000
     geoDampingTimeWindow 4500
+
+    # Get variable mesoscale input
+    mesoScaleInput       0
 
     # Velocity controller max height of influence 
     controllerMaxHeight 100000.0
     
     # Start time for the given momentum source average (only controller type 'average')
     controllerAvgStartTime 20010
-    
-    # Geostrophic height
-    hGeo 900
-    
-    # Geostrophic angle
-    alphaGeo 0
-
 }
 
 # Coriolis parameter: 7.272205217e-5 * sin(latitude)

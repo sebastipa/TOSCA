@@ -117,16 +117,21 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                       precursor simulation. Requires
                                                       ``controllerProperties`` dictionary.
    ----------------------------------- -------------- --------------------------------------------------
-   ``precursorControllerTypeMismatch`` bool           Activate this if the precursor velocity controller
-                                                      differs from the successor velocity controller - 
-                                                      Ex: if precursor uses a controller of 
-                                                      ``controllerAction`` write and successor reads the
-                                                      momentum sources computed by precursor using
-                                                      ``controllerAction`` read and ``controllerType``
-                                                      timeSeriesFromPrecursor.                                                       
-                                                      Requires ``controllerProperties`` dictionary for
-                                                      successor as well ``fringeControllerProperties``
-                                                      for precursor controller.
+   ``precursorControllerTypeMismatch`` bool           Requires ``xDampingLayer`` active in the 
+                                                      ``control.dat`` file, and ``uBarSelectionType`` 
+                                                      set to 3, corresponding to the concurrent precursor
+                                                      method, inside ``xDampingProperties`` dictionary.
+                                                      Should be activated if the concurrent precursor's
+                                                      velocity controller differs from the successor's. 
+                                                      For example, if precursor uses 
+                                                      ``controllerAction`` *write*, while successor 
+                                                      reads the momentum sources computed by the 
+                                                      precursor using ``controllerAction`` *read* and 
+                                                      ``controllerType`` *timeSeriesFromPrecursor* in 
+                                                      the ``controllerProperties`` dictionary.                                                       
+                                                      It requires the ``fringeControllerProperties``
+                                                      dictionary in order to specify the controller 
+                                                      parameters for the concurrent precursor domain.
    ----------------------------------- -------------- --------------------------------------------------
    ``controllerTypeT``                 string         Temperature controller type *initial* tries to 
                                                       maintain the initial horizontally averaged 
@@ -157,9 +162,9 @@ entries specific to each dictionaries is given in the subsequent tables.
 
                                                          controllerProperties
                                                          {
-                                                            relaxPI                scalar
-                                                            controllerMaxHeight    scalar
+                                                            controllerAction       string
                                                             controllerType         string
+                                                            relaxPI                scalar
                                                             alphaPI                scalar
                                                             timeWindowPI           scalar
                                                             geostrophicDamping     bool
@@ -170,6 +175,7 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                             alphaGeo               scalar
                                                             uGeoMag                scalar
                                                             controllerAvgStartTime scalar
+                                                            controllerMaxHeight    scalar
                                                          }
    ----------------------------------- -------------- --------------------------------------------------
    ``fringeControllerProperties``      dictionary     Contains inputs for precursor velocity controller. 
@@ -183,20 +189,21 @@ entries specific to each dictionaries is given in the subsequent tables.
 
                                                          fringeControllerProperties
                                                          {
-                                                            controllerAction        string
-                                                            controllerType          string
-                                                            relaxPI                 scalar
-                                                            alphaPI                 scalar
-                                                            timeWindowPI            scalar
-                                                            mesoScaleInput          bool
-                                                            geostrophicDamping      bool
-                                                            geoDampingAlpha         scalar
-                                                            geoDampingStartTime     scalar
-                                                            geoDampingTimeWindow    scalar
-                                                            hGeo                    scalar
-                                                            alphaGeo                scalar
-                                                            uGeoMag                 scalar
-                                                            controllerMaxHeight     scalar
+                                                            controllerAction       string
+                                                            controllerType         string
+                                                            relaxPI                scalar
+                                                            alphaPI                scalar
+                                                            timeWindowPI           scalar
+                                                            mesoScaleInput         bool
+                                                            geostrophicDamping     bool
+                                                            geoDampingAlpha        scalar
+                                                            geoDampingStartTime    scalar
+                                                            geoDampingTimeWindow   scalar
+                                                            hGeo                   scalar
+                                                            alphaGeo               scalar
+                                                            uGeoMag                scalar
+                                                            controllerAvgStartTime scalar
+                                                            controllerMaxHeight    scalar
                                                          }
    ----------------------------------- -------------- --------------------------------------------------
    ``xDampingProperties``              dictionary     Defines fringe region parameters, activated with
@@ -268,16 +275,37 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                          }
 
    ----------------------------------- -------------- --------------------------------------------------
-   ``advectionDampingProperties``      dictionary     Defines advection damping regions parameters.
+   ``advectionDampingXProperties``      dictionary    Defines x-advection damping regions parameters.
                                                       This corresponds to the technique developed by
                                                       Lanzilao and Meyers (2022a). It is activated with
-                                                      ``-advectionDamping`` 1 in ``control.dat``.
+                                                      ``-advectionDampingX`` 1 in ``control.dat``.
 
                                                       Usage:
 
                                                       .. code-block:: C
 
-                                                         advectionDampingProperties
+                                                         advectionDampingXProperties
+                                                         {
+                                                            advDampingStart       scalar
+                                                            advDampingEnd         scalar
+                                                            advDampingDeltaStart  scalar
+                                                            advDampingDeltaEnd    scalar
+                                                         }
+   ----------------------------------- -------------- --------------------------------------------------
+   ``advectionDampingYProperties``      dictionary    Defines y-advection damping regions parameters.
+                                                      Requires ``-yDampingLayer`` set to 1 in
+                                                      ``control.dat``. This is only available when
+                                                      ``uBarSelectionType`` is set to 3, corresponding
+                                                      to the concurrent precursor method. 
+                                                      This corresponds to the technique developed by
+                                                      Lanzilao and Meyers (2022a). It is activated with
+                                                      ``-advectionDampingY`` 1 in ``control.dat``.
+
+                                                      Usage:
+
+                                                      .. code-block:: C
+
+                                                         advectionDampingYProperties
                                                          {
                                                             advDampingStart       scalar
                                                             advDampingEnd         scalar
@@ -358,8 +386,8 @@ entries specific to each dictionaries is given in the subsequent tables.
 
 The meaning of the entires required in the dictionaries listed in the above table are described in the following tables.
 
-controllerProperties 
-********************
+controllerProperties & fringeControllerProperties
+*************************************************
 
 .. table::
    :widths: 35, 20, 45
@@ -396,9 +424,11 @@ controllerProperties
                                                     or controller type ``geostrophic``. The latter tries to attain
                                                     a velocity ``uGeoMag`` at ``hGeo`` (which should be above the boundary layer). The 
                                                     wind field is then rotated such that the flow is aligned with the x-axis at ``hRef``. 
-                                                    Note that, at every restart, the initial geostrophic wind angle w.r.t. the x-axis 
+                                                    **Note that, at every restart, the initial geostrophic wind angle w.r.t. the x-axis 
                                                     ``alphaGeo`` should be provided (the user can take this info in the last iteration  
-                                                    of the previous run, printed on the log file). TOSCA also features profile  
+                                                    of the previous run, printed on the log file)**. The *pressure* type controller is 
+                                                    the preferred one and the most tested. 
+                                                    TOSCA also features profile  
                                                     assimilation techniques, used to drive the flow following observation profiles. 
                                                     These can be set with controller type *directProfileAssimilation* or 
                                                     *indirectProfileAssimilation*, and require the observed time series inside 
@@ -414,7 +444,7 @@ controllerProperties
    ``timeWindowPI``              scalar             time filter for integral part of the controller, used by all controllers 
                                                     characterized  by a ``controllerAction`` of type *write*.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``mesoScaleInput``            bool               activates mesoscale controller data. Only for controller type *pressure*. 
+   ``mesoScaleInput``            bool               activates mesoscale controller data. Required only for controller type *pressure*. 
                                                     Allows single point velocity control, but now the input is dictated by the input time 
                                                     series data. requires the time series data inside ``inflowDatabase/mesoscaleData``
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
@@ -431,19 +461,20 @@ controllerProperties
    ``geoDampingTimeWindow``      scalar             time filter of the deduced geostrophic wind components. Usually set to 1/10 of 
                                                     the inertial oscillation period (:math:`0.2\pi/f_c`).
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``hGeo``                      scalar             height used to sample the geostrophic wind components for the controller type 
-                                                    *geostrophic*. 
+   ``hGeo``                      scalar             height used to sample the geostrophic wind components if the controller is of type 
+                                                    *geostrophic*, disregarded otherwise. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``alphaGeo``                  scalar             initial wind angle with respect to the x-axis at ``hGeo``. This as to be set at 
-                                                    every restart of the simulation. For the first run, one can initialize the wind 
+   ``alphaGeo``                  scalar             initial wind angle with respect to the x-axis at ``hGeo``. **This as to be set at 
+                                                    every restart of the simulation**. For the first run, one can initialize the wind 
                                                     aligned with the x-axis and this parameter to zero. Then, the controller will start 
                                                     to slowly rotate the wind. The wind angle at ``hGeo`` will be printed in the log file 
                                                     and the user can set this parameter to the value obtained at the last iteration of 
-                                                    the previous run when restarting. 
+                                                    the previous run when restarting. Note, only for controller of type 
+                                                    *geostrophic*, disregarded otherwise. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``uGeoMag``                   scalar             desired geostrophic wind magnitude for controller type *geostrophic*. At the first 
-                                                    run, the initial flow should match this value at ``hGeo`` to avoid inertial 
-                                                    oscillations. 
+   ``uGeoMag``                   scalar             desired geostrophic wind magnitude is the controller is of type *geostrophic*, 
+                                                    disregarded otherwise.  At the first run, the initial flow should match this value 
+                                                    at ``hGeo`` to avoid inertial oscillations. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``controllerAvgStartTime``    scalar             time after which source terms are averaged before being applied. Used for controller 
                                                     type *timeAverageSeries*.

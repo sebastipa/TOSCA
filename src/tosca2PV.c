@@ -14,132 +14,131 @@ static char head[] = "TOSCA Post Processor";
 int main(int argc, char **argv)
 {
 
-  // initialize PETSc
-  PetscInitialize(&argc, &argv, (char *)0, head);
+    // initialize PETSc
+    PetscInitialize(&argc, &argv, (char *)0, head);
 
-  // domains array
-  domain_ *domain;
+    // domains array
+    domain_ *domain;
 
-  // postProcess
-  postProcess pp;
+    // postProcess
+    postProcess pp;
 
-  // simulation clock
-  clock_  clock;
-  ReadTimeControls(&clock);
+    // simulation clock
+    clock_  clock;
+    ReadTimeControls(&clock);
 
-  // simulation flags
-  flags_ flags;
-  SetSimulationFlags(&flags);
+    // simulation flags
+    flags_ flags;
+    SetSimulationFlags(&flags);
 
-  // simulation info
-  simInfo_ info;
-  SetSimulationInfo(&info);
+    // simulation info
+    simInfo_ info;
+    SetSimulationInfo(&info);
 
-  // initialize post-processing clock
-  PetscReal ppTimeStart,ppTimeEnd; PetscTime(&ppTimeStart);
+    // initialize post-processing clock
+    PetscReal ppTimeStart,ppTimeEnd; PetscTime(&ppTimeStart);
 
-  PetscMPIInt rank;   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
-  PetscMPIInt nProcs; MPI_Comm_size(PETSC_COMM_WORLD, &nProcs);
+    PetscMPIInt rank;   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    PetscMPIInt nProcs; MPI_Comm_size(PETSC_COMM_WORLD, &nProcs);
 
 
 
-  // initialize the flags
-  pp.postProcessFields    = 0;
-  pp.writeRaster          = 0;
-  pp.samplingSections     = 0;
-  pp.postProcessPrecursor = 0;
+    // initialize the flags
+    pp.postProcessFields    = 0;
+    pp.writeRaster          = 0;
+    pp.samplingSections     = 0;
+    pp.postProcessPrecursor = 0;
 
-  // read from control file
-  PetscOptionsInsertFile(PETSC_COMM_WORLD, PETSC_NULL, "control.dat", PETSC_TRUE);
+    // read from control file
+    PetscOptionsInsertFile(PETSC_COMM_WORLD, PETSC_NULL, "control.dat", PETSC_TRUE);
 
-  PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-postProcessFields", (PetscInt*)&(pp.postProcessFields), PETSC_NULL);
-  PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-writeRaster", (PetscInt*)&(pp.writeRaster), PETSC_NULL);
-  PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections", (PetscInt*)&(pp.samplingSections), PETSC_NULL);
-  PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-postProcessPrecursor", (PetscInt*)&(pp.postProcessPrecursor), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-postProcessFields", (PetscInt*)&(pp.postProcessFields), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-writeRaster", (PetscInt*)&(pp.writeRaster), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections", (PetscInt*)&(pp.samplingSections), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-postProcessPrecursor", (PetscInt*)&(pp.postProcessPrecursor), PETSC_NULL);
 
-  // create XMF folder
-  if (!rank) createDir(PETSC_COMM_WORLD, "./XMF");
+    // create XMF folder
+    if (!rank) createDir(PETSC_COMM_WORLD, "./XMF");
 
-  // initialize post processing
-  if(pp.postProcessFields || pp.writeRaster || pp.samplingSections)
-  {
-      postProcessInitialize(&domain, &clock, &info, &flags);
+    // initialize post processing
+    if(pp.postProcessFields || pp.writeRaster || pp.samplingSections)
+    {
+        postProcessInitialize(&domain, &clock, &info, &flags);
 
-      // turn-off field post processing if parallel
-      if(nProcs > 1 && pp.postProcessFields == 1)
-      {
-          char warning[256];
-          sprintf(warning, "-postProcessFields is not available in parallel: setting to 0");
-          warningInFunction("main",  warning);
-          pp.postProcessFields = 0;
-      }
+        // turn-off field post processing if parallel
+        if(nProcs > 1 && pp.postProcessFields == 1)
+        {
+            char warning[256];
+            sprintf(warning, "-postProcessFields is not available in parallel: setting to 0");
+            warningInFunction("main",  warning);
+            pp.postProcessFields = 0;
+        }
 
-      // do probes acquisition
-      if(flags.isAquisitionActive)
-      {
-          postProcessWriteProbes(domain);
-      }
-  }
+        // do probes acquisition
+        if(flags.isAquisitionActive)
+        {
+            postProcessWriteProbes(domain);
+        }
+    }
 
-  // write 3D fields into XMF
-  if(pp.postProcessFields || pp.writeRaster)
-  {
-      binary3DToXMF(domain, &pp);
-  }
+    // write 3D fields into XMF
+    if(pp.postProcessFields || pp.writeRaster)
+    {
+        binary3DToXMF(domain, &pp);
+    }
 
-  // initialize precursor post processing
-  if(pp.postProcessPrecursor)
-  {
-      postProcessInitializePrecursor(&pp, &clock);
+    // initialize precursor post processing
+    if(pp.postProcessPrecursor)
+    {
+        postProcessInitializePrecursor(&pp, &clock);
 
-      binary3DToXMF(pp.precursor->domain, &pp);
+        binary3DToXMF(pp.precursor->domain, &pp);
 
-      // read sections
-      sectionsReadAndAllocate(pp.precursor->domain);
+        // read sections
+        sectionsReadAndAllocate(pp.precursor->domain);
 
-      // write k-sections into XMF
-      binaryKSectionsToXMF(pp.precursor->domain);
+        // write k-sections into XMF
+        binaryKSectionsToXMF(pp.precursor->domain);
 
-      // write j-sections into XMF
-      binaryJSectionsToXMF(pp.precursor->domain, &pp);
+        // write j-sections into XMF
+        binaryJSectionsToXMF(pp.precursor->domain, &pp);
 
-      // write i-sections into XMF
-      binaryISectionsToXMF(pp.precursor->domain);
+        // write i-sections into XMF
+        binaryISectionsToXMF(pp.precursor->domain);
 
-      // write perturbation data
-      binaryKSectionsPerturbToXMF(pp.precursor->domain);
-      binaryJSectionsPerturbToXMF(pp.precursor->domain, &pp);
-      binaryISectionsPerturbToXMF(pp.precursor->domain);
-  }
+        // write perturbation data
+        binaryKSectionsPerturbToXMF(pp.precursor->domain);
+        binaryJSectionsPerturbToXMF(pp.precursor->domain, &pp);
+        binaryISectionsPerturbToXMF(pp.precursor->domain);
+    }
 
-  if(pp.samplingSections)
-  {
-      // read sections
-      sectionsReadAndAllocate(domain);
+    if(pp.samplingSections)
+    {
+        // read sections
+        sectionsReadAndAllocate(domain);
 
-      // write k-sections into XMF
-      binaryKSectionsToXMF(domain);
+        // write k-sections into XMF
+        binaryKSectionsToXMF(domain);
 
-      // write j-sections into XMF
-      binaryJSectionsToXMF(domain, &pp);
+        // write j-sections into XMF
+        binaryJSectionsToXMF(domain, &pp);
 
-      // write i-sections into XMF
-      binaryISectionsToXMF(domain);
+        // write i-sections into XMF
+        binaryISectionsToXMF(domain);
 
-      // write perturbation data
-      binaryKSectionsPerturbToXMF(domain);
-      binaryJSectionsPerturbToXMF(domain, &pp);
-      binaryISectionsPerturbToXMF(domain);
+        // write perturbation data
+        binaryKSectionsPerturbToXMF(domain);
+        binaryJSectionsPerturbToXMF(domain, &pp);
+        binaryISectionsPerturbToXMF(domain);
 
-      // on-the-fly read and cut sections from average fields
-      fieldKSectionsToXMF(domain);
-      fieldJSectionsToXMF(domain);
-      fieldISectionsToXMF(domain);
+        // on-the-fly read and cut sections from average fields
+        fieldKSectionsToXMF(domain);
+        fieldJSectionsToXMF(domain);
+        fieldISectionsToXMF(domain);
 
-      // on-the-fly user defined surface from average fields
-      fieldUserDefinedPlaneToXMF(domain);
-
-  }
+        // on-the-fly user defined surface from average fields
+        fieldUserDefinedPlaneToXMF(domain);
+    }
 
     PetscTime(&ppTimeEnd);
 
@@ -156,94 +155,94 @@ int main(int argc, char **argv)
 
 PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInfo_ *info, flags_ *flags)
 {
-  // print logo
-  PrintOkWindLogo();
+    // print logo
+    PrintOkWindLogo();
 
-  // reads parent/child tree and allocates os memory
-  SetDomainsAndAllocate(domainAddr, flags, info);
+    // reads parent/child tree and allocates os memory
+    SetDomainsAndAllocate(domainAddr, flags, info);
 
-  domain_ *domain = *domainAddr;
+    domain_ *domain = *domainAddr;
 
-  // set simulation start time
-  SetStartTime(clock, domain,info);
+    // set simulation start time
+    SetStartTime(clock, domain,info);
 
-  for(PetscInt d=0; d<info->nDomains; d++)
-  {
-      PetscPrintf(PETSC_COMM_WORLD, "\nDomain %ld\n", d);
-      PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
+    for(PetscInt d=0; d<info->nDomains; d++)
+    {
+        PetscPrintf(PETSC_COMM_WORLD, "\nDomain %ld\n", d);
+        PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
 
-      // set pointer to time controls
-      domain[d].clock = clock;
+        // set pointer to time controls
+        domain[d].clock = clock;
 
-      // read physical constants
-      ReadPhysicalConstants(&domain[d]);
+        // read physical constants
+        ReadPhysicalConstants(&domain[d]);
 
-      // set access database pointers
-      SetAccessPointers(&domain[d]);
+        // set access database pointers
+        SetAccessPointers(&domain[d]);
 
-      // set boundary conditions
-      SetBoundaryConditions(domain[d].mesh);
+        // set boundary conditions
+        SetBoundaryConditions(domain[d].mesh);
 
-      // initialize mesh
-      InitializeMesh(domain[d].mesh);
+        // initialize mesh
+        InitializeMesh(domain[d].mesh);
 
-      // initialize i/o controls and initialization type
-      InitializeIO(domain[d].io);
+        // initialize i/o controls and initialization type
+        InitializeIO(domain[d].io);
 
-      // momentum equation initialize
-      InitializeUEqn(domain[d].ueqn);
+        // momentum equation initialize
+        InitializeUEqn(domain[d].ueqn);
 
-      // poisson equation initialize
-      InitializePEqn(domain[d].peqn);
+        // poisson equation initialize
+        InitializePEqn(domain[d].peqn);
 
-      // temperature equation initialize
-      InitializeTEqn(domain[d].teqn);
+        // temperature equation initialize
+        InitializeTEqn(domain[d].teqn);
 
-      // LES model initialize
-      InitializeLES(domain[d].les);
+        // LES model initialize
+        InitializeLES(domain[d].les);
 
-      // averages and kebudgets initialize
-      if(flags->isAquisitionActive)
-      {
-          acquisition_ *acquisition = domain[d].acquisition;
+        // averages and kebudgets initialize
+        if(flags->isAquisitionActive)
+        {
+            acquisition_ *acquisition = domain[d].acquisition;
 
-          // read acquisition flags
-          acquisition->isProbesActive     = 0;
-          acquisition->isSectionsActive   = 0;
-          acquisition->isAverageABLActive = 0;
-          acquisition->isAverage3LMActive = 0;
-          acquisition->isPerturbABLActive = 0;
+            // read acquisition flags
+            acquisition->isProbesActive     = 0;
+            acquisition->isSectionsActive   = 0;
+            acquisition->isAverageABLActive = 0;
+            acquisition->isAverage3LMActive = 0;
+            acquisition->isPerturbABLActive = 0;
 
-          PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &(acquisition->isSectionsActive),   PETSC_NULL);
-          PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-average3LM",    &(acquisition->isAverage3LMActive), PETSC_NULL);
-          PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",    &(acquisition->isPerturbABLActive), PETSC_NULL);
-          PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",        &(acquisition->isProbesActive),     PETSC_NULL);
+            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-sections",      &(acquisition->isSectionsActive),   PETSC_NULL);
+            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-average3LM",    &(acquisition->isAverage3LMActive), PETSC_NULL);
+            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",    &(acquisition->isPerturbABLActive), PETSC_NULL);
+            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-probes",        &(acquisition->isProbesActive),     PETSC_NULL);
 
-          averageFieldsInitialize(domain[d].acquisition);
-          averageKEBudgetsInitialize(domain[d].acquisition);
-          perturbationABLInitialize(domain[d].acquisition);
+            averageFieldsInitialize(domain[d].acquisition);
+            averageKEBudgetsInitialize(domain[d].acquisition);
+            perturbationABLInitialize(domain[d].acquisition);
 
-          // temporary (eliminate for 3LM fields)
-          acquisition->isAverage3LMActive = 0;
-      }
+            // temporary (eliminate for 3LM fields)
+            acquisition->isAverage3LMActive = 0;
+        }
 
-      PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
-  }
+        PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
+    }
 
-  // initialize probes
-  if
-  (
-      domain[0].access.io->averaging ||
-      domain[0].access.io->phaseAveraging
-  )
-  {
-      // initialize probes with post processing flag activated
-      ProbesInitialize(domain,1);
-  }
+    // initialize probes
+    if
+    (
+        domain[0].access.io->averaging ||
+        domain[0].access.io->phaseAveraging
+    )
+    {
+        // initialize probes with post processing flag activated
+        ProbesInitialize(domain,1);
+    }
 
-  //averaging3LMInitialize(domain);
+    //averaging3LMInitialize(domain);
 
-  return(0);
+    return(0);
 }
 
 //***************************************************************************************************************//
@@ -265,7 +264,7 @@ PetscErrorCode postProcessInitializePrecursor(postProcess *pp, clock_ *clock)
     // set simulation info
     SetSimulationInfo(&(domain->info));
 
-	// read physical constants
+    // read physical constants
     ReadPhysicalConstants(domain);
 
     // allocate domain memory
@@ -313,6 +312,8 @@ PetscErrorCode postProcessInitializePrecursor(postProcess *pp, clock_ *clock)
     return(0);
 }
 
+//***************************************************************************************************************//
+
 PetscErrorCode binary3DToXMF(domain_ *domain, postProcess *pp)
 {
     PetscMPIInt  rank; MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
@@ -325,60 +326,60 @@ PetscErrorCode binary3DToXMF(domain_ *domain, postProcess *pp)
 
     for (PetscInt d=0; d < nDomains; d++)
     {
-      fieldsPath = "./fields/" + domain[d].mesh->meshName;
-      XMFDir     = "./XMF/" + domain[d].mesh->meshName;
+        fieldsPath = "./fields/" + domain[d].mesh->meshName;
+        XMFDir     = "./XMF/" + domain[d].mesh->meshName;
 
-      // create domain directory within XMF folder
-      errno = 0;
-      PetscInt dirRes = mkdir(XMFDir.c_str(), 0777);
-      if(dirRes != 0 && errno != EEXIST)
-      {
-          char error[512];
-          sprintf(error, "could not create directory %s for XMF\n", XMFDir.c_str());
-          fatalErrorInFunction("binary3DToXMF",  error);
-      }
+        // create domain directory within XMF folder
+        errno = 0;
+        PetscInt dirRes = mkdir(XMFDir.c_str(), 0777);
+        if(dirRes != 0 && errno != EEXIST)
+        {
+            char error[512];
+            sprintf(error, "could not create directory %s for XMF\n", XMFDir.c_str());
+            fatalErrorInFunction("binary3DToXMF",  error);
+        }
 
-      // get list of times from the fieldsPath of the current domain
-      std::vector<PetscReal> timeSeries;
-      getTimeList(fieldsPath.c_str(), timeSeries, ntimes);
+        // get list of times from the fieldsPath of the current domain
+        std::vector<PetscReal> timeSeries;
+        getTimeList(fieldsPath.c_str(), timeSeries, ntimes);
 
-      // create XMF file
-      fieldsFileName = XMFDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + ".xmf";
-      FILE *xmf;
+        // create XMF file
+        fieldsFileName = XMFDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + ".xmf";
+        FILE *xmf;
 
-      if(!rank)
-      {
-          // write XMF file intro
-          xmf = fopen(fieldsFileName.c_str(), "w");
-          fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
-          fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
-          fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
-          fprintf(xmf, " <Domain>\n");
-          fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
-          fclose(xmf);
-      }
+        if(!rank)
+        {
+            // write XMF file intro
+            xmf = fopen(fieldsFileName.c_str(), "w");
+            fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+            fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+            fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+            fprintf(xmf, " <Domain>\n");
+            fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+            fclose(xmf);
+        }
 
-      // loop over times
-      for(PetscInt ti=0; ti<ntimes; ti++)
-      {
-          PetscPrintf(PETSC_COMM_WORLD, "\n\nTime: %lf\n\n", timeSeries[ti]);
+        // loop over times
+        for(PetscInt ti=0; ti<ntimes; ti++)
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "\n\nTime: %lf\n\n", timeSeries[ti]);
 
-          // read fields inside time folder
-          readFields(&domain[d], timeSeries[ti]);
+            // read fields inside time folder
+            readFields(&domain[d], timeSeries[ti]);
 
-          // write fields inside XMF folder
-          writeFieldsToXMF(&domain[d], fieldsFileName.c_str(), timeSeries[ti]);
-      }
+            // write fields inside XMF folder
+            writeFieldsToXMF(&domain[d], fieldsFileName.c_str(), timeSeries[ti]);
+        }
 
-      if(!rank)
-      {
+        if(!rank)
+        {
         // write XMF file end
         xmf = fopen(fieldsFileName.c_str(), "a");
         fprintf(xmf, "   </Grid>\n");
         fprintf(xmf, " </Domain>\n");
         fprintf(xmf, "</Xdmf>\n");
         fclose(xmf);
-      }
+        }
     }
 
     return(0);
@@ -399,7 +400,7 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
     word fileName;
 
       // HDF5 file w/o path
-  	word hdfileName;
+      word hdfileName;
 
     std::stringstream stream;
     stream << std::fixed << std::setprecision(clock->timePrecision) << time;
@@ -426,14 +427,14 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
     herr_t    status;
 
     // write HDF file
-    hid_t	file_id;
+    hid_t    file_id;
     file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
     // ************************** write mesh points **************************
 
-    dims[0]	= mz - 1;
-    dims[1]	= my - 1;
-    dims[2]	= mx - 1;
+    dims[0]    = mz - 1;
+    dims[1]    = my - 1;
+    dims[2]    = mx - 1;
 
     dataspace_id = H5Screate_simple(3, dims, NULL);
 
@@ -452,9 +453,9 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
 
     // ************************** write cell fields **************************
 
-    dims[0]	= mz - 2;
-    dims[1]	= my - 2;
-    dims[2]	= mx - 2;
+    dims[0]    = mz - 2;
+    dims[1]    = my - 2;
+    dims[2]    = mx - 2;
 
     file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
     dataspace_id = H5Screate_simple(3, dims, NULL);
@@ -1155,10 +1156,10 @@ void xmfWriteFileStartTimeSection
 )
 {
     // Topology - mesh topology, 3DSMesh - 3d structured mesh
-	Xmf = fopen(FileXmf, "a");
-	fprintf(Xmf, "   <Grid Name=\"mesh1\" GridType=\"Uniform\">\n");
-	fprintf(Xmf, "	   <Time Value=\"%03f\"/>\n", Time);
-	fprintf(Xmf, "     <Topology TopologyType=\"%s\" NumberOfElements=\"%ld %ld %ld\"/>\n",Topology, Size_z, Size_y, Size_x);
+    Xmf = fopen(FileXmf, "a");
+    fprintf(Xmf, "   <Grid Name=\"mesh1\" GridType=\"Uniform\">\n");
+    fprintf(Xmf, "       <Time Value=\"%03f\"/>\n", Time);
+    fprintf(Xmf, "     <Topology TopologyType=\"%s\" NumberOfElements=\"%ld %ld %ld\"/>\n",Topology, Size_z, Size_y, Size_x);
     fclose(Xmf);
 
     return;
@@ -1171,7 +1172,7 @@ void xmfWriteFileEndTimeSection
     FILE *Xmf, const char *FileXmf
 )
 {
-	Xmf = fopen(FileXmf, "a");
+    Xmf = fopen(FileXmf, "a");
     fprintf(Xmf, "   </Grid>\n");
     fclose(Xmf);
 
@@ -1187,8 +1188,8 @@ void xmfWriteFileGeometry
     const char *PathSave
 )
 {
-	Xmf = fopen(FileXmf, "a");
-	fprintf(Xmf, "     <Geometry GeometryType=\"X_Y_Z\">\n");
+    Xmf = fopen(FileXmf, "a");
+    fprintf(Xmf, "     <Geometry GeometryType=\"X_Y_Z\">\n");
     fprintf(Xmf, "       <DataItem Dimensions=\"%ld %ld %ld\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", Size_z, Size_y, Size_x);
     fprintf(Xmf, "        %s:/X\n", PathSave);
     fprintf(Xmf, "       </DataItem>\n");
@@ -1199,9 +1200,9 @@ void xmfWriteFileGeometry
     fprintf(Xmf, "        %s:/Z\n", PathSave);
     fprintf(Xmf, "       </DataItem>\n");
     fprintf(Xmf, "     </Geometry>\n");
-	fclose(Xmf);
+    fclose(Xmf);
 
-	return;
+    return;
 }
 
 //***************************************************************************************************************//
@@ -1217,31 +1218,31 @@ void xmfWriteFileSymmTensor
 )
 {
 
-	// center  - Cell or Node
-	// Vecname - Vector name as shown in paraview
-	// XX,XY,XZ,YY,YZ,ZZ: tensor component names as saved in hdf5 file
-	// pathsave = relative path with respect to the saved files
+    // center  - Cell or Node
+    // Vecname - Vector name as shown in paraview
+    // XX,XY,XZ,YY,YZ,ZZ: tensor component names as saved in hdf5 file
+    // pathsave = relative path with respect to the saved files
 
-	xmf = fopen(filexmf, "a");
+    xmf = fopen(filexmf, "a");
     fprintf(xmf, "     <Attribute Name=\"%s\" AttributeType=\"Tensor6\" Center=\"%s\">\n", symmTensorName, center);
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 6\" Function=\"JOIN($0, $1, $2, $3, $4, $5)\" ItemType=\"Function\">\n", size_z, size_y, size_x);
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
-	fprintf(xmf, "        %s:/%s\n", PathSave, XX);
+    fprintf(xmf, "        %s:/%s\n", PathSave, XX);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
-	fprintf(xmf, "        %s:/%s\n", PathSave, XY);
+    fprintf(xmf, "        %s:/%s\n", PathSave, XY);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
-	fprintf(xmf, "        %s:/%s\n", PathSave, XZ);
+    fprintf(xmf, "        %s:/%s\n", PathSave, XZ);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
-	fprintf(xmf, "        %s:/%s\n", PathSave, YY);
+    fprintf(xmf, "        %s:/%s\n", PathSave, YY);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
-	fprintf(xmf, "        %s:/%s\n", PathSave, YZ);
+    fprintf(xmf, "        %s:/%s\n", PathSave, YZ);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
-	fprintf(xmf, "        %s:/%s\n", PathSave, ZZ);
+    fprintf(xmf, "        %s:/%s\n", PathSave, ZZ);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "     </Attribute>\n");
@@ -1261,22 +1262,22 @@ void xmfWriteFileVector
     const char *center
 )
 {
-	// center  - Cell or Node
-	// Vecname - Vector name as shown in paraview
-	// V1, V2 ,V3 vector component names as saved in hdf5 file
-	// pathsave = relative path with respect to the saved files
+    // center  - Cell or Node
+    // Vecname - Vector name as shown in paraview
+    // V1, V2 ,V3 vector component names as saved in hdf5 file
+    // pathsave = relative path with respect to the saved files
 
-	xmf = fopen(filexmf, "a");
+    xmf = fopen(filexmf, "a");
     fprintf(xmf, "     <Attribute Name=\"%s\" AttributeType=\"Vector\" Center=\"%s\">\n", Vecname, center);
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 3\" Function=\"JOIN($0, $1, $2)\" ItemType=\"Function\">\n", size_z, size_y, size_x);
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
-	fprintf(xmf, "        %s:/%s\n", PathSave, V1);
+    fprintf(xmf, "        %s:/%s\n", PathSave, V1);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
-	fprintf(xmf, "        %s:/%s\n", PathSave, V2);
+    fprintf(xmf, "        %s:/%s\n", PathSave, V2);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
-	fprintf(xmf, "        %s:/%s\n", PathSave, V3);
+    fprintf(xmf, "        %s:/%s\n", PathSave, V3);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "     </Attribute>\n");
@@ -1296,15 +1297,15 @@ void xmfWriteFileScalar
     const char *Center
 )
 {
-	// Center - Cell or Node
-	// ScalName - Scalar name as shown in paraview
-	// Scal - Scalar name as saved in hdf5 file
-	// PathSave = relative path with respect to the saved files
+    // Center - Cell or Node
+    // ScalName - Scalar name as shown in paraview
+    // Scal - Scalar name as saved in hdf5 file
+    // PathSave = relative path with respect to the saved files
 
-	Xmf = fopen(Filexmf, "a");
+    Xmf = fopen(Filexmf, "a");
     fprintf(Xmf, "     <Attribute Name=\"%s\" AttributeType=\"Scalar\" Center=\"%s\">\n", ScalName, Center);
     fprintf(Xmf, "       <DataItem Dimensions=\"%ld %ld %ld\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", Size_z, Size_y, Size_x);
-	fprintf(Xmf, "        %s:/%s\n", PathSave, Scal);
+    fprintf(Xmf, "        %s:/%s\n", PathSave, Scal);
     fprintf(Xmf, "       </DataItem>\n");
     fprintf(Xmf, "     </Attribute>\n");
     fclose(Xmf);
@@ -1323,12 +1324,12 @@ void hdfWriteDataset
 )
 {
 
-	hid_t  dataset_id = H5Dcreate(*file_id, var, H5T_NATIVE_FLOAT, *dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-	herr_t status     = H5Dwrite(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, x);
+    hid_t  dataset_id = H5Dcreate(*file_id, var, H5T_NATIVE_FLOAT, *dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    herr_t status     = H5Dwrite(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, x);
 
-	status            = H5Dclose(dataset_id);
+    status            = H5Dclose(dataset_id);
 
-	return;
+    return;
 
 }
 
@@ -1339,9 +1340,9 @@ PetscErrorCode writePointsToXMF
     mesh_      *mesh,        // domain mesh
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	     *file_id,     // id of the HDF file to refer
+    hid_t      *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
-    PetscReal     time          // time
+    PetscReal  time          // time
 )
 {
     DM                fda  = mesh->fda, da = mesh->da;
@@ -1355,11 +1356,11 @@ PetscErrorCode writePointsToXMF
     PetscInt           i, j, k;
     PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
-    Vec		      Coor;
+    Vec                Coor;
 
-    Cmpnts        ***coor;
+    Cmpnts             ***coor;
 
-    FILE          *xmf;
+    FILE               *xmf;
 
     // create 1D vector which stores the 3D points
     float *x; x = new float[(mx-1)*(my-1)*(mz-1)];
@@ -1414,7 +1415,7 @@ PetscErrorCode writeUserSectionPointsToXMF
     mesh_      *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	     *file_id,     // id of the HDF file to refer
+    hid_t         *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     uSections  *uSection    // pointer the user defined section
@@ -1498,7 +1499,7 @@ PetscErrorCode writeKSectionPointsToXMF
     mesh_      *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	     *file_id,     // id of the HDF file to refer
+    hid_t         *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     PetscInt   kIndex        // index of the k-section
@@ -1516,7 +1517,7 @@ PetscErrorCode writeKSectionPointsToXMF
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      surfaceCuts = 0;
 
-    Vec		        Coor;
+    Vec                Coor;
 
     Cmpnts        ***coor;
 
@@ -1563,7 +1564,7 @@ PetscErrorCode writeKSectionPointsToXMF
     if(!rank) hdfWriteDataset(file_id, dataspace_id, "/X", gx);
 
     // write y component
-	  setToZero(lx, (mx-1)*(my-1));
+      setToZero(lx, (mx-1)*(my-1));
     setToZero(gx, (mx-1)*(my-1));
 
     for (j=ys; j<lye; j++)
@@ -1580,7 +1581,7 @@ PetscErrorCode writeKSectionPointsToXMF
     if(!rank) hdfWriteDataset(file_id, dataspace_id, "/Y", gx);
 
     // write z component
-	  setToZero(lx, (mx-1)*(my-1));
+      setToZero(lx, (mx-1)*(my-1));
     setToZero(gx, (mx-1)*(my-1));
 
     for (j=ys; j<lye; j++)
@@ -1614,7 +1615,7 @@ PetscErrorCode writeJSectionPointsToXMF
     mesh_      *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	     *file_id,     // id of the HDF file to refer
+    hid_t         *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     PetscInt   jIndex        // index of the k-section
@@ -1632,7 +1633,7 @@ PetscErrorCode writeJSectionPointsToXMF
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      surfaceCuts = 0;
 
-    Vec		        Coor;
+    Vec                Coor;
 
     Cmpnts        ***coor;
 
@@ -1730,7 +1731,7 @@ PetscErrorCode writeISectionPointsToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     PetscInt        iIndex        // index of the k-section
@@ -1748,7 +1749,7 @@ PetscErrorCode writeISectionPointsToXMF
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      surfaceCuts = 0;
 
-    Vec		        Coor;
+    Vec                Coor;
 
     Cmpnts        ***coor;
 
@@ -1767,8 +1768,8 @@ PetscErrorCode writeISectionPointsToXMF
     }
 
     // create 1D vectors which stores the 2D points
-	float *lx = (float*)malloc((my-1)*(mz-1)*sizeof(float));
-	float *gx = (float*)malloc((my-1)*(mz-1)*sizeof(float));
+    float *lx = (float*)malloc((my-1)*(mz-1)*sizeof(float));
+    float *gx = (float*)malloc((my-1)*(mz-1)*sizeof(float));
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1846,7 +1847,7 @@ PetscErrorCode writeSymmTensorToXMF
     domain_    *domain,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -1967,7 +1968,7 @@ PetscErrorCode writeVectorToXMF
     domain_    *domain,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	     *file_id,     // id of the HDF file to refer
+    hid_t         *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -2054,7 +2055,7 @@ PetscErrorCode writeUserSectionVectorToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -2122,7 +2123,7 @@ PetscErrorCode writeKSectionVectorToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -2241,7 +2242,7 @@ PetscErrorCode writeJSectionVectorToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -2362,7 +2363,7 @@ PetscErrorCode writeISectionVectorToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -2480,7 +2481,7 @@ PetscErrorCode writeKSectionSymmTensorToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -2676,7 +2677,7 @@ PetscErrorCode writeJSectionSymmTensorToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -2876,7 +2877,7 @@ PetscErrorCode writeISectionSymmTensorToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -3072,7 +3073,7 @@ PetscErrorCode writeScalarToXMF
     domain_    *domain,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	     *file_id,     // id of the HDF file to refer
+    hid_t         *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -3133,7 +3134,7 @@ PetscErrorCode writeUserSectionScalarToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -3177,7 +3178,7 @@ PetscErrorCode writeKSectionScalarToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -3243,7 +3244,7 @@ PetscErrorCode writeJSectionScalarToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -3308,7 +3309,7 @@ PetscErrorCode writeISectionScalarToXMF
     mesh_    *mesh,        // user context
     const char *filexmf,     // name of the XMF file to append
     const char *hdfilen,     // name of the HDF file to refer
-    hid_t	   *file_id,     // id of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
     hid_t      *dataspace_id,// id of the HDF dataspace to refer
     PetscReal     time,         // time
     const char *fieldName,   // field name as it appears in ParaView
@@ -3393,7 +3394,7 @@ PetscErrorCode writeJSectionToRaster
         PetscInt           lxs, lxe, lys, lye, lzs, lze;
         PetscInt           surfaceCuts = 0;
 
-        Vec		      Coor, lavgU;
+        Vec              Coor, lavgU;
 
         Cmpnts        ***umean, ***coor, ***cent;
 
@@ -5246,13 +5247,13 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
                   herr_t    status;
 
                   // write HDF file
-                  hid_t	file_id;
+                  hid_t    file_id;
                   if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
                   // ************************** write mesh points **************************
                   dims[0] = 1;
-                  dims[1]	= my - 1;
-                  dims[2]	= mx - 1;
+                  dims[1]    = my - 1;
+                  dims[2]    = mx - 1;
 
                   if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
 
@@ -5544,12 +5545,12 @@ PetscErrorCode fieldUserDefinedPlaneToXMF(domain_ *domain)
                     herr_t    status;
 
                     // write HDF file
-                    hid_t	file_id;
+                    hid_t    file_id;
                     if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
                     dims[0] = 1;
-                    dims[1]	= uSection->ny;
-                    dims[2]	= uSection->nx;
+                    dims[1]    = uSection->ny;
+                    dims[2]    = uSection->nx;
 
                     if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
 
@@ -5928,13 +5929,13 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                   herr_t    status;
 
                   // write HDF file
-                  hid_t	file_id;
+                  hid_t    file_id;
                   if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
                   // ************************** write mesh points **************************
                   dims[0] = 1;
-                  dims[1]	= my - 1;
-                  dims[2]	= mx - 1;
+                  dims[1]    = my - 1;
+                  dims[2]    = mx - 1;
 
                   if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
 
@@ -6301,243 +6302,240 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
 
                 for(PetscInt j=0; j<jSections->nSections; j++)
                 {
-                  PetscInt jplane = jSections->indices[j];
+                    PetscInt jplane = jSections->indices[j];
 
-                  // exclude ghost nodes
-                  if (jplane<1 || jplane>my-2) continue;
+                    // exclude ghost nodes
+                    if (jplane<1 || jplane>my-2) continue;
 
-                  // get list of available times
-                  word path2times = "./postProcessing/" + mesh->meshName + "/jSurfaces/" + std::to_string(jplane) + "/U" ;
+                    // get list of available times
+                    word path2times = "./postProcessing/" + mesh->meshName + "/jSurfaces/" + std::to_string(jplane) + "/U" ;
 
-                  // see if can access the directory (shouldn't give error
-                  // as samplig/jSection could have been created just for averages)
-                  DIR* dir;
-                  if ((dir = opendir(path2times.c_str())) == nullptr)
-                  {
-                      PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
-                      return(0);
-                  }
+                    // see if can access the directory (shouldn't give error
+                    // as samplig/jSection could have been created just for averages)
+                    DIR* dir;
+                    if ((dir = opendir(path2times.c_str())) == nullptr)
+                    {
+                        PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+                        return(0);
+                    }
 
-                  std::vector<PetscReal>      timeSeries;
-                  PetscInt                      ntimes;
-                  getTimeList(path2times.c_str(), timeSeries, ntimes);
-
-                  if(!rank)
-                  {
-                    //create the j index folder
-                    indexDir = sectionDir + "/" + std::to_string(jplane);
-                    createDir(mesh->MESH_COMM, indexDir.c_str());
-
-                    // create XMF file
-                    fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_jSec" + std::to_string(jplane) + ".xmf";
-
-                    // write XMF file intro
-                    xmf = fopen(fieldsFileName.c_str(), "w");
-                    fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
-                    fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
-                    fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
-                    fprintf(xmf, " <Domain>\n");
-                    fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
-                    fclose(xmf);
-                  }
-
-                  // loop over times
-                  for(PetscInt ti=0; ti<ntimes; ti++)
-                  {
-                    // HDF5 file with path
-                    word fileName;
-
-                    // HDF5 file w/o path
-                    word hdfileName;
-
-                    // set time precision
-                    std::stringstream stream;
-                    stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
-
-                    fileName   = indexDir + "/" + thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_" + stream.str();
-                    hdfileName = thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_" + stream.str();
-
-                    // open this time section in the XMF file
-                    if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, 1, mz-1, "3DSMesh", timeSeries[ti]);
-
-                    // Write the data file.
-                    hid_t     dataspace_id;
-                    hsize_t   dims[3];
-                    herr_t    status;
-
-                    // write HDF file
-                    hid_t	file_id;
-                    if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-
-                    // ************************** write mesh points **************************
-                    dims[0] = mz - 1;
-                    dims[1]	= 1;
-                    dims[2]	= mx - 1;
-
-                    if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                    writeJSectionPointsToXMF
-                    (
-                        mesh,
-                        fieldsFileName.c_str(),
-                        hdfileName.c_str(),
-                        &file_id,
-                        &dataspace_id,
-                        timeSeries[ti],
-                        jplane
-                    );
-
-                    if(!rank) status = H5Sclose(dataspace_id);
-                    if(!rank) status = H5Fclose(file_id);
-
-                    // load velocity
-                    jSectionLoadVector(mesh, jSections, jplane, "U", timeSeries[ti]);
+                    std::vector<PetscReal>      timeSeries;
+                    PetscInt                      ntimes;
+                    getTimeList(path2times.c_str(), timeSeries, ntimes);
 
                     if(!rank)
                     {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                        //create the j index folder
+                        indexDir = sectionDir + "/" + std::to_string(jplane);
+                        createDir(mesh->MESH_COMM, indexDir.c_str());
 
-                      writeJSectionVectorToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ti],
-                          "U",
-                          jSections->vectorSec
-                      );
+                        // create XMF file
+                        fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_jSec" + std::to_string(jplane) + ".xmf";
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
+                        // write XMF file intro
+                        xmf = fopen(fieldsFileName.c_str(), "w");
+                        fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                        fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                        fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                        fprintf(xmf, " <Domain>\n");
+                        fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                        fclose(xmf);
                     }
 
-                    // load pressure
-                    jSectionLoadScalar(mesh, jSections, jplane, "p", timeSeries[ti]);
+                    // loop over times
+                    for(PetscInt ti=0; ti<ntimes; ti++)
+                    {
+                        // HDF5 file with path
+                        word fileName;
+
+                        // HDF5 file w/o path
+                        word hdfileName;
+
+                        // set time precision
+                        std::stringstream stream;
+                        stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
+
+                        fileName   = indexDir + "/" + thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_" + stream.str();
+                        hdfileName = thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_" + stream.str();
+
+                        // open this time section in the XMF file
+                        if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, 1, mz-1, "3DSMesh", timeSeries[ti]);
+
+                        // Write the data file.
+                        hid_t     dataspace_id;
+                        hsize_t   dims[3];
+                        herr_t    status;
+
+                        // write HDF file
+                        hid_t    file_id;
+                        if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+                        // ************************** write mesh points **************************
+                        dims[0] = mz - 1;
+                        dims[1] = 1;
+                        dims[2] = mx - 1;
+
+                        if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeJSectionPointsToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            jplane
+                        );
+
+                        if(!rank) status = H5Sclose(dataspace_id);
+                        if(!rank) status = H5Fclose(file_id);
+
+                        // load velocity
+                        jSectionLoadVector(mesh, jSections, jplane, "U", timeSeries[ti]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionVectorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ti],
+                                "U",
+                                jSections->vectorSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        // load pressure
+                        jSectionLoadScalar(mesh, jSections, jplane, "p", timeSeries[ti]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionScalarToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ti],
+                                "p",
+                                jSections->scalarSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        // load nut
+                        if(flags.isLesActive)
+                        {
+                            jSectionLoadScalar(mesh, jSections, jplane, "nut", timeSeries[ti]);
+
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                                writeJSectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ti],
+                                    "nut",
+                                    jSections->scalarSec
+                                );
+
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
+                        }
+
+                        // load temperature
+                        if(flags.isTeqnActive)
+                        {
+                            jSectionLoadScalar(mesh, jSections, jplane, "T", timeSeries[ti]);
+
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                                writeJSectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ti],
+                                    "T",
+                                    jSections->scalarSec
+                                );
+
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
+                        }
+
+                        // load nut
+                        if(flags.isIBMActive)
+                        {
+                            jSectionLoadScalar(mesh, jSections, jplane, "nv", timeSeries[ti]);
+
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                                writeJSectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ti],
+                                    "nv",
+                                    jSections->scalarSec
+                                );
+
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
+                        }
+
+                        // close this time section in the XMF file
+                        if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+
+                        // wait all processes
+                        MPI_Barrier(mesh->MESH_COMM);
+                    }
 
                     if(!rank)
                     {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                      writeJSectionScalarToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ti],
-                          "p",
-                          jSections->scalarSec
-                      );
-
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
+                        // write XMF file end
+                        xmf = fopen(fieldsFileName.c_str(), "a");
+                        fprintf(xmf, "   </Grid>\n");
+                        fprintf(xmf, " </Domain>\n");
+                        fprintf(xmf, "</Xdmf>\n");
+                        fclose(xmf);
                     }
-
-                    // load nut
-                    if(flags.isLesActive)
-                    {
-                      jSectionLoadScalar(mesh, jSections, jplane, "nut", timeSeries[ti]);
-
-                      if(!rank)
-                      {
-                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                        dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                        writeJSectionScalarToXMF
-                        (
-                            mesh,
-                            fieldsFileName.c_str(),
-                            hdfileName.c_str(),
-                            &file_id,
-                            &dataspace_id,
-                            timeSeries[ti],
-                            "nut",
-                            jSections->scalarSec
-                        );
-
-                        status = H5Sclose(dataspace_id);
-                        status = H5Fclose(file_id);
-                      }
-
-                    }
-
-                    // load temperature
-                    if(flags.isTeqnActive)
-                    {
-                      jSectionLoadScalar(mesh, jSections, jplane, "T", timeSeries[ti]);
-
-                      if(!rank)
-                      {
-                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                        dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                        writeJSectionScalarToXMF
-                        (
-                            mesh,
-                            fieldsFileName.c_str(),
-                            hdfileName.c_str(),
-                            &file_id,
-                            &dataspace_id,
-                            timeSeries[ti],
-                            "T",
-                            jSections->scalarSec
-                        );
-
-                        status = H5Sclose(dataspace_id);
-                        status = H5Fclose(file_id);
-                      }
-
-                    }
-
-                    // load nut
-                    if(flags.isIBMActive)
-                    {
-                      jSectionLoadScalar(mesh, jSections, jplane, "nv", timeSeries[ti]);
-
-                      if(!rank)
-                      {
-                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                        dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                        writeJSectionScalarToXMF
-                        (
-                            mesh,
-                            fieldsFileName.c_str(),
-                            hdfileName.c_str(),
-                            &file_id,
-                            &dataspace_id,
-                            timeSeries[ti],
-                            "nv",
-                            jSections->scalarSec
-                        );
-
-                        status = H5Sclose(dataspace_id);
-                        status = H5Fclose(file_id);
-                      }
-
-                    }
-
-                    // close this time section in the XMF file
-                    if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
-
-                    // wait all processes
-                    MPI_Barrier(mesh->MESH_COMM);
-                  }
-
-                  if(!rank)
-                  {
-                      // write XMF file end
-                      xmf = fopen(fieldsFileName.c_str(), "a");
-                      fprintf(xmf, "   </Grid>\n");
-                      fprintf(xmf, " </Domain>\n");
-                      fprintf(xmf, "</Xdmf>\n");
-                      fclose(xmf);
-                  }
                 }
 
                 PetscPrintf(mesh->MESH_COMM, "done\n\n");
@@ -6621,356 +6619,355 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
 
                 for(PetscInt j=0; j<jSections->nSections; j++)
                 {
-                  PetscInt jplane = jSections->indices[j];
-
-                  // exclude ghost nodes
-                  if (jplane<1 || jplane>my-2) continue;
-
-                  // get list of available times
-                  word path2times = "./fields/" + mesh->meshName;
-
-                  std::vector<PetscReal>        timeSeries;
-                  PetscInt                      ntimes;
-                  getTimeList(path2times.c_str(), timeSeries, ntimes);
-
-                  if(!rank)
-                  {
-                    //create the j index folder
-                    indexDir = sectionDir + "/" + std::to_string(jplane);
-                    createDirNoRemove(mesh->MESH_COMM, indexDir.c_str());
-
-                    // create XMF file
-                    fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_jSec" + std::to_string(jplane) + "_averages.xmf";
-
-                    // write XMF file intro
-                    xmf = fopen(fieldsFileName.c_str(), "w");
-                    fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
-                    fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
-                    fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
-                    fprintf(xmf, " <Domain>\n");
-                    fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
-                    fclose(xmf);
-                  }
-
-                  // now we get only the last time (the meaningful one)
-
-                  // HDF5 file with path
-                  word fileName;
-
-                  // HDF5 file w/o path
-                  word hdfileName;
-
-                  // set time precision
-                  std::stringstream stream;
-                  stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ntimes-1];
-
-                  fileName   = indexDir + "/" + thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_averages_" + stream.str();
-                  hdfileName = thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_averages_" + stream.str();
-
-                  // open this time section in the XMF file
-                  if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, 1, mz-1, "3DSMesh", timeSeries[ntimes-1]);
-
-                  // Write the data file.
-                  hid_t     dataspace_id;
-                  hsize_t   dims[3];
-                  herr_t    status;
-
-                  // write HDF file
-                  hid_t	file_id;
-                  if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-
-                  // ************************** write mesh points **************************
-                  dims[0] = mz - 1;
-                  dims[1] = 1;
-                  dims[2] = mx - 1;
-
-                  if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                  writeJSectionPointsToXMF
-                  (
-                      mesh,
-                      fieldsFileName.c_str(),
-                      hdfileName.c_str(),
-                      &file_id,
-                      &dataspace_id,
-                      timeSeries[ntimes-1],
-                      jplane
-                  );
-
-                  if(!rank) status = H5Sclose(dataspace_id);
-                  if(!rank) status = H5Fclose(file_id);
-
-                  if(io->averaging)
-                  {
-                      // load average velocity
-                      jSectionLoadVectorFromField(acquisition->fields->avgU, mesh, jSections, jplane, "avgU", timeSeries[ntimes-1]);
-
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                          writeJSectionVectorToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "avgU",
-                              jSections->vectorSec
-                          );
-
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
-
-                      // load average Reynold stresses
-                      jSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, jSections, jplane, "avgUU", timeSeries[ntimes-1]);
-
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                          writeJSectionSymmTensorToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "avgUU",
-                              jSections->symmTensorSec
-                          );
-
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
-
-                      // load average pressure
-                      jSectionLoadScalarFromField(acquisition->fields->avgP, mesh, jSections, jplane, "avgP", timeSeries[ntimes-1]);
-
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                          writeJSectionScalarToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "avgP",
-                              jSections->scalarSec
-                          );
-
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
-
-                      if(flags.isLesActive)
-                      {
-                          // load average nut
-                          jSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, jSections, jplane, "avgNut", timeSeries[ntimes-1]);
-
-                          if(!rank)
-                          {
-                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                              dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                              writeJSectionScalarToXMF
-                              (
-                                  mesh,
-                                  fieldsFileName.c_str(),
-                                  hdfileName.c_str(),
-                                  &file_id,
-                                  &dataspace_id,
-                                  timeSeries[ntimes-1],
-                                  "avgNut",
-                                  jSections->scalarSec
-                              );
-
-                              status = H5Sclose(dataspace_id);
-                              status = H5Fclose(file_id);
-                          }
-
-                          // load average cs
-                          jSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, jSections, jplane, "avgCs", timeSeries[ntimes-1]);
-
-                          if(!rank)
-                          {
-                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                              dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                              writeJSectionScalarToXMF
-                              (
-                                  mesh,
-                                  fieldsFileName.c_str(),
-                                  hdfileName.c_str(),
-                                  &file_id,
-                                  &dataspace_id,
-                                  timeSeries[ntimes-1],
-                                  "avgCs",
-                                  jSections->scalarSec
-                              );
-
-                              status = H5Sclose(dataspace_id);
-                              status = H5Fclose(file_id);
-                          }
-
-                      }
-
-                      // load temperature
-                      if(flags.isTeqnActive)
-                      {
-                          // no fields for now
-                      }
-                  }
-
-                  if(io->phaseAveraging)
-                  {
-                      // load average velocity
-                      jSectionLoadVectorFromField(acquisition->fields->pAvgU, mesh, jSections, jplane, "phAvgU", timeSeries[ntimes-1]);
-
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                          writeJSectionVectorToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "phAvgU",
-                              jSections->vectorSec
-                          );
-
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
-
-                      // load average Reynold stresses
-                      jSectionLoadSymmTensorFromField(acquisition->fields->pAvgUU, mesh, jSections, jplane, "phAvgUU", timeSeries[ntimes-1]);
-
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                          writeJSectionSymmTensorToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "phAvgUU",
-                              jSections->symmTensorSec
-                          );
-
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
-
-                      // load average pressure
-                      jSectionLoadScalarFromField(acquisition->fields->pAvgP, mesh, jSections, jplane, "phAvgP", timeSeries[ntimes-1]);
-
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                          writeJSectionScalarToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "phAvgP",
-                              jSections->scalarSec
-                          );
-
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
-
-                      if(flags.isLesActive)
-                      {
-                          // load average nut
-                          jSectionLoadScalarFromField(acquisition->fields->pAvgNut, mesh, jSections, jplane, "phAvgNut", timeSeries[ntimes-1]);
-
-                          if(!rank)
-                          {
-                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                              dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                              writeJSectionScalarToXMF
-                              (
-                                  mesh,
-                                  fieldsFileName.c_str(),
-                                  hdfileName.c_str(),
-                                  &file_id,
-                                  &dataspace_id,
-                                  timeSeries[ntimes-1],
-                                  "phAvgNut",
-                                  jSections->scalarSec
-                              );
-
-                              status = H5Sclose(dataspace_id);
-                              status = H5Fclose(file_id);
-                          }
-
-                          // load average cs
-                          jSectionLoadScalarFromField(acquisition->fields->pAvgCs, mesh, jSections, jplane, "phAvgCs", timeSeries[ntimes-1]);
-
-                          if(!rank)
-                          {
-                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                              dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                              writeJSectionScalarToXMF
-                              (
-                                  mesh,
-                                  fieldsFileName.c_str(),
-                                  hdfileName.c_str(),
-                                  &file_id,
-                                  &dataspace_id,
-                                  timeSeries[ntimes-1],
-                                  "phAvgCs",
-                                  jSections->scalarSec
-                              );
-
-                              status = H5Sclose(dataspace_id);
-                              status = H5Fclose(file_id);
-                          }
-
-                      }
-
-                      // load temperature
-                      if(flags.isTeqnActive)
-                      {
-                          // no fields for now
-                      }
-                  }
-
-                  // close this time section in the XMF file
-                  if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
-
-                  // wait all processes
-                  MPI_Barrier(mesh->MESH_COMM);
+                    PetscInt jplane = jSections->indices[j];
+
+                    // exclude ghost nodes
+                    if (jplane<1 || jplane>my-2) continue;
+
+                    // get list of available times
+                    word path2times = "./fields/" + mesh->meshName;
+
+                    std::vector<PetscReal>        timeSeries;
+                    PetscInt                      ntimes;
+                    getTimeList(path2times.c_str(), timeSeries, ntimes);
+
+                    if(!rank)
+                    {
+                        //create the j index folder
+                        indexDir = sectionDir + "/" + std::to_string(jplane);
+                        createDirNoRemove(mesh->MESH_COMM, indexDir.c_str());
+
+                        // create XMF file
+                        fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_jSec" + std::to_string(jplane) + "_averages.xmf";
+
+                        // write XMF file intro
+                        xmf = fopen(fieldsFileName.c_str(), "w");
+                        fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                        fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                        fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                        fprintf(xmf, " <Domain>\n");
+                        fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                        fclose(xmf);
+                    }
+
+                    // now we get only the last time (the meaningful one)
+
+                    // HDF5 file with path
+                    word fileName;
+
+                    // HDF5 file w/o path
+                    word hdfileName;
+
+                    // set time precision
+                    std::stringstream stream;
+                    stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ntimes-1];
+
+                    fileName   = indexDir + "/" + thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_averages_" + stream.str();
+                    hdfileName = thisCaseName() + "_" + "jSec" + std::to_string(jplane) + "_averages_" + stream.str();
+
+                    // open this time section in the XMF file
+                    if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, 1, mz-1, "3DSMesh", timeSeries[ntimes-1]);
+
+                    // Write the data file.
+                    hid_t     dataspace_id;
+                    hsize_t   dims[3];
+                    herr_t    status;
+
+                    // write HDF file
+                    hid_t    file_id;
+                    if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+                    // ************************** write mesh points **************************
+                    dims[0] = mz - 1;
+                    dims[1] = 1;
+                    dims[2] = mx - 1;
+
+                    if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                    writeJSectionPointsToXMF
+                    (
+                        mesh,
+                        fieldsFileName.c_str(),
+                        hdfileName.c_str(),
+                        &file_id,
+                        &dataspace_id,
+                        timeSeries[ntimes-1],
+                        jplane
+                    );
+
+                    if(!rank) status = H5Sclose(dataspace_id);
+                    if(!rank) status = H5Fclose(file_id);
+
+                    if(io->averaging)
+                    {
+                        // load average velocity
+                        jSectionLoadVectorFromField(acquisition->fields->avgU, mesh, jSections, jplane, "avgU", timeSeries[ntimes-1]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionVectorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "avgU",
+                                jSections->vectorSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        // load average Reynold stresses
+                        jSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, jSections, jplane, "avgUU", timeSeries[ntimes-1]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionSymmTensorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "avgUU",
+                                jSections->symmTensorSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        // load average pressure
+                        jSectionLoadScalarFromField(acquisition->fields->avgP, mesh, jSections, jplane, "avgP", timeSeries[ntimes-1]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionScalarToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "avgP",
+                                jSections->scalarSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        if(flags.isLesActive)
+                        {
+                            // load average nut
+                            jSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, jSections, jplane, "avgNut", timeSeries[ntimes-1]);
+
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                                writeJSectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ntimes-1],
+                                    "avgNut",
+                                    jSections->scalarSec
+                                );
+
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
+
+                            // load average cs
+                            jSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, jSections, jplane, "avgCs", timeSeries[ntimes-1]);
+
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                                writeJSectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ntimes-1],
+                                    "avgCs",
+                                    jSections->scalarSec
+                                );
+
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
+
+                        }
+
+                        // load temperature
+                        if(flags.isTeqnActive)
+                        {
+                            // no fields for now
+                        }
+                    }
+
+                    if(io->phaseAveraging)
+                    {
+                        // load average velocity
+                        jSectionLoadVectorFromField(acquisition->fields->pAvgU, mesh, jSections, jplane, "phAvgU", timeSeries[ntimes-1]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionVectorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "phAvgU",
+                                jSections->vectorSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        // load average Reynold stresses
+                        jSectionLoadSymmTensorFromField(acquisition->fields->pAvgUU, mesh, jSections, jplane, "phAvgUU", timeSeries[ntimes-1]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionSymmTensorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "phAvgUU",
+                                jSections->symmTensorSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        // load average pressure
+                        jSectionLoadScalarFromField(acquisition->fields->pAvgP, mesh, jSections, jplane, "phAvgP", timeSeries[ntimes-1]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionScalarToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "phAvgP",
+                                jSections->scalarSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        if(flags.isLesActive)
+                        {
+                            // load average nut
+                            jSectionLoadScalarFromField(acquisition->fields->pAvgNut, mesh, jSections, jplane, "phAvgNut", timeSeries[ntimes-1]);
+
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                                writeJSectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ntimes-1],
+                                    "phAvgNut",
+                                    jSections->scalarSec
+                                );
+
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
+
+                            // load average cs
+                            jSectionLoadScalarFromField(acquisition->fields->pAvgCs, mesh, jSections, jplane, "phAvgCs", timeSeries[ntimes-1]);
+
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                                writeJSectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ntimes-1],
+                                    "phAvgCs",
+                                    jSections->scalarSec
+                                );
+
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
+                        }
+
+                        // load temperature
+                        if(flags.isTeqnActive)
+                        {
+                            // no fields for now
+                        }
+                    }
+
+                    // close this time section in the XMF file
+                    if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+
+                    // wait all processes
+                    MPI_Barrier(mesh->MESH_COMM);
 
                     if(!rank)
                     {
@@ -6982,7 +6979,6 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                         fclose(xmf);
                     }
                 }
-
             }
 
             PetscPrintf(mesh->MESH_COMM, "done\n\n");
@@ -6996,210 +6992,138 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
 
 PetscErrorCode binaryISectionsToXMF(domain_ *domain)
 {
-  PetscInt  nDomains = domain[0].info.nDomains;
-  word      meshDir, sectionDir, indexDir;
+    PetscInt  nDomains = domain[0].info.nDomains;
+    word      meshDir, sectionDir, indexDir;
 
-  for(PetscInt d=0; d<nDomains; d++)
-  {
-    flags_    flags    = domain[d].flags;
-
-    if(flags.isAquisitionActive)
+    for(PetscInt d=0; d<nDomains; d++)
     {
+        flags_    flags    = domain[d].flags;
 
-
-      // get pointers
-      clock_ *clock = domain[d].clock;
-      mesh_  *mesh  = domain[d].mesh;
-
-      acquisition_ *acquisition = domain[d].acquisition;
-      ueqn_  *ueqn  = domain[d].ueqn;
-      peqn_  *peqn  = domain[d].peqn;
-      teqn_  *teqn;
-      les_   *les;
-
-      if(flags.isTeqnActive) teqn = domain[d].teqn;
-      if(flags.isLesActive)  les  = domain[d].les;
-
-      DMDALocalInfo info = mesh->info;
-      PetscInt           mx = info.mx, my = info.my, mz = info.mz;
-
-      PetscMPIInt           rank;
-      MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-      word fieldsFileName;
-      FILE *xmf;
-
-      meshDir     = "./XMF/" + mesh->meshName;
-
-      // create domain directory within XMF folder
-      errno = 0;
-      PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
-      if(dirRes != 0 && errno != EEXIST)
-      {
-         char error[512];
-          sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-          fatalErrorInFunction("binaryISectionsToXMF",  error);
-      }
-
-      if(acquisition->iSections->available)
-      {
-        PetscPrintf(mesh->MESH_COMM, "Processing i-sections for mesh: %s...", mesh->meshName.c_str());
-        sections *iSections = acquisition->iSections;
-
-        // create iSections folder
-        sectionDir = "./XMF/" + mesh->meshName + "/iSections";
-        createDir(mesh->MESH_COMM, sectionDir.c_str());
-
-        for(PetscInt i=0; i<iSections->nSections; i++)
+        if(flags.isAquisitionActive)
         {
-          PetscInt iplane = iSections->indices[i];
 
-          // exclude ghost nodes
-          if (iplane<1 || iplane>mx-2) continue;
 
-          // get list of available times
-          word path2times = "./postProcessing/" + mesh->meshName + "/iSurfaces/" + std::to_string(iplane) + "/U" ;
+            // get pointers
+            clock_ *clock = domain[d].clock;
+            mesh_  *mesh  = domain[d].mesh;
 
-          // see if can access the directory (shouldn't give error
-          // as samplig/iSection could have been created just for averages)
-          DIR* dir;
-          if ((dir = opendir(path2times.c_str())) == nullptr)
-          {
-              PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
-              return(0);
-          }
+            acquisition_ *acquisition = domain[d].acquisition;
+            ueqn_  *ueqn  = domain[d].ueqn;
+            peqn_  *peqn  = domain[d].peqn;
+            teqn_  *teqn;
+            les_   *les;
 
-          std::vector<PetscReal>      timeSeries;
-          PetscInt                      ntimes;
-          getTimeList(path2times.c_str(), timeSeries, ntimes);
+            if(flags.isTeqnActive) teqn = domain[d].teqn;
+            if(flags.isLesActive)  les  = domain[d].les;
 
-          if(!rank)
-          {
-            //create the i index folder
-            indexDir = sectionDir + "/" + std::to_string(iplane);
-            createDir(mesh->MESH_COMM, indexDir.c_str());
+            DMDALocalInfo info = mesh->info;
+            PetscInt           mx = info.mx, my = info.my, mz = info.mz;
 
-            // create XMF file
-            fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_iSec" + std::to_string(iSections->indices[i]) + ".xmf";
+            PetscMPIInt           rank;
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
-            // write XMF file intro
-            xmf = fopen(fieldsFileName.c_str(), "w");
-            fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
-            fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
-            fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
-            fprintf(xmf, " <Domain>\n");
-            fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
-            fclose(xmf);
-          }
+            word fieldsFileName;
+            FILE *xmf;
 
-          // loop over times
-          for(PetscInt ti=0; ti<ntimes; ti++)
-          {
-            // HDF5 file with path
-            word fileName;
+            meshDir     = "./XMF/" + mesh->meshName;
 
-            // HDF5 file w/o path
-            word hdfileName;
-
-            // set time precision
-            std::stringstream stream;
-            stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
-
-            fileName   = indexDir + "/" + thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_" + stream.str();
-            hdfileName = thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_" + stream.str();
-
-            // open this time section in the XMF file
-            if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), 1, my-1, mz-1, "3DSMesh", timeSeries[ti]);
-
-            // Write the data file.
-            hid_t     dataspace_id;
-            hsize_t   dims[3];
-            herr_t    status;
-
-            // write HDF file
-            hid_t	file_id;
-            if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-
-            // ************************** write mesh points **************************
-            dims[0] = mz - 1;
-            dims[1]	= my - 1;
-            dims[2]	= 1;
-
-            if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
-
-            writeISectionPointsToXMF
-            (
-                mesh,
-                fieldsFileName.c_str(),
-                hdfileName.c_str(),
-                &file_id,
-                &dataspace_id,
-                timeSeries[ti],
-                iplane
-            );
-
-            if(!rank) status = H5Sclose(dataspace_id);
-            if(!rank) status = H5Fclose(file_id);
-
-            // load velocity
-            iSectionLoadVector(mesh, iSections, iplane, "U", timeSeries[ti]);
-
-            if(!rank)
+            // create domain directory within XMF folder
+            errno = 0;
+            PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
+            if(dirRes != 0 && errno != EEXIST)
             {
-              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-              dataspace_id = H5Screate_simple(3, dims, NULL);
-
-              writeISectionVectorToXMF
-              (
-                  mesh,
-                  fieldsFileName.c_str(),
-                  hdfileName.c_str(),
-                  &file_id,
-                  &dataspace_id,
-                  timeSeries[ti],
-                  "U",
-                  iSections->vectorSec
-              );
-
-              status = H5Sclose(dataspace_id);
-              status = H5Fclose(file_id);
+                char error[512];
+                sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
+                fatalErrorInFunction("binaryISectionsToXMF",  error);
             }
 
-            // load pressure
-            iSectionLoadScalar(mesh, iSections, iplane, "p", timeSeries[ti]);
-
-            if(!rank)
+            if(acquisition->iSections->available)
             {
-              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-              dataspace_id = H5Screate_simple(3, dims, NULL);
+            PetscPrintf(mesh->MESH_COMM, "Processing i-sections for mesh: %s...", mesh->meshName.c_str());
+            sections *iSections = acquisition->iSections;
 
-              writeISectionScalarToXMF
-              (
-                  mesh,
-                  fieldsFileName.c_str(),
-                  hdfileName.c_str(),
-                  &file_id,
-                  &dataspace_id,
-                  timeSeries[ti],
-                  "p",
-                  iSections->scalarSec
-              );
+            // create iSections folder
+            sectionDir = "./XMF/" + mesh->meshName + "/iSections";
+            createDir(mesh->MESH_COMM, sectionDir.c_str());
 
-              status = H5Sclose(dataspace_id);
-              status = H5Fclose(file_id);
-            }
-
-            // load nut
-            if(flags.isLesActive)
+            for(PetscInt i=0; i<iSections->nSections; i++)
             {
-              iSectionLoadScalar(mesh, iSections, iplane, "nut", timeSeries[ti]);
+                PetscInt iplane = iSections->indices[i];
 
-              if(!rank)
-              {
-                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                dataspace_id = H5Screate_simple(3, dims, NULL);
+                // exclude ghost nodes
+                if (iplane<1 || iplane>mx-2) continue;
 
-                writeISectionScalarToXMF
+                // get list of available times
+                word path2times = "./postProcessing/" + mesh->meshName + "/iSurfaces/" + std::to_string(iplane) + "/U" ;
+
+                // see if can access the directory (shouldn't give error
+                // as samplig/iSection could have been created just for averages)
+                DIR* dir;
+                if ((dir = opendir(path2times.c_str())) == nullptr)
+                {
+                    PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+                    return(0);
+                }
+
+                std::vector<PetscReal>      timeSeries;
+                PetscInt                      ntimes;
+                getTimeList(path2times.c_str(), timeSeries, ntimes);
+
+                if(!rank)
+                {
+                //create the i index folder
+                indexDir = sectionDir + "/" + std::to_string(iplane);
+                createDir(mesh->MESH_COMM, indexDir.c_str());
+
+                // create XMF file
+                fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_iSec" + std::to_string(iSections->indices[i]) + ".xmf";
+
+                // write XMF file intro
+                xmf = fopen(fieldsFileName.c_str(), "w");
+                fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                fprintf(xmf, " <Domain>\n");
+                fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                fclose(xmf);
+                }
+
+                // loop over times
+                for(PetscInt ti=0; ti<ntimes; ti++)
+                {
+                // HDF5 file with path
+                word fileName;
+
+                // HDF5 file w/o path
+                word hdfileName;
+
+                // set time precision
+                std::stringstream stream;
+                stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
+
+                fileName   = indexDir + "/" + thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_" + stream.str();
+                hdfileName = thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_" + stream.str();
+
+                // open this time section in the XMF file
+                if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), 1, my-1, mz-1, "3DSMesh", timeSeries[ti]);
+
+                // Write the data file.
+                hid_t     dataspace_id;
+                hsize_t   dims[3];
+                herr_t    status;
+
+                // write HDF file
+                hid_t    file_id;
+                if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+                // ************************** write mesh points **************************
+                dims[0] = mz - 1;
+                dims[1]    = my - 1;
+                dims[2]    = 1;
+
+                if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                writeISectionPointsToXMF
                 (
                     mesh,
                     fieldsFileName.c_str(),
@@ -7207,96 +7131,168 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
                     &file_id,
                     &dataspace_id,
                     timeSeries[ti],
-                    "nut",
-                    iSections->scalarSec
+                    iplane
                 );
 
-                status = H5Sclose(dataspace_id);
-                status = H5Fclose(file_id);
-              }
+                if(!rank) status = H5Sclose(dataspace_id);
+                if(!rank) status = H5Fclose(file_id);
 
+                // load velocity
+                iSectionLoadVector(mesh, iSections, iplane, "U", timeSeries[ti]);
+
+                if(!rank)
+                {
+                    file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                    dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                    writeISectionVectorToXMF
+                    (
+                        mesh,
+                        fieldsFileName.c_str(),
+                        hdfileName.c_str(),
+                        &file_id,
+                        &dataspace_id,
+                        timeSeries[ti],
+                        "U",
+                        iSections->vectorSec
+                    );
+
+                    status = H5Sclose(dataspace_id);
+                    status = H5Fclose(file_id);
+                }
+
+                // load pressure
+                iSectionLoadScalar(mesh, iSections, iplane, "p", timeSeries[ti]);
+
+                if(!rank)
+                {
+                    file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                    dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                    writeISectionScalarToXMF
+                    (
+                        mesh,
+                        fieldsFileName.c_str(),
+                        hdfileName.c_str(),
+                        &file_id,
+                        &dataspace_id,
+                        timeSeries[ti],
+                        "p",
+                        iSections->scalarSec
+                    );
+
+                    status = H5Sclose(dataspace_id);
+                    status = H5Fclose(file_id);
+                }
+
+                // load nut
+                if(flags.isLesActive)
+                {
+                    iSectionLoadScalar(mesh, iSections, iplane, "nut", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                    file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                    dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                    writeISectionScalarToXMF
+                    (
+                        mesh,
+                        fieldsFileName.c_str(),
+                        hdfileName.c_str(),
+                        &file_id,
+                        &dataspace_id,
+                        timeSeries[ti],
+                        "nut",
+                        iSections->scalarSec
+                    );
+
+                    status = H5Sclose(dataspace_id);
+                    status = H5Fclose(file_id);
+                    }
+
+                }
+
+                // load temperature
+                if(flags.isTeqnActive)
+                {
+                    iSectionLoadScalar(mesh, iSections, iplane, "T", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                    file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                    dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                    writeISectionScalarToXMF
+                    (
+                        mesh,
+                        fieldsFileName.c_str(),
+                        hdfileName.c_str(),
+                        &file_id,
+                        &dataspace_id,
+                        timeSeries[ti],
+                        "T",
+                        iSections->scalarSec
+                    );
+
+                    status = H5Sclose(dataspace_id);
+                    status = H5Fclose(file_id);
+                    }
+
+                }
+
+                // load nut
+                if(flags.isIBMActive)
+                {
+                    iSectionLoadScalar(mesh, iSections, iplane, "nv", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                    file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                    dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                    writeISectionScalarToXMF
+                    (
+                        mesh,
+                        fieldsFileName.c_str(),
+                        hdfileName.c_str(),
+                        &file_id,
+                        &dataspace_id,
+                        timeSeries[ti],
+                        "nv",
+                        iSections->scalarSec
+                    );
+
+                    status = H5Sclose(dataspace_id);
+                    status = H5Fclose(file_id);
+                    }
+
+                }
+
+                // close this time section in the XMF file
+                if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+
+                // wait all processes
+                MPI_Barrier(mesh->MESH_COMM);
+                }
+
+                if(!rank)
+                {
+                    // write XMF file end
+                    xmf = fopen(fieldsFileName.c_str(), "a");
+                    fprintf(xmf, "   </Grid>\n");
+                    fprintf(xmf, " </Domain>\n");
+                    fprintf(xmf, "</Xdmf>\n");
+                    fclose(xmf);
+                }
             }
 
-            // load temperature
-            if(flags.isTeqnActive)
-            {
-              iSectionLoadScalar(mesh, iSections, iplane, "T", timeSeries[ti]);
-
-              if(!rank)
-              {
-                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                writeISectionScalarToXMF
-                (
-                    mesh,
-                    fieldsFileName.c_str(),
-                    hdfileName.c_str(),
-                    &file_id,
-                    &dataspace_id,
-                    timeSeries[ti],
-                    "T",
-                    iSections->scalarSec
-                );
-
-                status = H5Sclose(dataspace_id);
-                status = H5Fclose(file_id);
-              }
+            PetscPrintf(mesh->MESH_COMM, "done\n\n");
 
             }
-
-            // load nut
-            if(flags.isIBMActive)
-            {
-              iSectionLoadScalar(mesh, iSections, iplane, "nv", timeSeries[ti]);
-
-              if(!rank)
-              {
-                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                writeISectionScalarToXMF
-                (
-                    mesh,
-                    fieldsFileName.c_str(),
-                    hdfileName.c_str(),
-                    &file_id,
-                    &dataspace_id,
-                    timeSeries[ti],
-                    "nv",
-                    iSections->scalarSec
-                );
-
-                status = H5Sclose(dataspace_id);
-                status = H5Fclose(file_id);
-              }
-
-            }
-
-            // close this time section in the XMF file
-            if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
-
-            // wait all processes
-            MPI_Barrier(mesh->MESH_COMM);
-          }
-
-          if(!rank)
-          {
-              // write XMF file end
-              xmf = fopen(fieldsFileName.c_str(), "a");
-              fprintf(xmf, "   </Grid>\n");
-              fprintf(xmf, " </Domain>\n");
-              fprintf(xmf, "</Xdmf>\n");
-              fclose(xmf);
-          }
         }
-
-        PetscPrintf(mesh->MESH_COMM, "done\n\n");
-
-      }
     }
-  }
-  return(0);
+    return(0);
 }
 
 //***************************************************************************************************************//
@@ -7363,354 +7359,354 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
 
                 for(PetscInt i=0; i<iSections->nSections; i++)
                 {
-                  PetscInt iplane = iSections->indices[i];
+                    PetscInt iplane = iSections->indices[i];
 
-                  // exclude ghost nodes
-                  if (iplane<1 || iplane>mx-2) continue;
+                    // exclude ghost nodes
+                    if (iplane<1 || iplane>mx-2) continue;
 
-                  // get list of available times
-                  word path2times = "./fields/" + mesh->meshName;
+                    // get list of available times
+                    word path2times = "./fields/" + mesh->meshName;
 
-                  std::vector<PetscReal>        timeSeries;
-                  PetscInt                      ntimes;
-                  getTimeList(path2times.c_str(), timeSeries, ntimes);
+                    std::vector<PetscReal>        timeSeries;
+                    PetscInt                      ntimes;
+                    getTimeList(path2times.c_str(), timeSeries, ntimes);
 
-                  if(!rank)
-                  {
-                    //create the j index folder
-                    indexDir = sectionDir + "/" + std::to_string(iplane);
-                    createDirNoRemove(mesh->MESH_COMM, indexDir.c_str());
+                    if(!rank)
+                    {
+                        //create the j index folder
+                        indexDir = sectionDir + "/" + std::to_string(iplane);
+                        createDirNoRemove(mesh->MESH_COMM, indexDir.c_str());
 
-                    // create XMF file
-                    fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_iSec" + std::to_string(iplane) + "_averages.xmf";
+                        // create XMF file
+                        fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_iSec" + std::to_string(iplane) + "_averages.xmf";
 
-                    // write XMF file intro
-                    xmf = fopen(fieldsFileName.c_str(), "w");
-                    fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
-                    fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
-                    fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
-                    fprintf(xmf, " <Domain>\n");
-                    fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
-                    fclose(xmf);
-                  }
+                        // write XMF file intro
+                        xmf = fopen(fieldsFileName.c_str(), "w");
+                        fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                        fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                        fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                        fprintf(xmf, " <Domain>\n");
+                        fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                        fclose(xmf);
+                    }
 
-                  // now we get only the last time (the meaningful one)
+                    // now we get only the last time (the meaningful one)
 
-                  // HDF5 file with path
-                  word fileName;
+                    // HDF5 file with path
+                    word fileName;
 
-                  // HDF5 file w/o path
-                  word hdfileName;
+                    // HDF5 file w/o path
+                    word hdfileName;
 
-                  // set time precision
-                  std::stringstream stream;
-                  stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ntimes-1];
+                    // set time precision
+                    std::stringstream stream;
+                    stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ntimes-1];
 
-                  fileName   = indexDir + "/" + thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_averages_" + stream.str();
-                  hdfileName = thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_averages_" + stream.str();
+                    fileName   = indexDir + "/" + thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_averages_" + stream.str();
+                    hdfileName = thisCaseName() + "_" + "iSec" + std::to_string(iplane) + "_averages_" + stream.str();
 
-                  // open this time section in the XMF file
-                  if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), 1, my-1, mz-1, "3DSMesh", timeSeries[ntimes-1]);
+                    // open this time section in the XMF file
+                    if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), 1, my-1, mz-1, "3DSMesh", timeSeries[ntimes-1]);
 
-                  // Write the data file.
-                  hid_t     dataspace_id;
-                  hsize_t   dims[3];
-                  herr_t    status;
+                    // Write the data file.
+                    hid_t     dataspace_id;
+                    hsize_t   dims[3];
+                    herr_t    status;
 
-                  // write HDF file
-                  hid_t	file_id;
-                  if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+                    // write HDF file
+                    hid_t    file_id;
+                    if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
-                  // ************************** write mesh points **************************
-                  dims[0] = mz - 1;
-                  dims[1] = my - 1;
-                  dims[2] = 1;
+                    // ************************** write mesh points **************************
+                    dims[0] = mz - 1;
+                    dims[1] = my - 1;
+                    dims[2] = 1;
 
-                  if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+                    if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                  writeISectionPointsToXMF
-                  (
-                      mesh,
-                      fieldsFileName.c_str(),
-                      hdfileName.c_str(),
-                      &file_id,
-                      &dataspace_id,
-                      timeSeries[ntimes-1],
-                      iplane
-                  );
+                    writeISectionPointsToXMF
+                    (
+                        mesh,
+                        fieldsFileName.c_str(),
+                        hdfileName.c_str(),
+                        &file_id,
+                        &dataspace_id,
+                        timeSeries[ntimes-1],
+                        iplane
+                    );
 
-                  if(!rank) status = H5Sclose(dataspace_id);
-                  if(!rank) status = H5Fclose(file_id);
+                    if(!rank) status = H5Sclose(dataspace_id);
+                    if(!rank) status = H5Fclose(file_id);
 
-                  if(io->averaging)
-                  {
-                      // load average velocity
-                      iSectionLoadVectorFromField(acquisition->fields->avgU, mesh, iSections, iplane, "avgU", timeSeries[ntimes-1]);
+                    if(io->averaging)
+                    {
+                        // load average velocity
+                        iSectionLoadVectorFromField(acquisition->fields->avgU, mesh, iSections, iplane, "avgU", timeSeries[ntimes-1]);
 
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                          writeISectionVectorToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "avgU",
-                              iSections->vectorSec
-                          );
+                            writeISectionVectorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "avgU",
+                                iSections->vectorSec
+                            );
 
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
 
-                      // load average Reynold stresses
-                      iSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, iSections, iplane, "avgUU", timeSeries[ntimes-1]);
+                        // load average Reynold stresses
+                        iSectionLoadSymmTensorFromField(acquisition->fields->avgUU, mesh, iSections, iplane, "avgUU", timeSeries[ntimes-1]);
 
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                          writeISectionSymmTensorToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "avgUU",
-                              iSections->symmTensorSec
-                          );
+                            writeISectionSymmTensorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "avgUU",
+                                iSections->symmTensorSec
+                            );
 
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
 
-                      // load average pressure
-                      iSectionLoadScalarFromField(acquisition->fields->avgP, mesh, iSections, iplane, "avgP", timeSeries[ntimes-1]);
+                        // load average pressure
+                        iSectionLoadScalarFromField(acquisition->fields->avgP, mesh, iSections, iplane, "avgP", timeSeries[ntimes-1]);
 
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                          writeISectionScalarToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "avgP",
-                              iSections->scalarSec
-                          );
+                            writeISectionScalarToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "avgP",
+                                iSections->scalarSec
+                            );
 
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
 
-                      if(flags.isLesActive)
-                      {
-                          // load average nut
-                          iSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, iSections, iplane, "avgNut", timeSeries[ntimes-1]);
+                        if(flags.isLesActive)
+                        {
+                            // load average nut
+                            iSectionLoadScalarFromField(acquisition->fields->avgNut, mesh, iSections, iplane, "avgNut", timeSeries[ntimes-1]);
 
-                          if(!rank)
-                          {
-                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                              dataspace_id = H5Screate_simple(3, dims, NULL);
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                              writeISectionScalarToXMF
-                              (
-                                  mesh,
-                                  fieldsFileName.c_str(),
-                                  hdfileName.c_str(),
-                                  &file_id,
-                                  &dataspace_id,
-                                  timeSeries[ntimes-1],
-                                  "avgNut",
-                                  iSections->scalarSec
-                              );
+                                writeISectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ntimes-1],
+                                    "avgNut",
+                                    iSections->scalarSec
+                                );
 
-                              status = H5Sclose(dataspace_id);
-                              status = H5Fclose(file_id);
-                          }
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
 
-                          // load average cs
-                          iSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, iSections, iplane, "avgCs", timeSeries[ntimes-1]);
+                            // load average cs
+                            iSectionLoadScalarFromField(acquisition->fields->avgCs, mesh, iSections, iplane, "avgCs", timeSeries[ntimes-1]);
 
-                          if(!rank)
-                          {
-                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                              dataspace_id = H5Screate_simple(3, dims, NULL);
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                              writeISectionScalarToXMF
-                              (
-                                  mesh,
-                                  fieldsFileName.c_str(),
-                                  hdfileName.c_str(),
-                                  &file_id,
-                                  &dataspace_id,
-                                  timeSeries[ntimes-1],
-                                  "avgCs",
-                                  iSections->scalarSec
-                              );
+                                writeISectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ntimes-1],
+                                    "avgCs",
+                                    iSections->scalarSec
+                                );
 
-                              status = H5Sclose(dataspace_id);
-                              status = H5Fclose(file_id);
-                          }
-                      }
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
+                        }
 
-                      // load temperature
-                      if(flags.isTeqnActive)
-                      {
-                          // no fields for now
-                      }
-                  }
+                        // load temperature
+                        if(flags.isTeqnActive)
+                        {
+                            // no fields for now
+                        }
+                    }
 
-                  if(io->phaseAveraging)
-                  {
-                      // load average velocity
-                      iSectionLoadVectorFromField(acquisition->fields->pAvgU, mesh, iSections, iplane, "phAvgU", timeSeries[ntimes-1]);
+                    if(io->phaseAveraging)
+                    {
+                        // load average velocity
+                        iSectionLoadVectorFromField(acquisition->fields->pAvgU, mesh, iSections, iplane, "phAvgU", timeSeries[ntimes-1]);
 
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                          writeISectionVectorToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "phAvgU",
-                              iSections->vectorSec
-                          );
+                            writeISectionVectorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "phAvgU",
+                                iSections->vectorSec
+                            );
 
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
 
-                      // load average Reynold stresses
-                      iSectionLoadSymmTensorFromField(acquisition->fields->pAvgUU, mesh, iSections, iplane, "phAvgUU", timeSeries[ntimes-1]);
+                        // load average Reynold stresses
+                        iSectionLoadSymmTensorFromField(acquisition->fields->pAvgUU, mesh, iSections, iplane, "phAvgUU", timeSeries[ntimes-1]);
 
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                          writeISectionSymmTensorToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "phAvgUU",
-                              iSections->symmTensorSec
-                          );
+                            writeISectionSymmTensorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "phAvgUU",
+                                iSections->symmTensorSec
+                            );
 
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
 
-                      // load average pressure
-                      iSectionLoadScalarFromField(acquisition->fields->pAvgP, mesh, iSections, iplane, "phAvgP", timeSeries[ntimes-1]);
+                        // load average pressure
+                        iSectionLoadScalarFromField(acquisition->fields->pAvgP, mesh, iSections, iplane, "phAvgP", timeSeries[ntimes-1]);
 
-                      if(!rank)
-                      {
-                          file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                          dataspace_id = H5Screate_simple(3, dims, NULL);
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                          writeISectionScalarToXMF
-                          (
-                              mesh,
-                              fieldsFileName.c_str(),
-                              hdfileName.c_str(),
-                              &file_id,
-                              &dataspace_id,
-                              timeSeries[ntimes-1],
-                              "phAvgP",
-                              iSections->scalarSec
-                          );
+                            writeISectionScalarToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ntimes-1],
+                                "phAvgP",
+                                iSections->scalarSec
+                            );
 
-                          status = H5Sclose(dataspace_id);
-                          status = H5Fclose(file_id);
-                      }
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
 
-                      if(flags.isLesActive)
-                      {
-                          // load average nut
-                          iSectionLoadScalarFromField(acquisition->fields->pAvgNut, mesh, iSections, iplane, "phAvgNut", timeSeries[ntimes-1]);
+                        if(flags.isLesActive)
+                        {
+                            // load average nut
+                            iSectionLoadScalarFromField(acquisition->fields->pAvgNut, mesh, iSections, iplane, "phAvgNut", timeSeries[ntimes-1]);
 
-                          if(!rank)
-                          {
-                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                              dataspace_id = H5Screate_simple(3, dims, NULL);
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                              writeISectionScalarToXMF
-                              (
-                                  mesh,
-                                  fieldsFileName.c_str(),
-                                  hdfileName.c_str(),
-                                  &file_id,
-                                  &dataspace_id,
-                                  timeSeries[ntimes-1],
-                                  "phAvgNut",
-                                  iSections->scalarSec
-                              );
+                                writeISectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ntimes-1],
+                                    "phAvgNut",
+                                    iSections->scalarSec
+                                );
 
-                              status = H5Sclose(dataspace_id);
-                              status = H5Fclose(file_id);
-                          }
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
 
-                          // load average cs
-                          iSectionLoadScalarFromField(acquisition->fields->pAvgCs, mesh, iSections, iplane, "phAvgCs", timeSeries[ntimes-1]);
+                            // load average cs
+                            iSectionLoadScalarFromField(acquisition->fields->pAvgCs, mesh, iSections, iplane, "phAvgCs", timeSeries[ntimes-1]);
 
-                          if(!rank)
-                          {
-                              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                              dataspace_id = H5Screate_simple(3, dims, NULL);
+                            if(!rank)
+                            {
+                                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                              writeISectionScalarToXMF
-                              (
-                                  mesh,
-                                  fieldsFileName.c_str(),
-                                  hdfileName.c_str(),
-                                  &file_id,
-                                  &dataspace_id,
-                                  timeSeries[ntimes-1],
-                                  "phAvgCs",
-                                  iSections->scalarSec
-                              );
+                                writeISectionScalarToXMF
+                                (
+                                    mesh,
+                                    fieldsFileName.c_str(),
+                                    hdfileName.c_str(),
+                                    &file_id,
+                                    &dataspace_id,
+                                    timeSeries[ntimes-1],
+                                    "phAvgCs",
+                                    iSections->scalarSec
+                                );
 
-                              status = H5Sclose(dataspace_id);
-                              status = H5Fclose(file_id);
-                          }
-                      }
+                                status = H5Sclose(dataspace_id);
+                                status = H5Fclose(file_id);
+                            }
+                        }
 
-                      // load temperature
-                      if(flags.isTeqnActive)
-                      {
-                          // no fields for now
-                      }
-                  }
+                        // load temperature
+                        if(flags.isTeqnActive)
+                        {
+                            // no fields for now
+                        }
+                    }
 
-                  // close this time section in the XMF file
-                  if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+                    // close this time section in the XMF file
+                    if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
 
-                  // wait all processes
-                  MPI_Barrier(mesh->MESH_COMM);
+                    // wait all processes
+                    MPI_Barrier(mesh->MESH_COMM);
 
                     if(!rank)
                     {
@@ -7773,201 +7769,199 @@ PetscErrorCode binaryKSectionsPerturbToXMF(domain_ *domain)
             PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
                 fatalErrorInFunction("binaryKSectionsPerturbToXMF",  error);
             }
 
             if(acquisition->kSections->available && acquisition->isPerturbABLActive)
             {
-              PetscPrintf(mesh->MESH_COMM, "Processing k-sections (perturbation fields) for mesh: %s...", mesh->meshName.c_str());
-              sections *kSections = acquisition->kSections;
+                PetscPrintf(mesh->MESH_COMM, "Processing k-sections (perturbation fields) for mesh: %s...", mesh->meshName.c_str());
+                sections *kSections = acquisition->kSections;
 
-              // create kSections folder
-              sectionDir = "./XMF/" + mesh->meshName + "/kSections";
+                // create kSections folder
+                sectionDir = "./XMF/" + mesh->meshName + "/kSections";
 
-              for(PetscInt k=0; k<kSections->nSections; k++)
-              {
-                PetscInt kplane = kSections->indices[k];
-
-                // exclude ghost nodes
-                if (kplane<1 || kplane>mz-2) continue;
-
-                // get list of available times
-                word path2times = "./postProcessing/" + mesh->meshName + "/kSurfaces/" + std::to_string(kplane) + "/UpABL" ;
-
-                // see if can access the directory (shouldn't give error
-                // as samplig/kSection could have been created just for averages)
-                DIR* dir;
-                if ((dir = opendir(path2times.c_str())) == nullptr)
+                for(PetscInt k=0; k<kSections->nSections; k++)
                 {
-                    PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
-                    return(0);
-                }
+                    PetscInt kplane = kSections->indices[k];
 
-                std::vector<PetscReal>      timeSeries;
-                PetscInt                      ntimes;
-                getTimeList(path2times.c_str(), timeSeries, ntimes);
+                    // exclude ghost nodes
+                    if (kplane<1 || kplane>mz-2) continue;
 
-                if(!rank)
-                {
-                  //create the k index folder
-                  indexDir = sectionDir + "/" + std::to_string(kplane);
+                    // get list of available times
+                    word path2times = "./postProcessing/" + mesh->meshName + "/kSurfaces/" + std::to_string(kplane) + "/UpABL" ;
 
-                  // create XMF file
-                  fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_kSecPerturb" + std::to_string(kplane) + ".xmf";
+                    // see if can access the directory (shouldn't give error
+                    // as samplig/kSection could have been created just for averages)
+                    DIR* dir;
+                    if ((dir = opendir(path2times.c_str())) == nullptr)
+                    {
+                        PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+                        return(0);
+                    }
 
-                  // write XMF file intro
-                  xmf = fopen(fieldsFileName.c_str(), "w");
-                  fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
-                  fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
-                  fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
-                  fprintf(xmf, " <Domain>\n");
-                  fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
-                  fclose(xmf);
-                }
-
-                // loop over times
-                for(PetscInt ti=0; ti<ntimes; ti++)
-                {
-                  // HDF5 file with path
-                  word fileName;
-
-                  // HDF5 file w/o path
-                  word hdfileName;
-
-                  std::stringstream stream;
-                  stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
-
-                  fileName   = indexDir + "/" + thisCaseName() + "_" + "kSecPerturb" + std::to_string(kplane) + "_" + stream.str();
-                  hdfileName = thisCaseName() + "_" + "kSecPerturb" + std::to_string(kplane) + "_" + stream.str();
-
-                  // open this time section in the XMF file
-                  if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, my-1, 1,"3DSMesh", timeSeries[ti]);
-
-                  // Write the data file.
-                  hid_t     dataspace_id;
-                  hsize_t   dims[3];
-                  herr_t    status;
-
-                  // write HDF file
-                  hid_t	file_id;
-                  if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-
-                  // ************************** write mesh points **************************
-                  dims[0] = 1;
-                  dims[1]	= my - 1;
-                  dims[2]	= mx - 1;
-
-                  if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                  writeKSectionPointsToXMF
-                  (
-                      mesh,
-                      fieldsFileName.c_str(),
-                      hdfileName.c_str(),
-                      &file_id,
-                      &dataspace_id,
-                      timeSeries[ti],
-                      kplane
-                  );
-
-                  if(!rank) status = H5Sclose(dataspace_id);
-                  if(!rank) status = H5Fclose(file_id);
-
-                  // load velocity
-                  kSectionLoadVector(mesh, kSections, kplane, "UpABL", timeSeries[ti]);
-
-                  if(!rank)
-                  {
-                    file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                    dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                    writeKSectionVectorToXMF
-                    (
-                        mesh,
-                        fieldsFileName.c_str(),
-                        hdfileName.c_str(),
-                        &file_id,
-                        &dataspace_id,
-                        timeSeries[ti],
-                        "Up",
-                        kSections->vectorSec
-                    );
-
-                    status = H5Sclose(dataspace_id);
-                    status = H5Fclose(file_id);
-                  }
-
-                  // load pressure
-                  kSectionLoadScalar(mesh, kSections, kplane, "PpABL", timeSeries[ti]);
-
-                  if(!rank)
-                  {
-                    file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                    dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                    writeKSectionScalarToXMF
-                    (
-                        mesh,
-                        fieldsFileName.c_str(),
-                        hdfileName.c_str(),
-                        &file_id,
-                        &dataspace_id,
-                        timeSeries[ti],
-                        "Pp",
-                        kSections->scalarSec
-                    );
-
-                    status = H5Sclose(dataspace_id);
-                    status = H5Fclose(file_id);
-                  }
-
-                  // load Tp
-                    kSectionLoadScalar(mesh, kSections, kplane, "TpABL", timeSeries[ti]);
+                    std::vector<PetscReal>      timeSeries;
+                    PetscInt                      ntimes;
+                    getTimeList(path2times.c_str(), timeSeries, ntimes);
 
                     if(!rank)
                     {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                    //create the k index folder
+                    indexDir = sectionDir + "/" + std::to_string(kplane);
 
-                      writeKSectionScalarToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ti],
-                          "Tp",
-                          kSections->scalarSec
-                      );
+                    // create XMF file
+                    fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_kSecPerturb" + std::to_string(kplane) + ".xmf";
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
+                    // write XMF file intro
+                    xmf = fopen(fieldsFileName.c_str(), "w");
+                    fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                    fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                    fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                    fprintf(xmf, " <Domain>\n");
+                    fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                    fclose(xmf);
                     }
 
-                  // close this time section in the XMF file
-                  if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+                    // loop over times
+                    for(PetscInt ti=0; ti<ntimes; ti++)
+                    {
+                    // HDF5 file with path
+                    word fileName;
 
-                  // wait all processes
-                  MPI_Barrier(mesh->MESH_COMM);
+                    // HDF5 file w/o path
+                    word hdfileName;
+
+                    std::stringstream stream;
+                    stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
+
+                    fileName   = indexDir + "/" + thisCaseName() + "_" + "kSecPerturb" + std::to_string(kplane) + "_" + stream.str();
+                    hdfileName = thisCaseName() + "_" + "kSecPerturb" + std::to_string(kplane) + "_" + stream.str();
+
+                    // open this time section in the XMF file
+                    if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, my-1, 1,"3DSMesh", timeSeries[ti]);
+
+                    // Write the data file.
+                    hid_t     dataspace_id;
+                    hsize_t   dims[3];
+                    herr_t    status;
+
+                    // write HDF file
+                    hid_t    file_id;
+                    if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+                    // ************************** write mesh points **************************
+                    dims[0] = 1;
+                    dims[1]    = my - 1;
+                    dims[2]    = mx - 1;
+
+                    if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                    writeKSectionPointsToXMF
+                    (
+                        mesh,
+                        fieldsFileName.c_str(),
+                        hdfileName.c_str(),
+                        &file_id,
+                        &dataspace_id,
+                        timeSeries[ti],
+                        kplane
+                    );
+
+                    if(!rank) status = H5Sclose(dataspace_id);
+                    if(!rank) status = H5Fclose(file_id);
+
+                    // load velocity
+                    kSectionLoadVector(mesh, kSections, kplane, "UpABL", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeKSectionVectorToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "Up",
+                            kSections->vectorSec
+                        );
+
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
+                    }
+
+                    // load pressure
+                    kSectionLoadScalar(mesh, kSections, kplane, "PpABL", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeKSectionScalarToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "Pp",
+                            kSections->scalarSec
+                        );
+
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
+                    }
+
+                    // load Tp
+                        kSectionLoadScalar(mesh, kSections, kplane, "TpABL", timeSeries[ti]);
+
+                        if(!rank)
+                        {
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeKSectionScalarToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "Tp",
+                            kSections->scalarSec
+                        );
+
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
+                        }
+
+                    // close this time section in the XMF file
+                    if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+
+                    // wait all processes
+                    MPI_Barrier(mesh->MESH_COMM);
+                    }
+
+                    if(!rank)
+                    {
+                        // write XMF file end
+                        xmf = fopen(fieldsFileName.c_str(), "a");
+                        fprintf(xmf, "   </Grid>\n");
+                        fprintf(xmf, " </Domain>\n");
+                        fprintf(xmf, "</Xdmf>\n");
+                        fclose(xmf);
+                    }
                 }
 
-                if(!rank)
-                {
-                    // write XMF file end
-                    xmf = fopen(fieldsFileName.c_str(), "a");
-                    fprintf(xmf, "   </Grid>\n");
-                    fprintf(xmf, " </Domain>\n");
-                    fprintf(xmf, "</Xdmf>\n");
-                    fclose(xmf);
-                }
-
-              }
-
-              PetscPrintf(mesh->MESH_COMM, "done\n\n");
-
+                PetscPrintf(mesh->MESH_COMM, "done\n\n");
             }
         }
     }
@@ -8017,9 +8011,9 @@ PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp)
             PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
-              char error[512];
-              sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-              fatalErrorInFunction("binaryJSectionsPerturbToXMF",  error);
+                char error[512];
+                sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
+                fatalErrorInFunction("binaryJSectionsPerturbToXMF",  error);
             }
 
             if(acquisition->jSections->available && acquisition->isPerturbABLActive)
@@ -8032,182 +8026,182 @@ PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp)
 
                 for(PetscInt j=0; j<jSections->nSections; j++)
                 {
-                  PetscInt jplane = jSections->indices[j];
+                    PetscInt jplane = jSections->indices[j];
 
-                  // exclude ghost nodes
-                  if (jplane<1 || jplane>my-2) continue;
+                    // exclude ghost nodes
+                    if (jplane<1 || jplane>my-2) continue;
 
-                  // get list of available times
-                  word path2times = "./postProcessing/" + mesh->meshName + "/jSurfaces/" + std::to_string(jplane) + "/UpABL" ;
+                    // get list of available times
+                    word path2times = "./postProcessing/" + mesh->meshName + "/jSurfaces/" + std::to_string(jplane) + "/UpABL" ;
 
-                  // see if can access the directory (shouldn't give error
-                  // as samplig/jSection could have been created just for averages)
-                  DIR* dir;
-                  if ((dir = opendir(path2times.c_str())) == nullptr)
-                  {
-                      PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
-                      return(0);
-                  }
+                    // see if can access the directory (shouldn't give error
+                    // as samplig/jSection could have been created just for averages)
+                    DIR* dir;
+                    if ((dir = opendir(path2times.c_str())) == nullptr)
+                    {
+                        PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+                        return(0);
+                    }
 
-                  std::vector<PetscReal>      timeSeries;
-                  PetscInt                      ntimes;
-                  getTimeList(path2times.c_str(), timeSeries, ntimes);
-
-                  if(!rank)
-                  {
-                    //create the j index folder
-                    indexDir = sectionDir + "/" + std::to_string(jplane);
-
-                    // create XMF file
-                    fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_jSecPerturb" + std::to_string(jplane) + ".xmf";
-
-                    // write XMF file intro
-                    xmf = fopen(fieldsFileName.c_str(), "w");
-                    fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
-                    fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
-                    fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
-                    fprintf(xmf, " <Domain>\n");
-                    fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
-                    fclose(xmf);
-                  }
-
-                  // loop over times
-                  for(PetscInt ti=0; ti<ntimes; ti++)
-                  {
-                    // HDF5 file with path
-                    word fileName;
-
-                    // HDF5 file w/o path
-                    word hdfileName;
-
-                    // set time precision
-                    std::stringstream stream;
-                    stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
-
-                    fileName   = indexDir + "/" + thisCaseName() + "_" + "jSecPerturb" + std::to_string(jplane) + "_" + stream.str();
-                    hdfileName = thisCaseName() + "_" + "jSecPerturb" + std::to_string(jplane) + "_" + stream.str();
-
-                    // open this time section in the XMF file
-                    if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, 1, mz-1, "3DSMesh", timeSeries[ti]);
-
-                    // Write the data file.
-                    hid_t     dataspace_id;
-                    hsize_t   dims[3];
-                    herr_t    status;
-
-                    // write HDF file
-                    hid_t	file_id;
-                    if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-
-                    // ************************** write mesh points **************************
-                    dims[0] = mz - 1;
-                    dims[1]	= 1;
-                    dims[2]	= mx - 1;
-
-                    if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                    writeJSectionPointsToXMF
-                    (
-                        mesh,
-                        fieldsFileName.c_str(),
-                        hdfileName.c_str(),
-                        &file_id,
-                        &dataspace_id,
-                        timeSeries[ti],
-                        jplane
-                    );
-
-                    if(!rank) status = H5Sclose(dataspace_id);
-                    if(!rank) status = H5Fclose(file_id);
-
-                    // load velocity
-                    jSectionLoadVector(mesh, jSections, jplane, "UpABL", timeSeries[ti]);
+                    std::vector<PetscReal>      timeSeries;
+                    PetscInt                      ntimes;
+                    getTimeList(path2times.c_str(), timeSeries, ntimes);
 
                     if(!rank)
                     {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                        //create the j index folder
+                        indexDir = sectionDir + "/" + std::to_string(jplane);
 
-                      writeJSectionVectorToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ti],
-                          "Up",
-                          jSections->vectorSec
-                      );
+                        // create XMF file
+                        fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_jSecPerturb" + std::to_string(jplane) + ".xmf";
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
+                        // write XMF file intro
+                        xmf = fopen(fieldsFileName.c_str(), "w");
+                        fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                        fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                        fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                        fprintf(xmf, " <Domain>\n");
+                        fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                        fclose(xmf);
                     }
 
-                    // load pressure
-                    jSectionLoadScalar(mesh, jSections, jplane, "PpABL", timeSeries[ti]);
+                    // loop over times
+                    for(PetscInt ti=0; ti<ntimes; ti++)
+                    {
+                        // HDF5 file with path
+                        word fileName;
+
+                        // HDF5 file w/o path
+                        word hdfileName;
+
+                        // set time precision
+                        std::stringstream stream;
+                        stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
+
+                        fileName   = indexDir + "/" + thisCaseName() + "_" + "jSecPerturb" + std::to_string(jplane) + "_" + stream.str();
+                        hdfileName = thisCaseName() + "_" + "jSecPerturb" + std::to_string(jplane) + "_" + stream.str();
+
+                        // open this time section in the XMF file
+                        if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), mx-1, 1, mz-1, "3DSMesh", timeSeries[ti]);
+
+                        // Write the data file.
+                        hid_t     dataspace_id;
+                        hsize_t   dims[3];
+                        herr_t    status;
+
+                        // write HDF file
+                        hid_t    file_id;
+                        if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+                        // ************************** write mesh points **************************
+                        dims[0] = mz - 1;
+                        dims[1]    = 1;
+                        dims[2]    = mx - 1;
+
+                        if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeJSectionPointsToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            jplane
+                        );
+
+                        if(!rank) status = H5Sclose(dataspace_id);
+                        if(!rank) status = H5Fclose(file_id);
+
+                        // load velocity
+                        jSectionLoadVector(mesh, jSections, jplane, "UpABL", timeSeries[ti]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionVectorToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ti],
+                                "Up",
+                                jSections->vectorSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        // load pressure
+                        jSectionLoadScalar(mesh, jSections, jplane, "PpABL", timeSeries[ti]);
+
+                        if(!rank)
+                        {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeJSectionScalarToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ti],
+                                "Pp",
+                                jSections->scalarSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                        }
+
+                        // load nut
+                    jSectionLoadScalar(mesh, jSections, jplane, "TpABL", timeSeries[ti]);
 
                     if(!rank)
                     {
-                      file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                      dataspace_id = H5Screate_simple(3, dims, NULL);
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                      writeJSectionScalarToXMF
-                      (
-                          mesh,
-                          fieldsFileName.c_str(),
-                          hdfileName.c_str(),
-                          &file_id,
-                          &dataspace_id,
-                          timeSeries[ti],
-                          "Pp",
-                          jSections->scalarSec
-                      );
+                        writeJSectionScalarToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "Tp",
+                            jSections->scalarSec
+                        );
 
-                      status = H5Sclose(dataspace_id);
-                      status = H5Fclose(file_id);
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
                     }
 
-                    // load nut
-                  jSectionLoadScalar(mesh, jSections, jplane, "TpABL", timeSeries[ti]);
+                        // close this time section in the XMF file
+                        if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
 
-                  if(!rank)
-                  {
-                    file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                    dataspace_id = H5Screate_simple(3, dims, NULL);
+                        // wait all processes
+                        MPI_Barrier(mesh->MESH_COMM);
+                    }
 
-                    writeJSectionScalarToXMF
-                    (
-                        mesh,
-                        fieldsFileName.c_str(),
-                        hdfileName.c_str(),
-                        &file_id,
-                        &dataspace_id,
-                        timeSeries[ti],
-                        "Tp",
-                        jSections->scalarSec
-                    );
-
-                    status = H5Sclose(dataspace_id);
-                    status = H5Fclose(file_id);
-                  }
-
-                    // close this time section in the XMF file
-                    if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
-
-                    // wait all processes
-                    MPI_Barrier(mesh->MESH_COMM);
-                  }
-
-                  if(!rank)
-                  {
-                      // write XMF file end
-                      xmf = fopen(fieldsFileName.c_str(), "a");
-                      fprintf(xmf, "   </Grid>\n");
-                      fprintf(xmf, " </Domain>\n");
-                      fprintf(xmf, "</Xdmf>\n");
-                      fclose(xmf);
-                  }
+                    if(!rank)
+                    {
+                        // write XMF file end
+                        xmf = fopen(fieldsFileName.c_str(), "a");
+                        fprintf(xmf, "   </Grid>\n");
+                        fprintf(xmf, " </Domain>\n");
+                        fprintf(xmf, "</Xdmf>\n");
+                        fclose(xmf);
+                    }
                 }
 
                 PetscPrintf(mesh->MESH_COMM, "done\n\n");
@@ -8219,7 +8213,6 @@ PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp)
                         writeJSectionToRaster(mesh, jSections->indices[s]);
                     }
                 }
-
             }
         }
     }
@@ -8231,242 +8224,243 @@ PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp)
 
 PetscErrorCode binaryISectionsPerturbToXMF(domain_ *domain)
 {
-  PetscInt  nDomains = domain[0].info.nDomains;
-  word      meshDir, sectionDir, indexDir;
+    PetscInt  nDomains = domain[0].info.nDomains;
+    word      meshDir, sectionDir, indexDir;
 
-  for(PetscInt d=0; d<nDomains; d++)
-  {
-    flags_    flags    = domain[d].flags;
-
-    if(flags.isAquisitionActive)
+    for(PetscInt d=0; d<nDomains; d++)
     {
-      // get pointers
-      clock_ *clock = domain[d].clock;
-      mesh_  *mesh  = domain[d].mesh;
+        flags_    flags    = domain[d].flags;
 
-      acquisition_ *acquisition = domain[d].acquisition;
-      ueqn_  *ueqn  = domain[d].ueqn;
-      peqn_  *peqn  = domain[d].peqn;
-      teqn_  *teqn;
-      les_   *les;
-
-      if(flags.isTeqnActive) teqn = domain[d].teqn;
-      if(flags.isLesActive)  les  = domain[d].les;
-
-      DMDALocalInfo info = mesh->info;
-      PetscInt           mx = info.mx, my = info.my, mz = info.mz;
-
-      PetscMPIInt           rank;
-      MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-      word fieldsFileName;
-      FILE *xmf;
-
-      meshDir     = "./XMF/" + mesh->meshName;
-
-      // create domain directory within XMF folder
-      errno = 0;
-      PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
-      if(dirRes != 0 && errno != EEXIST)
-      {
-         char error[512];
-          sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
-          fatalErrorInFunction("binaryISectionsPerturbToXMF",  error);
-      }
-
-      if(acquisition->iSections->available && acquisition->isPerturbABLActive)
-      {
-        PetscPrintf(mesh->MESH_COMM, "Processing i-sections (perturbation fields) for mesh: %s...", mesh->meshName.c_str());
-        sections *iSections = acquisition->iSections;
-
-        // create iSections folder
-        sectionDir = "./XMF/" + mesh->meshName + "/iSections";
-
-        for(PetscInt i=0; i<iSections->nSections; i++)
+        if(flags.isAquisitionActive)
         {
-          PetscInt iplane = iSections->indices[i];
+            // get pointers
+            clock_ *clock = domain[d].clock;
+            mesh_  *mesh  = domain[d].mesh;
 
-          // exclude ghost nodes
-          if (iplane<1 || iplane>mx-2) continue;
+            acquisition_ *acquisition = domain[d].acquisition;
+            ueqn_  *ueqn  = domain[d].ueqn;
+            peqn_  *peqn  = domain[d].peqn;
+            teqn_  *teqn;
+            les_   *les;
 
-          // get list of available times
-          word path2times = "./postProcessing/" + mesh->meshName + "/iSurfaces/" + std::to_string(iplane) + "/UpABL" ;
+            if(flags.isTeqnActive) teqn = domain[d].teqn;
+            if(flags.isLesActive)  les  = domain[d].les;
 
-          // see if can access the directory (shouldn't give error
-          // as samplig/iSection could have been created just for averages)
-          DIR* dir;
-          if ((dir = opendir(path2times.c_str())) == nullptr)
-          {
-              PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
-              return(0);
-          }
+            DMDALocalInfo info = mesh->info;
+            PetscInt           mx = info.mx, my = info.my, mz = info.mz;
 
-          std::vector<PetscReal>      timeSeries;
-          PetscInt                      ntimes;
-          getTimeList(path2times.c_str(), timeSeries, ntimes);
+            PetscMPIInt           rank;
+            MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
-          if(!rank)
-          {
-            //create the i index folder
-            indexDir = sectionDir + "/" + std::to_string(iplane);
+            word fieldsFileName;
+            FILE *xmf;
 
-            // create XMF file
-            fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_iSecPerturb" + std::to_string(iSections->indices[i]) + ".xmf";
+            meshDir     = "./XMF/" + mesh->meshName;
 
-            // write XMF file intro
-            xmf = fopen(fieldsFileName.c_str(), "w");
-            fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
-            fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
-            fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
-            fprintf(xmf, " <Domain>\n");
-            fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
-            fclose(xmf);
-          }
-
-          // loop over times
-          for(PetscInt ti=0; ti<ntimes; ti++)
-          {
-            // HDF5 file with path
-            word fileName;
-
-            // HDF5 file w/o path
-            word hdfileName;
-
-            // set time precision
-            std::stringstream stream;
-            stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
-
-            fileName   = indexDir + "/" + thisCaseName() + "_" + "iSecPerturb" + std::to_string(iplane) + "_" + stream.str();
-            hdfileName = thisCaseName() + "_" + "iSecPerturb" + std::to_string(iplane) + "_" + stream.str();
-
-            // open this time section in the XMF file
-            if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), 1, my-1, mz-1, "3DSMesh", timeSeries[ti]);
-
-            // Write the data file.
-            hid_t     dataspace_id;
-            hsize_t   dims[3];
-            herr_t    status;
-
-            // write HDF file
-            hid_t	file_id;
-            if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-
-            // ************************** write mesh points **************************
-            dims[0] = mz - 1;
-            dims[1]	= my - 1;
-            dims[2]	= 1;
-
-            if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
-
-            writeISectionPointsToXMF
-            (
-                mesh,
-                fieldsFileName.c_str(),
-                hdfileName.c_str(),
-                &file_id,
-                &dataspace_id,
-                timeSeries[ti],
-                iplane
-            );
-
-            if(!rank) status = H5Sclose(dataspace_id);
-            if(!rank) status = H5Fclose(file_id);
-
-            // load velocity
-            iSectionLoadVector(mesh, iSections, iplane, "UpABL", timeSeries[ti]);
-
-            if(!rank)
+            // create domain directory within XMF folder
+            errno = 0;
+            PetscInt dirRes = mkdir(meshDir.c_str(), 0777);
+            if(dirRes != 0 && errno != EEXIST)
             {
-              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-              dataspace_id = H5Screate_simple(3, dims, NULL);
-
-              writeISectionVectorToXMF
-              (
-                  mesh,
-                  fieldsFileName.c_str(),
-                  hdfileName.c_str(),
-                  &file_id,
-                  &dataspace_id,
-                  timeSeries[ti],
-                  "Up",
-                  iSections->vectorSec
-              );
-
-              status = H5Sclose(dataspace_id);
-              status = H5Fclose(file_id);
+                char error[512];
+                sprintf(error, "could not create mesh directory %s\n", meshDir.c_str());
+                fatalErrorInFunction("binaryISectionsPerturbToXMF",  error);
             }
 
-            // load pressure
-            iSectionLoadScalar(mesh, iSections, iplane, "PpABL", timeSeries[ti]);
-
-            if(!rank)
+            if(acquisition->iSections->available && acquisition->isPerturbABLActive)
             {
-              file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-              dataspace_id = H5Screate_simple(3, dims, NULL);
+            PetscPrintf(mesh->MESH_COMM, "Processing i-sections (perturbation fields) for mesh: %s...", mesh->meshName.c_str());
+            sections *iSections = acquisition->iSections;
 
-              writeISectionScalarToXMF
-              (
-                  mesh,
-                  fieldsFileName.c_str(),
-                  hdfileName.c_str(),
-                  &file_id,
-                  &dataspace_id,
-                  timeSeries[ti],
-                  "Pp",
-                  iSections->scalarSec
-              );
+            // create iSections folder
+            sectionDir = "./XMF/" + mesh->meshName + "/iSections";
 
-              status = H5Sclose(dataspace_id);
-              status = H5Fclose(file_id);
+            for(PetscInt i=0; i<iSections->nSections; i++)
+            {
+                PetscInt iplane = iSections->indices[i];
+
+                // exclude ghost nodes
+                if (iplane<1 || iplane>mx-2) continue;
+
+                // get list of available times
+                word path2times = "./postProcessing/" + mesh->meshName + "/iSurfaces/" + std::to_string(iplane) + "/UpABL" ;
+
+                // see if can access the directory (shouldn't give error
+                // as samplig/iSection could have been created just for averages)
+                DIR* dir;
+                if ((dir = opendir(path2times.c_str())) == nullptr)
+                {
+                    PetscPrintf(mesh->MESH_COMM, "did not find any in postProcessing directory\n\n");
+                    return(0);
+                }
+
+                std::vector<PetscReal>      timeSeries;
+                PetscInt                      ntimes;
+                getTimeList(path2times.c_str(), timeSeries, ntimes);
+
+                if(!rank)
+                {
+                    //create the i index folder
+                    indexDir = sectionDir + "/" + std::to_string(iplane);
+
+                    // create XMF file
+                    fieldsFileName = indexDir + "/" + thisCaseName() + "_" + domain[d].mesh->meshName + "_iSecPerturb" + std::to_string(iSections->indices[i]) + ".xmf";
+
+                    // write XMF file intro
+                    xmf = fopen(fieldsFileName.c_str(), "w");
+                    fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+                    fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+                    fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+                    fprintf(xmf, " <Domain>\n");
+                    fprintf(xmf, "   <Grid Name=\"CellTime\" GridType=\"Collection\" CollectionType=\"Temporal\">\n");
+                    fclose(xmf);
+                }
+
+                // loop over times
+                for(PetscInt ti=0; ti<ntimes; ti++)
+                {
+                    // HDF5 file with path
+                    word fileName;
+
+                    // HDF5 file w/o path
+                    word hdfileName;
+
+                    // set time precision
+                    std::stringstream stream;
+                    stream << std::fixed << std::setprecision(clock->timePrecision) << timeSeries[ti];
+
+                    fileName   = indexDir + "/" + thisCaseName() + "_" + "iSecPerturb" + std::to_string(iplane) + "_" + stream.str();
+                    hdfileName = thisCaseName() + "_" + "iSecPerturb" + std::to_string(iplane) + "_" + stream.str();
+
+                    // open this time section in the XMF file
+                    if(!rank) xmfWriteFileStartTimeSection(xmf, fieldsFileName.c_str(), 1, my-1, mz-1, "3DSMesh", timeSeries[ti]);
+
+                    // Write the data file.
+                    hid_t     dataspace_id;
+                    hsize_t   dims[3];
+                    herr_t    status;
+
+                    // write HDF file
+                    hid_t     file_id;
+                    if(!rank) file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+                    // ************************** write mesh points **************************
+                    dims[0] = mz - 1;
+                    dims[1] = my - 1;
+                    dims[2] = 1;
+
+                    if(!rank) dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                    writeISectionPointsToXMF
+                    (
+                        mesh,
+                        fieldsFileName.c_str(),
+                        hdfileName.c_str(),
+                        &file_id,
+                        &dataspace_id,
+                        timeSeries[ti],
+                        iplane
+                    );
+
+                    if(!rank) status = H5Sclose(dataspace_id);
+                    if(!rank) status = H5Fclose(file_id);
+
+                    // load velocity
+                    iSectionLoadVector(mesh, iSections, iplane, "UpABL", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeISectionVectorToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "Up",
+                            iSections->vectorSec
+                        );
+
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
+                    }
+
+                    // load pressure
+                    iSectionLoadScalar(mesh, iSections, iplane, "PpABL", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeISectionScalarToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "Pp",
+                            iSections->scalarSec
+                        );
+
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
+                    }
+
+                    iSectionLoadScalar(mesh, iSections, iplane, "TpABL", timeSeries[ti]);
+
+                    if(!rank)
+                    {
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeISectionScalarToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "Tp",
+                            iSections->scalarSec
+                        );
+
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
+                    }
+
+                    // close this time section in the XMF file
+                    if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
+
+                    // wait all processes
+                    MPI_Barrier(mesh->MESH_COMM);
+                }
+
+                if(!rank)
+                {
+                    // write XMF file end
+                    xmf = fopen(fieldsFileName.c_str(), "a");
+                    fprintf(xmf, "   </Grid>\n");
+                    fprintf(xmf, " </Domain>\n");
+                    fprintf(xmf, "</Xdmf>\n");
+                    fclose(xmf);
+                }
             }
 
-              iSectionLoadScalar(mesh, iSections, iplane, "TpABL", timeSeries[ti]);
+            PetscPrintf(mesh->MESH_COMM, "done\n\n");
 
-              if(!rank)
-              {
-                file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                writeISectionScalarToXMF
-                (
-                    mesh,
-                    fieldsFileName.c_str(),
-                    hdfileName.c_str(),
-                    &file_id,
-                    &dataspace_id,
-                    timeSeries[ti],
-                    "Tp",
-                    iSections->scalarSec
-                );
-
-                status = H5Sclose(dataspace_id);
-                status = H5Fclose(file_id);
-              }
-
-            // close this time section in the XMF file
-            if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
-
-            // wait all processes
-            MPI_Barrier(mesh->MESH_COMM);
-          }
-
-          if(!rank)
-          {
-              // write XMF file end
-              xmf = fopen(fieldsFileName.c_str(), "a");
-              fprintf(xmf, "   </Grid>\n");
-              fprintf(xmf, " </Domain>\n");
-              fprintf(xmf, "</Xdmf>\n");
-              fclose(xmf);
-          }
+            }
         }
-
-        PetscPrintf(mesh->MESH_COMM, "done\n\n");
-
-      }
     }
-  }
-  return(0);
+
+    return(0);
 }
 
 //***************************************************************************************************************//

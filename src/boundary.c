@@ -1375,206 +1375,206 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     }
                     else if (ifPtr->typeU == 4)
                     {
-						Cmpnts uGhost;
+                        Cmpnts uGhost;
 
-						if(ifPtr->shift2)
-						{
+                        if(ifPtr->shift2)
+                        {
                             PetscInt  iLeft    = ifPtr->yIDs[i]-1,
                                       iRight   = ifPtr->yIDs[i];
 
-							Cmpnts uLeft;
-							uLeft.x =
-								ifPtr->inflowWeights[j][iLeft][0] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].x +
-								ifPtr->inflowWeights[j][iLeft][1] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].x +
-								ifPtr->inflowWeights[j][iLeft][2] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].x +
-								ifPtr->inflowWeights[j][iLeft][3] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].x;
+                            Cmpnts uLeft;
+                            uLeft.x =
+                                ifPtr->inflowWeights[j][iLeft][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].x +
+                                ifPtr->inflowWeights[j][iLeft][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].x +
+                                ifPtr->inflowWeights[j][iLeft][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].x +
+                                ifPtr->inflowWeights[j][iLeft][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].x;
 
                             if(ifPtr->interpMethod == "spline")
                             {
                                 uLeft.y =
-    								ifPtr->inflowWeights_2[j][iLeft][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][0].j][ifPtr->closestCells_2[j][iLeft][0].i].y +
-    								ifPtr->inflowWeights_2[j][iLeft][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][1].j][ifPtr->closestCells_2[j][iLeft][1].i].y +
-    								ifPtr->inflowWeights_2[j][iLeft][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][2].j][ifPtr->closestCells_2[j][iLeft][2].i].y +
-    								ifPtr->inflowWeights_2[j][iLeft][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][3].j][ifPtr->closestCells_2[j][iLeft][3].i].y +
+                                    ifPtr->inflowWeights_2[j][iLeft][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][0].j][ifPtr->closestCells_2[j][iLeft][0].i].y +
+                                    ifPtr->inflowWeights_2[j][iLeft][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][1].j][ifPtr->closestCells_2[j][iLeft][1].i].y +
+                                    ifPtr->inflowWeights_2[j][iLeft][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][2].j][ifPtr->closestCells_2[j][iLeft][2].i].y +
+                                    ifPtr->inflowWeights_2[j][iLeft][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][3].j][ifPtr->closestCells_2[j][iLeft][3].i].y +
                                     ifPtr->inflowWeights_2[j][iLeft][4] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][4].j][ifPtr->closestCells_2[j][iLeft][4].i].y +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][4].j][ifPtr->closestCells_2[j][iLeft][4].i].y +
                                     ifPtr->inflowWeights_2[j][iLeft][5] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][5].j][ifPtr->closestCells_2[j][iLeft][5].i].y;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][5].j][ifPtr->closestCells_2[j][iLeft][5].i].y;
 
-    							uLeft.z =
-    								ifPtr->inflowWeights_1[j][iLeft][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][0].j][ifPtr->closestCells_1[j][iLeft][0].i].z +
-    								ifPtr->inflowWeights_1[j][iLeft][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][1].j][ifPtr->closestCells_1[j][iLeft][1].i].z +
-    								ifPtr->inflowWeights_1[j][iLeft][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][2].j][ifPtr->closestCells_1[j][iLeft][2].i].z +
-    								ifPtr->inflowWeights_1[j][iLeft][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][3].j][ifPtr->closestCells_1[j][iLeft][3].i].z +
+                                uLeft.z =
+                                    ifPtr->inflowWeights_1[j][iLeft][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][0].j][ifPtr->closestCells_1[j][iLeft][0].i].z +
+                                    ifPtr->inflowWeights_1[j][iLeft][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][1].j][ifPtr->closestCells_1[j][iLeft][1].i].z +
+                                    ifPtr->inflowWeights_1[j][iLeft][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][2].j][ifPtr->closestCells_1[j][iLeft][2].i].z +
+                                    ifPtr->inflowWeights_1[j][iLeft][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][3].j][ifPtr->closestCells_1[j][iLeft][3].i].z +
                                     ifPtr->inflowWeights_1[j][iLeft][4] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][4].j][ifPtr->closestCells_1[j][iLeft][4].i].z +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][4].j][ifPtr->closestCells_1[j][iLeft][4].i].z +
                                     ifPtr->inflowWeights_1[j][iLeft][5] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][5].j][ifPtr->closestCells_1[j][iLeft][5].i].z;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][5].j][ifPtr->closestCells_1[j][iLeft][5].i].z;
                             }
                             else
                             {
-    							uLeft.y =
-    								ifPtr->inflowWeights[j][iLeft][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].y +
-    								ifPtr->inflowWeights[j][iLeft][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].y +
-    								ifPtr->inflowWeights[j][iLeft][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].y +
-    								ifPtr->inflowWeights[j][iLeft][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].y;
+                                uLeft.y =
+                                    ifPtr->inflowWeights[j][iLeft][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].y +
+                                    ifPtr->inflowWeights[j][iLeft][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].y +
+                                    ifPtr->inflowWeights[j][iLeft][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].y +
+                                    ifPtr->inflowWeights[j][iLeft][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].y;
 
-    							uLeft.z =
-    								ifPtr->inflowWeights[j][iLeft][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].z +
-    								ifPtr->inflowWeights[j][iLeft][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].z +
-    								ifPtr->inflowWeights[j][iLeft][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].z +
-    								ifPtr->inflowWeights[j][iLeft][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].z;
+                                uLeft.z =
+                                    ifPtr->inflowWeights[j][iLeft][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].z +
+                                    ifPtr->inflowWeights[j][iLeft][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].z +
+                                    ifPtr->inflowWeights[j][iLeft][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].z +
+                                    ifPtr->inflowWeights[j][iLeft][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].z;
                             }
 
                             Cmpnts uRight;
-							uRight.x =
-								ifPtr->inflowWeights[j][iRight][0] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].x +
-								ifPtr->inflowWeights[j][iRight][1] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].x +
-								ifPtr->inflowWeights[j][iRight][2] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].x +
-								ifPtr->inflowWeights[j][iRight][3] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].x;
+                            uRight.x =
+                                ifPtr->inflowWeights[j][iRight][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].x +
+                                ifPtr->inflowWeights[j][iRight][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].x +
+                                ifPtr->inflowWeights[j][iRight][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].x +
+                                ifPtr->inflowWeights[j][iRight][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].x;
 
                             if(ifPtr->interpMethod == "spline")
                             {
                                 uRight.y =
-    								ifPtr->inflowWeights_2[j][iRight][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][0].j][ifPtr->closestCells_2[j][iRight][0].i].y +
-    								ifPtr->inflowWeights_2[j][iRight][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][1].j][ifPtr->closestCells_2[j][iRight][1].i].y +
-    								ifPtr->inflowWeights_2[j][iRight][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][2].j][ifPtr->closestCells_2[j][iRight][2].i].y +
-    								ifPtr->inflowWeights_2[j][iRight][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][3].j][ifPtr->closestCells_2[j][iRight][3].i].y +
+                                    ifPtr->inflowWeights_2[j][iRight][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][0].j][ifPtr->closestCells_2[j][iRight][0].i].y +
+                                    ifPtr->inflowWeights_2[j][iRight][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][1].j][ifPtr->closestCells_2[j][iRight][1].i].y +
+                                    ifPtr->inflowWeights_2[j][iRight][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][2].j][ifPtr->closestCells_2[j][iRight][2].i].y +
+                                    ifPtr->inflowWeights_2[j][iRight][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][3].j][ifPtr->closestCells_2[j][iRight][3].i].y +
                                     ifPtr->inflowWeights_2[j][iRight][4] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][4].j][ifPtr->closestCells_2[j][iRight][4].i].y +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][4].j][ifPtr->closestCells_2[j][iRight][4].i].y +
                                     ifPtr->inflowWeights_2[j][iRight][5] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][5].j][ifPtr->closestCells_2[j][iRight][5].i].y;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][5].j][ifPtr->closestCells_2[j][iRight][5].i].y;
 
-    							uRight.z =
-    								ifPtr->inflowWeights_1[j][iRight][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][0].j][ifPtr->closestCells_1[j][iRight][0].i].z +
-    								ifPtr->inflowWeights_1[j][iRight][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][1].j][ifPtr->closestCells_1[j][iRight][1].i].z +
-    								ifPtr->inflowWeights_1[j][iRight][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][2].j][ifPtr->closestCells_1[j][iRight][2].i].z +
-    								ifPtr->inflowWeights_1[j][iRight][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][3].j][ifPtr->closestCells_1[j][iRight][3].i].z +
+                                uRight.z =
+                                    ifPtr->inflowWeights_1[j][iRight][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][0].j][ifPtr->closestCells_1[j][iRight][0].i].z +
+                                    ifPtr->inflowWeights_1[j][iRight][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][1].j][ifPtr->closestCells_1[j][iRight][1].i].z +
+                                    ifPtr->inflowWeights_1[j][iRight][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][2].j][ifPtr->closestCells_1[j][iRight][2].i].z +
+                                    ifPtr->inflowWeights_1[j][iRight][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][3].j][ifPtr->closestCells_1[j][iRight][3].i].z +
                                     ifPtr->inflowWeights_1[j][iRight][4] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][4].j][ifPtr->closestCells_1[j][iRight][4].i].z +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][4].j][ifPtr->closestCells_1[j][iRight][4].i].z +
                                     ifPtr->inflowWeights_1[j][iRight][5] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][5].j][ifPtr->closestCells_1[j][iRight][5].i].z;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][5].j][ifPtr->closestCells_1[j][iRight][5].i].z;
                             }
                             else
                             {
-    							uRight.y =
-    								ifPtr->inflowWeights[j][iRight][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].y +
-    								ifPtr->inflowWeights[j][iRight][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].y +
-    								ifPtr->inflowWeights[j][iRight][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].y +
-    								ifPtr->inflowWeights[j][iRight][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].y;
+                                uRight.y =
+                                    ifPtr->inflowWeights[j][iRight][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].y +
+                                    ifPtr->inflowWeights[j][iRight][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].y +
+                                    ifPtr->inflowWeights[j][iRight][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].y +
+                                    ifPtr->inflowWeights[j][iRight][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].y;
 
-    							uRight.z =
-    								ifPtr->inflowWeights[j][iRight][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].z +
-    								ifPtr->inflowWeights[j][iRight][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].z +
-    								ifPtr->inflowWeights[j][iRight][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].z +
-    								ifPtr->inflowWeights[j][iRight][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].z;
+                                uRight.z =
+                                    ifPtr->inflowWeights[j][iRight][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].z +
+                                    ifPtr->inflowWeights[j][iRight][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].z +
+                                    ifPtr->inflowWeights[j][iRight][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].z +
+                                    ifPtr->inflowWeights[j][iRight][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].z;
                             }
 
-							uGhost = nSum(nScale(1.0-ifPtr->yWeights[i], uLeft), nScale(ifPtr->yWeights[i], uRight));
-						}
+                            uGhost = nSum(nScale(1.0-ifPtr->yWeights[i], uLeft), nScale(ifPtr->yWeights[i], uRight));
+                        }
                         else
                         {
                             uGhost.x =
-    							ifPtr->inflowWeights[j][i][0] *
-    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
-    							ifPtr->inflowWeights[j][i][1] *
-    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
-    							ifPtr->inflowWeights[j][i][2] *
-    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
-    							ifPtr->inflowWeights[j][i][3] *
-    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x;
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x;
 
                             if(ifPtr->interpMethod == "spline")
                             {
                                 uGhost.y =
-        							ifPtr->inflowWeights_2[j][i][0] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][0].j][ifPtr->closestCells_2[j][i][0].i].y +
-        							ifPtr->inflowWeights_2[j][i][1] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][1].j][ifPtr->closestCells_2[j][i][1].i].y +
-        							ifPtr->inflowWeights_2[j][i][2] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][2].j][ifPtr->closestCells_2[j][i][2].i].y +
-        							ifPtr->inflowWeights_2[j][i][3] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][3].j][ifPtr->closestCells_2[j][i][3].i].y +
+                                    ifPtr->inflowWeights_2[j][i][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][0].j][ifPtr->closestCells_2[j][i][0].i].y +
+                                    ifPtr->inflowWeights_2[j][i][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][1].j][ifPtr->closestCells_2[j][i][1].i].y +
+                                    ifPtr->inflowWeights_2[j][i][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][2].j][ifPtr->closestCells_2[j][i][2].i].y +
+                                    ifPtr->inflowWeights_2[j][i][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][3].j][ifPtr->closestCells_2[j][i][3].i].y +
                                     ifPtr->inflowWeights_2[j][i][4] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][4].j][ifPtr->closestCells_2[j][i][4].i].y +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][4].j][ifPtr->closestCells_2[j][i][4].i].y +
                                     ifPtr->inflowWeights_2[j][i][5] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][5].j][ifPtr->closestCells_2[j][i][5].i].y;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][5].j][ifPtr->closestCells_2[j][i][5].i].y;
 
-        						uGhost.z =
-        							ifPtr->inflowWeights_1[j][i][0] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][0].j][ifPtr->closestCells_1[j][i][0].i].z +
-        							ifPtr->inflowWeights_1[j][i][1] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][1].j][ifPtr->closestCells_1[j][i][1].i].z +
-        							ifPtr->inflowWeights_1[j][i][2] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][2].j][ifPtr->closestCells_1[j][i][2].i].z +
-        							ifPtr->inflowWeights_1[j][i][3] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][3].j][ifPtr->closestCells_1[j][i][3].i].z +
+                                uGhost.z =
+                                    ifPtr->inflowWeights_1[j][i][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][0].j][ifPtr->closestCells_1[j][i][0].i].z +
+                                    ifPtr->inflowWeights_1[j][i][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][1].j][ifPtr->closestCells_1[j][i][1].i].z +
+                                    ifPtr->inflowWeights_1[j][i][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][2].j][ifPtr->closestCells_1[j][i][2].i].z +
+                                    ifPtr->inflowWeights_1[j][i][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][3].j][ifPtr->closestCells_1[j][i][3].i].z +
                                     ifPtr->inflowWeights_1[j][i][4] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][4].j][ifPtr->closestCells_1[j][i][4].i].z +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][4].j][ifPtr->closestCells_1[j][i][4].i].z +
                                     ifPtr->inflowWeights_1[j][i][5] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][5].j][ifPtr->closestCells_1[j][i][5].i].z;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][5].j][ifPtr->closestCells_1[j][i][5].i].z;
                             }
                             else
                             {
-        						uGhost.y =
-        							ifPtr->inflowWeights[j][i][0] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
-        							ifPtr->inflowWeights[j][i][1] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
-        							ifPtr->inflowWeights[j][i][2] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
-        							ifPtr->inflowWeights[j][i][3] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y;
+                                uGhost.y =
+                                    ifPtr->inflowWeights[j][i][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
+                                    ifPtr->inflowWeights[j][i][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
+                                    ifPtr->inflowWeights[j][i][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
+                                    ifPtr->inflowWeights[j][i][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y;
 
-        						uGhost.z =
-        							ifPtr->inflowWeights[j][i][0] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
-        							ifPtr->inflowWeights[j][i][1] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
-        							ifPtr->inflowWeights[j][i][2] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
-        							ifPtr->inflowWeights[j][i][3] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
+                                uGhost.z =
+                                    ifPtr->inflowWeights[j][i][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
+                                    ifPtr->inflowWeights[j][i][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
+                                    ifPtr->inflowWeights[j][i][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
+                                    ifPtr->inflowWeights[j][i][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
                             }
                         }
 
@@ -2193,7 +2193,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     {
                         PetscReal b      = ifPtr->smear * ifPtr->gTop * ifPtr->dInv;
                         PetscReal a      = ifPtr->gInv - b;
-						PetscReal c      = ifPtr->smear * ifPtr->gABL * ifPtr->dInv;
+                        PetscReal c      = ifPtr->smear * ifPtr->gABL * ifPtr->dInv;
                         PetscReal h      = cent[k][j][i].z - mesh->grndLevel;
                         PetscReal etaLim = ifPtr->hInv / ifPtr->smear / ifPtr->dInv;
 
@@ -2206,7 +2206,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             // non dimensional functions
                             PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
                             PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
-							PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
+                            PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
 
                             // potential temperature
                             t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta + c * h_eta + ifPtr->gABL*ifPtr->hInv;
@@ -2214,16 +2214,16 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         // asymptotic behavior
                         else
                         {
-							// non dimensional functions
+                            // non dimensional functions
                             PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
                             PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
-							PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
+                            PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
 
-							// potential temperature
+                            // potential temperature
                             t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta + c * h_eta + ifPtr->gABL*ifPtr->hInv;
 
-							// Dries implementation (to add limit from below)
-							// gLim = (abs(eta) + eta)/2;
+                            // Dries implementation (to add limit from below)
+                            // gLim = (abs(eta) + eta)/2;
 
                             // potential temperature
                             // t[k-1][j][i] = ifPtr->tRef + a + b * eta;
@@ -2297,46 +2297,46 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     else if (ifPtr->typeT == 4)
                     {
                         PetscReal delta  = PetscMax(0.0, cent[k][j][i].z - ifPtr->avgTopLength);
-						PetscReal tGhost;
+                        PetscReal tGhost;
 
-						if(ifPtr->shift2)
-						{
+                        if(ifPtr->shift2)
+                        {
                             PetscInt  iLeft    = ifPtr->yIDs[i]-1,
                                       iRight   = ifPtr->yIDs[i];
 
-							PetscReal tLeft =
-								ifPtr->inflowWeights[j][iLeft][0] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
-								ifPtr->inflowWeights[j][iLeft][1] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
-								ifPtr->inflowWeights[j][iLeft][2] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
-								ifPtr->inflowWeights[j][iLeft][3] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
+                            PetscReal tLeft =
+                                ifPtr->inflowWeights[j][iLeft][0] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
+                                ifPtr->inflowWeights[j][iLeft][1] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
+                                ifPtr->inflowWeights[j][iLeft][2] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
+                                ifPtr->inflowWeights[j][iLeft][3] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
 
                             PetscReal tRight =
-								ifPtr->inflowWeights[j][iRight][0] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
-								ifPtr->inflowWeights[j][iRight][1] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
-								ifPtr->inflowWeights[j][iRight][2] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
-								ifPtr->inflowWeights[j][iRight][3] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
+                                ifPtr->inflowWeights[j][iRight][0] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
+                                ifPtr->inflowWeights[j][iRight][1] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
+                                ifPtr->inflowWeights[j][iRight][2] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
+                                ifPtr->inflowWeights[j][iRight][3] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
 
-							tGhost   = (1.0 - ifPtr->yWeights[i]) * tLeft + ifPtr->yWeights[i] * tRight;
-						}
+                            tGhost   = (1.0 - ifPtr->yWeights[i]) * tLeft + ifPtr->yWeights[i] * tRight;
+                        }
                         else
                         {
                             tGhost =
-    							ifPtr->inflowWeights[j][i][0] *
-    							ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
-    							ifPtr->inflowWeights[j][i][1] *
-    							ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
-    							ifPtr->inflowWeights[j][i][2] *
-    							ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
-    							ifPtr->inflowWeights[j][i][3] *
-    							ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
                         }
 
                         if(ifPtr->merge1)
@@ -2755,46 +2755,46 @@ PetscErrorCode UpdateNutBCs(les_ *les)
                     }
                     else if (ifPtr->typeNut == 4)
                     {
-						PetscReal nutGhost;
+                        PetscReal nutGhost;
 
-					    if(ifPtr->shift2)
-						{
+                        if(ifPtr->shift2)
+                        {
                             PetscInt  iLeft    = ifPtr->yIDs[i]-1,
                                       iRight   = ifPtr->yIDs[i];
 
-							PetscReal nutLeft =
-								ifPtr->inflowWeights[j][iLeft][0] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
-								ifPtr->inflowWeights[j][iLeft][1] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
-								ifPtr->inflowWeights[j][iLeft][2] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
-								ifPtr->inflowWeights[j][iLeft][3] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
+                            PetscReal nutLeft =
+                                ifPtr->inflowWeights[j][iLeft][0] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
+                                ifPtr->inflowWeights[j][iLeft][1] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
+                                ifPtr->inflowWeights[j][iLeft][2] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
+                                ifPtr->inflowWeights[j][iLeft][3] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
 
                             PetscReal nutRight =
-								ifPtr->inflowWeights[j][iRight][0] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
-								ifPtr->inflowWeights[j][iRight][1] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
-								ifPtr->inflowWeights[j][iRight][2] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
-								ifPtr->inflowWeights[j][iRight][3] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
+                                ifPtr->inflowWeights[j][iRight][0] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
+                                ifPtr->inflowWeights[j][iRight][1] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
+                                ifPtr->inflowWeights[j][iRight][2] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
+                                ifPtr->inflowWeights[j][iRight][3] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
 
-							nutGhost   = (1.0-ifPtr->yWeights[i]) * nutLeft + ifPtr->yWeights[i]*nutRight;
-						}
+                            nutGhost   = (1.0-ifPtr->yWeights[i]) * nutLeft + ifPtr->yWeights[i]*nutRight;
+                        }
                         else
                         {
                             nutGhost =
-    							ifPtr->inflowWeights[j][i][0] *
-    							ifPtr->nut_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
-    							ifPtr->inflowWeights[j][i][1] *
-    							ifPtr->nut_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
-    							ifPtr->inflowWeights[j][i][2] *
-    							ifPtr->nut_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
-    							ifPtr->inflowWeights[j][i][3] *
-    							ifPtr->nut_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
                         }
 
                         nut[k-1][j][i] = nutGhost;

@@ -309,11 +309,11 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
 
             // added by Arjun for fixed time step as a last control
             /*
-			if(clock->cfl > 1.0)
+            if(clock->cfl > 1.0)
             {
                 clock->dt = clock->dt/2.0;
             }
-			*/
+            */
         }
     }
 

@@ -4,11 +4,11 @@
 # Simulation
 # ---------------------------------
 -startFrom                 startTime
--startTime 		   9000.0
--endTime 		   10000
--cfl 		 	   0.7
--adjustTimeStep 	   1
--timeStep 		   0.2
+-startTime                 9000.0
+-endTime                   10000
+-cfl                       0.7
+-adjustTimeStep            1
+-timeStep                  0.2
 
 
 # Write Data
@@ -22,8 +22,8 @@
 # ---------------------------------
 -abl                       1
 -potentialT                1
-#-zDampingLayer             0
-#-xDampingLayer             0
+#-zDampingLayer            0
+#-xDampingLayer            0
 -ibm                       0
 -overset                   1
 -absTolU                   1e-7
@@ -40,7 +40,7 @@
 # Numerical Schemes
 # ---------------------------------
 -dUdtScheme                backwardEuler
--dTdtScheme		   backwardEuler
+-dTdtScheme                backwardEuler
 -divScheme                 centralUpwind
 # Wind Turbine
 # ---------------------------------
@@ -57,24 +57,23 @@
 
 # Acquisition
 # ---------------------------------
--sections 1
-#-probes 1
-#-averagingABL 1
-#-averaging3LM 1
+-sections                  1
+#-probes                   1
+#-averagingABL             1
+#-averaging3LM             1
 
-#-computeQ 1
--writePressureForce 1
+-writePressureForce        1
 
-#-averaging 3
-#-avgPeriod 0.1
-#-avgStartTime 2
+#-averaging                3
+#-avgPeriod                0.1
+#-avgStartTime             2
 
-#-phaseAveraging 3
-#-phaseAvgPeriod 500
-#-phaseAvgStartTime 0
+#-phaseAveraging           3
+#-phaseAvgPeriod           500
+#-phaseAvgStartTime        0
 
 
 # PostProcessing
 # ---------------------------------
--writeRaster                0
--postProcessFields          1
+-writeRaster               0
+-postProcessFields         1

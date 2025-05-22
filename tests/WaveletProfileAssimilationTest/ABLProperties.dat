@@ -32,26 +32,37 @@ vkConst 0.4
 # Rampanelli and Zardi temperature model parameter.
 smearT 0.5
 
-# Activation flags
+# Activate Coriolis force
 coriolisActive 1
+
+# Activate velocity controller
 controllerActive 1
+
+# Activate temperature controller 
 controllerActiveT 1
+
+# Type of temperature controller 
 controllerTypeT   waveletProfileAssimilation
 
 controllerProperties
 {
-    # Velocity controller type (computed->pressure/geostrphic, given->read/average)
-    controllerAction    write
-    controllerType 	waveletProfileAssimilation
-
-    avgSources          0
-    movingAvgWindow     600
-    polynomialOrder     3
-    polynomialOrderT    3
-
-    lowerLayerForcingTypeT      mesoDataHeight
-    lowerLayerForcingType       mesoDataHeight
-    lowestSrcHeight     	300
+    # Velocity controller parameters
+    controllerAction        write
+    controllerType          waveletProfileAssimilation
+    avgSources              0
+    movingAvgWindow         600
+    polynomialOrder         3
+    polynomialOrderT        3
+    lowerLayerForcingTypeT  mesoDataHeight
+    lowerLayerForcingType   mesoDataHeight
+    lowestSrcHeight         300
+    waveletName             db7
+    waveletTMethod          dwt
+    waveletDecompLevel      6
+    waveletExtn             symmetric
+    waveletConvolution      direct
+    waveletBlend            0
+    hAverageTime            3600
 
     # Velocity controller gain factor 
     relaxPI 0.2
@@ -61,33 +72,15 @@ controllerProperties
 
     # Velocity controller time filter
     timeWindowPI 3600
-    
-    waveletName                 db7
-    waveletTMethod              dwt
-    waveletDecompLevel          6
-    waveletExtn                 symmetric
-    waveletConvolution          direct
-    waveletBlend		0
 
     # Perform geostrophic damping (only pressure controller)
     geostrophicDamping 0
-    
-    geoDampingAlpha      1.0
-    geoDampingStartTime  5000
-    geoDampingTimeWindow 4500
 
     # Velocity controller max height of influence 
     controllerMaxHeight 100000.0
     
     # Start time for the given momentum source average (only controller type 'average')
     controllerAvgStartTime 20010
-    
-    # Geostrophic height
-    hGeo 1100
-    
-    # Geostrophic angle
-    alphaGeo 0
-    hAverageTime        3600
 }
 
 zDampingProperties
@@ -103,4 +96,4 @@ zDampingProperties
 fCoriolis 4.2980777e-5
 
 # perturbations to trigger turbulence 
-perturbations   1
+perturbations 1

@@ -122,7 +122,7 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
     //copy current nvert before next time step
     VecCopy(mesh->lNvert, mesh->lNvert_o);
     DMLocalToLocalBegin(mesh->da, mesh->lNvert_o, INSERT_VALUES, mesh->lNvert_o);
-	DMLocalToLocalEnd(mesh->da, mesh->lNvert_o, INSERT_VALUES, mesh->lNvert_o);
+    DMLocalToLocalEnd(mesh->da, mesh->lNvert_o, INSERT_VALUES, mesh->lNvert_o);
 
     PetscReal iterationTimeStart, iterationTimeEnd;
 
@@ -254,7 +254,7 @@ PetscErrorCode setIBMWallModels(ibm_ *ibm)
 
     PetscPrintf(mesh->MESH_COMM, "\nReading IBM Boundary conditions...");
 
-    for (PetscInt i=0; i < ibm->numBodies; i++)
+    for(PetscInt i=0; i < ibm->numBodies; i++)
     {
         char objectName[256];
         sprintf(objectName, "object%ld", i);
@@ -1447,7 +1447,7 @@ PetscErrorCode ComputeForceMoment(ibm_ *ibm)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressure, PetscReal netMoment, PetscReal ibmPower, Cmpnts PresForce, Cmpnts ViscForce, Cmpnts momentVector)
+PetscErrorCode writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressure, PetscReal netMoment, PetscReal ibmPower, Cmpnts PresForce, Cmpnts ViscForce, Cmpnts momentVector)
 {
     clock_      *clock = ibm->access->clock;
     io_         *io    = ibm->access->io;
@@ -1468,7 +1468,7 @@ PetscErrorCode  writeIBMForceData(ibm_ *ibm, PetscInt b, PetscReal *gElemPressur
     word        elementForcePath, netForcePath;
 
     // set time folder name
-    timeName = getTimeName(clock);
+    timeName             = getTimeName(clock);
     elementForcePath     = "./postProcessing/" + mesh->meshName + "/IBM/" + getStartTimeName(clock) + "/" + ibmBody->bodyName.c_str() + "/elementForce/" + timeName;
     netForcePath         = "./postProcessing/" + mesh->meshName + "/IBM/" + getStartTimeName(clock) + "/" + ibmBody->bodyName.c_str() + "/netForce/";
 
@@ -1767,7 +1767,7 @@ PetscErrorCode recomputeIBMeshProperties(ibm_ *ibm, PetscInt b)
         PetscReal normMag;
 
         // get the element nodes
-        n1 = ibMsh->nID1[i]; n2 = ibMsh->nID2[i]; n3 = ibMsh->nID3[i];
+        n1   = ibMsh->nID1[i]; n2 = ibMsh->nID2[i]; n3 = ibMsh->nID3[i];
 
         vec1 = nSub(ibMsh->nCoor[n2], ibMsh->nCoor[n1]);
 
@@ -2113,7 +2113,7 @@ PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b)
 
 PetscErrorCode findInterceptionPoint(ibm_ *ibm)
 {
-    mesh_         *mesh = ibm->access->mesh;
+    mesh_          *mesh = ibm->access->mesh;
     DM             da    = mesh->da, fda = mesh->fda;
     DMDALocalInfo  info  = mesh->info;
     PetscInt       mx = info.mx, my = info.my, mz = info.mz;
@@ -2121,10 +2121,10 @@ PetscErrorCode findInterceptionPoint(ibm_ *ibm)
     PetscInt       i, j, k;
     PetscInt       c, nif;
 
-    PetscInt	   ip[9], jp[9], kp[9];                        //indices for the background plane nine cells
-    Cmpnts	       pc[9];
+    PetscInt       ip[9], jp[9], kp[9];                        //indices for the background plane nine cells
+    Cmpnts         pc[9];
 
-    Cmpnts      ***cent;
+    Cmpnts         ***cent;
 
     //local pointer for ibmFluidCells
     ibmFluidCell *ibF = ibm->ibmFCells;
@@ -2140,7 +2140,7 @@ PetscErrorCode findInterceptionPoint(ibm_ *ibm)
 
         ibmMesh   *ibMsh = ibm->ibmBody[ibF[c].bodyID]->ibMsh;
         PetscInt   cElem = ibF[c].closestElem;
-        Cmpnts	   eNorm = ibMsh->eN[cElem];
+        Cmpnts       eNorm = ibMsh->eN[cElem];
         Cmpnts     pCoor = nSet(cent[k][j][i]);
 
         //check if the interception point is on the i-1 plane
@@ -2779,17 +2779,17 @@ PetscErrorCode findInterceptionPoint(ibm_ *ibm)
 
 PetscErrorCode interceptionPt(Cmpnts pCoor, Cmpnts pc[9], Cmpnts eNorm, ibmFluidCell *ibF)
 {
-    PetscInt 	triangles[3][8];
-    Cmpnts   	p1, p2, p3;
-    PetscReal	dx1, dy1, dz1, dx2, dy2, dz2, dx3, dy3, dz3, d;
-    PetscReal	rx1, ry1, rz1, rx2, ry2, rz2, rx3, ry3, rz3;
+    PetscInt     triangles[3][8];
+    Cmpnts       p1, p2, p3;
+    PetscReal    dx1, dy1, dz1, dx2, dy2, dz2, dx3, dy3, dz3, d;
+    PetscReal    rx1, ry1, rz1, rx2, ry2, rz2, rx3, ry3, rz3;
 
-    Cpt2D		pj1, pj2, pj3, pjp;
-    PetscInt	cell, flag;
+    Cpt2D        pj1, pj2, pj3, pjp;
+    PetscInt     cell, flag;
 
-    PetscInt	i;
-    Cmpnts	    pint;                                                // Interception point
-    PetscReal	nfxt, nfyt, nfzt;
+    PetscInt     i;
+    Cmpnts       pint;                                                // Interception point
+    PetscReal    nfxt, nfyt, nfzt;
 
     ibF->imode = -100;
 
@@ -2849,7 +2849,7 @@ PetscErrorCode interceptionPt(Cmpnts pCoor, Cmpnts pc[9], Cmpnts eNorm, ibmFluid
                         pj3.x = p3.y;   pj3.y = p3.z;
                         triangleIntpBg(pjp, pj1, pj2, pj3, ibF);
                     }
-                    else if	(fabs(nfyt) >= fabs(nfxt) && fabs(nfyt)>= fabs(nfzt))
+                    else if(fabs(nfyt) >= fabs(nfxt) && fabs(nfyt)>= fabs(nfzt))
                     {
                       pjp.x = pint.x; pjp.y = pint.z;
                       pj1.x = p1.x;   pj1.y = p1.z;
@@ -3540,7 +3540,7 @@ PetscErrorCode CurvibInterpolationTriangular(ibm_ *ibm)
 
         ibmMesh   *ibMsh = ibm->ibmBody[ibF[c].bodyID]->ibMsh;
         PetscInt   cElem = ibF[c].closestElem;
-        Cmpnts	   eNorm = ibMsh->eN[cElem];
+        Cmpnts       eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
 
         PetscInt     ip1 = ibF[c].i1, jp1 = ibF[c].j1, kp1 = ibF[c].k1;
@@ -3713,7 +3713,7 @@ PetscErrorCode CurvibInterpolationInternalCell(ibm_ *ibm)
 
         ibmMesh   *ibMsh = ibm->ibmBody[ibF[c].bodyID]->ibMsh;
         PetscInt   cElem = ibF[c].closestElem;
-        Cmpnts	   eNorm = ibF[c].normal;
+        Cmpnts       eNorm = ibF[c].normal;
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
         PetscReal  roughness;
 
@@ -4311,7 +4311,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 
         ibmMesh   *ibMsh = ibm->ibmBody[ibF[c].bodyID]->ibMsh;
         PetscInt   cElem = ibF[c].closestElem;
-        Cmpnts	   eNorm = ibF[c].normal;
+        Cmpnts       eNorm = ibF[c].normal;
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
         PetscReal  roughness;
 
@@ -4767,7 +4767,7 @@ PetscErrorCode CurvibInterpolationQuadratic(ibm_ *ibm)
 
         ibmMesh   *ibMsh = ibm->ibmBody[ibF[c].bodyID]->ibMsh;
         PetscInt   cElem = ibF[c].closestElem;
-        Cmpnts	   eNorm = ibF[c].normal;
+        Cmpnts       eNorm = ibF[c].normal;
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
         PetscReal  roughness;
 
@@ -5354,9 +5354,9 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     Cmpnts        ***coor, ***ucat, ***cent, ibmPtVel;
     Cmpnts        ***visc1, ***visc2, ***visc3, ***viscT;
 
-    Cmpnts	      ***icsi, ***ieta, ***izet;
-	Cmpnts	      ***jcsi, ***jeta, ***jzet;
-	Cmpnts	      ***kcsi, ***keta, ***kzet;
+    Cmpnts        ***icsi, ***ieta, ***izet;
+    Cmpnts        ***jcsi, ***jeta, ***jzet;
+    Cmpnts        ***kcsi, ***keta, ***kzet;
 
     Cmpnts        uC, uN, uT, uB;                          // background point velocity, its normal and tangential components
     Cmpnts        bPtVel, bPt, bPtInit;
@@ -5404,20 +5404,20 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     }
 
     DMDAVecGetArray(fda, mesh->lICsi, &icsi);
-	DMDAVecGetArray(fda, mesh->lIEta, &ieta);
-	DMDAVecGetArray(fda, mesh->lIZet, &izet);
+    DMDAVecGetArray(fda, mesh->lIEta, &ieta);
+    DMDAVecGetArray(fda, mesh->lIZet, &izet);
 
-	DMDAVecGetArray(fda, mesh->lJCsi, &jcsi);
-	DMDAVecGetArray(fda, mesh->lJEta, &jeta);
-	DMDAVecGetArray(fda, mesh->lJZet, &jzet);
+    DMDAVecGetArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+    DMDAVecGetArray(fda, mesh->lJZet, &jzet);
 
-	DMDAVecGetArray(fda, mesh->lKCsi, &kcsi);
-	DMDAVecGetArray(fda, mesh->lKEta, &keta);
-	DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+    DMDAVecGetArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecGetArray(fda, mesh->lKEta, &keta);
+    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
 
     DMDAVecGetArray(da, mesh->lIAj, &iaj);
-	DMDAVecGetArray(da, mesh->lJAj, &jaj);
-	DMDAVecGetArray(da, mesh->lKAj, &kaj);
+    DMDAVecGetArray(da, mesh->lJAj, &jaj);
+    DMDAVecGetArray(da, mesh->lKAj, &kaj);
 
     if(ibm->access->flags->isLesActive)
     {
@@ -5437,7 +5437,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
         ibmObject     *ibmBody = ibm->ibmBody[ibF[c].bodyID];
         ibmMesh       *ibMsh = ibmBody->ibMsh;
         PetscInt      cElem = ibF[c].closestElem;
-        Cmpnts	      eNorm = ibMsh->eN[cElem];
+        Cmpnts          eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
         PetscReal     tauWall, sb, qWall = 0;
         Cmpnts        qFlux;
@@ -5898,20 +5898,20 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
     DMDAVecRestoreArray(fda, ueqn->lViscIBM3, &visc3);
 
     DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
-	DMDAVecRestoreArray(fda, mesh->lIEta, &ieta);
-	DMDAVecRestoreArray(fda, mesh->lIZet, &izet);
+    DMDAVecRestoreArray(fda, mesh->lIEta, &ieta);
+    DMDAVecRestoreArray(fda, mesh->lIZet, &izet);
 
-	DMDAVecRestoreArray(fda, mesh->lJCsi, &jcsi);
-	DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
-	DMDAVecRestoreArray(fda, mesh->lJZet, &jzet);
+    DMDAVecRestoreArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+    DMDAVecRestoreArray(fda, mesh->lJZet, &jzet);
 
-	DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
-	DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
-	DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+    DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
+    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
 
     DMDAVecRestoreArray(da, mesh->lIAj, &iaj);
-	DMDAVecRestoreArray(da, mesh->lJAj, &jaj);
-	DMDAVecRestoreArray(da, mesh->lKAj, &kaj);
+    DMDAVecRestoreArray(da, mesh->lJAj, &jaj);
+    DMDAVecRestoreArray(da, mesh->lKAj, &kaj);
 
     if(ibm->access->flags->isLesActive)
     {
@@ -5982,9 +5982,9 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     Cmpnts        ***coor, ***ucat, ***cent, ibmPtVel;
     Cmpnts        ***visc1, ***visc2, ***visc3, ***viscT;
 
-    Cmpnts	      ***icsi, ***ieta, ***izet;
-	Cmpnts	      ***jcsi, ***jeta, ***jzet;
-	Cmpnts	      ***kcsi, ***keta, ***kzet;
+    Cmpnts        ***icsi, ***ieta, ***izet;
+    Cmpnts        ***jcsi, ***jeta, ***jzet;
+    Cmpnts        ***kcsi, ***keta, ***kzet;
 
     Cmpnts        uC, uN, uT, uB;                          // background point velocity, its normal and tangential components
     Cmpnts        bPtVel, bPt, bPtInit;
@@ -6033,20 +6033,20 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     }
 
     DMDAVecGetArray(fda, mesh->lICsi, &icsi);
-	DMDAVecGetArray(fda, mesh->lIEta, &ieta);
-	DMDAVecGetArray(fda, mesh->lIZet, &izet);
+    DMDAVecGetArray(fda, mesh->lIEta, &ieta);
+    DMDAVecGetArray(fda, mesh->lIZet, &izet);
 
-	DMDAVecGetArray(fda, mesh->lJCsi, &jcsi);
-	DMDAVecGetArray(fda, mesh->lJEta, &jeta);
-	DMDAVecGetArray(fda, mesh->lJZet, &jzet);
+    DMDAVecGetArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+    DMDAVecGetArray(fda, mesh->lJZet, &jzet);
 
-	DMDAVecGetArray(fda, mesh->lKCsi, &kcsi);
-	DMDAVecGetArray(fda, mesh->lKEta, &keta);
-	DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+    DMDAVecGetArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecGetArray(fda, mesh->lKEta, &keta);
+    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
 
     DMDAVecGetArray(da, mesh->lIAj, &iaj);
-	DMDAVecGetArray(da, mesh->lJAj, &jaj);
-	DMDAVecGetArray(da, mesh->lKAj, &kaj);
+    DMDAVecGetArray(da, mesh->lJAj, &jaj);
+    DMDAVecGetArray(da, mesh->lKAj, &kaj);
 
     if(ibm->access->flags->isLesActive)
     {
@@ -6066,7 +6066,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
         ibmObject     *ibmBody = ibm->ibmBody[ibF[c].bodyID];
         ibmMesh       *ibMsh = ibmBody->ibMsh;
         PetscInt      cElem = ibF[c].closestElem;
-        Cmpnts	      eNorm = ibMsh->eN[cElem];
+        Cmpnts          eNorm = ibMsh->eN[cElem];
         PetscInt      n1 = ibMsh->nID1[cElem], n2 = ibMsh->nID2[cElem], n3 = ibMsh->nID3[cElem];
         PetscReal     tauWall, sb, qWall = 0;
         Cmpnts        qFlux;
@@ -6749,20 +6749,20 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
     DMDAVecRestoreArray(fda, ueqn->lViscIBM3, &visc3);
 
     DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
-	DMDAVecRestoreArray(fda, mesh->lIEta, &ieta);
-	DMDAVecRestoreArray(fda, mesh->lIZet, &izet);
+    DMDAVecRestoreArray(fda, mesh->lIEta, &ieta);
+    DMDAVecRestoreArray(fda, mesh->lIZet, &izet);
 
-	DMDAVecRestoreArray(fda, mesh->lJCsi, &jcsi);
-	DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
-	DMDAVecRestoreArray(fda, mesh->lJZet, &jzet);
+    DMDAVecRestoreArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+    DMDAVecRestoreArray(fda, mesh->lJZet, &jzet);
 
-	DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
-	DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
-	DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+    DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
+    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
 
     DMDAVecRestoreArray(da, mesh->lIAj, &iaj);
-	DMDAVecRestoreArray(da, mesh->lJAj, &jaj);
-	DMDAVecRestoreArray(da, mesh->lKAj, &kaj);
+    DMDAVecRestoreArray(da, mesh->lJAj, &jaj);
+    DMDAVecRestoreArray(da, mesh->lKAj, &kaj);
 
     if(ibm->access->flags->isLesActive)
     {
@@ -8181,10 +8181,10 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 
 PetscErrorCode findIBMControlledProcs(ibm_ *ibm)
 {
-    mesh_         *mesh = ibm->access->mesh;
+    mesh_          *mesh = ibm->access->mesh;
 
-    DMDALocalInfo info = mesh->info;
-    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+    DMDALocalInfo  info = mesh->info;
+    DM             da = mesh->da, fda = mesh->fda, sda = mesh->sda;
 
     PetscInt       xs = info.xs, xe = info.xs + info.xm;
     PetscInt       ys = info.ys, ye = info.ys + info.ym;
@@ -8673,11 +8673,11 @@ PetscErrorCode IBMProjectionProcessorTransfer(ibm_ *ibm)
 
 PetscErrorCode createProcessorBufferZones(ibm_ *ibm)
 {
-    mesh_         *mesh = ibm->access->mesh;
-    PetscInt      b;
+    mesh_          *mesh = ibm->access->mesh;
+    PetscInt       b;
 
-    DMDALocalInfo info = mesh->info;
-    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+    DMDALocalInfo  info = mesh->info;
+    DM             da = mesh->da, fda = mesh->fda, sda = mesh->sda;
 
     PetscInt       xs = info.xs, xe = info.xs + info.xm;
     PetscInt       ys = info.ys, ye = info.ys + info.ym;
@@ -8841,9 +8841,9 @@ PetscErrorCode createProcessorBufferZones(ibm_ *ibm)
 
 PetscErrorCode initElementProcs(ibm_ *ibm)
 {
-    Cmpnts             p1, p2, p3;
-    PetscInt           b, e;
-    mesh_              *mesh  = ibm->access->mesh;
+    Cmpnts     p1, p2, p3;
+    PetscInt   b, e;
+    mesh_      *mesh  = ibm->access->mesh;
 
     //create the processor inner and outer buffer zones
     createProcessorBufferZones(ibm);
@@ -9835,13 +9835,13 @@ inline void insertIBMSupportNodes(Cmpnts pt, cellIds sCell, ibmFluidCell *ibF, i
 //***************************************************************************************************************//
 PetscErrorCode rayCastLocal(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts p3, Cmpnts p4, ibmMesh *ibMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList, PetscInt &intersect)
 {
-    PetscInt	i, j, k, e;
+    PetscInt    i, j, k, e;
     PetscBool   cutElement;
     PetscInt    ks, js, is;
     PetscInt    kp, jp, ip;
 
     node        *current;
-    PetscBool	*Element_Searched;
+    PetscBool   *Element_Searched;
 
     kp = sCell.k;
     jp = sCell.j;
@@ -10245,8 +10245,8 @@ inline PetscBool isLineTriangleInt(Cmpnts p1, Cmpnts p2, ibmMesh *ibMsh, PetscIn
 inline PetscInt isPointInTriangle(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts p3, Cmpnts norm)
 {
   PetscInt   flag;
-  Cpt2D	     pj, pj1, pj2, pj3;
-  PetscReal	 epsilon = 1.e-10, area;
+  Cpt2D         pj, pj1, pj2, pj3;
+  PetscReal     epsilon = 1.e-10, area;
 
   if ( fabs(norm.z) >= fabs(norm.x) && fabs(norm.z) >= fabs(norm.y) )
   {
@@ -10288,7 +10288,7 @@ inline PetscInt isPointInTriangle(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts p3, Cmp
 inline PetscInt ISInsideTriangle2D(Cpt2D p, Cpt2D pa, Cpt2D pb, Cpt2D pc)
 {
   // Check if point p and p3 is located on the same side of line p1p2
-  PetscInt 	ls;
+  PetscInt     ls;
 
   ls = ISSameSide2D(p, pa, pb, pc);
 
@@ -10315,8 +10315,8 @@ inline PetscInt ISInsideTriangle2D(Cpt2D p, Cpt2D pa, Cpt2D pb, Cpt2D pc)
 
 /*  Check whether 2D point p is located on the same side of line p1p2
     with point p3. Returns:
-    -1	different side
-     1	same side (including the case when p is located right on the line)
+    -1    different side
+     1    same side (including the case when p is located right on the line)
 
     If p and p3 is located on the same side to line p1p2, then
     the (p-p1) X (p2-p1) and (p3-p1) X (p2-p1) should have the same sign
@@ -10325,7 +10325,7 @@ inline PetscInt ISInsideTriangle2D(Cpt2D p, Cpt2D pa, Cpt2D pb, Cpt2D pc)
 inline PetscInt ISSameSide2D(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3)
 {
   PetscReal t1, t2, t3;
-  PetscReal	epsilon = 1.e-10;
+  PetscReal    epsilon = 1.e-10;
   PetscReal lt;
 
   t1 = (p.x - p1.x) * (p2.y - p1.y) - (p.y - p1.y) * (p2.x - p1.x);
@@ -10354,8 +10354,8 @@ inline PetscInt ISSameSide2D(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3)
 
 inline void disP2Line(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts *po, PetscReal *d, PetscReal *t)
 {
-  PetscReal	dmin;
-  PetscReal	dx21, dy21, dz21, dx31, dy31, dz31;
+  PetscReal    dmin;
+  PetscReal    dx21, dy21, dz21, dx31, dy31, dz31;
 
   dx21 = p2.x - p1.x; dy21 = p2.y - p1.y; dz21 = p2.z - p1.z;
   dx31 = p.x  - p1.x; dy31 = p.y  - p1.y; dz31 = p.z  - p1.z;

@@ -34,7 +34,7 @@
 # Turbulence Model
 # ---------------------------------
 -les                       1
--lesModel		   dynamicLASI
+-lesModel                  dynamicLASI
 -max_cs                    10
 
 # Numerical Schemes
@@ -44,7 +44,7 @@
 -divScheme                 centralUpwindW
 # Wind Turbine
 # ---------------------------------
--windplant                0
+-windplant                 0
 
 # Constants 
 # ---------------------------------
@@ -54,7 +54,7 @@
 
 # Mesh
 # ---------------------------------
--meshFileType             cartesian
+-meshFileType              cartesian
 
 
 # Acquisition

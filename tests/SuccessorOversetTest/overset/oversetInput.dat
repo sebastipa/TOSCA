@@ -5,32 +5,34 @@
 
 # The sub entries for each mesh are integer arrays indicating the interaction between different overset meshes.
 
-# 	parentMesh - indicates the parent mesh of the current mesh
-# 	childMesh - if the given mesh has another (child) mesh in its domain
- 	
+#  parentMesh - indicates the parent mesh of the current mesh
+#  childMesh  - if the given mesh has another (child) mesh in its domain
+  
 # these parameters cannot be left blank. Set value to -1 indicates null value
 # --------------------------------------------------------------------
 
-#General Overset properties
-MeshTotal		2
-numHoleObjects  1
+# General Overset properties
+MeshTotal         2
+numHoleObjects    1
+dynamicOverset    0
+interpolationType trilinear
 
 Mesh0
 {
     name           outer
-    parentMesh 	   (-1)
-    childMesh 	   (1)
+    parentMesh     (-1)
+    childMesh      (1)
     windplant      0
-    ibm	           0
+    ibm            0
 }
 
 Mesh1
 {
     name           inner
-    parentMesh 	   (0)
-    childMesh 	   (-1)
+    parentMesh     (0)
+    childMesh      (-1)
     windplant      1
-    ibm		       0
+    ibm            0
 }
 
 holeObject0
@@ -41,19 +43,4 @@ holeObject0
     fileType          closedBody
     baseLocation      (0.0 0.0 0.0)
     searchCellRatio   3
-}
-
-#Overset simulation properties
-
-#For mesh motion
-dynamicOverset		0
-
-interpolationType	trilinear
-
-#Parameters for dynamic Overset
-oversetMotion
-{
-    setMotion	   1
-    motionType	   Translation
-    prescribedVel  (1.0 0.0 0.0)
 }

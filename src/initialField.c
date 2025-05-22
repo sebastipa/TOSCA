@@ -251,7 +251,7 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
     else if (ueqn->initFieldType == "spreadInflow")
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
-		SpreadInletFlowU(ueqn);
+        SpreadInletFlowU(ueqn);
     }
     else
     {
@@ -634,7 +634,7 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
 
                 if(abl->perturbations)
                 {
-    				PetscReal zPeak    = 0.05;
+                    PetscReal zPeak    = 0.05;
                     PetscReal deltaV   = 0.1*uRef;
                     PetscReal deltaU   = 0.1*uRef;
                     PetscReal Uperiods = 12;
@@ -879,7 +879,7 @@ PetscErrorCode SetABLInitialFlowUZilitinkevich(ueqn_ *ueqn)
 
                 if(abl->perturbations)
                 {
-    				PetscReal zPeak    = 0.05;
+                    PetscReal zPeak    = 0.05;
                     PetscReal deltaV   = 0.1*uRef;
                     PetscReal deltaU   = 0.1*uRef;
                     PetscReal Uperiods = 12;
@@ -1284,7 +1284,7 @@ PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
         // clear the vector indices
         std::vector<std::vector<Cmpnts>> ().swap(lpatchField);
         std::vector<std::vector<Cmpnts>> ().swap(gpatchField);
-		
+        
     }
     else if
     (
@@ -1715,7 +1715,7 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn)
     PetscReal        deltaInv   = abl->dInv;
     PetscReal        hInv       = abl->hInv;
     PetscReal        gradInv    = abl->gInv;
-	PetscReal        gammaH     = abl->gABL;
+    PetscReal        gammaH     = abl->gABL;
 
     PetscReal        Lx = mesh->bounds.Lx;
     PetscReal        Ly = mesh->bounds.Ly;
@@ -1732,7 +1732,7 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn)
     PetscReal smearing = abl->smear;
     PetscReal b      = smearing * gamma * deltaInv;
     PetscReal a      = gradInv - b;
-	PetscReal c      = smearing * gammaH * deltaInv;
+    PetscReal c      = smearing * gammaH * deltaInv;
     PetscReal h0     = hInv - deltaInv/2;
     PetscReal etaLim = hInv / smearing / deltaInv;
 
@@ -1753,7 +1753,7 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn)
                     // non dimensional functions
                     PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
                     PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
-					PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
+                    PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
 
                     // potential temperature
                     tmprt[k][j][i] = thetaRef + a * f_eta + b * g_eta + c * h_eta + gammaH*hInv;
@@ -1761,18 +1761,18 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn)
                 // asymptotic behavior
                 else
                 {
-					// back to this as it works on Matlab
-					PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
+                    // back to this as it works on Matlab
+                    PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
                     PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
-					PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
+                    PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
 
                     // potential temperature
                     tmprt[k][j][i] = thetaRef + a * f_eta + b * g_eta + c * h_eta + gammaH*hInv;
 
-					// Dries implementation (to add limit from below)
-					// gLim = (abs(eta) + eta)/2;
+                    // Dries implementation (to add limit from below)
+                    // gLim = (abs(eta) + eta)/2;
 
-					// potential temperature
+                    // potential temperature
                     //tmprt[k][j][i] = thetaRef + a  + b * g;
                 }
             }

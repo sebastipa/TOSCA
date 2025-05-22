@@ -4,11 +4,11 @@
 # Simulation
 # ---------------------------------
 -startFrom                 startTime
--startTime 		   0.0
--endTime 		   30
--cfl 		 	   0.8
--adjustTimeStep 	   0
--timeStep 		   0.1
+-startTime      0.0
+-endTime      30
+-cfl        0.8
+-adjustTimeStep     0
+-timeStep      0.1
 
 
 # Write Data
@@ -34,14 +34,14 @@
 # Turbulence Model
 # ---------------------------------
 -les                       1
--lesModel		   dynamicLASI
+-lesModel     dynamicLASI
 -max_cs                    10
 
 # Numerical Schemes
 # ---------------------------------
 -dUdtScheme                backwardEuler
 -divScheme                 centralUpwind
--viscScheme		   central
+-viscScheme     central
 # Wind Turbine
 # ---------------------------------
 -windplant                 0

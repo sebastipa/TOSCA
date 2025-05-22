@@ -1,21 +1,22 @@
-# TOSCA Input file - IBM Properties
-# -------------------------------------------
+# TOSCA Input file - IBM Input Properties
+# ---------------------------------------
 
 NumberofBodies                      1
 
 InterpolationMethod                 CURVIB
-CURVIBInterpolationType		    CurvibTrilinear
-interpolationOrder		    linear
+CURVIBInterpolationType             CurvibTrilinear
+interpolationOrder                  linear
 
 debug                               0
 dynamic                             1
 checkNormal                         1
-averageNormal			    0
+averageNormal                       0
 computeForce                        1
 writeSTL                            0
-wallShear			    0
-pressureBC			    0
+wallShear                           0
+pressureBC                          0
 abl                                 0
+
 writeSettings
 {
     timeStart           0
@@ -24,15 +25,14 @@ writeSettings
 }
 
 # IBM object properties
-
 object0
 {
-    bodyName			    NACA0012_AOA_five
+    bodyName                        NACA0012_AOA_five
     bodyType                        closedBody
 
-    fileType 			    ucd
+    fileType                        ucd
     bodyMotion                      pitchingOscillation
-    baseLocation     	            (1.5 0.0 2.2) #(2.0 0.0 3.0) #Needs to be adjusted to define center location 
+    baseLocation                    (1.5 0.0 2.2) #(2.0 0.0 3.0) #Needs to be adjusted to define center location 
 
     procBoundCenter                 (0.0 0.0 0.0)
     procBoundSize                   (10.0 10.0 10.0)
@@ -50,9 +50,9 @@ object0
     pitchingCenter                  (1.75 0.5 2.2)
 
     maxTipRadius                    0.5
-    angularSpeed     	            9.55
+    angularSpeed                    9.55
     angularAcceleration             0.0
-    rotationAxis            	    (1.0 0.0 0.0)
+    rotationAxis                    (1.0 0.0 0.0)
     rotationCenter                  (0.0 0.0 0.0)
 
     searchCellRatio                 3

@@ -25,7 +25,7 @@
 -yDampingLayer             1
 -precursorSpinUp           1
 -advectionDampingX         1
--advectionDampingY	   1
+-advectionDampingY    1
 
 -absTolU                   1e-5
 -poissonIt                 20
@@ -45,7 +45,7 @@
 -divScheme                 centralUpwindW
 # Wind Turbine
 # ---------------------------------
--windplant                1
+-windplant                 1
 
 # Constants 
 # ---------------------------------

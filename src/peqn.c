@@ -447,8 +447,8 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
     KSPCreate(mesh->MESH_COMM, &(peqn->ksp));
 
     //PetscViewerAndFormat *vf;
-	//PetscViewerAndFormatCreate(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_DEFAULT,&vf);
-	//KSPMonitorSet(peqn->ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorTrueResidualNorm,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy);
+    //PetscViewerAndFormatCreate(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_DEFAULT,&vf);
+    //KSPMonitorSet(peqn->ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorTrueResidualNorm,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy);
     KSPMonitorSet(peqn->ksp, MyKSPMonitorPoisson, (void*)peqn, PETSC_NULL);
 
     KSPSetOperators(peqn->ksp, peqn->petscA, peqn->petscA);
@@ -461,8 +461,8 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
     //PCSetType(peqn->petscPC, PCMG);
     //PCSetType(peqn->petscPC, PCILU);
     //PCMGSetType(peqn->petscPC,PC_MG_KASKADE);
-	PCSetType(peqn->petscPC,PCSOR);
-	//PCSetType(peqn->petscPC,PCGAMG);
+    PCSetType(peqn->petscPC,PCSOR);
+    //PCSetType(peqn->petscPC,PCGAMG);
 
     // omega = 1 equivalent to Gauss Seidel preconditioner
     PCSORSetOmega(peqn->petscPC,1.0);
@@ -479,8 +479,8 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
 
     KSPSetTolerances(peqn->ksp, 1e-30, peqn->poissonTol, 1e30, peqn->poissonIt);
 
-	KSPGMRESSetRestart(peqn->ksp, 100);
-	KSPSetFromOptions(peqn->ksp);
+    KSPGMRESSetRestart(peqn->ksp, 100);
+    KSPSetFromOptions(peqn->ksp);
 
     KSPSetUp(peqn->ksp);
 
@@ -1372,7 +1372,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     else if(peqn->solverType == "PETSc")
     {
         MatAssemblyBegin(peqn->petscA, MAT_FINAL_ASSEMBLY);
-    	MatAssemblyEnd  (peqn->petscA, MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd  (peqn->petscA, MAT_FINAL_ASSEMBLY);
     }
 
     // restore the arrays
@@ -1994,7 +1994,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     if(peqn->solverType == "PETSc")
     {
         VecAssemblyBegin(peqn->petscRhs);
-    	VecAssemblyEnd  (peqn->petscRhs);
+        VecAssemblyEnd  (peqn->petscRhs);
 
         VecRestoreArray(peqn->petscRhs, &rhs);
     }
@@ -2857,8 +2857,8 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         }
     }
 
-	// update boundary conditions
-	UpdatePressureBCs(peqn);
+    // update boundary conditions
+    UpdatePressureBCs(peqn);
 
     MPI_Allreduce(&lPsum,    &gPsum,    1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lnPoints, &gnPoints, 1, MPIU_INT,    MPI_SUM, mesh->MESH_COMM);
@@ -2929,7 +2929,7 @@ PetscErrorCode GradP(peqn_ *peqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-	PetscInt periodic_i = mesh->i_periodic + mesh->ii_periodic,
+    PetscInt periodic_i = mesh->i_periodic + mesh->ii_periodic,
              periodic_j = mesh->j_periodic + mesh->jj_periodic,
              periodic_k = mesh->k_periodic + mesh->kk_periodic;
 

@@ -395,7 +395,7 @@ PetscErrorCode UpdateCs (les_ *les)
                 eta0, eta1, eta2,
                 zet0, zet1, zet2,
                 ajc,
-            	dtdc, dtde, dtdz,
+                dtdc, dtde, dtdz,
                 &dt_dx, &dt_dy, &dt_dz
             );
 
@@ -1972,7 +1972,7 @@ PetscErrorCode UpdateCs (les_ *les)
         MPI_Allreduce( &MM_tmp[0], &J_MM[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
         MPI_Allreduce( &QN_tmp[0], &J_QN[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
         MPI_Allreduce( &NN_tmp[0], &J_NN[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
-        MPI_Allreduce( &count[0], &total_count[0], my, MPIU_INT, MPI_SUM, mesh->MESH_COMM);	
+        MPI_Allreduce( &count[0], &total_count[0], my, MPIU_INT, MPI_SUM, mesh->MESH_COMM);    
         
         for(j=0; j<my; j++) 
         {

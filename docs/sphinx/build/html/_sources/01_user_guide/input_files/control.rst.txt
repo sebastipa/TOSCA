@@ -117,8 +117,11 @@ Solution Flags
                           in ``ABLProperties.dat`` file if activated. Concurrent precursor **has to** be enabled with this 
                           flag. 
    ---------------------- -----------------------------------------------------------------------------------------------------
-   ``-advectionDamping``  Specifies if horizontal inlet advection damping region is present in the simulation. Requires 
-                          additional input in ``ABLProperties.dat`` file if activated. 
+   ``-advectionDampingX`` Specifies if x-direction horizontal inlet advection damping region is present in the simulation. 
+                          Requires additional input in ``ABLProperties.dat`` file if activated. 
+   ---------------------- -----------------------------------------------------------------------------------------------------
+   ``-advectionDampingY`` Specifies if y-direction horizontal inlet advection damping region is present in the simulation. 
+                          Requires additional input in ``ABLProperties.dat`` file if activated.
    ---------------------- -----------------------------------------------------------------------------------------------------
    ``-precursorSpinUp``   Concurrent precursor **has to** be enabled with this flag. Specifies the type of inlet boundary 
                           condition and initial condition for the concurrent precursor. If set to 0, streamwise periodic 

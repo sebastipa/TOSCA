@@ -32,16 +32,24 @@ vkConst 0.4
 # Rampanelli and Zardi temperature model parameter.
 smearT 0.5
 
-# Activation flags 
+# Activate Coriolis force  
 coriolisActive 1
+
+# Activate velocity controller 
 controllerActive 1
-precursorControllerTypeMismatch 0
+
+# Activate temperature controller 
 controllerActiveT 0
+
+# Activate precursor temperature controller 
 controllerActivePrecursorT 0
+
+# Mismatch between successor and precursor controllers
+precursorControllerTypeMismatch 0
 
 controllerProperties
 {
-    # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
+    # Velocity controller parameters
     controllerAction read
     controllerType timeSeries
 
@@ -59,27 +67,18 @@ controllerProperties
     
     # Start time for the given momentum source average (only controller type 'average')
     controllerAvgStartTime 9000.0
-    
-    # Geostrophic height
-    hGeo 900
-    
-    # Geostrophic angle
-    alphaGeo 0
-
 }
 
-# Coriolis parameter: 7.272205217e-5 * sin(latitude)
-fCoriolis 5.156303966e-5
-
-# Fringe layers properties (activate in the control.dat - zDampingLayer = 1, xDampingLayer = 1)
+# Rayleigh damping layer (zDampingLayer = 1 in control.dat)
 zDampingProperties
 {
     zDampingStart   1000
     zDampingEnd     4675.48
     zDampingAlpha   0.01
     zDampingAlsoXY  0 
-}    
+}
 
+# Fringe region (xDampingLayer = 1 in control.dat)
 xDampingProperties
 {
     xDampingStart   0
@@ -103,6 +102,7 @@ xDampingProperties
     shiftSpeed 1.5
 }
 
+# Lateral fringe region (yDampingLayer = 1 in control.dat)
 yDampingProperties
 {
     yDampingStart   1400
@@ -112,21 +112,26 @@ yDampingProperties
     yDampingNumPeriods 5
 }
 
+# x-advection damping (advectionDampingX = 1 in control.dat)
 advectionDampingXProperties
 {
-	advDampingStart       200
-	advDampingEnd         600
-	advDampingDeltaStart  100
-	advDampingDeltaEnd    100
+ advDampingStart       200
+ advDampingEnd         600
+ advDampingDeltaStart  100
+ advDampingDeltaEnd    100
 }
 
+# y-advection damping (advectionDampingY = 1 in control.dat)
 advectionDampingYProperties
 {
-        advDampingStart       1600
-        advDampingEnd         2000
-        advDampingDeltaStart  100
-        advDampingDeltaEnd    100
+    advDampingStart       1600
+    advDampingEnd         2000
+    advDampingDeltaStart  100
+    advDampingDeltaEnd    100
 }
+
+# Coriolis parameter: 7.272205217e-5 * sin(latitude)
+fCoriolis 5.156303966e-5
 
 # perturbations to trigger turbulence 
 perturbations   0

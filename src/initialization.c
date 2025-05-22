@@ -26,7 +26,7 @@ PetscErrorCode PrintOkWindLogo()
     PetscPrintf(PETSC_COMM_WORLD," |                        O ====\\\\=========               |  \n");
     PetscPrintf(PETSC_COMM_WORLD," |                       //|     \\\\                       |  Redistribution and use in source and binary forms, with or without modification, are permitted\n");
     PetscPrintf(PETSC_COMM_WORLD," |                      //||      O =============         |  provided that the following conditions are met:\n");
-    PetscPrintf(PETSC_COMM_WORLD," |                     // ||     //| v0122                |  1. Redistributions of source code must retain the above copyright notice, this list of conditi\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                     // ||     //| v2.0.0               |  1. Redistributions of source code must retain the above copyright notice, this list of conditi\n");
     PetscPrintf(PETSC_COMM_WORLD," |                    //  ||    //||                      |     ons and the following disclaimer.\n");
     PetscPrintf(PETSC_COMM_WORLD," |                   //   ||   // ||                      |  2. Redistributions in binary form must reproduce the above copyright notice, this list of cond\n");
     PetscPrintf(PETSC_COMM_WORLD," |                  //    ||  //  ||                      |     itions and the following disclaimer in the documentation and/or other materials provided wi\n");
@@ -36,8 +36,8 @@ PetscErrorCode PrintOkWindLogo()
     PetscPrintf(PETSC_COMM_WORLD," |                        ||      ||                      |  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY A\n");
     PetscPrintf(PETSC_COMM_WORLD," |                        ||      ||                      |  ND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR \n");
     PetscPrintf(PETSC_COMM_WORLD," |________________________||______||______________________|  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENT\n");     
-    PetscPrintf(PETSC_COMM_WORLD," |               copyright : OK-CFD Lab                   |  IAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS \n");    
-    PetscPrintf(PETSC_COMM_WORLD," |               authors   : Stipa - Ajay - Haji          |  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABIL\n");    
+    PetscPrintf(PETSC_COMM_WORLD," | Copyright : University of British Columbia (Okanagan)  |  IAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS \n");    
+    PetscPrintf(PETSC_COMM_WORLD," | Authors   : Stipa - Ajay - Haji - Brinkerhoff          |  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABIL\n");    
     PetscPrintf(PETSC_COMM_WORLD," |========================================================|  ITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISIN\n");        
     PetscPrintf(PETSC_COMM_WORLD," |     Toolbox for Stratified Convective Atmospheres      |  G IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAG\n");        
     PetscPrintf(PETSC_COMM_WORLD," |________________________________________________________|  E.\n\n\n\n");       
@@ -244,30 +244,30 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",      &(flags->isNonInertialFrameActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",      &(flags->isGravityWaveModelingActive), PETSC_NULL);
 
-	// do some checks
-	if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingXActive)
-	{
+    // do some checks
+    if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingXActive)
+    {
         // y damping only goes with x damping
         if(flags->isYDampingActive && !flags->isXDampingActive)
         {
             char error[512];
-			sprintf(error, "xDampingLayer is required for yDampingLayer");
-			fatalErrorInFunction("SetSimulationFlags", error);
+            sprintf(error, "xDampingLayer is required for yDampingLayer");
+            fatalErrorInFunction("SetSimulationFlags", error);
         }
 
-		if(!flags->isAblActive)
-		{
-			char error[512];
-			sprintf(error, "abl flag is required for zDampingLayer, xDampingLayer, yDampingLayer, kLeftRayleigh, kRightRayleigh, advectionDamping");
-			fatalErrorInFunction("SetSimulationFlags", error);
-		}
+        if(!flags->isAblActive)
+        {
+            char error[512];
+            sprintf(error, "abl flag is required for zDampingLayer, xDampingLayer, yDampingLayer, kLeftRayleigh, kRightRayleigh, advectionDamping");
+            fatalErrorInFunction("SetSimulationFlags", error);
+        }
 
-		if(!flags->isTeqnActive)
-		{
-			char error[512];
-			sprintf(error, "potentialT flag is required for zDampingLayer, xDampingLayer or yDampingLayer");
-			fatalErrorInFunction("SetSimulationFlags", error);
-		}
+        if(!flags->isTeqnActive)
+        {
+            char error[512];
+            sprintf(error, "potentialT flag is required for zDampingLayer, xDampingLayer or yDampingLayer");
+            fatalErrorInFunction("SetSimulationFlags", error);
+        }
 
         // print a suggestion when running xdamping layer or kleft/kright rayleigh without advection damping
         if
@@ -284,7 +284,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
             sprintf(warning, "advection damping is suggested with inlet/outlet fringe layers and it is currently deactivated");
             warningInFunction("SetSimulationFlags", warning);
         }
-	}
+    }
 
     // read acquisition flags
     PetscInt isProbesActive         = 0;

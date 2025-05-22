@@ -1630,101 +1630,101 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         }
     }
 
-	if(flags->isAquisitionActive)
-	{
-		if(acquisition->isAverage3LMActive)
-		{
-			FILE *fp;
+    if(flags->isAquisitionActive)
+    {
+        if(acquisition->isAverage3LMActive)
+        {
+            FILE *fp;
 
-			field = "/Um3LM";
-			fileName = location + field;
-			fp=fopen(fileName.c_str(), "r");
+            field = "/Um3LM";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
 
-			if(fp!=NULL)
-			{
-				fclose(fp);
+            if(fp!=NULL)
+            {
+                fclose(fp);
 
-				PetscPrintf(mesh->MESH_COMM, "Um3LM...\n");
-				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-				VecLoad(acquisition->LM3->avgU,viewer);
-				PetscViewerDestroy(&viewer);
-				lm3Available++;
-			}
-			MPI_Barrier(mesh->MESH_COMM);
+                PetscPrintf(mesh->MESH_COMM, "Um3LM...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->LM3->avgU,viewer);
+                PetscViewerDestroy(&viewer);
+                lm3Available++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
 
             if(flags->isTeqnActive)
             {
-    			field = "/dTdz3LM";
-    			fileName = location + field;
-    			fp=fopen(fileName.c_str(), "r");
+                field = "/dTdz3LM";
+                fileName = location + field;
+                fp=fopen(fileName.c_str(), "r");
 
-    			if(fp!=NULL)
-    			{
-    				fclose(fp);
+                if(fp!=NULL)
+                {
+                    fclose(fp);
 
-    				PetscPrintf(mesh->MESH_COMM, "dTdz3LM...\n");
-    				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-    				VecLoad(acquisition->LM3->avgdTdz,viewer);
-    				PetscViewerDestroy(&viewer);
-    				lm3Available++;
-    			}
-    			MPI_Barrier(mesh->MESH_COMM);
+                    PetscPrintf(mesh->MESH_COMM, "dTdz3LM...\n");
+                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                    VecLoad(acquisition->LM3->avgdTdz,viewer);
+                    PetscViewerDestroy(&viewer);
+                    lm3Available++;
+                }
+                MPI_Barrier(mesh->MESH_COMM);
             }
-		}
+        }
 
-		if(acquisition->isPerturbABLActive)
-		{
-			FILE *fp;
+        if(acquisition->isPerturbABLActive)
+        {
+            FILE *fp;
 
-			field = "/UpABL";
-			fileName = location + field;
-			fp=fopen(fileName.c_str(), "r");
+            field = "/UpABL";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
 
-			if(fp!=NULL)
-			{
-				fclose(fp);
+            if(fp!=NULL)
+            {
+                fclose(fp);
 
-				PetscPrintf(mesh->MESH_COMM, "UpABL...\n");
-				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-				VecLoad(acquisition->perturbABL->pertU,viewer);
-				PetscViewerDestroy(&viewer);
-				perturbABLAvailable++;
-			}
-			MPI_Barrier(mesh->MESH_COMM);
+                PetscPrintf(mesh->MESH_COMM, "UpABL...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->perturbABL->pertU,viewer);
+                PetscViewerDestroy(&viewer);
+                perturbABLAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
 
-			field = "/PpABL";
-			fileName = location + field;
-			fp=fopen(fileName.c_str(), "r");
+            field = "/PpABL";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
 
-			if(fp!=NULL)
-			{
-				fclose(fp);
+            if(fp!=NULL)
+            {
+                fclose(fp);
 
-				PetscPrintf(mesh->MESH_COMM, "PpABL...\n");
-				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-				VecLoad(acquisition->perturbABL->pertP,viewer);
-				PetscViewerDestroy(&viewer);
-				perturbABLAvailable++;
-			}
-			MPI_Barrier(mesh->MESH_COMM);
+                PetscPrintf(mesh->MESH_COMM, "PpABL...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->perturbABL->pertP,viewer);
+                PetscViewerDestroy(&viewer);
+                perturbABLAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
 
-			field = "/TpABL";
-			fileName = location + field;
-			fp=fopen(fileName.c_str(), "r");
+            field = "/TpABL";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
 
-			if(fp!=NULL)
-			{
-				fclose(fp);
+            if(fp!=NULL)
+            {
+                fclose(fp);
 
-				PetscPrintf(mesh->MESH_COMM, "TpABL...\n");
-				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-				VecLoad(acquisition->perturbABL->pertT,viewer);
-				PetscViewerDestroy(&viewer);
-				perturbABLAvailable++;
-			}
-			MPI_Barrier(mesh->MESH_COMM);
-		}
-	}
+                PetscPrintf(mesh->MESH_COMM, "TpABL...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->perturbABL->pertT,viewer);
+                PetscViewerDestroy(&viewer);
+                perturbABLAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+    }
 
     // read average, phase and ke budget average weights
     if(avgAvailable)
@@ -5082,19 +5082,19 @@ bool isNumber(const word& str)
 
     if (str.find(keyboard[i]) != std::string::npos)
     {
-		// exponentials (e-, e+ are accepted)
-		if
-		(
-			str.find("e+") != std::string::npos ||
-			str.find("e-") != std::string::npos
-		)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+        // exponentials (e-, e+ are accepted)
+        if
+        (
+            str.find("e+") != std::string::npos ||
+            str.find("e-") != std::string::npos
+        )
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     return true;

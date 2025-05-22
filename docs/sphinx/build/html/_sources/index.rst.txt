@@ -35,7 +35,7 @@ Reporting Bugs, Issues & Contributing
 =====================================
 
 For bugs, issues, questions and new features please open an issue on the GitHub repository `here <https://github.com/sebastipa/TOSCA/issues>`_.
-To contribute to the TOSCA code, please see the :ref:`contribute_subsection` section of this documentation.
+To contribute to the TOSCA code, please see :ref:`contribute_subsection`.
 
 Publications
 ============

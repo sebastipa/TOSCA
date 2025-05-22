@@ -58,7 +58,7 @@ CPPFLAGS  += -DUSE_PYTHON=0
 endif
 
 # Include paths
-INC_FLAGS  = -I$(PETSC_DIR)/include -I$(PETSC_DIR)/$(PETSC_ARCH)/include 
+INC_FLAGS += -I$(PETSC_DIR)/include -I$(PETSC_DIR)/$(PETSC_ARCH)/include 
 
 # Directories
 BUILD_DIR  = build

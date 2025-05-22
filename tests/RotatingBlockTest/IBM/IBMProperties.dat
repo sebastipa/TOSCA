@@ -1,21 +1,21 @@
-# TOSCA Input file - IBM Properties
-# -------------------------------------------
+# TOSCA Input file - IBM Input Properties
+# ---------------------------------------
 
 NumberofBodies                      1
 
 InterpolationMethod                 CURVIB
-CURVIBInterpolationType		    CurvibTrilinear
-interpolationOrder		    linear
+CURVIBInterpolationType             CurvibTrilinear
+interpolationOrder                  linear
 
 debug                               0
 dynamic                             1
 checkNormal                         1
-averageNormal			    0
+averageNormal                       0
 computeForce                        1
 writeSTL                            0
-wallShear			    0
-pressureBC			    0
-abl				    0
+wallShear                           0
+pressureBC                          0
+abl                                 0
 
 writeSettings
 {
@@ -24,16 +24,15 @@ writeSettings
     timeInterval        1.0
 }
 
-#ibm object properties
-
+# IBM object properties
 object0
 {
     bodyName                        rotatingBlock
     bodyType                        closedBody
 
-    fileType 			    ucd
+    fileType                        ucd
     bodyMotion                      rotation
-    baseLocation     	            (0.0 0.0 0.0)
+    baseLocation                    (0.0 0.0 0.0)
 
     #procBounds
     procBoundCenter                 (0.0 0.0 0.0)
@@ -49,9 +48,9 @@ object0
     #motion properties
 
     maxTipRadius                    1.0
-    angularSpeed     	            8.0
+    angularSpeed                    8.0
     angularAcceleration             0.0
-    rotationAxis            	    (1.0 0.0 0.0)
+    rotationAxis                    (1.0 0.0 0.0)
     rotationCenter                  (0.0 0.0 0.0)
 
     searchCellRatio                 3

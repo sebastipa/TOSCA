@@ -69,3 +69,4 @@ This user guide is being developed by Sebastiano Stipa. The TOSCA code is under 
    tosca_examples.rst
    tosca_applications.rst
    tosca_theory_guide.rst
+   tosca_versions.rst

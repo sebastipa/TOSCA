@@ -2438,11 +2438,11 @@ PetscErrorCode oversetMeshTranslation(overset_ *os)
 {
   mesh_           *mesh = os->access->mesh;
   DM              da = mesh->da, fda = mesh->fda;
-  DMDALocalInfo	  info = mesh->info;
-  PetscInt	      xs = info.xs, xe = info.xs + info.xm;
+  DMDALocalInfo   info = mesh->info;
+  PetscInt        xs = info.xs, xe = info.xs + info.xm;
   PetscInt        ys = info.ys, ye = info.ys + info.ym;
-  PetscInt	      zs = info.zs, ze = info.zs + info.zm;
-  PetscInt	      mx = info.mx, my = info.my, mz = info.mz;
+  PetscInt        zs = info.zs, ze = info.zs + info.zm;
+  PetscInt        mx = info.mx, my = info.my, mz = info.mz;
   PetscInt        lxs, lxe, lys, lye, lzs, lze;
 
   PetscInt             k, j, i;

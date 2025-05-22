@@ -74,7 +74,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
     readDictDouble  ("ABLProperties.dat", "gInv",             &(abl->gInv));
     readDictDouble  ("ABLProperties.dat", "tRef",             &(abl->tRef));
     readDictDouble  ("ABLProperties.dat", "gTop",             &(abl->gTop));
-	readDictDouble  ("ABLProperties.dat", "gABL",             &(abl->gABL));
+    readDictDouble  ("ABLProperties.dat", "gABL",             &(abl->gABL));
     readDictDouble  ("ABLProperties.dat", "vkConst",          &(abl->vkConst));
     readDictDouble  ("ABLProperties.dat", "smearT",           &(abl->smear));
     readDictInt     ("ABLProperties.dat", "coriolisActive",   &(abl->coriolisActive));
@@ -4071,7 +4071,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
 
     DMDAVecGetArray(da,  teqn->lTmprt,    &tmprt);
 
-	PetscInt nLevels = my-2;
+    PetscInt nLevels = my-2;
     PetscInt stabilityFlag = 0, methodFlag = 0;
     PetscInt zMaxId, zMinId;
     PetscInt RiCrossId, tkeCrossId;

@@ -6222,7 +6222,7 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
 
                 if(!rank)
                 {
-					// create rake folder
+                    // create rake folder
                     errno = 0;
                     word rakeFolderName = "./postProcessing/" + probes->rakes[r].rakeName;
                     PetscInt dirRes = mkdir(rakeFolderName.c_str(), 0777);
@@ -6246,50 +6246,50 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
                         // if the time name exists remove everything inside (not in post processing stage)
                         else if(errno == EEXIST)
                         {
-							if(!postProcessing)
-							{
-								remove_subdirs(probes->rakes[r].RAKE_COMM, probes->rakes[r].timeName.c_str());
-							}
+                            if(!postProcessing)
+                            {
+                                remove_subdirs(probes->rakes[r].RAKE_COMM, probes->rakes[r].timeName.c_str());
+                            }
                         }
-					
-						if(postProcessing)
-						{
-							if(domain[0].access.io->averaging)
-							{
-								// initialize average velocity file
-								InitRakeFile(&(probes->rakes[r]), "avgU");
+                    
+                        if(postProcessing)
+                        {
+                            if(domain[0].access.io->averaging)
+                            {
+                                // initialize average velocity file
+                                InitRakeFile(&(probes->rakes[r]), "avgU");
 
-								// initialize average shear stress file
-								InitRakeFile(&(probes->rakes[r]), "avgUU");
+                                // initialize average shear stress file
+                                InitRakeFile(&(probes->rakes[r]), "avgUU");
 
-								// initialize average pressure file
-								InitRakeFile(&(probes->rakes[r]), "avgP");
-							}
+                                // initialize average pressure file
+                                InitRakeFile(&(probes->rakes[r]), "avgP");
+                            }
 
-							if(domain[0].access.io->phaseAveraging)
-							{
-								// initialize average velocity file
-								InitRakeFile(&(probes->rakes[r]), "phAvgU");
+                            if(domain[0].access.io->phaseAveraging)
+                            {
+                                // initialize average velocity file
+                                InitRakeFile(&(probes->rakes[r]), "phAvgU");
 
-								// initialize average shear stress file
-								InitRakeFile(&(probes->rakes[r]), "phAvgUU");
+                                // initialize average shear stress file
+                                InitRakeFile(&(probes->rakes[r]), "phAvgUU");
 
-								// initialize average pressure file
-								InitRakeFile(&(probes->rakes[r]), "phAvgP");
-							}
-						}
-						else
-						{
-							// initialize velocity file
-							if(probes->rakes[r].Uflag) InitRakeFile(&(probes->rakes[r]), "U");
+                                // initialize average pressure file
+                                InitRakeFile(&(probes->rakes[r]), "phAvgP");
+                            }
+                        }
+                        else
+                        {
+                            // initialize velocity file
+                            if(probes->rakes[r].Uflag) InitRakeFile(&(probes->rakes[r]), "U");
 
-							// initialize temperature file
-							if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
+                            // initialize temperature file
+                            if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
 
-							// initialize pressure file
-							if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
-						}
-					}
+                            // initialize pressure file
+                            if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
+                        }
+                    }
 
                 }
 
@@ -9399,14 +9399,14 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
     {
 
           // check if temperature transport is active
-		  /*
+          /*
           if(!acquisition->access->flags->isTeqnActive)
           {
               char error[512];
               sprintf(error, "ABL averaging not available without temperature transport (set potentialT to true)");
               fatalErrorInFunction("averagingABLInitialize",  error);
           }
-		  */
+          */
 
           // check if les is active
           if(!acquisition->access->flags->isLesActive)
@@ -9426,10 +9426,10 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
         ueqn_         *ueqn    = acquisition->access->ueqn;
         teqn_         *teqn;
 
-		if(acquisition->access->flags->isTeqnActive)
-		{
-			teqn = acquisition->access->teqn;
-		}
+        if(acquisition->access->flags->isTeqnActive)
+        {
+            teqn = acquisition->access->teqn;
+        }
 
         DM            da = mesh->da, fda = mesh->fda;
         DMDALocalInfo info = mesh->info;
@@ -9589,15 +9589,15 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
         ablStat->R23Mean        = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
         ablStat->R33Mean        = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
 
-		VecDuplicate(ueqn->Ucat,  &(ablStat->UPrime)); VecSet(ablStat->UPrime, 0.);
+        VecDuplicate(ueqn->Ucat,  &(ablStat->UPrime)); VecSet(ablStat->UPrime, 0.);
 
-		if(acquisition->access->flags->isTeqnActive)
-		{
-			ablStat->TMean          = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
+        if(acquisition->access->flags->isTeqnActive)
+        {
+            ablStat->TMean          = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
 
-			ablStat->TuMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
-			ablStat->TvMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
-			ablStat->TwMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
+            ablStat->TuMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
+            ablStat->TvMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
+            ablStat->TwMean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
 
             ablStat->diffTMean       = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
 
@@ -9605,8 +9605,8 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
             ablStat->q2Mean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);
             ablStat->q3Mean         = (PetscReal*)malloc(sizeof(PetscReal) * nLevels);                
 
-			VecDuplicate(teqn->Tmprt, &(ablStat->TPrime)); VecSet(ablStat->TPrime, 0.);
-		}
+            VecDuplicate(teqn->Tmprt, &(ablStat->TPrime)); VecSet(ablStat->TPrime, 0.);
+        }
 
         // set the already available data members
         for(l=0; l<nLevels; l++)
@@ -9677,8 +9677,8 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
                 fclose(f);
             }
 
-			if(acquisition->access->flags->isTeqnActive)
-			{
+            if(acquisition->access->flags->isTeqnActive)
+            {
                 if(acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                 {
                     // q1_mean file
@@ -9742,66 +9742,66 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
                     }
                 }
 
-				// T_mean file
-				sprintf(fileName, "%s/T_mean", ablStat->timeName.c_str());
-				f = fopen(fileName, "w");
+                // T_mean file
+                sprintf(fileName, "%s/T_mean", ablStat->timeName.c_str());
+                f = fopen(fileName, "w");
 
-				if(!f)
-				{
-					char error[530];
-					sprintf(error, "cannot open file %s\n", fileName);
-					fatalErrorInFunction("averagingABLInitialize",  error);
-				}
-				else
-				{
-					fclose(f);
-				}
+                if(!f)
+                {
+                    char error[530];
+                    sprintf(error, "cannot open file %s\n", fileName);
+                    fatalErrorInFunction("averagingABLInitialize",  error);
+                }
+                else
+                {
+                    fclose(f);
+                }
 
-				// Tu_mean file
-				sprintf(fileName, "%s/Tu_mean", ablStat->timeName.c_str());
-				f = fopen(fileName, "w");
+                // Tu_mean file
+                sprintf(fileName, "%s/Tu_mean", ablStat->timeName.c_str());
+                f = fopen(fileName, "w");
 
-				if(!f)
-				{
-					char error[530];
-					sprintf(error, "cannot open file %s\n", fileName);
-					fatalErrorInFunction("averagingABLInitialize",  error);
-				}
-				else
-				{
-					fclose(f);
-				}
+                if(!f)
+                {
+                    char error[530];
+                    sprintf(error, "cannot open file %s\n", fileName);
+                    fatalErrorInFunction("averagingABLInitialize",  error);
+                }
+                else
+                {
+                    fclose(f);
+                }
 
-				// Tv_mean file
-				sprintf(fileName, "%s/Tv_mean", ablStat->timeName.c_str());
-				f = fopen(fileName, "w");
+                // Tv_mean file
+                sprintf(fileName, "%s/Tv_mean", ablStat->timeName.c_str());
+                f = fopen(fileName, "w");
 
-				if(!f)
-				{
-					char error[530];
-					sprintf(error, "cannot open file %s\n", fileName);
-					fatalErrorInFunction("averagingABLInitialize",  error);
-				}
-				else
-				{
-					fclose(f);
-				}
+                if(!f)
+                {
+                    char error[530];
+                    sprintf(error, "cannot open file %s\n", fileName);
+                    fatalErrorInFunction("averagingABLInitialize",  error);
+                }
+                else
+                {
+                    fclose(f);
+                }
 
-				// Tw_mean file
-				sprintf(fileName, "%s/Tw_mean", ablStat->timeName.c_str());
-				f = fopen(fileName, "w");
+                // Tw_mean file
+                sprintf(fileName, "%s/Tw_mean", ablStat->timeName.c_str());
+                f = fopen(fileName, "w");
 
-				if(!f)
-				{
-					char error[530];
-					sprintf(error, "cannot open file %s\n", fileName);
-					fatalErrorInFunction("averagingABLInitialize",  error);
-				}
-				else
-				{
-					fclose(f);
-				}
-			}
+                if(!f)
+                {
+                    char error[530];
+                    sprintf(error, "cannot open file %s\n", fileName);
+                    fatalErrorInFunction("averagingABLInitialize",  error);
+                }
+                else
+                {
+                    fclose(f);
+                }
+            }
 
             // R11_mean file
             sprintf(fileName, "%s/R11_mean", ablStat->timeName.c_str());
@@ -10153,12 +10153,12 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             mesh_   *mesh    = acquisition->access->mesh;
             ueqn_   *ueqn    = acquisition->access->ueqn;
             les_    *les     = acquisition->access->les;
-			teqn_   *teqn;
+            teqn_   *teqn;
 
-			if(acquisition->access->flags->isTeqnActive)
-			{
-				teqn    = acquisition->access->teqn;
-			}
+            if(acquisition->access->flags->isTeqnActive)
+            {
+                teqn    = acquisition->access->teqn;
+            }
 
             DM            da = mesh->da, fda = mesh->fda;
             DMDALocalInfo info = mesh->info;
@@ -10205,20 +10205,20 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
             DMDAVecGetArray(fda, ablStat->UPrime, &uprime);
 
-			if(acquisition->access->flags->isTeqnActive)
-			{
-				DMDAVecGetArray(da,  teqn->lTmprt,    &tmprt);
-				DMDAVecGetArray(da,  ablStat->TPrime, &tprime);
+            if(acquisition->access->flags->isTeqnActive)
+            {
+                DMDAVecGetArray(da,  teqn->lTmprt,    &tmprt);
+                DMDAVecGetArray(da,  ablStat->TPrime, &tprime);
 
                 if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                 {
                     DMDAVecGetArray(da,  les->lDiff_t, &ldt);
                 }
-			}
+            }
 
-			PetscInt nLevels = my-2;
+            PetscInt nLevels = my-2;
 
-			std::vector<Cmpnts> lVelocity(nLevels);
+            std::vector<Cmpnts> lVelocity(nLevels);
             std::vector<Cmpnts> gVelocity(nLevels);
             std::vector<PetscReal> lnut(nLevels);
             std::vector<PetscReal> gnut(nLevels);
@@ -10226,8 +10226,8 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             std::vector<PetscReal> gkSGS(nLevels);
             std::vector<PetscReal> ldiffT(nLevels);
             std::vector<PetscReal> gdiffT(nLevels);
-			std::vector<PetscReal> lTemperature(nLevels);
-			std::vector<PetscReal> gTemperature(nLevels);
+            std::vector<PetscReal> lTemperature(nLevels);
+            std::vector<PetscReal> gTemperature(nLevels);
 
             for(l=0; l<nLevels; l++)
             {
@@ -10240,14 +10240,14 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 lkSGS[l] = 0.0;
                 gkSGS[l] = 0.0;
 
-				if(acquisition->access->flags->isTeqnActive)
-				{
-					lTemperature[l] = 0.0;
-					gTemperature[l] = 0.0;
+                if(acquisition->access->flags->isTeqnActive)
+                {
+                    lTemperature[l] = 0.0;
+                    gTemperature[l] = 0.0;
 
                     ldiffT[l] = 0.0;
                     gdiffT[l] = 0.0;
-				}
+                }
             }
 
             for (k=lzs; k<lze; k++)
@@ -10263,15 +10263,15 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         lnut[j-1]         += nut[k][j][i]    / aj[k][j][i];
                         lkSGS[j-1]        += ksg[k][j][i]    / aj[k][j][i];
 
-						if(acquisition->access->flags->isTeqnActive)
-						{
-							lTemperature[j-1] += tmprt[k][j][i]  / aj[k][j][i];
+                        if(acquisition->access->flags->isTeqnActive)
+                        {
+                            lTemperature[j-1] += tmprt[k][j][i]  / aj[k][j][i];
 
                             if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                             {
                                 ldiffT[j-1] += ldt[k][j][i]/ aj[k][j][i];
                             }
-						}
+                        }
                     }
                 }
             }
@@ -10280,15 +10280,15 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             MPI_Allreduce(&lnut[0], &gnut[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
             MPI_Allreduce(&lkSGS[0], &gkSGS[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-			if(acquisition->access->flags->isTeqnActive)
-			{
-				MPI_Allreduce(&lTemperature[0], &gTemperature[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            if(acquisition->access->flags->isTeqnActive)
+            {
+                MPI_Allreduce(&lTemperature[0], &gTemperature[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
                 if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                 {
-				    MPI_Allreduce(&ldiffT[0], &gdiffT[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                    MPI_Allreduce(&ldiffT[0], &gdiffT[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
                 }
-			}
+            }
 
             for(l=0; l<nLevels; l++)
             {
@@ -10300,14 +10300,14 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 ablStat->nutMean[l]  = gnut[l] / totVolPerLevel;
                 ablStat->ksgsMean[l] = gkSGS[l] / totVolPerLevel;
 
-				if(acquisition->access->flags->isTeqnActive)
-				{
-					ablStat->TMean[l]   = gTemperature[l] / totVolPerLevel;
+                if(acquisition->access->flags->isTeqnActive)
+                {
+                    ablStat->TMean[l]   = gTemperature[l] / totVolPerLevel;
 
                     if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                     {
                         ablStat->diffTMean[l]   = gdiffT[l] / totVolPerLevel;
-				    }
+                    }
                 }
             }
 
@@ -10322,10 +10322,10 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         uprime[k][j][i].y = ucat[k][j][i].y - ablStat->VMean[j-1];
                         uprime[k][j][i].z = ucat[k][j][i].z - ablStat->WMean[j-1];
 
-						if(acquisition->access->flags->isTeqnActive)
-						{
-							tprime[k][j][i]   = tmprt[k][j][i]  - ablStat->TMean[j-1];
-						}
+                        if(acquisition->access->flags->isTeqnActive)
+                        {
+                            tprime[k][j][i]   = tmprt[k][j][i]  - ablStat->TMean[j-1];
+                        }
                     }
                 }
             }
@@ -10337,10 +10337,10 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             std::vector<symmTensor> gSw(nLevels);
             std::vector<symmTensor> lR(nLevels);
             std::vector<symmTensor> gR(nLevels);
-			std::vector<Cmpnts>     lTU(nLevels);
-			std::vector<Cmpnts>     gTU(nLevels);
-			std::vector<Cmpnts>     lq(nLevels);
-			std::vector<Cmpnts>     gq(nLevels);
+            std::vector<Cmpnts>     lTU(nLevels);
+            std::vector<Cmpnts>     gTU(nLevels);
+            std::vector<Cmpnts>     lq(nLevels);
+            std::vector<Cmpnts>     gq(nLevels);
 
             for(l=0; l<nLevels; l++)
             {
@@ -10352,13 +10352,13 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 lR[l].xx = lR[l].xy = lR[l].xz = lR[l].yy = lR[l].yz = lR[l].zz = 0.0;
                 gR[l].xx = gR[l].xy = gR[l].xz = gR[l].yy = gR[l].yz = gR[l].zz = 0.0;
 
-				if(acquisition->access->flags->isTeqnActive)
-				{
-					lTU[l].x  = lTU[l].y  = lTU[l].z  = 0.0;
-					gTU[l].x  = gTU[l].y  = gTU[l].z  = 0.0;
-					lq[l].x   = lq[l].y   = lq[l].z  = 0.0;
-					gq[l].x   = gq[l].y   = gq[l].z  = 0.0;       
-				}
+                if(acquisition->access->flags->isTeqnActive)
+                {
+                    lTU[l].x  = lTU[l].y  = lTU[l].z  = 0.0;
+                    gTU[l].x  = gTU[l].y  = gTU[l].z  = 0.0;
+                    lq[l].x   = lq[l].y   = lq[l].z  = 0.0;
+                    gq[l].x   = gq[l].y   = gq[l].z  = 0.0;       
+                }
             }
 
             PetscReal volCell;
@@ -10397,10 +10397,10 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         uprimeCell.y = uprime[k][j][i].y;
                         uprimeCell.z = uprime[k][j][i].z;
 
-						if(acquisition->access->flags->isTeqnActive)
-						{
-							tprimeCell   = tprime[k][j][i];
-						}
+                        if(acquisition->access->flags->isTeqnActive)
+                        {
+                            tprimeCell   = tprime[k][j][i];
+                        }
 
                         Compute_du_center
                         (
@@ -10433,11 +10433,11 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         lSw[j-1].yz += uprimeCell.z * uprimeCell.y * uprimeCell.z * volCell;
                         lSw[j-1].zz += uprimeCell.z * uprimeCell.z * uprimeCell.z * volCell;
 
-						if(acquisition->access->flags->isTeqnActive)
-						{
-							lTU[j-1].x  += tprimeCell * uprimeCell.x * volCell;
-							lTU[j-1].y  += tprimeCell * uprimeCell.y * volCell;
-							lTU[j-1].z  += tprimeCell * uprimeCell.z * volCell;
+                        if(acquisition->access->flags->isTeqnActive)
+                        {
+                            lTU[j-1].x  += tprimeCell * uprimeCell.x * volCell;
+                            lTU[j-1].y  += tprimeCell * uprimeCell.y * volCell;
+                            lTU[j-1].z  += tprimeCell * uprimeCell.z * volCell;
                             
                             PetscReal dtdc, dtde, dtdz;
                             PetscReal dt_dx, dt_dy, dt_dz;
@@ -10471,7 +10471,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                                 lq[j-1].z  += ( - diffT * dt_dz) * volCell;
                             }
 
-						}
+                        }
 
                         // PetscReal tke   = 0.5 * (uprimeCell.x * uprimeCell.x + uprimeCell.y * uprimeCell.y + uprimeCell.z * uprimeCell.z);
                         PetscReal ksgs  = ksg[k][j][i];
@@ -10492,15 +10492,15 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             MPI_Allreduce(&lSw[0], &gSw[0], 6*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
             MPI_Allreduce(&lR[0],  &gR[0],  6*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-			if(acquisition->access->flags->isTeqnActive)
-			{
-				MPI_Allreduce(&lTU[0], &gTU[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            if(acquisition->access->flags->isTeqnActive)
+            {
+                MPI_Allreduce(&lTU[0], &gTU[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
                 if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                 {
-				    MPI_Allreduce(&lq[0], &gq[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+                    MPI_Allreduce(&lq[0], &gq[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
                 }
-			}
+            }
 
             // store statistics after dividing for the total volume per level
             for (l=0; l<nLevels; l++)
@@ -10529,10 +10529,10 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 ablStat->R33Mean[l] = gR[l].zz / totVolPerLevel;
 
                 if(acquisition->access->flags->isTeqnActive)
-				{
-					ablStat->TuMean[l] = gTU[l].x / totVolPerLevel;
-					ablStat->TvMean[l] = gTU[l].y / totVolPerLevel;
-					ablStat->TwMean[l] = gTU[l].z / totVolPerLevel;
+                {
+                    ablStat->TuMean[l] = gTU[l].x / totVolPerLevel;
+                    ablStat->TvMean[l] = gTU[l].y / totVolPerLevel;
+                    ablStat->TwMean[l] = gTU[l].z / totVolPerLevel;
 
                     if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                     {
@@ -10540,7 +10540,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         ablStat->q2Mean[l] = gq[l].y / totVolPerLevel;
                         ablStat->q3Mean[l] = gq[l].z / totVolPerLevel;
                     }
-				}
+                }
             }
 
             // correct modeled stress tensor at the wall
@@ -10564,16 +10564,16 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             DMDAVecRestoreArray(da,  les->lKsgs,      &ksg);
             DMDAVecRestoreArray(fda, ablStat->UPrime, &uprime);
 
-			if(acquisition->access->flags->isTeqnActive)
-			{
-				DMDAVecRestoreArray(da,  teqn->lTmprt,    &tmprt);
-				DMDAVecRestoreArray(da,  ablStat->TPrime, &tprime);
+            if(acquisition->access->flags->isTeqnActive)
+            {
+                DMDAVecRestoreArray(da,  teqn->lTmprt,    &tmprt);
+                DMDAVecRestoreArray(da,  ablStat->TPrime, &tprime);
 
                 if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                 {
                     DMDAVecRestoreArray(da,  les->lDiff_t, &ldt);
                 }
-			}
+            }
 
 
 
@@ -10593,12 +10593,12 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             std::vector<symmTensor> ().swap(lR);
             std::vector<symmTensor> ().swap(gR);
 
-			std::vector<PetscReal> ().swap(lTemperature);
-			std::vector<PetscReal> ().swap(gTemperature);
-			std::vector<Cmpnts>     ().swap(lTU);
-			std::vector<Cmpnts>     ().swap(gTU);
-			std::vector<Cmpnts>     ().swap(lq);
-			std::vector<Cmpnts>     ().swap(gq);
+            std::vector<PetscReal> ().swap(lTemperature);
+            std::vector<PetscReal> ().swap(gTemperature);
+            std::vector<Cmpnts>     ().swap(lTU);
+            std::vector<Cmpnts>     ().swap(gTU);
+            std::vector<Cmpnts>     ().swap(lq);
+            std::vector<Cmpnts>     ().swap(gq);
 
             // write statistics to files
 
@@ -10654,8 +10654,8 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     fclose(f);
                 }
 
-				if(acquisition->access->flags->isTeqnActive)
-				{
+                if(acquisition->access->flags->isTeqnActive)
+                {
                     if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                     {
                         // q1_mean file
@@ -10747,95 +10747,95 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         }
 
                     }
-					
-					// T_mean file
-					fileName = ablStat->timeName + "/T_mean";
-					f = fopen(fileName.c_str(), "a");
+                    
+                    // T_mean file
+                    fileName = ablStat->timeName + "/T_mean";
+                    f = fopen(fileName.c_str(), "a");
 
-					if(!f)
-					{
-					   char error[512];
-						sprintf(error, "cannot open file %s\n", fileName.c_str());
-						fatalErrorInFunction("writeAveragingABL",  error);
-					}
-					else
-					{
-						fprintf(f, "%.5lf\t", clock->time);
-						fprintf(f, "%.5lf\t", clock->dt);
-						for(l=0; l<nLevels; l++)
-						{
-							fprintf(f, "%.5lf\t", ablStat->TMean[l]);
-						}
-						fprintf(f, "\n");
-						fclose(f);
-					}
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName.c_str());
+                        fatalErrorInFunction("writeAveragingABL",  error);
+                    }
+                    else
+                    {
+                        fprintf(f, "%.5lf\t", clock->time);
+                        fprintf(f, "%.5lf\t", clock->dt);
+                        for(l=0; l<nLevels; l++)
+                        {
+                            fprintf(f, "%.5lf\t", ablStat->TMean[l]);
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
 
-					// Tu_mean file
-					fileName = ablStat->timeName + "/Tu_mean";
-					f = fopen(fileName.c_str(), "a");
+                    // Tu_mean file
+                    fileName = ablStat->timeName + "/Tu_mean";
+                    f = fopen(fileName.c_str(), "a");
 
-					if(!f)
-					{
-					   char error[512];
-						sprintf(error, "cannot open file %s\n", fileName.c_str());
-						fatalErrorInFunction("writeAveragingABL",  error);
-					}
-					else
-					{
-						fprintf(f, "%.5lf\t", clock->time);
-						fprintf(f, "%.5lf\t", clock->dt);
-						for(l=0; l<nLevels; l++)
-						{
-							fprintf(f, "%.5lf\t", ablStat->TuMean[l]);
-						}
-						fprintf(f, "\n");
-						fclose(f);
-					}
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName.c_str());
+                        fatalErrorInFunction("writeAveragingABL",  error);
+                    }
+                    else
+                    {
+                        fprintf(f, "%.5lf\t", clock->time);
+                        fprintf(f, "%.5lf\t", clock->dt);
+                        for(l=0; l<nLevels; l++)
+                        {
+                            fprintf(f, "%.5lf\t", ablStat->TuMean[l]);
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
 
-					// Tv_mean file
-					fileName = ablStat->timeName + "/Tv_mean";
-					f = fopen(fileName.c_str(), "a");
+                    // Tv_mean file
+                    fileName = ablStat->timeName + "/Tv_mean";
+                    f = fopen(fileName.c_str(), "a");
 
-					if(!f)
-					{
-					   char error[512];
-						sprintf(error, "cannot open file %s\n", fileName.c_str());
-						fatalErrorInFunction("writeAveragingABL",  error);
-					}
-					else
-					{
-						fprintf(f, "%.5lf\t", clock->time);
-						fprintf(f, "%.5lf\t", clock->dt);
-						for(l=0; l<nLevels; l++)
-						{
-							fprintf(f, "%.5lf\t", ablStat->TvMean[l]);
-						}
-						fprintf(f, "\n");
-						fclose(f);
-					}
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName.c_str());
+                        fatalErrorInFunction("writeAveragingABL",  error);
+                    }
+                    else
+                    {
+                        fprintf(f, "%.5lf\t", clock->time);
+                        fprintf(f, "%.5lf\t", clock->dt);
+                        for(l=0; l<nLevels; l++)
+                        {
+                            fprintf(f, "%.5lf\t", ablStat->TvMean[l]);
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
 
-					// Tw_mean file
-					fileName = ablStat->timeName + "/Tw_mean";
-					f = fopen(fileName.c_str(), "a");
+                    // Tw_mean file
+                    fileName = ablStat->timeName + "/Tw_mean";
+                    f = fopen(fileName.c_str(), "a");
 
-					if(!f)
-					{
-					   char error[512];
-						sprintf(error, "cannot open file %s\n", fileName.c_str());
-						fatalErrorInFunction("writeAveragingABL",  error);
-					}
-					else
-					{
-						fprintf(f, "%.5lf\t", clock->time);
-						fprintf(f, "%.5lf\t", clock->dt);
-						for(l=0; l<nLevels; l++)
-						{
-							fprintf(f, "%.5lf\t", ablStat->TwMean[l]);
-						}
-						fprintf(f, "\n");
-						fclose(f);
-					}
-				}
+                    if(!f)
+                    {
+                       char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName.c_str());
+                        fatalErrorInFunction("writeAveragingABL",  error);
+                    }
+                    else
+                    {
+                        fprintf(f, "%.5lf\t", clock->time);
+                        fprintf(f, "%.5lf\t", clock->dt);
+                        for(l=0; l<nLevels; l++)
+                        {
+                            fprintf(f, "%.5lf\t", ablStat->TwMean[l]);
+                        }
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+                }
 
                 // R11_mean file
                 fileName = ablStat->timeName + "/R11_mean";
