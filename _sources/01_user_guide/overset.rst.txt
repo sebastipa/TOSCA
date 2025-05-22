@@ -155,7 +155,7 @@ interpolated from the parent domain. For example, if the bottom boundary of the 
 is needed for those cells. 
 
 `Hole Object Files` 
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 The hole object files should be provided in the same format as the IBM body files (see :ref:`ibm-section`). Being simple cuboids, these files are 
 pretty easy to generate and an advanced mesher is not required. In fact, a simple python script could be used to generate a minimal hole object file 
