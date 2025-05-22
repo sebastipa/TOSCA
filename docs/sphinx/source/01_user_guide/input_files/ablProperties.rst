@@ -435,7 +435,10 @@ controllerProperties & fringeControllerProperties
                                                     ``inflowDatabase/mesoscaleData``. An example can be found in 
                                                     ``tests/directProfileAssimilationTest``. Once these controllers compute and write 
                                                     the time series of source terms to file, this can be re-applied within wind farm
-                                                    simulations using the controller type *timeHeightSeries*.                                                                   
+                                                    simulations using the controller type *timeHeightSeries*.
+                                                    Recently also introduced the *waveletProfileAssimilation* controller type. 
+                                                    To use this controller please see the *tests/WaveletProfileAssimilationTest*, 
+                                                    it requires TOSCA to be compiled with the USE_PYTHON flag.                                                                    
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``alphaPI``                   scalar             proportional over integral controlling action used by all controllers characterized 
                                                     by a ``controllerAction`` of type *write*. A too low value makes the controller 

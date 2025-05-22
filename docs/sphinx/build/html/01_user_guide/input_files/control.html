@@ -74,6 +74,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_examples.html">Example Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_applications.html">Primary Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_versions.html">TOSCA Versions</a></li>
 </ul>
 
         </div>
@@ -321,7 +322,8 @@ can be set to <code class="docutils literal notranslate"><span class="pre">centr
 upwind-biased quadratic scheme, diffusive), <code class="docutils literal notranslate"><span class="pre">weno3</span></code> (fourth-order weighted essentially
 non-oscillatory scheme, diffusive), <code class="docutils literal notranslate"><span class="pre">centralUpwind</span></code> (vanLeer blending of central and quadratic
 scheme, to balance diffusion and dispersion), <code class="docutils literal notranslate"><span class="pre">centralUpwindW</span></code> (weighted version, for
-graded/non-uniform meshes).</p></td>
+graded/non-uniform meshes), <code class="docutils literal notranslate"><span class="pre">central4</span></code> (high-order central scheme, add diffusion through
+<code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter, default value is 1 - no diffusion).)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-relTolU</span></code></p></td>
 <td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>, discarded otherwise. Allows to set the relative

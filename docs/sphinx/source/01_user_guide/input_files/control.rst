@@ -177,7 +177,8 @@ Solution Controls
                              upwind-biased quadratic scheme, diffusive), ``weno3`` (fourth-order weighted essentially 
                              non-oscillatory scheme, diffusive), ``centralUpwind`` (vanLeer blending of central and quadratic 
                              scheme, to balance diffusion and dispersion), ``centralUpwindW`` (weighted version, for 
-                             graded/non-uniform meshes).
+                             graded/non-uniform meshes), ``central4`` (high-order central scheme, add diffusion through 
+                             ``-hyperVisc`` parameter, default value is 1 - no diffusion).)
    ------------------------- ----------------------------------------------------------------------------------------------------
    ``-relTolU``              Requires ``-dUdtScheme`` set to ``backwardEuler``, discarded otherwise. Allows to set the relative 
                              exit tolerance for the Newton method used to solve implicit discretized momentum equation, default 

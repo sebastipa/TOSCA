@@ -75,6 +75,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_examples.html">Example Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_applications.html">Primary Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_versions.html">Versions</a></li>
 </ul>
 
         </div>
@@ -591,7 +592,10 @@ These can be set with controller type <em>directProfileAssimilation</em> or
 <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData</span></code>. An example can be found in
 <code class="docutils literal notranslate"><span class="pre">tests/directProfileAssimilationTest</span></code>. Once these controllers compute and write
 the time series of source terms to file, this can be re-applied within wind farm
-simulations using the controller type <em>timeHeightSeries</em>.</p></td>
+simulations using the controller type <em>timeHeightSeries</em>.
+Recently also introduced the <em>waveletProfileAssimilation</em> controller type.
+To use this controller please see the <em>tests/WaveletProfileAssimilationTest</em>,
+it requires TOSCA to be compiled with the USE_PYTHON flag.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alphaPI</span></code></p></td>
 <td><p>scalar</p></td>
@@ -606,7 +610,7 @@ characterized  by a <code class="docutils literal notranslate"><span class="pre"
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mesoScaleInput</span></code></p></td>
 <td><p>bool</p></td>
-<td><p>activates mesoscale controller data. Only for controller type <em>pressure</em>.
+<td><p>activates mesoscale controller data. Required only for controller type <em>pressure</em>.
 Allows single point velocity control, but now the input is dictated by the input time
 series data. requires the time series data inside <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData</span></code></p></td>
 </tr>
