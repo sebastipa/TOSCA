@@ -24,7 +24,8 @@
 -xDampingLayer             1
 -yDampingLayer             1
 -precursorSpinUp           1
--advectionDamping          1
+-advectionDampingX         1
+-advectionDampingY	   1
 
 -absTolU                   1e-5
 -poissonIt                 20

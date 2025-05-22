@@ -31,7 +31,7 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isYDampingActive              = 0;
     flags->isKLeftRayleighDampingActive  = 0;
     flags->isKRightRayleighDampingActive = 0;
-    flags->isAdvectionDampingActive      = 0;
+    flags->isAdvectionDampingXActive      = 0;
     flags->isAdvectionDampingYActive     = 0;
     flags->isCanopyActive                = 0;
     flags->isConcurrentPrecursorActive   = 0;

@@ -112,11 +112,10 @@ struct abl_
 
     // x damping layer controller parameters
     word         xDampingControlType;            //!< type of controller: alphaFixed or alphaOptimized
-    PetscInt     advectionDampingType;           //!< type of advection damping (0: none, 1: LanzilaoMeyers2022)
-    PetscReal    advDampingStart;                //!< starting x of the adv damping layer
-    PetscReal    advDampingEnd;                  //!< ending x of the adv damping layer
-    PetscReal    advDampingDeltaStart;           //!< damping raise/decay distance
-    PetscReal    advDampingDeltaEnd;             //!< damping raise/decay distance
+    PetscReal    advDampingXStart;                //!< starting x of the adv damping layer
+    PetscReal    advDampingXEnd;                  //!< ending x of the adv damping layer
+    PetscReal    advDampingXDeltaStart;           //!< damping raise/decay distance
+    PetscReal    advDampingXDeltaEnd;             //!< damping raise/decay distance
     PetscReal    xDampingTimeWindow;             //!< time constant for velocity filtering
     PetscReal    xDampingVBar;                   //!< desired y-velocity sampled from precursor
     PetscReal    vEnd, vStart;                   //!< line-averaged start and end y-velocity at the fringe region extrema

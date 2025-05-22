@@ -35,7 +35,7 @@ smearT 0.5
 # Activation flags 
 coriolisActive 1
 controllerActive 1
-precursorControllerTypeMismatch 1
+precursorControllerTypeMismatch 0
 controllerActiveT 0
 controllerActivePrecursorT 0
 
@@ -66,22 +66,6 @@ controllerProperties
     # Geostrophic angle
     alphaGeo 0
 
-}
-
-fringeControllerProperties
-{
-    controllerAction 	write
-    controllerType      pressure
-
-    relaxPI 		0.7
-    alphaPI 		0.9
-    timeWindowPI 	3600
-
-    mesoScaleInput      1
-
-    geostrophicDamping 	0
-
-    controllerMaxHeight 100000.0
 }
 
 # Coriolis parameter: 7.272205217e-5 * sin(latitude)
@@ -122,18 +106,26 @@ xDampingProperties
 yDampingProperties
 {
     yDampingStart   1400
-    yDampingEnd     2000
+    yDampingEnd     1800
     yDampingDelta   100
     yDampingAlpha   0.7
     yDampingNumPeriods 5
 }
 
-advectionDampingProperties
+advectionDampingXProperties
 {
 	advDampingStart       200
 	advDampingEnd         600
 	advDampingDeltaStart  100
 	advDampingDeltaEnd    100
+}
+
+advectionDampingYProperties
+{
+        advDampingStart       1600
+        advDampingEnd         2000
+        advDampingDeltaStart  100
+        advDampingDeltaEnd    100
 }
 
 # perturbations to trigger turbulence 

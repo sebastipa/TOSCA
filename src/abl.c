@@ -1859,14 +1859,14 @@ PetscErrorCode InitializeABL(abl_ *abl)
     }
 
     // read advection damping properties
-    if(mesh->access->flags->isAdvectionDampingActive)
+    if(mesh->access->flags->isAdvectionDampingXActive)
     {
-        PetscPrintf(mesh->MESH_COMM, "   reading advection damping properties\n");
+        PetscPrintf(mesh->MESH_COMM, "   reading advection damping X properties\n");
 
-        readSubDictDouble("ABLProperties.dat", "advectionDampingProperties", "advDampingStart",            &(abl->advDampingStart));
-        readSubDictDouble("ABLProperties.dat", "advectionDampingProperties", "advDampingEnd",              &(abl->advDampingEnd));
-        readSubDictDouble("ABLProperties.dat", "advectionDampingProperties", "advDampingDeltaStart",       &(abl->advDampingDeltaStart));
-        readSubDictDouble("ABLProperties.dat", "advectionDampingProperties", "advDampingDeltaEnd",         &(abl->advDampingDeltaEnd));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingXProperties", "advDampingStart",            &(abl->advDampingXStart));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingXProperties", "advDampingEnd",              &(abl->advDampingXEnd));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingXProperties", "advDampingDeltaStart",       &(abl->advDampingXDeltaStart));
+        readSubDictDouble("ABLProperties.dat", "advectionDampingXProperties", "advDampingDeltaEnd",         &(abl->advDampingXDeltaEnd));
     }
 
     if(mesh->access->flags->isAdvectionDampingYActive)

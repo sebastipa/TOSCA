@@ -4733,12 +4733,12 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt  advectionDamping = 0, advectionDampingY = 0;
 	PetscReal advDampH = 0, advDampYH = 0;
 
-    if(ueqn->access->flags->isAdvectionDampingActive)
+    if(ueqn->access->flags->isAdvectionDampingXActive)
     {
-        xS     = ueqn->access->abl->advDampingStart;
-        xE     = ueqn->access->abl->advDampingEnd;
-        xDE    = ueqn->access->abl->advDampingDeltaEnd;
-        xDS    = ueqn->access->abl->advDampingDeltaStart;
+        xS     = ueqn->access->abl->advDampingXStart;
+        xE     = ueqn->access->abl->advDampingXEnd;
+        xDE    = ueqn->access->abl->advDampingXDeltaEnd;
+        xDS    = ueqn->access->abl->advDampingXDeltaStart;
 
         advectionDamping = 1;
 
