@@ -1,0 +1,237 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NREL 5MW Example - Uniform Flow &mdash; TOSCA 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Wind Farm Successor Example - Inlet/Outlet" href="03_successor_periodized_test.html" />
+    <link rel="prev" title="Neutral ABL Example" href="01_neutral_abl_test.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tosca_examples.html">Example Cases</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_neutral_abl_test.html">Neutral ABL Example</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">NREL 5MW Example - Uniform Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_successor_periodized_test.html">Wind Farm Successor Example - Inlet/Outlet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_successor_periodized_fringe_test.html">Wind Farm Successor Example - Concurrent Precursor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="05_successor_overset_test.html">Wind Farm Successor Example - Overset Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="06_sphere_flow_test.html">Sphere Flow Static IBM Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="07_rotating_cylinder_test.html">Rotating Cylinder Dynamic IBM Example</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../tosca_examples.html">Example Cases</a></li>
+      <li class="breadcrumb-item active">NREL 5MW Example - Uniform Flow</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/03_examples/02_nrel5mw_test.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="nrel-5mw-example-uniform-flow">
+<span id="examples-nrel5mw-test"></span><h1>NREL 5MW Example - Uniform Flow<a class="headerlink" href="#nrel-5mw-example-uniform-flow" title="Link to this heading"></a></h1>
+<p>In the <em>tests/NREL5MWTest</em> example case, the NREL 5MW wind turbine is simulated using the ADM, with a uniform inflow of 20 m/s. To make the example case more
+interesting, the wind turbine is initially placed such that the rotor plane is parallel to the wind direction, and the yaw controller slowly
+rotates the turbine such that it faces the wind direction. As the rotor gradually takes up more wind, the pitch controller adjusts the pitch
+angle to protect the wind turbine above rated conditions.</p>
+<p>This example shows the usage
+of user-defined sections (see Sec. <a class="reference internal" href="../01_user_guide/acquisition.html#sections-subsection"><span class="std std-ref">-sections</span></a>), field averaging (see Sec. <a class="reference internal" href="../01_user_guide/acquisition.html#averaging-subsection"><span class="std std-ref">-averaging and -phaseAveraging</span></a>) and the
+acquisition of mechanical energy budgets (see Sec. <a class="reference internal" href="../01_user_guide/acquisition.html#mke-budgets-subsection"><span class="std std-ref">-keBudgets</span></a>).</p>
+<p>The simulation is run for 500 s with adaptive time stepping and checkpoint files written every 100 s. These parameters are set in the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">-</span><span class="n">startFrom</span><span class="w">      </span><span class="n">startTime</span>
+<span class="o">-</span><span class="n">startTime</span><span class="w">      </span><span class="mi">0</span>
+<span class="o">-</span><span class="n">endTime</span><span class="w">        </span><span class="mi">500</span>
+<span class="o">-</span><span class="n">cfl</span><span class="w">            </span><span class="mf">0.8</span>
+<span class="o">-</span><span class="n">adjustTimeStep</span><span class="w"> </span><span class="mi">1</span><span class="w">              </span><span class="c1">// adjust time step based on CFL and write frequency</span>
+<span class="o">-</span><span class="n">timeStep</span><span class="w">       </span><span class="mf">0.5</span><span class="w">            </span><span class="c1">// initial time step</span>
+
+<span class="o">-</span><span class="n">intervalType</span><span class="w">   </span><span class="n">adjustableTime</span><span class="w"> </span><span class="c1">// time step adjusted based on write frequency</span>
+<span class="o">-</span><span class="n">timeInterval</span><span class="w">   </span><span class="mi">100</span><span class="w">            </span><span class="c1">// write frequency</span>
+</pre></div>
+</div>
+<p>The domain extends from -250 to 250 m in the x and y directions, while it goes from -90 to 210 m in the z. The wind turbine, which has a hub-height
+of 90 m, is such that the rotor center is located at (0, 0, 0), as defined in the <code class="docutils literal notranslate"><span class="pre">turbines/windFarmProperties</span></code> file. The rotor is represented using
+the ADM, and turbine data are written to file at every iteration. In order initially misalign the wind turbine by 90 degrees, the user should modify
+the direction of the rotor plane in the <code class="docutils literal notranslate"><span class="pre">turbines/NREL5MW</span></code> file as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">rotorDir</span><span class="w">  </span><span class="p">(</span><span class="mf">0.0</span><span class="w"> </span><span class="mf">1.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>and note that all turbine controls are activated. The initial state of the wind turbine (rotation and pitch) corresponds to the turbine state when
+the wind is stationary at 9 m/s, so the controller will try to adjust to the new condition. Moreover, the initial misalignment angle should be
+changed to 90 degrees inside the <code class="docutils literal notranslate"><span class="pre">yawControllerParameters</span></code> in the <code class="docutils literal notranslate"><span class="pre">turbines/control/fiveRegionsNREL</span></code> file as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">initialFlowAngle</span><span class="w"> </span><span class="mi">90</span>
+</pre></div>
+</div>
+<p>Finally, the inflow wind speed should be changed from 5 m/s (as per the original test case) to 20 m/s. This is done by editing the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code>
+boundary condition in the <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> fileas follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">kLeft</span><span class="w">  </span><span class="n">fixedValue</span><span class="w"> </span><span class="p">(</span><span class="mf">20.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Sections, averages and mechanical energy budgets are activated in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">-</span><span class="n">sections</span><span class="w">        </span><span class="mi">1</span><span class="w">      </span><span class="c1">// TOSCA reads inside sampling/surfaces</span>
+
+<span class="o">-</span><span class="n">averaging</span><span class="w">       </span><span class="mi">1</span><span class="w">      </span><span class="c1">// write avgCs, avgNut, avgP, avgU and avgUU at checkpoints</span>
+<span class="o">-</span><span class="n">avgPeriod</span><span class="w">       </span><span class="mf">0.5</span><span class="w">    </span><span class="c1">// cumulate averages every 0.5 s</span>
+<span class="o">-</span><span class="n">avgStartTime</span><span class="w">    </span><span class="mi">100</span><span class="w">    </span><span class="c1">// start averaging after 100 s</span>
+
+<span class="o">-</span><span class="n">keBudgets</span><span class="w">       </span><span class="mi">1</span><span class="w">      </span><span class="c1">// TOSCA reads sampling/keBudgets file</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">sampling/surfaces</span></code> directory contains the <code class="docutils literal notranslate"><span class="pre">userSections</span></code> directory, where three arbitrary sections are defined, as well as
+curvilinear sections defined inside <code class="docutils literal notranslate"><span class="pre">iSections</span></code> and <code class="docutils literal notranslate"><span class="pre">jSections</span></code> files. As the mesh is cartesian, these correspond to y-normal and
+z-normal slices, respectively. Only one section is defined per file in this case, both cutting the rotor plane at the hub height.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">sampling/keBudgets</span></code> file, only activated to show its usage (it has no real meaning, similarly to the field averaging, as the
+simulation is unsteady), contains three boxes of size 80x80x80 m, centered at the rotor center, 80 m and 160 m downstream. These can
+be defined as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">avgStartTime</span><span class="w">  </span><span class="mi">0</span>
+<span class="n">avgPeriod</span><span class="w">     </span><span class="mi">2</span>
+<span class="n">debug</span><span class="w">         </span><span class="mi">0</span>
+<span class="n">cartesian</span><span class="w">     </span><span class="mi">1</span>
+
+<span class="n">boxArray</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">B1</span>
+<span class="w">    </span><span class="p">(</span>
+<span class="w">        </span><span class="n">boxCenter</span><span class="w"> </span><span class="p">(</span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span>
+<span class="w">        </span><span class="n">sizeXYZ</span><span class="w">   </span><span class="p">(</span><span class="mf">80.0</span><span class="w"> </span><span class="mf">80.0</span><span class="w"> </span><span class="mf">80.0</span><span class="p">)</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="w">    </span><span class="n">B2</span>
+<span class="w">    </span><span class="p">(</span>
+<span class="w">        </span><span class="n">boxCenter</span><span class="w"> </span><span class="p">(</span><span class="mf">80.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span>
+<span class="w">        </span><span class="n">sizeXYZ</span><span class="w">   </span><span class="p">(</span><span class="mf">80.0</span><span class="w"> </span><span class="mf">80.0</span><span class="w"> </span><span class="mf">80.0</span><span class="p">)</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="w">    </span><span class="n">B3</span>
+<span class="w">    </span><span class="p">(</span>
+<span class="w">        </span><span class="n">boxCenter</span><span class="w"> </span><span class="p">(</span><span class="mf">160.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span>
+<span class="w">        </span><span class="n">sizeXYZ</span><span class="w">   </span><span class="p">(</span><span class="mf">80.0</span><span class="w"> </span><span class="mf">80.0</span><span class="w"> </span><span class="mf">80.0</span><span class="p">)</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>At this point, after copying the <code class="docutils literal notranslate"><span class="pre">tosca</span></code> and <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> executables inside the case directory, the simulation can be started using 4 processors:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">4</span><span class="w"> </span>./tosca
+</pre></div>
+</div>
+<p>While the simulation runs, the user can open the <code class="docutils literal notranslate"><span class="pre">postProcessing/turbines/A1</span></code> file to monitor the behavior of the wind turbine. As can be noticed,
+the yaw controller slowly rotates the turbine such that it faces the wind direction, while the commanded pich gradually increases.
+After the simulation has completed, the results can be visualized using the <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> executable:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./tosca2PV
+</pre></div>
+</div>
+<p>Notably, the average fields are now written for both the curvilinear and user-defined sections, as testified by the <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> output.</p>
+<p>The following plot, created from the content of the <code class="docutils literal notranslate"><span class="pre">postProcessing/turbines/0.00/A1</span></code> file,  shows the adjustment of the wind turbine variables
+to the initial 90 degs misalignment.</p>
+<a class="reference internal image-reference" href="../_images/NREL5MW_yawTest.png"><img alt="../_images/NREL5MW_yawTest.png" src="../_images/NREL5MW_yawTest.png" style="width: 100%;" />
+</a>
+<br><p>Interstingly, the controller switches off the wind turbine for a few seconds, during the transition phase.
+As designed, the controller drives the wind turbine to face the wind direction, while the pitch controller adjusts the pitch angle to protect the
+wind turbine above rated conditions, while the power output adjusts to 5 MW.</p>
+<p>After running the <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> executable, the user can visualize the results using ParaView. In particular, the executables creates the <code class="docutils literal notranslate"><span class="pre">XMF</span></code> directory,
+which contains the <code class="docutils literal notranslate"><span class="pre">NREL5MW.xmf</span></code> file (where all saved 3D fields from all checkpoints are contained) as well as the <code class="docutils literal notranslate"><span class="pre">iSections</span></code>, <code class="docutils literal notranslate"><span class="pre">jSections</span></code> and
+<code class="docutils literal notranslate"><span class="pre">userSections</span></code> directories. The first two will contain, in addition to the sliced average fields, also the instantaneous sections saved during the
+simulation. Conversely, <code class="docutils literal notranslate"><span class="pre">userSections</span></code> will only contain the average fields for the user-defined sections (three in this case). The following image shows
+the average velocity magnitude on all sections defined in the simulation, as well as the final position of the rotor disk. This is written at every
+checkpoint file inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/turbines/0.00</span></code> directory.</p>
+<a class="reference internal image-reference" href="../_images/NREL5MW_sections.png"><img alt="../_images/NREL5MW_sections.png" src="../_images/NREL5MW_sections.png" style="width: 100%;" />
+</a>
+<br><p>By loading the instantaneous z-normal sections inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/jSections/0.00</span></code> directory into <em>ParaView</em>, the
+user can create the following video, which shows the evolution of the instantaneous velocity and pressure fields over time.</p>
+<video width="100%" controls>
+    <source src="./../_static/videos/NREL5MW_movie.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+</video><br><p>Finally, the mechanical energy budgets are written inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/keBoxes/0.00</span></code> directory, where  file for each box is created. This utility,
+just shown here for demonstration purposes, can be used to track the mechanical energy budgets of the flow moving through e.g. a wind farm, by suitably
+defining the boxes and plotting the various contributions to the mechanical energy equation box by box.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="01_neutral_abl_test.html" class="btn btn-neutral float-left" title="Neutral ABL Example" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="03_successor_periodized_test.html" class="btn btn-neutral float-right" title="Wind Farm Successor Example - Inlet/Outlet" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
