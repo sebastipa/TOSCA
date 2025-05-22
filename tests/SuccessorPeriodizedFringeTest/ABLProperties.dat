@@ -102,7 +102,7 @@ xDampingProperties
     shiftSpeed 1.5
 }
 
-advectionDampingProperties
+advectionDampingXProperties
 {
 	advDampingStart       200
 	advDampingEnd         600

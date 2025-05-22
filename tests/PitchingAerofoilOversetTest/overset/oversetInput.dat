@@ -49,11 +49,7 @@ holeObject0
 #For mesh motion
 dynamicOverset		0
 
-#Interpolation type - available types: LS1, LS2, LS3, trilinear, inverseDist
 interpolationType	trilinear
-
-#For LS and inverse distance interpolation 
-cellFactor		3.1 #scaling the search radius with the size of local background mesh size
  
 #Parameters for dynamic Overset
 oversetMotion

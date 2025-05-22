@@ -29,7 +29,6 @@ object0
 {
     bodyName			    NACA0012_AOA_five
     bodyType                        closedBody
-    thinBody                        0
 
     fileType 			    ucd
     bodyMotion                      pitchingOscillation

@@ -30,17 +30,10 @@ object0
 {
     bodyName                        rotatingBlock
     bodyType                        closedBody
-    thinBody                        0
 
-    fileType 			            ucd
+    fileType 			    ucd
     bodyMotion                      rotation
     baseLocation     	            (0.0 0.0 0.0)
-
-
-    thinBody			    0
-    #procBounds
-    procBoundCenter                 (0.0 0.0 0.0)
-    procBoundSize                   (3.0 3.0 3.0)
 
     #procBounds
     procBoundCenter                 (0.0 0.0 0.0)
