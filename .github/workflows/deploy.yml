@@ -26,34 +26,16 @@ jobs:
 
     - name: Build and Organize Documentation
       run: |
+        # master branch: just build documentation 
         cd docs/sphinx
         make html
-        if [[ $GITHUB_REF == refs/heads/master ]]; then
-          # For master branch, ensure versions directory exists
-          mkdir -p build/html/versions
-          # Create/update versions index
-          echo "# TOSCA Documentation Versions" > build/html/versions/index.md
-          echo "" >> build/html/versions/index.md
-          echo "- [Latest (master)](/TOSCA/)" >> build/html/versions/index.md
-          # List existing versions if any
-          if [ -d "build/html/versions" ]; then
-            for v in build/html/versions/*/; do
-              if [ -d "$v" ]; then
-                vname=$(basename $v)
-                echo "- [Version ${vname}](/TOSCA/versions/${vname}/)" >> build/html/versions/index.md
-              fi
-            done
-          fi
-        elif [[ $GITHUB_REF == refs/heads/release-v* ]]; then
+        if [[ $GITHUB_REF == refs/heads/release-v* ]]; then
+          # get version from branch name
           version=${GITHUB_REF#refs/heads/release-v}
+          # create versioned directory
           mkdir -p build/html/versions/$version
           # Copy only content, exclude versions directory
           cp -r build/html/[^v]* build/html/versions/$version/
-          # Update versions index
-          echo "# TOSCA Documentation Versions" > build/html/versions/index.md
-          echo "" >> build/html/versions/index.md
-          echo "- [Latest (master)](/TOSCA/)" >> build/html/versions/index.md
-          echo "- [Version ${version}](/TOSCA/versions/${version}/)" >> build/html/versions/index.md
         fi
 
     - name: Deploy to GitHub Pages
