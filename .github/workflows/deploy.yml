@@ -47,8 +47,8 @@ jobs:
         elif [[ $GITHUB_REF == refs/heads/release-v* ]]; then
           version=${GITHUB_REF#refs/heads/release-v}
           mkdir -p build/html/versions/$version
-          # Copy docs to version directory
-          cp -r build/html/* build/html/versions/$version/
+          # Copy only content, exclude versions directory
+          cp -r build/html/[^v]* build/html/versions/$version/
           # Update versions index
           echo "# TOSCA Documentation Versions" > build/html/versions/index.md
           echo "" >> build/html/versions/index.md
