@@ -29,12 +29,33 @@ jobs:
       run: |
         cd docs/sphinx
         make html
-        # If this is a version branch, move docs to versioned directory
         if [[ $GITHUB_REF == refs/heads/docs-v* ]]; then
           version=${GITHUB_REF#refs/heads/}
-          mkdir -p ../versioned-docs/$version
-          cp -r build/html/* ../versioned-docs/$version/
-          cp -r ../versioned-docs/* build/html/
+          # First, get existing gh-pages content
+          git fetch origin gh-pages
+          git worktree add gh-pages-branch gh-pages
+          # Create version directory if it doesn't exist
+          mkdir -p gh-pages-branch/versions/$version
+          # Copy new docs to version directory
+          cp -r build/html/* gh-pages-branch/versions/$version/
+          # Update version index
+          echo "# TOSCA Documentation Versions" > gh-pages-branch/versions/index.md
+          echo "" >> gh-pages-branch/versions/index.md
+          echo "- [Latest (master)](/TOSCA/)" >> gh-pages-branch/versions/index.md
+          for v in gh-pages-branch/versions/*/; do
+            vname=$(basename $v)
+            [[ $vname != "index.md" ]] && echo "- [$vname](/TOSCA/versions/$vname/)" >> gh-pages-branch/versions/index.md
+          done
+          # Commit and push to gh-pages
+          cd gh-pages-branch
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "Update documentation for $version"
+          git push origin gh-pages
+        else
+          # For master branch, just deploy current docs
+          cp -r build/html/* .
         fi
 
     - name: Deploy to GitHub Pages
