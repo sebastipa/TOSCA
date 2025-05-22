@@ -117,11 +117,11 @@ The following tables summarize all available entries for each of the `IBMPropert
                                                       (Moving Least Squares). The first method is preferred while the last is 
                                                       only recommended for simple geometries and for no-slip BCs only. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``CURVIBInterpolationType``    string              `CurvibTrilinear` (recommended for terrain) or `CurvibTriangular`. The first 
+   ``CURVIBInterpolationType``    string              `CurvibTrilinear` (recommended) or `CurvibTriangular`. The first 
                                                       interpolates the velocity at the ghost node using tri-linera interpolation 
                                                       from the 8 surrounding fluid cells. The second uses a triangular 
-                                                      interpolation from the 3 surrounding fluid cells. The first method is 
-                                                      preferred, although it is a bit more expensive. 
+                                                      interpolation from 3 surrounding fluid cells. The first method is 
+                                                      recommended and it is the most tested, although it is a bit more expensive. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``interpolationOrder``         string              Only required for `CurvibTrilinear`, can be `linear` (more stable) or 
                                                       `quadratic` (less stable). The latter is recommended for smooth terrain or 
