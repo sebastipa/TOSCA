@@ -1,0 +1,20 @@
+# TOSCA Input file - nut boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    TGVFlow
+                 
+# boundary patches
+
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   periodic
+
+jRight  periodic
+
+kLeft   periodic
+
+kRight  periodic

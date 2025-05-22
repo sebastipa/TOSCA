@@ -26,7 +26,7 @@ PetscErrorCode PrintOkWindLogo()
     PetscPrintf(PETSC_COMM_WORLD," |                        O ====\\\\=========               |  \n");
     PetscPrintf(PETSC_COMM_WORLD," |                       //|     \\\\                       |  Redistribution and use in source and binary forms, with or without modification, are permitted\n");
     PetscPrintf(PETSC_COMM_WORLD," |                      //||      O =============         |  provided that the following conditions are met:\n");
-    PetscPrintf(PETSC_COMM_WORLD," |                     // ||     //| v0122                |  1. Redistributions of source code must retain the above copyright notice, this list of conditi\n");
+    PetscPrintf(PETSC_COMM_WORLD," |                     // ||     //| v2.0.0               |  1. Redistributions of source code must retain the above copyright notice, this list of conditi\n");
     PetscPrintf(PETSC_COMM_WORLD," |                    //  ||    //||                      |     ons and the following disclaimer.\n");
     PetscPrintf(PETSC_COMM_WORLD," |                   //   ||   // ||                      |  2. Redistributions in binary form must reproduce the above copyright notice, this list of cond\n");
     PetscPrintf(PETSC_COMM_WORLD," |                  //    ||  //  ||                      |     itions and the following disclaimer in the documentation and/or other materials provided wi\n");
@@ -36,8 +36,8 @@ PetscErrorCode PrintOkWindLogo()
     PetscPrintf(PETSC_COMM_WORLD," |                        ||      ||                      |  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY A\n");
     PetscPrintf(PETSC_COMM_WORLD," |                        ||      ||                      |  ND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR \n");
     PetscPrintf(PETSC_COMM_WORLD," |________________________||______||______________________|  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENT\n");     
-    PetscPrintf(PETSC_COMM_WORLD," |               copyright : OK-CFD Lab                   |  IAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS \n");    
-    PetscPrintf(PETSC_COMM_WORLD," |               authors   : Stipa - Ajay - Haji          |  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABIL\n");    
+    PetscPrintf(PETSC_COMM_WORLD," | Copyright : University of British Columbia (Okanagan)  |  IAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS \n");    
+    PetscPrintf(PETSC_COMM_WORLD," | Authors   : Stipa - Ajay - Haji - Brinkerhoff          |  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABIL\n");    
     PetscPrintf(PETSC_COMM_WORLD," |========================================================|  ITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISIN\n");        
     PetscPrintf(PETSC_COMM_WORLD," |     Toolbox for Stratified Convective Atmospheres      |  G IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAG\n");        
     PetscPrintf(PETSC_COMM_WORLD," |________________________________________________________|  E.\n\n\n\n");       
@@ -52,8 +52,8 @@ PetscErrorCode PrintNumberOfProcs()
     PetscMPIInt nProcs;
 
     MPI_Comm_size(PETSC_COMM_WORLD, &nProcs);
-    PetscPrintf(PETSC_COMM_WORLD,"Simulation running with %ld processors\n", nProcs);
-    PetscPrintf(PETSC_COMM_WORLD,"-----------------------------------\n\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Job running with %ld processors\n", nProcs);
+    PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
 
     return(0);
 }
@@ -73,13 +73,22 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
 
     domain_ *domain = *domainAddr;
 
+    // timers 
+    PetscReal timeStart, timeEnd;
+
     // set simulation start time
     SetStartTime(clock, domain,info);
 
+    // domains 
     for(PetscInt d=0; d<info->nDomains; d++)
     {
-        PetscPrintf(PETSC_COMM_WORLD, "\nDomain %ld\n", d);
-        PetscPrintf(PETSC_COMM_WORLD, "--------\n");
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
+
+        PetscTime(&timeStart);
+        
+        PetscPrintf(PETSC_COMM_WORLD, "\nInitializing domain %ld\n", d);
+        PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
 
         // set pointer to time controls
         domain[d].clock = clock;
@@ -128,31 +137,62 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // initialize wind farm
         InitializeWindFarm(domain[d].farm);
 
-        PetscPrintf(PETSC_COMM_WORLD, "------------------------------------------------------------------------\n");
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
+
+        PetscTime(&timeEnd);
+
+        PetscPrintf(PETSC_COMM_WORLD, "\nFinished initializing domain %ld: elapsed time = %lf s\n\n", d, timeEnd - timeStart); 
     }
 
-    PetscReal timeStart, timeEnd;
+    // acquisition system 
+    {
+        PetscPrintf(PETSC_COMM_WORLD, "\nInitializing acquisition system\n");
+        PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
 
-    // sync processors
-    MPI_Barrier(PETSC_COMM_WORLD);
 
-    PetscTime(&timeStart);
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
 
-    // initialize acquisitions
-    InitializeAcquisition(domain);
+        PetscTime(&timeStart);
 
-    // sync processors
-    MPI_Barrier(PETSC_COMM_WORLD);
+        // initialize acquisitions
+        InitializeAcquisition(domain);
 
-    PetscTime(&timeEnd);
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
 
-    PetscPrintf(PETSC_COMM_WORLD, "Acquisition initialization time = %lf s\n", timeEnd - timeStart);
+        PetscTime(&timeEnd);
 
-    // Set the initial field
-    SetInitialField(domain);
+        PetscPrintf(PETSC_COMM_WORLD, "Finished initializing acquisition system: elapsed time = %lf s\n\n", timeEnd - timeStart);
+    }
 
-    // initialize overset
-    InitializeOverset(domain);
+    // overset & initial field
+    if(info->nDomains == 1)
+    {
+        SetInitialField(&domain[0]);
+    }
+    else
+    {
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
+    
+        // get timer 
+        PetscTime(&timeStart);
+    
+        PetscPrintf(PETSC_COMM_WORLD, "\nOverset initialization:\n");
+        PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
+
+        // initialize overset
+        InitializeOverset(domain);
+
+        // sync processors
+        MPI_Barrier(PETSC_COMM_WORLD);
+
+        PetscTime(&timeEnd);
+
+        PetscPrintf(PETSC_COMM_WORLD, "\nFinished initializing overset: elapsed time = %lf s\n", timeEnd - timeStart);
+    }
 
     return(0);
 
@@ -177,55 +217,57 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isYDampingActive              = 0;
     flags->isKLeftRayleighDampingActive  = 0;
     flags->isKRightRayleighDampingActive = 0;
-    flags->isAdvectionDampingActive      = 0;
+    flags->isAdvectionDampingXActive      = 0;
+    flags->isAdvectionDampingYActive     = 0;
     flags->isCanopyActive                = 0;
     flags->isConcurrentPrecursorActive   = 0;
     flags->isPvCatalystActive            = 0;
     flags->isGravityWaveModelingActive   = 0;
     flags->isNonInertialFrameActive      = 0;
 
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",         &(flags->isOversetActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",             &(flags->isLesActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",      &(flags->isTeqnActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-abl",             &(flags->isAblActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-windplant",       &(flags->isWindFarmActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-ibm",             &(flags->isIBMActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-zDampingLayer",   &(flags->isZDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer",   &(flags->isXDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-yDampingLayer",   &(flags->isYDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-canopy",          &(flags->isCanopyActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",  &(flags->isAdjustableTime), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",      &(flags->isPvCatalystActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kLeftRayleigh",   &(flags->isKLeftRayleighDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kRightRayleigh",  &(flags->isKRightRayleighDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDamping",&(flags->isAdvectionDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",     &(flags->isNonInertialFrameActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",     &(flags->isGravityWaveModelingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",          &(flags->isOversetActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",              &(flags->isLesActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",       &(flags->isTeqnActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-abl",              &(flags->isAblActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-windplant",        &(flags->isWindFarmActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-ibm",              &(flags->isIBMActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-zDampingLayer",    &(flags->isZDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer",    &(flags->isXDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-yDampingLayer",    &(flags->isYDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-canopy",           &(flags->isCanopyActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",   &(flags->isAdjustableTime), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",       &(flags->isPvCatalystActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kLeftRayleigh",    &(flags->isKLeftRayleighDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kRightRayleigh",   &(flags->isKRightRayleighDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingX", &(flags->isAdvectionDampingXActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingY",&(flags->isAdvectionDampingYActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",      &(flags->isNonInertialFrameActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",      &(flags->isGravityWaveModelingActive), PETSC_NULL);
 
-	// do some checks
-	if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingActive)
-	{
+    // do some checks
+    if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingXActive)
+    {
         // y damping only goes with x damping
         if(flags->isYDampingActive && !flags->isXDampingActive)
         {
             char error[512];
-			sprintf(error, "xDampingLayer is required for yDampingLayer");
-			fatalErrorInFunction("SetSimulationFlags", error);
+            sprintf(error, "xDampingLayer is required for yDampingLayer");
+            fatalErrorInFunction("SetSimulationFlags", error);
         }
 
-		if(!flags->isAblActive)
-		{
-			char error[512];
-			sprintf(error, "abl flag is required for zDampingLayer, xDampingLayer, yDampingLayer, kLeftRayleigh, kRightRayleigh, advectionDamping");
-			fatalErrorInFunction("SetSimulationFlags", error);
-		}
+        if(!flags->isAblActive)
+        {
+            char error[512];
+            sprintf(error, "abl flag is required for zDampingLayer, xDampingLayer, yDampingLayer, kLeftRayleigh, kRightRayleigh, advectionDamping");
+            fatalErrorInFunction("SetSimulationFlags", error);
+        }
 
-		if(!flags->isTeqnActive)
-		{
-			char error[512];
-			sprintf(error, "potentialT flag is required for zDampingLayer, xDampingLayer or yDampingLayer");
-			fatalErrorInFunction("SetSimulationFlags", error);
-		}
+        if(!flags->isTeqnActive)
+        {
+            char error[512];
+            sprintf(error, "potentialT flag is required for zDampingLayer, xDampingLayer or yDampingLayer");
+            fatalErrorInFunction("SetSimulationFlags", error);
+        }
 
         // print a suggestion when running xdamping layer or kleft/kright rayleigh without advection damping
         if
@@ -235,14 +277,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
                 flags->isKLeftRayleighDampingActive ||
                 flags->isKRightRayleighDampingActive
             )
-            && !flags->isAdvectionDampingActive
+            && !flags->isAdvectionDampingXActive
         )
         {
             char warning[512];
             sprintf(warning, "advection damping is suggested with inlet/outlet fringe layers and it is currently deactivated");
             warningInFunction("SetSimulationFlags", warning);
         }
-	}
+    }
 
     // read acquisition flags
     PetscInt isProbesActive         = 0;
@@ -302,7 +344,8 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
     // set the overset pointer
     if(flags->isOversetActive)
     {
-        readDictInt("Overset/OversetInput.dat", "MeshTotal", &(info->nDomains));
+        readDictInt("overset/oversetInput.dat", "MeshTotal", &(info->nDomains));
+        readDictInt("overset/oversetInput.dat", "numHoleObjects", &(info->nHoleRegions));
 
         // allocate memory for the number of domains
         *domainAddr = new domain_[info->nDomains];
@@ -320,12 +363,12 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
             //set domain specific flags
             if(domain[d].flags.isIBMActive)
             {
-                readSubDictInt("Overset/OversetInput.dat", userName,"ibm", &(domain[d].flags.isIBMActive));
+                readSubDictInt("overset/oversetInput.dat", userName,"ibm", &(domain[d].flags.isIBMActive));
             }
 
             if(domain[d].flags.isWindFarmActive)
             {
-                readSubDictInt("Overset/OversetInput.dat", userName,"windplant", &(domain[d].flags.isWindFarmActive));
+                readSubDictInt("overset/oversetInput.dat", userName,"windplant", &(domain[d].flags.isWindFarmActive));
             }
 
             // allocate memory for domain objects
@@ -337,11 +380,11 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
             overset_ *os = domain[d].os;
 
 
-            readSubDictIntArray("Overset/OversetInput.dat", userName, "parentMesh", os->parentMeshId);
-            readSubDictIntArray("Overset/OversetInput.dat", userName, "childMesh",  os->childMeshId);
+            readSubDictIntArray("overset/oversetInput.dat", userName, "parentMesh", os->parentMeshId);
+            readSubDictIntArray("overset/oversetInput.dat", userName, "childMesh",  os->childMeshId);
 
             // set mesh name
-            readSubDictWord("Overset/OversetInput.dat", userName, "name",  &(domain[d].mesh->meshName));
+            readSubDictWord("overset/oversetInput.dat", userName, "name",  &(domain[d].mesh->meshName));
 
         }
     }

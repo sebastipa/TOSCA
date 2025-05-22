@@ -25,6 +25,9 @@ Wind turbines are represented this time using the *uniformADM* model, and the si
 A few probes are inserted in the domain in order to showcase their usage and the *-average3LM* acquisition utility is also activated in order to 
 compute depth-averaged quantities in three user-defined layers.  
 
+Gravity Waves
+~~~~~~~~~~~~~
+
 When the simulation includes potential temperature, gravity waves can develop in the domain. These waves then reflect at the boundaries, polluting the flow 
 solution. It has been shown in literature that fringe and Rayleigh damping regions applied at the domain boundaries, if correctly designed, help avoiding this effect.
 Without concurrent precursor method, i.e. using inflow-outflow BCs, one would require three fringe regions, namely at the inlet, outlet and domain top. Moreover, it becomes difficult to 
@@ -38,22 +41,61 @@ For wind farm simulations that combine a fringe region at the inlet with a Rayle
 while the Rayleigh damping region should only damp in the vertical direction. As a consequence, the ``zDampingAlsoXY`` option in the ``zDampingProperties`` dict in *ABLProperties.dat* 
 is turned off.
 
+Advection Damping
+~~~~~~~~~~~~~~~~~
+
 In some cases, the concurrent precursor method and inlet fringe region might not be enough to avoid gravity waves reflections, hence an advection damping layer around 
 the exit of the fringe region is added, where the horizontal advection of vertical velocity is turned off in order to avoid the propagation of these verical perturbations 
-downstream. It is always good practice to use this feature, as it is now state of the art in LES of wind farm and terrain induced gravity waves. Finally, lateral fringe 
-region might be needed in some cases (not shown here), and its usage in TOSCA is showcased in the *tests/SuccessorPeriodizedLateralFringeTest*. 
+downstream. This is activated by setting the ``-advectionDampingX`` flag to 1 in the *control.dat* file, and requires the specification of ``advectionDampingXProperties`` in the *ABLProperties.dat* file.
+It is always good practice to use this feature, as it is now state of the art in LES of wind farm and terrain induced gravity waves. Finally, lateral fringe 
+region might be needed in some cases (not shown here), and its usage in TOSCA is described in the *tests/SuccessorPeriodizedLateralFringeTest*. 
 
-The domain size is the same as the one used in the :ref:`examples_successor_periodized_test`, and the same applies to the wind farm layout. 
-Moreover, instead of mapping the inflow data to the successor domain, the *inflowDatabase* 
+Temperature Controller
+~~~~~~~~~~~~~~~~~~~~~~
+
+Note that, when running very long simulations using the concurrent precursor method, the temperature field should be free to evolve in the successor domain. Hence, the temperature 
+controller should be switched off by setting the ``controllerActiveT`` flag to 0 in the *ABLProperties.dat* file. Conversely, temperature control inside the 
+concurrent precursor domain might be desired, as the height of the inversion layer would raise in time due to turbulent mixing. This can be set by activating 
+the ``controllerActivePrecursorT`` flag in the *ABLProperties.dat* file. The type of temperature controllers is determined by the ``controllerTypeT`` entry 
+in the *ABLProperties.dat* file (see :ref:`ablProperties-section`). 
+
+Concurrent Precursor Spinup Flag
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The domain size is the same as the one used in the :ref:`examples_successor_periodized_test`, and the same applies to the wind farm layout with the wind turbine 
+model set to *uniformADM* in the *turbines/windFarmProperties* file. Moreover, instead of mapping the inflow data to the successor domain, the *inflowDatabase* 
 is used to drive the flow in the precursor domain through the ``-precursorSpinUp`` flag set to 1. Notably, setting this flag to 0 will apply lateral periodic boundary 
 conditions on the precursor as well, while a value of 1 reads from the *inflowDatabase* and initializes the flow using ``spreadInflow``. To change the initialization 
-to read the initial condition from the *fields/precursor* directory, for restart, the ``-precursorSpinUp`` needs to be set to 2. Top and bottom 
-boundary conditions are automatically set by TOSCA to be the same as the successor domain. For the latter, boundary conditions are set to *periodic* on all lateral boundaries, 
+to read the initial condition from *fields/precursor* directory, for restart, the ``-precursorSpinUp`` needs to be set to 2. Top and bottom 
+boundary conditions automatically set by TOSCA to be the same as the successor domain. For the latter, boundary conditions are set to *periodic* on all lateral boundary, 
 whereas the same boundary conditions as the :ref:`examples_successor_periodized_test` are used for the top and bottom boundaries. Note that, in order to simplify the simulation 
 set up when the concurrent precursor method is used, the user does not need to specify boundary conditions for the precursor domain, as this operation is done internally 
 by the TOSCA code.
 
-Apart from boundary conditions, the main difference with respect to the :ref:`examples_successor_periodized_test` can be found in the *control.dat* and *ABLProperties.dat* files. 
+Initial Condition
+~~~~~~~~~~~~~~~~~
+
+Notably, as the successor uses periodic boundary conditions, the simulation **requires a previously calculated initial field** in order to be correctly initialized. In this 
+example, the initial field is provided, but users would not have this initial conditions if creating a similar case from scratch. In order to generate this data, the simulation 
+should be first run for a few interations using the setup described in the :ref:`examples_successor_periodized_test`, just enough to generate a dummy checkpoint file. Then,
+the methodology described for this example can be applied. In general, the correct steps that should be followed to successfully run concurent-precursor simulations are the 
+following: 
+
+1. Run the simulation using inlet-outlet BCs for a few iterations, just enough to save a single checkpoint file inside the *fields* directory (this setup is described in
+   :ref:`examples_successor_periodized_test`). This step can be run without ``-xDampingLayer``, ``-zDampingLayer`` and ``-advectionDampingX`` options.
+2. Switch to streamwise periodic boundary conditions and activate ``-xDampingLayer``, ``-zDampingLayer`` and ``-advectionDampingX`` options. Notably, solely setting ``-xDampingLayer`` to 
+   1 **is not sufficient to activate the concurrent precursor method**, as there are many ways to prescribe the desired field in TOSCA (see :ref:`ablProperties-section`). This is done by 
+   selecting the ``uBarSelectionType`` to 3 in the ``xDampingProperties`` inside the *ABLProperties.dat* file.  During this step, since the 
+   concurrent precursor does not have initial fields yet, the ``-precursorSpinUp`` flag should be set to 1, as it corresponds to *spreadInflow* in the precursor domain. 
+3. After one precursor flow-turnover time, the simulation is autosustained and periodic BCs can also be applied in the precursor domain. This is done by setting the 
+   ``-precursorSpinUp`` flag to 0. Note that this step is optional. If the user desired to keep mapping the inflow database to the precursor domain, the ``-precursorSpinUp``
+   flag should be set to 2 at subsequent restarts, as this corresponds to a *readField* initialization in the precursor domain. In this case, the initial condition should have been 
+   produced during the second step. 
+
+Case Explanation
+~~~~~~~~~~~~~~~~
+
+Apart from the boundary conditions, the main difference with the :ref:`examples_successor_periodized_test` can be found in the *control.dat* and *ABLProperties.dat* files. 
 In the first, the inlet and top fringe regions are activated through the ``-xDampingLayer`` and ``-zDampingLayer`` options, while the advection damping region is enforced 
 through the ``-advectionDamping`` flag. This prompts the code to read the respective dictionaries in the *ABLProperties.dat* file, where the fringe and advection damping 
 regions properties are defined. The inlet fringe region is defined as follows: 
@@ -176,6 +218,9 @@ boundary layer height is computed. The file is structured as follows:
         hStart   260.0         // start z of 3rd layer
         hEnd     1000.0        // end z of 3rd layer
     }
+
+Running the Case
+~~~~~~~~~~~~~~~~
 
 The case can be run in parallel (using e.g. 10 processors) using the following command:
 

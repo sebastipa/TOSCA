@@ -35,6 +35,7 @@ struct ueqn_
     // momentum settings
     word          ddtScheme;                  //!< time derivative scheme
     word          divScheme;                  //!< divergence scheme
+    word          viscScheme;
     PetscReal     relExitTol;                 //!< relative exit tolerance
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscInt      inviscid;                   //!< inviscid run
@@ -44,11 +45,14 @@ struct ueqn_
 
     // divergence schemes
     PetscInt      centralDiv;                 //!< linear divergence scheme
+    PetscInt      central4Div;                //!< 4th order central scheme
     PetscInt      centralUpwindDiv;           //!< blending between linear and upwind scheme
     PetscInt      centralUpwindWDiv;          //!< blending between linear and upwind scheme for non-uniform mesh
     PetscInt      quickDiv;                   //!< 3rd order QUICK scheme
     PetscInt      weno3Div;                   //!< 3rd order WENO scheme
 
+    PetscReal     hyperVisc;                  //!< hyperviscocity parameter to add artificial diffusion - (b = 0 is blend between 3rd order upwind and 4th order, b = 1 is central 4th order, b = 0.8 is hybrid 3-4 scheme)
+                                              
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch
     wallModel     *iRWM;                      //!< wall model on the i-right patch
@@ -86,11 +90,8 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn);
 //! \brief Transform generic local vector from contravariant to cartesian
 PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCat);
 
-//! \brief Adjust fluxes to obey mass conservation
-PetscErrorCode adjustFluxes(ueqn_ *ueqn);
-
-//! \brief Adjust fluxes to obey mass conservation in the overset domain
-PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn);
+//! \brief Adjust fluxes to obey mass conservation (on a per-cell basis)
+PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn);
 
 //! \brief Compute driving source term
 PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);

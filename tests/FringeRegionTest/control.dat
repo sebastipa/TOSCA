@@ -33,7 +33,8 @@
 
 # Turbulence Model
 # ---------------------------------
--les                       4
+-les                       1
+-lesModel                  dynamicLASI
 -max_cs                    10
 
 # Numerical Schemes
@@ -41,10 +42,9 @@
 -dUdtScheme                rungeKutta4
 -dTdtScheme                backwardEuler
 -divScheme                 centralUpwindW
-
 # Wind Turbine
 # ---------------------------------
--windplant                0
+-windplant                 0
 
 # Constants 
 # ---------------------------------
@@ -54,7 +54,7 @@
 
 # Mesh
 # ---------------------------------
--meshFileType             cartesian
+-meshFileType              cartesian
 
 
 # Acquisition

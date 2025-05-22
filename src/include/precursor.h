@@ -54,3 +54,5 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain);
 
 //! \brief Solve concurrent precursor
 PetscErrorCode concurrentPrecursorSolve(abl_ *abl);
+
+PetscErrorCode saveSourcePrecursor2Successor(abl_ *precursorABL, abl_ *successorABL);

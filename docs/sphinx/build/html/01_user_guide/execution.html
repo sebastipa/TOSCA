@@ -51,12 +51,17 @@
 <li class="toctree-l2"><a class="reference internal" href="spatial_mesh.html">Spatial Mesh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="overset.html">Overset Mesh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="acquisition.html">Data Acquisition System</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Execution</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Execution</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#running-in-serial"><cite>Running in serial</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-in-parallel"><cite>Running in parallel</cite></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">Primary Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">TOSCA Versions</a></li>
 </ul>
 
         </div>
@@ -86,6 +91,47 @@
              
   <section id="execution">
 <span id="execution-section"></span><h1>Execution<a class="headerlink" href="#execution" title="Link to this heading"></a></h1>
+<p>Executing TOSCA is pretty straightforward. Once the code has been compiled (see <a class="reference internal" href="../tosca_installation.html#installation-section"><span class="std std-ref">Installation</span></a>), you should see two
+executables in the <em>build</em> directory: <em>tosca</em> and <em>tosca2PV</em>.</p>
+<p>The first executable is the TOSCA solver, while the second allows to convert TOSCA output binary files to <em>.xmf</em> files that can be
+read by <em>ParaView</em>.</p>
+<p>In order to run TOSCA, copy the two executables to the directory where your input files are located. If running test cases,
+we suggest to copy the <em>tests</em> directory to a directory of your choiche, in order to maintain your TOSCA repository clean.</p>
+<section id="running-in-serial">
+<h2><cite>Running in serial</cite><a class="headerlink" href="#running-in-serial" title="Link to this heading"></a></h2>
+<p>To run in serial, simply run the following command in a terminal:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./tosca
+</pre></div>
+</div>
+<p>And to post process the output, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./tosca2PV
+</pre></div>
+</div>
+<p>Finally, open the <em>xmf</em> files contained inside the <em>XMF</em> directory using <em>ParaView</em>.</p>
+</section>
+<section id="running-in-parallel">
+<h2><cite>Running in parallel</cite><a class="headerlink" href="#running-in-parallel" title="Link to this heading"></a></h2>
+<p>To run in parallel with <strong>all available</strong> processors (e.g. when submitting jobs on a cluster), simply run the following command in a terminal:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>./tosca
+</pre></div>
+</div>
+<p>or with a specific number of processors:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">4</span><span class="w"> </span>./tosca
+</pre></div>
+</div>
+<p>where <em>4</em> is the number of processors you want to use. To post process the output in serial (this will also convert 3D fields to <em>.xmf</em> format),
+run the following command in a terminal:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./tosca2PV
+</pre></div>
+</div>
+<p>If you want to post process the output in parallel (this will only process the flow sections, usually for large cases where 3D fields are
+only saved for potential restart), run the following command in a terminal:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">4</span><span class="w"> </span>./tosca2PV
+</pre></div>
+</div>
+<p>where <em>4</em> is the number of processors you want to use.</p>
+<p>Finally, open the <em>xmf</em> files contained inside the <em>XMF</em> directory with <em>ParaView</em>.</p>
+</section>
 </section>
 
 

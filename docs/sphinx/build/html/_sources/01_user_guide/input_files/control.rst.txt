@@ -80,15 +80,22 @@ Solution Flags
    :align: center 
                                                                                                            
    ====================== =====================================================================================================  
-   ``-les``               Specifies if and which LES model is active: 
-                          (1) standard Smagorinsky
-                          (2) stability dependent
-                          (3) dynamic Smagorinsky with box averaging
-                          (4) dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
-                          (5) dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
-                          (6) dynamic smagorinsky scale dependent with plane averaging (PASD).
-                          TOSCA has been extensively and most used adopting model (4) for ABL and wind plant simulations. 
-                          Model (5) provides a good alternative in stably stratified flows.
+   ``-les``               Set to 1 to activate the LES model. If set to 0, the simulation runs in DNS mode.
+   ---------------------- -----------------------------------------------------------------------------------------------------
+
+   ``-lesModel``          Required when ``-les`` is set to 1. It specifies the LES model to be used. The available entries are:
+                          
+                          - *smagorinsky*: standard Smagorinsky 
+                          - *stabilityDependent*: stability dependent
+                          - *dynamicSmagorinsky*: dynamic Smagorinsky with box averaging
+                          - *dynamicLASI*: dynamic Smagorinsky scale-invariant with lagrangian averaging
+                          - *dynamicLASD*: dynamic Smagorinsky scale-dependent with lagrangian averaging
+                          - *dynamicPASD*: dynamic Smagorinsky scale-dependent with planar averaging
+                          - *amd*: anisotropic minimum dissipation 
+
+                          TOSCA has been extensively and most used adopting the *dynamicLASI* model for ABL and wind plant 
+                          simulations. Other models have been recently added to the code and might perform better in some 
+                          cases (especially *dynamicLASD* and *amd*).
    ---------------------- -----------------------------------------------------------------------------------------------------
    ``-potentialT``        Specifies if potential temperature transport equation is solved (set to 1) or not (set to 0).
    ---------------------- -----------------------------------------------------------------------------------------------------
@@ -110,8 +117,11 @@ Solution Flags
                           in ``ABLProperties.dat`` file if activated. Concurrent precursor **has to** be enabled with this 
                           flag. 
    ---------------------- -----------------------------------------------------------------------------------------------------
-   ``-advectionDamping``  Specifies if horizontal inlet advection damping region is present in the simulation. Requires 
-                          additional input in ``ABLProperties.dat`` file if activated. 
+   ``-advectionDampingX`` Specifies if x-direction horizontal inlet advection damping region is present in the simulation. 
+                          Requires additional input in ``ABLProperties.dat`` file if activated. 
+   ---------------------- -----------------------------------------------------------------------------------------------------
+   ``-advectionDampingY`` Specifies if y-direction horizontal inlet advection damping region is present in the simulation. 
+                          Requires additional input in ``ABLProperties.dat`` file if activated.
    ---------------------- -----------------------------------------------------------------------------------------------------
    ``-precursorSpinUp``   Concurrent precursor **has to** be enabled with this flag. Specifies the type of inlet boundary 
                           condition and initial condition for the concurrent precursor. If set to 0, streamwise periodic 
@@ -167,7 +177,8 @@ Solution Controls
                              upwind-biased quadratic scheme, diffusive), ``weno3`` (fourth-order weighted essentially 
                              non-oscillatory scheme, diffusive), ``centralUpwind`` (vanLeer blending of central and quadratic 
                              scheme, to balance diffusion and dispersion), ``centralUpwindW`` (weighted version, for 
-                             graded/non-uniform meshes).
+                             graded/non-uniform meshes), ``central4`` (high-order central scheme, add diffusion through 
+                             ``-hyperVisc`` parameter, default value is 1 - no diffusion).)
    ------------------------- ----------------------------------------------------------------------------------------------------
    ``-relTolU``              Requires ``-dUdtScheme`` set to ``backwardEuler``, discarded otherwise. Allows to set the relative 
                              exit tolerance for the Newton method used to solve implicit discretized momentum equation, default 

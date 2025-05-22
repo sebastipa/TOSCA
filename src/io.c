@@ -278,6 +278,14 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     VecLoad(mesh->Nvert,viewer);
     PetscViewerDestroy(&viewer);
 
+    //read overset meshTag field
+    // PetscPrintf(mesh->MESH_COMM, "Reading meshTag...\n");
+    // field = "/meshTag";
+    // fileName = location + field;
+    // PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+    // VecLoad(mesh->meshTag,viewer);
+    // PetscViewerDestroy(&viewer);
+
     // read temperature
     if(domain->flags.isTeqnActive)
     {
@@ -354,7 +362,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         VecDestroy(&Cs);
         VecDestroy(&Nut);
 
-        if(domain->flags.isLesActive == 2)
+        if(domain->flags.isLesActive && domain->les->model == STABILITY_BASED)
         {
             PetscPrintf(mesh->MESH_COMM, "Reading sgsL...\n");
             field = "/sgsL";
@@ -1622,101 +1630,101 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         }
     }
 
-	if(flags->isAquisitionActive)
-	{
-		if(acquisition->isAverage3LMActive)
-		{
-			FILE *fp;
+    if(flags->isAquisitionActive)
+    {
+        if(acquisition->isAverage3LMActive)
+        {
+            FILE *fp;
 
-			field = "/Um3LM";
-			fileName = location + field;
-			fp=fopen(fileName.c_str(), "r");
+            field = "/Um3LM";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
 
-			if(fp!=NULL)
-			{
-				fclose(fp);
+            if(fp!=NULL)
+            {
+                fclose(fp);
 
-				PetscPrintf(mesh->MESH_COMM, "Um3LM...\n");
-				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-				VecLoad(acquisition->LM3->avgU,viewer);
-				PetscViewerDestroy(&viewer);
-				lm3Available++;
-			}
-			MPI_Barrier(mesh->MESH_COMM);
+                PetscPrintf(mesh->MESH_COMM, "Um3LM...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->LM3->avgU,viewer);
+                PetscViewerDestroy(&viewer);
+                lm3Available++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
 
             if(flags->isTeqnActive)
             {
-    			field = "/dTdz3LM";
-    			fileName = location + field;
-    			fp=fopen(fileName.c_str(), "r");
+                field = "/dTdz3LM";
+                fileName = location + field;
+                fp=fopen(fileName.c_str(), "r");
 
-    			if(fp!=NULL)
-    			{
-    				fclose(fp);
+                if(fp!=NULL)
+                {
+                    fclose(fp);
 
-    				PetscPrintf(mesh->MESH_COMM, "dTdz3LM...\n");
-    				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-    				VecLoad(acquisition->LM3->avgdTdz,viewer);
-    				PetscViewerDestroy(&viewer);
-    				lm3Available++;
-    			}
-    			MPI_Barrier(mesh->MESH_COMM);
+                    PetscPrintf(mesh->MESH_COMM, "dTdz3LM...\n");
+                    PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                    VecLoad(acquisition->LM3->avgdTdz,viewer);
+                    PetscViewerDestroy(&viewer);
+                    lm3Available++;
+                }
+                MPI_Barrier(mesh->MESH_COMM);
             }
-		}
+        }
 
-		if(acquisition->isPerturbABLActive)
-		{
-			FILE *fp;
+        if(acquisition->isPerturbABLActive)
+        {
+            FILE *fp;
 
-			field = "/UpABL";
-			fileName = location + field;
-			fp=fopen(fileName.c_str(), "r");
+            field = "/UpABL";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
 
-			if(fp!=NULL)
-			{
-				fclose(fp);
+            if(fp!=NULL)
+            {
+                fclose(fp);
 
-				PetscPrintf(mesh->MESH_COMM, "UpABL...\n");
-				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-				VecLoad(acquisition->perturbABL->pertU,viewer);
-				PetscViewerDestroy(&viewer);
-				perturbABLAvailable++;
-			}
-			MPI_Barrier(mesh->MESH_COMM);
+                PetscPrintf(mesh->MESH_COMM, "UpABL...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->perturbABL->pertU,viewer);
+                PetscViewerDestroy(&viewer);
+                perturbABLAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
 
-			field = "/PpABL";
-			fileName = location + field;
-			fp=fopen(fileName.c_str(), "r");
+            field = "/PpABL";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
 
-			if(fp!=NULL)
-			{
-				fclose(fp);
+            if(fp!=NULL)
+            {
+                fclose(fp);
 
-				PetscPrintf(mesh->MESH_COMM, "PpABL...\n");
-				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-				VecLoad(acquisition->perturbABL->pertP,viewer);
-				PetscViewerDestroy(&viewer);
-				perturbABLAvailable++;
-			}
-			MPI_Barrier(mesh->MESH_COMM);
+                PetscPrintf(mesh->MESH_COMM, "PpABL...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->perturbABL->pertP,viewer);
+                PetscViewerDestroy(&viewer);
+                perturbABLAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
 
-			field = "/TpABL";
-			fileName = location + field;
-			fp=fopen(fileName.c_str(), "r");
+            field = "/TpABL";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
 
-			if(fp!=NULL)
-			{
-				fclose(fp);
+            if(fp!=NULL)
+            {
+                fclose(fp);
 
-				PetscPrintf(mesh->MESH_COMM, "TpABL...\n");
-				PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
-				VecLoad(acquisition->perturbABL->pertT,viewer);
-				PetscViewerDestroy(&viewer);
-				perturbABLAvailable++;
-			}
-			MPI_Barrier(mesh->MESH_COMM);
-		}
-	}
+                PetscPrintf(mesh->MESH_COMM, "TpABL...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(acquisition->perturbABL->pertT,viewer);
+                PetscViewerDestroy(&viewer);
+                perturbABLAvailable++;
+            }
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+    }
 
     // read average, phase and ke budget average weights
     if(avgAvailable)
@@ -1967,6 +1975,11 @@ PetscErrorCode writeFields(io_ *io)
         writeBinaryField(mesh->MESH_COMM, mesh->Nvert, fieldName.c_str());
         MPI_Barrier(mesh->MESH_COMM);
 
+        // write nvert
+        // fieldName = timeName + "/meshTag";
+        // writeBinaryField(mesh->MESH_COMM, mesh->meshTag, fieldName.c_str());
+        // MPI_Barrier(mesh->MESH_COMM);
+
         // write temperature
         if(flags->isTeqnActive)
         {
@@ -1992,7 +2005,7 @@ PetscErrorCode writeFields(io_ *io)
             VecDestroy(&Cs);
             VecDestroy(&Nut);
 
-            if(flags->isLesActive == 2)
+            if(flags->isLesActive && les->model == STABILITY_BASED)
             {
                 fieldName = timeName + "/sgsL";
                 writeBinaryField(mesh->MESH_COMM, les->L, fieldName.c_str());
@@ -3478,7 +3491,7 @@ PetscErrorCode readDictDouble(const char *dictName, const char *keyword, PetscRe
 
 //***************************************************************************************************************//
 
-PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cmpnts *value)
+PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cpt2D *value)
 {
     std::ifstream indata;
 
@@ -3543,7 +3556,7 @@ PetscErrorCode readDictVector2D(const char *dictName, const char *keyword, Cmpnt
                    if (last.find (")") != std::string::npos)
                    {
                        // remove ") character from the last component and store
-                       value->z = std::strtod(word, &eptr);
+                       value->y = std::strtod(word, &eptr);
 
                        // check if the second component is a PetscReal, throw error otherwise
                        std::string cmp2(word);
@@ -5069,19 +5082,19 @@ bool isNumber(const word& str)
 
     if (str.find(keyboard[i]) != std::string::npos)
     {
-		// exponentials (e-, e+ are accepted)
-		if
-		(
-			str.find("e+") != std::string::npos ||
-			str.find("e-") != std::string::npos
-		)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+        // exponentials (e-, e+ are accepted)
+        if
+        (
+            str.find("e+") != std::string::npos ||
+            str.find("e-") != std::string::npos
+        )
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     return true;

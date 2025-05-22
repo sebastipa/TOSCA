@@ -13,7 +13,7 @@ In order to run TOSCA, copy the two executables to the directory where your inpu
 we suggest to copy the *tests* directory to a directory of your choiche, in order to maintain your TOSCA repository clean.
 
 `Running in serial` 
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 To run in serial, simply run the following command in a terminal:
 

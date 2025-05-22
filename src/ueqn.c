@@ -33,6 +33,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     // default parameters
     ueqn->inviscid          = 0;
     ueqn->centralDiv        = 0;
+    ueqn->central4Div       = 0;
     ueqn->centralUpwindDiv  = 0;
     ueqn->centralUpwindWDiv = 0;
     ueqn->weno3Div          = 0;
@@ -49,8 +50,15 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     if(     ueqn->divScheme == "centralUpwind")  ueqn->centralUpwindDiv  = 1;
     else if(ueqn->divScheme == "centralUpwindW") ueqn->centralUpwindWDiv = 1;
     else if(ueqn->divScheme == "central")        ueqn->centralDiv        = 1;
+    else if(ueqn->divScheme == "central4")       ueqn->central4Div       = 1;
     else if(ueqn->divScheme == "weno3")          ueqn->weno3Div          = 1;
     else if(ueqn->divScheme == "quickDiv")       ueqn->quickDiv          = 1;
+    
+    if(ueqn->divScheme == "central4")
+    {
+        ueqn->hyperVisc = 1.0;
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,  "-hyperVisc", &(ueqn->hyperVisc),   PETSC_NULL);
+    }
 
     VecDuplicate(mesh->Cent, &(ueqn->Utmp));      VecSet(ueqn->Utmp,    0.0);
     VecDuplicate(mesh->Cent, &(ueqn->Rhs));       VecSet(ueqn->Rhs,     0.0);
@@ -300,9 +308,92 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             PetscReal     T     = abl->timeWindow;
 
             // set the wanted velocity
-            uDes.x = abl->uRef;
-            uDes.y = 0.0;
-            uDes.z = 0.0;
+            if(abl->mesoScaleInputActive)
+            {
+                //find the two closest available mesoscale data in time
+                PetscInt idx_1 = abl->closestTimeIndV;
+                PetscInt idx_2 = abl->closestTimeIndV + 1;
+
+                PetscInt lwrBound = 0;
+                PetscInt uprBound = abl->numtV;
+
+                if(clock->it > clock->itStart)
+                {
+                    lwrBound = PetscMax(0, (abl->closestTimeIndV - 50));
+                    uprBound = PetscMin(abl->numtV, (abl->closestTimeIndV + 50));
+                }
+
+                // build error vector for the time search
+                PetscReal  diff[abl->numtV];
+
+                for(PetscInt i=lwrBound; i<uprBound; i++)
+                {
+                    diff[i] = fabs(abl->timeV[i] - clock->time);
+                }
+
+                // find the two closest times
+                for(PetscInt i=lwrBound; i<uprBound; i++)
+                {
+                    if(diff[i] < diff[idx_1])
+                    {
+                        idx_2 = idx_1;
+                        idx_1 = i;
+                    }
+                    if(diff[i] < diff[idx_2] && i != idx_1)
+                    {
+                        idx_2 = i;
+                    }
+                }
+
+                // always put the lower time at idx_1 and higher at idx_2
+                if(abl->timeV[idx_2] < abl->timeV[idx_1])
+                {
+                    PetscInt idx_tmp = idx_2;
+                    idx_2 = idx_1;
+                    idx_1 = idx_tmp;
+                }
+
+                // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+                if(abl->timeV[idx_2] < clock->time)
+                {
+                    idx_1 = idx_2;
+                    idx_2 = idx_1 + 1;
+                }
+
+                if(abl->timeV[idx_1] > clock->time)
+                {
+                    idx_2 = idx_1;
+                    idx_1 = idx_2 - 1;
+                }
+
+                // find interpolation weights
+                PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
+                PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+                PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+                PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading mesoscale data\n", w1 * abl->timeV[idx_1] + w2 * abl->timeV[idx_2]);
+                PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+                PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeV[idx_1], abl->timeV[idx_2]);
+
+                // reset the closest index for next iteration
+                abl->closestTimeIndV = idx_1;
+
+                PetscInt idxh1 = abl->velInterpIdx[0][0], idxh2 = abl->velInterpIdx[0][1];
+                PetscReal wth1 = abl->velInterpWts[0][0], wth2  = abl->velInterpWts[0][1];
+
+                //interpolating in time
+                Cmpnts uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+                Cmpnts uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+                //interpolating in vertical direction 
+                uDes = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+            }
+            else 
+            {
+                uDes.x = abl->uRef.x;
+                uDes.y = abl->uRef.y;
+                uDes.z = 0.0;
+            }
 
             DMDAVecGetArray(da, mesh->lAj, &aj);
 
@@ -643,7 +734,274 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 abl->b.z =   0.0;
             }
         }
-        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+        else if (abl->controllerType=="geostrophicProfileAssimilation")
+        {
+            PetscInt    nlevels = my-2;
+            Cmpnts      uH1, uH2;
+            PetscInt    idxh1, idxh2, idxt1;
+            PetscReal   wth1, wth2, wtt1;
+            PetscReal   alpha = 1.5; 
+
+            Cmpnts    *srcPA  = abl->srcPA;
+            Cmpnts    *luMean = abl->luMean;
+            Cmpnts    *guMean = abl->guMean;
+
+            for(j=0; j<nlevels; j++)
+            {
+                luMean[j] = nSetZero();
+                guMean[j] = nSetZero();
+                srcPA[j]    = nSetZero();
+            }
+
+            DMDAVecGetArray(da, mesh->lAj, &aj);
+
+            //loop through the cells and find the mean at each vertical cell level
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        luMean[j-1].x += ucat[k][j][i].x / aj[k][j][i];
+                        luMean[j-1].y += ucat[k][j][i].y / aj[k][j][i];
+                        luMean[j-1].z += ucat[k][j][i].z / aj[k][j][i];
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+            MPI_Allreduce(&(luMean[0]), &(guMean[0]), 3*nlevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+            for(j=0; j<nlevels; j++)
+            {
+                mScale(1.0/abl->totVolPerLevel[j], guMean[j]);
+            }
+
+            //for cells above the abl height apply geostrophic forcing based on the mesodata 
+            //find the two closest available mesoscale data in time
+            PetscInt idx_1 = abl->closestTimeIndV;
+            PetscInt idx_2 = abl->closestTimeIndV + 1;
+
+            PetscInt lwrBound = 0;
+            PetscInt uprBound = abl->numtV;
+
+            if(clock->it > clock->itStart)
+            {
+                lwrBound = PetscMax(0, (abl->closestTimeIndV - 50));
+                uprBound = PetscMin(abl->numtV, (abl->closestTimeIndV + 50));
+            }
+
+            // build error vector for the time search
+            PetscReal  diff[abl->numtV];
+
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                diff[i] = fabs(abl->timeV[i] - clock->time);
+            }
+
+            // find the two closest times
+            for(PetscInt i=lwrBound; i<uprBound; i++)
+            {
+                if(diff[i] < diff[idx_1])
+                {
+                    idx_2 = idx_1;
+                    idx_1 = i;
+                }
+                if(diff[i] < diff[idx_2] && i != idx_1)
+                {
+                    idx_2 = i;
+                }
+            }
+
+            // always put the lower time at idx_1 and higher at idx_2
+            if(abl->timeV[idx_2] < abl->timeV[idx_1])
+            {
+                PetscInt idx_tmp = idx_2;
+                idx_2 = idx_1;
+                idx_1 = idx_tmp;
+            }
+
+            // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+            if(abl->timeV[idx_2] < clock->time)
+            {
+                idx_1 = idx_2;
+                idx_2 = idx_1 + 1;
+            }
+
+            if(abl->timeV[idx_1] > clock->time)
+            {
+                idx_2 = idx_1;
+                idx_1 = idx_2 - 1;
+            }
+
+            // find interpolation weights
+            PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
+            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
+            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
+
+            PetscPrintf(mesh->MESH_COMM, "Correcting source terms: selected time %lf for reading mesoscale data\n", w1 * abl->timeV[idx_1] + w2 * abl->timeV[idx_2]);
+            PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+            PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeV[idx_1], abl->timeV[idx_2]);
+
+            // reset the closest index for next iteration
+            abl->closestTimeIndV = idx_1;
+
+            // find the atmospheric boundary layer height 
+            findABLHeight(abl);
+
+            PetscReal ablHeight = abl->ablHt, scaleFactor;
+
+            for(j=0; j<nlevels; j++)
+            {                
+                idxh1 = abl->velInterpIdx[j][0];
+                idxh2 = abl->velInterpIdx[j][1];
+
+                wth1  = abl->velInterpWts[j][0];
+                wth2  = abl->velInterpWts[j][1];
+
+                //interpolating in time
+                uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+                uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+                //interpolating in vertical direction 
+                uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+                srcPA[j].x  =  - 2.0*abl->fc*uMeso[j].y;
+                srcPA[j].y  =    2.0*abl->fc*uMeso[j].x;
+                srcPA[j].z  =    0.0;
+            }
+
+            //if abl height is below the lowest mesoscale data point
+            if(ablHeight < abl->hV[0])
+            {   
+                i = 0;    
+                while(abl->cellLevels[i] < abl->hV[0])
+                {
+                    i++;
+                }
+
+                abl->lowestIndV = i;
+                abl->bottomSrcHtV = abl->hV[0];
+            }
+            // if abl height is in between the mesoscale data points
+            else if(ablHeight >= abl->hV[0])
+            {
+                i = 0;    
+
+                while(abl->cellLevels[i] < ablHeight)
+                {
+                    i++;
+                }   
+
+                abl->lowestIndV = i;
+                abl->bottomSrcHtV = ablHeight;
+            }
+
+            for(j=0; j<nlevels; j++)
+            {
+                if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                {
+                    srcPA[j].x = srcPA[abl->lowestIndV].x;
+                    srcPA[j].y = srcPA[abl->lowestIndV].y;
+                    srcPA[j].z = srcPA[abl->lowestIndV].z;
+                } 
+
+                if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
+                {
+                    srcPA[j].x = srcPA[abl->highestIndV].x;
+                    srcPA[j].y = srcPA[abl->highestIndV].y;
+                    srcPA[j].z = srcPA[abl->highestIndV].z;
+                }
+            }
+
+            //now add the damping term 
+            PetscReal ablgeoDelta = 200;
+            PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
+
+            for(j=0; j<nlevels; j++)
+            {                
+                idxh1 = abl->velInterpIdx[j][0];
+                idxh2 = abl->velInterpIdx[j][1];
+
+                wth1  = abl->velInterpWts[j][0];
+                wth2  = abl->velInterpWts[j][1];
+
+                //interpolating in time
+                uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+                uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+                //interpolating in vertical direction 
+                uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+                //ensure no damping within the boundary layer
+                scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
+
+                srcPA[j].x +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].x - uMeso[j].x);
+                srcPA[j].y +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].y - uMeso[j].y);
+                srcPA[j].z =   0.0;
+            }
+
+            //write the source terms 
+            if(!rank)
+            {
+                if(clock->it == clock->itStart)
+                {
+                    errno = 0;
+                    PetscInt dirRes = mkdir("./postProcessing", 0777);
+                    if(dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create postProcessing directory\n");
+                        fatalErrorInFunction("correctSourceTerm",  error);
+                    }
+                }
+
+                word fileName = "postProcessing/momentumSource_" + getStartTimeName(clock);
+                FILE *fp = fopen(fileName.c_str(), "a");
+
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file postProcessing/momentumSource\n");
+                    fatalErrorInFunction("correctSourceTermT",  error);
+                }
+                else
+                {
+
+                    PetscInt width = -15;
+
+                    if(clock->it == clock->itStart)
+                    {
+                        word w1 = "levels";
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w1.c_str());
+
+                        for(j=0; j<nlevels; j++)
+                        {
+                            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, abl->cellLevels[j]);
+                        }
+
+                        PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                        word w2 = "time";
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
+                    } 
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
+
+                    for(j=0; j<nlevels; j++)
+                    {
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, srcPA[j].x,  width, srcPA[j].y,  width, srcPA[j].z);
+                    }
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                    fclose(fp);                  
+                
+                }
+            }
+        }
+        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
         {
             PetscReal relax = abl->relax;
             PetscReal alpha = abl->alpha;
@@ -738,6 +1096,19 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 idx_1 = idx_tmp;
             }
 
+            // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+            if(abl->timeV[idx_2] < clock->time)
+            {
+                idx_1 = idx_2;
+                idx_2 = idx_1 + 1;
+            }
+
+            if(abl->timeV[idx_1] > clock->time)
+            {
+                idx_2 = idx_1;
+                idx_1 = idx_2 - 1;
+            }
+
             // find interpolation weights
             PetscReal idx = (idx_2 - idx_1) / (abl->timeV[idx_2] - abl->timeV[idx_1]) * (clock->time - abl->timeV[idx_1]) + idx_1;
             PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
@@ -777,43 +1148,81 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 src[j].z = 0.0;
                 
             }
-        
-        //to be performed after all values of src are set
-        // set the source terms outside the provided range of mesoscale data. this is set incorrectly above so corrected here
-        for(j=0; j<nlevels; j++)
-        {
-            if(abl->cellLevels[j] < abl->hV[0])
-            {
-                src[j].x = src[abl->lMesoIndV].x;
-                src[j].y = src[abl->lMesoIndV].y;
-                src[j].z = src[abl->lMesoIndV].z;
-            }
-            
-            if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
-            {
-                src[j].x = src[abl->hMesoIndV].x;
-                src[j].y = src[abl->hMesoIndV].y;
-                src[j].z = src[abl->hMesoIndV].z;
-            }
 
-            srcPA[j] = nSet(src[j]);
-
-            if(abl->averageSource && abl->controllerType=="directProfileAssimilation")
+            // set the source terms outside the provided range. this is set incorrectly above so corrected here
+            if(abl->flType == "ablHeight")
             {
-                if((abl->currAvgtime < abl->tAvgWindow) && (j == 0))
+                findABLHeight(abl);
+                PetscReal ablHeight = abl->ablHt;
+
+                if(ablHeight > abl->hV[abl->numhV - 1])
                 {
-                    abl->currAvgtime = abl->currAvgtime + clock->dt;
+                    char error[512];
+                    sprintf(error, "the abl height is greater than available mesoscale data height %lf. Use different lower layer\n", abl->hV[abl->numhV - 1]);
+                    fatalErrorInFunction("CorrectSourceTerm",  error); 
                 }
 
-                aN = (PetscReal)abl->currAvgtime;
-                m1 = aN  / (aN + clock->dt);
-                m2 = clock->dt / (aN + clock->dt);
+                //if abl height is below the lowest mesoscale data point
+                if(ablHeight < abl->hV[0])
+                {   
+                    i = 0;    
+                    while(abl->cellLevels[i] < abl->hV[0])
+                    {
+                        i++;
+                    }
 
-                abl->avgsrc[j].x = m1*abl->avgsrc[j].x + m2*srcPA[j].x;
-                abl->avgsrc[j].y = m1*abl->avgsrc[j].y + m2*srcPA[j].y;
-                abl->avgsrc[j].z = m1*abl->avgsrc[j].z + m2*srcPA[j].z;
+                    abl->lowestIndV = i;
+                    abl->bottomSrcHtV = abl->hV[0];
+                }
+                // if abl height is in between the mesoscale data points
+                else if(ablHeight >= abl->hV[0])
+                {
+                    i = 0;    
+
+                    while(abl->cellLevels[i] < ablHeight)
+                    {
+                        i++;
+                    }   
+
+                    abl->lowestIndV = i;
+                    abl->bottomSrcHtV = ablHeight;
+                }
             }
-        }
+
+            for(j=0; j<nlevels; j++)
+            {
+                if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                {
+                    src[j].x = src[abl->lowestIndV].x;
+                    src[j].y = src[abl->lowestIndV].y;
+                    src[j].z = src[abl->lowestIndV].z;
+                }
+                
+                if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
+                {
+                    src[j].x = src[abl->highestIndV].x;
+                    src[j].y = src[abl->highestIndV].y;
+                    src[j].z = src[abl->highestIndV].z;
+                }
+
+                srcPA[j] = nSet(src[j]);
+
+                if(abl->averageSource && abl->controllerType=="directProfileAssimilation")
+                {
+                    if((abl->currAvgtime < abl->tAvgWindow) && (j == 0))
+                    {
+                        abl->currAvgtime = abl->currAvgtime + clock->dt;
+                    }
+
+                    aN = (PetscReal)abl->currAvgtime;
+                    m1 = aN  / (aN + clock->dt);
+                    m2 = clock->dt / (aN + clock->dt);
+
+                    abl->avgsrc[j].x = m1*abl->avgsrc[j].x + m2*srcPA[j].x;
+                    abl->avgsrc[j].y = m1*abl->avgsrc[j].y + m2*srcPA[j].y;
+                    abl->avgsrc[j].z = m1*abl->avgsrc[j].z + m2*srcPA[j].z;
+                }
+            }
 
             if (abl->controllerType=="indirectProfileAssimilation")
             {
@@ -834,20 +1243,116 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 }
 
                 for (j=0; j<nlevels; j++) 
-                {              
-                    if(abl->cellLevels[j] < abl->lowestSrcHt)
+                {            
+                    if(abl->flType == "constantHeight" || abl->flType == "ablHeight")
                     {
-                        srcPA[j].x = srcPA[abl->lowestIndV].x;
-                        srcPA[j].y = srcPA[abl->lowestIndV].y;
-                        srcPA[j].z = srcPA[abl->lowestIndV].z;
+                        if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                        {
+                            srcPA[j].x = srcPA[abl->lowestIndV].x;
+                            srcPA[j].y = srcPA[abl->lowestIndV].y;
+                            srcPA[j].z = srcPA[abl->lowestIndV].z;
+                        }
                     }
-                    
-                    if(abl->cellLevels[j] > abl->highestSrcHt)
+
+                    if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
                     {
                         srcPA[j].x = srcPA[abl->highestIndV].x;
                         srcPA[j].y = srcPA[abl->highestIndV].y;
                         srcPA[j].z = srcPA[abl->highestIndV].z;
                     }
+
+                    if(abl->averageSource)
+                    {
+                        if((abl->currAvgtime < abl->tAvgWindow) && (j == 0))
+                        {
+                            abl->currAvgtime = abl->currAvgtime + clock->dt;
+                        }
+
+                        aN = (PetscReal)abl->currAvgtime;
+                        m1 = aN  / (aN + clock->dt);
+                        m2 = clock->dt / (aN + clock->dt);
+
+                        abl->avgsrc[j].x = m1*abl->avgsrc[j].x + m2*srcPA[j].x;
+                        abl->avgsrc[j].y = m1*abl->avgsrc[j].y + m2*srcPA[j].y;
+                        abl->avgsrc[j].z = m1*abl->avgsrc[j].z + m2*srcPA[j].z;
+                        
+                    }
+
+                    // PetscPrintf(PETSC_COMM_WORLD, "src[%ld] = %lf %lf %lf, avgsrc[%ld] = %lf %lf %lf\n", j, srcPA[j].x, srcPA[j].y, srcPA[j].z);
+                }
+            }
+
+            if (abl->controllerType=="waveletProfileAssimilation")
+            {                
+                if(abl->waveletBlend)
+                {
+                    Cmpnts *srcAbove, *srcBelow;                                                                                                                
+                    PetscMalloc(sizeof(Cmpnts) * (nlevels), &(srcAbove));
+                    PetscMalloc(sizeof(Cmpnts) * (nlevels), &(srcBelow));
+
+                    #if USE_PYTHON
+                        pywavedecVector(abl, src, srcBelow, nlevels);
+                    #endif
+    
+                    PetscInt waveLevel = abl->waveLevel;
+                    
+                    //hardcoded for now
+                    abl->waveLevel = abl->waveLevel - 4;
+                    if(abl->waveLevel <= 0) abl->waveLevel = 1;
+    
+                    #if USE_PYTHON
+                        pywavedecVector(abl, src, srcAbove, nlevels);
+                    #endif
+    
+                    abl->waveLevel = waveLevel;
+
+                    // blend between the below and above profiles 
+                    PetscReal blendHeight = mesh->bounds.zmax-500.0, scaleFactor;
+                    PetscReal ablgeoDelta = 300;
+                    PetscReal blendTop = blendHeight + 0.5*ablgeoDelta;
+    
+                    for(j=0; j<nlevels; j++)
+                    {
+                        scaleFactor = scaleHyperTangTop(abl->cellLevels[j], blendTop, ablgeoDelta);
+    
+                        srcPA[j].x = (1-scaleFactor)*srcBelow[j].x + scaleFactor*srcAbove[j].x;
+                        srcPA[j].y = (1-scaleFactor)*srcBelow[j].y + scaleFactor*srcAbove[j].y;
+                        srcPA[j].z = (1-scaleFactor)*srcBelow[j].z + scaleFactor*srcAbove[j].z;
+                        // PetscPrintf(PETSC_COMM_WORLD, "%lf %lf %lf %lf\n", src[j].x, srcBelow[j].x, srcAbove[j].x, srcPA[j].x);
+    
+                    }
+    
+                    PetscFree(srcAbove);
+                    PetscFree(srcBelow);
+
+                }
+                else
+                {
+                    #if USE_PYTHON
+                    pywavedecVector(abl, src, srcPA, nlevels);
+                    #endif 
+                } 
+
+                
+                for (j=0; j<nlevels; j++) 
+                {             
+                    if(abl->flType == "constantHeight" || abl->flType == "ablHeight")
+                    {
+                        if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                        {
+                            srcPA[j].x = srcPA[abl->lowestIndV].x;
+                            srcPA[j].y = srcPA[abl->lowestIndV].y;
+                            srcPA[j].z = srcPA[abl->lowestIndV].z;
+                        }
+                    
+                    }
+
+                    if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
+                    {
+                        srcPA[j].x = srcPA[abl->highestIndV].x;
+                        srcPA[j].y = srcPA[abl->highestIndV].y;
+                        srcPA[j].z = srcPA[abl->highestIndV].z;
+                    } 
 
                     if(abl->averageSource)
                     {
@@ -1141,7 +1646,12 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             }           
  
         }
-
+        else if(abl->controllerType=="timeSeriesFromPrecursor")
+        {
+            s.x = abl->preCompSources[0][1];
+            s.y = abl->preCompSources[0][2];
+            s.z = abl->preCompSources[0][3];
+        }
     }
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
@@ -1186,7 +1696,13 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                                 source[k][j][i].z = 0.0;
                             }
                         }
-                        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+                        else if(abl->controllerType=="geostrophicProfileAssimilation")
+                        {
+                            source[k][j][i].x = abl->srcPA[j-1].x * clock->dt;
+                            source[k][j][i].y = abl->srcPA[j-1].y * clock->dt;
+                            source[k][j][i].z = 0.0;
+                        }
+                        else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
                         {
                             if(abl->averageSource)
                             {
@@ -1194,7 +1710,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                                 source[k][j][i].y = abl->avgsrc[j-1].y;
                                 source[k][j][i].z = 0.0;  
 
-                                if((abl->cellLevels[j] > abl->lowestSrcHt) && (abl->cellLevels[i] < abl->highestSrcHt))
+                                if((abl->cellLevels[j-1] > abl->bottomSrcHtV) && (abl->cellLevels[j-1] < abl->hV[abl->numhV - 1]))
                                 {
                                     lrelError += std::pow(abl->avgsrc[j-1].x*abl->avgsrc[j-1].x + abl->avgsrc[j-1].y*abl->avgsrc[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
                                     lcells ++;
@@ -1206,9 +1722,9 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                                 source[k][j][i].y = abl->srcPA[j-1].y;
                                 source[k][j][i].z = 0.0;
                                                                 
-                                if((abl->cellLevels[j] > abl->lowestSrcHt) && (abl->cellLevels[i] < abl->highestSrcHt))
+                                if((abl->cellLevels[j-1] > abl->bottomSrcHtV) && (abl->cellLevels[j-1] < abl->hV[abl->numhV - 1]))
                                 {
-                                    lrelError += std::pow(src[j-1].x*src[j-1].x + src[j-1].y*src[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
+                                    lrelError += std::pow(abl->srcPA[j-1].x*abl->srcPA[j-1].x + abl->srcPA[j-1].y*abl->srcPA[j-1].y, 0.5)/std::pow(uMeso[j-1].x*uMeso[j-1].x + uMeso[j-1].y*uMeso[j-1].y, 0.5);
                                     lcells ++;
                                 } 
                             }
@@ -1216,7 +1732,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     }
                     else if(abl->controllerAction == "read")
                     {
-                        if(abl->controllerType == "timeSeries" || abl->controllerType == "timeAverageSeries")
+                        if(abl->controllerType == "timeSeries" || abl->controllerType == "timeAverageSeries" || abl->controllerType == "timeSeriesFromPrecursor")
                         {
                             source[k][j][i].x = s.x;
                             source[k][j][i].y = s.y;
@@ -1244,7 +1760,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     MPI_Allreduce(&lrelError, &grelError, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lcells, &gcells, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
 
-    if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+    if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation") )
     {
         if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: global avg error on velocity = %.5f percent\n", grelError*100/gcells);
     }
@@ -1276,7 +1792,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
     if(abl->controllerAction == "write")
     {
-        if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") )
+        if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
         {
             free(src);
         }
@@ -1317,7 +1833,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***source, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert;
+    PetscReal     ***nvert, ***meshTag;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
@@ -1330,6 +1846,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     DMDAVecGetArray(fda, Rhs,  &rhs);
@@ -1344,7 +1861,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 if
                 (
-                    isFluidIFace(k, j, i, i+1, nvert)
+                    isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag)
                 )
                 {
                     rhs[k][j][i].x
@@ -1359,7 +1876,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 if
                 (
-                        isFluidJFace(k, j, i, j+1, nvert)
+                        isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag)
                 )
                 {
                     rhs[k][j][i].y
@@ -1374,7 +1891,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 if
                 (
-                        isFluidKFace(k, j, i, k+1, nvert)
+                        isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag)
                 )
                 {
                     rhs[k][j][i].z
@@ -1395,6 +1912,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
 
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
@@ -1426,6 +1944,8 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
     PetscInt      i, j, k, p, l;
     PetscInt      imin, imax, jmin, jmax, kmin, kmax;
     PetscInt      iminSrc, jminSrc, kminSrc;
+    PetscInt      imaxSrc, jmaxSrc, kmaxSrc;
+
     PetscInt      numDestBounds = abl->yDampingNumPeriods;
     PetscInt      k_src_left, k_src_right;
     PetscReal     w_left, w_right;
@@ -1472,6 +1992,10 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
                     jminSrc = abl->srcMinInd[p].j;
                     kminSrc = abl->srcMinInd[p].k;
 
+                    imaxSrc = abl->srcMaxInd[p].i;
+                    jmaxSrc = abl->srcMaxInd[p].j;
+                    kmaxSrc = abl->srcMaxInd[p].k;
+
                     for(l=0; l < numDestBounds; l++)
                     {
                         imin = abl->destMinInd[p][l].i;
@@ -1500,20 +2024,26 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn)
                                     {
                                         k_src_left    = abl->closestKCell[k][0];
                                         k_src_right   = abl->closestKCell[k][1];
+
+                                        //if the k closest index go out of processor bounds
+                                        if(k_src_left  < kminSrc)  k_src_left  = kminSrc;
+                                        if(k_src_right > kmaxSrc)  k_src_right = kmaxSrc;
+
                                         w_left        = abl->wtsKCell[k][0];
                                         w_right       = abl->wtsKCell[k][1];
 
-                                        Cmpnts uLeft  = nSet(velMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)]);
-                                        Cmpnts uRight = nSet(velMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)]);
+                                        //Note: k index has been converted to indices of source processors, j and i are still based on destination processors
+                                        Cmpnts uLeft  = nSet(velMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jmin) * numI + (i-imin)]);
+                                        Cmpnts uRight = nSet(velMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jmin) * numI + (i-imin)]);
 
                                         ubar[k][j][i] = nSum(nScale(w_left, uLeft), nScale(w_right, uRight));
-
+                                        
                                         if(flags->isTeqnActive)
                                         {
-                                            PetscReal tLeft  = tMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)];
-                                            PetscReal tRight = tMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jminSrc) * numI + (i-iminSrc)];
+                                            PetscReal tLeft  = tMapped[p][(k_src_left-kminSrc) * numJ * numI + (j-jmin) * numI + (i-imin)];
+                                            PetscReal tRight = tMapped[p][(k_src_right-kminSrc) * numJ * numI + (j-jmin) * numI + (i-imin)];
 
-                                            tbar[k][j][i] = w_left * tLeft + w_right * tRight;    
+                                            tbar[k][j][i] = w_left * tLeft + w_right * tRight;                                                
                                         }
                                         // PetscPrintf(PETSC_COMM_SELF, "ubar[%ld][%ld][%ld] = %lf %lf %lf\n", k, j, i, ubar[k][j][i].x, ubar[k][j][i].y, ubar[k][j][i].z);
                                     }
@@ -2200,14 +2730,16 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 // predicted angular coefficient for the fringe alpha-relation
                 abl->xDampingCoeff    = abl->xDampingDeltaV / abl->xDampingAlpha;
 
+                PetscReal uRefMag     = PetscSqrtReal(abl->uRef.x*abl->uRef.x + abl->uRef.y*abl->uRef.y);
+
                 PetscReal fringeTime  = clock->time - abl->xDampingTimeStart;
-                PetscReal waitTime    = abl->xDampingTimeWindow; // (abl->xDampingEnd - abl->xDampingStart)/abl->uRef;
+                PetscReal waitTime    = abl->xDampingTimeWindow; // (abl->xDampingEnd - abl->xDampingStart)/uRefMag;
 
 
                 // see if must correct alpha
                 if
                 (
-                    (abl->xDampingError/abl->uRef) > 0.01 && // check if error is greater than 1%
+                    (abl->xDampingError/uRefMag) > 0.01 && // check if error is greater than 1%
                     fringeTime > waitTime                    // check if allowed to override alpha
                 )
                 {
@@ -2219,8 +2751,8 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                 abl->xDampingAlpha = std::max(std::min(abl->xDampingAlpha, 1.0), 0.0);
 
                 // compute useful print quantities
-                PetscReal percErrVStart  = fabs(abl->xDampingVBar - abl->vStart) / abl->uRef * 100.0;
-                PetscReal percErrVEnd    = abl->xDampingError / abl->uRef * 100.0;
+                PetscReal percErrVStart  = fabs(abl->xDampingVBar - abl->vStart) / uRefMag * 100.0;
+                PetscReal percErrVEnd    = abl->xDampingError / uRefMag * 100.0;
                 PetscReal percTimeFringe = fringeTime / waitTime * 100.0;
 
                 PetscPrintf(mesh->MESH_COMM, "Correcting fringe region: errStart = %.3lf %%, errEnd = %.3lf %%, vBar = %.3lf m/s, mCoeff = %.3lf, tFringe = %.1lf %%, alpha = %.5lf\n", percErrVStart, percErrVEnd, abl->xDampingVBar, abl->xDampingCoeff, percTimeFringe, abl->xDampingAlpha);
@@ -2311,6 +2843,8 @@ PetscErrorCode correctDampingSources(ueqn_ *ueqn)
                     numI = abl->srcNumI[p];
                     numJ = abl->srcNumJ[p];
                     numK = abl->srcNumK[p];
+
+                    // PetscPrintf(PETSC_COMM_SELF, "p = %ld,rank = %d, src kmin = %ld %ld, jmin = %ld %ld , imin = %ld %ld, num k,j, i = %ld %ld %ld\n", p,  rank, kmin, kmax, jmin, jmax, imin, imax, numK, numJ, numI);
 
                     //loop through the sub domain of this processor
                     for (k=kmin; k<=kmax; k++)
@@ -3006,7 +3540,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***ucat, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert;
+    PetscReal     ***nvert, ***meshTag;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
@@ -3028,6 +3562,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     DMDAVecGetArray(fda, Rhs,  &rhs);
@@ -3039,7 +3574,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if(isFluidIFace(k, j, i, i+1, nvert))
+                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
                     rhs[k][j][i].x
                     +=
@@ -3053,7 +3588,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
-                if(isFluidJFace(k, j, i, j+1, nvert))
+                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
                     rhs[k][j][i].y
                     +=
@@ -3067,7 +3602,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
-                if(isFluidKFace(k, j, i, k+1, nvert))
+                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
                     rhs[k][j][i].z
                     +=
@@ -3088,6 +3623,7 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
@@ -3110,7 +3646,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***ucat, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert, ***aj;
+    PetscReal     ***nvert, ***meshTag, ***aj;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
@@ -3140,6 +3676,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
@@ -3189,7 +3726,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 Cmpnts    forceI    = nScale(forceMagI, diskNormal);
 
                 // body force i-flux
-                if(isFluidIFace(k, j, i, i+1, nvert))
+                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
                     rhs[k][j][i].x
                     +=
@@ -3211,7 +3748,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 Cmpnts    forceJ    = nScale(forceMagJ, diskNormal);
 
                 // body force j-flux
-                if(isFluidJFace(k, j, i, j+1, nvert))
+                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
                     rhs[k][j][i].y
                     +=
@@ -3233,7 +3770,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 Cmpnts    forceK    = nScale(forceMagK, diskNormal);
 
                 // body force k-flux
-                if(isFluidKFace(k, j, i, k+1, nvert))
+                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
                     rhs[k][j][i].z
                     +=
@@ -3246,7 +3783,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 }
 
                 // now do the computation on cell centers just to check
-                /*
+                
                 uSource             = nMag(ucat[k][j][i]);
                 PetscReal vCell     = 1.0/aj[k][j][i];
                 PetscReal forceMag  = 0.5*cft*uSource*uSource/Hc;
@@ -3256,24 +3793,25 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 // integrate the cell-thrust in the canopy
                 ltotalIntThrust += coeff*forceMag*vCell;
-                */
+                
             }
         }
     }
 
-    /*
+    
     MPI_Allreduce(&ltotalIntU,      &gtotalIntU,      1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&ltotalIntThrust, &gtotalIntThrust, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
     PetscReal totalThrust = 0.5*cft*gtotalIntU*gtotalIntU*V/Hc;
 
-    PetscPrintf(mesh->MESH_COMM, "Canopy: actual thrust = %.2f, integrated thrust = %.2f, error % = %.2f\n", totalThrust, gtotalIntThrust, fabs(totalThrust-gtotalIntThrust)/totalThrust*100);
-    */
+    //PetscPrintf(mesh->MESH_COMM, "Canopy: actual thrust = %.2f, integrated thrust = %.2f, error % = %.2f\n", totalThrust, gtotalIntThrust, fabs(totalThrust-gtotalIntThrust)/totalThrust*100);
+    
 
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
@@ -3299,7 +3837,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
 
     Cmpnts        ***btheta, ***gcont;
     Cmpnts        ***icsi, ***jeta, ***kzet, ***cent;
-    PetscReal     ***nvert, ***tmprt, ***aj;
+    PetscReal     ***nvert, ***tmprt, ***aj, ***meshTag;
 
     PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
@@ -3378,6 +3916,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
 
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
     for (k=lzs; k<lze; k++)
     {
@@ -3390,7 +3929,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
                 PetscReal tempJ    =  0.5*(tmprt[k][j][i] + tmprt[k][j+1][i]);
                 PetscReal tempK    =  0.5*(tmprt[k][j][i] + tmprt[k+1][j][i]);
 
-                if(isFluidIFace(k, j, i, i+1, nvert))
+                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
                     btheta[k][j][i].x
                     +=
@@ -3403,7 +3942,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
                     );
                 }
 
-                if(isFluidJFace(k, j, i, j+1, nvert))
+                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
                     btheta[k][j][i].y
                     +=
@@ -3416,7 +3955,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
                     );
                 }
 
-                if(isFluidKFace(k, j, i, k+1, nvert))
+                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
                     btheta[k][j][i].z
                     +=
@@ -3435,6 +3974,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
     DMDAVecRestoreArray(fda, ueqn->bTheta,  &btheta);
     DMDAVecRestoreArray(da,  teqn->lTmprt,  &tmprt);
     DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, ueqn->gCont,   &gcont);
     DMDAVecRestoreArray(fda, mesh->lCent,   &cent);
 
@@ -3458,7 +3998,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
 
     PetscReal        mat[3][3], det, det0, det1, det2;
 
-    PetscReal        ***aj, ***nvert;
+    PetscReal        ***aj, ***nvert, ***meshTag;
     Cmpnts           ***ucat, ***lucont;
 
     PetscReal q[3];  // local working array
@@ -3475,6 +4015,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
     DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
     DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
 
@@ -3487,7 +4028,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if ( isFluidCell(k, j, i, nvert) )
+                if ( isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     mat[0][0] = (csi[k][j][i].x);
                     mat[0][1] = (csi[k][j][i].y);
@@ -3542,6 +4083,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
     DMDAVecRestoreArray (fda, ueqn->lUcont, &lucont);
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
     DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
@@ -3566,7 +4108,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
 
     PetscReal        mat[3][3], det, det0, det1, det2;
 
-    PetscReal        ***aj, ***nvert;
+    PetscReal        ***aj, ***nvert, ***meshTag;
     Cmpnts           ***lcat, ***lcont;
     Cmpnts           ***csi,  ***eta,  ***zet;
 
@@ -3582,6 +4124,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
     DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, lCont, &lcont);
     DMDAVecGetArray(fda, lCat,  &lcat);
 
@@ -3594,7 +4137,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
         {
             for (i=lxs; i<lxe; i++)
             {
-                if ( isFluidCell(k, j, i, nvert) )
+                if ( isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     mat[0][0] = (csi[k][j][i].x);
                     mat[0][1] = (csi[k][j][i].y);
@@ -3649,6 +4192,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
     DMDAVecRestoreArray (fda, lCont, &lcont);
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
     DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
@@ -3659,7 +4203,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
 
 //***************************************************************************************************************//
 
-PetscErrorCode adjustFluxes(ueqn_ *ueqn)
+PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
 {
     mesh_           *mesh = ueqn->access->mesh;
     DM               da = mesh->da, fda = mesh->fda;
@@ -3676,7 +4220,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                      ***coor;
     PetscReal        epsilon = 1.e-10, ***nvert;
 
-    PetscScalar      ratio;
+    PetscScalar      globalFlux;
     PetscScalar      lFluxIn = 0.0, lFluxOut = 0.0,
                      FluxIn  = 0.0, FluxOut  = 0.0;
 
@@ -3684,17 +4228,22 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(fda, ueqn->Ucont,  &ucont);
     DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
-    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+
+    // instead of saying that fluxin is on left patches and fluxout is on right patches
+    // we can say that fluxin is on the patches with negative velocity and fluxout is on the patches with positive velocity
+    // The mass imbalance is then distributed to the cells with positive velocity based on the ratio between their area and
+    // the cumulative area of the outflow faces
 
     if
     (
         !mesh->k_periodic && !mesh->kk_periodic
     )
     {
-        // compute inflow flux at k-left boundary
-        if (zs==0)
+        // k-left boundary
+        if (zs==0 && mesh->boundaryU.kLeftPatchType == 0)
         {
             // k-left boundary face
             k = 0;
@@ -3705,22 +4254,24 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 for (i=lxs; i<lxe; i++)
                 {
                     // cumulate flux
-
-                    if(fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k+1, j, i, nvert)) ){
-                        lFluxIn   +=  ucont[k][j][i].z;
-
+                    if(ucont[k][j][i].z > 0.0 && (!isIBMCell(k+1, j, i, nvert)))
+                    {
+                        lFluxIn += ucont[k][j][i].z;
                     }
-                    else
+                    else if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k+1, j, i, nvert)))
+                    {
+                        lFluxOut += fabs(ucont[k][j][i].z);
+                    }
+                    else 
                     {
                         ucont[k][j][i].z = 0.;
                     }
-
                 }
             }
         }
 
         // compute outflow flux at k-right boundary
-        if (ze==mz)
+        if (ze==mz && mesh->boundaryU.kRightPatchType == 0)
         {
             // k-right boundary face
             k = mz-2;
@@ -3731,16 +4282,18 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 for (i=lxs; i<lxe; i++)
                 {
                     // cumulate flux
-
-                    if(fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k, j, i, nvert)) ){
-                        lFluxOut   +=  ucont[k][j][i].z;
-
+                    if(ucont[k][j][i].z > 0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxOut += ucont[k][j][i].z;
+                    }
+                    else if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxIn += fabs(ucont[k][j][i].z);
                     }
                     else
                     {
                         ucont[k][j][i].z = 0.;
                     }
-
                 }
             }
         }
@@ -3752,7 +4305,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
     )
     {
         // compute flux at j-left boundary
-        if (ys==0)
+        if (ys==0 && mesh->boundaryU.jLeftPatchType == 0)
         {
             // j-left boundary face
             j = 0;
@@ -3763,21 +4316,24 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 for (i=lxs; i<lxe; i++)
                 {
                     // cumulate flux
-
-                    if(fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j+1, i, nvert)) ){
-                        lFluxIn   +=  ucont[k][j][i].y;
+                    if(ucont[k][j][i].y > 0.0 && (!isIBMCell(k, j+1, i, nvert)))
+                    {
+                        lFluxIn += ucont[k][j][i].y;
+                    }
+                    else if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j+1, i, nvert)))
+                    {
+                        lFluxOut += fabs(ucont[k][j][i].y);
                     }
                     else
                     {
                         ucont[k][j][i].y = 0.;
                     }
-
                 }
             }
         }
 
         // compute flux at j-right boundary
-        if (ye==my)
+        if (ye==my && mesh->boundaryU.jRightPatchType == 0)
         {
             // j-right boundary face
             j = my-2;
@@ -3788,15 +4344,18 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 for (i=lxs; i<lxe; i++)
                 {
                     // cumulate flux
-
-                    if(fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j, i, nvert)) ){
-                        lFluxOut   +=  ucont[k][j][i].y;
+                    if(ucont[k][j][i].y > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxOut += ucont[k][j][i].y;
+                    }
+                    else if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxIn += fabs(ucont[k][j][i].y);
                     }
                     else
                     {
                         ucont[k][j][i].y = 0.;
                     }
-
                 }
             }
         }
@@ -3808,7 +4367,7 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
     )
     {
         // compute flux at i-left boundary
-        if (xs==0)
+        if (xs==0 && mesh->boundaryU.iLeftPatchType == 0)
         {
             // i-left boundary face
             i = 0;
@@ -3819,22 +4378,24 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 for (j=lys; j<lye; j++)
                 {
                     // cumulate flux
-
-                    if(fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i+1, nvert)) )
+                    if(ucont[k][j][i].x > 0.0 && (!isIBMCell(k, j, i+1, nvert)))
                     {
-                        lFluxIn   +=  ucont[k][j][i].x;
+                        lFluxIn += ucont[k][j][i].x;
+                    }
+                    else if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i+1, nvert)))
+                    {
+                        lFluxOut += fabs(ucont[k][j][i].x);
                     }
                     else
                     {
                         ucont[k][j][i].x = 0.;
                     }
-
                 }
             }
         }
 
         // compute flux at i-right boundary
-        if (xe==mx)
+        if (xe==mx && mesh->boundaryU.iRightPatchType == 0)
         {
             // i-right boundary face
             i = mx-2;
@@ -3845,15 +4406,18 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
                 for (j=lys; j<lye; j++)
                 {
                     // cumulate flux
-
-                    if(fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i, nvert)) ){
-                        lFluxOut   +=  ucont[k][j][i].x;
+                    if(ucont[k][j][i].x > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxOut += ucont[k][j][i].x;
+                    }
+                    else if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    {
+                        lFluxIn += fabs(ucont[k][j][i].x);
                     }
                     else
                     {
                         ucont[k][j][i].x = 0.;
                     }
-
                 }
             }
         }
@@ -3863,171 +4427,21 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
     MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-    //PetscPrintf(mesh->MESH_COMM, "\n fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
+    //PetscPrintf(mesh->MESH_COMM, "Pre correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
 
-    if(FluxOut > 1.e-15)
-    {
-        ratio = (FluxIn) / FluxOut;
-    }
-    else
-    {
-        ratio = 1.0;
-    }
+    globalFlux = FluxOut - FluxIn;
 
-    // correct only outflow patches - outflow patches are assumed to be the right side patches
-    // this is not generic but for inflow - outflow problems with outflow on the right patches this should work
-    if
-    (
-        !mesh->k_periodic && !mesh->kk_periodic
-    )
-    {
-
-        // correct outflow velocity on the k-right patch
-
-            if (ze==mz  && (mesh->boundaryU.kRight!="inletFunction") && (mesh->boundaryU.kRight!="fixedValue"))
-            {
-                k = mz-2;
-
-                for (j=lys; j<lye; j++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        if (fabs(ucont[k][j][i].z) > epsilon && (!isIBMCell(k, j, i, nvert)) )
-                        {
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].z *= ratio;
-
-                        }
-                    }
-                }
-            }
-
-            // if (zs==0  && (mesh->boundaryU.kLeft!="inletFunction") && (mesh->boundaryU.kLeft!="fixedValue"))
-            // {
-            //     k = 0;
-
-            //     for (j=lys; j<lye; j++)
-            //     {
-            //         for (i=lxs; i<lxe; i++)
-            //         {
-            //             if (fabs(ucont[k][j][i].z) > epsilon)
-            //             {
-            //                 // correct contrav. vel. at boundary faces
-            //                 ucont[k][j][i].z /= ratio;
-
-            //             }
-            //         }
-            //     }
-            // }
-
-    }
-
-    if
-    (
-       !mesh->j_periodic && !mesh->jj_periodic
-    )
-    {
-
-        // correct outflow velocity on the j-right patch
-
-            if (ye==my  && (mesh->boundaryU.jRight!="inletFunction") && (mesh->boundaryU.jRight!="fixedValue"))
-            {
-                j = my-2;
-
-                for (k=lzs; k<lze; k++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        if (fabs(ucont[k][j][i].y) > epsilon && (!isIBMCell(k, j, i, nvert)) )
-                        {
-
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].y *= ratio;
-
-                        }
-                    }
-                }
-            }
-
-            // if (ys==0  && (mesh->boundaryU.jLeft!="inletFunction") && (mesh->boundaryU.jLeft!="fixedValue"))
-            // {
-            //     j = 0;
-
-            //     for (k=lzs; k<lze; k++)
-            //     {
-            //         for (i=lxs; i<lxe; i++)
-            //         {
-            //             if (fabs(ucont[k][j][i].y) > epsilon)
-            //             {
-
-            //                 // correct contrav. vel. at boundary faces
-            //                 ucont[k][j][i].y /= ratio;
-
-            //             }
-            //         }
-            //     }
-            // }
-
-    }
-
-    if
-    (
-        !mesh->i_periodic && !mesh->ii_periodic
-    )
-    {
-
-        // correct outflow velocity on the i-right patch
-
-        if (xe==mx  && (mesh->boundaryU.iRight!="inletFunction") && (mesh->boundaryU.iRight!="fixedValue"))
-        {
-            i = mx-2;
-
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    if (fabs(ucont[k][j][i].x) > epsilon && (!isIBMCell(k, j, i, nvert)) )
-                    {
-
-                        // correct contrav. vel. at boundary faces
-                        ucont[k][j][i].x *= ratio;
-                    }
-                }
-            }
-        }
-
-        // if (xs==0  && (mesh->boundaryU.iLeft!="inletFunction") && (mesh->boundaryU.iLeft!="fixedValue"))
-        // {
-        //     i = 0;
-
-        //     for (k=lzs; k<lze; k++)
-        //     {
-        //         for (j=lys; j<lye; j++)
-        //         {
-        //             if (fabs(ucont[k][j][i].x) > epsilon)
-        //             {
-
-        //                 // correct contrav. vel. at boundary faces
-        //                 ucont[k][j][i].x /= ratio;
-        //             }
-        //         }
-        //     }
-        // }
-    }
-
-    // Recalculate flux to check if corrected
-    lFluxIn = 0.0, lFluxOut = 0.0,
-    FluxIn  = 0.0, FluxOut  = 0.0;
+    lFluxOut = 0.0;
 
     if
     (
         !mesh->k_periodic && !mesh->kk_periodic
     )
     {
-        // compute inflow flux at k-left boundary
-        if (zs==0)
+        // k-left boundary
+        if (zs==0 && mesh->boundaryU.kLeftPatchType == 0)
         {
-            // k-right boundary face
+            // k-left boundary face
             k = 0;
 
             // loop on the boundary faces
@@ -4035,23 +4449,18 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].z;
-
-                    }
-                    else
+                    // cumulate flux
+                    if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k+1, j, i, nvert)))
                     {
-                        ucont[k][j][i].z = 0.;
+                        ucont[k][j][i].z += globalFlux * (fabs(ucont[k][j][i].z) / FluxOut);
+                        lFluxOut += fabs(ucont[k][j][i].z);   
                     }
-
                 }
             }
         }
 
-        // compute outflow flux at k-right boundary
-        if (ze==mz)
+        // correct outflow flux at k-right boundary
+        if (ze==mz && mesh->boundaryU.kRightPatchType == 0)
         {
             // k-right boundary face
             k = mz-2;
@@ -4061,17 +4470,12 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].z;
-
-                    }
-                    else
+                    // cumulate flux
+                    if(ucont[k][j][i].z > 0 && (!isIBMCell(k, j, i, nvert)))
                     {
-                        ucont[k][j][i].z = 0.;
+                        ucont[k][j][i].z -= globalFlux * (ucont[k][j][i].z / FluxOut);
+                        lFluxOut += ucont[k][j][i].z;
                     }
-
                 }
             }
         }
@@ -4083,9 +4487,9 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
     )
     {
         // compute flux at j-left boundary
-        if (ys==0)
+        if (ys==0 && mesh->boundaryU.jLeftPatchType == 0)
         {
-            // k-right boundary face
+            // j-left boundary face
             j = 0;
 
             // loop on the boundary faces
@@ -4093,24 +4497,20 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].y;
-                    }
-                    else
+                    // cumulate flux
+                    if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j+1, i, nvert)))
                     {
-                        ucont[k][j][i].y = 0.;
+                        ucont[k][j][i].y += globalFlux * (fabs(ucont[k][j][i].y) / FluxOut);
+                        lFluxOut += fabs(ucont[k][j][i].y);
                     }
-
                 }
             }
         }
 
         // compute flux at j-right boundary
-        if (ye==my)
+        if (ye==my && mesh->boundaryU.jRightPatchType == 0)
         {
-            // k-right boundary face
+            // j-right boundary face
             j = my-2;
 
             // loop on the boundary cells
@@ -4118,16 +4518,12 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].y;
-                    }
-                    else
+                    // cumulate flux
+                    if(ucont[k][j][i].y > 0.0 && (!isIBMCell(k, j, i, nvert)))
                     {
-                        ucont[k][j][i].y = 0.;
+                        ucont[k][j][i].y -= globalFlux * (ucont[k][j][i].y / FluxOut);
+                        lFluxOut += ucont[k][j][i].y;
                     }
-
                 }
             }
         }
@@ -4139,9 +4535,9 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
     )
     {
         // compute flux at i-left boundary
-        if (xs==0)
+        if (xs==0 && mesh->boundaryU.iLeftPatchType == 0)
         {
-            // i-right boundary face
+            // i-left boundary face
             i = 0;
 
             // loop on the boundary faces
@@ -4149,25 +4545,20 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].x) > epsilon)
+                    // cumulate flux
+                    if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i+1, nvert)))
                     {
-                        lFluxIn   +=  ucont[k][j][i].x;
+                        ucont[k][j][i].x += globalFlux * (fabs(ucont[k][j][i].x) / FluxOut);
+                        lFluxOut += fabs(ucont[k][j][i].x);
                     }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
-                    }
-
                 }
             }
         }
 
         // compute flux at i-right boundary
-        if (xe==mx)
+        if (xe==mx && mesh->boundaryU.iRightPatchType == 0)	
         {
-            // k-right boundary face
+            // i-right boundary face
             i = mx-2;
 
             // loop on the boundary faces
@@ -4175,578 +4566,24 @@ PetscErrorCode adjustFluxes(ueqn_ *ueqn)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].x) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].x;
-                    }
-                    else
+                    // cumulate flux
+                    if(ucont[k][j][i].x > 0.0 && (!isIBMCell(k, j, i, nvert)))
                     {
-                        ucont[k][j][i].x = 0.;
+                        ucont[k][j][i].x -= globalFlux * (ucont[k][j][i].x / FluxOut);
+                        lFluxOut += ucont[k][j][i].x;
                     }
-
                 }
             }
         }
     }
 
     // cumulate the net influx and net outflux
-    MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    // PetscPrintf(mesh->MESH_COMM, "After correction fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
+    // MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    // PetscPrintf(mesh->MESH_COMM, "Post correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
 
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-
-    // scatter new contravariant velocity values
-    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-    DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode adjustFluxesOverset(ueqn_ *ueqn)
-{
-    mesh_           *mesh = ueqn->access->mesh;
-    DM               da = mesh->da, fda = mesh->fda;
-    DMDALocalInfo    info = mesh->info;
-    PetscInt         xs = info.xs, xe = info.xs + info.xm;
-    PetscInt         ys = info.ys, ye = info.ys + info.ym;
-    PetscInt         zs = info.zs, ze = info.zs + info.zm;
-    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt         lxs, lxe, lys, lye, lzs, lze;
-    PetscInt         i, j, k;
-
-    Cmpnts           ***ucont, ***lucont,
-                     ***coor;
-    PetscReal        epsilon = 1.e-10;
-
-    PetscScalar      ratio;
-    PetscScalar      lFluxIn = 0.0, lFluxOut = 0.0,
-                     FluxIn  = 0.0, FluxOut  = 0.0;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
-    DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
-
-    if
-    (
-        !mesh->k_periodic && !mesh->kk_periodic
-    )
-    {
-        // compute inflow flux at k-left boundary
-        if (zs==0)
-        {
-            // k-right boundary face
-            k = 0;
-
-            // loop on the boundary faces
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].z;
-
-                    }
-                    else
-                    {
-                        ucont[k][j][i].z = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute outflow flux at k-right boundary
-        if (ze==mz)
-        {
-            // k-right boundary face
-            k = mz-2;
-
-            // loop on the boundary cells
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].z;
-
-                    }
-                    else
-                    {
-                        ucont[k][j][i].z = 0.;
-                    }
-
-                }
-            }
-        }
-    }
-
-    if
-    (
-        !mesh->j_periodic && !mesh->jj_periodic
-    )
-    {
-        // compute flux at j-left boundary
-        if (ys==0)
-        {
-            // k-right boundary face
-            j = 0;
-
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].y;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute flux at j-right boundary
-        if (ye==my)
-        {
-            // k-right boundary face
-            j = my-2;
-
-            // loop on the boundary cells
-            for (k=lzs; k<lze; k++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].y;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
-                    }
-
-                }
-            }
-        }
-    }
-
-    if
-    (
-        !mesh->i_periodic && !mesh->ii_periodic
-    )
-    {
-        // compute flux at i-left boundary
-        if (xs==0)
-        {
-            // i-right boundary face
-            i = 0;
-
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].x) > epsilon)
-                    {
-                        lFluxIn   +=  ucont[k][j][i].x;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute flux at i-right boundary
-        if (xe==mx)
-        {
-            // k-right boundary face
-            i = mx-2;
-
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].x) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].x;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
-                    }
-
-                }
-            }
-        }
-    }
-
-    // cumulate the net influx and net outflux
-    MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    //PetscPrintf(mesh->MESH_COMM, "\n fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
-
-    if(FluxOut > 1.e-15)
-    {
-        ratio = (FluxIn) / FluxOut;
-    }
-    else
-    {
-        ratio = 1.0;
-    }
-
-    // correct only outflow patches - outflow patches are assumed to be the right side patches
-    // this is not generic but for inflow - outflow problems with outflow on the right patches this should work
-    if
-    (
-        !mesh->k_periodic && !mesh->kk_periodic
-    )
-    {
-
-        // correct outflow velocity on the k-right patch
-
-            if (ze==mz)
-            {
-                k = mz-2;
-
-                for (j=lys; j<lye; j++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        if (fabs(ucont[k][j][i].z) > epsilon)
-                        {
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].z *= sqrt(ratio);
-
-                        }
-                    }
-                }
-            }
-
-            if (zs==0)
-            {
-                k = 0;
-
-                for (j=lys; j<lye; j++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        if (fabs(ucont[k][j][i].z) > epsilon)
-                        {
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].z /= sqrt(ratio);
-
-                        }
-                    }
-                }
-            }
-
-    }
-
-    if
-    (
-       !mesh->j_periodic && !mesh->jj_periodic
-    )
-    {
-
-        // correct outflow velocity on the j-right patch
-
-            if (ye==my)
-            {
-                j = my-2;
-
-                for (k=lzs; k<lze; k++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        if (fabs(ucont[k][j][i].y) > epsilon)
-                        {
-
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].y *= sqrt(ratio);
-
-                        }
-                    }
-                }
-            }
-
-            if (ys==0)
-            {
-                j = 0;
-
-                for (k=lzs; k<lze; k++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        if (fabs(ucont[k][j][i].y) > epsilon)
-                        {
-
-                            // correct contrav. vel. at boundary faces
-                            ucont[k][j][i].y /= sqrt(ratio);
-
-                        }
-                    }
-                }
-            }
-
-    }
-
-    if
-    (
-        !mesh->i_periodic && !mesh->ii_periodic
-    )
-    {
-
-        // correct outflow velocity on the i-right patch
-
-        if (xe==mx)
-        {
-            i = mx-2;
-
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    if (fabs(ucont[k][j][i].x) > epsilon)
-                    {
-
-                        // correct contrav. vel. at boundary faces
-                        ucont[k][j][i].x *= sqrt(ratio);
-                    }
-                }
-            }
-        }
-
-        if (xs==0)
-        {
-            i = 0;
-
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    if (fabs(ucont[k][j][i].x) > epsilon)
-                    {
-
-                        // correct contrav. vel. at boundary faces
-                        ucont[k][j][i].x /= sqrt(ratio);
-                    }
-                }
-            }
-        }
-    }
-
-    // Recalculate flux to check if corrected
-    lFluxIn = 0.0, lFluxOut = 0.0,
-    FluxIn  = 0.0, FluxOut  = 0.0;
-
-    if
-    (
-        !mesh->k_periodic && !mesh->kk_periodic
-    )
-    {
-        // compute inflow flux at k-left boundary
-        if (zs==0)
-        {
-            // k-right boundary face
-            k = 0;
-
-            // loop on the boundary faces
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].z;
-
-                    }
-                    else
-                    {
-                        ucont[k][j][i].z = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute outflow flux at k-right boundary
-        if (ze==mz)
-        {
-            // k-right boundary face
-            k = mz-2;
-
-            // loop on the boundary cells
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].z) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].z;
-
-                    }
-                    else
-                    {
-                        ucont[k][j][i].z = 0.;
-                    }
-
-                }
-            }
-        }
-    }
-
-    if
-    (
-        !mesh->j_periodic && !mesh->jj_periodic
-    )
-    {
-        // compute flux at j-left boundary
-        if (ys==0)
-        {
-            // k-right boundary face
-            j = 0;
-
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxIn   +=  ucont[k][j][i].y;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute flux at j-right boundary
-        if (ye==my)
-        {
-            // k-right boundary face
-            j = my-2;
-
-            // loop on the boundary cells
-            for (k=lzs; k<lze; k++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].y) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].y;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
-                    }
-
-                }
-            }
-        }
-    }
-
-    if
-    (
-        !mesh->i_periodic && !mesh->ii_periodic
-    )
-    {
-        // compute flux at i-left boundary
-        if (xs==0)
-        {
-            // i-right boundary face
-            i = 0;
-
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].x) > epsilon)
-                    {
-                        lFluxIn   +=  ucont[k][j][i].x;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
-                    }
-
-                }
-            }
-        }
-
-        // compute flux at i-right boundary
-        if (xe==mx)
-        {
-            // k-right boundary face
-            i = mx-2;
-
-            // loop on the boundary faces
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    // cumulate flux and area
-
-                    if(fabs(ucont[k][j][i].x) > epsilon){
-                        lFluxOut   +=  ucont[k][j][i].x;
-                    }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
-                    }
-
-                }
-            }
-        }
-    }
-
-    // cumulate the net influx and net outflux
-    MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    //PetscPrintf(mesh->MESH_COMM, "After correction fluxin = %lf, fluxout = %lf\n", FluxIn, FluxOut);
-
-    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
-    DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
 
     // scatter new contravariant velocity values
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
@@ -4796,7 +4633,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     Cmpnts           ***kcsi, ***keta, ***kzet;
     Cmpnts           ***cent;
 
-    PetscReal        ***nvert, ***lnu_t;
+    PetscReal        ***nvert, ***lnu_t, ***meshTag;
 
     Cmpnts           ***div1,  ***div2,  ***div3;                               // divergence & cumulative fluxes
     Cmpnts           ***visc1, ***visc2, ***visc3;
@@ -4847,6 +4684,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
 
@@ -4884,23 +4722,23 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     }
 
     // damping viscosity for fringe region advection damping
-    PetscReal nuD;
+    PetscReal nuD, nuDY;
 
     // fringe region parameters (set only if active)
-    PetscReal xS;
-    PetscReal xE;
-    PetscReal xDS;
-    PetscReal xDE;
+    PetscReal xS, yS;
+    PetscReal xE, yE;
+    PetscReal xDS, yDS;
+    PetscReal xDE, yDE;
 
-    PetscInt  advectionDamping = 0;
-	PetscReal advDampH = 0;
+    PetscInt  advectionDamping = 0, advectionDampingY = 0;
+	PetscReal advDampH = 0, advDampYH = 0;
 
-    if(ueqn->access->flags->isAdvectionDampingActive)
+    if(ueqn->access->flags->isAdvectionDampingXActive)
     {
-        xS     = ueqn->access->abl->advDampingStart;
-        xE     = ueqn->access->abl->advDampingEnd;
-        xDE    = ueqn->access->abl->advDampingDeltaEnd;
-        xDS    = ueqn->access->abl->advDampingDeltaStart;
+        xS     = ueqn->access->abl->advDampingXStart;
+        xE     = ueqn->access->abl->advDampingXEnd;
+        xDE    = ueqn->access->abl->advDampingXDeltaEnd;
+        xDS    = ueqn->access->abl->advDampingXDeltaStart;
 
         advectionDamping = 1;
 
@@ -4909,6 +4747,22 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     else
     {
         nuD = 1.0;
+    }
+
+    if(ueqn->access->flags->isAdvectionDampingYActive)
+    {
+        yS     = ueqn->access->abl->advDampingYStart;
+        yE     = ueqn->access->abl->advDampingYEnd;
+        yDE    = ueqn->access->abl->advDampingYDeltaEnd;
+        yDS    = ueqn->access->abl->advDampingYDeltaStart;
+
+        advectionDampingY = 1;
+
+        advDampYH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
+    }
+    else
+    {
+        nuDY = 1.0;
     }
 
     // i direction
@@ -4930,7 +4784,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                 // compute metric tensor - WARNING: there is a factor of 1/J^2 if using face area vectors
                 //                                  must multiply for ajc in viscous term!!!
@@ -4953,7 +4807,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    iL, iR;
                 PetscReal denom;
-                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert);
+                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
 
                 // test: inviscid flow or weno3Div
                 if(ueqn->inviscid || ueqn->weno3Div)
@@ -4981,6 +4835,15 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             (
                                 ucat[k][j][i], ucat[k][j][i+1]
                             )
+                        );
+                    }
+                    else if(ueqn->central4Div)
+                    {
+                        
+                        div1[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].x,
+                            centralVec4thCsi(mesh, k, j, i, mx, nvert, meshTag, ucat, ucont[k][j][i].x, ueqn->hyperVisc)
                         );
                     }
                     else if(ueqn->centralUpwindDiv)
@@ -5121,7 +4984,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                 // compute metric tensor
                 g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
@@ -5143,7 +5006,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    jL, jR;
                 PetscReal denom;
-                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert);
+                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
 
                 // test: inviscid flow or weno3Div
                 if( ueqn->inviscid || ueqn->weno3Div)
@@ -5170,6 +5033,15 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             (
                                 ucat[k][j][i], ucat[k][j+1][i]
                             )
+                        );
+                    }
+                    else if(ueqn->central4Div)
+                    {
+                        
+                        div2[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].y,
+                            centralVec4thEta(mesh, k, j, i, my, nvert, meshTag, ucat, ucont[k][j][i].y, ueqn->hyperVisc)
                         );
                     }
                     else if(ueqn->centralUpwindDiv)
@@ -5311,7 +5183,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
 
                 // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
                 // compute metric tensor
                 g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
@@ -5333,7 +5205,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 PetscInt    kL, kR;
                 PetscReal denom;
-                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert);
+                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
                 // inviscid flow or weno3Div
                 if(ueqn->inviscid || ueqn->weno3Div)
@@ -5361,6 +5233,15 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             (
                                 ucat[k][j][i], ucat[k+1][j][i]
                             )
+                        );
+                    }
+                    else if(ueqn->central4Div)
+                    {
+                        
+                        div3[k][j][i] = nScale
+                        (
+                            - ucont[k][j][i].z,
+                            centralVec4thZet(mesh, k, j, i, mz, nvert, meshTag, ucat, ucont[k][j][i].z, ueqn->hyperVisc)
                         );
                     }
                     else if(ueqn->centralUpwindDiv)
@@ -5552,12 +5433,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     div3[k][j][i].z - div3[k-1][j][i].z
                 );
 
-				// compute Stipa viscosity at i,j,k,  point
+                //damp convective term in vertical momentum equation for streamwise fringe
 				if(advectionDamping)
 				{
 					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
 					nuD              = viscStipaDelta(xS, xE, xDS, xDE, cent[k][j][i].x, height, advDampH);
 					fp[k][j][i].z    = nuD * fp[k][j][i].z;
+				}
+
+                //damp convective term in vertical momentum equation for lateral fringe
+                if(advectionDampingY)
+				{
+					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
+					nuDY             = viscStipaDelta(yS, yE, yDS, yDE, cent[k][j][i].y, height, advDampYH);
+                    fp[k][j][i].z    = nuDY * fp[k][j][i].z;
 				}
 
                 // viscous contribution
@@ -5661,9 +5550,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 PetscInt    iL, iR;
                 PetscInt    jL, jR;
                 PetscInt    kL, kR;
-                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert);
-                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert);
-                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert);
+                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
+                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
+                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
                 PetscReal v0, v1, v2, v3;
                 PetscReal d0, d1, d2, d3;
@@ -5764,6 +5653,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
 
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->fluxLimiter, &limiter);
 
     DMDAVecRestoreArray(fda, ueqn->lFp, &fp);
@@ -5808,6 +5698,11 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     if(ueqn->access->flags->isIBMActive)
     {
         UpdateImmersedBCs(ueqn->access->ibm);
+    }
+
+    if(ueqn->access->flags->isOversetActive)
+    {
+        setBackgroundBC(mesh);
     }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
@@ -5925,6 +5820,11 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         UpdateImmersedBCs(ueqn->access->ibm);
     }
 
+    if(ueqn->access->flags->isOversetActive)
+    {
+        setBackgroundBC(mesh);;
+    }
+
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
@@ -5976,6 +5876,7 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     if
     (
         ueqn->access->flags->isXDampingActive ||
+        ueqn->access->flags->isYDampingActive ||
         ueqn->access->flags->isZDampingActive ||
         ueqn->access->flags->isKLeftRayleighDampingActive ||
         ueqn->access->flags->isKRightRayleighDampingActive
@@ -6145,17 +6046,16 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     if(ueqn->access->flags->isIBMActive)
     {
         UpdateImmersedBCs(ueqn->access->ibm);
+    }    
+
+    // updates BCs around blanked cells
+    if(ueqn->access->flags->isOversetActive)
+    {
+        setBackgroundBC(mesh);
     }
 
     // adjust inflow/outflow fluxes to ensure mass conservation
-    if(ueqn->access->flags->isOversetActive && *(ueqn->access->domainID) != 0)
-    {
-        adjustFluxesOverset(ueqn);
-    }
-    else
-    {
-        adjustFluxes(ueqn);
-    }
+    adjustFluxesLocal(ueqn);
 
     return(0);
 }

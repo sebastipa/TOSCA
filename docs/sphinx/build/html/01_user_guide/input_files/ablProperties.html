@@ -52,7 +52,7 @@
 <li class="toctree-l3"><a class="reference internal" href="control.html"><cite>control.dat</cite></a></li>
 <li class="toctree-l3"><a class="reference internal" href="boundary.html"><cite>boundary</cite></a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#"><cite>ABLProperties.dat</cite></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#controllerproperties">controllerProperties</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#controllerproperties-fringecontrollerproperties">controllerProperties &amp; fringeControllerProperties</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#xdampingproperties">xDampingProperties</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#ydampingproperties">yDampingProperties</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#zdampingproperties">zDampingProperties</a></li>
@@ -75,6 +75,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_examples.html">Example Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_applications.html">Primary Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_versions.html">Versions</a></li>
 </ul>
 
         </div>
@@ -137,7 +138,7 @@ set the initial velocity condition when
 <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uRef</span></code></p></td>
-<td><p>scalar</p></td>
+<td><p>2D vector</p></td>
 <td><p>reference velocity in m/s used to set
 set the initial condition when
 <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
@@ -146,7 +147,16 @@ a logarthmic profile with this value of velocity
 at <code class="docutils literal notranslate"><span class="pre">hRef</span></code>. It is also used by the
 velocity controller when <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> is set
 to <em>pressure</em> inside the <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code>
-dictionary.</p></td>
+dictionary. Must be specified as:</p>
+<blockquote>
+<div><div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">uRef</span><span class="w"> </span><span class="p">(</span><span class="n">uRef_x</span><span class="w"> </span><span class="n">uRef_y</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>where <code class="docutils literal notranslate"><span class="pre">uRef_x</span></code> and <code class="docutils literal notranslate"><span class="pre">uRef_y</span></code> are the x and y
+velocity components, respectively. The vertical
+component is always set to zero.</p>
+</td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hRef</span></code></p></td>
 <td><p>scalar</p></td>
@@ -244,7 +254,25 @@ initial one. Requires
 precursor simulation. Requires
 <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code> dictionary.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">precursorControllerTypeMismatch</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>Requires <code class="docutils literal notranslate"><span class="pre">xDampingLayer</span></code> active in the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file, and <code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code>
+set to 3, corresponding to the concurrent precursor
+method, inside <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code> dictionary.
+Should be activated if the concurrent precursor’s
+velocity controller differs from the successor’s.
+For example, if precursor uses
+<code class="docutils literal notranslate"><span class="pre">controllerAction</span></code> <em>write</em>, while successor
+reads the momentum sources computed by the
+precursor using <code class="docutils literal notranslate"><span class="pre">controllerAction</span></code> <em>read</em> and
+<code class="docutils literal notranslate"><span class="pre">controllerType</span></code> <em>timeSeriesFromPrecursor</em> in
+the <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code> dictionary.
+It requires the <code class="docutils literal notranslate"><span class="pre">fringeControllerProperties</span></code>
+dictionary in order to specify the controller
+parameters for the concurrent precursor domain.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Temperature controller type <em>initial</em> tries to
 maintain the initial horizontally averaged
@@ -259,14 +287,14 @@ subdictionary, i.e. <code class="docutils literal notranslate"><span class="pre"
 Moreover, <code class="docutils literal notranslate"><span class="pre">polynomialOrder</span></code> is also required for
 controller type <em>indirectProfileAssimilation</em>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">perturbations</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">perturbations</span></code></p></td>
 <td><p>bool</p></td>
 <td><p>Adds divergence-free sinusoidal perturbations to
 triger turbulence in the initial condition when
 <code class="docutils literal notranslate"><span class="pre">internalField</span></code> is set to <em>ABLFlow</em> in the
 <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Contains inputs for velocity and temperature
 controllers. Required when
@@ -275,9 +303,9 @@ or <code class="docutils literal notranslate"><span class="pre">controllerActive
 <p>Usage:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">controllerProperties</span>
 <span class="p">{</span>
-<span class="w">   </span><span class="n">relaxPI</span><span class="w">                </span><span class="n">scalar</span>
-<span class="w">   </span><span class="n">controllerMaxHeight</span><span class="w">    </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">controllerAction</span><span class="w">       </span><span class="n">string</span>
 <span class="w">   </span><span class="n">controllerType</span><span class="w">         </span><span class="n">string</span>
+<span class="w">   </span><span class="n">relaxPI</span><span class="w">                </span><span class="n">scalar</span>
 <span class="w">   </span><span class="n">alphaPI</span><span class="w">                </span><span class="n">scalar</span>
 <span class="w">   </span><span class="n">timeWindowPI</span><span class="w">           </span><span class="n">scalar</span>
 <span class="w">   </span><span class="n">geostrophicDamping</span><span class="w">     </span><span class="kt">bool</span>
@@ -288,6 +316,36 @@ or <code class="docutils literal notranslate"><span class="pre">controllerActive
 <span class="w">   </span><span class="n">alphaGeo</span><span class="w">               </span><span class="n">scalar</span>
 <span class="w">   </span><span class="n">uGeoMag</span><span class="w">                </span><span class="n">scalar</span>
 <span class="w">   </span><span class="n">controllerAvgStartTime</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">controllerMaxHeight</span><span class="w">    </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">fringeControllerProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Contains inputs for precursor velocity controller.
+Required when <code class="docutils literal notranslate"><span class="pre">precursorControllerTypeMismatch</span></code>
+is set to 1. Usage is similar to
+<code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code></p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">fringeControllerProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">controllerAction</span><span class="w">       </span><span class="n">string</span>
+<span class="w">   </span><span class="n">controllerType</span><span class="w">         </span><span class="n">string</span>
+<span class="w">   </span><span class="n">relaxPI</span><span class="w">                </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">alphaPI</span><span class="w">                </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">timeWindowPI</span><span class="w">           </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">mesoScaleInput</span><span class="w">         </span><span class="kt">bool</span>
+<span class="w">   </span><span class="n">geostrophicDamping</span><span class="w">     </span><span class="kt">bool</span>
+<span class="w">   </span><span class="n">geoDampingAlpha</span><span class="w">        </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">geoDampingStartTime</span><span class="w">    </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">geoDampingTimeWindow</span><span class="w">   </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">hGeo</span><span class="w">                   </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">alphaGeo</span><span class="w">               </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">uGeoMag</span><span class="w">                </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">controllerAvgStartTime</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">controllerMaxHeight</span><span class="w">    </span><span class="n">scalar</span>
 <span class="p">}</span>
 </pre></div>
 </div>
@@ -362,14 +420,14 @@ activated with  <code class="docutils literal notranslate"><span class="pre">-zD
 </div>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">advectionDampingProperties</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">advectionDampingXProperties</span></code></p></td>
 <td><p>dictionary</p></td>
-<td><p>Defines advection damping regions parameters.
+<td><p>Defines x-advection damping regions parameters.
 This corresponds to the technique developed by
 Lanzilao and Meyers (2022a). It is activated with
-<code class="docutils literal notranslate"><span class="pre">-advectionDamping</span></code> 1 in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">-advectionDampingX</span></code> 1 in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.</p>
 <p>Usage:</p>
-<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">advectionDampingProperties</span>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">advectionDampingXProperties</span>
 <span class="p">{</span>
 <span class="w">   </span><span class="n">advDampingStart</span><span class="w">       </span><span class="n">scalar</span>
 <span class="w">   </span><span class="n">advDampingEnd</span><span class="w">         </span><span class="n">scalar</span>
@@ -380,7 +438,29 @@ Lanzilao and Meyers (2022a). It is activated with
 </div>
 </td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingProperties</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">advectionDampingYProperties</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Defines y-advection damping regions parameters.
+Requires <code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code> set to 1 in
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code>. This is only available when
+<code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> is set to 3, corresponding
+to the concurrent precursor method.
+This corresponds to the technique developed by
+Lanzilao and Meyers (2022a). It is activated with
+<code class="docutils literal notranslate"><span class="pre">-advectionDampingY</span></code> 1 in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">advectionDampingYProperties</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">advDampingStart</span><span class="w">       </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">advDampingEnd</span><span class="w">         </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">advDampingDeltaStart</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">advDampingDeltaEnd</span><span class="w">    </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines Rayleigh damping layer at the <em>kLeft</em>
 patch. Requires <code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code> set to 1 in
@@ -404,7 +484,7 @@ obtain the desired velocity <em>kLeftDampingUBar</em>.</p>
 </div>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingProperties</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines Rayleigh damping layer at the <em>kRight</em>
 patch. Requires <code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code> set to 1 in
@@ -428,7 +508,7 @@ obtain the desired velocity <em>kRightDampingUBar</em>.</p>
 </div>
 </td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">canopyProperties</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">canopyProperties</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Defines input parameters for the canopy model.
 Requires <code class="docutils literal notranslate"><span class="pre">-canopy</span></code> set to 1 in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>
@@ -452,8 +532,8 @@ file.</p>
 </tbody>
 </table>
 <p>The meaning of the entires required in the dictionaries listed in the above table are described in the following tables.</p>
-<section id="controllerproperties">
-<h2>controllerProperties<a class="headerlink" href="#controllerproperties" title="Link to this heading"></a></h2>
+<section id="controllerproperties-fringecontrollerproperties">
+<h2>controllerProperties &amp; fringeControllerProperties<a class="headerlink" href="#controllerproperties-fringecontrollerproperties" title="Link to this heading"></a></h2>
 <table class="docutils align-center">
 <colgroup>
 <col style="width: 35.0%" />
@@ -501,16 +581,21 @@ in geostrophic balance. In this case, once should either use <code class="docuti
 or controller type <code class="docutils literal notranslate"><span class="pre">geostrophic</span></code>. The latter tries to attain
 a velocity <code class="docutils literal notranslate"><span class="pre">uGeoMag</span></code> at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code> (which should be above the boundary layer). The
 wind field is then rotated such that the flow is aligned with the x-axis at <code class="docutils literal notranslate"><span class="pre">hRef</span></code>.
-Note that, at every restart, the initial geostrophic wind angle w.r.t. the x-axis
-<code class="docutils literal notranslate"><span class="pre">alphaGeo</span></code> should be provided (the user can take this info in the last iteration
-of the previous run, printed on the log file). TOSCA also features profile
+<strong>Note that, at every restart, the initial geostrophic wind angle w.r.t. the x-axis
+``alphaGeo`` should be provided (the user can take this info in the last iteration
+of the previous run, printed on the log file)</strong>. The <em>pressure</em> type controller is
+the preferred one and the most tested.
+TOSCA also features profile
 assimilation techniques, used to drive the flow following observation profiles.
 These can be set with controller type <em>directProfileAssimilation</em> or
 <em>indirectProfileAssimilation</em>, and require the observed time series inside
 <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData</span></code>. An example can be found in
 <code class="docutils literal notranslate"><span class="pre">tests/directProfileAssimilationTest</span></code>. Once these controllers compute and write
 the time series of source terms to file, this can be re-applied within wind farm
-simulations using the controller type <em>timeHeightSeries</em>.</p></td>
+simulations using the controller type <em>timeHeightSeries</em>.
+Recently also introduced the <em>waveletProfileAssimilation</em> controller type.
+To use this controller please see the <em>tests/WaveletProfileAssimilationTest</em>,
+it requires TOSCA to be compiled with the USE_PYTHON flag.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alphaPI</span></code></p></td>
 <td><p>scalar</p></td>
@@ -523,78 +608,85 @@ unstable, usually set between 0.6 and 0.9.</p></td>
 <td><p>time filter for integral part of the controller, used by all controllers
 characterized  by a <code class="docutils literal notranslate"><span class="pre">controllerAction</span></code> of type <em>write</em>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">geostrophicDamping</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mesoScaleInput</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>activates mesoscale controller data. Required only for controller type <em>pressure</em>.
+Allows single point velocity control, but now the input is dictated by the input time
+series data. requires the time series data inside <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geostrophicDamping</span></code></p></td>
 <td><p>bool</p></td>
 <td><p>activates geostrophic damping to remove inertial oscillations. Only for controller
 type <em>pressure</em>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingAlpha</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingAlpha</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>ratio of damping over critical damping coefficient, usually set to 1.0 (critical
 damping). Values above 1.0 mean over-damping, values below 1.0 mean under-damping.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingStartTime</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingStartTime</span></code></p></td>
 <td></td>
 <td><p>start time of geostrophic damping action. Has to be long enough to provide a good
 guess on the geostrophic wind components. Usually set greater than one period of
 inertial oscillation (<span class="math notranslate nohighlight">\(2\pi/f_c\)</span>).</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingTimeWindow</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">geoDampingTimeWindow</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>time filter of the deduced geostrophic wind components. Usually set to 1/10 of
 the inertial oscillation period (<span class="math notranslate nohighlight">\(0.2\pi/f_c\)</span>).</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hGeo</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">hGeo</span></code></p></td>
 <td><p>scalar</p></td>
-<td><p>height used to sample the geostrophic wind components for the controller type
-<em>geostrophic</em>.</p></td>
+<td><p>height used to sample the geostrophic wind components if the controller is of type
+<em>geostrophic</em>, disregarded otherwise.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alphaGeo</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alphaGeo</span></code></p></td>
 <td><p>scalar</p></td>
-<td><p>initial wind angle with respect to the x-axis at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code>. This as to be set at
-every restart of the simulation. For the first run, one can initialize the wind
+<td><p>initial wind angle with respect to the x-axis at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code>. <strong>This as to be set at
+every restart of the simulation</strong>. For the first run, one can initialize the wind
 aligned with the x-axis and this parameter to zero. Then, the controller will start
 to slowly rotate the wind. The wind angle at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code> will be printed in the log file
 and the user can set this parameter to the value obtained at the last iteration of
-the previous run when restarting.</p></td>
+the previous run when restarting. Note, only for controller of type
+<em>geostrophic</em>, disregarded otherwise.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uGeoMag</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uGeoMag</span></code></p></td>
 <td><p>scalar</p></td>
-<td><p>desired geostrophic wind magnitude for controller type <em>geostrophic</em>. At the first
-run, the initial flow should match this value at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code> to avoid inertial
-oscillations.</p></td>
+<td><p>desired geostrophic wind magnitude is the controller is of type <em>geostrophic</em>,
+disregarded otherwise.  At the first run, the initial flow should match this value
+at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code> to avoid inertial oscillations.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerAvgStartTime</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">controllerAvgStartTime</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>time after which source terms are averaged before being applied. Used for controller
 type <em>timeAverageSeries</em>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">avgSources</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">avgSources</span></code></p></td>
 <td><p>bool</p></td>
 <td><p>whether or not to filter the calculated source terms for controller types
 <em>directProfileAssimilation</em> and <em>indirectProfileAssimilation</em>. Requires
 <code class="docutils literal notranslate"><span class="pre">movingAvgWindow</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">movingAvgWindow</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">movingAvgWindow</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>moving average time window used by controller types <em>directProfileAssimilation</em> and
 <em>indirectProfileAssimilation</em> to filter the calculated source terms. Usually on the
 order of 100 s.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lowestSrcHeight</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lowestSrcHeight</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>Source term is constant below this height. Used by controller types
 <em>directProfileAssimilation</em> and <em>indirectProfileAssimilation</em> to avoid interfering
 with the SGS model inside the boundary layer. Usually set to the mean boundaryr layer
 height.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">highestSrcHeight</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">highestSrcHeight</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>Source term is constant above this height. Used by controller types
 <em>directProfileAssimilation</em> and <em>indirectProfileAssimilation</em>. Usually not required
 so set above the max domain height.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">polynomialOrder</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">polynomialOrder</span></code></p></td>
 <td><p>integer</p></td>
 <td><p>Polynomial order for source term fitting used by controller type
 <em>indirectProfileAssimilation</em>. Usually set to 5th order.</p></td>

@@ -1,0 +1,26 @@
+# TOSCA Input file - Wind Farm Properties
+# -------------------------------------------
+
+windFarmName            Piombino
+
+arraySpecification      onebyone
+
+debug                   0
+
+writeSettings
+{
+    timeStart           10.0
+    intervalType        timeStep
+    timeInterval        1
+}
+
+turbineArray
+{
+    A1
+    (
+        turbineType         NREL5MW
+        turbineModel        ADM
+        baseLocation        (250.0 250.0 0.0)
+        windFarmController  0
+    )
+}

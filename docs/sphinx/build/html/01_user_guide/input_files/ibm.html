@@ -68,6 +68,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_examples.html">Example Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_applications.html">Primary Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_versions.html">TOSCA Versions</a></li>
 </ul>
 
         </div>
@@ -236,11 +237,11 @@ only recommended for simple geometries and for no-slip BCs only.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CURVIBInterpolationType</span></code></p></td>
 <td><p>string</p></td>
-<td><p><cite>CurvibTrilinear</cite> (recommended for terrain) or <cite>CurvibTriangular</cite>. The first
+<td><p><cite>CurvibTrilinear</cite> (recommended) or <cite>CurvibTriangular</cite>. The first
 interpolates the velocity at the ghost node using tri-linera interpolation
 from the 8 surrounding fluid cells. The second uses a triangular
-interpolation from the 3 surrounding fluid cells. The first method is
-preferred, although it is a bit more expensive.</p></td>
+interpolation from 3 surrounding fluid cells. The first method is
+recommended and it is the most tested, although it is a bit more expensive.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">interpolationOrder</span></code></p></td>
 <td><p>string</p></td>

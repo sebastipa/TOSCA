@@ -52,7 +52,7 @@ struct mesh_
     // IBM markup
     Vec            Nvert, Nvert_o;             //!< solid body field for IBM
     Vec            lNvert, lNvert_o;
-
+    Vec            meshTag, lmeshTag;
     // periodic connectivity
     PetscInt       i_periodic, ii_periodic;
     PetscInt       j_periodic, jj_periodic;

@@ -1,0 +1,22 @@
+# TOSCA Input file - T boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField  TGVFlow
+{
+	tRef  310.0
+}
+# boundary patches
+
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   periodic
+
+jRight  periodic
+
+kLeft   periodic
+
+kRight  periodic

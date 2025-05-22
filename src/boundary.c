@@ -87,7 +87,7 @@ PetscErrorCode SetBoundaryConditions(mesh_ *mesh)
     }
 
     // check boundary conditions
-    checkBoundaryConditions(mesh);
+    checkBCsAndSetPatchTypes(mesh);
 
     PetscBarrier(NULL);
 
@@ -96,86 +96,90 @@ PetscErrorCode SetBoundaryConditions(mesh_ *mesh)
 
 //***************************************************************************************************************//
 
-PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
+PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
 {
 
     word location = "./boundary/" + mesh->meshName + "/";
 
     vectorBC boundaryU   = mesh->boundaryU;
 
-    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagNut(6,0);
+    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagNut(6,0), patchType(6,0);
 
-    std::vector<word> UAvailableBC = {"noSlip", "slip", "velocityWallFunction",
-                                        "fixedValue", "inletFunction", "zeroGradient",
-                                         "periodic", "oversetInterpolate"};
+    std::vector<word> UAvailableBC   = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
+                                        "inletFunctioniLeft", "inletFunctioniRight", "noSlip", "slip", "velocityWallFunction",
+                                        "fixedValue", "zeroGradient", "periodic", "oversetInterpolate"};
 
-    std::vector<word> TAvailableBC = {"inletFunction", "zeroGradient", "fixedValue", "thetaWallFunction",
+    std::vector<word> TAvailableBC   = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
+                                        "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue", "thetaWallFunction",
                                         "fixedGradient", "periodic", "oversetInterpolate"};
 
-    std::vector<word> nutAvailableBC = {"inletFunction", "zeroGradient", "fixedValue",
-                                          "periodic", "oversetInterpolate"};
+    std::vector<word> nutAvailableBC = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
+                                        "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue",
+                                        "periodic", "oversetInterpolate"};
+
+    std::vector<word> wallPatchTypes = {"noSlip", "slip", "velocityWallFunction"};
 
     for(PetscInt i = 0; i < UAvailableBC.size(); i++)
     {
-        if( boundaryU.kLeft.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.kLeft  == UAvailableBC[i])
             flagU[0] = 1;
 
-        if( boundaryU.kRight.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.kRight == UAvailableBC[i]) 
             flagU[1] = 1;
 
-        if( boundaryU.jLeft.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.jLeft  == UAvailableBC[i])
             flagU[2] = 1;
 
-        if( boundaryU.jRight.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.jRight == UAvailableBC[i]) 
             flagU[3] = 1;
 
-        if( boundaryU.iLeft.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.iLeft  == UAvailableBC[i])
             flagU[4] = 1;
 
-        if( boundaryU.iRight.compare(UAvailableBC[i]) == 0 )
+        if( boundaryU.iRight == UAvailableBC[i])
             flagU[5] = 1;
     }
 
     if(flagU[0] == 0)
     {
-       char error[512];
+        char error[512];
         sprintf(error, "In %s/U, U boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.kLeft.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[1] == 0)
     {
-       char error[512];
-        sprintf(error, "In %s/U, U boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.kRight.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        char error[512];
+        sprintf(error, "In %sU, U boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.kRight.c_str());
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[2] == 0)
     {
-       char error[512];
-        sprintf(error, "In %s/U, U boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jLeft.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        char error[512];
+        sprintf(error, "In %sU, U boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jLeft.c_str());
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[3] == 0)
     {
-       char error[512];
-        sprintf(error, "In %s/U, U boundary condition at jRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jRight.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        char error[512];
+        sprintf(error, "In %sU, U boundary condition at jRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.jRight.c_str());
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[4] == 0)
     {
-       char error[512];
-        sprintf(error, "In %s/U, U boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.iLeft.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        char error[512];
+        sprintf(error, "In %sU, U boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.iLeft.c_str());
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(flagU[5] == 0)
     {
-       char error[512];
+        char error[512];
         sprintf(error, "In %s/U, U boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryU.iRight.c_str());
-        fatalErrorInFunction("checkBoundaryConditions", error);
+        fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
     }
 
     if(mesh->access->flags->isTeqnActive)
@@ -184,65 +188,65 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
 
         for(PetscInt i = 0; i < TAvailableBC.size(); i++)
         {
-            if( boundaryT.kLeft.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.kLeft  == TAvailableBC[i])
                 flagT[0] = 1;
 
-            if( boundaryT.kRight.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.kRight == TAvailableBC[i]) 
                 flagT[1] = 1;
 
-            if( boundaryT.jLeft.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.jLeft  == TAvailableBC[i])
                 flagT[2] = 1;
 
-            if( boundaryT.jRight.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.jRight == TAvailableBC[i])
                 flagT[3] = 1;
 
-            if( boundaryT.iLeft.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.iLeft  == TAvailableBC[i]) 
                 flagT[4] = 1;
 
-            if( boundaryT.iRight.compare(TAvailableBC[i]) == 0 )
+            if( boundaryT.iRight == TAvailableBC[i])
                 flagT[5] = 1;
         }
 
         if(flagT[0] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.kLeft.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[1] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.kRight.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[2] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.jLeft.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[3] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at jRight = '%s' does not match with available BC\n", location.c_str(), boundaryT.jRight.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[4] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.iLeft.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
 
         if(flagT[5] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/T, T boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryT.iRight.c_str());
-            fatalErrorInFunction("checkBoundaryConditions", error);
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
     }
 
@@ -252,66 +256,96 @@ PetscErrorCode checkBoundaryConditions(mesh_ *mesh)
 
         for(PetscInt i = 0; i < nutAvailableBC.size(); i++)
         {
-            if( boundaryNut.kLeft.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.kLeft == nutAvailableBC[i]) 
                 flagNut[0] = 1;
 
-            if( boundaryNut.kRight.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.kRight == nutAvailableBC[i]) 
                 flagNut[1] = 1;
 
-            if( boundaryNut.jLeft.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.jLeft == nutAvailableBC[i]) 
                 flagNut[2] = 1;
 
-            if( boundaryNut.jRight.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.jRight == nutAvailableBC[i]) 
                 flagNut[3] = 1;
 
-            if( boundaryNut.iLeft.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.iLeft == nutAvailableBC[i]) 
                 flagNut[4] = 1;
 
-            if( boundaryNut.iRight.compare(nutAvailableBC[i]) == 0 )
+            if( boundaryNut.iRight == nutAvailableBC[i]) 
                 flagNut[5] = 1;
         }
 
         if(flagNut[0] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.kLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[1] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.kRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[2] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.jLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[3] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at jRight = '%s' does not match with available BC\n", location.c_str(), boundaryNut.jRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[4] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.iLeft.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
 
         if(flagNut[5] == 0)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.iRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
         }
+    }
+
+    // set patch types to zero
+    mesh->boundaryU.iLeftPatchType  = 0;
+    mesh->boundaryU.iRightPatchType = 0;
+    mesh->boundaryU.jLeftPatchType  = 0;
+    mesh->boundaryU.jRightPatchType = 0;      
+    mesh->boundaryU.kLeftPatchType  = 0;
+    mesh->boundaryU.kRightPatchType = 0;
+
+    // set patch types based on velocity BCs
+    for(PetscInt i = 0; i < wallPatchTypes.size(); i++)
+    {
+        if( boundaryU.kLeft  == wallPatchTypes[i])
+            mesh->boundaryU.kLeftPatchType = 1;
+
+        if( boundaryU.kRight == wallPatchTypes[i])
+            mesh->boundaryU.kRightPatchType = 1;
+
+        if( boundaryU.jLeft  == wallPatchTypes[i])
+            mesh->boundaryU.jLeftPatchType = 1;
+
+        if( boundaryU.jRight == wallPatchTypes[i])
+            mesh->boundaryU.jRightPatchType = 1;
+
+        if( boundaryU.iLeft  == wallPatchTypes[i])
+            mesh->boundaryU.iLeftPatchType = 1;
+
+        if( boundaryU.iRight == wallPatchTypes[i])
+            mesh->boundaryU.iRightPatchType = 1;
     }
 
     return 0;
@@ -614,24 +648,11 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
         {
             for (i=xs; i<lxe; i++)
             {
-                // fixedValue type BCs on k-direction: interpolate the contravariant velocity
+                // fixedValue type: interpolate the contravariant velocity
                 if
                 (
-                    (
-                        mesh->boundaryU.kLeft == "fixedValue" && k==0
-                    ) ||
-                    (
-                        mesh->boundaryU.kRight == "fixedValue" && k==mz-2
-                    ) ||
-                    (
-                        mesh->boundaryU.kLeft == "inletFunction" && k==0
-                    ) ||
-                    (
-                        mesh->boundaryU.kRight == "inletFunction" && k==mz-2
-                    ) ||
-                    (
-                        mesh->boundaryU.kLeft == "unsteadyMappedInflow"  && k==0
-                    )
+                    (mesh->boundaryU.kLeftPatchType == 0 && k == 0) ||
+                    (mesh->boundaryU.kRightPatchType == 0 && k == mz-2)
                 )
                 {
                     ucont[k][j][i].z
@@ -641,15 +662,10 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
                 }
 
-                // fixedValue type BCs on j-direction: interpolate the contravariant velocity
-                if
+                if 
                 (
-                    (
-                        mesh->boundaryU.jLeft == "fixedValue" && j==0
-                    ) ||
-                    (
-                        mesh->boundaryU.jRight == "fixedValue" && j==my-2
-                    )
+                    (mesh->boundaryU.jLeftPatchType == 0 && j == 0) ||
+                    (mesh->boundaryU.jRightPatchType == 0 && j == my-2)
                 )
                 {
                     ucont[k][j][i].y
@@ -657,18 +673,12 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
                     0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
                     0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
-
                 }
 
-                // fixedValue type BCs on i-direction: interpolate the contravariant velocity
-                if
+                if 
                 (
-                    (
-                        mesh->boundaryU.iLeft == "fixedValue" && i==0
-                    ) ||
-                    (
-                        mesh->boundaryU.iRight == "fixedValue" && i==mx-2
-                    )
+                    (mesh->boundaryU.iLeftPatchType == 0 && i == 0) ||
+                    (mesh->boundaryU.iRightPatchType == 0 && i == mx-2)
                 )
                 {
                     ucont[k][j][i].x
@@ -676,85 +686,35 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
                     0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
                     0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
-
                 }
 
-                // no slip, shear stress 1, shear stress 2 , slip:
-                // set velocity at the boundary faces to zero
+                // no penetration type: set velocity at the boundary faces to zero
                 if
                 (
-                    (
-                        mesh->boundaryU.iLeft=="noSlip" ||
-                        mesh->boundaryU.iLeft=="slip"   ||
-                        mesh->boundaryU.iLeft=="velocityWallFunction"
-                    )
-                    && i==0
+                    (mesh->boundaryU.iLeftPatchType == 1 && i==0) || 
+                    (mesh->boundaryU.iRightPatchType == 1 && i==mx-2) 
                 )
                 {
                     ucont[k][j][i].x = 0.0;
                 }
                 if
                 (
-                    (
-                        mesh->boundaryU.iRight=="noSlip" ||
-                        mesh->boundaryU.iRight=="slip"   ||
-                        mesh->boundaryU.iRight=="velocityWallFunction"
-                    )
-                    && i==mx-2
-                )
-                {
-                    ucont[k][j][i].x = 0;
-                }
-                if
-                (
-                    (
-                        mesh->boundaryU.jLeft=="noSlip" ||
-                        mesh->boundaryU.jLeft=="slip"   ||
-                        mesh->boundaryU.jLeft=="velocityWallFunction"
-                    )
-                    && j==0
+                    (mesh->boundaryU.jLeftPatchType == 1 && j==0) || 
+                    (mesh->boundaryU.jRightPatchType == 1 && j==my-2) 
                 )
                 {
                     ucont[k][j][i].y = 0.0;
                 }
                 if
                 (
-                    (
-                        mesh->boundaryU.jRight=="noSlip" ||
-                        mesh->boundaryU.jRight=="slip"   ||
-                        mesh->boundaryU.jRight=="velocityWallFunction"
-                    )
-                    && j==my-2
-                )
-                {
-                    ucont[k][j][i].y = 0;
-                }
-                if
-                (
-                    (
-                        mesh->boundaryU.kLeft=="noSlip" ||
-                        mesh->boundaryU.kLeft=="slip"   ||
-                        mesh->boundaryU.kLeft=="velocityWallFunction"
-                    )
-                    && k==0
+                    (mesh->boundaryU.kLeftPatchType == 1 && k==0) || 
+                    (mesh->boundaryU.kRightPatchType == 1 && k==mz-2) 
                 )
                 {
                     ucont[k][j][i].z = 0.0;
                 }
-                if
-                (
-                    (
-                        mesh->boundaryU.kRight=="noSlip" ||
-                        mesh->boundaryU.kRight=="slip"   ||
-                        mesh->boundaryU.kRight=="velocityWallFunction"
-                    )
-                    && k==mz-2
-                )
-                {
-                    ucont[k][j][i].z = 0;
-                }
 
-                // zero gradient is solved, but set flux to zero if reverse flow
+                // zero gradient type: velocity is solved, but set flux to zero if reverse flow
                 if (mesh->boundaryU.iLeft=="zeroGradient" && i==0)
                 {
                     if(ucont[k][j][i].x > 0.0) ucont[k][j][i].x = 0.0;
@@ -780,10 +740,9 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                     if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
                 }
 
-                // i,j,k  or ii, jj, kk periodic boundary conditions: the right
+                // i,j,k  or ii, jj, kk periodic type: the right
                 // boundary velocity has been solved in this case: put it on the
                 // left boundary
-
                 if
                 (
                     mesh->boundaryU.iLeft=="periodic" &&
@@ -879,7 +838,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     Cmpnts        ***cent;
 
     PetscReal     ***aj, ***iaj;
-    PetscReal     ***nvert, ***ustar;
+    PetscReal     ***nvert, ***ustar, ***meshTag;
     Cmpnts        ***ucat,  ***lucat,
                   ***lucont;
 
@@ -907,6 +866,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecGetArray(da,  mesh->lAj,  &aj);
     DMDAVecGetArray(da,  mesh->lIAj,  &iaj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
     DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
@@ -999,6 +959,12 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     continue;
                 }
 
+                if(isZeroedCell(k, j, i, meshTag))
+                {
+                    mSetValue(ucat[k][j][i], 0);
+                    continue;
+                }
+
                 // wall functions: directly look at the wall function type,
                 //                 note: zero means not allocated
                 if
@@ -1057,6 +1023,12 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         {
                             mSetValue(Ughost, 0.0);
                         }
+
+                        if(isOversetCell(k, j, i, meshTag))
+                        {
+                            mSetValue(Ughost, 0.0);
+                        }
+
                         else
                         {
                             PetscReal tau_w = ustar[k][j][i]*ustar[k][j][i];
@@ -1139,6 +1111,11 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     else
                     {
                         if(isIBMCell(k,j,i,nvert))
+                        {
+                            mSetValue(Ughost, 0.0);
+                        }
+
+                        if(isOversetCell(k,j,i,meshTag))
                         {
                             mSetValue(Ughost, 0.0);
                         }
@@ -1398,206 +1375,206 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     }
                     else if (ifPtr->typeU == 4)
                     {
-						Cmpnts uGhost;
+                        Cmpnts uGhost;
 
-						if(ifPtr->shift2)
-						{
+                        if(ifPtr->shift2)
+                        {
                             PetscInt  iLeft    = ifPtr->yIDs[i]-1,
                                       iRight   = ifPtr->yIDs[i];
 
-							Cmpnts uLeft;
-							uLeft.x =
-								ifPtr->inflowWeights[j][iLeft][0] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].x +
-								ifPtr->inflowWeights[j][iLeft][1] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].x +
-								ifPtr->inflowWeights[j][iLeft][2] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].x +
-								ifPtr->inflowWeights[j][iLeft][3] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].x;
+                            Cmpnts uLeft;
+                            uLeft.x =
+                                ifPtr->inflowWeights[j][iLeft][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].x +
+                                ifPtr->inflowWeights[j][iLeft][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].x +
+                                ifPtr->inflowWeights[j][iLeft][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].x +
+                                ifPtr->inflowWeights[j][iLeft][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].x;
 
                             if(ifPtr->interpMethod == "spline")
                             {
                                 uLeft.y =
-    								ifPtr->inflowWeights_2[j][iLeft][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][0].j][ifPtr->closestCells_2[j][iLeft][0].i].y +
-    								ifPtr->inflowWeights_2[j][iLeft][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][1].j][ifPtr->closestCells_2[j][iLeft][1].i].y +
-    								ifPtr->inflowWeights_2[j][iLeft][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][2].j][ifPtr->closestCells_2[j][iLeft][2].i].y +
-    								ifPtr->inflowWeights_2[j][iLeft][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][3].j][ifPtr->closestCells_2[j][iLeft][3].i].y +
+                                    ifPtr->inflowWeights_2[j][iLeft][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][0].j][ifPtr->closestCells_2[j][iLeft][0].i].y +
+                                    ifPtr->inflowWeights_2[j][iLeft][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][1].j][ifPtr->closestCells_2[j][iLeft][1].i].y +
+                                    ifPtr->inflowWeights_2[j][iLeft][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][2].j][ifPtr->closestCells_2[j][iLeft][2].i].y +
+                                    ifPtr->inflowWeights_2[j][iLeft][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][3].j][ifPtr->closestCells_2[j][iLeft][3].i].y +
                                     ifPtr->inflowWeights_2[j][iLeft][4] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][4].j][ifPtr->closestCells_2[j][iLeft][4].i].y +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][4].j][ifPtr->closestCells_2[j][iLeft][4].i].y +
                                     ifPtr->inflowWeights_2[j][iLeft][5] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][5].j][ifPtr->closestCells_2[j][iLeft][5].i].y;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iLeft][5].j][ifPtr->closestCells_2[j][iLeft][5].i].y;
 
-    							uLeft.z =
-    								ifPtr->inflowWeights_1[j][iLeft][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][0].j][ifPtr->closestCells_1[j][iLeft][0].i].z +
-    								ifPtr->inflowWeights_1[j][iLeft][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][1].j][ifPtr->closestCells_1[j][iLeft][1].i].z +
-    								ifPtr->inflowWeights_1[j][iLeft][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][2].j][ifPtr->closestCells_1[j][iLeft][2].i].z +
-    								ifPtr->inflowWeights_1[j][iLeft][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][3].j][ifPtr->closestCells_1[j][iLeft][3].i].z +
+                                uLeft.z =
+                                    ifPtr->inflowWeights_1[j][iLeft][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][0].j][ifPtr->closestCells_1[j][iLeft][0].i].z +
+                                    ifPtr->inflowWeights_1[j][iLeft][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][1].j][ifPtr->closestCells_1[j][iLeft][1].i].z +
+                                    ifPtr->inflowWeights_1[j][iLeft][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][2].j][ifPtr->closestCells_1[j][iLeft][2].i].z +
+                                    ifPtr->inflowWeights_1[j][iLeft][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][3].j][ifPtr->closestCells_1[j][iLeft][3].i].z +
                                     ifPtr->inflowWeights_1[j][iLeft][4] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][4].j][ifPtr->closestCells_1[j][iLeft][4].i].z +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][4].j][ifPtr->closestCells_1[j][iLeft][4].i].z +
                                     ifPtr->inflowWeights_1[j][iLeft][5] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][5].j][ifPtr->closestCells_1[j][iLeft][5].i].z;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iLeft][5].j][ifPtr->closestCells_1[j][iLeft][5].i].z;
                             }
                             else
                             {
-    							uLeft.y =
-    								ifPtr->inflowWeights[j][iLeft][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].y +
-    								ifPtr->inflowWeights[j][iLeft][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].y +
-    								ifPtr->inflowWeights[j][iLeft][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].y +
-    								ifPtr->inflowWeights[j][iLeft][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].y;
+                                uLeft.y =
+                                    ifPtr->inflowWeights[j][iLeft][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].y +
+                                    ifPtr->inflowWeights[j][iLeft][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].y +
+                                    ifPtr->inflowWeights[j][iLeft][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].y +
+                                    ifPtr->inflowWeights[j][iLeft][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].y;
 
-    							uLeft.z =
-    								ifPtr->inflowWeights[j][iLeft][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].z +
-    								ifPtr->inflowWeights[j][iLeft][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].z +
-    								ifPtr->inflowWeights[j][iLeft][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].z +
-    								ifPtr->inflowWeights[j][iLeft][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].z;
+                                uLeft.z =
+                                    ifPtr->inflowWeights[j][iLeft][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i].z +
+                                    ifPtr->inflowWeights[j][iLeft][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i].z +
+                                    ifPtr->inflowWeights[j][iLeft][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i].z +
+                                    ifPtr->inflowWeights[j][iLeft][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i].z;
                             }
 
                             Cmpnts uRight;
-							uRight.x =
-								ifPtr->inflowWeights[j][iRight][0] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].x +
-								ifPtr->inflowWeights[j][iRight][1] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].x +
-								ifPtr->inflowWeights[j][iRight][2] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].x +
-								ifPtr->inflowWeights[j][iRight][3] *
-								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].x;
+                            uRight.x =
+                                ifPtr->inflowWeights[j][iRight][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].x +
+                                ifPtr->inflowWeights[j][iRight][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].x +
+                                ifPtr->inflowWeights[j][iRight][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].x +
+                                ifPtr->inflowWeights[j][iRight][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].x;
 
                             if(ifPtr->interpMethod == "spline")
                             {
                                 uRight.y =
-    								ifPtr->inflowWeights_2[j][iRight][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][0].j][ifPtr->closestCells_2[j][iRight][0].i].y +
-    								ifPtr->inflowWeights_2[j][iRight][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][1].j][ifPtr->closestCells_2[j][iRight][1].i].y +
-    								ifPtr->inflowWeights_2[j][iRight][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][2].j][ifPtr->closestCells_2[j][iRight][2].i].y +
-    								ifPtr->inflowWeights_2[j][iRight][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][3].j][ifPtr->closestCells_2[j][iRight][3].i].y +
+                                    ifPtr->inflowWeights_2[j][iRight][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][0].j][ifPtr->closestCells_2[j][iRight][0].i].y +
+                                    ifPtr->inflowWeights_2[j][iRight][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][1].j][ifPtr->closestCells_2[j][iRight][1].i].y +
+                                    ifPtr->inflowWeights_2[j][iRight][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][2].j][ifPtr->closestCells_2[j][iRight][2].i].y +
+                                    ifPtr->inflowWeights_2[j][iRight][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][3].j][ifPtr->closestCells_2[j][iRight][3].i].y +
                                     ifPtr->inflowWeights_2[j][iRight][4] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][4].j][ifPtr->closestCells_2[j][iRight][4].i].y +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][4].j][ifPtr->closestCells_2[j][iRight][4].i].y +
                                     ifPtr->inflowWeights_2[j][iRight][5] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][5].j][ifPtr->closestCells_2[j][iRight][5].i].y;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][iRight][5].j][ifPtr->closestCells_2[j][iRight][5].i].y;
 
-    							uRight.z =
-    								ifPtr->inflowWeights_1[j][iRight][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][0].j][ifPtr->closestCells_1[j][iRight][0].i].z +
-    								ifPtr->inflowWeights_1[j][iRight][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][1].j][ifPtr->closestCells_1[j][iRight][1].i].z +
-    								ifPtr->inflowWeights_1[j][iRight][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][2].j][ifPtr->closestCells_1[j][iRight][2].i].z +
-    								ifPtr->inflowWeights_1[j][iRight][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][3].j][ifPtr->closestCells_1[j][iRight][3].i].z +
+                                uRight.z =
+                                    ifPtr->inflowWeights_1[j][iRight][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][0].j][ifPtr->closestCells_1[j][iRight][0].i].z +
+                                    ifPtr->inflowWeights_1[j][iRight][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][1].j][ifPtr->closestCells_1[j][iRight][1].i].z +
+                                    ifPtr->inflowWeights_1[j][iRight][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][2].j][ifPtr->closestCells_1[j][iRight][2].i].z +
+                                    ifPtr->inflowWeights_1[j][iRight][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][3].j][ifPtr->closestCells_1[j][iRight][3].i].z +
                                     ifPtr->inflowWeights_1[j][iRight][4] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][4].j][ifPtr->closestCells_1[j][iRight][4].i].z +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][4].j][ifPtr->closestCells_1[j][iRight][4].i].z +
                                     ifPtr->inflowWeights_1[j][iRight][5] *
-    								ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][5].j][ifPtr->closestCells_1[j][iRight][5].i].z;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][iRight][5].j][ifPtr->closestCells_1[j][iRight][5].i].z;
                             }
                             else
                             {
-    							uRight.y =
-    								ifPtr->inflowWeights[j][iRight][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].y +
-    								ifPtr->inflowWeights[j][iRight][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].y +
-    								ifPtr->inflowWeights[j][iRight][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].y +
-    								ifPtr->inflowWeights[j][iRight][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].y;
+                                uRight.y =
+                                    ifPtr->inflowWeights[j][iRight][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].y +
+                                    ifPtr->inflowWeights[j][iRight][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].y +
+                                    ifPtr->inflowWeights[j][iRight][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].y +
+                                    ifPtr->inflowWeights[j][iRight][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].y;
 
-    							uRight.z =
-    								ifPtr->inflowWeights[j][iRight][0] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].z +
-    								ifPtr->inflowWeights[j][iRight][1] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].z +
-    								ifPtr->inflowWeights[j][iRight][2] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].z +
-    								ifPtr->inflowWeights[j][iRight][3] *
-    								ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].z;
+                                uRight.z =
+                                    ifPtr->inflowWeights[j][iRight][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i].z +
+                                    ifPtr->inflowWeights[j][iRight][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i].z +
+                                    ifPtr->inflowWeights[j][iRight][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i].z +
+                                    ifPtr->inflowWeights[j][iRight][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i].z;
                             }
 
-							uGhost = nSum(nScale(1.0-ifPtr->yWeights[i], uLeft), nScale(ifPtr->yWeights[i], uRight));
-						}
+                            uGhost = nSum(nScale(1.0-ifPtr->yWeights[i], uLeft), nScale(ifPtr->yWeights[i], uRight));
+                        }
                         else
                         {
                             uGhost.x =
-    							ifPtr->inflowWeights[j][i][0] *
-    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
-    							ifPtr->inflowWeights[j][i][1] *
-    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
-    							ifPtr->inflowWeights[j][i][2] *
-    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
-    							ifPtr->inflowWeights[j][i][3] *
-    							ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x;
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].x +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].x +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].x +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].x;
 
                             if(ifPtr->interpMethod == "spline")
                             {
                                 uGhost.y =
-        							ifPtr->inflowWeights_2[j][i][0] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][0].j][ifPtr->closestCells_2[j][i][0].i].y +
-        							ifPtr->inflowWeights_2[j][i][1] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][1].j][ifPtr->closestCells_2[j][i][1].i].y +
-        							ifPtr->inflowWeights_2[j][i][2] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][2].j][ifPtr->closestCells_2[j][i][2].i].y +
-        							ifPtr->inflowWeights_2[j][i][3] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][3].j][ifPtr->closestCells_2[j][i][3].i].y +
+                                    ifPtr->inflowWeights_2[j][i][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][0].j][ifPtr->closestCells_2[j][i][0].i].y +
+                                    ifPtr->inflowWeights_2[j][i][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][1].j][ifPtr->closestCells_2[j][i][1].i].y +
+                                    ifPtr->inflowWeights_2[j][i][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][2].j][ifPtr->closestCells_2[j][i][2].i].y +
+                                    ifPtr->inflowWeights_2[j][i][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][3].j][ifPtr->closestCells_2[j][i][3].i].y +
                                     ifPtr->inflowWeights_2[j][i][4] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][4].j][ifPtr->closestCells_2[j][i][4].i].y +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][4].j][ifPtr->closestCells_2[j][i][4].i].y +
                                     ifPtr->inflowWeights_2[j][i][5] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][5].j][ifPtr->closestCells_2[j][i][5].i].y;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_2[j][i][5].j][ifPtr->closestCells_2[j][i][5].i].y;
 
-        						uGhost.z =
-        							ifPtr->inflowWeights_1[j][i][0] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][0].j][ifPtr->closestCells_1[j][i][0].i].z +
-        							ifPtr->inflowWeights_1[j][i][1] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][1].j][ifPtr->closestCells_1[j][i][1].i].z +
-        							ifPtr->inflowWeights_1[j][i][2] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][2].j][ifPtr->closestCells_1[j][i][2].i].z +
-        							ifPtr->inflowWeights_1[j][i][3] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][3].j][ifPtr->closestCells_1[j][i][3].i].z +
+                                uGhost.z =
+                                    ifPtr->inflowWeights_1[j][i][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][0].j][ifPtr->closestCells_1[j][i][0].i].z +
+                                    ifPtr->inflowWeights_1[j][i][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][1].j][ifPtr->closestCells_1[j][i][1].i].z +
+                                    ifPtr->inflowWeights_1[j][i][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][2].j][ifPtr->closestCells_1[j][i][2].i].z +
+                                    ifPtr->inflowWeights_1[j][i][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][3].j][ifPtr->closestCells_1[j][i][3].i].z +
                                     ifPtr->inflowWeights_1[j][i][4] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][4].j][ifPtr->closestCells_1[j][i][4].i].z +
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][4].j][ifPtr->closestCells_1[j][i][4].i].z +
                                     ifPtr->inflowWeights_1[j][i][5] *
-        							ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][5].j][ifPtr->closestCells_1[j][i][5].i].z;
+                                    ifPtr->ucat_plane[ifPtr->closestCells_1[j][i][5].j][ifPtr->closestCells_1[j][i][5].i].z;
                             }
                             else
                             {
-        						uGhost.y =
-        							ifPtr->inflowWeights[j][i][0] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
-        							ifPtr->inflowWeights[j][i][1] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
-        							ifPtr->inflowWeights[j][i][2] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
-        							ifPtr->inflowWeights[j][i][3] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y;
+                                uGhost.y =
+                                    ifPtr->inflowWeights[j][i][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].y +
+                                    ifPtr->inflowWeights[j][i][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].y +
+                                    ifPtr->inflowWeights[j][i][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].y +
+                                    ifPtr->inflowWeights[j][i][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].y;
 
-        						uGhost.z =
-        							ifPtr->inflowWeights[j][i][0] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
-        							ifPtr->inflowWeights[j][i][1] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
-        							ifPtr->inflowWeights[j][i][2] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
-        							ifPtr->inflowWeights[j][i][3] *
-        							ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
+                                uGhost.z =
+                                    ifPtr->inflowWeights[j][i][0] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i].z +
+                                    ifPtr->inflowWeights[j][i][1] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i].z +
+                                    ifPtr->inflowWeights[j][i][2] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i].z +
+                                    ifPtr->inflowWeights[j][i][3] *
+                                    ifPtr->ucat_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i].z;
                             }
                         }
 
@@ -1720,6 +1697,8 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i-1],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i-1],0);
                 }
 
                 // slip on X right boundary - set on the physical ghost cell
@@ -1747,6 +1726,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i+1],0.0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i+1],0.0);
+
                 }
 
                 // slip on Y left boundary - set on the physical ghost cell
@@ -1774,6 +1756,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j-1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j-1][i],0);
+
                 }
 
                 // slip on Y right boundary - set on the physical ghost cell
@@ -1801,6 +1786,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j+1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j+1][i],0);
+
                 }
 
                 // slip on Z left boundary - set on the physical ghost cell
@@ -1828,6 +1816,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k-1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k-1][j][i],0);
+
                 }
 
                 // slip on Y right boundary - set on the physical ghost cell
@@ -1855,6 +1846,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
                     // check IBM and eventually set to zero
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k+1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k+1][j][i],0);
+
                 }
 
                 // no-slip on X left boundary - set on the physical ghost cell
@@ -1900,13 +1894,16 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                 }
 
                 // outflow (zero gradient) in X left boundary
-                if (mesh->boundaryU.iLeft=="zeroGradient" && i==1)
+                if(mesh->boundaryU.iLeft=="zeroGradient" && i==1)
                 {
                     ucat[k][j][i-1].x = 2*lucat[k][j][i].x - lucat[k][j][i+1].x;
                     ucat[k][j][i-1].y = 2*lucat[k][j][i].y - lucat[k][j][i+1].y;
                     ucat[k][j][i-1].z = 2*lucat[k][j][i].z - lucat[k][j][i+1].z;
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i-1],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i-1],0);
+
                 }
                 // outflow (zero gradient) in X right boundary
                 if (mesh->boundaryU.iRight=="zeroGradient" && i==mx-2)
@@ -1916,6 +1913,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     ucat[k][j][i+1].z = 2*lucat[k][j][i].z - lucat[k][j][i-1].z;
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i+1],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j][i+1],0);
+
                 }
                 // outflow (zero gradient) in Y left boundary
                 if (mesh->boundaryU.jLeft=="zeroGradient" && j==1)
@@ -1925,6 +1925,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     ucat[k][j-1][i].z = 2*lucat[k][j][i].z - lucat[k][j+1][i].z;
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j-1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j-1][i],0);
+
                 }
                 // outflow (zero gradient) in Y right boundary
                 if (mesh->boundaryU.jRight=="zeroGradient" && j==my-2)
@@ -1935,6 +1938,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j+1][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k][j+1][i],0);
+
                 }
                 // outflow (zero gradient) in Z left boundary
                 if (mesh->boundaryU.kLeft=="zeroGradient" && k==1)
@@ -1945,6 +1951,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k-1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k-1][j][i],0);
+
                 }
                 // outflow (zero gradient) in Z right boundary
                 if (mesh->boundaryU.kRight=="zeroGradient" && k==mz-2)
@@ -1954,6 +1963,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     ucat[k+1][j][i].z = 2*lucat[k][j][i].z - lucat[k-1][j][i].z;
 
                     if(isIBMCell(k,j,i,nvert)) mSetValue(ucat[k+1][j][i],0);
+
+                    if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k+1][j][i],0);
+
                 }
 
                 // i-periodic boundary condition on i-left patch
@@ -2021,6 +2033,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
     DMDAVecRestoreArray(da,  mesh->lIAj,  &iaj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &lucat);
@@ -2051,7 +2064,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***t, ***lt, ***nvert;
+    PetscReal     ***t, ***lt, ***nvert, ***meshTag;
     PetscReal     ***aj, ***iaj;
     Cmpnts        ***csi, ***eta, ***zet, ***icsi, ***cent;
 
@@ -2152,6 +2165,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     DMDAVecGetArray(da,  mesh->lAj,    &aj);
     DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecGetArray(da, teqn->lTmprt, &lt);
     DMDAVecGetArray(da, teqn->Tmprt,  &t);
@@ -2163,7 +2177,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
             for (i=lxs; i<lxe; i++)
             {
                 // set to zero if solid
-                if(isIBMSolidCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
                     t[k][j][i] = teqn->access->abl->tRef;
                     continue;
@@ -2179,7 +2193,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     {
                         PetscReal b      = ifPtr->smear * ifPtr->gTop * ifPtr->dInv;
                         PetscReal a      = ifPtr->gInv - b;
-						PetscReal c      = ifPtr->smear * ifPtr->gABL * ifPtr->dInv;
+                        PetscReal c      = ifPtr->smear * ifPtr->gABL * ifPtr->dInv;
                         PetscReal h      = cent[k][j][i].z - mesh->grndLevel;
                         PetscReal etaLim = ifPtr->hInv / ifPtr->smear / ifPtr->dInv;
 
@@ -2192,7 +2206,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                             // non dimensional functions
                             PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
                             PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
-							PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
+                            PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
 
                             // potential temperature
                             t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta + c * h_eta + ifPtr->gABL*ifPtr->hInv;
@@ -2200,16 +2214,16 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         // asymptotic behavior
                         else
                         {
-							// non dimensional functions
+                            // non dimensional functions
                             PetscReal f_eta = (std::tanh(eta) + 1.0) / 2.0;
                             PetscReal g_eta = (std::log(2.0 * std::cosh(eta)) + eta) / 2.0;
-							PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
+                            PetscReal h_eta = (eta - std::log(2.0 * std::cosh(eta))) / 2.0;
 
-							// potential temperature
+                            // potential temperature
                             t[k-1][j][i] = ifPtr->tRef + a * f_eta + b * g_eta + c * h_eta + ifPtr->gABL*ifPtr->hInv;
 
-							// Dries implementation (to add limit from below)
-							// gLim = (abs(eta) + eta)/2;
+                            // Dries implementation (to add limit from below)
+                            // gLim = (abs(eta) + eta)/2;
 
                             // potential temperature
                             // t[k-1][j][i] = ifPtr->tRef + a + b * eta;
@@ -2283,46 +2297,46 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     else if (ifPtr->typeT == 4)
                     {
                         PetscReal delta  = PetscMax(0.0, cent[k][j][i].z - ifPtr->avgTopLength);
-						PetscReal tGhost;
+                        PetscReal tGhost;
 
-						if(ifPtr->shift2)
-						{
+                        if(ifPtr->shift2)
+                        {
                             PetscInt  iLeft    = ifPtr->yIDs[i]-1,
                                       iRight   = ifPtr->yIDs[i];
 
-							PetscReal tLeft =
-								ifPtr->inflowWeights[j][iLeft][0] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
-								ifPtr->inflowWeights[j][iLeft][1] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
-								ifPtr->inflowWeights[j][iLeft][2] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
-								ifPtr->inflowWeights[j][iLeft][3] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
+                            PetscReal tLeft =
+                                ifPtr->inflowWeights[j][iLeft][0] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
+                                ifPtr->inflowWeights[j][iLeft][1] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
+                                ifPtr->inflowWeights[j][iLeft][2] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
+                                ifPtr->inflowWeights[j][iLeft][3] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
 
                             PetscReal tRight =
-								ifPtr->inflowWeights[j][iRight][0] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
-								ifPtr->inflowWeights[j][iRight][1] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
-								ifPtr->inflowWeights[j][iRight][2] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
-								ifPtr->inflowWeights[j][iRight][3] *
-								ifPtr->t_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
+                                ifPtr->inflowWeights[j][iRight][0] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
+                                ifPtr->inflowWeights[j][iRight][1] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
+                                ifPtr->inflowWeights[j][iRight][2] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
+                                ifPtr->inflowWeights[j][iRight][3] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
 
-							tGhost   = (1.0 - ifPtr->yWeights[i]) * tLeft + ifPtr->yWeights[i] * tRight;
-						}
+                            tGhost   = (1.0 - ifPtr->yWeights[i]) * tLeft + ifPtr->yWeights[i] * tRight;
+                        }
                         else
                         {
                             tGhost =
-    							ifPtr->inflowWeights[j][i][0] *
-    							ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
-    							ifPtr->inflowWeights[j][i][1] *
-    							ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
-    							ifPtr->inflowWeights[j][i][2] *
-    							ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
-    							ifPtr->inflowWeights[j][i][3] *
-    							ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->t_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
                         }
 
                         if(ifPtr->merge1)
@@ -2590,6 +2604,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
     DMDAVecRestoreArray(da,  mesh->lIAj,   &iaj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
     DMDAVecRestoreArray(da, teqn->Tmprt,  &t);
@@ -2618,7 +2633,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***nut, ***nvert, ***iaj;
+    PetscReal     ***nut, ***nvert, ***meshTag, ***iaj;
     Cmpnts        ***icsi, ***cent;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
@@ -2627,6 +2642,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
 
     DMDAVecGetArray(da, les->lNu_t, &nut);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
     DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
@@ -2694,7 +2710,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // set to zero at solid internal cells and skip
-                if(isIBMSolidCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
                     nut[k][j][i] = 0.0;
                     continue;
@@ -2739,46 +2755,46 @@ PetscErrorCode UpdateNutBCs(les_ *les)
                     }
                     else if (ifPtr->typeNut == 4)
                     {
-						PetscReal nutGhost;
+                        PetscReal nutGhost;
 
-					    if(ifPtr->shift2)
-						{
+                        if(ifPtr->shift2)
+                        {
                             PetscInt  iLeft    = ifPtr->yIDs[i]-1,
                                       iRight   = ifPtr->yIDs[i];
 
-							PetscReal nutLeft =
-								ifPtr->inflowWeights[j][iLeft][0] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
-								ifPtr->inflowWeights[j][iLeft][1] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
-								ifPtr->inflowWeights[j][iLeft][2] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
-								ifPtr->inflowWeights[j][iLeft][3] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
+                            PetscReal nutLeft =
+                                ifPtr->inflowWeights[j][iLeft][0] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][0].j][ifPtr->closestCells[j][iLeft][0].i] +
+                                ifPtr->inflowWeights[j][iLeft][1] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][1].j][ifPtr->closestCells[j][iLeft][1].i] +
+                                ifPtr->inflowWeights[j][iLeft][2] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][2].j][ifPtr->closestCells[j][iLeft][2].i] +
+                                ifPtr->inflowWeights[j][iLeft][3] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iLeft][3].j][ifPtr->closestCells[j][iLeft][3].i];
 
                             PetscReal nutRight =
-								ifPtr->inflowWeights[j][iRight][0] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
-								ifPtr->inflowWeights[j][iRight][1] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
-								ifPtr->inflowWeights[j][iRight][2] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
-								ifPtr->inflowWeights[j][iRight][3] *
-								ifPtr->nut_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
+                                ifPtr->inflowWeights[j][iRight][0] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iRight][0].j][ifPtr->closestCells[j][iRight][0].i] +
+                                ifPtr->inflowWeights[j][iRight][1] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iRight][1].j][ifPtr->closestCells[j][iRight][1].i] +
+                                ifPtr->inflowWeights[j][iRight][2] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iRight][2].j][ifPtr->closestCells[j][iRight][2].i] +
+                                ifPtr->inflowWeights[j][iRight][3] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][iRight][3].j][ifPtr->closestCells[j][iRight][3].i];
 
-							nutGhost   = (1.0-ifPtr->yWeights[i]) * nutLeft + ifPtr->yWeights[i]*nutRight;
-						}
+                            nutGhost   = (1.0-ifPtr->yWeights[i]) * nutLeft + ifPtr->yWeights[i]*nutRight;
+                        }
                         else
                         {
                             nutGhost =
-    							ifPtr->inflowWeights[j][i][0] *
-    							ifPtr->nut_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
-    							ifPtr->inflowWeights[j][i][1] *
-    							ifPtr->nut_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
-    							ifPtr->inflowWeights[j][i][2] *
-    							ifPtr->nut_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
-    							ifPtr->inflowWeights[j][i][3] *
-    							ifPtr->nut_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
+                                ifPtr->inflowWeights[j][i][0] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][i][0].j][ifPtr->closestCells[j][i][0].i] +
+                                ifPtr->inflowWeights[j][i][1] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][i][1].j][ifPtr->closestCells[j][i][1].i] +
+                                ifPtr->inflowWeights[j][i][2] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][i][2].j][ifPtr->closestCells[j][i][2].i] +
+                                ifPtr->inflowWeights[j][i][3] *
+                                ifPtr->nut_plane[ifPtr->closestCells[j][i][3].j][ifPtr->closestCells[j][i][3].i];
                         }
 
                         nut[k-1][j][i] = nutGhost;
@@ -2889,6 +2905,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
 
     DMDAVecRestoreArray(da, les->lNu_t, &nut);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(da,  mesh->lIAj,   &iaj);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
@@ -2896,6 +2913,127 @@ PetscErrorCode UpdateNutBCs(les_ *les)
     // scatter nut from global to local
     DMLocalToLocalBegin(da, les->lNu_t, INSERT_VALUES, les->lNu_t);
     DMLocalToLocalEnd  (da, les->lNu_t, INSERT_VALUES, les->lNu_t);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode UpdateDiffBCs(les_ *les)
+{
+    mesh_          *mesh = les->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    word          typeName = "boundary/diff";
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***diff, ***nvert, ***meshTag;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, les->lDiff_t, &diff);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                // set to zero at solid internal cells and skip
+                if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+                {
+                    diff[k][j][i] = 0.0;
+                    continue;
+                }
+
+                // periodic boundary condition on i-left patch
+                if (mesh->boundaryNut.iLeft=="periodic" && i==1)
+                {
+                    if(mesh->i_periodic)       diff[k][j][i-1] = diff[k][j][mx-2];
+                    else if(mesh->ii_periodic) diff[k][j][i-1] = diff[k][j][-2];
+                }
+                else if (i==1)
+                {
+                    diff[k][j][i-1] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on i-right patch
+                if (mesh->boundaryNut.iRight=="periodic" && i==mx-2)
+                {
+                    if(mesh->i_periodic)        diff[k][j][i+1] = diff[k][j][1];
+                    else if (mesh->ii_periodic) diff[k][j][i+1] = diff[k][j][mx+1];
+                }
+                else if (i==mx-2)
+                {
+                    diff[k][j][i+1] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on j-left patch
+                if (mesh->boundaryNut.jLeft=="periodic" && j==1)
+                {
+                    if(mesh->j_periodic)       diff[k][j-1][i] = diff[k][my-2][i];
+                    else if(mesh->jj_periodic) diff[k][j-1][i] = diff[k][-2][i];
+                }
+                else if (j==1)
+                {
+                    diff[k][j-1][i] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on j-right patch
+                if (mesh->boundaryNut.jRight=="periodic" && j==my-2)
+                {
+                    if(mesh->j_periodic)       diff[k][j+1][i] = diff[k][1][i];
+                    else if(mesh->jj_periodic) diff[k][j+1][i] = diff[k][my+1][i];
+                }
+                else if (j==my-2)
+                {
+                    diff[k][j+1][i] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on k-left patch
+                if (mesh->boundaryNut.kLeft=="periodic" && k==1)
+                {
+                    if(mesh->k_periodic)       diff[k-1][j][i] = diff[mz-2][j][i];
+                    else if(mesh->kk_periodic) diff[k-1][j][i] = diff[-2][j][i];
+                }
+                else if (k==1)
+                {
+                    diff[k-1][j][i] = diff[k][j][i];
+                }
+
+                // periodic boundary condition on k-right patch
+                if (mesh->boundaryNut.kRight=="periodic" && k==mz-2)
+                {
+                  
+                    if(mesh->k_periodic)       diff[k+1][j][i] = diff[1][j][i];
+                    else if(mesh->kk_periodic) diff[k+1][j][i] = diff[mz+1][j][i];
+                }
+                else if (k==mz-2)
+                {
+                    diff[k+1][j][i] = diff[k][j][i];
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, les->lDiff_t, &diff);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+
+    // scatter difft from local to local
+    DMLocalToLocalBegin(da, les->lDiff_t, INSERT_VALUES, les->lDiff_t);
+    DMLocalToLocalEnd  (da, les->lDiff_t, INSERT_VALUES, les->lDiff_t);
 
     return(0);
 }
@@ -3098,7 +3236,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscScalar   ***aj, ***nvert, ***t;
+    PetscScalar   ***aj, ***nvert, ***meshTag, ***t;
     Cmpnts        ***csi, ***eta, ***zet;
     Cmpnts        ***jeta;
     Cmpnts        ***ucat;
@@ -3130,6 +3268,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(da,  mesh->lAj,    &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
 
     if(flags->isTeqnActive)
@@ -3222,7 +3361,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             // increment velocity
                             lUParallelMeanMag += nMag(UcellParallel);
@@ -3361,7 +3500,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         );
                     }
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         //printf("uFilt.x = %f, u.x = %f\n", ueqn->jLWM->uFilt.x[k_wm][i_wm], UcellParallel.x);
 
@@ -3461,7 +3600,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             // increment velocity
                             lUParallelMeanMag += nMag(UcellParallel);
@@ -3600,7 +3739,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         );
                     }
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         // wall shear stress in cartesian coords
                         PetscReal TauXZ = - frictionVel*frictionVel * (ueqn->jRWM->uFilt.x[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
@@ -3622,6 +3761,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
 
     if(flags->isTeqnActive)
@@ -3656,7 +3796,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
     PetscInt      my_wm = ye-ys;
     PetscInt      mz_wm = ze-zs;
 
-    PetscScalar   ***aj, ***nvert, ***t;
+    PetscScalar   ***aj, ***nvert, ***meshTag, ***t;
     Cmpnts        ***csi, ***eta, ***zet;
     Cmpnts        ***jeta;
     Cmpnts        ***ucat;
@@ -3676,6 +3816,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(da,  mesh->lAj,    &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecGetArray(da,  teqn->lTmprt, &t);
 
@@ -3771,7 +3912,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             // update surface temperature
                             if(updateTemp) wm->surfaceTheta[k_wm][i_wm] += wm->heatingRate * clock->dt;
@@ -3870,7 +4011,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         );
                     }
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
                         teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
@@ -3896,7 +4037,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                     PetscInt k_wm = k - zs;
                     PetscInt i_wm = i - xs;
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
                         teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
@@ -3975,7 +4116,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             ldeltaTheta += (cellTheta - surfaceTemp);
 
@@ -4068,7 +4209,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                     if(i  == 5 && k == 5 && !teqn->access->flags->isIBMActive)
                         PetscPrintf(PETSC_COMM_SELF, "surfTemp = %lf, L = %lf, bPtTemp = %lf, deltaTheta = %lf, qWall = %lf, ustar = %lf, utmag = %lf, walldist = %lf\n", surfaceTemp, L, cellTheta, deltaTheta, qWall, frictionVel, UParallelMeanMag, 0.5/aj[k][j][i]/area);
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
                         teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
@@ -4172,7 +4313,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         // compute wall-parallel velocity
                         Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
-                        if (isFluidCell(k, j, i, nvert))
+                        if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                         {
                             // update surface temperature
                             if(updateTemp) wm->surfaceTheta[k_wm][i_wm] += wm->heatingRate * clock->dt;
@@ -4271,7 +4412,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                         );
                     }
 
-                    if (isFluidCell(k, j, i, nvert))
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         teqn->jLWM->qWall.x[k_wm][i_wm] = 0.0;
                         teqn->jLWM->qWall.y[k_wm][i_wm] = 0.0;
@@ -4288,6 +4429,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecRestoreArray(da,  teqn->lTmprt, &t);
 
@@ -5047,6 +5189,24 @@ PetscErrorCode readSurfaceTempData(Shumann *wm)
 
     PetscPrintf(PETSC_COMM_WORLD, "   reading surface temperature and Obhukhov Length data\n");
 
+    // Check if "surfTemp" file exists in fileList
+    bool surfTempExists = false;
+    for(PetscInt i = 0; i < nFiles; i++)
+    {
+        if (fileList[i] == "surfTemp")
+        {
+            surfTempExists = true;
+            break;
+        }
+    }
+
+    if (!surfTempExists)
+    {
+        char error[512];
+        sprintf(error, "Error: 'surfTemp' file not found in folder %s\n", filePath.c_str());
+        fatalErrorInFunction("readSurfaceTempData", error);
+    }
+    
     for(PetscInt i=0; i<nFiles; i++)
     {
         fileName = filePath + "/" + fileList[i];

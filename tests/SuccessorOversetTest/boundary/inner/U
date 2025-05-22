@@ -1,0 +1,31 @@
+# TOSCA Input file - U boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    spreadInflow
+#internalField    readField
+
+#boundary patch field
+
+iLeft   	 oversetInterpolate
+
+iRight  	 oversetInterpolate
+
+jLeft		 noSlip
+#jLeft   velocityWallFunction
+#        {
+#            type -3
+#            kRough 0.003
+#            gammaM 4.9
+#            kappa  0.4
+#            thetaRef 300.0
+#            uStarEval localized
+#        }
+
+jRight  	 oversetInterpolate
+
+kLeft   	 oversetInterpolate
+
+kRight  	 oversetInterpolate
+

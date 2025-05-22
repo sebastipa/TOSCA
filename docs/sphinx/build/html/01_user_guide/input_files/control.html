@@ -74,6 +74,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_examples.html">Example Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_applications.html">Primary Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_versions.html">TOSCA Versions</a></li>
 </ul>
 
         </div>
@@ -195,48 +196,66 @@ followed by termination of the simulation will be triggered.</p></td>
 </colgroup>
 <tbody>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-les</span></code></p></td>
-<td><p>Specifies if and which LES model is active:
-(1) standard Smagorinsky
-(2) stability dependent
-(3) dynamic Smagorinsky with box averaging
-(4) dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
-(5) dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
-(6) dynamic smagorinsky scale dependent with plane averaging (PASD).
-TOSCA has been extensively and most used adopting model (4) for ABL and wind plant simulations.
-Model (5) provides a good alternative in stably stratified flows.</p></td>
+<td><p>Set to 1 to activate the LES model. If set to 0, the simulation runs in DNS mode.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-potentialT</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-lesModel</span></code></p></td>
+<td><p>Required when <code class="docutils literal notranslate"><span class="pre">-les</span></code> is set to 1. It specifies the LES model to be used. The available entries are:</p>
+<ul class="simple">
+<li><p><em>smagorinsky</em>: standard Smagorinsky</p></li>
+<li><p><em>stabilityDependent</em>: stability dependent</p></li>
+<li><p><em>dynamicSmagorinsky</em>: dynamic Smagorinsky with box averaging</p></li>
+<li><p><em>dynamicLASI</em>: dynamic Smagorinsky scale-invariant with lagrangian averaging</p></li>
+<li><p><em>dynamicLASD</em>: dynamic Smagorinsky scale-dependent with lagrangian averaging</p></li>
+<li><p><em>dynamicPASD</em>: dynamic Smagorinsky scale-dependent with planar averaging</p></li>
+<li><p><em>amd</em>: anisotropic minimum dissipation</p></li>
+</ul>
+<p>TOSCA has been extensively and most used adopting the <em>dynamicLASI</em> model for ABL and wind plant
+simulations. Other models have been recently added to the code and might perform better in some
+cases (especially <em>dynamicLASD</em> and <em>amd</em>).</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-potentialT</span></code></p></td>
 <td><p>Specifies if potential temperature transport equation is solved (set to 1) or not (set to 0).</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-abl</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-abl</span></code></p></td>
 <td><p>Specifies if an ABL simulation is run. Requires additional file <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-ibm</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-ibm</span></code></p></td>
 <td><p>Specifies if immersed bodies are present in the simulation (set to 1) or not (set to 0). Requires
 additional input in <code class="docutils literal notranslate"><span class="pre">IBM</span></code> directory.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-overset</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-overset</span></code></p></td>
 <td><p>Specifies if overset mesh is present in the simulation. Requires additional input in <code class="docutils literal notranslate"><span class="pre">Overset</span></code>
 directory if activated.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code></p></td>
 <td><p>Specifies if vertical Rayleigh damping layer is present in the simulation. Requires additional
 input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code></p></td>
 <td><p>Specifies if horizontal inlet fringe region is present in the simulation. Requires additional input
 in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated. Concurrent precursor can be enabled with this flag.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code></p></td>
 <td><p>Specifies if horizontal lateral fringe region is present in the simulation. Requires additional input
 in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated. Concurrent precursor <strong>has to</strong> be enabled with this
 flag.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-advectionDamping</span></code></p></td>
+<<<<<<< HEAD
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-advectionDampingX</span></code></p></td>
+<td><p>Specifies if x-direction horizontal inlet advection damping region is present in the simulation.
+Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-advectionDampingY</span></code></p></td>
+<td><p>Specifies if y-direction horizontal inlet advection damping region is present in the simulation.
+Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+=======
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-advectionDamping</span></code></p></td>
 <td><p>Specifies if horizontal inlet advection damping region is present in the simulation. Requires
 additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
+>>>>>>> 813360f (resolving rebase conflicts)
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code></p></td>
 <td><p>Concurrent precursor <strong>has to</strong> be enabled with this flag. Specifies the type of inlet boundary
 condition and initial condition for the concurrent precursor. If set to 0, streamwise periodic
 boundary conditions are applied and initial condition is read from <code class="docutils literal notranslate"><span class="pre">fields/precursor</span></code> directory.
@@ -247,29 +266,29 @@ domain. If set to 2 is equivalent to 1, but the initial condition is read from t
 has to be continuously feed because the simulation cannot be really self-sustained in the concurrent
 precursor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code></p></td>
 <td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> boundary is present in the simulation.
 Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code></p></td>
 <td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundary is present in the simulation.
 Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-canopy</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-canopy</span></code></p></td>
 <td><p>Specifies if wind farm canopy model is present in the simulation. Requires additional input in
 <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-windplant</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-windplant</span></code></p></td>
 <td><p>Specifies if wind turbines are present in the simulation (set to 1) or not (set to 0). Requires
 turbine models definitions in <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-inviscid</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-inviscid</span></code></p></td>
 <td><p>If set to 1, allows disabling viscous terms. Default value is 0.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeContinuity</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-computeContinuity</span></code></p></td>
 <td><p>Computes the divergence field within the entire domain and writes it to checkpoint files.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-pvCatalyst</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-pvCatalyst</span></code></p></td>
 <td><p>Enables <cite>ParaView-Catalyst</cite> off-screen rendering capabilities. Useful to create nice videos of very
 large simulations. More details are given in Sec. <a class="reference internal" href="../../tosca_installation.html#paraview-catalyst-section"><span class="std std-ref">Paraview-Catalyst2 OS-Rendering</span></a>.</p></td>
 </tr>
@@ -303,7 +322,8 @@ can be set to <code class="docutils literal notranslate"><span class="pre">centr
 upwind-biased quadratic scheme, diffusive), <code class="docutils literal notranslate"><span class="pre">weno3</span></code> (fourth-order weighted essentially
 non-oscillatory scheme, diffusive), <code class="docutils literal notranslate"><span class="pre">centralUpwind</span></code> (vanLeer blending of central and quadratic
 scheme, to balance diffusion and dispersion), <code class="docutils literal notranslate"><span class="pre">centralUpwindW</span></code> (weighted version, for
-graded/non-uniform meshes).</p></td>
+graded/non-uniform meshes), <code class="docutils literal notranslate"><span class="pre">central4</span></code> (high-order central scheme, add diffusion through
+<code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter, default value is 1 - no diffusion).)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-relTolU</span></code></p></td>
 <td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>, discarded otherwise. Allows to set the relative

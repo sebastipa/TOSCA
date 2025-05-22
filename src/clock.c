@@ -86,7 +86,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 predictedDt  = gcd(predictedDt, currentDistanceToWriteTime(clock, timeStart, timeInterval));
             }
 
-            if(flags->isIBMActive)
+            if(domain[d].flags.isIBMActive)
             {
                 ibm_ *ibm = domain[d].ibm;
 
@@ -100,7 +100,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
                 }
             }
 
-            if(flags->isWindFarmActive)
+            if(domain[d].flags.isWindFarmActive)
             {
                 if(domain[d].farm->intervalType == "adjustableTime")
                 {
@@ -251,7 +251,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             }
 
             // check if must limit dt due to ALM rotation
-            if(flags->isWindFarmActive)
+            if(domain[d].flags.isWindFarmActive)
             {
                 farm_ *farm = domain[d].farm;
 
@@ -279,7 +279,7 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
             }
 
             // check cfl limit for rotating ibm
-            if(flags->isIBMActive)
+            if(domain[d].flags.isIBMActive)
             {
                 ibm_ *ibm = domain[d].ibm;
 
@@ -309,11 +309,11 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
 
             // added by Arjun for fixed time step as a last control
             /*
-			if(clock->cfl > 1.0)
+            if(clock->cfl > 1.0)
             {
                 clock->dt = clock->dt/2.0;
             }
-			*/
+            */
         }
     }
 

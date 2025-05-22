@@ -11,7 +11,8 @@
 # User defined options 
 # ==================================================================================================================================== #
 USE_HDF5     ?= 1
-USE_CATALYST ?= 0    
+USE_CATALYST ?= 0
+USE_PYTHON   ?= 0
 # ==================================================================================================================================== #
 
 # Environment variables should be defined in the shell before running make
@@ -45,8 +46,19 @@ else
 CPPFLAGS  += -DUSE_CATALYST=0
 endif
 
+# Python support
+ifeq ($(USE_PYTHON), 1)
+CPPFLAGS  += -DUSE_PYTHON=1
+CFLAGS    += $(shell python3 -m pybind11 --includes)
+LDFLAGS   += $(shell python3-config --ldflags)
+INC_FLAGS += $(shell python3-config --includes)
+LIBS      += -lpython3.10
+else
+CPPFLAGS  += -DUSE_PYTHON=0
+endif
+
 # Include paths
-INC_FLAGS  = -I$(PETSC_DIR)/include -I$(PETSC_DIR)/$(PETSC_ARCH)/include 
+INC_FLAGS += -I$(PETSC_DIR)/include -I$(PETSC_DIR)/$(PETSC_ARCH)/include 
 
 # Directories
 BUILD_DIR  = build

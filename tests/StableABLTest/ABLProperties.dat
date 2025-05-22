@@ -2,7 +2,7 @@
 # ------------------------------------------- 
 
 # Reference velocity and height for the velocity controller. 
-uRef 8.0
+uRef (8.0 0.0)
 hRef 90.0
 
 # Reference potential temperature. 
@@ -35,14 +35,18 @@ vkConst 0.4
 # Rampanelli and Zardi temperature model parameter.
 smearT 0.5
 
-# Activation flags 
+# Activate Coriolis force  
 coriolisActive 1
+
+# Activate velocity controller 
 controllerActive 1
+
+# Activate temperature controller 
 controllerActiveT 0
 
 controllerProperties
 {
-    # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
+    # Velocity controller parameters
     controllerAction write
     controllerType pressure
 
@@ -58,18 +62,14 @@ controllerProperties
     # Perform geostrophic damping (only pressure controller)
     geostrophicDamping 0
 
+    # Get variable mesoscale input
+    mesoScaleInput     0
+
     # Velocity controller max height of influence 
     controllerMaxHeight 100000.0
     
     # Start time for the given momentum source average (only controller type 'average')
     controllerAvgStartTime 20010
-    
-    # Geostrophic height
-    hGeo 900
-    
-    # Geostrophic angle
-    alphaGeo 0
-
 }
 
 # Coriolis parameter: 7.272205217e-5 * sin(latitude)

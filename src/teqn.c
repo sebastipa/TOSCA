@@ -172,10 +172,12 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
     PetscReal nLevels = my-2;
 
-    std::vector<PetscReal> ltMean(nLevels);
-    std::vector<PetscReal> gtMean(nLevels);
-    std::vector<PetscReal> tD(nLevels);
-    std::vector<PetscReal> tM(nLevels);
+    PetscReal *ltMean, *gtMean, *tD, *tM;
+
+    PetscMalloc(sizeof(PetscReal) * (nLevels), &(ltMean));
+    PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMean));
+    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tD));
+    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tM));
 
     for(j=0; j<nLevels; j++)
     {
@@ -217,7 +219,7 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             }
         }
     }
-    else if((abl->controllerTypeT == "directProfileAssimilation") || (abl->controllerTypeT == "indirectProfileAssimilation"))
+    else if((abl->controllerTypeT == "directProfileAssimilation") || (abl->controllerTypeT == "indirectProfileAssimilation") || (abl->controllerTypeT == "waveletProfileAssimilation"))
     {
         PetscInt  idxh1, idxh2, idxt1;
         PetscReal wth1, wth2, wtt1;
@@ -266,6 +268,19 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             idx_1 = idx_tmp;
         }
 
+        // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+        if(abl->timeT[idx_2] < clock->time)
+        {
+            idx_1 = idx_2;
+            idx_2 = idx_1 + 1;
+        }
+
+        if(abl->timeT[idx_1] > clock->time)
+        {
+            idx_2 = idx_1;
+            idx_1 = idx_2 - 1;
+        }
+
         // find interpolation weights
         PetscReal idx = (idx_2 - idx_1) / (abl->timeT[idx_2] - abl->timeT[idx_1]) * (clock->time - abl->timeT[idx_1]) + idx_1;
         PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
@@ -289,25 +304,25 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             // PetscPrintf(PETSC_COMM_WORLD, "tdes = %lf, gtmean = %lf, interpolated from time:%lf %lf, wts %lf %lf \n", abl->tDes[j], gtMean[j], abl->timeT[idx_1], abl->timeT[idx_2], w1, w2);
         }
 
-        // for(j=0; j<nLevels; j++)
-        // {
-        //     // if cellLevels is below the lowest mesoscale data point use the source at the last available height
-        //     if(abl->cellLevels[j] < abl->lowestSrcHt)
-        //     {
-        //         abl->tDes[j] = abl->tDes[abl->lowestIndT];
-        //         gtMean[j] = gtMean[abl->lowestIndT];
-        //         tD[j]     = tD[abl->lowestIndT];
-        //         tM[j]     = tM[abl->lowestIndT];
-        //     }
+        for(j=0; j<nLevels; j++)
+        {
+            // if cellLevels is below the lowest mesoscale data point use the source at the last available height
+            if(abl->cellLevels[j] < abl->bottomSrcHtT)
+            {
+                abl->tDes[j] = abl->tDes[abl->lowestIndT];
+                gtMean[j] = gtMean[abl->lowestIndT];
+                tD[j]     = tD[abl->lowestIndT];
+                tM[j]     = tM[abl->lowestIndT];
+            }
 
-        //     if(abl->cellLevels[i] > abl->hT[abl->numhT - 1])
-        //     {
-        //         abl->tDes[j] = abl->tDes[abl->highestIndT];
-        //         gtMean[j] = gtMean[abl->highestIndT];
-        //         tD[j]     = tD[abl->highestIndT];
-        //         tM[j]     = tM[abl->highestIndT];
-        //     }
-        // }
+            if(abl->cellLevels[j] > abl->hT[abl->numhT - 1])
+            {
+                abl->tDes[j] = abl->tDes[abl->highestIndT];
+                gtMean[j] = gtMean[abl->highestIndT];
+                tD[j]     = tD[abl->highestIndT];
+                tM[j]     = tM[abl->highestIndT];
+            }
+        }
 
         if((abl->controllerTypeT == "indirectProfileAssimilation"))
         {
@@ -318,22 +333,107 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
                 for (PetscInt kCtr = 0; kCtr < nLevels; kCtr++) 
                 {
-                    dotProduct1 += abl->polyCoeffM[iCtr][kCtr] * tD[kCtr];
-                    dotProduct2 += abl->polyCoeffM[iCtr][kCtr] * tM[kCtr];
+                    dotProduct1 += abl->polyCoeffT[iCtr][kCtr] * tD[kCtr];
+                    dotProduct2 += abl->polyCoeffT[iCtr][kCtr] * tM[kCtr];
                 }
                 abl->tDes[iCtr] = dotProduct1;
                 gtMean[iCtr]    = dotProduct2;
-            }   
+            }  
+
+            if(abl->flTypeT == "constantHeight")
+            {
+                for(j=0; j<nLevels; j++)    
+                {
+                    if(abl->cellLevels[j] < abl->bottomSrcHtT)
+                    {
+                        abl->tDes[j] = abl->tDes[abl->lowestIndT];
+                        gtMean[j] = gtMean[abl->lowestIndT];
+                    }
+                }
+            }
 
             for(j=0; j<nLevels; j++)    
             {
-                if(abl->cellLevels[j] < abl->lowestSrcHt)
+                if(abl->cellLevels[j] > abl->hT[abl->numhT - 1])
                 {
-                    abl->tDes[j] = abl->tDes[abl->lowestIndT];
-                    gtMean[j] = gtMean[abl->lowestIndT];
+                    abl->tDes[j] = abl->tDes[abl->highestIndT];
+                    gtMean[j] = gtMean[abl->highestIndT];
                 }
+            }
 
-                if(abl->cellLevels[i] > abl->hT[abl->numhT - 1])
+        }
+
+        if((abl->controllerTypeT == "waveletProfileAssimilation"))
+        {
+            if(abl->waveletBlend)
+            {
+                PetscReal *tDesAbove, *gtMeanAbove;
+                PetscReal *tDesBelow, *gtMeanBelow;
+
+                PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesAbove));
+                PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanAbove));
+                PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesBelow));
+                PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanBelow));
+
+                #if USE_PYTHON
+                    pywavedecScalar(abl, tD, tDesBelow, nLevels);
+                    pywavedecScalar(abl, tM, gtMeanBelow, nLevels);
+                #endif
+
+                PetscInt waveLevel = abl->waveLevel;
+                
+                //hardcoded value for now
+                abl->waveLevel = abl->waveLevel - 4;
+                if(abl->waveLevel <= 0) abl->waveLevel = 1;
+
+                #if USE_PYTHON
+                    pywavedecScalar(abl, tD, tDesAbove, nLevels);
+                    pywavedecScalar(abl, tM, gtMeanAbove, nLevels);
+                #endif
+
+                abl->waveLevel = waveLevel;
+                
+                // blend between the below and above profiles 
+                PetscReal blendHeight = mesh->bounds.zmax-500.0, scaleFactor;
+                PetscReal ablgeoDelta = 300;
+                PetscReal blendTop = blendHeight + 0.5*ablgeoDelta;
+
+                for(j=0; j<nLevels; j++)
+                {
+                    scaleFactor = scaleHyperTangTop(abl->cellLevels[j], blendTop, ablgeoDelta);
+                    abl->tDes[j] = (1-scaleFactor)*tDesBelow[j] + scaleFactor*tDesAbove[j];                                                                     
+                    gtMean[j] = (1-scaleFactor)*gtMeanBelow[j] + scaleFactor*gtMeanAbove[j];                                                                
+                }   
+
+                PetscFree(tDesAbove);
+                PetscFree(gtMeanAbove);
+                PetscFree(tDesBelow);
+                PetscFree(gtMeanBelow);
+            }
+            else 
+            {
+                #if USE_PYTHON
+                pywavedecScalar(abl, tD, abl->tDes, nLevels);
+                pywavedecScalar(abl, tM, gtMean, nLevels);
+                #endif
+            }
+
+
+            if(abl->flTypeT == "constantHeight")
+            {
+                for(j=0; j<nLevels; j++)    
+                {
+                    if(abl->cellLevels[j] < abl->bottomSrcHtT)
+                    {
+                        abl->tDes[j] = abl->tDes[abl->lowestIndT];
+                        gtMean[j] = gtMean[abl->lowestIndT];
+                    }
+                }
+            }
+
+            for(j=0; j<nLevels; j++)    
+            {
+                if(abl->cellLevels[j] > abl->hT[abl->numhT - 1])
                 {
                     abl->tDes[j] = abl->tDes[abl->highestIndT];
                     gtMean[j] = gtMean[abl->highestIndT];
@@ -430,13 +530,56 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
 
             fclose(fp);
         }
+
+        fileName = "postProcessing/temperatureSourceDPA_" + getStartTimeName(clock);
+        fp = fopen(fileName.c_str(), "a");
+
+        if(!fp)
+        {
+            char error[512];
+            sprintf(error, "cannot open file postProcessing/temperatureSource\n");
+            fatalErrorInFunction("correctSourceTermT",  error);
+        }
+        else
+        {
+            PetscInt width = -15;
+
+            if(clock->it == clock->itStart)
+            {
+                word w1 = "levels";
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w1.c_str());
+
+                for(j=0; j<nLevels; j++)
+                {
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, abl->cellLevels[j]);
+                }
+
+                PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+                word w2 = "time";
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
+            }
+
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
+
+            for(j=0; j<nLevels; j++)
+            {
+                PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e\t", width, tD[j] - tM[j]);
+            }
+
+            PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+
+            fclose(fp);
+        }
     }
 
-    std::vector<PetscReal> ().swap(ltMean);
-    std::vector<PetscReal> ().swap(gtMean);
+
     std::vector<PetscReal> ().swap(lsource);
-    std::vector<PetscReal> ().swap(tD);
-    std::vector<PetscReal> ().swap(tM);
+    PetscFree(tD);
+    PetscFree(tM);
+    PetscFree(ltMean);
+    PetscFree(gtMean);
+
     return(0);
 }
 
@@ -1152,12 +1295,12 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     Cmpnts        ***jcsi, ***jeta, ***jzet;
     Cmpnts        ***kcsi, ***keta, ***kzet;
 
-    PetscReal     ***tmprt, ***rhs, ***nvert;
+    PetscReal     ***tmprt, ***rhs, ***nvert, ***meshTag;
 
     Cmpnts        ***div, ***visc, ***viscIBM;                                                // divergence and viscous terms
     Cmpnts        ***limiter;                                                     // flux limiter
     PetscReal     ***aj, ***iaj, ***jaj, ***kaj;                                  // cell and face jacobians
-    PetscReal     ***lnu_t, ***Sabs, ***lch, ***lcs;
+    PetscReal     ***lnu_t, ***Sabs, ***lch, ***lcs, ***ld_t;
 
     PetscReal     dtdc, dtde, dtdz;                                              // velocity der. w.r.t. curvil. coords
     PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;          // surface area vectors components
@@ -1193,6 +1336,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(da,  mesh->lKAj,        &kaj);
     DMDAVecGetArray(fda, mesh->lCent,       &cent);
     DMDAVecGetArray(da,  mesh->lNvert,      &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag,    &meshTag);
     DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
 
     if(flags->isIBMActive)
@@ -1208,9 +1352,14 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
     if (teqn->access->flags->isLesActive)
     {
-        if(teqn->access->flags->isLesActive != 2)
+        if(les->model != STABILITY_BASED)
         {
             DMDAVecGetArray(da, les->lNu_t, &lnu_t);
+
+            if(les->model == AMD)
+            {
+                DMDAVecGetArray(da, les->lDiff_t, &ld_t);
+            }
         }
         else
         {
@@ -1248,11 +1397,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
                 g31 = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
 
-                Compute_dscalar_i(mesh, i, j, k, mx, my, mz, tmprt, nvert, &dtdc, &dtde, &dtdz);
+                Compute_dscalar_i(mesh, i, j, k, mx, my, mz, tmprt, nvert, meshTag, &dtdc, &dtde, &dtdz);
 
                 PetscInt    iL, iR;
                 PetscReal denom;
-                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert);
+                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
 
                 div[k][j][i].x =
                 - ucont[k][j][i].x
@@ -1277,25 +1426,34 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 {
                     nu = 0;
 
-                    if(teqn->access->flags->isLesActive != 2)
+                    if(les->model != STABILITY_BASED)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
 
-                        // compute stability dependent turbulent Prandtl number
-                        PetscReal gradTdotG = dtde*(-9.81);
-                        PetscReal l, delta = pow( 1./ajc, 1./3. );
-                        if(gradTdotG < 0.)
+                        if(les->model == AMD)
                         {
-                            l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                           PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k][j][i+1]);
+                           kappaEff = (nu / cst->Pr) + diff;
                         }
-                        else
+                        else 
                         {
-                            l = delta;
+                            // compute stability dependent turbulent Prandtl number
+                            PetscReal gradTdotG = dtde*(-9.81);
+                            PetscReal l, delta = pow( 1./ajc, 1./3. );
+                            if(gradTdotG < 0.)
+                            {
+                                l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                            }
+                            else
+                            {
+                                l = delta;
+                            }
+
+                            PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
+                            kappaEff = (nu / cst->Pr) + (nut / Prt);
                         }
 
-                        PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                        kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }
                     else
                     {
@@ -1382,11 +1540,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 g21 = eta0 * eta0 + eta1 * eta1 + eta2 * eta2;
                 g31 = zet0 * eta0 + zet1 * eta1 + zet2 * eta2;
 
-                Compute_dscalar_j(mesh, i, j, k, mx, my, mz, tmprt, nvert, &dtdc, &dtde, &dtdz);
+                Compute_dscalar_j(mesh, i, j, k, mx, my, mz, tmprt, nvert, meshTag, &dtdc, &dtde, &dtdz);
 
                 PetscInt    jL, jR;
                 PetscReal denom;
-                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert);
+                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
 
                 div[k][j][i].y =
                 - ucont[k][j][i].y
@@ -1410,25 +1568,33 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 {
                     nu = 0;
 
-                    if(teqn->access->flags->isLesActive != 2)
+                    if(les->model != STABILITY_BASED)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
 
-                        // compute stability depentend turbulent Prandtl number
-                        PetscReal gradTdotG = dtde*(-9.81);
-                        PetscReal l, delta = pow( 1./ajc, 1./3. );
-                        if(gradTdotG < 0.)
+                        if(les->model == AMD)
                         {
-                            l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                           PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k][j+1][i]);
+                           kappaEff = (nu / cst->Pr) + diff;
                         }
-                        else
+                        else 
                         {
-                            l = delta;
+                            // compute stability dependend turbulent Prandtl number
+                            PetscReal gradTdotG = dtde*(-9.81);
+                            PetscReal l, delta = pow( 1./ajc, 1./3. );
+                            if(gradTdotG < 0.)
+                            {
+                                l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                            }
+                            else
+                            {
+                                l = delta;
+                            }
+
+                            PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
+                            kappaEff = (nu / cst->Pr) + (nut / Prt);
                         }
-
-                        PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                        kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }
                     else
                     {
@@ -1514,11 +1680,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 g21 = eta0 * zet0 + eta1 * zet1 + eta2 * zet2;
                 g31 = zet0 * zet0 + zet1 * zet1 + zet2 * zet2;
 
-                Compute_dscalar_k(mesh, i, j, k, mx, my, mz, tmprt, nvert, &dtdc, &dtde, &dtdz);
+                Compute_dscalar_k(mesh, i, j, k, mx, my, mz, tmprt, nvert, meshTag, &dtdc, &dtde, &dtdz);
 
                 PetscInt    kL, kR;
                 PetscReal denom;
-                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert);
+                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
                 div[k][j][i].z =
                 - ucont[k][j][i].z
@@ -1542,25 +1708,33 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 {
                     nu = 0;
                     
-                    if(teqn->access->flags->isLesActive != 2)
+                    if(les->model != STABILITY_BASED)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
                         
-                        // compute stability depentend turbulent Prandtl number
-                        PetscReal gradTdotG = dtde*(-9.81);
-                        PetscReal l, delta = pow( 1./ajc, 1./3. );
-                        if(gradTdotG < 0.)
+                        if(les->model == AMD)
                         {
-                            l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                           PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k+1][j][i]);
+                           kappaEff = (nu / cst->Pr) + diff;
                         }
-                        else
+                        else 
                         {
-                            l = delta;
+                            // compute stability depentend turbulent Prandtl number
+                            PetscReal gradTdotG = dtde*(-9.81);
+                            PetscReal l, delta = pow( 1./ajc, 1./3. );
+                            if(gradTdotG < 0.)
+                            {
+                                l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
+                            }
+                            else
+                            {
+                                l = delta;
+                            }
+
+                            PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
+
+                            kappaEff = (nu / cst->Pr) + (nut / Prt);
                         }
-
-                        PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                        kappaEff = (nu / cst->Pr) + (nut / Prt);
                     }
                     else
                     {
@@ -1645,9 +1819,14 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
     if(teqn->access->flags->isLesActive)
     {
-        if(teqn->access->flags->isLesActive != 2)
+        if(les->model != STABILITY_BASED)
         {
             DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
+
+            if(les->model == AMD)
+            {
+                DMDAVecRestoreArray(da, les->lDiff_t, &ld_t);
+            }
         }
         else
         {
@@ -1682,6 +1861,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(da,  mesh->lKAj,        &kaj);
     DMDAVecRestoreArray(fda, mesh->lCent,       &cent);
     DMDAVecRestoreArray(da,  mesh->lNvert,      &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,    &meshTag);
     DMDAVecRestoreArray(fda, mesh->fluxLimiter, &limiter);
 
     return(0);
@@ -1704,7 +1884,7 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
     // update wall model (optional)
-    UpdateWallModelsT(teqn);
+    // UpdateWallModelsT(teqn);
 
     // initialize the rhs vector
     VecSet(Rhs, 0.0);
@@ -1752,7 +1932,7 @@ PetscErrorCode FormExplicitRhsT(teqn_ *teqn)
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
     // update wall model (optional)
-    UpdateWallModelsT(teqn);
+    // UpdateWallModelsT(teqn);
 
     // initialize the rhs vector
     VecSet(teqn->Rhs, 0.0);

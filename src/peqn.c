@@ -124,7 +124,7 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
     PetscInt      i, j, k, r;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
-    PetscReal     ***nvert;
+    PetscReal     ***nvert, ***meshTag;
     PetscReal     ***gid,         // global cell ID
                   ***lid;         // local cell ID
 
@@ -152,6 +152,7 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
     DMDAVecGetArray(da, peqn->lGid,    &gid);
     DMDAVecGetArray(da, peqn->lLid,    &lid);
     DMDAVecGetArray(da, mesh->lNvert,  &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag,  &meshTag);
 
     // number of pressure dof for each processor
     std::vector<PetscInt> lndof(size), gndof(size);
@@ -226,6 +227,7 @@ PetscErrorCode SetPoissonConnectivity(peqn_ *peqn)
 
     // restore the arrays
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag,  &meshTag);
     DMDAVecRestoreArray(da, peqn->lGid, &gid);
     DMDAVecRestoreArray(da, peqn->lLid, &lid);
 
@@ -445,8 +447,8 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
     KSPCreate(mesh->MESH_COMM, &(peqn->ksp));
 
     //PetscViewerAndFormat *vf;
-	//PetscViewerAndFormatCreate(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_DEFAULT,&vf);
-	//KSPMonitorSet(peqn->ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorTrueResidualNorm,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy);
+    //PetscViewerAndFormatCreate(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_DEFAULT,&vf);
+    //KSPMonitorSet(peqn->ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorTrueResidualNorm,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy);
     KSPMonitorSet(peqn->ksp, MyKSPMonitorPoisson, (void*)peqn, PETSC_NULL);
 
     KSPSetOperators(peqn->ksp, peqn->petscA, peqn->petscA);
@@ -459,8 +461,8 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
     //PCSetType(peqn->petscPC, PCMG);
     //PCSetType(peqn->petscPC, PCILU);
     //PCMGSetType(peqn->petscPC,PC_MG_KASKADE);
-	PCSetType(peqn->petscPC,PCSOR);
-	//PCSetType(peqn->petscPC,PCGAMG);
+    PCSetType(peqn->petscPC,PCSOR);
+    //PCSetType(peqn->petscPC,PCGAMG);
 
     // omega = 1 equivalent to Gauss Seidel preconditioner
     PCSORSetOmega(peqn->petscPC,1.0);
@@ -477,8 +479,8 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
 
     KSPSetTolerances(peqn->ksp, 1e-30, peqn->poissonTol, 1e30, peqn->poissonIt);
 
-	KSPGMRESSetRestart(peqn->ksp, 100);
-	KSPSetFromOptions(peqn->ksp);
+    KSPGMRESSetRestart(peqn->ksp, 100);
+    KSPSetFromOptions(peqn->ksp);
 
     KSPSetUp(peqn->ksp);
 
@@ -714,7 +716,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     Cmpnts        ***cent;
 
     PetscReal     ***aj, ***iaj, ***jaj, ***kaj;
-    PetscReal     ***nvert, ***gid;
+    PetscReal     ***nvert, ***gid, ***meshTag;
 
     Vec           G11, G12, G13, G21, G22, G23, G31, G32, G33;
     PetscReal     ***g11, ***g12, ***g13,
@@ -752,6 +754,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     DMDAVecGetArray(da,  mesh->lKAj,  &kaj);
 
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     DMDAVecGetArray(da, peqn->lGid, &gid);
@@ -847,7 +850,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
 
                 row = matID(i, j, k);
 
-                if(isIBMCell(k, j, i, nvert))
+                if(isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
                 {
                     if(peqn->solverType == "HYPRE")
                     {
@@ -879,7 +882,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
                         (i != mx-2       ||
                         mesh->i_periodic ||
-                        mesh->ii_periodic) && isFluidCell(k,j,i+1,nvert)
+                        mesh->ii_periodic) && (isFluidCell(k,j,i+1,nvert) && isCalculatedCell(k,j,i+1,meshTag))
 
                     )
                     {
@@ -890,7 +893,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // dpde{i} = ({p_{i+1,j+1} + p{i, j+1} - p{i+1, j-1} - p{i, j-1}) * 0.25 * g12[k][j][i]
 
                         // j-right boundary -> use upwind
-                        if( (j == my-2) || isIBMIFace(k, j+1, i, i+1, nvert))
+                        if( (j == my-2) || isIBMIFace(k, j+1, i, i+1, nvert) || isOversetIFace(k, j+1, i, i+1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] += g12[k][j][i] * 0.5 / r; // i, j, k
@@ -899,7 +902,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SE] -= g12[k][j][i] * 0.5 / r; // i+1, j-1, k
                         }
                         // j-left boundary -> use upwind
-                        else if((j == 1) || isIBMIFace(k, j-1, i, i+1, nvert))
+                        else if((j == 1) || isIBMIFace(k, j-1, i, i+1, nvert) || isOversetIFace(k, j-1, i, i+1, meshTag))
                         {
                             // upwind differencing
                             vol[NP] += g12[k][j][i] * 0.5 / r; // i, j+1, k
@@ -919,7 +922,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // dpdz{i}=(p_{i,k+1} + p{i+1,k+1} - p{i, k-1} - p{i+1, k-1}) * 0.25 / r * g13[k][j][i]
 
                         // k-right boundary -> use upwind
-                        if((k==mz-2) || isIBMIFace(k+1, j, i, i+1, nvert))
+                        if((k==mz-2) || isIBMIFace(k+1, j, i, i+1, nvert) || isOversetIFace(k+1, j, i, i+1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] += g13[k][j][i] * 0.5 / r; // i, j, k
@@ -928,7 +931,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BE] -= g13[k][j][i] * 0.5 / r; // i+1, j, k-1
                         }
                         // k-left boundary  -> use upwind
-                        else if((k==1) || isIBMIFace(k-1, j, i, i+1, nvert))
+                        else if((k==1) || isIBMIFace(k-1, j, i, i+1, nvert) || isOversetIFace(k-1, j, i, i+1, meshTag))
                         {
                             // upwind differencing
                             vol[TP] += g13[k][j][i] * 0.5 / r; // i, j, k+1
@@ -952,7 +955,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
                         (i != 1 ||
                         mesh->i_periodic ||
-                        mesh->ii_periodic) && isFluidCell(k, j, i-1, nvert)
+                        mesh->ii_periodic) && isFluidCell(k, j, i-1, nvert ) && isCalculatedCell(k, j, i-1, meshTag)
                     )
                     {
                         // -dpdc{i-1} = -(p_{i} - p_{i-1}) * g11_{i}
@@ -962,7 +965,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // -dpde{i-1} = -({p_{i,j+1}+p{i-1, j+1} - p{i, j-1}-p{i-1, j-1}) * 0.25 / r * g12[k][j][i-1]
 
                         // j-right boundary -> use upwind
-                        if((j==my-2) || isIBMIFace(k, j+1, i, i-1, nvert))
+                        if((j==my-2) || isIBMIFace(k, j+1, i, i-1, nvert) || isOversetIFace(k, j+1, i, i-1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] -= g12[k][j][i-1] * 0.5 / r; // i, j, k
@@ -971,7 +974,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SW] += g12[k][j][i-1] * 0.5 / r; // i-1, j-1, k
                         }
                         // j-left boundary -> use upwind
-                        else if((j==1) || isIBMIFace(k, j-1, i, i-1, nvert))
+                        else if((j==1) || isIBMIFace(k, j-1, i, i-1, nvert) || isOversetIFace(k, j-1, i, i-1, meshTag))
                         {
                             // upwind differencing
                             vol[NP] -= g12[k][j][i-1] * 0.5 / r; // i, j+1, k
@@ -991,7 +994,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // -dpdz{i-1}=-(p_{i,k+1}+p{i-1,k+1} - p{i, k-1}-p{i-1, k-1}) * 0.25 / r * g13[k][j][i]
 
                         // k-right boundary -> use upwind
-                        if((k==mz-2) || isIBMIFace(k+1, j, i, i-1, nvert))
+                        if((k==mz-2) || isIBMIFace(k+1, j, i, i-1, nvert) || isOversetIFace(k+1, j, i, i-1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k
@@ -1000,7 +1003,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BW] += g13[k][j][i-1] * 0.5 / r; // i-1, j, k-1
                         }
                         // k-left boundary  -> use upwind
-                        else if((k==1) || isIBMIFace(k-1, j, i, i-1, nvert))
+                        else if((k==1) || isIBMIFace(k-1, j, i, i-1, nvert) || isOversetIFace(k-1, j, i, i-1, meshTag))
                         {
                             // upwind differencing
                             vol[TP] -= g13[k][j][i-1] * 0.5 / r; // i, j, k+1
@@ -1024,13 +1027,13 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
                         (j != my-2  ||
                         mesh->j_periodic ||
-                        mesh->jj_periodic) && isFluidCell(k, j+1, i, nvert)
+                        mesh->jj_periodic) && isFluidCell(k, j+1, i, nvert) && isCalculatedCell(k, j+1, i, meshTag)
                     )
                     {
                         // dpdc{j} = (p_{i+1,j}+p{i+1,j+1} - p{i-1,j}-p{i-1,j+1}) * 0.25
 
                         // i-right boundary -> use upwind
-                        if((i==mx-2) || isIBMJFace(k, j, i+1, j+1, nvert))
+                        if((i==mx-2) || isIBMJFace(k, j, i+1, j+1, nvert) || isOversetJFace(k, j, i+1, j+1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] += g21[k][j][i] * 0.5 / r; // i, j, k
@@ -1039,7 +1042,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[NW] -= g21[k][j][i] * 0.5 / r; // i-1, j+1, k
                         }
                         // i-left boundary -> use upwind
-                        else if((i==1) || isIBMJFace(k, j, i-1, j+1, nvert))
+                        else if((i==1) || isIBMJFace(k, j, i-1, j+1, nvert) || isOversetJFace(k, j, i-1, j+1, meshTag))
                         {
                             // upwind differencing
                             vol[EP] += g21[k][j][i] * 0.5 / r; // i+1, j, k
@@ -1063,7 +1066,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // dpdz{j} = (p{j, k+1}+p{j+1,k+1} - p{j,k-1}-p{j+1,k-1}) *0.25
 
                         // k-right boundary -> use upwind
-                        if((k==mz-2) || isIBMJFace(k+1, j, i, j+1, nvert))
+                        if((k==mz-2) || isIBMJFace(k+1, j, i, j+1, nvert) || isOversetJFace(k+1, j, i, j+1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] += g23[k][j][i] * 0.5 / r; //i,j,k
@@ -1072,7 +1075,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BN] -= g23[k][j][i] * 0.5 / r;//i, j+1, k-1
                         }
                         // k-left boundary -> use upwind
-                        else if((k==1) || isIBMJFace(k-1, j, i, j+1, nvert))
+                        else if((k==1) || isIBMJFace(k-1, j, i, j+1, nvert) || isOversetJFace(k-1, j, i, j+1, meshTag))
                         {
                             // upwind differencing
                             vol[TP] += g23[k][j][i] * 0.5 / r; //i, j, k+1
@@ -1096,13 +1099,13 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
                         (j!=1       ||
                         mesh->j_periodic ||
-                        mesh->jj_periodic) && isFluidCell(k, j-1, i, nvert)
+                        mesh->jj_periodic) && isFluidCell(k, j-1, i, nvert) && isCalculatedCell(k, j-1, i, meshTag)
                     )
                     {
                         // -dpdc{j-1} = -(p_{i+1,j}+p{i+1,j-1} - p{i-1,j}-p{i-1,j-1}) * 0.25
 
                         // i-right boundary -> use upwind
-                        if((i==mx-2) || isIBMJFace(k, j, i+1, j-1, nvert))
+                        if((i==mx-2) || isIBMJFace(k, j, i+1, j-1, nvert) || isOversetJFace(k, j, i+1, j-1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] -= g21[k][j-1][i] * 0.5 / r; // i, j, k
@@ -1111,7 +1114,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[SW] += g21[k][j-1][i] * 0.5 / r; // i-1, j-1, k
                         }
                         // i-left boundary -> use upwind
-                        else if((i==1) || isIBMJFace(k, j, i-1, j-1, nvert))
+                        else if((i==1) || isIBMJFace(k, j, i-1, j-1, nvert) || isOversetJFace(k, j, i-1, j-1, meshTag))
                         {
                             // upwind differencing
                             vol[EP] -= g21[k][j-1][i] * 0.5 / r; // i+1, j, k
@@ -1135,7 +1138,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // -dpdz{j-1} = -(p{j,k+1}+p{j-1,k+1} - p{j,k-1}-p{j-1,k-1}) * 0.25
 
                         // k-right boundary -> use upwind
-                        if((k==mz-2) || isIBMJFace(k+1, j, i, j-1, nvert))
+                        if((k==mz-2) || isIBMJFace(k+1, j, i, j-1, nvert) || isOversetJFace(k+1, j, i, j-1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] -= g23[k][j-1][i] * 0.5 / r; //i, j, k
@@ -1144,7 +1147,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BS] += g23[k][j-1][i] * 0.5 / r; //i, j-1, k-1
                         }
                         // k-left boundary -> use upwind
-                        else if((k==1) || isIBMJFace(k-1, j, i, j-1, nvert))
+                        else if((k==1) || isIBMJFace(k-1, j, i, j-1, nvert) || isOversetJFace(k-1, j, i, j-1, meshTag))
                         {
                             // upwind differencing
                             vol[TP] -= g23[k][j-1][i] * 0.5 / r; // i, j, k+1
@@ -1168,13 +1171,13 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
                         (k != mz-2  ||
                         mesh->k_periodic ||
-                        mesh->kk_periodic) && isFluidCell(k+1, j, i, nvert)
+                        mesh->kk_periodic) && isFluidCell(k+1, j, i, nvert) && isCalculatedCell(k+1, j, i, meshTag)
                     )
                     {
                         // dpdc{k} = (p{i+1,k}+p{i+1,k+1} - p{i-1,k}-p{i-1,k+1}) * 0.25
 
                         // i-right boundary -> use upwind
-                        if((i==mx-2) || isIBMKFace(k, j, i+1, k+1, nvert))
+                        if((i==mx-2) || isIBMKFace(k, j, i+1, k+1, nvert) || isOversetKFace(k, j, i+1, k+1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] += g31[k][j][i] * 0.5 / r; // i, j, k
@@ -1183,7 +1186,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[TW] -= g31[k][j][i] * 0.5 / r; // i-1, j, k+1
                         }
                         // i-left boundary -> use upwind
-                        else if((i==1) || isIBMKFace(k, j, i-1, k+1, nvert))
+                        else if((i==1) || isIBMKFace(k, j, i-1, k+1, nvert) || isOversetKFace(k, j, i-1, k+1, meshTag))
                         {
                             // upwind differencing
                             vol[EP] += g31[k][j][i] * 0.5 / r; // i+1, j, k
@@ -1203,7 +1206,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // dpde{k} = (p{j+1, k}+p{j+1,k+1} - p{j-1, k}-p{j-1,k+1}) * 0.25
 
                         // j-right boundary -> use upwind
-                        if((j==my-2) || isIBMKFace(k, j+1, i, k+1, nvert))
+                        if((j==my-2) || isIBMKFace(k, j+1, i, k+1, nvert) || isOversetKFace(k, j+1, i, k+1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] += g32[k][j][i] * 0.5 / r; // i, j,k
@@ -1212,7 +1215,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[TS] -= g32[k][j][i] * 0.5 / r; // i, j-1, k+1
                         }
                         // j-left boundary -> use upwind
-                        else if((j==1) || isIBMKFace(k, j-1, i, k+1, nvert))
+                        else if((j==1) || isIBMKFace(k, j-1, i, k+1, nvert) || isOversetKFace(k, j-1, i, k+1, meshTag))
                         {
                             // upwind differencing
                             vol[NP] += g32[k][j][i] * 0.5 / r; // i, j+1, k
@@ -1240,13 +1243,13 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
                         (k != 1     ||
                         mesh->k_periodic ||
-                        mesh->kk_periodic) &&  isFluidCell(k-1, j, i, nvert)
+                        mesh->kk_periodic) &&  isFluidCell(k-1, j, i, nvert) && isCalculatedCell(k-1, j, i, meshTag)
                     )
                     {
                         // -dpdc{k-1} = -(p{i+1,k}+p{i+1,k-1} - p{i-1,k}-p{i-1,k-1}) * 0.25
 
                         // i-right boundary -> use upwind
-                        if((i==mx-2) || isIBMKFace(k, j, i+1, k-1, nvert))
+                        if((i==mx-2) || isIBMKFace(k, j, i+1, k-1, nvert) || isOversetKFace(k, j, i+1, k-1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] -= g31[k-1][j][i] * 0.5 / r; // i, j, k
@@ -1255,7 +1258,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BW] += g31[k-1][j][i] * 0.5 / r; // i-1, j, k-1
                         }
                         // i-left boundary -> use upwind
-                        else if((i==1) || isIBMKFace(k, j, i-1, k-1, nvert))
+                        else if((i==1) || isIBMKFace(k, j, i-1, k-1, nvert) || isOversetKFace(k, j, i-1, k-1, meshTag))
                         {
                             // upwind differencing
                             vol[EP] -= g31[k-1][j][i] * 0.5 / r; // i+1, j, k
@@ -1275,7 +1278,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // -dpde{k-1} = -(p{j+1, k}+p{j+1,k-1} - p{j-1, k}-p{j-1,k-1}) *  0.25 / r * g32[k-1][j][i]
 
                         // j-right boundary -> use upwind
-                        if((j==my-2) || isIBMKFace(k, j+1, i, k-1, nvert))
+                        if((j==my-2) || isIBMKFace(k, j+1, i, k-1, nvert) || isOversetKFace(k, j+1, i, k-1, meshTag))
                         {
                             // upwind differencing
                             vol[CP] -= g32[k-1][j][i] * 0.5 / r; // i, j,k
@@ -1284,7 +1287,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BS] += g32[k-1][j][i] * 0.5 / r; // i, j-1, k-1
                         }
                         // j-left boundary -> use upwind
-                        else if((j==1) || isIBMKFace(k, j-1, i, k-1, nvert))
+                        else if((j==1) || isIBMKFace(k, j-1, i, k-1, nvert) || isOversetKFace(k, j-1, i, k-1, meshTag))
                         {
                             // upwind differencing
                             vol[NP] -= g32[k-1][j][i] * 0.5 / r; // i, j+1, k
@@ -1369,7 +1372,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     else if(peqn->solverType == "PETSc")
     {
         MatAssemblyBegin(peqn->petscA, MAT_FINAL_ASSEMBLY);
-    	MatAssemblyEnd  (peqn->petscA, MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd  (peqn->petscA, MAT_FINAL_ASSEMBLY);
     }
 
     // restore the arrays
@@ -1411,6 +1414,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     DMDAVecRestoreArray(da,  mesh->lKAj,  &kaj);
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
     DMDAVecRestoreArray(da, peqn->lGid, &gid);
@@ -1507,15 +1511,17 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
     PetscInt           i, j, k, m;
     PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
-    PetscReal     ***nvert, ***phi, ***lphi, *phi1d;
+    PetscReal     ***nvert, ***meshTag, ***phi, ***lphi, *phi1d;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
+    VecSet(peqn->Phi, 0.0);
     VecGetArray(peqn->phi, &phi1d);
     DMDAVecGetArray(da, peqn->Phi, &phi);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
     PetscInt pos = 0;
 
@@ -1525,9 +1531,10 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if(isIBMCell(k,j,i,nvert))
+                if(isIBMCell(k,j,i,nvert) || isOversetCell(k,j,i,meshTag))
                 {
                     phi[k][j][i] = 0;
+                    phi1d[pos]   = 0;
                     pos++;
                 }
                 else
@@ -1539,6 +1546,7 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
     }
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da, peqn->Phi, &phi);
     VecRestoreArray    (peqn->phi, &phi1d);
 
@@ -1693,7 +1701,7 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
     PetscInt           i, j, k;
     PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
-    PetscReal     ***nvert, ***gid;
+    PetscReal     ***nvert, ***gid, ***meshTag;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1701,6 +1709,7 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
 
     DMDAVecGetArray(da, peqn->lGid, &gid);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
     PetscReal lsum = 0, gsum = 0;
     PetscInt    lcount = 0, gcount = 0;
@@ -1715,7 +1724,7 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
                 PetscReal val;
 
                 // ensure gid differs from -1
-                if (isFluidCell(k, j, i, nvert))
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     HYPRE_Int idx = matID(i, j, k);
                     HYPRE_IJVectorGetValues(B, 1, &idx, &val);
@@ -1744,7 +1753,7 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if(isFluidCell(k, j, i, nvert))
+                if(isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     HYPRE_Int idx = matID(i, j, k);
                     HYPRE_IJVectorAddToValues(B, 1, &idx, &val);
@@ -1756,6 +1765,7 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
 
     DMDAVecRestoreArray(da, peqn->lGid, &gid);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
 
     return(0);
 }
@@ -1840,7 +1850,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
 
     PetscReal        dt   = clock->dt;
 
-    PetscReal     ***nvert, ***gid, *rhs;
+    PetscReal     ***nvert, ***gid, *rhs, ***meshTag;
     Cmpnts        ***ucont;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
@@ -1849,6 +1859,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
 
     DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
     DMDAVecGetArray(da,  mesh->lNvert,  &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag,  &meshTag);
     DMDAVecGetArray(da,  peqn->lGid,    &gid);
 
     if(peqn->solverType == "PETSc")
@@ -1869,7 +1880,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                 PetscReal val;
 
                 // i, j, k is on solid body
-                if (isIBMCell(k, j, i, nvert))
+                if (isIBMCell(k, j, i, nvert) || isOversetCell(k,j,i,meshTag))
                 {
                     val = 0;
                 }
@@ -1910,7 +1921,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     HYPRE_IJVectorSetValues(peqn->hypreRhs, 1, &idx, &val);
 
                     // sum up this cell value
-                    if (!isIBMCell(k, j, i, nvert))
+                    if ((!isIBMCell(k, j, i, nvert)) && (!isOversetCell(k,j,i,meshTag)))
                     {
                         lsum += val;
                         lcount++;
@@ -1925,7 +1936,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     rhs[idx] = val;
 
                     // sum up this cell value
-                    if (!isIBMCell(k, j, i, nvert))
+                    if ((!isIBMCell(k, j, i, nvert)) && (!isOversetCell(k,j,i,meshTag)))
                     {
                         lsum += val;
                         lcount++;
@@ -1950,7 +1961,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                 if(matID(i,j,k)>=0)
                 {
 
-                    if (!isIBMCell(k, j, i, nvert))
+                    if ((!isIBMCell(k, j, i, nvert)) && (!isOversetCell(k,j,i,meshTag)))
                     {
                         if(peqn->solverType == "HYPRE")
                         {
@@ -1983,13 +1994,14 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     if(peqn->solverType == "PETSc")
     {
         VecAssemblyBegin(peqn->petscRhs);
-    	VecAssemblyEnd  (peqn->petscRhs);
+        VecAssemblyEnd  (peqn->petscRhs);
 
         VecRestoreArray(peqn->petscRhs, &rhs);
     }
 
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
     DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,  &meshTag);
     DMDAVecRestoreArray(da,  peqn->lGid,    &gid);
 
     return(0);
@@ -2014,11 +2026,11 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
 
     PetscReal     epsilon = 1.e-10; // threshold below which the velocity is zeroed at IBM boundaries
 
-    PetscReal     ***nvert;
-    Cmpnts        ***ucor, ***csi, ***eta, ***zet;
+    PetscReal     ***nvert, ***meshTag;
+    Cmpnts        ***ucor;
 
-    PetscReal     libm_Flux = 0.0, libm_areain = 0.0, libm_areaout = 0.0;
-    PetscReal     ibm_Flux = 0.0, ibm_areain = 0.0, ibm_areaout =0.0;
+    PetscReal     local_influx = 0.0, local_outflux = 0.0;
+    PetscReal     global_influx = 0.0, global_outflux = 0.0, global_flux;
 
     // indices for internal cells
     lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
@@ -2026,173 +2038,140 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
     lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
 
     DMDAVecGetArray(fda, ueqn->Ucont, &ucor);
-    DMDAVecGetArray(fda, mesh->lCsi, &csi);
-    DMDAVecGetArray(fda, mesh->lEta, &eta);
-    DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
+    // First pass: Compute local influx (to IBM) and outflux (from IBM)
     for (k = lzs; k < lze; k++)
     {
         for (j = lys; j < lye; j++)
         {
             for (i = lxs; i < lxe; i++)
             {
-                // left boundary on body: inflow flux
-                if (isFluidCell(k, j, i, nvert))
+                // Left boundary (fluid at i,j,k; IBM at i+1,j+1,k+1)
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     // i-left boundary
-                    if (isIBMFluidCell(k, j, i+1, nvert) && i < mx - 2)
+                    if ((isIBMFluidCell(k, j, i+1, nvert) || isInterpolatedCell(k, j, i+1, meshTag)) && i < mx - 2)
                     {
-                        // velocity above threshold: cumulate the flux
                         if (fabs(ucor[k][j][i].x) > epsilon)
                         {
-                            libm_Flux += ucor[k][j][i].x;
-
-                            libm_areain
-                            +=
-                                    sqrt
-                                    (
-                                            csi[k][j][i].x * csi[k][j][i].x +
-                                            csi[k][j][i].y * csi[k][j][i].y +
-                                            csi[k][j][i].z * csi[k][j][i].z
-                                    );
-
+                            if (ucor[k][j][i].x > 0) // Flow to IBM (u_x > 0)
+                            {
+                                local_influx += fabs(ucor[k][j][i].x);
+                            }
+                            else // Flow from IBM (u_x < 0)
+                            {
+                                local_outflux += fabs(ucor[k][j][i].x);
+                            }
                         }
-                        // velocity below threshold: zero the flux
                         else
                         {
-                            ucor[k][j][i].x = 0.;
+                            ucor[k][j][i].x = 0.0;
                         }
                     }
 
                     // j-left boundary
-                    if (isIBMFluidCell(k, j+1, i, nvert) && j < my - 2)
+                    if ((isIBMFluidCell(k, j+1, i, nvert) || isInterpolatedCell(k, j+1, i, meshTag)) && j < my - 2)
                     {
-                        // velocity above threshold: cumulate the flux
                         if (fabs(ucor[k][j][i].y) > epsilon)
                         {
-                            libm_Flux += ucor[k][j][i].y;
-
-
-                            libm_areain
-                            +=
-                                    sqrt
-                                    (
-                                            eta[k][j][i].x * eta[k][j][i].x +
-                                            eta[k][j][i].y * eta[k][j][i].y +
-                                            eta[k][j][i].z * eta[k][j][i].z
-                                    );
-
+                            if (ucor[k][j][i].y > 0) // Flow to IBM (u_y > 0)
+                            {
+                                local_influx += fabs(ucor[k][j][i].y);
+                            }
+                            else // Flow from IBM (u_y < 0)
+                            {
+                                local_outflux += fabs(ucor[k][j][i].y);
+                            }
                         }
-                        // velocity below threshold: zero the flux
                         else
                         {
-                            ucor[k][j][i].y = 0.;
+                            ucor[k][j][i].y = 0.0;
                         }
                     }
 
                     // k-left boundary
-                    if (isIBMFluidCell(k+1, j, i, nvert) && k < mz - 2)
+                    if ((isIBMFluidCell(k+1, j, i, nvert) || isInterpolatedCell(k+1, j, i, meshTag)) && k < mz - 2)
                     {
-                        // velocity above threshold: cumulate the flux
                         if (fabs(ucor[k][j][i].z) > epsilon)
                         {
-                            libm_Flux += ucor[k][j][i].z;
-
-                            libm_areain
-                            +=
-                                    sqrt
-                                    (
-                                            zet[k][j][i].x * zet[k][j][i].x +
-                                            zet[k][j][i].y * zet[k][j][i].y +
-                                            zet[k][j][i].z * zet[k][j][i].z
-                                    );
-
+                            if (ucor[k][j][i].z > 0) // Flow to IBM (u_z > 0)
+                            {
+                                local_influx += fabs(ucor[k][j][i].z);
+                            }
+                            else // Flow from IBM (u_z < 0)
+                            {
+                                local_outflux += fabs(ucor[k][j][i].z);
+                            }
                         }
-                        // velocity below threshold: zero the flux
                         else
                         {
-                            ucor[k][j][i].z = 0.;
+                            ucor[k][j][i].z = 0.0;
                         }
                     }
                 }
 
-                // right boundary on body: outflow flux
-                if (isIBMFluidCell(k, j, i, nvert))
+                // Right boundary (IBM at i,j,k; fluid at i+1,j+1,k+1)
+                if (isIBMFluidCell(k, j, i, nvert) || isInterpolatedCell(k, j, i, meshTag))
                 {
                     // i-right boundary
-                    if (isFluidCell(k, j, i+1, nvert) && i < mx - 2)
+                    if (isFluidCell(k, j, i+1, nvert) && isCalculatedCell(k, j, i+1, meshTag) && i < mx - 2)
                     {
-                        // velocity above threshold: cumulate the flux
                         if (fabs(ucor[k][j][i].x) > epsilon)
                         {
-                            libm_Flux -= ucor[k][j][i].x;
-
-
-                            libm_areaout
-                            +=
-                                    sqrt
-                                    (
-                                            csi[k][j][i].x * csi[k][j][i].x +
-                                            csi[k][j][i].y * csi[k][j][i].y +
-                                            csi[k][j][i].z * csi[k][j][i].z
-                                    );
-
+                            if (ucor[k][j][i].x < 0) // Flow to IBM (u_x < 0)
+                            {
+                                local_influx += fabs(ucor[k][j][i].x);
+                            }
+                            else // Flow from IBM (u_x > 0)
+                            {
+                                local_outflux += fabs(ucor[k][j][i].x);
+                            }
                         }
-                        // velocity below threshold: zero the flux
                         else
                         {
-                            ucor[k][j][i].x = 0.;
+                            ucor[k][j][i].x = 0.0;
                         }
                     }
 
                     // j-right boundary
-                    if (isFluidCell(k, j+1, i, nvert) && j < my - 2)
+                    if (isFluidCell(k, j+1, i, nvert) && isCalculatedCell(k, j+1, i, meshTag) && j < my - 2)
                     {
-                        // velocity above threshold: cumulate the flux
                         if (fabs(ucor[k][j][i].y) > epsilon)
                         {
-                            libm_Flux -= ucor[k][j][i].y;
-
-                            libm_areaout
-                            +=
-                                    sqrt
-                                    (
-                                            eta[k][j][i].x * eta[k][j][i].x +
-                                            eta[k][j][i].y * eta[k][j][i].y +
-                                            eta[k][j][i].z * eta[k][j][i].z
-                                    );
-
+                            if (ucor[k][j][i].y < 0) // Flow to IBM (u_y < 0)
+                            {
+                                local_influx += fabs(ucor[k][j][i].y);
+                            }
+                            else // Flow from IBM (u_y > 0)
+                            {
+                                local_outflux += fabs(ucor[k][j][i].y);
+                            }
                         }
-                        // velocity below threshold: zero the flux
                         else
                         {
-                            ucor[k][j][i].y = 0.;
+                            ucor[k][j][i].y = 0.0;
                         }
                     }
 
                     // k-right boundary
-                    if (isFluidCell(k+1, j, i, nvert) && k < mz - 2)
+                    if (isFluidCell(k+1, j, i, nvert) && isCalculatedCell(k+1, j, i, meshTag) && k < mz - 2)
                     {
-                        // velocity above threshold: cumulate the flux
                         if (fabs(ucor[k][j][i].z) > epsilon)
                         {
-                            libm_Flux -= ucor[k][j][i].z;
-
-                            libm_areaout
-                            +=
-                                    sqrt
-                                    (
-                                            zet[k][j][i].x * zet[k][j][i].x +
-                                            zet[k][j][i].y * zet[k][j][i].y +
-                                            zet[k][j][i].z * zet[k][j][i].z
-                                    );
-
+                            if (ucor[k][j][i].z < 0) // Flow to IBM (u_z < 0)
+                            {
+                                local_influx += fabs(ucor[k][j][i].z);
+                            }
+                            else // Flow from IBM (u_z > 0)
+                            {
+                                local_outflux += fabs(ucor[k][j][i].z);
+                            }
                         }
-                        // velocity below threshold: zero the flux
                         else
                         {
-                            ucor[k][j][i].z = 0.;
+                            ucor[k][j][i].z = 0.0;
                         }
                     }
                 }
@@ -2200,142 +2179,130 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
         }
     }
 
-    // parallel sum flux and area
-    MPI_Allreduce(&libm_Flux, &ibm_Flux, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&libm_areain, &ibm_areain, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&libm_areaout, &ibm_areaout, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    // Compute global net flux before correction
+    MPI_Allreduce(&local_influx, &global_influx, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&local_outflux, &global_outflux, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    global_flux = global_influx - global_outflux;
 
-    PetscReal correctionIn, correctionOut;
-
-    if (ibm_areain > 1.e-15)
-    {
-
-            correctionIn = ibm_Flux / (ibm_areain+ibm_areaout);
-
-    } else
-    {
-        correctionIn = 0;
-    }
-
-    if (ibm_areaout > 1.e-15)
-    {
-
-            correctionOut = ibm_Flux / (ibm_areain+ibm_areaout);
-
-    } else
-    {
-        correctionOut = 0;
-    }
-
+    // Second pass: Apply global flux-proportional correction
     for (k = lzs; k < lze; k++)
     {
         for (j = lys; j < lye; j++)
         {
             for (i = lxs; i < lxe; i++)
             {
-                if (isFluidCell(k, j, i, nvert))
+                // Left boundary (fluid at i,j,k; IBM at i+1,j+1,k+1)
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
-                    // left boundary: subtractive correction
-                    if ( isIBMFluidCell(k, j, i+1, nvert) && i < mx - 2)
+                    // i-left boundary
+                    if ((isIBMFluidCell(k, j, i+1, nvert) || isInterpolatedCell(k, j, i+1, meshTag)) && i < mx - 2)
                     {
                         if (fabs(ucor[k][j][i].x) > epsilon)
                         {
-
-                            ucor[k][j][i].x
-                            -=
-                                    correctionIn * sqrt
-                                    (
-                                            csi[k][j][i].x * csi[k][j][i].x +
-                                            csi[k][j][i].y * csi[k][j][i].y +
-                                            csi[k][j][i].z * csi[k][j][i].z
-                                    );
-
+                            if (ucor[k][j][i].x > 0) // Influx (to IBM)
+                            {
+                                if (global_influx > 1e-15)
+                                    ucor[k][j][i].x -= 0.5 * global_flux * (ucor[k][j][i].x / global_influx);
+                            }
+                            else // Outflux (from IBM)
+                            {
+                                if (global_outflux > 1e-15)
+                                    ucor[k][j][i].x += 0.5 * global_flux * (ucor[k][j][i].x / global_outflux);
+                            }
                         }
                     }
 
-                    if ( isIBMFluidCell(k, j+1, i, nvert) && j < my - 2)
+                    // j-left boundary
+                    if ((isIBMFluidCell(k, j+1, i, nvert) || isInterpolatedCell(k, j+1, i, meshTag)) && j < my - 2)
                     {
                         if (fabs(ucor[k][j][i].y) > epsilon)
                         {
-                            ucor[k][j][i].y
-                            -=
-                                    correctionIn * sqrt
-                                    (
-                                            eta[k][j][i].x * eta[k][j][i].x +
-                                            eta[k][j][i].y * eta[k][j][i].y +
-                                            eta[k][j][i].z * eta[k][j][i].z
-                                    );
-
+                            if (ucor[k][j][i].y > 0) // Influx (to IBM)
+                            {
+                                if (global_influx > 1e-15)
+                                    ucor[k][j][i].y -= 0.5 * global_flux * (ucor[k][j][i].y / global_influx);
+                            }
+                            else // Outflux (from IBM)
+                            {
+                                if (global_outflux > 1e-15)
+                                    ucor[k][j][i].y += 0.5 * global_flux * (ucor[k][j][i].y / global_outflux);
+                            }
                         }
                     }
 
-                    if (isIBMFluidCell(k+1, j, i, nvert) && k < mz - 2)
+                    // k-left boundary
+                    if ((isIBMFluidCell(k+1, j, i, nvert) || isInterpolatedCell(k+1, j, i, meshTag)) && k < mz - 2)
                     {
                         if (fabs(ucor[k][j][i].z) > epsilon)
                         {
-
-                            ucor[k][j][i].z
-                            -=
-                                    correctionIn * sqrt
-                                    (
-                                            zet[k][j][i].x * zet[k][j][i].x +
-                                            zet[k][j][i].y * zet[k][j][i].y +
-                                            zet[k][j][i].z * zet[k][j][i].z
-                                    );
-
+                            if (ucor[k][j][i].z > 0) // Influx (to IBM)
+                            {
+                                if (global_influx > 1e-15)
+                                    ucor[k][j][i].z -= 0.5 * global_flux * (ucor[k][j][i].z / global_influx);
+                            }
+                            else // Outflux (from IBM)
+                            {
+                                if (global_outflux > 1e-15)
+                                    ucor[k][j][i].z += 0.5 * global_flux * (ucor[k][j][i].z / global_outflux);
+                            }
                         }
                     }
                 }
 
-                // right boundary: additive correction
-                if (isIBMFluidCell(k, j, i, nvert))
+                // Right boundary (IBM at i,j,k; fluid at i+1,j+1,k+1)
+                if (isIBMFluidCell(k, j, i, nvert) || isInterpolatedCell(k, j, i, meshTag))
                 {
-                    if (isFluidCell(k, j, i+1, nvert) && i < mx - 2)
+                    // i-right boundary
+                    if (isFluidCell(k, j, i+1, nvert) && isCalculatedCell(k, j, i+1, meshTag) && i < mx - 2)
                     {
                         if (fabs(ucor[k][j][i].x) > epsilon)
                         {
-                                ucor[k][j][i].x
-                                +=
-                                correctionOut * sqrt
-                                (
-                                    csi[k][j][i].x * csi[k][j][i].x +
-                                    csi[k][j][i].y * csi[k][j][i].y +
-                                    csi[k][j][i].z * csi[k][j][i].z
-                                );
-
+                            if (ucor[k][j][i].x < 0) // Influx (to IBM)
+                            {
+                                if (global_influx > 1e-15)
+                                    ucor[k][j][i].x -= 0.5 * global_flux * (ucor[k][j][i].x / global_influx);
+                            }
+                            else // Outflux (from IBM)
+                            {
+                                if (global_outflux > 1e-15)
+                                    ucor[k][j][i].x += 0.5 * global_flux * (ucor[k][j][i].x / global_outflux);
+                            }
                         }
                     }
 
-                    if (isFluidCell(k, j+1, i, nvert) && j < my - 2)
+                    // j-right boundary
+                    if (isFluidCell(k, j+1, i, nvert) && isCalculatedCell(k, j+1, i, meshTag) && j < my - 2)
                     {
                         if (fabs(ucor[k][j][i].y) > epsilon)
                         {
-                                ucor[k][j][i].y
-                                +=
-                                correctionOut * sqrt
-                                (
-                                    eta[k][j][i].x * eta[k][j][i].x +
-                                    eta[k][j][i].y * eta[k][j][i].y +
-                                    eta[k][j][i].z * eta[k][j][i].z
-                                );
-
+                            if (ucor[k][j][i].y < 0) // Influx (to IBM)
+                            {
+                                if (global_influx > 1e-15)
+                                    ucor[k][j][i].y -= 0.5 * global_flux * (ucor[k][j][i].y / global_influx);
+                            }
+                            else // Outflux (from IBM)
+                            {
+                                if (global_outflux > 1e-15)
+                                    ucor[k][j][i].y += 0.5 * global_flux * (ucor[k][j][i].y / global_outflux);
+                            }
                         }
                     }
 
-                    if (isFluidCell(k+1, j, i, nvert) && k < mz - 2)
+                    // k-right boundary
+                    if (isFluidCell(k+1, j, i, nvert) && isCalculatedCell(k+1, j, i, meshTag) && k < mz - 2)
                     {
                         if (fabs(ucor[k][j][i].z) > epsilon)
                         {
-
-                                ucor[k][j][i].z
-                                +=
-                                correctionOut * sqrt
-                                (
-                                    zet[k][j][i].x * zet[k][j][i].x +
-                                    zet[k][j][i].y * zet[k][j][i].y +
-                                    zet[k][j][i].z * zet[k][j][i].z
-                                );
-
+                            if (ucor[k][j][i].z < 0) // Influx (to IBM)
+                            {
+                                if (global_influx > 1e-15)
+                                    ucor[k][j][i].z -= 0.5 * global_flux * (ucor[k][j][i].z / global_influx);
+                            }
+                            else // Outflux (from IBM)
+                            {
+                                if (global_outflux > 1e-15)
+                                    ucor[k][j][i].z += 0.5 * global_flux * (ucor[k][j][i].z / global_outflux);
+                            }
                         }
                     }
                 }
@@ -2344,13 +2311,126 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
     }
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
-    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
-    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucor);
 
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    // Third pass: Recompute flux after correction for debugging
+    local_influx = 0.0; local_outflux = 0.0;
+
+    DMDAVecGetArray(fda, ueqn->Ucont, &ucor);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                // Left boundary
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                {
+                    // i-left boundary
+                    if ((isIBMFluidCell(k, j, i+1, nvert) || isInterpolatedCell(k, j, i+1, meshTag)) && i < mx - 2)
+                    {
+                        if (ucor[k][j][i].x > 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].x);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].x);
+                        }
+                    }
+
+                    // j-left boundary
+                    if ((isIBMFluidCell(k, j+1, i, nvert) || isInterpolatedCell(k, j+1, i, meshTag)) && j < my - 2)
+                    {
+                        if (ucor[k][j][i].y > 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].y);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].y);
+                        }
+                    }
+
+                    // k-left boundary
+                    if ((isIBMFluidCell(k+1, j, i, nvert) || isInterpolatedCell(k+1, j, i, meshTag)) && k < mz - 2)
+                    {
+                        if (ucor[k][j][i].z > 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].z);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].z);
+                        }
+                    }
+                }
+
+                // Right boundary
+                if (isIBMFluidCell(k, j, i, nvert) || isInterpolatedCell(k, j, i, meshTag))
+                {
+                    // i-right boundary
+                    if (isFluidCell(k, j, i+1, nvert) && isCalculatedCell(k, j, i+1, meshTag) && i < mx - 2)
+                    {
+                        if (ucor[k][j][i].x < 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].x);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].x);
+                        }
+                    }
+
+                    // j-right boundary
+                    if (isFluidCell(k, j+1, i, nvert) && isCalculatedCell(k, j+1, i, meshTag) && j < my - 2)
+                    {
+                        if (ucor[k][j][i].y < 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].y);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].y);
+                        }
+                    }
+
+                    // k-right boundary
+                    if (isFluidCell(k+1, j, i, nvert) && isCalculatedCell(k+1, j, i, meshTag) && k < mz - 2)
+                    {
+                        if (ucor[k][j][i].z < 0) // Influx (to IBM)
+                        {
+                            local_influx += fabs(ucor[k][j][i].z);
+                        }
+                        else // Outflux (from IBM)
+                        {
+                            local_outflux += fabs(ucor[k][j][i].z);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucor);
+
+    // Compute global net flux after correction
+    MPI_Allreduce(&local_influx, &global_influx, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&local_outflux, &global_outflux, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    global_flux = global_influx - global_outflux;
+
+    // Print global flux for debugging
+    PetscPrintf(PETSC_COMM_WORLD, "Post-correction global net flux: %e (influx to IBM: %e, outflux from IBM: %e)\n",
+                global_flux, global_influx, global_outflux);
 
     return(0);
 }
@@ -2377,7 +2457,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
     Cmpnts        ***kcsi, ***keta, ***kzet;
 
     PetscReal     ***iaj, ***jaj, ***kaj;
-    PetscReal     ***phi, ***nvert;
+    PetscReal     ***phi, ***nvert, ***meshTag;
 
     Cmpnts        ***ucont;
 
@@ -2400,6 +2480,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
     DMDAVecGetArray(da,   mesh->lJAj, &jaj);
     DMDAVecGetArray(da,   mesh->lKAj, &kaj);
     DMDAVecGetArray(da,   mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,   mesh->lmeshTag, &meshTag);
 
     DMDAVecGetArray(da,   peqn->lPhi, &phi);
 
@@ -2431,7 +2512,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // j-right boundary -> use upwind
                         (
                             j==my-2
-                        ) || isIBMIFace(k, j+1, i, i+1, nvert)
+                        ) || isIBMIFace(k, j+1, i, i+1, nvert) || isOversetIFace(k, j+1, i, i+1, meshTag)
                     )
                     {
                         dpde = (phi[k][j][i] + phi[k][j][i + 1] - phi[k][j - 1][i] - phi[k][j - 1][i + 1]) * 0.5;
@@ -2441,7 +2522,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // j-left boundary -> use upwind
                         (
                             j == 1
-                        ) || isIBMIFace(k, j-1, i, i+1, nvert)
+                        ) || isIBMIFace(k, j-1, i, i+1, nvert) || isOversetIFace(k, j-1, i, i+1, meshTag)
                      )
                      {
                          dpde = (phi[k][j+1][i] + phi[k][j+1][i+1] - phi[k][j][i] - phi[k][j][i+1])* 0.5;
@@ -2457,7 +2538,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // k-right boundary -> use upwind
                         (
                             k == mz - 2
-                        ) || isIBMIFace(k+1, j, i, i+1, nvert)
+                        ) || isIBMIFace(k+1, j, i, i+1, nvert) || isOversetIFace(k+1, j, i, i+1, meshTag)
                     )
                     {
                         dpdz = (phi[k][j][i] + phi[k][j][i+1] - phi[k-1][j][i] - phi[k-1][j][i+1]) * 0.5;
@@ -2467,7 +2548,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // k-left boundary  -> use upwind
                         (
                             k == 1
-                        ) || isIBMIFace(k-1, j, i, i+1, nvert)
+                        ) || isIBMIFace(k-1, j, i, i+1, nvert) || isOversetIFace(k-1, j, i, i+1, meshTag)
                     )
                     {
                         dpdz = (phi[k+1][j][i] + phi[k+1][j][i+1]- phi[k][j][i] - phi[k][j][i+1]) * 0.5;
@@ -2479,7 +2560,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                        isFluidIFace(k, j, i, i+1, nvert)
+                        isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag)
                     )
                     {
                         ucont[k][j][i].x
@@ -2521,7 +2602,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // i-right boundary -> use upwind
                         (
                             i == mx-2
-                        ) || isIBMJFace(k, j, i+1, j+1, nvert)
+                        ) || isIBMJFace(k, j, i+1, j+1, nvert) || isOversetJFace(k, j, i+1, j+1, meshTag)
                     )
                     {
                         dpdc = (phi[k][j][i] + phi[k][j+1][i] - phi[k][j][i-1] - phi[k][j+1][i-1]) * 0.5;
@@ -2531,7 +2612,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // i-left boundary -> use upwind
                         (
                             i == 1
-                        ) || isIBMJFace(k, j, i-1, j+1, nvert)
+                        ) || isIBMJFace(k, j, i-1, j+1, nvert) || isOversetJFace(k, j, i-1, j+1, meshTag)
                     )
                     {
                         dpdc = (phi[k][j][i+1] + phi[k][j+1][i+1] - phi[k][j][i] - phi[k][j+1][i]) * 0.5;
@@ -2549,7 +2630,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // k-right boundary -> use upwind
                         (
                             k == mz-2
-                        ) || isIBMJFace(k+1, j, i, j+1, nvert)
+                        ) || isIBMJFace(k+1, j, i, j+1, nvert) || isOversetJFace(k+1, j, i, j+1, meshTag)
                     )
                     {
                         dpdz = (phi[k][j][i] + phi[k][j+1][i] - phi[k-1][j][i] - phi[k - 1][j + 1][i]) * 0.5;
@@ -2559,7 +2640,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // k-left boundary -> use upwind
                         (
                             k == 1
-                        ) || isIBMJFace(k-1, j, i, j+1, nvert)
+                        ) || isIBMJFace(k-1, j, i, j+1, nvert) || isOversetJFace(k-1, j, i, j+1, meshTag)
                     )
                     {
                         dpdz = (phi[k + 1][j][i] + phi[k + 1][j + 1][i] - phi[k][j][i] - phi[k][j + 1][i]) * 0.5;
@@ -2572,7 +2653,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                            isFluidJFace(k, j, i, j+1, nvert)
+                            isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag)
                     )
                     {
                         ucont[k][j][i].y
@@ -2614,7 +2695,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // i-right boundary -> use upwind
                         (
                             i == mx - 2
-                        ) || isIBMKFace(k, j, i+1, k+1, nvert)
+                        ) || isIBMKFace(k, j, i+1, k+1, nvert) || isOversetKFace(k, j, i+1, k+1, meshTag)
                     )
                     {
                         dpdc = (phi[k][j][i] + phi[k+1][j][i] - phi[k][j][i-1] - phi[k+1][j][i-1]) * 0.5;
@@ -2624,7 +2705,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // i-left boundary -> use upwind
                         (
                             i == 1
-                        ) || isIBMKFace(k, j, i-1, k+1, nvert)
+                        ) || isIBMKFace(k, j, i-1, k+1, nvert) || isOversetKFace(k, j, i-1, k+1, meshTag)
                     )
                     {
                         dpdc = (phi[k][j][i+1] + phi[k+1][j][i+1] - phi[k][j][i] - phi[k+1][j][i])* 0.5;
@@ -2639,7 +2720,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // j-right boundary -> use upwind
                         (
                             j == my - 2
-                        ) || isIBMKFace(k, j+1, i, k+1, nvert)
+                        ) || isIBMKFace(k, j+1, i, k+1, nvert) || isOversetKFace(k, j+1, i, k+1, meshTag)
                     )
                     {
                         dpde = (phi[k][j][i] + phi[k+1][j][i] - phi[k][j-1][i] - phi[k+1][j-1][i]) * 0.5;
@@ -2649,7 +2730,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         // j-left boundary -> use upwind
                         (
                             j == 1
-                        ) || isIBMKFace(k, j-1, i, k+1, nvert)
+                        ) || isIBMKFace(k, j-1, i, k+1, nvert) || isOversetKFace(k, j-1, i, k+1, meshTag)
                     )
                     {
                         dpde = (phi[k][j+1][i] + phi[k+1][j+1][i] - phi[k][j][i] - phi[k+1][j][i]) * 0.5;
@@ -2664,7 +2745,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                        isFluidKFace(k, j, i, k+1, nvert)
+                        isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag)
                     )
                     {
                         ucont[k][j][i].z
@@ -2709,6 +2790,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
     DMDAVecRestoreArray(da,   mesh->lJAj, &jaj);
     DMDAVecRestoreArray(da,   mesh->lKAj, &kaj);
     DMDAVecRestoreArray(da,   mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,   mesh->lmeshTag, &meshTag);
 
     DMDAVecRestoreArray(da,   peqn->lPhi, &phi);
 
@@ -2736,7 +2818,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
-    PetscReal     ***p, ***lphi, ***nvert;
+    PetscReal     ***p, ***lphi, ***nvert, ***meshTag;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -2748,6 +2830,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     DMDAVecGetArray(da, peqn->P, &p);
     DMDAVecGetArray(da, peqn->lPhi, &lphi);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
     // update pressure and average
 
@@ -2757,12 +2840,12 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-              if (isIBMCell(k, j, i, nvert))
+              if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag)) 
               {
                       continue;
               }
 
-              if (isFluidCell(k, j, i, nvert))
+              if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
               {
                   // p updated only for fluid cells. For ibm fluid cells it is interpolated from the fluid cells in IBM interpolation function
 
@@ -2774,8 +2857,8 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         }
     }
 
-	// update boundary conditions
-	UpdatePressureBCs(peqn);
+    // update boundary conditions
+    UpdatePressureBCs(peqn);
 
     MPI_Allreduce(&lPsum,    &gPsum,    1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lnPoints, &gnPoints, 1, MPIU_INT,    MPI_SUM, mesh->MESH_COMM);
@@ -2789,7 +2872,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-              if (isFluidCell(k, j, i, nvert))
+              if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
               {
                   p[k][j][i] -= gPsum;
               }
@@ -2806,6 +2889,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     }
 
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da, peqn->lPhi, &lphi);
     DMDAVecRestoreArray(da, peqn->P, &p);
 
@@ -2833,7 +2917,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                   ***kcsi, ***keta, ***kzet,
                   ***dp;
 
-    PetscReal     ***p, ***nvert;
+    PetscReal     ***p, ***nvert, ***meshTag;
     PetscReal     ***iaj, ***jaj, ***kaj;
 
     PetscInt           i, j, k;
@@ -2845,7 +2929,7 @@ PetscErrorCode GradP(peqn_ *peqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-	PetscInt periodic_i = mesh->i_periodic + mesh->ii_periodic,
+    PetscInt periodic_i = mesh->i_periodic + mesh->ii_periodic,
              periodic_j = mesh->j_periodic + mesh->jj_periodic,
              periodic_k = mesh->k_periodic + mesh->kk_periodic;
 
@@ -2861,6 +2945,7 @@ PetscErrorCode GradP(peqn_ *peqn)
     DMDAVecGetArray(fda, mesh->lKEta, &keta);
     DMDAVecGetArray(fda, mesh->lKZet, &kzet);
     DMDAVecGetArray(da,  mesh->lNvert,&nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag,&meshTag);
     DMDAVecGetArray(da,  mesh->lIAj,  &iaj);
     DMDAVecGetArray(da,  mesh->lJAj,  &jaj);
     DMDAVecGetArray(da,  mesh->lKAj,  &kaj);
@@ -2902,7 +2987,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             i==mx-2
                         )
-                    )
+                    ) || isOversetIFace(k, j+1, i, i+1, meshTag)
                 )
                 {
                     dpde = (p[k][j  ][i  ] - p[k][j-1][i  ] + p[k][j  ][i+1] - p[k][j-1][i+1]) * 0.5;
@@ -2915,7 +3000,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             i == mx - 2
                         )
-                     )
+                     ) || isOversetIFace(k, j-1, i, i+1, meshTag)
                 )
                 {
                     dpde = (p[k][j+1][i  ] - p[k][j  ][i  ] + p[k][j+1][i+1] - p[k][j  ][i+1]) * 0.5;
@@ -2933,7 +3018,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             i==mx-2
                         )
-                    )
+                    ) || isOversetIFace(k+1, j, i, i+1, meshTag)
                 )
                 {
                     dpdz = (p[k][j][i  ] - p[k-1][j][i  ] + p[k][j][i+1] - p[k-1][j][i+1]) * 0.5;
@@ -2946,7 +3031,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             i==mx-2
                         )
-                    )
+                    ) || isOversetIFace(k-1, j, i, i+1, meshTag)
                 )
                 {
                     dpdz = (p[k+1][j][i  ] - p[k][j][i  ] + p[k+1][j][i+1] - p[k][j][i+1]) * 0.5;
@@ -2967,7 +3052,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             j==my-2
                         )
-                    )
+                    ) || isOversetJFace(k, j, i+1, j+1, meshTag)
                 )
                 {
                     dpdc = (p[k][j  ][i] - p[k][j  ][i-1] + p[k][j+1][i] - p[k][j+1][i-1]) * 0.5;
@@ -2980,7 +3065,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             j==my-2
                         )
-                    )
+                    ) || isOversetJFace(k, j, i-1, j+1, meshTag)
                 )
                 {
                     dpdc = (p[k][j  ][i+1] - p[k][j  ][i] + p[k][j+1][i+1] - p[k][j+1][i]) * 0.5;
@@ -3007,7 +3092,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             j== my-2
                         )
-                    )
+                    ) || isOversetJFace(k+1, j, i, j+1, meshTag)
                 )
                 {
                     dpdz = (p[k][j  ][i] - p[k-1][j  ][i] + p[k][j+1][i] - p[k-1][j+1][i]) * 0.5;
@@ -3020,7 +3105,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             j== my-2
                         )
-                    )
+                    ) || isOversetJFace(k-1, j, i, j+1, meshTag)
                 )
                 {
                     dpdz = (p[k+1][j  ][i] - p[k][j  ][i] + p[k+1][j+1][i] - p[k][j+1][i]) * 0.5;
@@ -3041,7 +3126,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             k==mz-2
                         )
-                    )
+                    ) || isOversetKFace(k, j, i+1, k+1, meshTag)
                 )
                 {
                     dpdc = (p[k  ][j][i] - p[k  ][j][i-1] + p[k+1][j][i] - p[k+1][j][i-1]) * 0.5;
@@ -3054,7 +3139,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             k == mz - 2
                         )
-                    )
+                    ) || isOversetKFace(k, j, i-1, k+1, meshTag)
                 )
                 {
                     dpdc = (p[k  ][j][i+1] - p[k  ][j][i] + p[k+1][j][i+1] - p[k+1][j][i]) * 0.5;
@@ -3072,7 +3157,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             k==mz-2
                         )
-                    )
+                    ) || isOversetKFace(k, j+1, i, k+1, meshTag)
                 )
                 {
                     dpde = (p[k  ][j][i] - p[k  ][j-1][i] + p[k+1][j][i] - p[k+1][j-1][i]) * 0.5;
@@ -3085,7 +3170,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                         (
                             k==mz-2
                         )
-                    )
+                    )  || isOversetKFace(k, j-1, i, k+1, meshTag)
                 )
                 {
                     dpde = (p[k  ][j+1][i] - p[k  ][j][i] + p[k+1][j+1][i] - p[k+1][j][i]) * 0.5;
@@ -3110,21 +3195,21 @@ PetscErrorCode GradP(peqn_ *peqn)
                 // non-periodic: set to zero also on right boundaries since the contrav. velocity is not solved there
                 if
                 (
-                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2)
+                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2) || isOversetIFace(k, j, i, i+1, meshTag)
                 )
                 {
                     dp[k][j][i].x = 0;
                 }
                 if
                 (
-                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2)
+                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2) || isOversetJFace(k, j, i, j+1, meshTag)
                 )
                 {
                     dp[k][j][i].y = 0;
                 }
                 if
                 (
-                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2)
+                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2) || isOversetKFace(k, j, i, k+1, meshTag)
                 )
                 {
                     dp[k][j][i].z = 0;
@@ -3143,6 +3228,7 @@ PetscErrorCode GradP(peqn_ *peqn)
     DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
     DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
     DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,&meshTag);
     DMDAVecRestoreArray(da,  mesh->lIAj,  &iaj);
     DMDAVecRestoreArray(da,  mesh->lJAj,  &jaj);
     DMDAVecRestoreArray(da,  mesh->lKAj,  &kaj);
@@ -3170,10 +3256,9 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     PetscTime(&ts);
 
     // add flux correction
-    if(flags->isIBMActive)
+    if(flags->isIBMActive || flags->isOversetActive)
     {
         AdjustIBMFlux(peqn);
-
         MPI_Barrier(mesh->MESH_COMM);
     }
 
@@ -3361,7 +3446,7 @@ PetscErrorCode SetPressureReference(peqn_ *peqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***p, ***lp, ***nvert;
+    PetscReal     ***p, ***lp, ***nvert, ***meshTag;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -3370,6 +3455,7 @@ PetscErrorCode SetPressureReference(peqn_ *peqn)
     DMDAVecGetArray(da, peqn->lP, &lp);
     DMDAVecGetArray(da, peqn->P, &p);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
     // test if this processor contains the 0,0,0 cell
     PetscReal lscale = 0.0, gscale = 0.0;
@@ -3386,7 +3472,7 @@ PetscErrorCode SetPressureReference(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-                if(!isIBMSolidCell(k, j, i, nvert))
+                if((!isIBMSolidCell(k, j, i, nvert)) && (!isZeroedCell(k, j, i, meshTag)))
                 {
                     p[k][j][i] -= gscale;
                 }
@@ -3397,6 +3483,7 @@ PetscErrorCode SetPressureReference(peqn_ *peqn)
     DMDAVecRestoreArray(da, peqn->lP, &lp);
     DMDAVecRestoreArray(da, peqn->P, &p);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
 
     // scatter Phi from global to local
     DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
@@ -3422,7 +3509,7 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn)
     PetscInt      i, j, k, r;
 
     Vec           Div;
-    PetscReal     ***div, ***aj, ***nvert;
+    PetscReal     ***div, ***aj, ***nvert, ***meshTag;
     Cmpnts        ***ucont, ***ucat;
 
     PetscReal     maxdiv;
@@ -3448,6 +3535,7 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn)
 
     DMDAVecGetArray(da,  mesh->lAj, &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecGetArray(da,  Div, &div);
 
@@ -3487,7 +3575,7 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn)
                 //     maxdiv = 0.;
                 // }
 
-                if(isIBMCell(k, j, i, nvert))
+                if(isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
                 {
                     maxdiv = 0;
                 }
@@ -3548,6 +3636,7 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn)
 
     DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
     DMDAVecRestoreArray(da,  mesh->lAj,     &aj);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
 
     DMDAVecRestoreArray(da, Div, &div);
 
@@ -3572,7 +3661,7 @@ PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, r;
 
-    PetscReal     ***aj, ***nvert;
+    PetscReal     ***aj, ***nvert, ***meshTag;
     Cmpnts        ***ucont;
 
     PetscReal     lmaxdiv = 0.0, gmaxdiv = 0.0;
@@ -3584,6 +3673,7 @@ PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn)
     DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
     DMDAVecGetArray(da,  mesh->lAj, &aj);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
     for (k=lzs; k<lze; k++)
     {
@@ -3602,21 +3692,12 @@ PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn)
                     )*aj[k][j][i]
                 );
 
-                // if
-                // (
-                //     nvert[k  ][j  ][i  ] +
-                //     nvert[k+1][j  ][i  ] +
-                //     nvert[k-1][j  ][i  ] +
-                //     nvert[k  ][j+1][i  ] +
-                //     nvert[k  ][j-1][i  ] +
-                //     nvert[k  ][j  ][i+1] +
-                //     nvert[k  ][j  ][i-1] > 0.1
-                // )
+                // if(isBoxIBMCell(k, j, i, nvert) || isBoxOversetCell(k, j, i, meshTag))
                 // {
-                //     div = 0.;
+                //     div = 0;
                 // }
 
-                if(isIBMCell(k, j, i, nvert))
+                if(isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
                 {
                     div = 0;
                 }
@@ -3633,6 +3714,7 @@ PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn)
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
     DMDAVecRestoreArray(da,  mesh->lNvert,  &nvert);
     DMDAVecRestoreArray(da,  mesh->lAj,     &aj);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
 
     MPI_Barrier(mesh->MESH_COMM);
 

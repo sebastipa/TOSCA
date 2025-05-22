@@ -24,7 +24,8 @@
 -xDampingLayer             1
 -yDampingLayer             1
 -precursorSpinUp           1
--advectionDamping          1
+-advectionDampingX         1
+-advectionDampingY    1
 
 -absTolU                   1e-5
 -poissonIt                 20
@@ -33,7 +34,8 @@
 
 # Turbulence Model
 # ---------------------------------
--les                       4
+-les                       1
+-lesModel                  dynamicLASI
 -max_cs                    10
 
 # Numerical Schemes
@@ -41,10 +43,9 @@
 -dUdtScheme                rungeKutta4
 -dTdtScheme                backwardEuler
 -divScheme                 centralUpwindW
-
 # Wind Turbine
 # ---------------------------------
--windplant                1
+-windplant                 1
 
 # Constants 
 # ---------------------------------

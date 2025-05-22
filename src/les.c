@@ -8,8 +8,19 @@
 
 const PetscReal wall_cs = 0.001 ;
 const PetscReal std_cs  = 0.0289; // standard Cs value for HIT
-
+const PetscReal amd_cs  =  0.3334;
 //***************************************************************************************************************//
+
+static const char *LesModelNames[] = {
+    "smagorinsky",
+    "stabilityDependent",
+    "dynamicSmagorinsky",
+    "dynamicLASI",
+    "dynamicLASD",
+    "dynamicPASD",
+    "amd",
+    "LesModel", "", PETSC_NULL
+};
 
 PetscErrorCode InitializeLES(les_ *les)
 {
@@ -20,7 +31,7 @@ PetscErrorCode InitializeLES(les_ *les)
     // 4. dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
     // 5. dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
     // 6. dynamic smagorinsky scale dependent with plane averaging (PASD)
-
+    // 7. Anisotropic minimum dissipation model (AMD)
 
     if(les != NULL)
     {
@@ -33,50 +44,99 @@ PetscErrorCode InitializeLES(les_ *les)
         PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-max_cs",  &(les->maxCs), PETSC_NULL);
-
+        
         if(les->access->flags->isLesActive)
         {
-            VecDuplicate(mesh->lAj, &(les->lCs));     VecSet(les->lCs,0.);
-            VecDuplicate(mesh->lAj, &(les->lNu_t));   VecSet(les->lNu_t,0.);
+            PetscBool modelSet;
+            PetscOptionsGetEnum(PETSC_NULL, PETSC_NULL, "-lesModel", LesModelNames, (PetscEnum*)&(les->model), &modelSet);
 
-            if (les->access->flags->isLesActive > 1)
+            // Check if a valid model was set
+            if (!modelSet)
             {
-                VecDuplicate(mesh->lCsi, &les->lSx);   VecSet(les->lSx,0.);
-                VecDuplicate(mesh->lCsi, &les->lSy);   VecSet(les->lSy,0.);
-                VecDuplicate(mesh->lCsi, &les->lSz);   VecSet(les->lSz,0.);
-                VecDuplicate(mesh->lAj, &(les->lS));   VecSet(les->lS,0.);
-
-                if (les->access->flags->isLesActive == 2)
+                PetscPrintf(PETSC_COMM_WORLD, "Error: No valid LES model specified with -lesModel in control.dat.\n");
+                PetscPrintf(PETSC_COMM_WORLD, "Available models:\n");
+                for (int i = 0; LesModelNames[i] != PETSC_NULL && strcmp(LesModelNames[i], "LesModel") != 0; i++)
                 {
-                    VecDuplicate(mesh->lAj,  &(les->lN));  VecSet(les->lN,0.);
-                    VecDuplicate(mesh->lAj,  &(les->lCh)); VecSet(les->lCh,0.);
-                    VecDuplicate(mesh->Nvert,&(les->L));   VecSet(les->L,0.);
+                    PetscPrintf(PETSC_COMM_WORLD, "  %s\n", LesModelNames[i]);
                 }
+                char error[512];
+                sprintf(error, "\nUse one of the available models.\n");
+                fatalErrorInFunction("InitializeLES",  error);
+            }    
 
-                if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
-                {
-                    VecDuplicate(mesh->lAj, &(les->lLM));  VecSet(les->lLM,0.);
-                    VecDuplicate(mesh->lAj, &(les->lMM));  VecSet(les->lMM,0.);
-
-                    if (les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5)
-                    {
-                        VecDuplicate(mesh->lAj, &(les->lLM_old));   VecSet(les->lLM_old,0.);
-                        VecDuplicate(mesh->lAj, &(les->lMM_old));   VecSet(les->lMM_old,0.);
-                    }
-
-                    if (les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
-                    {
-                        VecDuplicate(mesh->lAj, &(les->lQN));  VecSet(les->lQN,0.);
-                        VecDuplicate(mesh->lAj, &(les->lNN));  VecSet(les->lNN,0.);
-
-                        if(les->access->flags->isLesActive == 5)
-                        {
-                            VecDuplicate(mesh->lAj, &(les->lQN_old));   VecSet(les->lQN_old,0.);
-                            VecDuplicate(mesh->lAj, &(les->lNN_old));   VecSet(les->lNN_old,0.);
-                        }
-                    }
-                }
+            if(les->model == AMD)
+            {
+                les->amdCs = amd_cs;
+                PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-amd_cs", &(les->amdCs), PETSC_NULL);
+                PetscPrintf(PETSC_COMM_WORLD, "AMD Constant is set to: %.5lf \n",les->amdCs);
             }
+
+            VecDuplicate(mesh->lAj, &(les->lCs));     VecSet(les->lCs, 0.);
+            VecDuplicate(mesh->lAj, &(les->lNu_t));   VecSet(les->lNu_t, 0.);
+            VecDuplicate(mesh->lAj, &(les->lDiff_t)); VecSet(les->lDiff_t, 0.);
+            VecDuplicate(mesh->lAj, &(les->lKsgs));   VecSet(les->lKsgs, 0.);
+
+            if (les->model == SMAGORINSKY ||
+                les->model == STABILITY_BASED ||
+                les->model == DSM ||
+                les->model == DLASI ||
+                les->model == DLASD ||
+                les->model == DPASD ||
+                les->model == AMD)
+            {
+                VecDuplicate(mesh->lCsi, &(les->lSx)); VecSet(les->lSx, 0.);
+                VecDuplicate(mesh->lCsi, &(les->lSy)); VecSet(les->lSy, 0.);
+                VecDuplicate(mesh->lCsi, &(les->lSz)); VecSet(les->lSz, 0.);
+                VecDuplicate(mesh->lAj, &(les->lS));   VecSet(les->lS, 0.);
+            }
+
+            // STABILITY_BASED specific
+            if (les->model == STABILITY_BASED)
+            {
+                VecDuplicate(mesh->lAj, &(les->lN));   VecSet(les->lN, 0.);
+                VecDuplicate(mesh->lAj, &(les->lCh));  VecSet(les->lCh, 0.);
+                VecDuplicate(mesh->Nvert, &(les->L));  VecSet(les->L, 0.);
+            }
+
+            // Dynamic models (DSM, DLASI, DLASD, DPASD)
+            if (les->model == DSM ||
+                les->model == DLASI ||
+                les->model == DLASD ||
+                les->model == DPASD)
+            {
+                VecDuplicate(mesh->lAj, &(les->lLM)); VecSet(les->lLM, 0.);
+                VecDuplicate(mesh->lAj, &(les->lMM)); VecSet(les->lMM, 0.);
+            }
+
+            // Lagrangian averaging (DLASI, DLASD)
+            if (les->model == DLASI || les->model == DLASD)
+            {
+                VecDuplicate(mesh->lAj, &(les->lLM_old)); VecSet(les->lLM_old, 0.);
+                VecDuplicate(mesh->lAj, &(les->lMM_old)); VecSet(les->lMM_old, 0.);
+            }
+
+            // Scale-dependent dynamic models (DLASD, DPASD)
+            if (les->model == DLASD || les->model == DPASD)
+            {
+                VecDuplicate(mesh->lAj, &(les->lQN)); VecSet(les->lQN, 0.);
+                VecDuplicate(mesh->lAj, &(les->lNN)); VecSet(les->lNN, 0.);
+            }
+
+            // DLASD-specific
+            if (les->model == DLASD)
+            {
+                VecDuplicate(mesh->lAj, &(les->lQN_old)); VecSet(les->lQN_old, 0.);
+                VecDuplicate(mesh->lAj, &(les->lNN_old)); VecSet(les->lNN_old, 0.);
+            }
+        }
+
+        if (les->access->flags->isLesActive)
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "\nSelected LES Model: %s\n", LesModelNames[les->model]);
+        }
+        else
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "Selected LES Model: none (LES inactive)\n");
         }
     }
 
@@ -93,9 +153,17 @@ PetscErrorCode UpdateCs (les_ *les)
     DM             da     = mesh->da, fda = mesh->fda;
 
     // standard smagorinsky model
-    if(les->access->flags->isLesActive==1)
+    if(les->model == SMAGORINSKY)
     {
         VecSet(les->lCs, std_cs);
+        DMLocalToLocalBegin(da, les->lCs, INSERT_VALUES, les->lCs);
+        DMLocalToLocalEnd  (da, les->lCs, INSERT_VALUES, les->lCs);
+        return(0);
+    }
+
+    if(les->model == AMD)
+    {
+        VecSet(les->lCs, les->amdCs);
         DMLocalToLocalBegin(da, les->lCs, INSERT_VALUES, les->lCs);
         DMLocalToLocalEnd  (da, les->lCs, INSERT_VALUES, les->lCs);
         return(0);
@@ -118,7 +186,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
     PetscReal     ***iaj, ***jaj, ***kaj, ***aj;
 
-    PetscReal     ***nvert, ***Cs;
+    PetscReal     ***nvert, ***Cs, ***meshTag;
 
     Cmpnts        ***Ax, ***Ay, ***Az, ***cent;
     PetscReal     ***LM, ***MM, ***QN, ***NN;
@@ -178,6 +246,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
     // get IBM markup and cell centers
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     // 1 - loop over internal cells and compute strain rate tensor S and |S|
@@ -188,7 +257,7 @@ PetscErrorCode UpdateCs (les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // if on body skip
-                if( isIBMSolidCell(k, j, i, nvert))
+                if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
                     continue;
                 }
@@ -208,7 +277,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     mesh,
                     i, j, k,
                     mx, my, mz,
-                    ucat, nvert,
+                    ucat, nvert, meshTag, 
                     &dudc, &dvdc, &dwdc,
                     &dude, &dvde, &dwde,
                     &dudz, &dvdz, &dwdz
@@ -286,7 +355,7 @@ PetscErrorCode UpdateCs (les_ *les)
     resetCellPeriodicFluxes(mesh, les->lS,  les->lS,  "scalar", "localToLocal");
 
     // 2 - loop over cells and compute specific model parameters (LijMij and MijMij for dynamic model and N for stability dep. model)
-    if(les->access->flags->isLesActive == 2)
+    if(les->model == STABILITY_BASED)
     {
         DMDAVecGetArray(da,  les->lN, &n);
 
@@ -315,7 +384,7 @@ PetscErrorCode UpdateCs (les_ *les)
                 mesh,
                 i, j, k,
                 mx, my, mz,
-                tmprt, nvert,
+                tmprt, nvert, meshTag,
                 &dtdc, &dtde, &dtdz
             );
 
@@ -326,7 +395,7 @@ PetscErrorCode UpdateCs (les_ *les)
                 eta0, eta1, eta2,
                 zet0, zet1, zet2,
                 ajc,
-            	dtdc, dtde, dtdz,
+                dtdc, dtde, dtdz,
                 &dt_dx, &dt_dy, &dt_dz
             );
 
@@ -339,7 +408,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da, les->lN, INSERT_VALUES, les->lN);
         DMLocalToLocalEnd  (da, les->lN, INSERT_VALUES, les->lN);
     }
-    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         // get arrays
         DMDAVecGetArray(fda, les->lSx, &Ax);
@@ -358,7 +427,7 @@ PetscErrorCode UpdateCs (les_ *les)
         for (i=lxs; i<lxe; i++)
         {
             // set to zero if solid and skip
-            if(isIBMSolidCell(k, j, i, nvert))
+            if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
             {
                 LM[k][j][i] = MM[k][j][i] = 0;
                 continue;
@@ -480,21 +549,25 @@ PetscErrorCode UpdateCs (les_ *les)
             }
 
             // 2.2 - Build the filters
+            // binomial filter coefficient n=2, m = 1/4, d= [1 2 1] (from pascal triangle)
+            // binomial filter of order n is given by f = m[d]
 
             // filter kernel
-            PetscReal coef[3][3][3]=
+            PetscReal coef[3][3][3] = 
             {
-                0.125, 0.250, 0.125,
-                0.250, 0.500, 0.250,
-                0.125, 0.250, 0.125,
-
-                0.250, 0.500, 0.250,
-                0.500, 1.000, 0.500,
-                0.250, 0.500, 0.250,
-
-                0.125, 0.250, 0.125,
-                0.250, 0.500, 0.250,
-                0.125, 0.250, 0.125
+                0.015625, 0.03125, 0.015625,
+                0.03125, 0.0625, 0.03125,
+                0.015625, 0.03125, 0.015625,
+            
+            
+                0.03125, 0.0625, 0.03125,
+                0.0625, 0.125, 0.0625,
+                0.03125, 0.0625, 0.03125,
+            
+            
+                0.015625, 0.03125, 0.015625,
+                0.03125, 0.0625, 0.03125,
+                0.015625, 0.03125, 0.015625
             };
 
             // cell volume times stencil integration coeff. and fluid/body weight
@@ -519,12 +592,12 @@ PetscErrorCode UpdateCs (les_ *les)
                 // fluid
                 if
                 (
-                    (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                    ((isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) && isCalculatedCell(K, J, I, meshTag)) &&
                     //!isOnCornerCellCenters(I, J, K, mesh->info) <- use also ghost? Not for now
                     (I!=0 && I!=mx-1 && J!=0 && J!=my-1 && K!=0 && K!=mz-1)
                 )
                 {
-                    sum_vol += 1./aj[K][J][I] * coef[R][Q][P];
+                    sum_vol += 1./aj[K][J][I] * 8.0 * coef[R][Q][P];
                     weight[R][Q][P] = 1;
                 }
                 // body or physical ghost nodes
@@ -696,7 +769,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalEnd  (da, les->lMM, INSERT_VALUES, les->lMM);
 
         //second test filter - compute Qij and Nij
-        if(les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+        if(les->model == DLASD || les->model == DPASD)
         {
             VecSet(les->lQN, 0.0);
             VecSet(les->lNN, 0.0);
@@ -708,7 +781,7 @@ PetscErrorCode UpdateCs (les_ *les)
             for (i=lxs; i<lxe; i++)
             {
                 // set to zero if solid and skip
-                if(isIBMSolidCell(k, j, i, nvert))
+                if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
                     QN[k][j][i] = NN[k][j][i] = 0;
                     continue;
@@ -829,40 +902,41 @@ PetscErrorCode UpdateCs (les_ *les)
                 }
 
                 // 2.2 - Build the filters
+                // binomial filter coefficient n=4, m = 1/16, d= [1 4 6 4 1] (from pascal triangle)
+                // binomial filter of order n is given by f = m[d]
 
                 // filter kernel
                 PetscReal coef[5][5][5]=
                 {
-                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378,
+                    0.000244140625000, 0.000976562500000, 0.001464843750000, 0.000976562500000, 0.000244140625000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.001464843750000, 0.005859375000000, 0.008789062500000, 0.005859375000000, 0.001464843750000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.000244140625000, 0.000976562500000, 0.001464843750000, 0.000976562500000, 0.000244140625000,
 
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
-                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
-                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.003906250000000, 0.015625000000000, 0.023437500000000, 0.015625000000000, 0.003906250000000,
+                    0.005859375000000, 0.023437500000000, 0.035156250000000, 0.023437500000000, 0.005859375000000,
+                    0.003906250000000, 0.015625000000000, 0.023437500000000, 0.015625000000000, 0.003906250000000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
 
-                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
-                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
-                    0.56529725, 2.5334865, 4.17701308, 2.5334865, 0.56529725,
-                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
-                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
+                    0.001464843750000, 0.005859375000000, 0.008789062500000, 0.005859375000000, 0.001464843750000,
+                    0.005859375000000, 0.023437500000000, 0.035156250000000, 0.023437500000000, 0.005859375000000,
+                    0.008789062500000, 0.035156250000000, 0.052734375000000, 0.035156250000000, 0.008789062500000,
+                    0.005859375000000, 0.023437500000000, 0.035156250000000, 0.023437500000000, 0.005859375000000,
+                    0.001464843750000, 0.005859375000000, 0.008789062500000, 0.005859375000000, 0.001464843750000,
 
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
-                    0.34287011, 1.53663724, 2.5334865, 1.53663724, 0.34287011,
-                    0.20796124, 0.9320176, 1.53663724, 0.9320176, 0.20796124,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.003906250000000, 0.015625000000000, 0.023437500000000, 0.015625000000000, 0.003906250000000,
+                    0.005859375000000, 0.023437500000000, 0.035156250000000, 0.023437500000000, 0.005859375000000,
+                    0.003906250000000, 0.015625000000000, 0.023437500000000, 0.015625000000000, 0.003906250000000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
 
-                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.07650466, 0.34287011, 0.56529725, 0.34287011, 0.07650466,
-                    0.04640242, 0.20796124, 0.34287011, 0.20796124, 0.04640242,
-                    0.01035378, 0.04640242, 0.07650466, 0.04640242, 0.01035378
-
+                    0.000244140625000, 0.000976562500000, 0.001464843750000, 0.000976562500000, 0.000244140625000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.001464843750000, 0.005859375000000, 0.008789062500000, 0.005859375000000, 0.001464843750000,
+                    0.000976562500000, 0.003906250000000, 0.005859375000000, 0.003906250000000, 0.000976562500000,
+                    0.000244140625000, 0.000976562500000, 0.001464843750000, 0.000976562500000, 0.000244140625000
                 };
 
                 // cell volume times stencil integration coeff. and fluid/body weight
@@ -887,12 +961,12 @@ PetscErrorCode UpdateCs (les_ *les)
                     // fluid
                     if
                     (
-                        (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                        ((isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) && isCalculatedCell(K, J, I, meshTag)) &&
                         //!isOnCornerCellCenters(I, J, K, mesh->info) <- use also ghost? Not for now
                         (I>0 && I<mx-1 && J>0 && J<my-1 && K>0 && K<mz-1)
                     )
                     {
-                        sum_vol += 1./aj[K][J][I] * coef[R][Q][P];
+                        sum_vol += 1./aj[K][J][I] * 64.0 * coef[R][Q][P];
                         weight[R][Q][P] = 1;
                     }
                     // body or physical ghost nodes
@@ -1061,7 +1135,7 @@ PetscErrorCode UpdateCs (les_ *les)
         PetscReal ***LM_old, ***MM_old, ***QN_old, ***NN_old;
 
         // local convective weighting
-        if(les->access->flags->isLesActive==4 || les->access->flags->isLesActive==5)
+        if(les->model == DLASI || les->model == DLASD)
         {
             PetscInt initializeLes4;
             if (clock->it <= clock->itStart + 1) initializeLes4 = 1;
@@ -1179,7 +1253,7 @@ PetscErrorCode UpdateCs (les_ *les)
                             k1>=1 && k1<mz-1 &&
                             j1>=1 && j1<my-1 &&
                             i1>=1 && i1<mx-1
-                        ) && (!isIBMSolidCell(k1, j1, i1, nvert)) )
+                        ) && ( !(isIBMSolidCell(k1, j1, i1, nvert) || isZeroedCell(k1, j1, i1, meshTag)) ) )
                         {
                             d = pow((X_old.x - cent[k1][j1][i1].x), 2) +
                                 pow((X_old.y - cent[k1][j1][i1].y), 2) +
@@ -1202,7 +1276,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
                     // interpolate the value at the exat old point (slower)
                     // if there is an IBM or overset cell around the given cell, use nearest cell
-                    if(isBoxIBMCell(k_old, j_old, i_old, nvert))
+                    if(isBoxIBMCell(k_old, j_old, i_old, nvert)|| isBoxOversetCell(k_old, j_old, i_old, meshTag))
                     {
                         PetscInt intId[6];
                         PetscInt ibmCellCtr = 0;
@@ -1222,7 +1296,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         for (PetscInt jj = 0; jj<2; jj++)
                         for (PetscInt ii = 0; ii<2; ii++)
                         {
-                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert) || isZeroedCell(intId[kk], intId[jj+2], intId[ii+4], meshTag))
                             {
                                 ibmCellCtr ++;
                             }
@@ -1339,7 +1413,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
         }
 
-        if(les->access->flags->isLesActive==5)
+        if(les->model == DLASD)
         {
             PetscInt initializeLes4;
             if (clock->it <= clock->itStart + 1) initializeLes4 = 1;
@@ -1457,7 +1531,7 @@ PetscErrorCode UpdateCs (les_ *les)
                             k1>=1 && k1<mz-1 &&
                             j1>=1 && j1<my-1 &&
                             i1>=1 && i1<mx-1
-                        ) && (!isIBMSolidCell(k1, j1, i1, nvert)) )
+                        ) && ( !(isIBMSolidCell(k1, j1, i1, nvert) || isZeroedCell(k1, j1, i1, meshTag)) ) )
                         {
                             d = pow((X_old.x - cent[k1][j1][i1].x), 2) +
                                 pow((X_old.y - cent[k1][j1][i1].y), 2) +
@@ -1480,7 +1554,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
                     // interpolate the value at the exact old point (slower)
                     // if there is an IBM or overset cell around the given cell, use nearest cell
-                    if(isBoxIBMCell(k_old, j_old, i_old, nvert))
+                    if(isBoxIBMCell(k_old, j_old, i_old, nvert)|| isBoxOversetCell(k_old, j_old, i_old, meshTag))
                     {
                         PetscInt intId[6];
                         PetscInt ibmCellCtr = 0;
@@ -1500,7 +1574,7 @@ PetscErrorCode UpdateCs (les_ *les)
                         for (PetscInt jj = 0; jj<2; jj++)
                         for (PetscInt ii = 0; ii<2; ii++)
                         {
-                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                            if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert) || isZeroedCell(intId[kk], intId[jj+2], intId[ii+4], meshTag))
                             {
                                 ibmCellCtr ++;
                             }
@@ -1639,7 +1713,7 @@ PetscErrorCode UpdateCs (les_ *les)
     }
 
     // 3 - Compute Cs
-    if(les->access->flags->isLesActive == 2)
+    if(les->model == STABILITY_BASED)
     {
         // reset to zero for eventual IBM
         VecSet(les->lCh, 0.0);
@@ -1649,12 +1723,12 @@ PetscErrorCode UpdateCs (les_ *les)
         DMDAVecGetArray(da,  les->lCh, &lch);
         DMDAVecGetArray(da,  les->L,   &scale);
     }
-    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         DMDAVecGetArray(da, les->lLM, &LM);
         DMDAVecGetArray(da, les->lMM, &MM);
 
-        if(les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+        if(les->model == DLASD || les->model == DPASD)
         {
             DMDAVecGetArray(da,  les->lQN, &QN);
             DMDAVecGetArray(da,  les->lNN, &NN);
@@ -1667,7 +1741,7 @@ PetscErrorCode UpdateCs (les_ *les)
     for (i=lxs; i<lxe; i++)
     {
         // body
-        if(isIBMSolidCell(k, j, i, nvert))
+        if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
         {
             Cs[k][j][i] = 0.0;
             continue;
@@ -1677,7 +1751,7 @@ PetscErrorCode UpdateCs (les_ *les)
         PetscReal C = 0.0;
 
         // stability dependent model
-        if(les->access->flags->isLesActive == 2)
+        if(les->model == STABILITY_BASED)
         {
             // model coefficients
             PetscReal cm_les2  = 0.1,
@@ -1738,12 +1812,12 @@ PetscErrorCode UpdateCs (les_ *les)
             C = C / pow (delta, 2.0);
         }
         // dynamic Smagorinsky models
-        else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4)
+        else if(les->model == DSM || les->model == DLASI)
         {
             PetscReal LM_avg, MM_avg;
 
             // box averaging
-            if(les->access->flags->isLesActive == 3)
+            if(les->model == DSM)
             {
                 PetscReal weight[3][3][3];
 
@@ -1762,7 +1836,7 @@ PetscErrorCode UpdateCs (les_ *les)
                     // volume weighting the mean
                     weight[R][Q][P] = 1./aj[K][J][I];
 
-                    if(isIBMSolidCell(K, J, I, nvert))
+                    if(isIBMSolidCell(K, J, I, nvert) || isZeroedCell(K, J, I, meshTag))
                     {
                         weight[R][Q][P] = 0;
                     }
@@ -1824,7 +1898,7 @@ PetscErrorCode UpdateCs (les_ *les)
                 MM_avg = integrateTestfilterSimpson(MM0, weight);
             }
             // lagrangian averaging
-            else if(les->access->flags->isLesActive == 4)
+            else if(les->model == DLASI)
             {
                 // no average procedure
                 LM_avg = LM[k][j][i];
@@ -1834,7 +1908,7 @@ PetscErrorCode UpdateCs (les_ *les)
             // set Smagorinsky coefficient
             C = 0.5 * LM_avg / (MM_avg + 1e-10);
         }
-        else if(les->access->flags->isLesActive == 5)
+        else if(les->model == DLASD)
         {
             PetscReal num, denom, beta;
 
@@ -1849,7 +1923,7 @@ PetscErrorCode UpdateCs (les_ *les)
         }
 
         // set Cs to zero if solid or on box corners
-        if( isIBMSolidCell(k, j, i, nvert) )
+        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
         {
             Cs[k][j][i] = 0;
         }
@@ -1861,7 +1935,7 @@ PetscErrorCode UpdateCs (les_ *les)
         }
     }
 
-    if(les->access->flags->isLesActive == 6)
+    if(les->model == DPASD)
     {
         std::vector<PetscInt> count, total_count;
         std::vector<PetscReal> J_LM(my), J_MM(my), J_QN(my), J_NN(my), LM_tmp(my), MM_tmp(my), QN_tmp(my), NN_tmp(my);
@@ -1884,7 +1958,7 @@ PetscErrorCode UpdateCs (les_ *les)
         for (j=lys; j<lye; j++)
         for (i=lxs; i<lxe; i++)
         {
-            if(isFluidCell(k,j,i, nvert)) 
+            if(isFluidCell(k,j,i, nvert) && isCalculatedCell(k, j, i, meshTag)) 
             {
                 LM_tmp[j] += LM[k][j][i];
                 MM_tmp[j] += MM[k][j][i];
@@ -1898,7 +1972,7 @@ PetscErrorCode UpdateCs (les_ *les)
         MPI_Allreduce( &MM_tmp[0], &J_MM[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
         MPI_Allreduce( &QN_tmp[0], &J_QN[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
         MPI_Allreduce( &NN_tmp[0], &J_NN[0], my, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
-        MPI_Allreduce( &count[0], &total_count[0], my, MPIU_INT, MPI_SUM, mesh->MESH_COMM);	
+        MPI_Allreduce( &count[0], &total_count[0], my, MPIU_INT, MPI_SUM, mesh->MESH_COMM);    
         
         for(j=0; j<my; j++) 
         {
@@ -1918,7 +1992,7 @@ PetscErrorCode UpdateCs (les_ *les)
         for (i=lxs; i<lxe; i++)
         {
             // body
-            if(isIBMSolidCell(k, j, i, nvert))
+            if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
             {
                 Cs[k][j][i] = 0.0;
                 continue;
@@ -1932,7 +2006,7 @@ PetscErrorCode UpdateCs (les_ *les)
         }
     }
 
-    if(les->access->flags->isLesActive == 2)
+    if(les->model == STABILITY_BASED)
     {
         DMDAVecRestoreArray(da,  les->lS,  &Sabs);
         DMDAVecRestoreArray(da,  les->lN,  &n);
@@ -1942,12 +2016,12 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da,  les->lCh,  INSERT_VALUES, les->lCh);
         DMLocalToLocalEnd  (da,  les->lCh,  INSERT_VALUES, les->lCh);
     }
-    else if(les->access->flags->isLesActive == 3 || les->access->flags->isLesActive == 4 || les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         DMDAVecRestoreArray(da, les->lLM, &LM);
         DMDAVecRestoreArray(da, les->lMM, &MM);
 
-        if(les->access->flags->isLesActive == 5 || les->access->flags->isLesActive == 6)
+        if(les->model == DLASD || les->model == DPASD)
         {
             DMDAVecRestoreArray(da,  les->lQN, &QN);
             DMDAVecRestoreArray(da,  les->lNN, &NN);
@@ -1986,6 +2060,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
     // restore IB markup and cell centers
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     // scatter the model coefficient
@@ -2004,6 +2079,7 @@ PetscErrorCode UpdateNut(les_ *les)
 {
     mesh_         *mesh = les->access->mesh;
     ueqn_         *eqn  = les->access->ueqn;
+    teqn_         *teqn = les->access->teqn;
     DM            da    = mesh->da, fda = mesh->fda;
 
     DMDALocalInfo info = mesh->info;
@@ -2015,7 +2091,7 @@ PetscErrorCode UpdateNut(les_ *les)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***Cs, ***lnu_t, ***nvert, ***aj, ***ustar;
+    PetscReal     ***Cs, ***lnu_t, ***nvert, ***meshTag, ***aj, ***ustar, ***ld_t, ***lt, ***ksg, ***ltempDiff;
     Cmpnts        ***csi, ***eta, ***zet, ***ucat;
 
     PetscReal     ajc;
@@ -2032,6 +2108,10 @@ PetscErrorCode UpdateNut(les_ *les)
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
     VecSet(les->lNu_t, 0.);
+    VecSet(les->lKsgs, 0.);
+
+    std::vector<PetscReal> tempJAvg;
+    Vec tempMAvg; 
 
     DMDAVecGetArray(fda, eqn->lUcat,  &ucat);
     DMDAVecGetArray(da,  eqn->lUstar, &ustar);
@@ -2040,19 +2120,56 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecGetArray(fda, mesh->lEta, &eta);
     DMDAVecGetArray(fda, mesh->lZet, &zet);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(da,  mesh->lAj, &aj);
 
     DMDAVecGetArray(da,  les->lNu_t, &lnu_t);
+    DMDAVecGetArray(da,  les->lKsgs, &ksg);
+
     DMDAVecGetArray(da,  les->lCs, &Cs);
 
+    if (les->model == AMD)
+    {
+
+        if (les->access->flags->isTeqnActive)
+        {
+            VecSet(les->lDiff_t, 0.);
+            DMDAVecGetArray(da,  les->lDiff_t, &ld_t);
+            DMDAVecGetArray(da, teqn->lTmprt, &lt);
+            
+            if(les->access->flags->isAblActive)
+            {
+                //j plane temperature average 
+                tempJAvg = jPlaneScalarMean(mesh, lt, my-2);
+                VecDuplicate(teqn->lTmprt, &tempMAvg);
+                VecSet(tempMAvg, 0.);  
+
+                DMDAVecGetArray(da, tempMAvg, &ltempDiff);
+    
+                for (k=lzs; k<lze; k++)
+                for (j=lys; j<lye; j++)
+                for (i=lxs; i<lxe; i++)
+                {
+                    ltempDiff[k][j][i] = lt[k][j][i] - tempJAvg[j-1];
+                }
+    
+                DMDAVecRestoreArray(da, tempMAvg, &ltempDiff);
+                DMLocalToLocalBegin(da,  tempMAvg, INSERT_VALUES, tempMAvg);
+                DMLocalToLocalEnd  (da,  tempMAvg, INSERT_VALUES, tempMAvg);
+
+                DMDAVecGetArray(da, tempMAvg, &ltempDiff);
+            }
+        }
+    }
 
     for (k=lzs; k<lze; k++)
     for (j=lys; j<lye; j++)
     for (i=lxs; i<lxe; i++)
     {
-        if(isIBMSolidCell(k, j, i, nvert))
+        if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
         {
             lnu_t[k][j][i]=0;
+            ksg[k][j][i]=0;
             continue;
         }
 
@@ -2070,7 +2187,7 @@ PetscErrorCode UpdateNut(les_ *les)
             mesh,
             i, j, k,
             mx, my, mz,
-            ucat, nvert,
+            ucat, nvert, meshTag,
             &dudc, &dvdc, &dwdc,
             &dude, &dvde, &dwde,
             &dudz, &dvdz, &dwdz
@@ -2093,41 +2210,223 @@ PetscErrorCode UpdateNut(les_ *les)
         );
 
         // compute rate of strain tensor
-        PetscReal Sxx = 0.5*(du_dx + du_dx),
-               Sxy = 0.5*(du_dy + dv_dx),
-               Sxz = 0.5*(du_dz + dw_dx);
-        PetscReal Syx = Sxy,
-               Syy = 0.5*(dv_dy + dv_dy),
-               Syz = 0.5*(dv_dz + dw_dy);
-        PetscReal Szx = Sxz,
-               Szy = Syz,
-               Szz = 0.5*(dw_dz + dw_dz);
+        PetscReal S[3][3] = {
+                                {0.5 * (du_dx + du_dx), 0.5 * (du_dy + dv_dx), 0.5 * (du_dz + dw_dx)},
+                                {0.5 * (dv_dx + du_dy), 0.5 * (dv_dy + dv_dy), 0.5 * (dv_dz + dw_dy)},
+                                {0.5 * (dw_dx + du_dz), 0.5 * (dw_dy + dv_dz), 0.5 * (dw_dz + dw_dz)}
+                            };
 
         // compute rate of strain tensor norm
-        PetscReal Sabs
-        =
-        sqrt
-        (
-            2.0*
-            (
-                Sxx*Sxx +
-                Sxy*Sxy +
-                Sxz*Sxz +
-                Syx*Syx +
-                Syy*Syy +
-                Syz*Syz +
-                Szx*Szx +
-                Szy*Szy +
-                Szz*Szz
-            )
-        );
+        PetscReal Sabs = sqrt(2.0 * (
+                                        S[0][0]*S[0][0] + S[0][1]*S[0][1] + S[0][2]*S[0][2] +
+                                        S[1][0]*S[1][0] + S[1][1]*S[1][1] + S[1][2]*S[1][2] +
+                                        S[2][0]*S[2][0] + S[2][1]*S[2][1] + S[2][2]*S[2][2]
+                                    ));
 
-        PetscReal filter;
+        if (les->model == AMD)
+        {
 
-        filter = pow( 1./aj[k][j][i], 1./3.);
+            // Compute volume
+            PetscReal V = 1.0 / aj[k][j][i];
+            
+            // Compute face areas
+            PetscReal A_x = nMag(zet[k][j][i]);
+            PetscReal A_y = nMag(csi[k][j][i]);
+            PetscReal A_z = nMag(eta[k][j][i]); 
+                                                    
 
-        lnu_t[k][j][i] = Cs[k][j][i] * pow ( filter, 2.0 ) * Sabs;
+            // Compute delta_x, delta_y, delta_z
+            PetscReal delta_x = V / A_x;
+            PetscReal delta_y = V / A_y;
+            PetscReal delta_z = V / A_z;
 
+            PetscReal invDelta2Sum =
+                  1.0 / (delta_x * delta_x)
+                + 1.0 / (delta_y * delta_y)
+                + 1.0 / (delta_z * delta_z);
+
+            PetscReal delta2_harm = 3.0 / invDelta2Sum; 
+            
+            PetscReal gradU[3][3] = 
+            {
+                {du_dx, dv_dx, dw_dx}, 
+                {du_dy, dv_dy, dw_dy}, 
+                {du_dz, dv_dz, dw_dz}  
+            };
+
+            PetscReal gradU_hat[3][3];
+            {
+                PetscReal deltaCell[3] = {delta_x, delta_y, delta_z};
+                for (PetscInt c = 0; c < 3; c++) 
+                {
+                    for (PetscInt a = 0; a < 3; a++) 
+                    {
+                        gradU_hat[c][a] = (deltaCell[c] / deltaCell[a]) * gradU[c][a];
+                    }
+                }
+            }
+
+            PetscReal S_hat[3][3];
+            for (PetscInt c = 0; c < 3; c++) 
+            {
+                for (PetscInt a = 0; a < 3; a++) 
+                {
+                    S_hat[c][a] = 0.5 * (gradU_hat[c][a] + gradU_hat[a][c]);
+                }
+            }
+
+            PetscReal num = 0.0, denom = 0.0;
+
+            for (PetscInt a = 0; a < 3; a++)
+            {
+                for (PetscInt b = 0; b < 3; b++) 
+                {
+                    for (PetscInt c = 0; c < 3; c++)
+                    {
+                        num += (-gradU_hat[c][a] * gradU_hat[c][b] * S_hat[a][b]);
+                    }
+                }
+            }
+
+            for (PetscInt a = 0; a < 3; a++)
+            {
+                for (PetscInt c = 0; c < 3; c++)
+                {
+                    denom += gradU_hat[c][a] * gradU_hat[c][a];
+                }
+            }
+
+            // add abl stratification contribution 
+            if (les->access->flags->isTeqnActive)
+            {
+                if(les->access->flags->isAblActive)
+                {
+                    //compute eddy diffusivity 
+                    PetscReal dtdc, dtde, dtdz;
+                    PetscReal dt_dx, dt_dy, dt_dz;
+                    PetscReal gradT_hat[3];
+
+                    PetscReal gravity = 9.81;
+                    PetscReal tRef = les->access->abl->tRef;
+                    PetscReal beta = gravity/tRef;
+
+                    Compute_dscalar_center
+                    (
+                        mesh,
+                        i, j, k,
+                        mx, my, mz,
+                        ltempDiff, nvert, meshTag,
+                        &dtdc, &dtde, &dtdz
+                    );
+
+                    // compute temperature derivative w.r.t. the cartesian coordinates
+                    Compute_dscalar_dxyz
+                    (
+                        mesh,
+                        csi0, csi1, csi2,
+                        eta0, eta1, eta2,
+                        zet0, zet1, zet2,
+                        ajc,
+                        dtdc, dtde, dtdz,
+                        &dt_dx, &dt_dy, &dt_dz
+                    );
+
+                    gradT_hat[0] = delta_x * dt_dx;
+                    gradT_hat[1] = delta_y * dt_dy;
+                    gradT_hat[2] = delta_z * dt_dz;
+                    
+                    PetscInt a = 2; //only the z component
+                    for (PetscInt c = 0; c < 3; c++)
+                    {
+                        num += (beta/delta_z) * gradU_hat[c][a] * gradT_hat[c];
+                    }
+                }
+                
+            }
+
+            PetscReal nu_e = num / (denom + 1e-10);
+
+            nu_e = Cs[k][j][i] * delta2_harm * PetscMax(nu_e, 0.0);
+            
+            lnu_t[k][j][i] = nu_e;
+
+            if (les->access->flags->isTeqnActive)
+            {
+                //compute eddy diffusivity 
+                PetscReal dtdc, dtde, dtdz;
+                PetscReal dt_dx, dt_dy, dt_dz;
+                PetscReal num = 0.0, denom = 0.0;
+                PetscReal gradT_hat[3];
+
+                Compute_dscalar_center
+                (
+                    mesh,
+                    i, j, k,
+                    mx, my, mz,
+                    lt, nvert, meshTag, 
+                    &dtdc, &dtde, &dtdz
+                );
+
+                // compute temperature derivative w.r.t. the cartesian coordinates
+                Compute_dscalar_dxyz
+                (
+                    mesh,
+                    csi0, csi1, csi2,
+                    eta0, eta1, eta2,
+                    zet0, zet1, zet2,
+                    ajc,
+                    dtdc, dtde, dtdz,
+                    &dt_dx, &dt_dy, &dt_dz
+                );
+
+                gradT_hat[0] = delta_x * dt_dx;
+                gradT_hat[1] = delta_y * dt_dy;
+                gradT_hat[2] = delta_z * dt_dz;
+
+                for (PetscInt a = 0; a < 3; a++)
+                {
+                    for (PetscInt c = 0; c < 3; c++)
+                    {
+                        num += (-gradU_hat[c][a] * gradT_hat[c] * gradT_hat[a]);
+                    }
+                }
+
+                denom = gradT_hat[0]*gradT_hat[0] + gradT_hat[1]*gradT_hat[1] + gradT_hat[2]*gradT_hat[2];
+
+                PetscReal diff_e = num / (denom + 1e-10);
+
+                diff_e = Cs[k][j][i] * delta2_harm * PetscMax(diff_e, 0.0);
+
+                ld_t[k][j][i] = diff_e;
+            }
+
+        }
+        else
+        {
+            PetscReal filter = pow( 1./aj[k][j][i], 1./3.);
+            lnu_t[k][j][i] = Cs[k][j][i] * pow(filter, 2.0) * Sabs;
+        }
+
+        //compute the subgrid scale kinetic energy - from local equilibrium balance (https://caefn.com/openfoam/smagorinsky-sgs-model)
+        PetscReal Ck = 0.094;
+        PetscReal V = 1.0 / aj[k][j][i]; 
+
+        PetscReal A_x = nMag(zet[k][j][i]);
+        PetscReal A_y = nMag(csi[k][j][i]);
+        PetscReal A_z = nMag(eta[k][j][i]);
+
+        PetscReal delta_x = V / A_x;
+        PetscReal delta_y = V / A_y;
+        PetscReal delta_z = V / A_z;
+
+        PetscReal invDelta2Sum =
+              1.0 / (delta_x * delta_x)
+            + 1.0 / (delta_y * delta_y)
+            + 1.0 / (delta_z * delta_z);
+
+        PetscReal delta2_harm = 3.0 / invDelta2Sum; 
+
+        ksg[k][j][i] = PetscPowReal(lnu_t[k][j][i], 2.0)/(PetscPowReal(Ck, 2.0) * delta2_harm);
     }
 
     DMDAVecRestoreArray(fda, eqn->lUcat,  &ucat);
@@ -2137,10 +2436,31 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
     DMDAVecRestoreArray(fda, mesh->lZet, &zet);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da,  mesh->lAj, &aj);
 
     DMDAVecRestoreArray(da,  les->lNu_t, &lnu_t);
+    DMDAVecRestoreArray(da,  les->lKsgs, &ksg);
     DMDAVecRestoreArray(da,  les->lCs, &Cs);
+
+    if (les->model == AMD)
+    {
+        if (les->access->flags->isTeqnActive)
+        {
+            DMDAVecRestoreArray(da,  les->lDiff_t, &ld_t);
+            DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+            if(les->access->flags->isAblActive)
+            {
+                DMDAVecRestoreArray(da, tempMAvg, &ltempDiff);
+                VecDestroy(&tempMAvg);
+            }
+
+            DMLocalToLocalBegin(da,  les->lDiff_t, INSERT_VALUES, les->lDiff_t);
+            DMLocalToLocalEnd  (da,  les->lDiff_t, INSERT_VALUES, les->lDiff_t); 
+
+            UpdateDiffBCs(les);
+        }
+    }
 
     DMLocalToLocalBegin(da,  les->lNu_t, INSERT_VALUES, les->lNu_t);
     DMLocalToLocalEnd  (da,  les->lNu_t, INSERT_VALUES, les->lNu_t);

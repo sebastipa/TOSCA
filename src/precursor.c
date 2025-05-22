@@ -31,7 +31,8 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isYDampingActive              = 0;
     flags->isKLeftRayleighDampingActive  = 0;
     flags->isKRightRayleighDampingActive = 0;
-    flags->isAdvectionDampingActive      = 0;
+    flags->isAdvectionDampingXActive      = 0;
+    flags->isAdvectionDampingYActive     = 0;
     flags->isCanopyActive                = 0;
     flags->isConcurrentPrecursorActive   = 0;
     flags->isPrecursorSpinUp             = 0;
@@ -109,8 +110,8 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
     // only fringe processors proceed
     if(precursor->thisProcessorInFringe)
     {
-		// activate precursor flag
-	    abl->access->flags->isConcurrentPrecursorActive = 1;
+        // activate precursor flag
+        abl->access->flags->isConcurrentPrecursorActive = 1;
 
         // set I/O
         InitializeIO(domain->io);
@@ -128,7 +129,7 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
         SetWallModels(domain->ueqn);
 
         // overwrite mesh name after initialization
-        domain->mesh->meshName = "precursor";
+        domain->mesh->meshName = abl->access->mesh->meshName + "/precursor";
 
         // initialize ibm
         InitializeIBM(domain->ibm);
@@ -168,7 +169,7 @@ PetscErrorCode SetStartTimePrecursor(domain_ *domain, abl_ *abl)
     // check that the startTime is present in the available times
     if(domain->flags.isPrecursorSpinUp == 0)
     {
-        word location = "./fields/precursor/";
+        word location = "./fields/" + abl->access->mesh->meshName + "/precursor/";
         std::vector<PetscReal>        timeSeries;
         PetscInt                      ntimes;
         getTimeList(location.c_str(), timeSeries, ntimes);
@@ -676,13 +677,17 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
 
             DMCreateGlobalVector(da,  &(mesh_p->Nvert));
             DMCreateGlobalVector(da,  &(mesh_p->Nvert_o));
+            VecDuplicate(mesh_p->Nvert, &(mesh_p->meshTag));
+            VecDuplicate(mesh_p->lNvert, &(mesh_p->lmeshTag));
 
             // set to zero
             VecSet(mesh_p->Nvert, 0.0);
             VecSet(mesh_p->lNvert, 0.0);
             VecSet(mesh_p->Nvert_o, 0.0);
             VecSet(mesh_p->lNvert_o, 0.0);
-
+            VecSet(mesh_p->meshTag, 0.0);
+            VecSet(mesh_p->lmeshTag, 0.0);
+            
             PetscPrintf(mesh_p->MESH_COMM, "done\n");
 
             // set curvilinear coordinates metrics
@@ -741,7 +746,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
                 ghGradRhoK(domain->teqn);
             }
 
-			Buoyancy(domain->ueqn, 1.0);
+            Buoyancy(domain->ueqn, 1.0);
         }
 
         if(domain->ueqn->centralUpwindDiv || domain->flags.isTeqnActive)
@@ -766,14 +771,14 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
 
         if(domain->flags.isAblActive)
         {
-			if(domain->abl->controllerActive)
-			{
-				CorrectSourceTerms(domain->ueqn, 1);
-			}
-			if(domain->abl->controllerActiveT)
-			{
-				CorrectSourceTermsT(domain->teqn, 1);
-			}
+            if(domain->abl->controllerActive)
+            {
+                CorrectSourceTerms(domain->ueqn, 1);
+            }
+            if(domain->abl->controllerActiveT)
+            {
+                CorrectSourceTermsT(domain->teqn, 1);
+            }
         }
 
         if(domain->flags.isXDampingActive || domain->flags.isZDampingActive)
@@ -796,7 +801,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         // temperature step
         if(domain->flags.isTeqnActive)
         {
-			UpdateWallModelsT(domain->teqn);
+            UpdateWallModelsT(domain->teqn);
 
             SolveTEqn(domain->teqn);
         }
@@ -880,6 +885,12 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         WriteAcquisition(domain);
     }
 
+    //save source term from precursor to successor domain
+    if(abl->controllerActive && abl->controllerAction == "read" && abl->controllerType=="timeSeriesFromPrecursor")
+    {
+        saveSourcePrecursor2Successor(domain->abl, abl);
+    }
+
     // sync processors
     MPI_Barrier(abl->access->mesh->MESH_COMM);
 
@@ -932,7 +943,7 @@ PetscErrorCode SetBoundaryConditionsPrecursor(mesh_ *mesh)
     }
 
     // check boundary conditions
-    checkBoundaryConditions(mesh);
+    checkBCsAndSetPatchTypes(mesh);
 
     // get name of precursor mesh file and read perodic connectivity info
     word meshFileName;
@@ -1015,15 +1026,15 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
             readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Inflow",   &(ifPtr->n2));
             readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Periods",  &(ifPtr->prds1));
             readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Periods",  &(ifPtr->prds2));
-			readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Shift",    &(ifPtr->shift2));
+            readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n2Shift",    &(ifPtr->shift2));
             readSubDictInt   ("ABLProperties.dat", "xDampingProperties", "n1Merge",    &(ifPtr->merge1));
 
-    		if(ifPtr->sourceType == "uniform")
-    		{
-    			PetscPrintf(mesh->MESH_COMM, "   -> using uniform source mesh type\n");
+            if(ifPtr->sourceType == "uniform")
+            {
+                PetscPrintf(mesh->MESH_COMM, "   -> using uniform source mesh type\n");
 
-    			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
-    			readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth1", &(ifPtr->width1));
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "cellWidth2", &(ifPtr->width2));
 
                 // height of the inflow database (it is duplicate consider removing)
                 ifPtr->inflowHeigth = ifPtr->n1*ifPtr->prds1*ifPtr->width1;
@@ -1042,45 +1053,45 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
                     ifPtr->avgTopPointCoords[i] = ifPtr->avgTopLength - (10-i)*ifPtr->width1 + 0.5*ifPtr->width1;
                 }
             }
-    		else if(ifPtr->sourceType == "grading")
-    		{
-    			PetscPrintf(mesh->MESH_COMM, "   -> using grading source mesh type\n");
+            else if(ifPtr->sourceType == "grading")
+            {
+                PetscPrintf(mesh->MESH_COMM, "   -> using grading source mesh type\n");
 
-    			std::vector<PetscReal>  Zcart;
+                std::vector<PetscReal>  Zcart;
 
-    			word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
-    			FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
+                word pointsFileName     = "./inflowDatabase/inflowMesh.xyz";
+                FILE *meshFileID        = fopen(pointsFileName.c_str(), "r");
 
-    			if(!meshFileID)
-    			{
-    				char error[512];
-    				sprintf(error, "cannot open inflow points file %s\n", pointsFileName.c_str());
-    				fatalErrorInFunction("SetInflowWeights", error);
-    			}
-    			else
-    			{
-    				// read the source mesh file in .xyz format
-    				PetscReal bufferDouble;
-    				PetscInt  npx, npy, npz;
-    				PetscInt  error = fscanf(meshFileID, "%ld %ld %ld\n", &npx, &npy, &npz);
+                if(!meshFileID)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open inflow points file %s\n", pointsFileName.c_str());
+                    fatalErrorInFunction("SetInflowWeights", error);
+                }
+                else
+                {
+                    // read the source mesh file in .xyz format
+                    PetscReal bufferDouble;
+                    PetscInt  npx, npy, npz;
+                    PetscInt  error = fscanf(meshFileID, "%ld %ld %ld\n", &npx, &npy, &npz);
 
-    				if(ifPtr->n1 != npz - 1 || ifPtr->n2 != npy - 1)
-    				{
-    					char error[512];
-    					sprintf(error, "source mesh given in %s and expected number of cells do not match\n", pointsFileName.c_str());
-    					fatalErrorInFunction("SetInflowFunctionsPrecursor", error);
-    				}
+                    if(ifPtr->n1 != npz - 1 || ifPtr->n2 != npy - 1)
+                    {
+                        char error[512];
+                        sprintf(error, "source mesh given in %s and expected number of cells do not match\n", pointsFileName.c_str());
+                        fatalErrorInFunction("SetInflowFunctionsPrecursor", error);
+                    }
 
-    				Zcart.resize(npz);
+                    Zcart.resize(npz);
 
-    				for (PetscInt k = 0; k < npx; k++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
-    				for (PetscInt i = 0; i < npy; i++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
-    				for (PetscInt j = 0; j < npz; j++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &Zcart[j]);
+                    for (PetscInt k = 0; k < npx; k++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+                    for (PetscInt i = 0; i < npy; i++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &bufferDouble);
+                    for (PetscInt j = 0; j < npz; j++) error = fscanf(meshFileID, "%le %le %le\n", &bufferDouble, &bufferDouble, &Zcart[j]);
 
-    				fclose(meshFileID);
+                    fclose(meshFileID);
 
-    				// height of the inflow database
-    				ifPtr->inflowHeigth = Zcart[npz-1] - Zcart[0];
+                    // height of the inflow database
+                    ifPtr->inflowHeigth = Zcart[npz-1] - Zcart[0];
 
                     // height of the inflow database
                     ifPtr->avgTopLength = Zcart[npz-1] - Zcart[0];
@@ -1096,16 +1107,16 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
                         ifPtr->avgTopPointCoords[i] = 0.5 * (Zcart[npz - 11 + i] + Zcart[npz - 11 + i + 1]);
                     }
 
-    				// wipe vectors
-    				std::vector<PetscReal> ().swap(Zcart);
-    			}
-    		}
-    		else
-    		{
-    			char error[512];
-    			sprintf(error, "unknown sourceType in inletFunction type 4, available types are\n    1: uniform\n    2: grading\n");
-    			fatalErrorInFunction("SetInflowFunctions",  error);
-    		}
+                    // wipe vectors
+                    std::vector<PetscReal> ().swap(Zcart);
+                }
+            }
+            else
+            {
+                char error[512];
+                sprintf(error, "unknown sourceType in inletFunction type 4, available types are\n    1: uniform\n    2: grading\n");
+                fatalErrorInFunction("SetInflowFunctions",  error);
+            }
 
             // increase n1 and n2 accounting for side ghost cells
             ifPtr->n1wg = ifPtr->n1 + 2;
@@ -1273,10 +1284,10 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
 
             }
 
-			// see if must apply shift
-			if (ifPtr->shift2 == 1)
-			{
-				readSubDictDouble("ABLProperties.dat", "xDampingProperties", "shiftSpeed", &(ifPtr->shiftSpeed));
+            // see if must apply shift
+            if (ifPtr->shift2 == 1)
+            {
+                readSubDictDouble("ABLProperties.dat", "xDampingProperties", "shiftSpeed", &(ifPtr->shiftSpeed));
 
                 // compute y coordinates assuming that the mesh has straight z lines, this is required to speed up the
                 // search to find the index from which the shifted velocity has to be sourced
@@ -1303,7 +1314,7 @@ PetscErrorCode SetInflowFunctionsPrecursor(mesh_ *mesh)
                     MPI_Allreduce(&ycent[0], &ifPtr->ycent[0], mx, MPIU_REAL, MPIU_SUM, ifPtr->IFFCN_COMM);
                 }
 
-			}
+            }
         }
         else
         {
@@ -1508,40 +1519,29 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         abl_ *abl =  domain->abl;
 
-        readDictDouble("ABLProperties.dat", "hRough",                    &(abl->hRough));
-        readDictDouble("ABLProperties.dat", "uRef",                      &(abl->uRef));
-        readDictDouble("ABLProperties.dat", "hRef",                      &(abl->hRef));
-        readDictDouble("ABLProperties.dat", "hInv",                      &(abl->hInv));
-        readDictDouble("ABLProperties.dat", "dInv",                      &(abl->dInv));
-        readDictDouble("ABLProperties.dat", "gInv",                      &(abl->gInv));
-        readDictDouble("ABLProperties.dat", "tRef",                      &(abl->tRef));
-        readDictDouble("ABLProperties.dat", "gTop",                      &(abl->gTop));
-        readDictDouble("ABLProperties.dat", "vkConst",                   &(abl->vkConst));
-        readDictDouble("ABLProperties.dat", "smearT",                    &(abl->smear));
-        readDictInt   ("ABLProperties.dat", "coriolisActive",            &(abl->coriolisActive));
-        readDictInt   ("ABLProperties.dat", "controllerActive",          &(abl->controllerActive));
-		readDictInt   ("ABLProperties.dat", "controllerActivePrecursorT",&(abl->controllerActiveT));
+        readDictDouble  ("ABLProperties.dat", "hRough",                    &(abl->hRough));
+        readDictVector2D("ABLProperties.dat", "uRef",                      &(abl->uRef));
+        readDictDouble  ("ABLProperties.dat", "hRef",                      &(abl->hRef));
+        readDictDouble  ("ABLProperties.dat", "hInv",                      &(abl->hInv));
+        readDictDouble  ("ABLProperties.dat", "dInv",                      &(abl->dInv));
+        readDictDouble  ("ABLProperties.dat", "gInv",                      &(abl->gInv));
+        readDictDouble  ("ABLProperties.dat", "tRef",                      &(abl->tRef));
+        readDictDouble  ("ABLProperties.dat", "gTop",                      &(abl->gTop));
+        readDictDouble  ("ABLProperties.dat", "vkConst",                   &(abl->vkConst));
+        readDictDouble  ("ABLProperties.dat", "smearT",                    &(abl->smear));
+        readDictInt     ("ABLProperties.dat", "coriolisActive",            &(abl->coriolisActive));
+        readDictInt     ("ABLProperties.dat", "controllerActive",          &(abl->controllerActive));
+        readDictInt     ("ABLProperties.dat", "controllerActivePrecursorT",&(abl->controllerActiveT));
+
+        PetscReal uRefMag = PetscSqrtReal(abl->uRef.x*abl->uRef.x + abl->uRef.y*abl->uRef.y);
 
         // find friction velocity based on neutral log law
-        abl->uTau = abl->uRef * abl->vkConst / std::log(abl->hRef / abl->hRough);
+        abl->uTau = uRefMag * abl->vkConst / std::log(abl->hRef / abl->hRough);
 
         if(abl->coriolisActive)
         {
             readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
         }
-
-		if(abl->controllerActive)
-		{
-            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerType",   &(abl->controllerType));
-
-            // overwrite controller type if precursor is periodic, use same as successor otherwise
-		    if(!flags->isPrecursorSpinUp)
-			{
-				// use the same as successor (average) because this may introduce
-				// streamwise oscillations in the successor from the fringe
-				// abl->controllerType = "pressure";
-			}
-		}
 
         // initialize some useful parameters used in fringe and velocity controller 'write'
         {
@@ -1612,8 +1612,14 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         if(abl->controllerActive)
         {
-            readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerMaxHeight", &(abl->controllerMaxHeight));
-            readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerAction",   &(abl->controllerAction));
+            readDictInt  ("ABLProperties.dat", "precursorControllerTypeMismatch",   &(abl->controllerTypeMismatch));
+
+            const char* controllerProp = "controllerProperties";
+            if(abl->controllerTypeMismatch) controllerProp = "fringeControllerProperties";
+    
+            readSubDictWord  ("ABLProperties.dat", controllerProp, "controllerType",   &(abl->controllerType));
+            readSubDictDouble("ABLProperties.dat", controllerProp, "controllerMaxHeight", &(abl->controllerMaxHeight));
+            readSubDictWord  ("ABLProperties.dat", controllerProp, "controllerAction",   &(abl->controllerAction));
 
             abl->cumulatedSource.x = 0.0;
             abl->cumulatedSource.y = 0.0;
@@ -1625,9 +1631,9 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                 {
 
                     // read PI controller properties
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "alphaPI",          &(abl->alpha));
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "timeWindowPI",     &(abl->timeWindow));
 
                     // calculating levels interpolation weights at reference height
                     {
@@ -1674,7 +1680,8 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                         if(abl->controllerType == "pressure")
                         {
                             // read if geostrophic damping is active
-                            readSubDictInt("ABLProperties.dat", "controllerProperties", "geostrophicDamping", &(abl->geostrophicDampingActive));
+                            readSubDictInt("ABLProperties.dat", controllerProp, "geostrophicDamping", &(abl->geostrophicDampingActive));
+                            readSubDictInt("ABLProperties.dat", controllerProp, "mesoScaleInput", &(abl->mesoScaleInputActive));
 
                             if(abl->geostrophicDampingActive)
                             {
@@ -1728,6 +1735,12 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                                     abl->geoDampUBar = nScale(1.0 / (2.0 * abl->fc * abl->geoDampAvgDT), nSetFromComponents(abl->geoDampAvgS.y, abl->geoDampAvgS.x, 0.0));
                                     PetscPrintf(mesh->MESH_COMM, "   -> reading filtered geostrophic wind: Ug = (%.3lf, %.3lf, 0.000)\n",abl->geoDampUBar.x, abl->geoDampUBar.y);
                                 }
+                            }
+                            
+                            if(abl->mesoScaleInputActive)
+                            {
+                                readMesoScaleVelocityData(abl);
+                                findVelocityInterpolationWeightsOnePt(abl);
                             }
                         }
                     }
@@ -1808,17 +1821,13 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
                     readSubDictInt   ("ABLProperties.dat", "controllerProperties", "avgSources",       &(abl->averageSource));
                     readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",  &(abl->lowestSrcHt));
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "highestSrcHeight", &(abl->highestSrcHt));
 
                     // allocate memory for the cumulated sources and average velocity at all mesh heights 
                     PetscMalloc(sizeof(Cmpnts) * nLevels, &(abl->cumulatedSourceHt));
 
-                    PetscMalloc(sizeof(Cmpnts) * nLevels, &(abl->avgVel));
-
                     for(PetscInt i = 0; i < nLevels; i++)
                     {
                         abl->cumulatedSourceHt[i] = nSetZero();
-                        abl->avgVel[i] = nSetZero();
                     }
 
                     PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
@@ -1964,15 +1973,16 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     {
                         readDictDouble("ABLProperties.dat", "controllerAvgStartTime", &(abl->sourceAvgStartTime));
 
-                        // check that average start time is in the list
-                        if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
-                        {
-                        char error[512];
-                            sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
-                            fatalErrorInFunction("ABLInitializePrecursor",  error);
-                        }
+                        // // check that average start time is in the list
+                        // if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
+                        // {
+                        // char error[512];
+                        //     sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
+                        //     fatalErrorInFunction("ABLInitializePrecursor",  error);
+                        // }
+                        
                         // check that more than 100 s of history are used to average
-                        else if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
+                        if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
                         {
                         char error[512];
                             sprintf(error, "Lower 'controllerAvgStartTime' parameter. Average is too poor (less than 100 s)");
@@ -2193,16 +2203,16 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
             }
 
             if(abl->controllerActiveT)
-			{
-				PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
+            {
+                PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
 
-				for(l=0; l<nLevels; l++)
-				{
-					abl->tDes[l] = 0.0;
-				}
+                for(l=0; l<nLevels; l++)
+                {
+                    abl->tDes[l] = 0.0;
+                }
 
-				// read proportional controller relaxation factor (same as the velocity one)
-				readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
+                // read proportional controller relaxation factor (same as the velocity one)
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
                 readDictWord     ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
 
                 if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation")
@@ -2214,7 +2224,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
                 if(abl->controllerTypeT=="indirectProfileAssimilation")
                 {
-                    readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrder",   &(abl->polyOrder));
+                    readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrderT",   &(abl->polyOrderT));
 
                     //precompute the polynomial coefficient matrix using least square regression method.
                     if(abl->controllerType !="indirectProfileAssimilation")
@@ -2222,7 +2232,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                         computeLSqPolynomialCoefficientMatrix(abl); 
                     }
                 }
-			}
+            }
         }
 
         // read the Rayleigh damping layer properties
@@ -2258,4 +2268,73 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
     }
 
     return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode saveSourcePrecursor2Successor(abl_ *precursorABL, abl_ *successorABL)
+{
+    precursor_    *precursor     = successorABL->precursor;
+    mesh_         *meshSuccessor = successorABL->access->mesh;
+
+    PetscMPIInt  worldRank;
+    MPI_Comm_rank(meshSuccessor->MESH_COMM, &worldRank);
+
+    Cmpnts  ***source, pGradSrc, pGradSrcGlobal;
+
+    pGradSrc        = nSetZero(); 
+    pGradSrcGlobal  = nSetZero();
+
+    if(precursor->thisProcessorInFringe)
+    {
+        ueqn_         *ueqn = precursorABL->access->ueqn;
+        mesh_         *mesh = precursorABL->access->mesh;
+        DM            da    = mesh->da, fda = mesh->fda;
+        DMDALocalInfo info  = mesh->info;
+        PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+        PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+        PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+        PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+        PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+        lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+        lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+        lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+        PetscMPIInt   rank;
+        MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+        DMDAVecGetArray(fda, ueqn->sourceU, &source);
+
+        if(!rank)
+        {
+            pGradSrc = nSet(source[lzs][lys][lxs]);
+        }
+    
+        DMDAVecRestoreArray(fda, ueqn->sourceU, &source);
+
+        //send from precursor 0 to world 0 processor
+        if(!rank)
+        {
+            MPI_Send(&pGradSrc, 3, MPIU_REAL, 0, 0, meshSuccessor->MESH_COMM);
+        }
+    }
+
+    //receive from precursor 0 to world 0 processor
+    if (!worldRank) 
+    {
+        MPI_Recv(&pGradSrcGlobal, 3, MPIU_REAL, MPI_ANY_SOURCE, 0, meshSuccessor->MESH_COMM, MPI_STATUS_IGNORE);
+    }
+
+    // Broadcast from rank 0 of world to all processes
+    MPI_Bcast(&pGradSrcGlobal, 3, MPIU_REAL, 0, meshSuccessor->MESH_COMM);
+
+    // save the source in successor abl variable
+    successorABL->preCompSources[0][0] = 0.0;
+    successorABL->preCompSources[0][1] = pGradSrcGlobal.x;
+    successorABL->preCompSources[0][2] = pGradSrcGlobal.y;
+    successorABL->preCompSources[0][3] = pGradSrcGlobal.z;      
+
+    // printf("rank = %d, source term precursor = %lf %lf %lf\n", worldRank, pGradSrcGlobal.x, pGradSrcGlobal.y, pGradSrcGlobal.z);
+    return 0;
 }

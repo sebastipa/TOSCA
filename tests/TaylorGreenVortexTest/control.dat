@@ -1,0 +1,79 @@
+# TOSCA Input file - control dictionary
+# --------------------------------- 
+
+# Simulation
+# ---------------------------------
+-startFrom                 startTime
+-startTime                 0
+-endTime                   30
+-cfl                       0.5
+-adjustTimeStep            0
+-timeStep                  0.001
+
+# Write Data
+# ---------------------------------
+-intervalType              adjustableTime
+-timeInterval              0.05
+-purgeWrite                0
+
+# Solution 
+# ---------------------------------
+-potentialT                0
+-abl                       0
+
+-absTolU                   1e-8
+-poissonIt                 20
+-poissonTol                1e-10
+-poissonSolver             HYPRE
+
+# Turbulence Model
+# ---------------------------------
+-les                       1
+-lesModel                  AMD
+-max_cs                    10
+
+# Numerical Schemes
+# ---------------------------------
+-dUdtScheme                rungeKutta4 #backwardEuler
+-dTdtScheme                backwardEuler
+-divScheme                 central4 
+# Wind Turbine
+# ---------------------------------
+-windplant                 0
+
+# Constants 
+# ---------------------------------
+-nu                        5.0e-4 #Re = 2000 sharma et al 2020
+-rho                       1.225
+-Pr                        0.71
+-tRef                      310.0
+# Mesh
+# ---------------------------------
+-meshFileType             cartesian
+
+
+# Acquisition
+# ---------------------------------
+-sections                 0
+-probes                   0
+-averageABL               0
+-average3LM               0
+-avgABLPeriod             5
+-avgABLStartTime          5000
+
+-computeQ                 0
+-computeQg                1
+-computeRg                1
+-computeQs                1
+-computeRs                1
+-computeQr                1
+-averaging                1
+-avgPeriod                0.05 
+-avgStartTime             9
+
+# PostProcessing 
+# ---------------------------------
+-writeRaster              0
+-postProcessFields        1
+
+

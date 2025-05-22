@@ -4,8 +4,8 @@
 # Simulation
 # ---------------------------------
 -startFrom                 startTime
--startTime                 10000
--endTime                   11000
+-startTime                 9000
+-endTime                   10000
 -cfl                       0.9
 -adjustTimeStep            1
 -timeStep                  0.5
@@ -31,7 +31,8 @@
 
 # Turbulence Model
 # ---------------------------------
--les                       4
+-les                       1
+-lesModel                  dynamicLASI
 -max_cs                    10
 
 # Numerical Schemes
@@ -39,7 +40,6 @@
 -dUdtScheme                backwardEuler
 -dTdtScheme                backwardEuler
 -divScheme                 centralUpwindW
-
 # Wind Turbine
 # ---------------------------------
 -windplant                1

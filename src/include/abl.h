@@ -9,12 +9,13 @@ struct abl_
     // flags
     PetscInt     controllerActive;               //!< activate velocity controller
     PetscInt     controllerActiveT;              //!< activate temperature controller
+    PetscInt     controllerTypeMismatch;         //!< activate if the controllers used in successor and precursor differ
     PetscInt     coriolisActive;                 //!< activate coriolis force
 
     // physical quantities
     PetscReal    uTau;                           //!< friction Velocity
     PetscReal    hRough;                         //!< equivalent roughness length
-    PetscReal    uRef;                           //!< reference velocity
+    Cpt2D        uRef;                           //!< reference velocity
     PetscReal    hRef;                           //!< reference height
     PetscReal    hGeo;                           //!< geostrophic height (required for geostrophic controller)
     PetscReal    hInv;                           //!< inversion height
@@ -48,7 +49,9 @@ struct abl_
 
     // geostrophic damping for pressure controller
     PetscInt     geostrophicDampingActive;       //!< geosptrophic oscillation damping
-	PetscReal    geoDampAvgDT;                   //!< average time step from simulation start
+	PetscInt     mesoScaleInputActive;           //!< use mesoscale data for pressure controller uDes
+    
+    PetscReal    geoDampAvgDT;                   //!< average time step from simulation start
 	Cmpnts       geoDampAvgS;                    //!< expected geostrophic velocity
 	Cmpnts       geoDampUBar;                    //!< expected geostrophic velocity
 	Cmpnts       *geoDampU;                      //!< average horizontal velocity at current iteration
@@ -109,11 +112,10 @@ struct abl_
 
     // x damping layer controller parameters
     word         xDampingControlType;            //!< type of controller: alphaFixed or alphaOptimized
-    PetscInt     advectionDampingType;           //!< type of advection damping (0: none, 1: LanzilaoMeyers2022)
-    PetscReal    advDampingStart;                //!< starting x of the adv damping layer
-    PetscReal    advDampingEnd;                  //!< ending x of the adv damping layer
-    PetscReal    advDampingDeltaStart;           //!< damping raise/decay distance
-    PetscReal    advDampingDeltaEnd;             //!< damping raise/decay distance
+    PetscReal    advDampingXStart;                //!< starting x of the adv damping layer
+    PetscReal    advDampingXEnd;                  //!< ending x of the adv damping layer
+    PetscReal    advDampingXDeltaStart;           //!< damping raise/decay distance
+    PetscReal    advDampingXDeltaEnd;             //!< damping raise/decay distance
     PetscReal    xDampingTimeWindow;             //!< time constant for velocity filtering
     PetscReal    xDampingVBar;                   //!< desired y-velocity sampled from precursor
     PetscReal    vEnd, vStart;                   //!< line-averaged start and end y-velocity at the fringe region extrema
@@ -125,6 +127,10 @@ struct abl_
     PetscReal    xDampingCoeff;                  //!< coeff = |Vend - Vstart| / alpha
     PetscInt    *closestLabelsFringe;            //!< closest height w.r.t. fringe controller height
     PetscReal   *levelWeightsFringe;             //!< weights for variables interpolated at closest heights w.r.t. fringe controller height
+    PetscReal    advDampingYStart;               //!< starting y of the adv damping y layer
+    PetscReal    advDampingYEnd;                 //!< ending y of the adv damping y layer
+    PetscReal    advDampingYDeltaStart;          //!< damping raise/decay distance
+    PetscReal    advDampingYDeltaEnd;            //!< damping raise/decay distance
 
     // y damping layer (can only be applied together with the x damping layer)
     PetscReal    yDampingStart;                  //!< starting y of the fringe layer
@@ -140,7 +146,7 @@ struct abl_
     MPI_Comm     *yDamp_comm;                    //!< communicator that links each source processor to its corresponding periodization processors(destination) in the lateral fringe region - each source processor has a separate communicator for its set of source-destination processors
     PetscMPIInt  *srcCommLocalRank;              //!< global to communicator procs - local rank of the source processor within the source-destination communicator
     cellIds      *srcMinInd;                     //!< global to communicator procs - minimum k,j,i index of each processor within the source domain
-    cellIds      *srcMaxInd;                     //!< local to each proc - maximum k,j,i index of each processor within the source domain
+    cellIds      *srcMaxInd;                     //!< global to communicator procs - maximum k,j,i index of each processor within the source domain
     PetscInt     *isdestProc;                    //!< flag indicating if a given processor is within the destination region of a source processor
     cellIds      **destMinInd;                   //!< local to each proc - minimum k,j,i index of a processor in the destination domain
     cellIds      **destMaxInd;                   //!< local to each proc - maximum k,j,i index of a processor in the destination domain
@@ -199,7 +205,6 @@ struct abl_
     PetscInt     lMesoIndV;
     PetscInt     hMesoIndV;
     PetscReal    lowestSrcHt;
-    PetscReal    highestSrcHt;
 
     Cmpnts       *luMean;
     Cmpnts       *guMean;
@@ -211,15 +216,41 @@ struct abl_
     PetscReal    closestTimeWtT;
     
     PetscInt     polyOrder;
+    PetscInt     polyOrderT;
     word         wtDist;
     PetscReal    **polyCoeffM;
+    PetscReal    **polyCoeffT;
 
     //averaging 
     PetscInt     averageSource;
     PetscReal    currAvgtime;
     PetscReal    tAvgWindow;
     Cmpnts       *avgsrc;
-    Cmpnts       *avgVel;
+
+    word         flType;
+    word         flTypeT;
+    PetscReal    *avgTotalStress;
+    PetscReal    *avgHeatFlux;
+    PetscReal    hAvgTime;
+    PetscReal    bottomSrcHtV;
+    PetscReal    bottomSrcHtT;
+
+    PetscReal    ablHt;
+    PetscReal    ablHtStartTime;
+    PetscReal    heatFluxSwitch;
+    
+    //continuous wavelet transform parameters 
+    PetscInt     kernelRadius;
+    PetscReal    sigma;  
+    PetscReal    omega;
+
+    //discrete wavelet transform parameters 
+    word        waveName;
+    word        waveTMethod;
+    word        waveExtn;
+    word        waveConv;
+    PetscInt    waveLevel;
+    PetscInt    waveletBlend;
 
     // concurrent precursor
     precursor_    *precursor;                    //!< concurrent precursor data structure
@@ -243,6 +274,8 @@ PetscErrorCode readMesoScaleVelocityData(abl_ *abl);
 
 PetscErrorCode findVelocityInterpolationWeights(abl_ *abl);
 
+PetscErrorCode findVelocityInterpolationWeightsOnePt(abl_ *abl);
+
 PetscErrorCode findTemperatureInterpolationWeights(abl_ *abl);
 
 PetscErrorCode initializeYDampingMapping(abl_ *abl);
@@ -251,5 +284,23 @@ PetscErrorCode setWeightsYDamping(abl_ *abl);
 
 PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl);
 
+PetscErrorCode computeLSqPolynomialCoefficientMatrixT(abl_ *abl);
+
 PetscErrorCode findTimeHeightSeriesInterpolationWts(abl_ *abl);
 
+PetscErrorCode findABLHeight(abl_ *abl);
+
+PetscErrorCode waveletTransformContinuousVector(abl_ *abl, Cmpnts *srcPAIn, Cmpnts *srcPAOut, PetscInt sigLength);
+
+PetscErrorCode waveletTransformContinuousScalar(abl_ *abl, PetscReal *srcPAIn, PetscReal *srcPAOut, PetscInt sigLength);
+
+#if USE_PYTHON
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+        PetscErrorCode pywavedecVector(abl_ *abl, Cmpnts *src, Cmpnts *dest, PetscInt nlevels);
+        PetscErrorCode pywavedecScalar(abl_ *abl, PetscReal *srcPAIn, PetscReal *srcPAOut, PetscInt sigLength);
+    #ifdef __cplusplus
+    }
+    #endif
+#endif

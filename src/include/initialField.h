@@ -29,6 +29,11 @@ PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef, PetscInt &addPerturba
 //!< \brief set initial ABL flow U
 PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn);
 
+PetscErrorCode SetABLInitialFlowUZilitinkevich(ueqn_ *ueqn);
+
+//!< \brief set initial field Taylor green vortex problem
+PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq);
+
 //!< \brief set the internal field as the spreaded inlet flow condition
 PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn);
 
@@ -43,3 +48,6 @@ PetscErrorCode SetABLInitialFlowT(teqn_ *teqn);
 
 //!< \brief set the internal field as the spreaded inlet flow condition
 PetscErrorCode SpreadInletFlowT(teqn_ *teqn);
+
+//!< \brief set the internal pressure field as the TGV flow
+PetscErrorCode SetTaylorGreenFieldP(peqn_ *peqn);

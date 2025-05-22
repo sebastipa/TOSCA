@@ -1,0 +1,22 @@
+# TOSCA Input file - nut boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    spreadInflow
+#internalField    readField
+
+#boundary field
+
+iLeft   	 zeroGradient
+
+iRight  	 zeroGradient
+
+jLeft   	 fixedValue 0.0
+
+jRight  	 zeroGradient
+
+kLeft   	 zeroGradient
+
+kRight  	 zeroGradient
+

@@ -45,6 +45,9 @@ int main(int argc, char **argv)
         #endif
     }
 
+    PetscPrintf(PETSC_COMM_WORLD, "\nStarting time loop:\n");
+    PetscPrintf(PETSC_COMM_WORLD, "******************************************************************\n\n");
+
     while(clock.endTime - clock.time > 1e-10)
     {
         PetscTime(&iterationTimeStart);
@@ -59,6 +62,9 @@ int main(int argc, char **argv)
 
         for(PetscInt d=0; d<info.nDomains; d++)
         {
+            if(flags.isOversetActive)
+                PetscPrintf(PETSC_COMM_WORLD, "\nDomain: %ld\n\n", *(domain[d].access.domainID));
+
             // reset flags based on domain preferences
             flags = domain[d].flags;
 
@@ -88,18 +94,6 @@ int main(int argc, char **argv)
                 UpdateFluxLimiter(domain[d].ueqn);
             }
 
-            if(flags.isAblActive)
-            {
-                if(domain[d].abl->controllerActive)
-                {
-                    CorrectSourceTerms(domain[d].ueqn, 1);
-                }
-                if(domain[d].abl->controllerActiveT && flags.isTeqnActive)
-                {
-                    CorrectSourceTermsT(domain[d].teqn, 1);
-                }
-            }
-
             if(flags.isLesActive)
             {
                 UpdateCs (domain[d].les);
@@ -120,6 +114,18 @@ int main(int argc, char **argv)
                 correctDampingSources(domain[d].ueqn);
             }
 
+            if(flags.isAblActive)
+            {
+                if(domain[d].abl->controllerActive)
+                {
+                    CorrectSourceTerms(domain[d].ueqn, 1);
+                }
+                if(domain[d].abl->controllerActiveT && flags.isTeqnActive)
+                {
+                    CorrectSourceTermsT(domain[d].teqn, 1);
+                }
+            }
+            
             // update wind turbines
             if(flags.isWindFarmActive)
             {
@@ -135,7 +141,7 @@ int main(int argc, char **argv)
                 mapYDamping(domain[d].ueqn);
             }
 
-            // Predictor Step
+            // Predictor Step (adjusts fluxes)
             SolveUEqn(domain[d].ueqn);
 
             // Pressure Correction
@@ -221,6 +227,7 @@ int main(int argc, char **argv)
 
             if(flags.isTeqnActive)
             {
+                // update temperature BC
                 UpdateTemperatureBCs(domain[d].teqn);
             }
 
@@ -246,8 +253,6 @@ int main(int argc, char **argv)
             MPI_Barrier(domain[d].mesh->MESH_COMM);
         }
 
-        WriteAcquisition(domain);
-
         if(flags.isPvCatalystActive)
         {
             #if USE_CATALYST
@@ -259,6 +264,8 @@ int main(int argc, char **argv)
         {
             UpdateOversetInterpolation(domain);
         }
+
+        WriteAcquisition(domain);
 
         clock.it ++;
 

@@ -1,21 +1,23 @@
+# TOSCA Input file - IBM Input Properties
+# ---------------------------------------
 
 NumberofBodies                      1
 
 InterpolationMethod                 CURVIB
 CURVIBInterpolationType             CurvibTrilinear
-interpolationOrder		    quadratic
+interpolationOrder                  quadratic
 
 debug                               0
 dynamic                             0
-checkNormal			    1
-averageNormal			    0
+checkNormal                         1
+averageNormal                       0
 computeForce                        1
 checkNormal                         1
-writeSTL			    0
+writeSTL                            0
 wallShear                           0
 pressureBC                          0
 averageNormal                       0
-abl				    0
+abl                                 0
 
 writeSettings
 {
@@ -24,17 +26,15 @@ writeSettings
     timeInterval        10
 }
 
-#ibm object properties
-
+# IBM object properties
 object0
 {
     bodyName                        sphere
     bodyType                        closedBody
-    thinBody                        0
 
     fileType                        ucd
     bodyMotion                      static
-    baseLocation                    (0.0 0.0 0.0)
+    baseLocation                    (10.0 0.0 0.0)
 
     #wall model
     velocityBCSetType               setHere

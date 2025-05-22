@@ -67,9 +67,11 @@ domain, with two child domains, and an additional child domain in one of the pre
    # TOSCA Input file - Overset Input Properties
    # -------------------------------------------
 
-   MeshTotal      4 // integer, total number of meshes
-   numHoleObjects 3 // integer, number of hole objects
-   dynamicOverset 0 // (not supported yet) 1 if the overset mesh is moving
+   MeshTotal         4         // integer, total number of meshes
+   numHoleObjects    3         // integer, number of hole objects
+   dynamicOverset    0         // (not supported yet) 1 if the overset mesh is moving
+   interpolationType trilinear // only type of supported interpolation with the 
+                               // latest two-way coupled overset method
 
    Mesh0 
    {
@@ -155,7 +157,7 @@ interpolated from the parent domain. For example, if the bottom boundary of the 
 is needed for those cells. 
 
 `Hole Object Files` 
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 The hole object files should be provided in the same format as the IBM body files (see :ref:`ibm-section`). Being simple cuboids, these files are 
 pretty easy to generate and an advanced mesher is not required. In fact, a simple python script could be used to generate a minimal hole object file 
