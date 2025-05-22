@@ -1,11 +1,11 @@
 name: Build and Deploy Sphinx Docs
 
 on:
-  # Runs on pushes targeting the default branch
+  # Runs on pushes targeting the default branch and doc version branches
   push:
-    branches: [master]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: 
+      - master
+      - docs-v*
   workflow_dispatch:
 
 jobs:
@@ -29,6 +29,12 @@ jobs:
       run: |
         cd docs/sphinx
         make html
+        # If this is a version branch, move docs to versioned directory
+        if [[ $GITHUB_REF == refs/heads/docs-v* ]]; then
+          version=${GITHUB_REF#refs/heads/}
+          mkdir -p build/html/$version
+          cp -r build/html/* build/html/$version/
+        fi
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
