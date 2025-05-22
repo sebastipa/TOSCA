@@ -5,7 +5,7 @@ on:
   push:
     branches: 
       - master
-      - docs-v*
+      - release-v*
   workflow_dispatch:
 
 jobs:
@@ -29,7 +29,7 @@ jobs:
       run: |
         cd docs/sphinx
         make html
-        if [[ $GITHUB_REF == refs/heads/docs-v* ]]; then
+        if [[ $GITHUB_REF == refs/heads/release-v* ]]; then
           version=${GITHUB_REF#refs/heads/}
           # First, get existing gh-pages content
           git fetch origin gh-pages
