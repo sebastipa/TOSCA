@@ -133,7 +133,13 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                       dictionary in order to specify the controller 
                                                       parameters for the concurrent precursor domain.
    ----------------------------------- -------------- --------------------------------------------------
-   ``controllerTypeT``                 string         Temperature controller type *initial* tries to 
+   ``controllerTypeT``                 string         Available types are:
+
+                                                      - *initial*
+                                                      - *directProfileAssimilation*
+                                                      - *indirectProfileAssimilation* 
+
+                                                      Type *initial* tries to 
                                                       maintain the initial horizontally averaged 
                                                       potential temperature profile. Types 
                                                       *directProfileAssimilation* and 
@@ -143,6 +149,7 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                       additional entries in the ``controllerProperties``
                                                       subdictionary, i.e. ``relaxPI``, 
                                                       ``lowestSrcHeight``, ``highestSrcHeight``.  
+                                                      
                                                       Moreover, ``polynomialOrder`` is also required for 
                                                       controller type *indirectProfileAssimilation*.
    ----------------------------------- -------------- --------------------------------------------------
@@ -412,33 +419,50 @@ controllerProperties & fringeControllerProperties
                                                     *timeSeries*, *timeAverageSeries* and *timeHeightSeries* require ``controllerAction`` 
                                                     set to *read*.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``controllerType``            string             type *pressure* is the basic PI controller for ABL simulations, it tries to maintain  
-                                                    a wind speed of magnitude ``uRef``, aligned with the x-axis, at ``hRef``. It writes
-                                                    the required source terms to file, to be used later in wind farm simulations with 
-                                                    inlet-outlet BCs through the type *timeSeries* or *timeAverageSeries*, where source 
-                                                    terms are read or averaged, respectively, from the ``inflowDatabase/momentumSource``  
-                                                    file. When trying to attain a specific wind at ``hRef`` inside the boundary layer 
+   ``controllerType``            string             Available types are: 
+
+                                                    - *pressure* 
+                                                    - *geostrophic*
+                                                    - *timeSeries*
+                                                    - *timeAverageSeries*
+                                                    - *timeHeightSeries*
+                                                    - *directProfileAssimilation*
+                                                    - *indirectProfileAssimilation*
+                                                    - *waveletProfileAssimilation* 
+
+                                                    Type *pressure* is the basic PI controller for ABL simulations, it tries to maintain  
+                                                    a wind speed of magnitude ``uRef`` at ``hRef``. It writes
+                                                    the required source terms to file, which can be used later in wind farm simulations 
+                                                    that employ inlet-outlet BCs. This is done through the *timeSeries* or 
+                                                    *timeAverageSeries*, where source terms are read at each time step or averaged, 
+                                                    respectively, from the ``inflowDatabase/momentumSource`` file. 
+                                                    When trying to attain a specific wind at ``hRef`` inside the boundary layer 
                                                     and the Coriolis force is active, the *pressure* controller produces inertial 
-                                                    oscillations of the geostrophic wind since it is impossible to initialize the flow 
-                                                    in geostrophic balance. In this case, once should either use ``geostrophicDamping`` 
-                                                    or controller type ``geostrophic``. The latter tries to attain
-                                                    a velocity ``uGeoMag`` at ``hGeo`` (which should be above the boundary layer). The 
-                                                    wind field is then rotated such that the flow is aligned with the x-axis at ``hRef``. 
-                                                    **Note that, at every restart, the initial geostrophic wind angle w.r.t. the x-axis 
-                                                    ``alphaGeo`` should be provided (the user can take this info in the last iteration  
-                                                    of the previous run, printed on the log file)**. The *pressure* type controller is 
-                                                    the preferred one and the most tested. 
+                                                    oscillations of the geostrophic wind, since it is impossible to initialize the flow 
+                                                    in geostrophic balance. In this case, one should either use ``geostrophicDamping`` 
+                                                    or controller type *geostrophic*. The latter tries to attain
+                                                    a velocity ``uGeoMag`` at ``hGeo`` (which should be set above the boundary layer).  
+                                                    The wind field is then rotated such that the flow is aligned with the x-axis at  
+                                                    ``hRef``. Notably, at every restart the initial geostrophic wind angle ``alphaGeo`` 
+                                                    w.r.t. the x-axis **should be correctly set** (the user can take this info in the 
+                                                    last iteration of the previous run, printed on the log file). 
+                                                    
+                                                    The *pressure* type 
+                                                    controller is the preferred one and the most tested. 
+
                                                     TOSCA also features profile  
-                                                    assimilation techniques, used to drive the flow following observation profiles. 
-                                                    These can be set with controller type *directProfileAssimilation* or 
+                                                    assimilation techniques, used to drive the flow using observation profiles. 
+                                                    These can be set with controller types *directProfileAssimilation* or 
                                                     *indirectProfileAssimilation*, and require the observed time series inside 
                                                     ``inflowDatabase/mesoscaleData``. An example can be found in 
-                                                    ``tests/directProfileAssimilationTest``. Once these controllers compute and write 
-                                                    the time series of source terms to file, this can be re-applied within wind farm
-                                                    simulations using the controller type *timeHeightSeries*.
-                                                    Recently also introduced the *waveletProfileAssimilation* controller type. 
-                                                    To use this controller please see the *tests/WaveletProfileAssimilationTest*, 
-                                                    it requires TOSCA to be compiled with the USE_PYTHON flag.                                                                    
+                                                    *tests/IndirectProfileAssimilationTest*. Once these controllers compute and write 
+                                                    the time series of source terms to file, this can be re-applied within a wind 
+                                                    farm simulation using the controller type *timeHeightSeries*.
+
+                                                    Recently, the *waveletProfileAssimilation* controller type has been also 
+                                                    introduced. To use this controller, please see the 
+                                                    *tests/WaveletProfileAssimilationTest*. Note that it requires TOSCA to be compiled 
+                                                    with the USE_PYTHON flag set to 1.                                                                    
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``alphaPI``                   scalar             proportional over integral controlling action used by all controllers characterized 
                                                     by a ``controllerAction`` of type *write*. A too low value makes the controller 
@@ -447,9 +471,10 @@ controllerProperties & fringeControllerProperties
    ``timeWindowPI``              scalar             time filter for integral part of the controller, used by all controllers 
                                                     characterized  by a ``controllerAction`` of type *write*.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``mesoScaleInput``            bool               activates mesoscale controller data. Required only for controller type *pressure*. 
-                                                    Allows single point velocity control, but now the input is dictated by the input time 
-                                                    series data. requires the time series data inside ``inflowDatabase/mesoscaleData``
+   ``mesoScaleInput``            bool               allows to simulate prescribed wind direction changes. 
+                                                    Available only for controller type *pressure*. The target velocity data should be 
+                                                    contained inside the ``inflowDatabase/mesoscaleData`` directory. See 
+                                                    *tests/IndirectProfileAssimilationTest* for an example of the required data format.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``geostrophicDamping``        bool               activates geostrophic damping to remove inertial oscillations. Only for controller 
                                                     type *pressure*. 

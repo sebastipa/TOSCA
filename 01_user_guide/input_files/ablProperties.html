@@ -274,7 +274,13 @@ parameters for the concurrent precursor domain.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code></p></td>
 <td><p>string</p></td>
-<td><p>Temperature controller type <em>initial</em> tries to
+<td><p>Available types are:</p>
+<ul class="simple">
+<li><p><em>initial</em></p></li>
+<li><p><em>directProfileAssimilation</em></p></li>
+<li><p><em>indirectProfileAssimilation</em></p></li>
+</ul>
+<p>Type <em>initial</em> tries to
 maintain the initial horizontally averaged
 potential temperature profile. Types
 <em>directProfileAssimilation</em> and
@@ -283,9 +289,10 @@ terms to follow a provided time-series of
 potential temperature profile. They require
 additional entries in the <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code>
 subdictionary, i.e. <code class="docutils literal notranslate"><span class="pre">relaxPI</span></code>,
-<code class="docutils literal notranslate"><span class="pre">lowestSrcHeight</span></code>, <code class="docutils literal notranslate"><span class="pre">highestSrcHeight</span></code>.
-Moreover, <code class="docutils literal notranslate"><span class="pre">polynomialOrder</span></code> is also required for
-controller type <em>indirectProfileAssimilation</em>.</p></td>
+<code class="docutils literal notranslate"><span class="pre">lowestSrcHeight</span></code>, <code class="docutils literal notranslate"><span class="pre">highestSrcHeight</span></code>.</p>
+<p>Moreover, <code class="docutils literal notranslate"><span class="pre">polynomialOrder</span></code> is also required for
+controller type <em>indirectProfileAssimilation</em>.</p>
+</td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">perturbations</span></code></p></td>
 <td><p>bool</p></td>
@@ -569,33 +576,48 @@ set to <em>read</em>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerType</span></code></p></td>
 <td><p>string</p></td>
-<td><p>type <em>pressure</em> is the basic PI controller for ABL simulations, it tries to maintain
-a wind speed of magnitude <code class="docutils literal notranslate"><span class="pre">uRef</span></code>, aligned with the x-axis, at <code class="docutils literal notranslate"><span class="pre">hRef</span></code>. It writes
-the required source terms to file, to be used later in wind farm simulations with
-inlet-outlet BCs through the type <em>timeSeries</em> or <em>timeAverageSeries</em>, where source
-terms are read or averaged, respectively, from the <code class="docutils literal notranslate"><span class="pre">inflowDatabase/momentumSource</span></code>
-file. When trying to attain a specific wind at <code class="docutils literal notranslate"><span class="pre">hRef</span></code> inside the boundary layer
+<td><p>Available types are:</p>
+<ul class="simple">
+<li><p><em>pressure</em></p></li>
+<li><p><em>geostrophic</em></p></li>
+<li><p><em>timeSeries</em></p></li>
+<li><p><em>timeAverageSeries</em></p></li>
+<li><p><em>timeHeightSeries</em></p></li>
+<li><p><em>directProfileAssimilation</em></p></li>
+<li><p><em>indirectProfileAssimilation</em></p></li>
+<li><p><em>waveletProfileAssimilation</em></p></li>
+</ul>
+<p>Type <em>pressure</em> is the basic PI controller for ABL simulations, it tries to maintain
+a wind speed of magnitude <code class="docutils literal notranslate"><span class="pre">uRef</span></code> at <code class="docutils literal notranslate"><span class="pre">hRef</span></code>. It writes
+the required source terms to file, which can be used later in wind farm simulations
+that employ inlet-outlet BCs. This is done through the <em>timeSeries</em> or
+<em>timeAverageSeries</em>, where source terms are read at each time step or averaged,
+respectively, from the <code class="docutils literal notranslate"><span class="pre">inflowDatabase/momentumSource</span></code> file.
+When trying to attain a specific wind at <code class="docutils literal notranslate"><span class="pre">hRef</span></code> inside the boundary layer
 and the Coriolis force is active, the <em>pressure</em> controller produces inertial
-oscillations of the geostrophic wind since it is impossible to initialize the flow
-in geostrophic balance. In this case, once should either use <code class="docutils literal notranslate"><span class="pre">geostrophicDamping</span></code>
-or controller type <code class="docutils literal notranslate"><span class="pre">geostrophic</span></code>. The latter tries to attain
-a velocity <code class="docutils literal notranslate"><span class="pre">uGeoMag</span></code> at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code> (which should be above the boundary layer). The
-wind field is then rotated such that the flow is aligned with the x-axis at <code class="docutils literal notranslate"><span class="pre">hRef</span></code>.
-<strong>Note that, at every restart, the initial geostrophic wind angle w.r.t. the x-axis
-``alphaGeo`` should be provided (the user can take this info in the last iteration
-of the previous run, printed on the log file)</strong>. The <em>pressure</em> type controller is
-the preferred one and the most tested.
-TOSCA also features profile
-assimilation techniques, used to drive the flow following observation profiles.
-These can be set with controller type <em>directProfileAssimilation</em> or
+oscillations of the geostrophic wind, since it is impossible to initialize the flow
+in geostrophic balance. In this case, one should either use <code class="docutils literal notranslate"><span class="pre">geostrophicDamping</span></code>
+or controller type <em>geostrophic</em>. The latter tries to attain
+a velocity <code class="docutils literal notranslate"><span class="pre">uGeoMag</span></code> at <code class="docutils literal notranslate"><span class="pre">hGeo</span></code> (which should be set above the boundary layer).
+The wind field is then rotated such that the flow is aligned with the x-axis at
+<code class="docutils literal notranslate"><span class="pre">hRef</span></code>. Notably, at every restart the initial geostrophic wind angle <code class="docutils literal notranslate"><span class="pre">alphaGeo</span></code>
+w.r.t. the x-axis <strong>should be correctly set</strong> (the user can take this info in the
+last iteration of the previous run, printed on the log file).</p>
+<p>The <em>pressure</em> type
+controller is the preferred one and the most tested.</p>
+<p>TOSCA also features profile
+assimilation techniques, used to drive the flow using observation profiles.
+These can be set with controller types <em>directProfileAssimilation</em> or
 <em>indirectProfileAssimilation</em>, and require the observed time series inside
 <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData</span></code>. An example can be found in
-<code class="docutils literal notranslate"><span class="pre">tests/directProfileAssimilationTest</span></code>. Once these controllers compute and write
-the time series of source terms to file, this can be re-applied within wind farm
-simulations using the controller type <em>timeHeightSeries</em>.
-Recently also introduced the <em>waveletProfileAssimilation</em> controller type.
-To use this controller please see the <em>tests/WaveletProfileAssimilationTest</em>,
-it requires TOSCA to be compiled with the USE_PYTHON flag.</p></td>
+<em>tests/IndirectProfileAssimilationTest</em>. Once these controllers compute and write
+the time series of source terms to file, this can be re-applied within a wind
+farm simulation using the controller type <em>timeHeightSeries</em>.</p>
+<p>Recently, the <em>waveletProfileAssimilation</em> controller type has been also
+introduced. To use this controller, please see the
+<em>tests/WaveletProfileAssimilationTest</em>. Note that it requires TOSCA to be compiled
+with the USE_PYTHON flag set to 1.</p>
+</td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alphaPI</span></code></p></td>
 <td><p>scalar</p></td>
@@ -610,9 +632,10 @@ characterized  by a <code class="docutils literal notranslate"><span class="pre"
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mesoScaleInput</span></code></p></td>
 <td><p>bool</p></td>
-<td><p>activates mesoscale controller data. Required only for controller type <em>pressure</em>.
-Allows single point velocity control, but now the input is dictated by the input time
-series data. requires the time series data inside <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData</span></code></p></td>
+<td><p>allows to simulate prescribed wind direction changes.
+Available only for controller type <em>pressure</em>. The target velocity data should be
+contained inside the <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData</span></code> directory. See
+<em>tests/IndirectProfileAssimilationTest</em> for an example of the required data format.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geostrophicDamping</span></code></p></td>
 <td><p>bool</p></td>
