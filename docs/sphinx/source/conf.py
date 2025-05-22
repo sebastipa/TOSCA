@@ -22,7 +22,7 @@ copyright = '2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff'
 author = 'Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0'
+release = 'dev'
 
 
 # -- General configuration ---------------------------------------------------
