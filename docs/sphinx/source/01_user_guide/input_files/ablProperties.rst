@@ -117,6 +117,17 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                       precursor simulation. Requires
                                                       ``controllerProperties`` dictionary.
    ----------------------------------- -------------- --------------------------------------------------
+   ``precursorControllerTypeMismatch`` bool           Activate this if the precursor velocity controller
+                                                      differs from the successor velocity controller - 
+                                                      Ex: if precursor uses a controller of 
+                                                      ``controllerAction`` write and successor reads the
+                                                      momentum sources computed by precursor using
+                                                      ``controllerAction`` read and ``controllerType``
+                                                      timeSeriesFromPrecursor.                                                       
+                                                      Requires ``controllerProperties`` dictionary for
+                                                      successor as well ``fringeControllerProperties``
+                                                      for precursor controller.
+   ----------------------------------- -------------- --------------------------------------------------
    ``controllerTypeT``                 string         Temperature controller type *initial* tries to 
                                                       maintain the initial horizontally averaged 
                                                       potential temperature profile. Types 
@@ -160,7 +171,33 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                             uGeoMag                scalar
                                                             controllerAvgStartTime scalar
                                                          }
+   ----------------------------------- -------------- --------------------------------------------------
+   ``fringeControllerProperties``      dictionary     Contains inputs for precursor velocity controller. 
+                                                      Required when ``precursorControllerTypeMismatch``
+                                                      is set to 1. Usage is similar to 
+                                                      ``controllerProperties``
 
+                                                      Usage:
+
+                                                      .. code-block:: C
+
+                                                         fringeControllerProperties
+                                                         {
+                                                            controllerAction        string
+                                                            controllerType          string
+                                                            relaxPI                 scalar
+                                                            alphaPI                 scalar
+                                                            timeWindowPI            scalar
+                                                            mesoScaleInput          bool
+                                                            geostrophicDamping      bool
+                                                            geoDampingAlpha         scalar
+                                                            geoDampingStartTime     scalar
+                                                            geoDampingTimeWindow    scalar
+                                                            hGeo                    scalar
+                                                            alphaGeo                scalar
+                                                            uGeoMag                 scalar
+                                                            controllerMaxHeight     scalar
+                                                         }
    ----------------------------------- -------------- --------------------------------------------------
    ``xDampingProperties``              dictionary     Defines fringe region parameters, activated with
                                                       ``-xDampingLayer`` 1 in ``control.dat``.
@@ -376,6 +413,10 @@ controllerProperties
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``timeWindowPI``              scalar             time filter for integral part of the controller, used by all controllers 
                                                     characterized  by a ``controllerAction`` of type *write*.
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``mesoScaleInput``            bool               activates mesoscale controller data. Only for controller type *pressure*. 
+                                                    Allows single point velocity control, but now the input is dictated by the input time 
+                                                    series data. requires the time series data inside ``inflowDatabase/mesoscaleData``
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``geostrophicDamping``        bool               activates geostrophic damping to remove inertial oscillations. Only for controller 
                                                     type *pressure*. 
