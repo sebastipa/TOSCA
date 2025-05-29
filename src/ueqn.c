@@ -5732,7 +5732,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         CanopyForce(ueqn, Rhs, 1.0);
     }
 
-    if(ueqn->access->flags->isTeqnActive)
+    if(ueqn->access->flags->isTeqnActive && (clock->it > clock->itStart))
     {
         teqn_ *teqn = ueqn->access->teqn;
 
@@ -5849,7 +5849,7 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         CanopyForce(ueqn, ueqn->Rhs, 1.0);
     }
 
-    if(ueqn->access->flags->isTeqnActive)
+    if(ueqn->access->flags->isTeqnActive && (clock->it > clock->itStart))
     {
         teqn_ *teqn = ueqn->access->teqn;
 

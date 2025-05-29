@@ -156,8 +156,15 @@ PetscErrorCode UpdateIBM(ibm_ *ibm)
 
         IBMElementProcessorTransfer(ibm);
 
-        findClosestIBMElement(ibm);
-
+        if(ibm->wallShearOn)
+        {
+            findClosestIBMElement2Solid(ibm);
+        }
+        else 
+        {
+            findClosestIBMElement(ibm);
+        }
+        
         if (ibm->IBInterpolationModel == "CURVIB")
         {
             //find the intereption point on the background grid
@@ -3135,6 +3142,9 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
         p2        = ibMsh->nCoor[n2];
         p3        = ibMsh->nCoor[n3];
 
+        
+        // PetscPrintf(PETSC_COMM_SELF, "cell = %ld %ld %ld, coor = %lf %lf %lf, closest elem = %lf %lf %lf, dist = %lf\n", k, j, i, cent[k][j][i].x, cent[k][j][i].y, cent[k][j][i].z, 1.0/3.0 * (p1.x + p2.x +p3.x), 1.0/3.0 * (p1.y + p2.y +p3.y), 1.0/3.0 * (p1.z + p2.z +p3.z), ibF[c].minDist);
+        
         // to find the ibm interpolation coefficient of the projected point from the ibm element nodes
         if (fabs(elemNorm.x) >= fabs(elemNorm.y) && fabs(elemNorm.x) >= fabs(elemNorm.z))
         {
@@ -4129,7 +4139,10 @@ PetscErrorCode CurvibInterpolationInternalCell(ibm_ *ibm)
             {
                 Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
 
-                wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                // wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                            // bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
+
+                wallShearGhostVelocityBC(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
                             bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
             }
             else if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
@@ -7015,14 +7028,14 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
             for (i = lxs; i < lxe; i++)
             {
 
-            // Only if the fluid mesh cell center coordinates are in the IBM bounding box
-            // a fluid mesh cell can be inside the bounding box and still not be inside the IBM body due to its shape
-            if(cent[k][j][i].x > ibBox->xmin
-                && cent[k][j][i].x < ibBox->xmax
-                && cent[k][j][i].y > ibBox->ymin
-                && cent[k][j][i].y < ibBox->ymax
-                && cent[k][j][i].z > ibBox->zmin
-                && cent[k][j][i].z < ibBox->zmax )
+                // Only if the fluid mesh cell center coordinates are in the IBM bounding box
+                // a fluid mesh cell can be inside the bounding box and still not be inside the IBM body due to its shape
+                if(cent[k][j][i].x > ibBox->xmin
+                    && cent[k][j][i].x < ibBox->xmax
+                    && cent[k][j][i].y > ibBox->ymin
+                    && cent[k][j][i].y < ibBox->ymax
+                    && cent[k][j][i].z > ibBox->zmin
+                    && cent[k][j][i].z < ibBox->zmax )
                 {
 
                     // index of the cells neighbouring the cell i,j,k
@@ -7045,12 +7058,12 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
                         PetscReal sign = nvert_o[k][j][i] - nvert_o[kk][jj][ii];
                         if (fabs(sign) > 1.e-6)
                         {
-                        dosearch += 1;
+                            dosearch += 1;
                         }
                     }
 
-                if ( (dosearch && ibm->ibmBody[b]->bodyMotion != "static") || (clock->it == clock->itStart))
-                {
+                    if ( (dosearch && ibm->ibmBody[b]->bodyMotion != "static") || (clock->it == clock->itStart))
+                    {
                         // find the search cell were the fluid node is located
                         sCell.i = floor((cent[k][j][i].x - ibBox->xmin) / sBox->dcx);
                         sCell.j = floor((cent[k][j][i].y - ibBox->ymin) / sBox->dcy);
@@ -7066,9 +7079,8 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
                         {
                             nvertFixed[k][j][i] = PetscMax(nvertFixed[k][j][i], val);
                         }
-
-                }
-                else
+                    }
+                    else
                     {
                         if(ibm->ibmBody[b]->bodyMotion == "static")
                         {
@@ -7083,8 +7095,7 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
                             nvert[k][j][i] = 4;             // only inside solid is set, here = 4
                         if (PetscInt (nvert[k][j][i]+0.5) ==1)
                             nvert[k][j][i] = 0;             // near boundary values are set to 0 and need to be recalculated
-
-                }
+                    }
                 }
             }
 
@@ -7108,55 +7119,35 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
             for (j = lys; j < lye; j++)
             for (i = lxs; i < lxe; i++)
             {
-
+                // Ensure negative nvert values are corrected
                 if (nvert[k][j][i] < 0)
                 {
                     nvert[k][j][i] = 0;
                 }
 
-                ip = (i < mx - 1 ? (i + 1) : (i));
-                im = (i > 0 ? (i - 1) : (i));
+                // Compute neighbor indices with boundary checks
+                ip = (i < mx - 2 ? (i + 1) : (i));
+                im = (i > 1 ? (i - 1) : (i));
 
-                jp = (j < my - 1 ? (j + 1) : (j));
-                jm = (j > 0 ? (j - 1) : (j));
+                jp = (j < my - 2 ? (j + 1) : (j));
+                jm = (j > 1 ? (j - 1) : (j));
 
-                kp = (k < mz - 1 ? (k + 1) : (k));
-                km = (k > 0 ? (k - 1) : (k));
+                kp = (k < mz - 2 ? (k + 1) : (k));
+                km = (k > 1 ? (k - 1) : (k));
 
-                //only cells that share a face with ibm solid are made ibm fluid
-                if ((PetscInt) (nvert[k][j][i] + 0.5) != 0)
+                // Check if the current cell is an IBM solid cell (nvert = 4)
+                if ((PetscInt)(nvert[k][j][i] + 0.5) == 4)
                 {
-                    for (kk = km; kk < kp + 1; kk++)
-                    for (jj = jm; jj < jp + 1; jj++)
-                    for (ii = im; ii < ip + 1; ii++)
+                    // Check the six face neighbors for a fluid cell (nvert = 0)
+                    if (((PetscInt)(nvert[kp][j][i] + 0.5) == 0) || // k+1
+                        ((PetscInt)(nvert[km][j][i] + 0.5) == 0) || // k-1
+                        ((PetscInt)(nvert[k][jp][i] + 0.5) == 0) || // j+1
+                        ((PetscInt)(nvert[k][jm][i] + 0.5) == 0) || // j-1
+                        ((PetscInt)(nvert[k][j][ip] + 0.5) == 0) || // i+1
+                        ((PetscInt)(nvert[k][j][im] + 0.5) == 0))   // i-1
                     {
-                        if ((PetscInt) (nvert[kk][jj][ii] + 0.5) == 0)
-                        {
-                            if(kk == k+1 && jj == j && ii == i)
-                            {
-                                nvert[k][j][i] = 2.0;
-                            }
-                            else if(kk == k-1 && jj == j && ii == i)
-                            {
-                                nvert[k][j][i] = 2.0;
-                            }
-                            else if(kk == k && jj == j+1 && ii == i)
-                            {
-                                nvert[k][j][i] = 2.0;
-                            }
-                            else if(kk == k && jj == j-1 && ii == i)
-                            {
-                                nvert[k][j][i] = 2.0;
-                            }
-                            else if(kk == k && jj == j && ii == i+1)
-                            {
-                                nvert[k][j][i] = 2.0;
-                            }
-                            else if(kk == k && jj == j && ii == i-1)
-                            {
-                                nvert[k][j][i] = 2.0;
-                            }
-                        }
+                        // Set the current cell as an interface cell
+                        nvert[k][j][i] = 2.0;
                     }
                 }
             }
@@ -7173,14 +7164,15 @@ PetscErrorCode ibmSearch(ibm_ *ibm)
                     nvert[k][j][i] = 0;
                 }
 
-                ip = (i < mx - 1 ? (i + 1) : (i));
-                im = (i > 0 ? (i - 1) : (i));
+                // Compute neighbor indices with boundary checks
+                ip = (i < mx - 2 ? (i + 1) : (i));
+                im = (i > 1 ? (i - 1) : (i));
 
-                jp = (j < my - 1 ? (j + 1) : (j));
-                jm = (j > 0 ? (j - 1) : (j));
+                jp = (j < my - 2 ? (j + 1) : (j));
+                jm = (j > 1 ? (j - 1) : (j));
 
-                kp = (k < mz - 1 ? (k + 1) : (k));
-                km = (k > 0 ? (k - 1) : (k));
+                kp = (k < mz - 2 ? (k + 1) : (k));
+                km = (k > 1 ? (k - 1) : (k));
 
                 //only cells that share a face with ibm solid are made ibm fluid
                 if ((PetscInt) (nvert[k][j][i] + 0.5) != 4)
