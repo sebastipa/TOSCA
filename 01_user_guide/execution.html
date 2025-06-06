@@ -49,7 +49,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="input_files.html">Input Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="spatial_mesh.html">Spatial Mesh</a></li>
-<li class="toctree-l2"><a class="reference internal" href="overset.html">Overset Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overset.html">2-Way Nesting (Overset Mesh)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="acquisition.html">Data Acquisition System</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Execution</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#running-in-serial"><cite>Running in serial</cite></a></li>
@@ -59,7 +59,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
 </ul>
@@ -92,7 +92,7 @@
   <section id="execution">
 <span id="execution-section"></span><h1>Execution<a class="headerlink" href="#execution" title="Link to this heading"></a></h1>
 <p>Executing TOSCA is pretty straightforward. Once the code has been compiled (see <a class="reference internal" href="../tosca_installation.html#installation-section"><span class="std std-ref">Installation</span></a>), you should see two
-executables in the <em>build</em> directory: <em>tosca</em> and <em>tosca2PV</em>.</p>
+executables in the <em>build</em> directory: <strong>tosca</strong> and <strong>tosca2PV</strong>.</p>
 <p>The first executable is the TOSCA solver, while the second allows to convert TOSCA output binary files to <em>.xmf</em> files that can be
 read by <em>ParaView</em>.</p>
 <p>In order to run TOSCA, copy the two executables to the directory where your input files are located. If running test cases,
@@ -111,15 +111,15 @@ we suggest to copy the <em>tests</em> directory to a directory of your choiche, 
 </section>
 <section id="running-in-parallel">
 <h2><cite>Running in parallel</cite><a class="headerlink" href="#running-in-parallel" title="Link to this heading"></a></h2>
-<p>To run in parallel with <strong>all available</strong> processors (e.g. when submitting jobs on a cluster), simply run the following command in a terminal:</p>
+<p>To run in parallel with <strong>all available</strong> processors (e.g. when submitting jobs on a cluster through SLURM or PBS), simply insert the following command in the submission script:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>./tosca
 </pre></div>
 </div>
 <p>or with a specific number of processors:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">4</span><span class="w"> </span>./tosca
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">2000</span><span class="w"> </span>./tosca
 </pre></div>
 </div>
-<p>where <em>4</em> is the number of processors you want to use. To post process the output in serial (this will also convert 3D fields to <em>.xmf</em> format),
+<p>where <em>2000</em> is the number of processors you want to use. To post process the output in serial (this will also convert 3D fields to <em>.xmf</em> format),
 run the following command in a terminal:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./tosca2PV
 </pre></div>

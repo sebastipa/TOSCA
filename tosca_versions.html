@@ -47,7 +47,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tosca_installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">TOSCA Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Versions</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#development">Development</a></li>
@@ -84,13 +84,13 @@
 <h1>Versions<a class="headerlink" href="#versions" title="Link to this heading"></a></h1>
 <section id="development">
 <h2>Development<a class="headerlink" href="#development" title="Link to this heading"></a></h2>
-<p>This is the current stable development branch of TOSCA. Dodumentation is available at
+<p>The <strong>master</strong> branch is the current stable development branch of TOSCA. Dodumentation is available at
 <a class="reference external" href="https://sebastipa.github.io/TOSCA/index.html">TOSCA Stable Development Documentation</a></p>
-<p>New features:</p>
+<p>New working features since last release (V1.0.0):</p>
 <ul class="simple">
 <li><p>Two-way coupled overset mesh method: this feature enables complete block-structed mesh refinement in TOSCA.</p></li>
 <li><p>Additional scale-dependent (<code class="docutils literal notranslate"><span class="pre">dynamicLASD</span></code>) and anisotropic minimum dissipation (<code class="docutils literal notranslate"><span class="pre">amd</span></code>) LES models.</p></li>
-<li><p>Additional high-order numerical scheme (<code class="docutils literal notranslate"><span class="pre">-central4</span></code> with <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter).</p></li>
+<li><p>Additional high-order numerical scheme (<code class="docutils literal notranslate"><span class="pre">-central4</span></code> with <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter) to better capture the high-frequency tail of turbulence spectra.</p></li>
 <li><p>Improved immersed boundary method: faster algorithms and time-varying wall modeling.</p></li>
 <li><p>Lateral fringe region (<code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code>): allows for gravity wave problems with wind direction changes and assimilated atmospheric data.</p></li>
 <li><p>Data assimilation methods: direct/indirect profile assimilation techniques, as well as wavelet assimilation method (selectable through <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> and <code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code> flags in <em>ABLProperties.dat</em>).</p></li>

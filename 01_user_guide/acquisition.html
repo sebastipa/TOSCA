@@ -22,7 +22,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Execution" href="execution.html" />
-    <link rel="prev" title="Overset Mesh" href="overset.html" /> 
+    <link rel="prev" title="2-Way Nesting (Overset Mesh)" href="overset.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -50,7 +50,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="input_files.html">Input Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="spatial_mesh.html">Spatial Mesh</a></li>
-<li class="toctree-l2"><a class="reference internal" href="overset.html">Overset Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overset.html">2-Way Nesting (Overset Mesh)</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Data Acquisition System</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#sections"><cite>-sections</cite></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#probes"><cite>-probes</cite></a></li>
@@ -68,7 +68,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
 </ul>
@@ -289,7 +289,7 @@ very efficient. Conversley, if probes are split among files casually, there migh
 that feature a large number of processors, while others might only have a few, making the writing more unbalanced.
 Even worse, defining all probes in one file renders the writing un-parallelized, since a single group of processor is
 created for probe acquisition.</p>
-<p>When overset mesh is used (see Sec. <a class="reference internal" href="overset.html#overset-section"><span class="std std-ref">Overset Mesh</span></a>), a given probe may be contained in two domains, i.e. the parent
+<p>When overset mesh is used (see Sec. <a class="reference internal" href="overset.html#overset-section"><span class="std std-ref">2-Way Nesting (Overset Mesh)</span></a>), a given probe may be contained in two domains, i.e. the parent
 and the child. In this case, TOSCA automatically assigns the probe to the child domain, which is ideally that with the
 higher resolution among the two.</p>
 <p>Probe files are contained inside the <code class="docutils literal notranslate"><span class="pre">sampling/probes</span></code> directory. Each file contains the definition of a given number of
@@ -1111,7 +1111,7 @@ and <code class="docutils literal notranslate"><span class="pre">-potentialT</sp
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="overset.html" class="btn btn-neutral float-left" title="Overset Mesh" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="overset.html" class="btn btn-neutral float-left" title="2-Way Nesting (Overset Mesh)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="execution.html" class="btn btn-neutral float-right" title="Execution" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
