@@ -6143,7 +6143,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
         if(errno == EEXIST)
         {
             word startTimeName = getStartTimeName(clock);
-            remove_subdirs_except_keep_n(mesh->MESH_COMM, turbineFolderName.c_str(), startTimeName.c_str(), io->purgeWrite);
+            remove_subdirs_except_keep_n(mesh->MESH_COMM, turbineFolderName.c_str(), startTimeName.c_str(), io->purgeWrite-1);
         }
     }
 
