@@ -2067,7 +2067,7 @@ PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b)
             // if directory already exist remove everything inside except the start time (safe)
             if(errno == EEXIST)
             {
-                remove_subdirs_except_keep_n(mesh->MESH_COMM, ibmfolder.c_str(), getStartTimeName(clock), io->purgeWrite);
+                remove_subdirs_except_keep_n(mesh->MESH_COMM, ibmfolder.c_str(), getStartTimeName(clock), io->purgeWrite-1);
             }
         }
     }
