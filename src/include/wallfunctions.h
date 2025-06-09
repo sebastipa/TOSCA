@@ -37,7 +37,9 @@ void      wallShearVelocityBC(PetscReal nu, PetscReal sc, PetscReal sb, PetscRea
 void      wallShearVelocityBCQuadratic(PetscReal nu,  PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
                                     PetscReal kappa, Cmpnts Ua, Cmpnts Ud, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
 
-                                    
+void      wallShearGhostVelocityBC(PetscReal nu,  PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
+                                    PetscReal kappa, Cmpnts Ua, Cmpnts Ud, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
+
 void uStarShumann
 (
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &roughness,

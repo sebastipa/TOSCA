@@ -102,7 +102,7 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     ibmBody->ibMsh          = NULL;
     ibmBody->ibmRot         = NULL;
 
-    // set thin body to false (Arjun, this check is used in ibm.c so what to do?)
+    // set thin body to false
     ibmBody->thinBody = 0;
 
     // allocate memory for the IBM mesh of the object

@@ -2466,7 +2466,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         csi[k][j][i].z*csi[k][j][i].z
                     );
 
-                    PetscReal d = aj[k][j][i]/area;
+                    PetscReal d = (1.0/aj[k][j][i])/area;
 
                     t[k][j][i-1] = d * mesh->boundaryT.iLval + lt[k][j][i];
                 }
@@ -2483,7 +2483,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         csi[k][j][i].z*csi[k][j][i].z
                     );
 
-                    PetscReal d = aj[k][j][i]/area;
+                    PetscReal d = (1.0/aj[k][j][i])/area;
 
                     t[k][j][i+1] = d * mesh->boundaryT.iRval + lt[k][j][i];
                 }
@@ -2500,7 +2500,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         eta[k][j][i].z*eta[k][j][i].z
                     );
 
-                    PetscReal d = aj[k][j][i]/area;
+                    PetscReal d = (1.0/aj[k][j][i])/area;
 
                     t[k][j-1][i] = d * mesh->boundaryT.jLval + lt[k][j][i];
                 }
@@ -2517,7 +2517,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         eta[k][j][i].z*eta[k][j][i].z
                     );
 
-                    PetscReal d = aj[k][j][i]/area;
+                    PetscReal d = (1.0/aj[k][j][i])/area;
 
                     t[k][j+1][i] = d * mesh->boundaryT.jRval + lt[k][j][i];
                 }
@@ -2534,7 +2534,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         zet[k][j][i].z*zet[k][j][i].z
                     );
 
-                    PetscReal d = aj[k][j][i]/area;
+                    PetscReal d = (1.0/aj[k][j][i])/area;
 
                     t[k-1][j][i] = d * mesh->boundaryT.kLval + lt[k][j][i];
                 }
@@ -2551,7 +2551,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                         zet[k][j][i].z*zet[k][j][i].z
                     );
 
-                    PetscReal d = aj[k][j][i]/area;
+                    PetscReal d = (1.0/aj[k][j][i])/area;
 
                     t[k+1][j][i] = d * mesh->boundaryT.kRval + lt[k][j][i];
                 }

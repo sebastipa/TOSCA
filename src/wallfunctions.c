@@ -832,13 +832,60 @@ void wallShearVelocityBCQuadratic(PetscReal nu,  PetscReal sd, PetscReal sc, Pet
 
     *ustar = ut_mag * kappa / log(sc/roughness);
 
-    ut_b.x = utc.x - coeff * (utd.x - utc.x);
-    ut_b.y = utc.y - coeff * (utd.y - utc.y);
-    ut_b.z = utc.z - coeff * (utd.z - utc.z);
+    // ut_b.x = utc.x - coeff * (utd.x - utc.x);
+    // ut_b.y = utc.y - coeff * (utd.y - utc.y);
+    // ut_b.z = utc.z - coeff * (utd.z - utc.z);
 
-    (*Ub) = nSum(ut_b, nScale( (sb/sc), unc));
+    // (*Ub) = nSum(ut_b, nScale( (sb/sc), unc));
 
-	(*Ub).x = (*Ub).x + Ua.x;
+	// (*Ub).x = (*Ub).x + Ua.x;
+	// (*Ub).y = (*Ub).y + Ua.y;
+	// (*Ub).z = (*Ub).z + Ua.z;
+
+    (*Ub).x = u_c.x - coeff * (u_d.x - u_c.x);
+    (*Ub).y = u_c.y - coeff * (u_d.y - u_c.y);
+    (*Ub).z = u_c.z - coeff * (u_d.z - u_c.z);
+
+    (*Ub).x = (*Ub).x + Ua.x;
+	(*Ub).y = (*Ub).y + Ua.y;
+	(*Ub).z = (*Ub).z + Ua.z;
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+void wallShearGhostVelocityBC(PetscReal nu,  PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
+    PetscReal kappa, Cmpnts Ua, Cmpnts Ud, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
+{
+    Cmpnts    u_d  = nSub(Ud, Ua);
+    Cmpnts    und  = nScale(nDot(u_d, nf), nf);
+    Cmpnts    utd  = nSub(u_d, und);    
+    PetscReal ut_mag = nMag(utd);
+    Cmpnts    et  = nUnit(utd);
+
+    Cmpnts    u_c, ut_c;
+    PetscReal ut_magc;
+
+    *ustar = ut_mag * kappa / log(sd/roughness);
+
+    ut_magc = (*ustar/kappa) * log(sc/roughness);
+
+    if (ut_magc < 1.e-10)
+    {
+        ut_magc = 0.0;
+    }
+
+    ut_c = nScale(ut_magc, et);
+    u_c  = nSum(ut_c, nScale( (sc/sd), und));
+
+    PetscReal coeff  = (sc - sb)/(sd - sc);
+
+    (*Ub).x = u_c.x - coeff * (u_d.x - u_c.x);
+    (*Ub).y = u_c.y - coeff * (u_d.y - u_c.y);
+    (*Ub).z = u_c.z - coeff * (u_d.z - u_c.z);
+
+    (*Ub).x = (*Ub).x + Ua.x;
 	(*Ub).y = (*Ub).y + Ua.y;
 	(*Ub).z = (*Ub).z + Ua.z;
 
