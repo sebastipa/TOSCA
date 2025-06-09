@@ -93,14 +93,21 @@ void remove_subdirs(MPI_Comm comm, const char *path2dir);
 //! \brief Removes all subdirectory of a given directory except the name provided
 void remove_subdirs_except(MPI_Comm comm, const char *path2dir, const word name);
 
+//! \brief Removes all subdirectory except the latest n times inside a given directory and the name provided
+void remove_subdirs_except_keep_n(MPI_Comm comm, const char *path2dir, const word name, PetscInt nKeep);
+
 //! \brief Removes all subdirectory of a given directory except the 2 names provided
 void remove_subdirs_except2(MPI_Comm comm, const char *path2dir, const word name1, const word name2);
 
 //! \brief Removes all subdirectory of a given directory except the 3 names provided
 void remove_subdirs_except3(MPI_Comm comm, const char *path2dir, const word name1, const word name2, const word name3);
 
-//! \brief Removes all subdirectory of a given directory except the 3 names provided
+//! \brief Removes all subdirectory of a given directory except the 4 names provided
 void remove_subdirs_except4(MPI_Comm comm, const char *path2dir, const word name1, const word name2, const word name3, const word name4);
+
+//! \brief Removes all subdirectory except the latest n times inside a given directory and the 4 names provided
+void remove_subdirs_except4_keep_n(MPI_Comm comm, const char *path2dir, const word name1, const word name2, const word name3, const word name4, PetscInt nKeep);
+
 //! \brief Set write directory for a given mesh
 void SetWriteDir(mesh_ *mesh, const word str);
 

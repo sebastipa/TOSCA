@@ -2034,7 +2034,7 @@ PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b)
     mesh_       *mesh  = ibm->access->mesh;
 
     word        timeName;
-    word        path;
+    word        ibmfolder, path;
 
     PetscInt    t;
 
@@ -2042,8 +2042,9 @@ PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b)
     MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     // set time folder name
-    timeName = getTimeName(clock);
-    path     = "./fields/" + mesh->meshName + "/ibm/" + timeName;
+    ibmfolder = "./fields/" + mesh->meshName + "/ibm/";
+    timeName  = getTimeName(clock);
+    path      = ibmfolder + timeName;
 
     // create/initialize ibm write directory
     if
@@ -2055,7 +2056,6 @@ PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b)
         {
 
             errno = 0;
-            word ibmfolder = "./fields/" + mesh->meshName + "/ibm/";
             PetscInt dirRes = mkdir(ibmfolder.c_str(), 0777);
             if(dirRes != 0 && errno != EEXIST)
             {
@@ -2067,7 +2067,7 @@ PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b)
             // if directory already exist remove everything inside except the start time (safe)
             if(errno == EEXIST)
             {
-                remove_subdirs_except(mesh->MESH_COMM, ibmfolder.c_str(), getStartTimeName(clock));
+                remove_subdirs_except_keep_n(mesh->MESH_COMM, ibmfolder.c_str(), getStartTimeName(clock), io->purgeWrite);
             }
         }
     }
@@ -2082,7 +2082,7 @@ PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b)
 
             if(dirRes != 0 && errno != EEXIST)
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "could not create %s directory\n", path.c_str());
                 fatalErrorInFunction("writeAngularPosition",  error);
             }
@@ -2108,6 +2108,11 @@ PetscErrorCode writeIBMData(ibm_ *ibm, PetscInt b)
             }
 
             fclose(f);
+
+            if(io->purgeWrite)
+            {
+                remove_subdirs_except_keep_n(mesh->MESH_COMM, ibmfolder.c_str(), timeName, mesh->access->io->purgeWrite-1);
+            }
 
         }
 

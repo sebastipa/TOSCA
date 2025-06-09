@@ -1941,7 +1941,7 @@ PetscErrorCode writeFields(io_ *io)
     }
 
     PetscViewer viewer;
-    word        timeName, fieldName;
+    word        timeName, timeNameFinal, fieldName;
     word        fieldsDir = "./fields/" + mesh->meshName;
 
     PetscMPIInt         rank;
@@ -1952,8 +1952,37 @@ PetscErrorCode writeFields(io_ *io)
     {
         PetscPrintf(mesh->MESH_COMM, "Writing fields for time %lf\n", clock->time);
 
-        // current time name path
-        timeName = fieldsDir + "/"  + getTimeName(clock);
+        // temporary time name path (before finished writing)
+        timeName      = fieldsDir + "/"  + getTimeName(clock) + "_tmp";
+        timeNameFinal = fieldsDir + "/"  + getTimeName(clock);
+
+        // first processor creates the time folder
+        if(!rank)
+        {
+            PetscInt dirRes = mkdir(timeName.c_str(), 0777);
+            if(dirRes != 0 && errno != EEXIST)
+            {
+                char error[512];
+                sprintf(error, "could not create %s directory\n", timeName.c_str());
+                fatalErrorInFunction("setRunTimeWrite",  error);
+            }
+            // if directory already exist remove everything inside
+            else if(errno == EEXIST)
+            {
+                remove_subdirs(mesh->MESH_COMM, timeName.c_str());
+            }
+
+            // remove the final folder if it exists
+            DIR *final_dir = NULL;
+            if(final_dir= opendir(timeNameFinal.c_str()))
+            {
+                closedir(final_dir);
+                remove_subdirs(mesh->MESH_COMM, timeNameFinal.c_str());
+            }
+        }
+
+        // wait that the folder is available
+        MPI_Barrier(mesh->MESH_COMM);
 
         // write contravariant velocity
         fieldName = timeName + "/V";
@@ -1974,11 +2003,6 @@ PetscErrorCode writeFields(io_ *io)
         fieldName = timeName + "/nv";
         writeBinaryField(mesh->MESH_COMM, mesh->Nvert, fieldName.c_str());
         MPI_Barrier(mesh->MESH_COMM);
-
-        // write nvert
-        // fieldName = timeName + "/meshTag";
-        // writeBinaryField(mesh->MESH_COMM, mesh->meshTag, fieldName.c_str());
-        // MPI_Barrier(mesh->MESH_COMM);
 
         // write temperature
         if(flags->isTeqnActive)
@@ -2017,14 +2041,11 @@ PetscErrorCode writeFields(io_ *io)
         if(io->windFarmForce && flags->isWindFarmActive)
         {
             farm_ *farm = io->access->farm;
-
             Vec Bf;  VecDuplicate(ueqn->Ucat, &Bf);  VecSet(Bf, 0.);
-
             VecVectorLocalToGlobalCopy(mesh, farm->lsourceFarmCat, Bf);
 
             fieldName = timeName + "/bf";
             writeBinaryField(mesh->MESH_COMM, Bf, fieldName.c_str());
-
             VecDestroy(&Bf);
 
             MPI_Barrier(mesh->MESH_COMM);
@@ -2073,6 +2094,7 @@ PetscErrorCode writeFields(io_ *io)
                 MPI_Barrier(mesh->MESH_COMM);
             }
 
+            // this has to be moved inside the function computeXDampingIO
             if(flags->isYDampingActive)
             {
                 Vec gyDamp;  VecDuplicate(ueqn->Ucat, &gyDamp);  VecSet(gyDamp, 0.);
@@ -2103,6 +2125,7 @@ PetscErrorCode writeFields(io_ *io)
             MPI_Barrier(mesh->MESH_COMM);
         }
 
+        // write averaging fields 
         if(io->averaging)
         {
             // write avgU
@@ -2206,6 +2229,7 @@ PetscErrorCode writeFields(io_ *io)
             }
         }
 
+        // write phase averaging fields 
         if(io->phaseAveraging)
         {
             // write pAvgU
@@ -2292,6 +2316,7 @@ PetscErrorCode writeFields(io_ *io)
             }
         }
 
+        // write keBudgets fields 
         if(io->keBudgets)
         {
             // write outputs for visualization
@@ -2565,6 +2590,7 @@ PetscErrorCode writeFields(io_ *io)
 
         }
 
+        // write acquisition auxiliary fields
         if(flags->isAquisitionActive)
         {
             if(acquisition->isAverage3LMActive)
@@ -2639,6 +2665,19 @@ PetscErrorCode writeFields(io_ *io)
             }
         }
 
+        // rename the timeName folder to the timeNameFinal 
+        if (!rank) 
+        {
+            PetscInt renameResult = rename(timeName.c_str(), timeNameFinal.c_str());
+            if(renameResult != 0) 
+            {
+                char error[512];
+                sprintf(error, "could not rename %s to %s when finished writing fields\n", timeName.c_str(), timeNameFinal.c_str());
+                fatalErrorInFunction("writeFields",  error);
+            }
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
         // delete all other folders if purge is active (recommended for big cases)
         if(io->purgeWrite)
         {
@@ -2654,7 +2693,7 @@ PetscErrorCode writeFields(io_ *io)
                 keep = getTimeName(clock);
             }
 
-            remove_subdirs_except4(mesh->MESH_COMM, writeDir.c_str(), keep, "turbines", "precursor", "ibm");
+            remove_subdirs_except4_keep_n(mesh->MESH_COMM, writeDir.c_str(), keep, "turbines", "precursor", "ibm", io->purgeWrite-1);
         }
     }
 
@@ -3096,8 +3135,8 @@ void remove_subdirs_except(MPI_Comm comm, const char *path2dir, const word name)
             char abs_path[456] = {0};
             if
             (
-                *(entry->d_name) != '.' &&
-                (entry->d_name) != name
+                *(entry->d_name) != '.'  &&
+                 (entry->d_name) != name
             )
             {
                 sprintf(abs_path, "%s/%s", path2dir, entry->d_name);
@@ -3124,6 +3163,117 @@ void remove_subdirs_except(MPI_Comm comm, const char *path2dir, const word name)
 
 //***************************************************************************************************************//
 
+void remove_subdirs_except_keep_n(MPI_Comm comm, const char *path2dir, const word name, PetscInt nKeep)
+{
+    // if nKeep is less than 0 (when this f is called using io_purgeWrite = 0) then just set it to zero 
+    if(nKeep < 0) nKeep = 0;
+
+    PetscMPIInt rank;
+    MPI_Comm_rank(comm, &rank);
+
+    // initialize the list of time directories  
+    char *eptr; 
+    std::vector<PetscReal> timeValues;
+    std::vector<word>      timeNames;
+
+    if(!rank)
+    {
+        struct dirent *entry = NULL;
+        DIR *dir = NULL;
+        dir = opendir(path2dir);
+        while(entry = readdir(dir))
+        {
+            DIR *sub_dir = NULL;
+            FILE *file = NULL;
+            char abs_path[456] = {0};
+            if
+            (
+                *(entry->d_name) != '.'   &&
+                 (entry->d_name) != name
+            )
+            {
+                sprintf(abs_path, "%s/%s", path2dir, entry->d_name);
+                if(sub_dir = opendir(abs_path))
+                {
+                    closedir(sub_dir);
+
+                    if(isNumber(entry->d_name))
+                    {
+                        // convert time directory name to double 
+                        PetscReal timeValue;
+                        timeValue = std::strtod(entry->d_name, &eptr);
+                        timeValues.push_back(timeValue);
+                        timeNames.push_back(entry->d_name);
+                    }
+                    else 
+                    {
+                        // if the directory name is not a number, remove it
+                        remove_dir(comm, abs_path);
+                    }
+                }
+                else
+                {
+                    // if a file, remove the file 
+                    if(file = fopen(abs_path, "r"))
+                    {
+                        fclose(file);
+                        remove(abs_path);
+                    }
+                }
+
+            }
+        }
+        closedir(dir);
+
+        // return if there are no time directories
+        if(timeValues.size() == 0)
+        {
+            return;
+        }
+
+        // sort time names from bigger to smallest 
+        for(PetscInt i=0; i<timeValues.size(); i++)
+        {
+            PetscReal max   = 0.0;
+            PetscReal value = 0.0;
+            PetscInt  label = 0;
+
+            for(PetscInt s=i; s<timeValues.size(); s++)
+            {
+                if(timeValues[s] > max)
+                {
+                    value = timeValues[s];
+                    label = s;
+                    max   = value;
+                }
+            }
+
+            // exchange values so that elements are not lost
+            timeValues[label] = timeValues[i];
+
+            // put the max value on the unchanged part at the last index of changed part
+            timeValues[i] = value;
+
+            // also exchange the time names
+            word tempName    = timeNames[label];
+            timeNames[label] = timeNames[i];
+            timeNames[i]     = tempName;
+        }
+
+        // remove all time directories except the first nKeep (that is, the latest)
+        for(PetscInt i=nKeep; i<timeValues.size(); i++)
+        {
+            char abs_path[456] = {0};
+            sprintf(abs_path, "%s/%s", path2dir, timeNames[i].c_str());
+            remove_dir(comm, abs_path);
+        }
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
 void remove_subdirs_except2(MPI_Comm comm, const char *path2dir, const word name1, const word name2)
 {
     PetscMPIInt rank;
@@ -3141,9 +3291,9 @@ void remove_subdirs_except2(MPI_Comm comm, const char *path2dir, const word name
             char abs_path[456] = {0};
             if
             (
-                *(entry->d_name) != '.' &&
-                (entry->d_name) != name1 &&
-                (entry->d_name) != name2
+                *(entry->d_name) != '.'   &&
+                 (entry->d_name) != name1 &&
+                 (entry->d_name) != name2
             )
             {
                 sprintf(abs_path, "%s/%s", path2dir, entry->d_name);
@@ -3187,10 +3337,10 @@ void remove_subdirs_except3(MPI_Comm comm, const char *path2dir, const word name
             char abs_path[456] = {0};
             if
             (
-                *(entry->d_name) != '.' &&
-                (entry->d_name) != name1 &&
-                (entry->d_name) != name2 &&
-                (entry->d_name) != name3
+                *(entry->d_name) != '.'   &&
+                 (entry->d_name) != name1 &&
+                 (entry->d_name) != name2 &&
+                 (entry->d_name) != name3
             )
             {
                 sprintf(abs_path, "%s/%s", path2dir, entry->d_name);
@@ -3234,11 +3384,11 @@ void remove_subdirs_except4(MPI_Comm comm, const char *path2dir, const word name
             char abs_path[456] = {0};
             if
             (
-                *(entry->d_name) != '.' &&
-                (entry->d_name) != name1 &&
-                (entry->d_name) != name2 &&
-                (entry->d_name) != name3 &&
-                (entry->d_name) != name4
+                *(entry->d_name) != '.'   &&
+                 (entry->d_name) != name1 &&
+                 (entry->d_name) != name2 &&
+                 (entry->d_name) != name3 &&
+                 (entry->d_name) != name4
             )
             {
                 sprintf(abs_path, "%s/%s", path2dir, entry->d_name);
@@ -3258,6 +3408,121 @@ void remove_subdirs_except4(MPI_Comm comm, const char *path2dir, const word name
             }
         }
         closedir(dir);
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+void remove_subdirs_except4_keep_n(MPI_Comm comm, const char *path2dir, const word name1, const word name2, const word name3, const word name4, PetscInt nKeep)
+{
+
+    // if nKeep is less than 0 (when this f is called using io_purgeWrite = 0) then just set it to zero 
+    if(nKeep < 0) nKeep = 0;
+
+    PetscMPIInt rank;
+    MPI_Comm_rank(comm, &rank);
+
+    // initialize the list of time directories  
+    char *eptr; 
+    std::vector<PetscReal> timeValues;
+    std::vector<word>      timeNames;
+
+    if(!rank)
+    {
+        struct dirent *entry = NULL;
+        DIR *dir = NULL;
+        dir = opendir(path2dir);
+        while(entry = readdir(dir))
+        {
+            DIR *sub_dir = NULL;
+            FILE *file = NULL;
+            char abs_path[456] = {0};
+            if
+            (
+                *(entry->d_name) != '.'   &&
+                 (entry->d_name) != name1 &&
+                 (entry->d_name) != name2 &&
+                 (entry->d_name) != name3 &&
+                 (entry->d_name) != name4
+            )
+            {
+                sprintf(abs_path, "%s/%s", path2dir, entry->d_name);
+                if(sub_dir = opendir(abs_path))
+                {
+                    closedir(sub_dir);
+
+                    if(isNumber(entry->d_name))
+                    {
+                        // convert time directory name to double 
+                        PetscReal timeValue;
+                        timeValue = std::strtod(entry->d_name, &eptr);
+                        timeValues.push_back(timeValue);
+                        timeNames.push_back(entry->d_name);
+                    }
+                    else 
+                    {
+                        // if the directory name is not a number, remove it
+                        remove_dir(comm, abs_path);
+                    }
+                }
+                else
+                {
+                    // if a file, remove the file 
+                    if(file = fopen(abs_path, "r"))
+                    {
+                        fclose(file);
+                        remove(abs_path);
+                    }
+                }
+
+            }
+        }
+        closedir(dir);
+
+        // return if there are no time directories
+        if(timeValues.size() == 0)
+        {
+            return;
+        }
+
+        // sort time names from bigger to smallest 
+        for(PetscInt i=0; i<timeValues.size(); i++)
+        {
+            PetscReal max   = 0.0;
+            PetscReal value = 0.0;
+            PetscInt  label = 0;
+
+            for(PetscInt s=i; s<timeValues.size(); s++)
+            {
+                if(timeValues[s] > max)
+                {
+                    value = timeValues[s];
+                    label = s;
+                    max   = value;
+                }
+            }
+
+            // exchange values so that elements are not lost
+            timeValues[label] = timeValues[i];
+
+            // put the max value on the unchanged part at the last index of changed part
+            timeValues[i] = value;
+
+            // also exchange the time names
+            word tempName    = timeNames[label];
+            timeNames[label] = timeNames[i];
+            timeNames[i]     = tempName;
+        }
+
+        // remove all time directories except the first nKeep (that is, the latest)
+        for(PetscInt i=nKeep; i<timeValues.size(); i++)
+        {
+            char abs_path[456] = {0};
+            sprintf(abs_path, "%s/%s", path2dir, timeNames[i].c_str());
+            remove_dir(comm, abs_path);
+        }
     }
 
     return;
@@ -3348,11 +3613,11 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
                 fatalErrorInFunction("setRunTimeWrite",  error);
             }
 
-            // if directory already exist remove everything inside except start time and turbines folder
+            // if directory already exist remove everything inside except start time and turbines folder and the purge write folders 
             if(errno == EEXIST)
             {
                 word startTimeName = getStartTimeName(clock);
-                remove_subdirs_except4(mesh->MESH_COMM, writeDir.c_str(), startTimeName.c_str(), "turbines", "precursor", "ibm");
+                remove_subdirs_except4_keep_n(mesh->MESH_COMM, writeDir.c_str(), startTimeName.c_str(), "turbines", "precursor", "ibm", io->purgeWrite-1);
             }
         }
 
@@ -3408,30 +3673,6 @@ PetscErrorCode setRunTimeWrite(domain_ *domain)
         else
         {
             io->runTimeWrite = 0;
-        }
-
-        // first processor creates the time folder
-        if
-        (
-            !rank && io->runTimeWrite
-        )
-        {
-            // create time directory for writing fields at current time
-            timeName = writeDir + "/" + getTimeName(clock);
-
-            PetscInt dirRes = mkdir(timeName.c_str(), 0777);
-            if(dirRes != 0 && errno != EEXIST)
-            {
-               char error[512];
-                sprintf(error, "could not create %s directory\n", timeName.c_str());
-                fatalErrorInFunction("setRunTimeWrite",  error);
-            }
-
-            // if directory already exist remove everything inside
-            else if(errno == EEXIST)
-            {
-                remove_subdirs(mesh->MESH_COMM, timeName.c_str());
-            }
         }
     }
 

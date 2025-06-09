@@ -6143,7 +6143,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
         if(errno == EEXIST)
         {
             word startTimeName = getStartTimeName(clock);
-            remove_subdirs_except(mesh->MESH_COMM, turbineFolderName.c_str(), startTimeName.c_str());
+            remove_subdirs_except_keep_n(mesh->MESH_COMM, turbineFolderName.c_str(), startTimeName.c_str(), io->purgeWrite);
         }
     }
 
@@ -6269,7 +6269,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
         MPI_Barrier(mesh->MESH_COMM);
 
         // remove old checkpoint files except last one after all files are written (safe)
-        if(!rank && mesh->access->io->purgeWrite) remove_subdirs_except(mesh->MESH_COMM, turbineFolderName.c_str(), timeName);
+        if(!rank && mesh->access->io->purgeWrite) remove_subdirs_except_keep_n(mesh->MESH_COMM, turbineFolderName.c_str(), timeName, mesh->access->io->purgeWrite-1);
     }
 
     return(0);
