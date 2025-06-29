@@ -68,7 +68,10 @@ struct abl_
     Cmpnts       uGeoBar;                        //!< desired geostrophic wind speed magnitude
     PetscReal    omegaBar;                       //!< rotation velocity
     PetscReal    hubAngle;                       //!< filtered angle at hub height
+    PetscReal    hubAnglePrev;                   //!< filtered angle at hub height at the previous timeStep
     PetscReal    geoAngle;                       //!< cumulated wind angle given by the sum of all rotations and filtered
+    PetscReal    refHubAngle;                    //!< reference hub angle (typically 0 for canonical ABL cases)
+    PetscReal    cumulatedAngle;
     Cmpnts       a,b;                            //!< the two constant parts of the controller (a = geo forcing, b = wind angle controller)
 
     // read and average
@@ -185,6 +188,7 @@ struct abl_
     PetscReal    *timeT;
     PetscReal    *hT;
     Cmpnts       **uMeso;
+    Cmpnts       *uGeoPrev;
     PetscReal    **tMeso;
 
     PetscInt     numhV;
@@ -230,6 +234,7 @@ struct abl_
     word         flType;
     word         flTypeT;
     PetscReal    *avgTotalStress;
+    Cmpnts       *avgStress;
     PetscReal    *avgHeatFlux;
     PetscReal    hAvgTime;
     PetscReal    bottomSrcHtV;

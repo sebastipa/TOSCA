@@ -302,21 +302,71 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 if(abl->controllerType == "geostrophic")
                 {
                     // read geosptrophic height
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "hGeo",     &(abl->hGeo));
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaGeo", &(abl->geoAngle));
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "hGeo",        &(abl->hGeo));
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoAngle",    &(abl->geoAngle));
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "refHubAngle", &(abl->refHubAngle));
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingAlpha",      &(abl->geoDampAlpha));
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingStartTime",  &(abl->geoDampStart));
+                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingTimeWindow", &(abl->geoDampWindow));
 
                     // read geostrophic speed
                     PetscReal geoWindMag;
                     readSubDictDouble("ABLProperties.dat", "controllerProperties", "uGeoMag", &geoWindMag);
 
                     // initial parameters (should be correct at ABL convergence)
-                    abl->geoAngle = abl->geoAngle*M_PI/180;
-                    abl->hubAngle = 0.0;
-                    abl->omegaBar = 0.0;
+                    abl->geoAngle     = abl->geoAngle*M_PI/180;
+                    abl->refHubAngle  = abl->refHubAngle*M_PI/180;
+                    abl->hubAngle     = 0.0;
+                    abl->hubAnglePrev = 0.0;
+                    abl->cumulatedAngle = 0.0; 
+                    abl->omegaBar     = 0.0;
+
+                    abl->geoDampUBar  = nSetZero();
+                    abl->geoDampH     = abl->hInv + 0.5 * abl->dInv;
+                    abl->geoDampDelta = abl->dInv;
+                    abl->geoDampC     = 2.0*(2.0*abl->fc);
+                    
+                    // allocate memory for mean velocity
+                    PetscMalloc(sizeof(Cmpnts)*nLevels, &(abl->geoDampU));
+
+                    for(j=0; j<nLevels; j++)
+                    {
+                        abl->geoDampU[j] = nSetZero();
+                    }
 
                     // compute geostrophic speed
                     // abl->uGeoBar  = nSetFromComponents(NieuwstadtGeostrophicWind(abl), 0.0, 0.0);
                     abl->uGeoBar  = nSetFromComponents(geoWindMag, 0.0, 0.0);
+
+                    //compute the initial angle - different if restarting the simulation - so read from file geostrophicAngleInfo
+                    std::stringstream stream;
+                    stream << std::fixed << std::setprecision(mesh->access->clock->timePrecision) << mesh->access->clock->startTime;
+                    word location = "./fields/" + mesh->meshName + "/" + stream.str();
+                    word fileName = location + "/geostrophicAngleInfo";
+
+                    FILE *fp=fopen(fileName.c_str(), "r");
+
+                    if(fp==NULL)
+                    {
+                        // if start time > 0 should find the file
+                        if(mesh->access->clock->startTime != 0.0)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fileName.c_str());
+                            fatalErrorInFunction("ABLInitialize",  error);
+                        }
+
+                        // if start time = 0, initial angle already read from geoAngle in ABLProperties.dat
+                        PetscPrintf(mesh->MESH_COMM, "   -> Initial geostrophic wind angle: AlphaGeo = %.3lf degree\n",abl->geoAngle/M_PI*180);
+                    }
+                    else
+                    {
+                        fclose(fp);
+                        readDictDouble(fileName.c_str(), "geoAngle",   &(abl->geoAngle));
+                        PetscPrintf(mesh->MESH_COMM, "   -> reading geostrophic wind angle: AlphaGeo = %.3lf degree\n",abl->geoAngle);
+
+                        abl->geoAngle = abl->geoAngle*M_PI/180;
+                    }
 
                     // rotate according to initial angle
                     Cmpnts uGeoBarTmp = nSetZero();
@@ -324,6 +374,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     uGeoBarTmp.y = std::sin(abl->geoAngle) * abl->uGeoBar.x + std::cos(abl->geoAngle) * abl->uGeoBar.y;
                     mSet(abl->uGeoBar, uGeoBarTmp);
 
+                    // set initial abl->geoDampUBar
+                    abl->geoDampUBar = nSet(abl->uGeoBar);
+                    
                     // printf information
                     PetscPrintf(mesh->MESH_COMM, "   -> Ug = (%f, %f, %f) m/s, UgMag = %f m/s\n", abl->uGeoBar.x, abl->uGeoBar.y, abl->uGeoBar.z, nMag(abl->uGeoBar));
 
@@ -571,11 +624,13 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 
                 PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgTotalStress));   
                 PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgHeatFlux));   
+                PetscMalloc(sizeof(Cmpnts) * nLevels,       &(abl->avgStress));   
 
                 for(j=0; j<nLevels; j++)
                 {
                     abl->avgHeatFlux[j] = 0.0;
                     abl->avgTotalStress[j] = 0.0;
+                    abl->avgStress[j] = nSetZero();
                 } 
 
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "hAverageTime",     &(abl->hAvgTime)); 
@@ -649,6 +704,12 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->srcPA));
                 PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->luMean));
                 PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->guMean));
+                PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->uGeoPrev));
+
+                for(PetscInt j = 0; j<my-2; j++)
+                {
+                    abl->uGeoPrev[j] = nSetZero();
+                }
             }
             else
             {
@@ -4277,6 +4338,10 @@ PetscErrorCode findABLHeight(abl_ *abl)
         abl->avgTotalStress[l] = m1 * abl->avgTotalStress[l] + m2 * pow((pow(guw[l]+gRxz[l],2.0) + pow(gvw[l]+gRyz[l],2.0)),0.5);
 
         abl->avgHeatFlux[l]    = m1 * abl->avgHeatFlux[l]    + m2 * (gTw[l] + gRTw[l]);
+
+        abl->avgStress[l].x = m1 * abl->avgStress[l].x + m2 * (guw[l]+gRxz[l]);
+        abl->avgStress[l].y = m1 * abl->avgStress[l].y + m2 * (gvw[l]+gRyz[l]);
+        abl->avgStress[l].z = 0.0;
     }
 
     //switching condition based on the value of the heat flux close to the surface - second cell above ground
@@ -4298,7 +4363,8 @@ PetscErrorCode findABLHeight(abl_ *abl)
         abl->avgHeatFlux[l] < abl->avgHeatFlux[l+1])
         {
             // Track the deepest minima
-            if(abl->avgHeatFlux[l] < minValue){
+            if(abl->avgHeatFlux[l] < minValue)
+            {
                 minValue = abl->avgHeatFlux[l];
                 zMinId = l;
             }
