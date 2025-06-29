@@ -615,7 +615,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             Cmpnts guMeanGeo1; guMeanGeo1.x = 0.0; guMeanGeo1.y = 0.0; guMeanGeo1.z = 0.0;
             Cmpnts guMeanGeo2; guMeanGeo2.x = 0.0; guMeanGeo2.y = 0.0; guMeanGeo2.z = 0.0;
 
-            for (k=zs; k<lze; k++)
+            for (k=lzs; k<lze; k++)
             {
                 for (j=lys; j<lye; j++)
                 {
@@ -681,58 +681,139 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             uMeanGeo.y = guMeanGeo1.y * abl->levelWeightsGeo[0] + guMeanGeo2.y * abl->levelWeightsGeo[1];
             uMeanGeo.z = guMeanGeo1.z * abl->levelWeightsGeo[0] + guMeanGeo2.z * abl->levelWeightsGeo[1];
 
+            // spatially average velocity at every height
+            std::vector<Cmpnts>    lgDes(nLevels);
+
+            // set to zero
+            for(j=0; j<nLevels; j++) lgDes[j] = nSetZero();
+
+            DMDAVecGetArray(da, mesh->lAj, &aj);
+
+            for(k=lzs; k<lze; k++)
+            {
+                for(j=lys; j<lye; j++)
+                {
+                    for(i=lxs; i<lxe; i++)
+                    {
+                        mSum
+                        (
+                            lgDes[j-1],
+                            nScale(1.0/aj[k][j][i], ucat[k][j][i])
+                        );
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(da, mesh->lAj, &aj);
+
+            MPI_Allreduce(&lgDes[0], &(abl->geoDampU[0]), 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+            // divide by total volume per level
+            for(j=0; j<nLevels; j++)
+            {
+                mScale(1.0/abl->totVolPerLevel[j], abl->geoDampU[j]);
+            }
             if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
-            if(print) PetscPrintf(mesh->MESH_COMM, "                         U at hRef: (%.3f %.3f %.3f) m/s, U at hGeo: (%.3f %.3f %.3f) m/s\n", uMean.x, uMean.y, uMean.z, uMeanGeo.x, uMeanGeo.y, uMeanGeo.z);
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         U at hRef: (%.3f %.3f %.3f) m/s, U at hGeo: (%.3f %.3f %.3f)  = %0.3f m/s\n", uMean.x, uMean.y, uMean.z, uMeanGeo.x, uMeanGeo.y, uMeanGeo.z, nMag(uMeanGeo));
 
             // compute actual angles
-            PetscReal hubAngle    = std::atan(uMean.y/uMean.x);
-            PetscReal geoAngleNew = std::atan(uMeanGeo.y/uMeanGeo.x);
+            PetscReal hubAngle    = std::atan2(uMean.y, uMean.x);
+            PetscReal geoAngleNew = std::atan2(uMeanGeo.y, uMeanGeo.x);
 
-            // compute filtered hub angle
-            abl->hubAngle = (1.0 - clock->dt / T) * abl->hubAngle + (clock->dt / T) * hubAngle;
+            // save abl->hubAnglePrev 
+            abl->hubAnglePrev = abl->hubAngle;
+
+            // time constant
+            PetscReal sigma    = clock->dt / 200.0; // filter hardcoded to 200s
+
+            // save hub angle
+            abl->hubAngle = hubAngle;
 
             // compute filtered geostrophic angle
-            abl->geoAngle = (1.0 - clock->dt / T) * abl->geoAngle + (clock->dt / T) * geoAngleNew;
+            // PetscReal geoAngleDiff = angleDiff(geoAngleNew, abl->geoAngle);
+            // abl->geoAngle = abl->geoAngle + sigma * geoAngleDiff;
 
-            if(print) PetscPrintf(mesh->MESH_COMM, "                         Alpha at hRef: %.3f deg, Alpha at hGeo: %.3f deg\n",abl->hubAngle/M_PI*180, abl->geoAngle/M_PI*180);
+            abl->geoAngle = geoAngleNew; 
+            
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         Alpha (n), Alpha (n-1) at hRef: %.5f deg, %.5f deg, Alpha at hGeo: %.3f deg\n",abl->hubAngle/M_PI*180, abl->hubAnglePrev/M_PI*180, abl->geoAngle/M_PI*180);
 
-            // compute the uniform source terms
-            abl->a.x = -2.0*abl->fc*nMag(abl->uGeoBar)*sin(abl->geoAngle);
-            abl->a.y =  2.0*abl->fc*nMag(abl->uGeoBar)*cos(abl->geoAngle);
-            abl->a.z =  0.0;
+            // compute the uniform source terms for geostrophic wind controller
+            abl->a.x = -2.0 * abl->fc * nMag(abl->uGeoBar) * sin(abl->geoAngle);
+            abl->a.y = 2.0 * abl->fc * nMag(abl->uGeoBar) * cos(abl->geoAngle);
+            abl->a.z = 0.0;
+            
+            //compute filtered geostrophic wind for damping 
+            PetscReal m1      = (1.0 - clock->dt/abl->geoDampWindow),
+                      m2      = clock->dt/abl->geoDampWindow;
 
-            if(!relax)
+            abl->geoDampUBar.x  = m1 * abl->geoDampUBar.x + m2 * nMag(abl->uGeoBar) * cos(abl->geoAngle);
+            abl->geoDampUBar.y  = m1 * abl->geoDampUBar.y + m2 * nMag(abl->uGeoBar) * sin(abl->geoAngle);
+            abl->geoDampUBar.z  = 0.0; 
+
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         Filtered Ugeo: (%.3f %.3f %.3f)  = %0.3f m/s\n", abl->geoDampUBar.x, abl->geoDampUBar.y, abl->geoDampUBar.z, nMag(abl->geoDampUBar));
+
+            // set damping flag
+            if(clock->time > abl->geoDampStart)
             {
-                abl->b.x = 0.0;
-                abl->b.y = 0.0;
-                abl->b.z = 0.0;
+                applyGeoDamping = 1;
+                PetscPrintf(mesh->MESH_COMM, "                         Applying geostrophic damping...\n");
             }
-            else
+
+            if(mesh->access->io->runTimeWrite)
             {
-                // compute previous geostrophic angle and delta angle w.r.t actual
-                PetscReal geoAngleOld = std::atan(abl->uGeoBar.y/abl->uGeoBar.x);
-                PetscReal geoDelta    = geoAngleNew - geoAngleOld;
+                if(!rank)
+                {
+                    word location = "./fields/" + mesh->meshName + "/" + getTimeName(clock);
+                    word fileName = location + "/geostrophicAngleInfo";
 
-                // compute rotation angle at hub height
-                PetscReal hubDelta = hubAngle;
-                PetscReal omega    = hubDelta / clock->dt;
+                    FILE *fp=fopen(fileName.c_str(), "w");
 
-                // time constant
-                PetscReal sigma    = clock->dt / 200; // filter hardcoded to 200s
-
-                // compute omega bar
-                abl->omegaBar    = sigma * omega + (1.0 - sigma) * abl->omegaBar;
-
-                // rotate geostrophic speed
-                Cmpnts uGeoBarTmp = nSetZero();
-                uGeoBarTmp.x = std::cos(geoDelta) * abl->uGeoBar.x - std::sin(geoDelta) * abl->uGeoBar.y;
-                uGeoBarTmp.y = std::sin(geoDelta) * abl->uGeoBar.x + std::cos(geoDelta) * abl->uGeoBar.y;
-                mSet(abl->uGeoBar, uGeoBarTmp);
-
-                abl->b.x =   relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
-                abl->b.y = - relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
-                abl->b.z =   0.0;
+                    if(fp==NULL)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName.c_str());
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    }
+                    else
+                    {
+                        fprintf(fp, "geoAngle\t\t %.5lf\n", abl->geoAngle/M_PI*180);
+                        fclose(fp);
+                    }
+                }
             }
+
+            /************ Wind angle controller  ***********/
+
+            // compute previous geostrophic angle and delta angle w.r.t actual
+            PetscReal geoAngleOld = std::atan2(abl->uGeoBar.y, abl->uGeoBar.x);
+            PetscReal geoDelta    = angleDiff(geoAngleNew, geoAngleOld);
+
+            // compute rotation speed at hub height (omega)
+            PetscReal omega = angleDiff(abl->hubAngle, abl->hubAnglePrev) / (clock->dt + 1.0e-10);
+
+            // compute omega bar (filtered rotation speed)
+            abl->omegaBar    = sigma * omega + (1.0 - sigma) * abl->omegaBar;
+
+            // rotate geostrophic speed
+            Cmpnts uGeoBarTmp = nSetZero();
+            uGeoBarTmp.x = std::cos(geoDelta) * abl->uGeoBar.x - std::sin(geoDelta) * abl->uGeoBar.y;
+            uGeoBarTmp.y = std::sin(geoDelta) * abl->uGeoBar.x + std::cos(geoDelta) * abl->uGeoBar.y;
+            mSet(abl->uGeoBar, uGeoBarTmp);
+
+            // compute effective rotation speed 
+            PetscReal betaP = 2.0 / 3600.0;
+            PetscReal betaI = 0.1 / 3600.0;
+
+            PetscReal currentError = angleDiff(abl->hubAngle, abl->refHubAngle);
+            abl->cumulatedAngle += currentError * clock->dt;
+
+            PetscReal omega_e = abl->omegaBar + betaP * angleDiff(abl->hubAngle, abl->refHubAngle) + betaI * abl->cumulatedAngle;
+
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         Wind angle controller omega = %0.8f rad/s \n", omega_e);
+
+            abl->b.x =   relax * omega_e;
+            abl->b.y = - relax * omega_e;
+            abl->b.z =   0.0;
         }
         else if (abl->controllerType=="geostrophicProfileAssimilation")
         {
@@ -746,6 +827,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             Cmpnts    *luMean = abl->luMean;
             Cmpnts    *guMean = abl->guMean;
 
+            //reset all fields to 0
             for(j=0; j<nlevels; j++)
             {
                 luMean[j] = nSetZero();
@@ -852,6 +934,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
             PetscReal ablHeight = abl->ablHt, scaleFactor;
 
+            // Step 1: Add the coriolis force + unsteady term into the pressure gradient source term
             for(j=0; j<nlevels; j++)
             {                
                 idxh1 = abl->velInterpIdx[j][0];
@@ -867,80 +950,118 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 //interpolating in vertical direction 
                 uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
 
-                srcPA[j].x  =  - 2.0*abl->fc*uMeso[j].y;
-                srcPA[j].y  =    2.0*abl->fc*uMeso[j].x;
-                srcPA[j].z  =    0.0;
-            }
-
-            //if abl height is below the lowest mesoscale data point
-            if(ablHeight < abl->hV[0])
-            {   
-                i = 0;    
-                while(abl->cellLevels[i] < abl->hV[0])
+                if(clock->it == clock->itStart)
                 {
-                    i++;
+                    srcPA[j].x  =  - 2.0*abl->fc*uMeso[j].y;
+                    srcPA[j].y  =    2.0*abl->fc*uMeso[j].x;
+                    srcPA[j].z  =    0.0;
                 }
-
-                abl->lowestIndV = i;
-                abl->bottomSrcHtV = abl->hV[0];
-            }
-            // if abl height is in between the mesoscale data points
-            else if(ablHeight >= abl->hV[0])
-            {
-                i = 0;    
-
-                while(abl->cellLevels[i] < ablHeight)
+                else
                 {
-                    i++;
-                }   
-
-                abl->lowestIndV = i;
-                abl->bottomSrcHtV = ablHeight;
+                    srcPA[j].x  =  - 2.0*abl->fc*uMeso[j].y + (uMeso[j].x - abl->uGeoPrev[j].x)/PetscMax(clock->dt, 1e-8);
+                    srcPA[j].y  =    2.0*abl->fc*uMeso[j].x + (uMeso[j].y - abl->uGeoPrev[j].y)/PetscMax(clock->dt, 1e-8);
+                    srcPA[j].z  =    0.0;
+                }
             }
 
+            //save the previous mesoscale velocities 
             for(j=0; j<nlevels; j++)
             {
-                if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                abl->uGeoPrev[j] = nSet(uMeso[j]);
+            }
+
+            //Step 2: use constant source term in the region where no mesoscale data is available 
+            i = 0;    
+            PetscInt lMesoIndv, hMesoIndV;
+            while(abl->cellLevels[i] < abl->hV[0])
+            {
+                i++;
+            }
+            lMesoIndv = i;
+
+            i = nlevels-1;    
+            while(abl->cellLevels[i] > abl->hV[abl->numhV - 1])
+            {
+                i--;
+            }
+            hMesoIndV = i;
+            
+            for(j=0; j<nlevels; j++)
+            {
+                if(abl->cellLevels[j] < abl->hV[0])
                 {
-                    srcPA[j].x = srcPA[abl->lowestIndV].x;
-                    srcPA[j].y = srcPA[abl->lowestIndV].y;
-                    srcPA[j].z = srcPA[abl->lowestIndV].z;
+                    srcPA[j].x = srcPA[lMesoIndv].x;
+                    srcPA[j].y = srcPA[lMesoIndv].y;
+                    srcPA[j].z = srcPA[lMesoIndv].z;
                 } 
 
                 if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
                 {
-                    srcPA[j].x = srcPA[abl->highestIndV].x;
-                    srcPA[j].y = srcPA[abl->highestIndV].y;
-                    srcPA[j].z = srcPA[abl->highestIndV].z;
+                    srcPA[j].x = srcPA[hMesoIndV].x;
+                    srcPA[j].y = srcPA[hMesoIndV].y;
+                    srcPA[j].z = srcPA[hMesoIndV].z;
                 }
             }
 
-            //now add the damping term 
+            // Step 3: add the frictional drag term 
             PetscReal ablgeoDelta = 200;
             PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
 
-            for(j=0; j<nlevels; j++)
-            {                
-                idxh1 = abl->velInterpIdx[j][0];
-                idxh2 = abl->velInterpIdx[j][1];
-
-                wth1  = abl->velInterpWts[j][0];
-                wth2  = abl->velInterpWts[j][1];
-
-                //interpolating in time
-                uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
-                uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
-
-                //interpolating in vertical direction 
-                uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
-
-                //ensure no damping within the boundary layer
+            for (int j = 0; j < nlevels; ++j)
+            {
+                //apply drag term only if below the ABL height
                 scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
 
-                srcPA[j].x +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].x - uMeso[j].x);
-                srcPA[j].y +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].y - uMeso[j].y);
-                srcPA[j].z =   0.0;
+                PetscReal dz;
+                if (j == 0)
+                {
+                    dz = abl->cellLevels[j+1] - abl->cellLevels[j];
+                    srcPA[j].x += (1 - scaleFactor) * (abl->avgStress[j+1].x - abl->avgStress[j].x) / dz;
+                    srcPA[j].y += (1 - scaleFactor) * (abl->avgStress[j+1].y - abl->avgStress[j].y) / dz;
+                    srcPA[j].z =   0.0;
+                }
+                else if (j == nlevels - 1)
+                {
+                    dz = abl->cellLevels[j] - abl->cellLevels[j-1];
+                    srcPA[j].x += (1 - scaleFactor) * (abl->avgStress[j].x - abl->avgStress[j-1].x) / dz;
+                    srcPA[j].y += (1 - scaleFactor) * (abl->avgStress[j].y - abl->avgStress[j-1].y) / dz;
+                    srcPA[j].z =   0.0;
+                }
+                else
+                {
+                    dz = abl->cellLevels[j+1] - abl->cellLevels[j-1];
+                    srcPA[j].x += (1 - scaleFactor) * (abl->avgStress[j+1].x - abl->avgStress[j-1].x) / dz;
+                    srcPA[j].y += (1 - scaleFactor) * (abl->avgStress[j+1].y - abl->avgStress[j-1].y) / dz;
+                    srcPA[j].z =   0.0;
+                }
             }
+
+            // //now add the damping term 
+            // PetscReal ablgeoDelta = 200;
+            // PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
+
+            // for(j=0; j<nlevels; j++)
+            // {                
+            //     idxh1 = abl->velInterpIdx[j][0];
+            //     idxh2 = abl->velInterpIdx[j][1];
+
+            //     wth1  = abl->velInterpWts[j][0];
+            //     wth2  = abl->velInterpWts[j][1];
+
+            //     //interpolating in time
+            //     uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+            //     uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+            //     //interpolating in vertical direction 
+            //     uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+            //     //ensure no damping within the boundary layer
+            //     scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
+
+            //     srcPA[j].x +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].x - uMeso[j].x);
+            //     srcPA[j].y +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].y - uMeso[j].y);
+            //     srcPA[j].z =   0.0;
+            // }
 
             //write the source terms 
             if(!rank)
@@ -1669,10 +1790,30 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     {
                         if(abl->controllerType=="geostrophic")
                         {
-                            // multiply by dt for how TOSCA builds the source RHS
-                            source[k][j][i].x = (abl->a.x + abl->b.x*ucat[k][j][i].y) * clock->dt;
-                            source[k][j][i].y = (abl->a.y + abl->b.y*ucat[k][j][i].x) * clock->dt;
-                            source[k][j][i].z = 0.0;
+                            PetscReal  height = cent[k][j][i].z - mesh->grndLevel;
+                            
+                            if(applyGeoDamping)
+                            {
+                                // multiply by dt for how TOSCA builds the source RHS
+                                source[k][j][i].x = (abl->a.x + abl->b.x * ucat[k][j][i].y + 
+                                                    scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
+                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x)) * clock->dt;
+                                
+                                source[k][j][i].y = (abl->a.y + abl->b.y * ucat[k][j][i].x + 
+                                                    scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
+                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y)) * clock->dt;
+                                
+                                source[k][j][i].z = 0.0;
+                            }
+                            else 
+                            {
+                                // multiply by dt for how TOSCA builds the source RHS
+                                source[k][j][i].x = (abl->a.x + abl->b.x * ucat[k][j][i].y) * clock->dt;
+                                
+                                source[k][j][i].y = (abl->a.y + abl->b.y * ucat[k][j][i].x) * clock->dt;
+                                
+                                source[k][j][i].z = 0.0;
+                            }
                         }
                         else if(abl->controllerType=="pressure")
                         {

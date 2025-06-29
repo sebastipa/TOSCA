@@ -457,6 +457,17 @@ inline PetscReal splineB2(PetscReal a)
 
 }
 
+// Computes the smallest angle difference between two angles (in radians), accounting for periodicity.
+// Inputs: a, b - angles in radians.
+// Returns: The smallest difference (a - b) in radians, adjusted to be within [-π, π].
+inline PetscReal angleDiff(PetscReal a, PetscReal b)
+{
+    PetscReal diff = a - b;
+    while (diff > M_PI) diff -= 2.0 * M_PI;
+    while (diff < -M_PI) diff += 2.0 * M_PI;
+    return diff;
+}
+
 // VECTOR ALGEBRA
 // ============================================================================================================= //
 

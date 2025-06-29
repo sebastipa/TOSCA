@@ -2296,7 +2296,7 @@ PetscErrorCode UpdateNut(les_ *les)
                 }
             }
 
-            // add abl stratification contribution 
+            // add abl stratification contribution - not used - this term seems to affect the ABL velocity near the inversion height.
             if (les->access->flags->isTeqnActive)
             {
                 if(les->access->flags->isAblActive)
@@ -2308,7 +2308,7 @@ PetscErrorCode UpdateNut(les_ *les)
 
                     PetscReal gravity = 9.81;
                     PetscReal tRef = les->access->abl->tRef;
-                    PetscReal beta = gravity/tRef;
+                    PetscReal beta = 0; //gravity/tRef;
 
                     Compute_dscalar_center
                     (
