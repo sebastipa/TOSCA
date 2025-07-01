@@ -1,0 +1,367 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wind Farm Successor Example - Concurrent Precursor &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Wind Farm Successor Example - Overset Mesh" href="05_successor_overset_test.html" />
+    <link rel="prev" title="Wind Farm Successor Example - Inlet/Outlet" href="03_successor_periodized_test.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tosca_examples.html">Example Cases</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_neutral_abl_test.html">Neutral ABL Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_nrel5mw_test.html">NREL 5MW Example - Uniform Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_successor_periodized_test.html">Wind Farm Successor Example - Inlet/Outlet</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Wind Farm Successor Example - Concurrent Precursor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gravity-waves">Gravity Waves</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#advection-damping">Advection Damping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#temperature-controller">Temperature Controller</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#concurrent-precursor-spinup-flag">Concurrent Precursor Spinup Flag</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#initial-condition">Initial Condition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#case-explanation">Case Explanation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-the-case">Running the Case</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="05_successor_overset_test.html">Wind Farm Successor Example - Overset Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="06_sphere_flow_test.html">Sphere Flow Static IBM Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="07_rotating_cylinder_test.html">Rotating Cylinder Dynamic IBM Example</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../tosca_examples.html">Example Cases</a></li>
+      <li class="breadcrumb-item active">Wind Farm Successor Example - Concurrent Precursor</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/02_examples/04_successor_periodized_fringe_test.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="wind-farm-successor-example-concurrent-precursor">
+<span id="examples-successor-periodized-fringe-test"></span><h1>Wind Farm Successor Example - Concurrent Precursor<a class="headerlink" href="#wind-farm-successor-example-concurrent-precursor" title="Link to this heading"></a></h1>
+<p>The <em>tests/SuccessorPeriodizedFringeTest</em> example case extends the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a>, demonstrating how to run the
+same case using an inlet fringe region and the concurrent precursor method.</p>
+<p>In this method, two simulations are carried out in sync, namely the wind farm simulation, referred to as the successor, and the precursor
+simulation, which provides the unperturbed and time-resolved ABL flow that is desired at fringe region exit. The wind farm domain
+features periodic boundary conditions on all lateral boundaries, this means that flow perturbations are re-advected at the inlet, e.g. leading to the
+wind farm being impinged by its own wake. This effect can be eliminated through specialized source terms, applied
+throughout the fringe region, which aim at removing any flow perturbation (caused by e.g. the wind turbines), thereby bringing the flow solution back
+to its uperturbed, time-varying ABL state. This state is referred to as the reference state in fringe region nomenclature. If the reference state is steady,
+the fringe region is referred to as Rayleigh damping layer (a Rayleigh damping layer will be applied at the domain top, where the flow is non-turbulent),
+and an additional simulation is not required for its computation. Conversely, if the reference state is time-resolved, it varies both in space
+and time at each iteration, and so it needs to be retrieved from an additional simulation that runs concurrently with the wind farm simulation.
+This is done to avoid reading the unsteady 3D reference state from file at each time step, which would be unfeasible both from a I/O and storage perspective.</p>
+<p>The concurrent precursor can be both auto-sustained by using periodic BCs on all lateral boundaries, or fed with an <em>inflowDatabase</em>. In the first case,
+a spin-up phase is required to develop the turbulent ABL, while in the second case it is only necessary to wait one flow-turnover time for the precursor domain
+to be completely filled with the inflow data. In this example, the <em>inflowDatabase</em> created in the <a class="reference internal" href="01_neutral_abl_test.html#examples-neutral-abl-test"><span class="std std-ref">Neutral ABL Example</span></a> is used as inlet boundary
+condition to drive the flow in the concurrent precursor (this data can also be found at <a class="reference external" href="https://drive.google.com/file/d/17F5wtI5Jc1XGh8crmOVJYVXabC8iQXq1/view?usp=sharing">this</a> link).
+Wind turbines are represented this time using the <em>uniformADM</em> model, and the simulation also includes the solution of the potential temperature field.
+A few probes are inserted in the domain in order to showcase their usage and the <em>-average3LM</em> acquisition utility is also activated in order to
+compute depth-averaged quantities in three user-defined layers.</p>
+<section id="gravity-waves">
+<h2>Gravity Waves<a class="headerlink" href="#gravity-waves" title="Link to this heading"></a></h2>
+<p>When the simulation includes potential temperature, gravity waves can develop in the domain. These waves then reflect at the boundaries, polluting the flow
+solution. It has been shown in literature that fringe and Rayleigh damping regions applied at the domain boundaries, if correctly designed, help avoiding this effect.
+Without concurrent precursor method, i.e. using inflow-outflow BCs, one would require three fringe regions, namely at the inlet, outlet and domain top. Moreover, it becomes difficult to
+apply the inflow and outflow reference states inside the ABL, as they are turbulent and hence time-varying. For this reason, finite-volume codes usually use
+Rayleigh damping regions at all boundaries, with the inlet and outlet Rayleigh damping regions not extending inside the boundary layer. This might work in some cases, but it is
+far less reliable. For instance, perturbances very close to the ABL top are not damped and it is challenging to choose suitable steady reference states to
+be applied above the ABL. Inlet and outlet Rayleigh damping regions can be applied in TOSCA using the <code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code> and <code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code> options in the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code>, but they are not used in this example. At the top, the Rayleigh damping region is applied using the <code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code> option, which can
+work as a hybrid Rayleigh-fringe region depending if source terms are only applied in the vertical direction (steady) or also in the horizontal (unsteady).
+For wind farm simulations that combine a fringe region at the inlet with a Rayleigh damping region at the top, horizontal and vertical damping is operated by the fringe region,
+while the Rayleigh damping region should only damp in the vertical direction. As a consequence, the <code class="docutils literal notranslate"><span class="pre">zDampingAlsoXY</span></code> option in the <code class="docutils literal notranslate"><span class="pre">zDampingProperties</span></code> dict in <em>ABLProperties.dat</em>
+is turned off.</p>
+</section>
+<section id="advection-damping">
+<h2>Advection Damping<a class="headerlink" href="#advection-damping" title="Link to this heading"></a></h2>
+<p>In some cases, the concurrent precursor method and inlet fringe region might not be enough to avoid gravity waves reflections, hence an advection damping layer around
+the exit of the fringe region is added, where the horizontal advection of vertical velocity is turned off in order to avoid the propagation of these verical perturbations
+downstream. This is activated by setting the <code class="docutils literal notranslate"><span class="pre">-advectionDampingX</span></code> flag to 1 in the <em>control.dat</em> file, and requires the specification of <code class="docutils literal notranslate"><span class="pre">advectionDampingXProperties</span></code> in the <em>ABLProperties.dat</em> file.
+It is always good practice to use this feature, as it is now state of the art in LES of wind farm and terrain induced gravity waves. Finally, lateral fringe
+region might be needed in some cases (not shown here), and its usage in TOSCA is described in the <em>tests/SuccessorPeriodizedLateralFringeTest</em>.</p>
+</section>
+<section id="temperature-controller">
+<h2>Temperature Controller<a class="headerlink" href="#temperature-controller" title="Link to this heading"></a></h2>
+<p>Note that, when running very long simulations using the concurrent precursor method, the temperature field should be free to evolve in the successor domain. Hence, the temperature
+controller should be switched off by setting the <code class="docutils literal notranslate"><span class="pre">controllerActiveT</span></code> flag to 0 in the <em>ABLProperties.dat</em> file. Conversely, temperature control inside the
+concurrent precursor domain might be desired, as the height of the inversion layer would raise in time due to turbulent mixing. This can be set by activating
+the <code class="docutils literal notranslate"><span class="pre">controllerActivePrecursorT</span></code> flag in the <em>ABLProperties.dat</em> file. The type of temperature controllers is determined by the <code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code> entry
+in the <em>ABLProperties.dat</em> file (see <a class="reference internal" href="../01_user_guide/input_files/ablProperties.html#ablproperties-section"><span class="std std-ref">ABLProperties.dat</span></a>).</p>
+</section>
+<section id="concurrent-precursor-spinup-flag">
+<h2>Concurrent Precursor Spinup Flag<a class="headerlink" href="#concurrent-precursor-spinup-flag" title="Link to this heading"></a></h2>
+<p>In this example, instead of mapping the inflow data to the successor domain, the <em>inflowDatabase</em>
+is used to drive the flow in the precursor domain through the <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> flag, which is set to 1. Notably, setting this flag to 0 applies lateral periodic boundary
+conditions in the precursor as well, while a value of 1 reads data from the <em>inflowDatabase</em> and automatically initializes the flow using <code class="docutils literal notranslate"><span class="pre">spreadInflow</span></code>. To change the initialization
+so that the initial condition is read from <em>fields/precursor</em> directory, e.g. for restarts, the <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> flag needs to be set to 2. Top and bottom
+boundary conditions in the precursor are automatically set by TOSCA to be the same as the successor domain (hence, those listed in the files contained within the <em>boundary</em> directory).
+For the successor, lateral boundary conditions should be set to <em>periodic</em>, while they are arbitrary on the top and bottom patches. In this example,
+we use the same boundary conditions as the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a> for the top and bottom. Note that, in order to simplify the simulation
+set up when the concurrent precursor method is activated, the user does not need to specify boundary conditions for the precursor domain, but instead this operation is done internally
+by the TOSCA code.</p>
+</section>
+<section id="initial-condition">
+<h2>Initial Condition<a class="headerlink" href="#initial-condition" title="Link to this heading"></a></h2>
+<p>As the successor uses periodic boundary conditions, the simulation <strong>requires a previously calculated initial field</strong> in order to be correctly initialized. Initializing the flow using
+<em>spreadInflow</em> will not work, as no meaningful value is stored at the ghost cells when boundaries are periodic. In this
+example, the initial field is provided, but users would not have this initial conditions if creating a similar case from scratch. In order to generate this data, the simulation
+should be first run for a few interations using the setup described in the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a>, just enough to generate a dummy checkpoint file. Then,
+the methodology described for this example can be applied. In general, the correct steps that should be followed to successfully run concurent-precursor simulations are the
+following:</p>
+<ol class="arabic simple">
+<li><p>Run the simulation using inlet-outlet BCs for a few iterations, just enough to save a single checkpoint file inside the <em>fields</em> directory (this setup is described in
+<a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a>). This step can be run without <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code>, <code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code> and <code class="docutils literal notranslate"><span class="pre">-advectionDampingX</span></code> options.</p></li>
+<li><p>Switch to streamwise periodic boundary conditions and activate <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code>, <code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code> and <code class="docutils literal notranslate"><span class="pre">-advectionDampingX</span></code> options. Notably, solely setting <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> to
+1 <strong>is not sufficient to activate the concurrent precursor method</strong>, as there are many ways to prescribe the desired field in TOSCA (see <a class="reference internal" href="../01_user_guide/input_files/ablProperties.html#ablproperties-section"><span class="std std-ref">ABLProperties.dat</span></a>). This is done by
+selecting the <code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> to 3 in the <code class="docutils literal notranslate"><span class="pre">xDampingProperties</span></code> inside the <em>ABLProperties.dat</em> file.  During this step, since the
+concurrent precursor does not have initial fields yet, the <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> flag should be set to 1, as it corresponds to <em>spreadInflow</em> in the precursor domain.</p></li>
+<li><p>After one precursor flow-turnover time, the simulation is autosustained and periodic BCs can also be applied in the precursor domain. This is done by setting the
+<code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> flag to 0. Note that this step is optional. If the user desired to keep mapping the inflow database to the precursor domain, the <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code>
+flag should be set to 2 at subsequent restarts, as this corresponds to a <em>readField</em> initialization in the precursor domain. In this case, the initial condition should have been
+produced during the second step.</p></li>
+</ol>
+</section>
+<section id="case-explanation">
+<h2>Case Explanation<a class="headerlink" href="#case-explanation" title="Link to this heading"></a></h2>
+<p>The domain size is the same as the one used in the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a>, and the same applies to the wind farm layout with the wind turbine
+model set to <em>uniformADM</em> in the <em>turbines/windFarmProperties</em> file.
+Apart from the boundary conditions, the main difference with the <a class="reference internal" href="03_successor_periodized_test.html#examples-successor-periodized-test"><span class="std std-ref">Wind Farm Successor Example - Inlet/Outlet</span></a> can be found in the <em>control.dat</em> and <em>ABLProperties.dat</em> files.
+In the first, the inlet and top fringe regions are activated through the <code class="docutils literal notranslate"><span class="pre">-xDampingLayer</span></code> and <code class="docutils literal notranslate"><span class="pre">-zDampingLayer</span></code> options, while the advection damping region is enforced
+through the <code class="docutils literal notranslate"><span class="pre">-advectionDamping</span></code> flag. This prompts the code to read the respective dictionaries in the <em>ABLProperties.dat</em> file, where the fringe and advection damping
+regions properties are defined. The inlet fringe region is defined as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">xDampingProperties</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">xDampingStart</span><span class="w">   </span><span class="mi">0</span><span class="w">                    </span><span class="c1">// start of the fringe region</span>
+<span class="w">    </span><span class="n">xDampingEnd</span><span class="w">     </span><span class="mi">200</span><span class="w">                  </span><span class="c1">// end of the fringe region</span>
+<span class="w">    </span><span class="n">xDampingDelta</span><span class="w">   </span><span class="mi">50</span><span class="w">                   </span><span class="c1">// rising/decaying length of the</span>
+<span class="w">                                         </span><span class="c1">// fringe activation function</span>
+<span class="w">    </span><span class="n">xDampingAlpha</span><span class="w">   </span><span class="mf">0.7</span><span class="w">                  </span><span class="c1">// damping coefficient</span>
+<span class="w">    </span><span class="n">xDampingAlphaControlType</span><span class="w"> </span><span class="n">alphaFixed</span><span class="w">  </span><span class="c1">// maintains alpha constant</span>
+
+<span class="w">    </span><span class="n">uBarSelectionType</span><span class="w"> </span><span class="mi">3</span><span class="w">                  </span><span class="c1">// 3 = CONCURRENT PRECURSOR!</span>
+
+<span class="w">    </span><span class="n">n1Inflow</span><span class="w"> </span><span class="mi">50</span><span class="w">                          </span><span class="c1">// these are the inflow function</span>
+<span class="w">    </span><span class="n">n2Inflow</span><span class="w"> </span><span class="mi">50</span><span class="w">                          </span><span class="c1">// settings for the concurrent</span>
+<span class="w">    </span><span class="n">n1Periods</span><span class="w"> </span><span class="mi">1</span><span class="w">                          </span><span class="c1">// precursor method</span>
+<span class="w">    </span><span class="n">n2Periods</span><span class="w"> </span><span class="mi">2</span>
+<span class="w">    </span><span class="n">n1Merge</span><span class="w">   </span><span class="mi">0</span>
+<span class="w">    </span><span class="n">interpolation</span><span class="w"> </span><span class="n">spline</span>
+<span class="w">    </span><span class="n">sourceType</span><span class="w"> </span><span class="n">uniform</span>
+<span class="w">    </span><span class="n">cellWidth1</span><span class="w"> </span><span class="mi">20</span>
+<span class="w">    </span><span class="n">cellWidth2</span><span class="w"> </span><span class="mi">20</span>
+<span class="w">    </span><span class="n">n2Shift</span><span class="w">    </span><span class="mi">0</span>
+<span class="w">    </span><span class="n">shiftSpeed</span><span class="w"> </span><span class="mf">1.5</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The first thing to notice is the <code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> set to 3, which indicates that the reference state is provided by the concurrent precursor.
+This setting prompts TOSCA to create a new simulation instance that will run concurrently with the wind farm simulation. The user does not need to
+specify the mesh for the precursor domain, as this is internally calculated by TOSCA, including the handling of the domain decomposition. The phylosophy
+under which this is achieved is the following:</p>
+<ol class="arabic simple">
+<li><p>Processors that are (fully or partially) contained in the fringe region are selected.</p></li>
+<li><p>Cells that belong to these processors are selected and will be used to create the new mesh.</p></li>
+</ol>
+<p>This means that the precursor domain is only solved by a subset of the processors used for the wind farm simulation. The remaining processors
+will idle while the precursor time step is carried out. If the time step is adjustable based on the CFL condition, the maximum velocitu between the two
+domains will be used to compute the most restrictive time step. The idea to only use a subset of the processors makes sure that, if the wind farm simulation
+is run with the optimal cell-per-processor ratio, the same ratio is also employed for the precursor simulation.</p>
+<p>The entries below the <code class="docutils literal notranslate"><span class="pre">uBarSelectionType</span></code> are required to set the inflow function for the concurrent precursor method, activated using <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code>
+equal to 1 or 2 in the <em>control.dat</em> file, and correspond to the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> type 4. Notably, <strong>they are not required</strong> if <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> is set t 0. The <code class="docutils literal notranslate"><span class="pre">n1Inflow</span></code> and <code class="docutils literal notranslate"><span class="pre">n2Inflow</span></code> entries define the
+number of cells in the x and y directions of the inflow data, respectively, while <code class="docutils literal notranslate"><span class="pre">sourceType</span> <span class="pre">uniform</span></code> indicates that the inflow mesh is uniform with widths of
+20 m in both directions. The <code class="docutils literal notranslate"><span class="pre">n1Periods</span></code> and <code class="docutils literal notranslate"><span class="pre">n2Periods</span></code> entries define the number of tiles in the y and x directions, respectively, while <code class="docutils literal notranslate"><span class="pre">n1Merge</span></code> indicates
+the inflow data is averaged at the top 10 cells, making the inflow truly steady above. In this example, the inflow is periodized 2 times in the y direction and 1 time
+in the z direction. Above the available data, the precursor inlet patch is padded with the last value that is found in the inflow database. For more information on
+the inflow function, please refer to the <a class="reference internal" href="../01_user_guide/input_files/boundary.html#inlet-functions-subsubsection"><span class="std std-ref">Inlet Functions</span></a>. The <code class="docutils literal notranslate"><span class="pre">shiftSpeed</span></code> entry may be optionally set to laterally shift the inflow data and
+remove the streamwise turbulent streaks that sometimes produce a slow convergene of the turbulence statistics.</p>
+<p>Settings related to the vertical damping layer are simpler, namely:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">zDampingProperties</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">zDampingStart</span><span class="w">   </span><span class="mi">1000</span><span class="w">    </span><span class="c1">// x start of the fringe region</span>
+<span class="w">    </span><span class="n">zDampingEnd</span><span class="w">     </span><span class="mf">4675.48</span><span class="w"> </span><span class="c1">// x end of the fringe region</span>
+<span class="w">    </span><span class="n">zDampingAlpha</span><span class="w">   </span><span class="mf">0.01</span><span class="w">    </span><span class="c1">// damping coefficient</span>
+<span class="w">    </span><span class="n">zDampingAlsoXY</span><span class="w">  </span><span class="mi">0</span><span class="w">       </span><span class="c1">// Rayleigh damping layer mode,</span>
+<span class="w">                            </span><span class="c1">// only damps vertica velocity</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this example, the vertical damping region is used in Rayleigh damping mode, meaning that only the vertical velocity is damped. The reference state does not need to
+be specified, as it is always zero (there should be no vertical velocity perturbations close to a flat slip boundary).</p>
+<p>Finally, the advection damping region is defined as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">advectionDampingProperties</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">advDampingStart</span><span class="w">       </span><span class="mi">200</span>
+<span class="w">    </span><span class="n">advDampingEnd</span><span class="w">         </span><span class="mi">600</span>
+<span class="w">    </span><span class="n">advDampingDeltaStart</span><span class="w">  </span><span class="mi">100</span>
+<span class="w">    </span><span class="n">advDampingDeltaEnd</span><span class="w">    </span><span class="mi">100</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This region is the simplest to set, as only geometrical parameters are required.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The important aspect about fringe, Rayleigh and advection damping regions is that they have to be properly set in order to have a positive effect on the solution.
+Wrong settings may lead to a non-physical solution, or worse case, to a crash of the simulation. The settings provieded in the current example are just
+explanatory and should be adapted to the specific case. Detailed information on how to set these regions can be found <a class="reference external" href="https://wes.copernicus.org/articles/9/297/2024/#section9">here</a></p>
+</div>
+<p>For the concurrent precursor, the remaining simulation parameters (solver, controller, etc.) are automatically set to be the same as the wind farm simulation.
+Lastly, in order to execute the <code class="docutils literal notranslate"><span class="pre">-average3LM</span></code> acquisition utility, the additional <em>3LM</em> file is required inside the <em>sampling</em> directory. This contains the
+specification in terms of horizontal diretization and vertical depth, of each of the three layers where velocity and pressure perturbations are depth averaged and where the
+boundary layer height is computed. The file is structured as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">nstw</span><span class="w">         </span><span class="mi">20</span><span class="w">            </span><span class="c1">// streamwise n cells</span>
+<span class="n">nspw</span><span class="w">         </span><span class="mi">20</span><span class="w">            </span><span class="c1">// spanwise n cells</span>
+<span class="n">upDir</span><span class="w">        </span><span class="p">(</span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">1.0</span><span class="p">)</span><span class="w"> </span><span class="c1">// upward direction</span>
+<span class="n">streamDir</span><span class="w">    </span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="c1">// streamwise direction</span>
+<span class="n">xSample</span><span class="w">      </span><span class="mi">500</span><span class="w">           </span><span class="c1">// x position where unperturbed fields</span>
+<span class="w">                           </span><span class="c1">// are oberved</span>
+
+<span class="n">avgStartTime</span><span class="w"> </span><span class="mf">0.0</span><span class="w">           </span><span class="c1">// start time of perturbation fields average</span>
+<span class="n">avgPeriod</span><span class="w">    </span><span class="mf">1.5</span><span class="w">           </span><span class="c1">// period of perturbation fields average</span>
+
+<span class="n">level1</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hStart</span><span class="w">   </span><span class="mf">0.0</span><span class="w">           </span><span class="c1">// start z of 1st layer</span>
+<span class="w">    </span><span class="n">hEnd</span><span class="w">     </span><span class="mf">180.0</span><span class="w">         </span><span class="c1">// end z of 1st layer</span>
+<span class="p">}</span>
+
+<span class="n">level2</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hStart</span><span class="w">   </span><span class="mf">180.0</span><span class="w">         </span><span class="c1">// start z of 2nd layer</span>
+<span class="w">    </span><span class="n">hEnd</span><span class="w">     </span><span class="mf">260.0</span><span class="w">         </span><span class="c1">// end z of 2nd layer</span>
+<span class="p">}</span>
+
+<span class="n">level3</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hStart</span><span class="w">   </span><span class="mf">260.0</span><span class="w">         </span><span class="c1">// start z of 3rd layer</span>
+<span class="w">    </span><span class="n">hEnd</span><span class="w">     </span><span class="mf">1000.0</span><span class="w">        </span><span class="c1">// end z of 3rd layer</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="running-the-case">
+<h2>Running the Case<a class="headerlink" href="#running-the-case" title="Link to this heading"></a></h2>
+<p>The case can be run in parallel (using e.g. 10 processors) using the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">10</span><span class="w"> </span>./tosca
+</pre></div>
+</div>
+<p>When the simulation is started, the user will notice that the concurrent precursor is selected, and a new simulation instance is
+initialized. Processor mapping is automatically handled by TOSCA, and will be printed to screen for information. The simulation startup
+is shown in the following figure:</p>
+<a class="reference internal image-reference" href="../_images/successor_periodized_fringe_test_startup_10procs.png"><img alt="../_images/successor_periodized_fringe_test_startup_10procs.png" src="../_images/successor_periodized_fringe_test_startup_10procs.png" style="width: 100%;" />
+</a>
+<br><p>Notably, the <em>concurrent solution flag</em> is set to 1 for all processors as, for this configuration, all processors own at least one fringe region cell.
+If more processors are used, e.g. 50, the simulation startup will look as follows:</p>
+<a class="reference internal image-reference" href="../_images/successor_periodized_fringe_test_startup_50procs.png"><img alt="../_images/successor_periodized_fringe_test_startup_50procs.png" src="../_images/successor_periodized_fringe_test_startup_50procs.png" style="width: 100%;" />
+</a>
+<br><p>As can be noticed, starting from the 25th processor, the <em>concurrent solution flag</em> is set to 0, as processors from 25 to 99 do not own any fringe region cell. After the concurrent
+precursor mesh creation case, the mesh file is written in the case directory so that precursor fields can be later processed using the utility <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> and visualized in ParaView.
+The user has to make sure that the first lines of the wind farm mesh file (those specifying the periodicty, if any) are correctly copied to the precursor mesh file.
+This might not be always done automatically, especially when the <code class="docutils literal notranslate"><span class="pre">-precursorSpinUp</span></code> flag is active. The user can check the mesh file and, if needed, modify it.</p>
+<p>The simulation runs for 1000 seconds, and the results will be written in the <em>fields</em> directory. As can be seen, a <em>precursor</em> subdirectory is created, where the
+concurrent precursor fields are written. All sections defined for the wind farm simulation are also created for the precursor simulation. Moreover, the flag
+<code class="docutils literal notranslate"><span class="pre">-averageABL</span></code> is always invisibly active for the precursor simulation, and so the <code class="docutils literal notranslate"><span class="pre">-avgABLPeriod</span></code> and <code class="docutils literal notranslate"><span class="pre">-avgABLStartTime</span></code> needs to be always specified in the
+<em>control.dat</em> file.</p>
+<p>The following figure shows the simulation setup, with the position of the fringe region (blue), the Rayleigh damping region (red) and the advection damping
+region (green). The wind farm domain is shown with opacity, together with a horizontal section through the hub-height of the wind turbines.
+A concurrent precursor section, at the same height, is also shown in front of the wind farm domain for clarity, but in reality it is contained in the blue region, as
+the concurrent precursor domain coincides with the fringe region.</p>
+<a class="reference internal image-reference" href="../_images/successor_periodized_fringe_test.png"><img alt="../_images/successor_periodized_fringe_test.png" src="../_images/successor_periodized_fringe_test.png" style="width: 100%;" />
+</a>
+<br><p>As can be seen, the wakes of the wind turbine that are leaving the domain are re-advected at the inlet by the periodic boundary conditions, but are then eliminated
+by the fringe region. The same setup, with different settings, can be used to study terrain and wind farm induced gravity waves, avoiding wave reflections at the domain
+boundaries.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="03_successor_periodized_test.html" class="btn btn-neutral float-left" title="Wind Farm Successor Example - Inlet/Outlet" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="05_successor_overset_test.html" class="btn btn-neutral float-right" title="Wind Farm Successor Example - Overset Mesh" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Versions &mdash; TOSCA 1.0 documentation</title>
+  <title>Versions &mdash; TOSCA dev documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
@@ -14,13 +14,13 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/documentation_options.js?v=3ce10a4d"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Theory Guide" href="tosca_theory_guide.html" /> 
+    <link rel="prev" title="Turbine Models" href="04_theory_guide/turbine_models.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -47,7 +47,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tosca_installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">TOSCA Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Versions</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#development">Development</a></li>
@@ -84,13 +84,13 @@
 <h1>Versions<a class="headerlink" href="#versions" title="Link to this heading"></a></h1>
 <section id="development">
 <h2>Development<a class="headerlink" href="#development" title="Link to this heading"></a></h2>
-<p>This is the current stable development branch of TOSCA. Dodumentation is available at
+<p>The <strong>master</strong> branch is the current stable development branch of TOSCA. Dodumentation is available at
 <a class="reference external" href="https://sebastipa.github.io/TOSCA/index.html">TOSCA Stable Development Documentation</a></p>
-<p>New features:</p>
+<p>New working features since last release (V1.0.0):</p>
 <ul class="simple">
 <li><p>Two-way coupled overset mesh method: this feature enables complete block-structed mesh refinement in TOSCA.</p></li>
 <li><p>Additional scale-dependent (<code class="docutils literal notranslate"><span class="pre">dynamicLASD</span></code>) and anisotropic minimum dissipation (<code class="docutils literal notranslate"><span class="pre">amd</span></code>) LES models.</p></li>
-<li><p>Additional high-order numerical scheme (<code class="docutils literal notranslate"><span class="pre">-central4</span></code> with <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter).</p></li>
+<li><p>Additional high-order numerical scheme (<code class="docutils literal notranslate"><span class="pre">-central4</span></code> with <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter) to better capture the high-frequency tail of turbulence spectra.</p></li>
 <li><p>Improved immersed boundary method: faster algorithms and time-varying wall modeling.</p></li>
 <li><p>Lateral fringe region (<code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code>): allows for gravity wave problems with wind direction changes and assimilated atmospheric data.</p></li>
 <li><p>Data assimilation methods: direct/indirect profile assimilation techniques, as well as wavelet assimilation method (selectable through <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> and <code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code> flags in <em>ABLProperties.dat</em>).</p></li>
@@ -109,7 +109,7 @@ available at <a class="reference external" href="https://sebastipa.github.io/TOS
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="tosca_theory_guide.html" class="btn btn-neutral float-left" title="Theory Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="04_theory_guide/turbine_models.html" class="btn btn-neutral float-left" title="Turbine Models" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>
