@@ -6,9 +6,6 @@ setting up different types of simulations. The idea behind this section of the u
 a given case, but rather to show and explain how TOSCA can be leveraged to adopt best practices in the diverse engineering and 
 scientific applications that can be studied with the code. 
 
-The TOSCA Project 
-------------------
-
 The main focus of the TOSCA code has been, since the start of its development, atmospheric boundary layer flows and wind farm 
 flows. The idea was to develop a tool that was able to tackle large-scale LES problems, such as atmospheric gravity waves (either
 triggered by terrain features or wind farms), global blockage effects of wind farms, as well as the evolution of wakes shed by
@@ -65,10 +62,10 @@ not complete and that the code could be used for additional problems that even t
 .. toctree::
    :maxdepth: 1
 
-   02_applications/abl.rst
-   02_applications/ibm.rst
-   02_applications/precursor.rst
-   02_applications/concurrent_precursor.rst
-   02_applications/terrain.rst
-   02_applications/assimilation.rst
-   02_applications/turbulence.rst
+   03_applications/abl.rst
+   03_applications/ibm.rst
+   03_applications/precursor.rst
+   03_applications/concurrent_precursor.rst
+   03_applications/terrain.rst
+   03_applications/assimilation.rst
+   03_applications/turbulence.rst

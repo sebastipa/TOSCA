@@ -4,7 +4,7 @@ Execution
 ---------
 
 Executing TOSCA is pretty straightforward. Once the code has been compiled (see :ref:`installation_section`), you should see two 
-executables in the *build* directory: *tosca* and *tosca2PV*. 
+executables in the *build* directory: **tosca** and **tosca2PV**. 
 
 The first executable is the TOSCA solver, while the second allows to convert TOSCA output binary files to *.xmf* files that can be 
 read by *ParaView*. 
@@ -32,7 +32,7 @@ Finally, open the *xmf* files contained inside the *XMF* directory using *ParaVi
 `Running in parallel` 
 ~~~~~~~~~~~~~~~~~~~~~~
 
-To run in parallel with **all available** processors (e.g. when submitting jobs on a cluster), simply run the following command in a terminal:
+To run in parallel with **all available** processors (e.g. when submitting jobs on a cluster through SLURM or PBS), simply insert the following command in the submission script:
 
 .. code-block:: bash
 
@@ -42,9 +42,9 @@ or with a specific number of processors:
 
 .. code-block:: bash
 
-    mpirun -np 4 ./tosca 
+    mpirun -np 2000 ./tosca 
 
-where *4* is the number of processors you want to use. To post process the output in serial (this will also convert 3D fields to *.xmf* format),
+where *2000* is the number of processors you want to use. To post process the output in serial (this will also convert 3D fields to *.xmf* format),
 run the following command in a terminal:
 
 .. code-block:: bash

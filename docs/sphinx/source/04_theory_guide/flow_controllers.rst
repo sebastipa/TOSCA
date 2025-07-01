@@ -1,0 +1,4 @@
+.. _controllers-section:
+
+Controllers
+-----------
