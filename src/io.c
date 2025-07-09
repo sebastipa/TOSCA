@@ -1923,34 +1923,21 @@ PetscErrorCode VecSymmTensorLocalToGlobalCopy(mesh_ *mesh, Vec &lV, Vec &V)
 
 //***************************************************************************************************************//
 
-PetscErrorCode writeFields(io_ *io)
+
+PetscErrorCode initializeTimeDir(io_ *io)
 {
-    mesh_       *mesh  = io->access->mesh;
-    abl_        *abl   = io->access->abl;
-    ueqn_       *ueqn  = io->access->ueqn;
-    peqn_       *peqn  = io->access->peqn;
-    teqn_       *teqn  = io->access->teqn;
-    les_        *les   = io->access->les;
-    clock_      *clock = io->access->clock;
-    flags_      *flags = io->access->flags;
-    acquisition_ *acquisition;
-
-    if(flags->isAquisitionActive)
-    {
-        acquisition = io->access->acquisition;
-    }
-
-    PetscViewer viewer;
-    word        timeName, timeNameFinal, fieldName;
-    word        fieldsDir = "./fields/" + mesh->meshName;
-
-    PetscMPIInt         rank;
-    MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
     // check and write
     if(io->runTimeWrite)
     {
-        PetscPrintf(mesh->MESH_COMM, "Writing fields for time %lf\n", clock->time);
+        mesh_       *mesh  = io->access->mesh;
+        clock_      *clock = io->access->clock;
+        flags_      *flags = io->access->flags;
+
+        word        timeName, timeNameFinal;
+        word        fieldsDir = "./fields/" + mesh->meshName;
+
+        PetscMPIInt         rank;
+        MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
         // temporary time name path (before finished writing)
         timeName      = fieldsDir + "/"  + getTimeName(clock) + "_tmp";
@@ -1983,6 +1970,102 @@ PetscErrorCode writeFields(io_ *io)
 
         // wait that the folder is available
         MPI_Barrier(mesh->MESH_COMM);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode finalizeTimeDir(io_ *io)
+{
+    // check and write
+    if(io->runTimeWrite)
+    {
+        mesh_       *mesh  = io->access->mesh;
+        clock_      *clock = io->access->clock;
+        flags_      *flags = io->access->flags;
+
+        word        timeName, timeNameFinal;
+        word        fieldsDir = "./fields/" + mesh->meshName;
+
+        PetscMPIInt         rank;
+        MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+        // temporary time name path (before finished writing)
+        timeName      = fieldsDir + "/"  + getTimeName(clock) + "_tmp";
+        timeNameFinal = fieldsDir + "/"  + getTimeName(clock);
+
+        // rename the timeName folder to the timeNameFinal 
+        if (!rank) 
+        {
+            PetscInt renameResult = rename(timeName.c_str(), timeNameFinal.c_str());
+            if(renameResult != 0) 
+            {
+                char error[512];
+                sprintf(error, "could not rename %s to %s when finished writing fields\n", timeName.c_str(), timeNameFinal.c_str());
+                fatalErrorInFunction("writeFields",  error);
+            }
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // delete all other folders if purge is active (recommended for big cases)
+        if(io->purgeWrite)
+        {
+            word keep, writeDir = "./fields/" + mesh->meshName;
+
+            // current time name path
+            if(clock->it == clock->itStart)
+            {
+                keep = getStartTimeName(clock);
+            }
+            else
+            {
+                keep = getTimeName(clock);
+            }
+
+            remove_subdirs_except4_keep_n(mesh->MESH_COMM, writeDir.c_str(), keep, "turbines", "precursor", "ibm", io->purgeWrite-1);
+        }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode writeFields(io_ *io)
+{
+    mesh_       *mesh  = io->access->mesh;
+    abl_        *abl   = io->access->abl;
+    ueqn_       *ueqn  = io->access->ueqn;
+    peqn_       *peqn  = io->access->peqn;
+    teqn_       *teqn  = io->access->teqn;
+    les_        *les   = io->access->les;
+    clock_      *clock = io->access->clock;
+    flags_      *flags = io->access->flags;
+    acquisition_ *acquisition;
+
+    if(flags->isAquisitionActive)
+    {
+        acquisition = io->access->acquisition;
+    }
+
+    PetscViewer viewer;
+    word        timeName, fieldName;
+    word        fieldsDir = "./fields/" + mesh->meshName;
+
+    PetscMPIInt         rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // check and write
+    if(io->runTimeWrite)
+    {
+        PetscPrintf(mesh->MESH_COMM, "Writing fields for time %lf\n", clock->time);
+
+        // temporary time name path (before finished writing)
+        timeName      = fieldsDir + "/"  + getTimeName(clock) + "_tmp";
+
+        // time folder is already available (see WriteAcquisition function)
 
         // write contravariant velocity
         fieldName = timeName + "/V";
@@ -2663,37 +2746,6 @@ PetscErrorCode writeFields(io_ *io)
                     fclose(f);
                 }
             }
-        }
-
-        // rename the timeName folder to the timeNameFinal 
-        if (!rank) 
-        {
-            PetscInt renameResult = rename(timeName.c_str(), timeNameFinal.c_str());
-            if(renameResult != 0) 
-            {
-                char error[512];
-                sprintf(error, "could not rename %s to %s when finished writing fields\n", timeName.c_str(), timeNameFinal.c_str());
-                fatalErrorInFunction("writeFields",  error);
-            }
-        }
-        MPI_Barrier(mesh->MESH_COMM);
-
-        // delete all other folders if purge is active (recommended for big cases)
-        if(io->purgeWrite)
-        {
-            word keep, writeDir = "./fields/" + mesh->meshName;
-
-            // current time name path
-            if(clock->it == clock->itStart)
-            {
-                keep = getStartTimeName(clock);
-            }
-            else
-            {
-                keep = getTimeName(clock);
-            }
-
-            remove_subdirs_except4_keep_n(mesh->MESH_COMM, writeDir.c_str(), keep, "turbines", "precursor", "ibm", io->purgeWrite-1);
         }
     }
 
