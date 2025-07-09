@@ -138,6 +138,12 @@ word getArbitraryTimeName(clock_ *clock, double timeValue);
 //! \brief Sets the runTimeWrite flag and creates initial output directory
 PetscErrorCode setRunTimeWrite(domain_ *domain);
 
+//! \brief Creates the checkpoint directory with a trailing _tmp (indicates that it is not finalized)
+PetscErrorCode initializeTimeDir(io_ *io);
+
+//! \brief Renames the temporary time directory to the final name (without _tmp) and deletes prev chekpoints if purge is active
+PetscErrorCode finalizeTimeDir(io_ *io);
+
 //! \brief Write output fields
 PetscErrorCode writeFields(io_ *io);
 

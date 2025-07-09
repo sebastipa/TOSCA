@@ -270,8 +270,11 @@ PetscErrorCode WriteAcquisition(domain_ *domain)
 
     for(PetscInt d=0; d<nDomains; d++)
     {
-        //set domain specific flags
+        // set domain specific flags
         flags_   flags    = domain[d].flags;
+
+        // initialize checkpoint directory 
+        initializeTimeDir(domain[d].io);
 
         if(flags.isAquisitionActive)
         {
@@ -292,6 +295,9 @@ PetscErrorCode WriteAcquisition(domain_ *domain)
 
         // write the fields
         writeFields(domain[d].io);
+
+        // finalize checkpoint directory 
+        finalizeTimeDir(domain[d].io);
     }
 
     if(flags.isAquisitionActive)
@@ -8052,9 +8058,9 @@ PetscErrorCode averagePerturbationABL(acquisition_ *acquisition)
             {
                 FILE *fp;
 
-                word pAvgUName = "./fields/" + mesh->meshName + "/" + getTimeName(clock) + "/PAvgUABL";
-                word pAvgPName = "./fields/" + mesh->meshName + "/" + getTimeName(clock) + "/PAvgPABL";
-                word pAvgTName = "./fields/" + mesh->meshName + "/" + getTimeName(clock) + "/PAvgTABL";
+                word pAvgUName = "./fields/" + mesh->meshName + "/" + getTimeName(clock) + "_tmp/PAvgUABL";
+                word pAvgPName = "./fields/" + mesh->meshName + "/" + getTimeName(clock) + "_tmp/PAvgPABL";
+                word pAvgTName = "./fields/" + mesh->meshName + "/" + getTimeName(clock) + "_tmp/PAvgTABL";
 
                 // write velocity
                 fp=fopen(pAvgUName.c_str(), "wb");
