@@ -1735,6 +1735,9 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
 PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
 {
     PetscInt           m1 = ifPtr->n1wg, m2 = ifPtr->n2wg;
+    PetscMPIInt        rank;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     PetscInt           i,j,k;
 
@@ -1753,6 +1756,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
     DIR *dir; struct dirent *diread;
 
     std::vector<PetscReal> timeSeries;
+    std::vector<PetscReal> timeSeriesUnique;
 
     char dataLoc[256];
     sprintf(dataLoc, "inflowDatabase/U/");
@@ -1805,14 +1809,46 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
         timeSeries[label] = timeSeries[i];
         // put the min value on the unchanged part at the last index of changed part
         timeSeries[i] = value;
+    } 
+
+    // remove duplicates from timeSeries
+    for(PetscInt i=0; i<ntimes; i++)
+    {
+        PetscBool isUnique = PETSC_TRUE;
+        for(PetscInt j=0; j<ntimes; j++)
+        {
+            if(i != j && PetscAbs(timeSeries[i] - timeSeries[j]) < 1e-10)
+            {
+                isUnique = PETSC_FALSE;
+                if (rank == 0)
+                {
+                    // print a warning only once
+                    PetscPrintf(PETSC_COMM_SELF, "   --> Warning in function: duplicate time %lf found in inflowDatabase/U...removing\n", timeSeries[i]);
+                }
+                break;
+            }
+        }
+
+        if(isUnique)
+        {
+            timeSeriesUnique.push_back(timeSeries[i]);
+        }
     }
 
+    // update ntimes 
+    ntimes = timeSeriesUnique.size();
+
+    if(timeSeriesUnique.size() != timeSeries.size() && rank == 0)
+    {
+        PetscPrintf(PETSC_COMM_SELF, "   --> Warning in function: %ld duplicate times found in inflowDatabase/U...removing\n", timeSeries.size() - timeSeriesUnique.size());
+    }
+    
     // store into inflowData struct
     PetscMalloc(sizeof(PetscReal)*ntimes, &(ifPtr->inflowU.inflowTimes));
 
     for(PetscInt i=0; i<ntimes; i++)
     {
-        ifPtr->inflowU.inflowTimes[i]  = timeSeries[i];
+        ifPtr->inflowU.inflowTimes[i]  = timeSeriesUnique[i];
     }
 
     ifPtr->inflowU.nInflowTimes = ntimes;
@@ -1820,6 +1856,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
 
     // free memory
     std::vector<PetscReal> ().swap(timeSeries);
+    std::vector<PetscReal> ().swap(timeSeriesUnique);
 
     // Temperature: read the time series in inflowDatabase/T folder and store available times, only
     // master process do the search and reads the files.
@@ -1837,6 +1874,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
         DIR *dir; struct dirent *diread;
 
         std::vector<PetscReal> timeSeries;
+        std::vector<PetscReal> timeSeriesUnique;
 
         char dataLoc[256];
         sprintf(dataLoc, "inflowDatabase/T/");
@@ -1864,7 +1902,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
         }
         else
         {
-           char error[512];
+            char error[512];
             sprintf(error, "could not access ./inflowDatabase/T directory\n");
             fatalErrorInFunction("mappedInflowInitialize", error);
         }
@@ -1891,12 +1929,45 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
             timeSeries[i] = value;
         }
 
+        // remove duplicates from timeSeries
+        for(PetscInt i=0; i<ntimes; i++)
+        {
+            PetscBool isUnique = PETSC_TRUE;
+            for(PetscInt j=0; j<ntimes; j++)
+            {
+                if(i != j && PetscAbs(timeSeries[i] - timeSeries[j]) < 1e-10)
+                {
+                    isUnique = PETSC_FALSE;
+                    if (rank == 0)
+                    {
+                        // print a warning only once
+                        PetscPrintf(PETSC_COMM_SELF, "   --> Warning in function: duplicate time %lf found in inflowDatabase/T...removing\n", timeSeries[i]);
+                    }
+                    break;
+                }
+            }
+
+            if(isUnique)
+            {
+                timeSeriesUnique.push_back(timeSeries[i]);
+            }
+        }
+
+        // update ntimes 
+        ntimes = timeSeriesUnique.size();
+
+        // update ntimes 
+        if(timeSeriesUnique.size() != timeSeries.size() && rank == 0)
+        {
+            PetscPrintf(PETSC_COMM_SELF, "   --> Warning in function: %ld duplicate times found in inflowDatabase/T...removing\n", timeSeries.size() - timeSeriesUnique.size());
+        }
+
         // store into inflowData struct
         PetscMalloc(sizeof(PetscReal)*ntimes, &(ifPtr->inflowT.inflowTimes));
 
         for(PetscInt i=0; i<ntimes; i++)
         {
-            ifPtr->inflowT.inflowTimes[i]  = timeSeries[i];
+            ifPtr->inflowT.inflowTimes[i]  = timeSeriesUnique[i];
         }
 
         ifPtr->inflowT.nInflowTimes = ntimes;
@@ -1904,6 +1975,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
 
         // free memory
         std::vector<PetscReal> ().swap(timeSeries);
+        std::vector<PetscReal> ().swap(timeSeriesUnique);
     }
 
     // initialize nut inflow sections if the inflow data is mapped
@@ -1924,6 +1996,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
         DIR *dir; struct dirent *diread;
 
         std::vector<PetscReal> timeSeries;
+        std::vector<PetscReal> timeSeriesUnique;
 
         char dataLoc[256];
         sprintf(dataLoc, "inflowDatabase/nut/");
@@ -1978,12 +2051,45 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
             timeSeries[i] = value;
         }
 
+         // remove duplicates from timeSeries
+        for(PetscInt i=0; i<ntimes; i++)
+        {
+            PetscBool isUnique = PETSC_TRUE;
+            for(PetscInt j=0; j<ntimes; j++)
+            {
+                if(i != j && PetscAbs(timeSeries[i] - timeSeries[j]) < 1e-10)
+                {
+                    isUnique = PETSC_FALSE;
+                    if (rank == 0)
+                    {
+                        // print a warning only once
+                        PetscPrintf(PETSC_COMM_SELF, "   --> Warning in function: duplicate time %lf found in inflowDatabase/nut...removing\n", timeSeries[i]);
+                    }
+                    break;
+                }
+            }
+
+            if(isUnique)
+            {
+                timeSeriesUnique.push_back(timeSeries[i]);
+            }
+        }
+
+        // update ntimes 
+        ntimes = timeSeriesUnique.size();
+
+        // update ntimes 
+        if(timeSeriesUnique.size() != timeSeries.size() && rank == 0)
+        {
+            PetscPrintf(PETSC_COMM_SELF, "   --> Warning in function: %ld duplicate times found in inflowDatabase/nut...removing\n", timeSeries.size() - timeSeriesUnique.size());
+        }
+
         // store into inflowData struct
         PetscMalloc(sizeof(PetscReal)*ntimes, &(ifPtr->inflowNut.inflowTimes));
 
         for(PetscInt i=0; i<ntimes; i++)
         {
-            ifPtr->inflowNut.inflowTimes[i]  = timeSeries[i];
+            ifPtr->inflowNut.inflowTimes[i]  = timeSeriesUnique[i];
         }
 
         ifPtr->inflowNut.nInflowTimes = ntimes;
@@ -1991,6 +2097,7 @@ PetscErrorCode mappedInflowInitialize(inletFunctionTypes *ifPtr)
 
         // free memory
         std::vector<PetscReal> ().swap(timeSeries);
+        std::vector<PetscReal> ().swap(timeSeriesUnique);
     }
 
     return(0);
@@ -2176,15 +2283,22 @@ PetscErrorCode readInflowU(inletFunctionTypes *ifPtr, clock_ *clock)
         }
     }
 
-    // update closest indices
-    ifPtr->inflowU.currentCloseIdx   = idx_1;
-
     // MPI_Barrier(mesh->MESH_COMM);
 
     // print information
-    // PetscPrintf(mesh->MESH_COMM, "Selected for reading inflow: Time = %lf, Elapsed Time = %lf s\n", w1 * ifPtr->inflowU.inflowTimes[idx_1] + w2 * ifPtr->inflowU.inflowTimes[idx_2], te-ts);
-    // PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
-    // PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", ifPtr->inflowU.inflowTimes[idx_1], ifPtr->inflowU.inflowTimes[idx_2]);
+    // PetscPrintf(PETSC_COMM_WORLD, "Selected for reading inflow: Time = %lf, Elapsed Time = %lf s\n", w1 * ifPtr->inflowU.inflowTimes[idx_1] + w2 * ifPtr->inflowU.inflowTimes[idx_2], te-ts);
+    // PetscPrintf(PETSC_COMM_WORLD, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
+    // PetscPrintf(PETSC_COMM_WORLD, "                         closest avail. times : t1 = %lf, t2 = %lf\n", ifPtr->inflowU.inflowTimes[idx_1], ifPtr->inflowU.inflowTimes[idx_2]);
+    // PetscPrintf(PETSC_COMM_WORLD, "                         interp. indices      : i1 = %ld, i2 = %ld\n", idx_1, idx_2);
+    // PetscPrintf(PETSC_COMM_WORLD, "                         old close idx        : %ld\n", ifPtr->inflowU.currentCloseIdx);
+    // PetscPrintf(PETSC_COMM_WORLD, "                         old close time       : %lf\n", ifPtr->inflowU.inflowTimes[ifPtr->inflowU.currentCloseIdx]);
+    // PetscPrintf(PETSC_COMM_WORLD, "                         search lwr id bound  : %ld\n", lwrBound);
+    // PetscPrintf(PETSC_COMM_WORLD, "                         search upr id bound  : %ld\n", uprBound);
+
+    // update closest indices
+    ifPtr->inflowU.currentCloseIdx   = idx_1;
+
+    // PetscPrintf(PETSC_COMM_WORLD, "                         new close idx        : %ld\n", ifPtr->inflowU.currentCloseIdx);
 
     // set i-periodicity
     for (j=0; j<m1; j++)
