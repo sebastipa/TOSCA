@@ -115,6 +115,124 @@ inline void matVecProduct(PetscReal **A, PetscReal *b, PetscReal *c, PetscInt nu
     return;
 }
 
+static inline void zeroTensor(Tensor* T) {
+    T->xx = 0.0;
+    T->xy = 0.0;
+    T->xz = 0.0;
+    T->yx = 0.0;
+    T->yy = 0.0;
+    T->yz = 0.0;
+    T->zx = 0.0;
+    T->zy = 0.0;
+    T->zz = 0.0;
+}
+
+static inline Tensor symm(const Tensor T)
+{
+    Tensor S;
+    S.xx = T.xx;
+    S.xy = 0.5 * (T.xy + T.yx);
+    S.xz = 0.5 * (T.xz + T.zx);
+    S.yx = S.xy;
+    S.yy = T.yy;
+    S.yz = 0.5 * (T.yz + T.zy);
+    S.zx = S.xz;
+    S.zy = S.yz;
+    S.zz = T.zz;
+    return S;
+}
+
+static inline Tensor skewsymm(const Tensor T)
+{
+    Tensor K;
+    K.xx = 0.0;
+    K.xy = 0.5 * (T.xy - T.yx);
+    K.xz = 0.5 * (T.xz - T.zx);
+    K.yx = -K.xy;
+    K.yy = 0.0;
+    K.yz = 0.5 * (T.yz - T.zy);
+    K.zx = -K.xz;
+    K.zy = -K.yz;
+    K.zz = 0.0;
+    return K;
+}
+
+static inline Tensor dev(const Tensor T)
+{
+    Tensor D;
+    
+    PetscScalar tr = T.xx + T.yy + T.zz;
+    
+    PetscScalar oneThirdTr = tr / 3.0;
+    
+    D.xx = T.xx - oneThirdTr;
+    D.xy = T.xy;
+    D.xz = T.xz;
+    D.yx = T.yx;
+    D.yy = T.yy - oneThirdTr;
+    D.yz = T.yz;
+    D.zx = T.zx;
+    D.zy = T.zy;
+    D.zz = T.zz - oneThirdTr;
+    return D;
+}
+
+static inline PetscReal trace(const Tensor T)
+{
+    return T.xx + T.yy + T.zz;
+}
+//compute the trace of T^2
+static inline PetscReal traceSquare(const Tensor T)
+{
+    return T.xx * T.xx + T.yy * T.yy + T.zz * T.zz +
+        2.0 * (T.xy * T.yx + T.xz * T.zx + T.yz * T.zy);
+}
+
+
+static inline TensorInvariants invariants(const Tensor T)
+{
+    TensorInvariants inv;
+    
+    inv.I1 = trace(T);
+    
+    inv.I2 = 0.5 * (inv.I1 * inv.I1 - traceSquare(T));
+    
+    inv.I3 = T.xx * (T.yy * T.zz - T.yz * T.zy)
+        - T.xy * (T.yx * T.zz - T.yz * T.zx)
+        + T.xz * (T.yx * T.zy - T.yy * T.zx);
+    
+    return inv;
+}
+//computes the inner Product of Tensors
+static inline PetscReal tensorInnerProduct(const Tensor T)
+{
+    return (T.xx*T.xx + T.xy*T.xy + T.xz*T.xz +
+            T.yx*T.yx + T.yy*T.yy + T.yz*T.yz +
+            T.zx*T.zx + T.zy*T.zy + T.zz*T.zz);
+}
+
+// Computes the turbulence-model norm, defined as sqrt(2 * T_ij*T_ij).
+static inline PetscReal TensorMagnitude(const Tensor T)
+{
+    return PetscSqrtReal(2.0 * tensorInnerProduct(T));
+}
+
+// Computes the standard Frobenius norm of the tensor: sqrt(T_ij*T_ij)
+static inline PetscReal frobeniusNorm(const Tensor T)
+{
+    return PetscSqrtReal(tensorInnerProduct(T));
+}
+
+static inline Cmpnts vorticity(const Tensor T)
+{
+    Cmpnts omega;
+
+    omega.x = (T.zy - T.yz);
+    omega.y = (T.xz - T.zx);
+    omega.z = (T.yx - T.xy);
+
+    return omega;
+}
 //=============================================================================================================
 
 inline void gaussianSmooth1D(PetscReal *input, PetscReal *output, PetscInt n, PetscInt window)

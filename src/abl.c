@@ -858,14 +858,14 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     readSubDictDouble("ABLProperties.dat", "controllerProperties", "controllerAvgStartTime", &(abl->sourceAvgStartTime));
 
                     // check that average start time is in the list
-                    // if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
-                    // {
-                    //     char error[512];
-                    //     sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
-                    //     fatalErrorInFunction("ABLInitialize",  error);
-                    // }
+                    if(abl->sourceAvgStartTime < abl->preCompSources[0][0])
+                    {
+                        char error[512];
+                        sprintf(error, "parameter 'controllerAvgStartTime' is lower than the first available time");
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    }
+
                     // check that more than 100 s of history are used to average
-                    
                     if(abl->sourceAvgStartTime > abl->preCompSources[ntimes-1][0] - 100.00)
                     {
                         char error[512];
@@ -4786,7 +4786,7 @@ PetscErrorCode pywavedecVector(abl_ *abl, Cmpnts *srcPAIn, Cmpnts *srcPAOut, Pet
             signalZ[i] = srcPAIn[i].z;
         }
 
-        PetscPrintf(PETSC_COMM_WORLD,"vector %s %ld\n", abl->waveName.c_str(), abl->waveLevel);
+        // PetscPrintf(PETSC_COMM_WORLD,"vector %s %ld\n", abl->waveName.c_str(), abl->waveLevel);
         PetscInt J = abl->waveLevel; // Decomposition level
 
         // Perform wavelet decomposition (wavedec)
@@ -4842,7 +4842,7 @@ PetscErrorCode pywavedecScalar(abl_ *abl, PetscReal *srcPAIn, PetscReal *srcPAOu
         {
             signal[i] = srcPAIn[i];
         }
-        PetscPrintf(PETSC_COMM_WORLD,"scalar %s %ld\n", abl->waveName.c_str(), abl->waveLevel);
+        // PetscPrintf(PETSC_COMM_WORLD,"scalar %s %ld\n", abl->waveName.c_str(), abl->waveLevel);
 
         PetscInt J = abl->waveLevel; // Decomposition level
 

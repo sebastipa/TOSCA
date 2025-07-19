@@ -11,7 +11,11 @@ typedef enum {
     DLASI,
     DLASD,
     DPASD,
-    AMD
+    AMD,
+    VREMAN,
+    BV,
+    BAMD,
+    BDS
 } LesModel;
 
 //! \brief struct storing LES model
@@ -20,6 +24,7 @@ struct les_
     LesModel      model;
     PetscReal     maxCs;
     PetscReal     amdCs;
+    PetscInt      turbStat;
 
     // Dynamic Smagorisnky
     Vec           lSx, lSy, lSz, lS;
@@ -37,9 +42,11 @@ struct les_
     // kEquation
 
     // general
-    Vec           lNu_t;                   //!< eddy viscosity
-    Vec           lDiff_t;                 //!< eddy diffusivity
+    Vec           lNu_t;                  //!< eddy viscosity
+    Vec           lDiff_t;
     Vec           lKsgs;
+
+    Vec           lTau;                   //!< tau sgs tensor for structural models
 
     // initial nut field
     word          initFieldType;
@@ -59,3 +66,10 @@ PetscErrorCode UpdateCs(les_ *les);
 
 //! \brief Update effective viscosity
 PetscErrorCode UpdateNut(les_ *les);
+
+//! \brief Compute turbulent statistics based on the les->turbStat flag
+PetscErrorCode ComputeTurbulenceStatistics(les_ *les);
+
+PetscErrorCode updateLESStructuralModelCartesianForm(les_ *les);
+
+PetscErrorCode updateLESStructuralModelContravariantForm(les_ *les);
