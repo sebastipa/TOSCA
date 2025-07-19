@@ -36,6 +36,7 @@ struct mesh_
     DM             da;                         //!< data structure for scalars (include the grid geometry informaion, to obtain the mesh information, use DMDAGetCoordinates)
     DM             fda;                        //!< data Structure for vectors
     DM             sda;                        //!< data Structure for symmetric tensors
+    DM             tda;                        //!< data Structure for generic tensors
     DMDALocalInfo  info;                       //!< data struct that contains information about a the Distributed Array (essentially mesh information)
 
     // metrics

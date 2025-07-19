@@ -6,9 +6,11 @@
 #include "include/io.h"
 #include "include/inline.h"
 
-const PetscReal wall_cs = 0.001 ;
-const PetscReal std_cs  = 0.0289; // standard Cs value for HIT
-const PetscReal amd_cs  =  0.3334;
+const PetscReal wall_cs = 0.001;
+const PetscReal std_cs  = 0.0289;
+const PetscReal amd_cs  =  0.1;
+const PetscReal vreman_cs = 0.07225;
+const PetscReal sa_cs     = 0.325; 
 //***************************************************************************************************************//
 
 static const char *LesModelNames[] = {
@@ -19,6 +21,12 @@ static const char *LesModelNames[] = {
     "dynamicLASD",
     "dynamicPASD",
     "amd",
+    "vreman",
+    "bardinaVreman",
+    "bardinaAMD",
+    "bardinaDSM",
+    "scaleAdaptive",
+    "m43",
     "LesModel", "", PETSC_NULL
 };
 
@@ -27,11 +35,14 @@ PetscErrorCode InitializeLES(les_ *les)
     // TOSCA LES models
     // 1. standard Smagorinsky
     // 2. stability dependent
-    // 3. dynamic Smagorinsky with box averaging
+    // 3. dynamic Smagorinsky with box averaging (DSM)
     // 4. dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
     // 5. dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
     // 6. dynamic smagorinsky scale dependent with plane averaging (PASD)
     // 7. Anisotropic minimum dissipation model (AMD)
+    // 8. Vreman model //needs verification
+    // 9. Bardina model 
+    //10. Scale adaptive model
 
     if(les != NULL)
     {
@@ -73,16 +84,19 @@ PetscErrorCode InitializeLES(les_ *les)
 
             VecDuplicate(mesh->lAj, &(les->lCs));     VecSet(les->lCs, 0.);
             VecDuplicate(mesh->lAj, &(les->lNu_t));   VecSet(les->lNu_t, 0.);
-            VecDuplicate(mesh->lAj, &(les->lDiff_t)); VecSet(les->lDiff_t, 0.);
             VecDuplicate(mesh->lAj, &(les->lKsgs));   VecSet(les->lKsgs, 0.);
 
             if (les->model == SMAGORINSKY ||
                 les->model == STABILITY_BASED ||
-                les->model == DSM ||
-                les->model == DLASI ||
-                les->model == DLASD ||
-                les->model == DPASD ||
-                les->model == AMD)
+                les->model == DSM    ||
+                les->model == DLASI  ||
+                les->model == DLASD  ||
+                les->model == DPASD  ||
+                les->model == AMD    ||
+                les->model == VREMAN ||
+                les->model == BV     ||
+                les->model == BAMD   ||
+                les->model == BDS)
             {
                 VecDuplicate(mesh->lCsi, &(les->lSx)); VecSet(les->lSx, 0.);
                 VecDuplicate(mesh->lCsi, &(les->lSy)); VecSet(les->lSy, 0.);
@@ -102,7 +116,8 @@ PetscErrorCode InitializeLES(les_ *les)
             if (les->model == DSM ||
                 les->model == DLASI ||
                 les->model == DLASD ||
-                les->model == DPASD)
+                les->model == DPASD || 
+                les->model == BDS)
             {
                 VecDuplicate(mesh->lAj, &(les->lLM)); VecSet(les->lLM, 0.);
                 VecDuplicate(mesh->lAj, &(les->lMM)); VecSet(les->lMM, 0.);
@@ -128,8 +143,13 @@ PetscErrorCode InitializeLES(les_ *les)
                 VecDuplicate(mesh->lAj, &(les->lQN_old)); VecSet(les->lQN_old, 0.);
                 VecDuplicate(mesh->lAj, &(les->lNN_old)); VecSet(les->lNN_old, 0.);
             }
-        }
 
+            if (les->model == BAMD || les->model == BV || les->model == BDS)
+            {
+                DMCreateLocalVector(mesh->tda, &(les->lTau)); VecSet(les->lTau,0.);
+            }
+        }
+        
         if (les->access->flags->isLesActive)
         {
             PetscPrintf(PETSC_COMM_WORLD, "\nSelected LES Model: %s\n", LesModelNames[les->model]);
@@ -148,7 +168,7 @@ PetscErrorCode InitializeLES(les_ *les)
 PetscErrorCode UpdateCs (les_ *les)
 {
     mesh_          *mesh  = les->access->mesh;
-    ueqn_          *eqn   = les->access->ueqn;
+    ueqn_          *ueqn   = les->access->ueqn;
     clock_         *clock = les->access->clock;
     DM             da     = mesh->da, fda = mesh->fda;
 
@@ -161,9 +181,17 @@ PetscErrorCode UpdateCs (les_ *les)
         return(0);
     }
 
-    if(les->model == AMD)
+    if(les->model == AMD || les->model == BAMD)
     {
         VecSet(les->lCs, les->amdCs);
+        DMLocalToLocalBegin(da, les->lCs, INSERT_VALUES, les->lCs);
+        DMLocalToLocalEnd  (da, les->lCs, INSERT_VALUES, les->lCs);
+        return(0);
+    }
+
+    if(les->model == VREMAN || les->model == BV)
+    {
+        VecSet(les->lCs, vreman_cs);
         DMLocalToLocalBegin(da, les->lCs, INSERT_VALUES, les->lCs);
         DMLocalToLocalEnd  (da, les->lCs, INSERT_VALUES, les->lCs);
         return(0);
@@ -218,8 +246,8 @@ PetscErrorCode UpdateCs (les_ *les)
     DMDAVecGetArray(da,  les->lCs, &Cs);
 
     // get fields
-    DMDAVecGetArray(fda, eqn->lUcont, &ucont);
-    DMDAVecGetArray(fda, eqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
 
     // get jacobians
     DMDAVecGetArray(da, mesh->lAj,  &aj);
@@ -408,7 +436,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da, les->lN, INSERT_VALUES, les->lN);
         DMLocalToLocalEnd  (da, les->lN, INSERT_VALUES, les->lN);
     }
-    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
     {
         // get arrays
         DMDAVecGetArray(fda, les->lSx, &Ax);
@@ -1134,7 +1162,7 @@ PetscErrorCode UpdateCs (les_ *les)
 
         PetscReal ***LM_old, ***MM_old, ***QN_old, ***NN_old;
 
-        // local convective weighting
+        // lagrangian - local convective weighting
         if(les->model == DLASI || les->model == DLASD)
         {
             PetscInt initializeLes4;
@@ -1723,7 +1751,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMDAVecGetArray(da,  les->lCh, &lch);
         DMDAVecGetArray(da,  les->L,   &scale);
     }
-    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
     {
         DMDAVecGetArray(da, les->lLM, &LM);
         DMDAVecGetArray(da, les->lMM, &MM);
@@ -1812,12 +1840,12 @@ PetscErrorCode UpdateCs (les_ *les)
             C = C / pow (delta, 2.0);
         }
         // dynamic Smagorinsky models
-        else if(les->model == DSM || les->model == DLASI)
+        else if(les->model == DSM || les->model == DLASI || les->model == BDS)
         {
             PetscReal LM_avg, MM_avg;
 
             // box averaging
-            if(les->model == DSM)
+            if(les->model == DSM || les->model == BDS)
             {
                 PetscReal weight[3][3][3];
 
@@ -2016,7 +2044,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da,  les->lCh,  INSERT_VALUES, les->lCh);
         DMLocalToLocalEnd  (da,  les->lCh,  INSERT_VALUES, les->lCh);
     }
-    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
     {
         DMDAVecRestoreArray(da, les->lLM, &LM);
         DMDAVecRestoreArray(da, les->lMM, &MM);
@@ -2032,8 +2060,8 @@ PetscErrorCode UpdateCs (les_ *les)
     DMDAVecRestoreArray(da,  les->lCs, &Cs);
 
     // restore fields
-    DMDAVecRestoreArray(fda, eqn->lUcont, &ucont);
-    DMDAVecRestoreArray(fda, eqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
 
     // restore jacobians
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
@@ -2078,10 +2106,11 @@ PetscErrorCode UpdateCs (les_ *les)
 PetscErrorCode UpdateNut(les_ *les)
 {
     mesh_         *mesh = les->access->mesh;
-    ueqn_         *eqn  = les->access->ueqn;
     teqn_         *teqn = les->access->teqn;
-    DM            da    = mesh->da, fda = mesh->fda;
-
+    ueqn_         *ueqn = les->access->ueqn;
+    constants_    *cst  = ueqn->access->constants;
+    DM             da    = mesh->da, fda = mesh->fda, tda=mesh->tda;
+                                                   
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
     PetscInt      ys   = info.ys, ye = info.ys + info.ym;
@@ -2091,7 +2120,7 @@ PetscErrorCode UpdateNut(les_ *les)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***Cs, ***lnu_t, ***nvert, ***meshTag, ***aj, ***ustar, ***ld_t, ***lt, ***ksg, ***ltempDiff;
+    PetscReal     ***Cs, ***lnu_t, ***nvert, ***meshTag, ***aj, ***lt, ***ksg, ***ltempDiff;
     Cmpnts        ***csi, ***eta, ***zet, ***ucat;
 
     PetscReal     ajc;
@@ -2113,8 +2142,7 @@ PetscErrorCode UpdateNut(les_ *les)
     std::vector<PetscReal> tempJAvg;
     Vec tempMAvg; 
 
-    DMDAVecGetArray(fda, eqn->lUcat,  &ucat);
-    DMDAVecGetArray(da,  eqn->lUstar, &ustar);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
 
     DMDAVecGetArray(fda, mesh->lCsi, &csi);
     DMDAVecGetArray(fda, mesh->lEta, &eta);
@@ -2128,13 +2156,11 @@ PetscErrorCode UpdateNut(les_ *les)
 
     DMDAVecGetArray(da,  les->lCs, &Cs);
 
-    if (les->model == AMD)
+    if (les->model == AMD || les->model == BAMD)
     {
 
         if (les->access->flags->isTeqnActive)
         {
-            VecSet(les->lDiff_t, 0.);
-            DMDAVecGetArray(da,  les->lDiff_t, &ld_t);
             DMDAVecGetArray(da, teqn->lTmprt, &lt);
             
             if(les->access->flags->isAblActive)
@@ -2223,7 +2249,8 @@ PetscErrorCode UpdateNut(les_ *les)
                                         S[2][0]*S[2][0] + S[2][1]*S[2][1] + S[2][2]*S[2][2]
                                     ));
 
-        if (les->model == AMD)
+ 
+        if (les->model == AMD || les->model == BAMD)
         {
 
             // Compute volume
@@ -2349,56 +2376,94 @@ PetscErrorCode UpdateNut(les_ *les)
             nu_e = Cs[k][j][i] * delta2_harm * PetscMax(nu_e, 0.0);
             
             lnu_t[k][j][i] = nu_e;
+        }
+        else if (les->model == VREMAN || les->model == BV)
+        {
+            
+            PetscReal V = 1.0 / aj[k][j][i];
 
-            if (les->access->flags->isTeqnActive)
+            PetscReal delta  = pow(V, 1.0/3.0);
+
+            PetscReal delta2 = delta * delta;
+            
+        
+            PetscReal gradU[3][3] 
+                                = 
+                                {
+                                    {du_dx, dv_dx, dw_dx},
+                                    {du_dy, dv_dy, dw_dy},
+                                    {du_dz, dv_dz, dw_dz}
+                                };
+
+            //Compute G_ij = delta^2 * beta_ij
+           
+            PetscReal G[3][3] 
+                            = {
+                                {0,0,0},
+                                {0,0,0},
+                                {0,0,0}
+                              };
+
+            for (PetscInt i_comp = 0; i_comp < 3; i_comp++)
             {
-                //compute eddy diffusivity 
-                PetscReal dtdc, dtde, dtdz;
-                PetscReal dt_dx, dt_dy, dt_dz;
-                PetscReal num = 0.0, denom = 0.0;
-                PetscReal gradT_hat[3];
-
-                Compute_dscalar_center
-                (
-                    mesh,
-                    i, j, k,
-                    mx, my, mz,
-                    lt, nvert, meshTag, 
-                    &dtdc, &dtde, &dtdz
-                );
-
-                // compute temperature derivative w.r.t. the cartesian coordinates
-                Compute_dscalar_dxyz
-                (
-                    mesh,
-                    csi0, csi1, csi2,
-                    eta0, eta1, eta2,
-                    zet0, zet1, zet2,
-                    ajc,
-                    dtdc, dtde, dtdz,
-                    &dt_dx, &dt_dy, &dt_dz
-                );
-
-                gradT_hat[0] = delta_x * dt_dx;
-                gradT_hat[1] = delta_y * dt_dy;
-                gradT_hat[2] = delta_z * dt_dz;
-
-                for (PetscInt a = 0; a < 3; a++)
+                for (PetscInt j_comp = 0; j_comp < 3; j_comp++)
                 {
-                    for (PetscInt c = 0; c < 3; c++)
+                    for (PetscInt k_dir = 0; k_dir < 3; k_dir++)
                     {
-                        num += (-gradU_hat[c][a] * gradT_hat[c] * gradT_hat[a]);
+                        G[i_comp][j_comp] += gradU[k_dir][i_comp] * gradU[k_dir][j_comp];
                     }
+                    // Multiply by delta^2
+                    G[i_comp][j_comp] *= delta2;
                 }
-
-                denom = gradT_hat[0]*gradT_hat[0] + gradT_hat[1]*gradT_hat[1] + gradT_hat[2]*gradT_hat[2];
-
-                PetscReal diff_e = num / (denom + 1e-10);
-
-                diff_e = Cs[k][j][i] * delta2_harm * PetscMax(diff_e, 0.0);
-
-                ld_t[k][j][i] = diff_e;
             }
+
+            PetscReal Gnorm2 = 0.0;
+            
+            for (PetscInt p = 0; p < 3; p++)
+            {
+                for (PetscInt q = 0; q < 3; q++)
+                {
+                    Gnorm2 += G[p][q] * G[p][q];
+                }
+            }
+
+            PetscReal Bbeta = 0.0;
+            
+            if (delta2 > 1e-20)  // safety check
+            {
+                Bbeta = Gnorm2 / (delta2*delta2);  // i.e. / delta^4
+            }
+
+            PetscReal traceG = (G[0][0] + G[1][1] + G[2][2]);
+            
+            PetscReal A_beta = 0.0;
+            
+            if (delta2 > 1e-20)
+            {
+                A_beta = traceG / delta2;
+            }
+
+ 
+            PetscReal eps  = 1.0e-12;  // small positive regularization
+            
+            PetscReal nu_t = 0.0;
+
+            if ((A_beta + eps) != 0.0)
+            {
+                nu_t = Cs[k][j][i] * delta2 * PetscSqrtReal(Bbeta) / (A_beta + eps);
+            }
+            
+            else
+            {
+                nu_t = 0.0;
+            }
+
+            // Ensure non-negative
+            nu_t = PetscMax(nu_t, 0.0);
+
+            
+            lnu_t[k][j][i] = nu_t;
+
 
         }
         else
@@ -2429,8 +2494,7 @@ PetscErrorCode UpdateNut(les_ *les)
         ksg[k][j][i] = PetscPowReal(lnu_t[k][j][i], 2.0)/(PetscPowReal(Ck, 2.0) * delta2_harm);
     }
 
-    DMDAVecRestoreArray(fda, eqn->lUcat,  &ucat);
-    DMDAVecRestoreArray(da,  eqn->lUstar, &ustar);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
 
     DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
@@ -2443,20 +2507,16 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecRestoreArray(da,  les->lKsgs, &ksg);
     DMDAVecRestoreArray(da,  les->lCs, &Cs);
 
-    if (les->model == AMD)
+    if (les->model == AMD || les->model == BAMD)
     {
         if (les->access->flags->isTeqnActive)
         {
-            DMDAVecRestoreArray(da,  les->lDiff_t, &ld_t);
             DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
             if(les->access->flags->isAblActive)
             {
                 DMDAVecRestoreArray(da, tempMAvg, &ltempDiff);
                 VecDestroy(&tempMAvg);
             }
-
-            DMLocalToLocalBegin(da,  les->lDiff_t, INSERT_VALUES, les->lDiff_t);
-            DMLocalToLocalEnd  (da,  les->lDiff_t, INSERT_VALUES, les->lDiff_t); 
 
             UpdateDiffBCs(les);
         }
@@ -2465,8 +2525,1451 @@ PetscErrorCode UpdateNut(les_ *les)
     DMLocalToLocalBegin(da,  les->lNu_t, INSERT_VALUES, les->lNu_t);
     DMLocalToLocalEnd  (da,  les->lNu_t, INSERT_VALUES, les->lNu_t);
 
+    DMLocalToLocalBegin(da,  les->lKsgs, INSERT_VALUES, les->lKsgs);
+    DMLocalToLocalEnd  (da,  les->lKsgs, INSERT_VALUES, les->lKsgs);
     // correct boundary conditions
     UpdateNutBCs(les);
 
-    return(0);
+    if(les->turbStat)
+    {
+        ComputeTurbulenceStatistics(les);
+    }
+
+    return (0);
+}
+
+//*******************************************************************************************
+PetscErrorCode ComputeTurbulenceStatistics(les_ *les)
+{
+    mesh_         *mesh = les->access->mesh;
+    teqn_         *teqn = les->access->teqn;
+    ueqn_         *ueqn = les->access->ueqn;
+    constants_    *cst  = ueqn->access->constants;
+    DM             da    = mesh->da, fda = mesh->fda, tda=mesh->tda;
+
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***ksg, ***lnu_t, ***nvert, ***meshTag, ***aj;
+    Cmpnts        ***csi, ***eta, ***zet, ***ucat;
+
+    PetscMPIInt rank;
+
+    PetscReal lEns, gEns, lVol1, gVol1,lVol2, gVol2, lSS, gSS, lW, gW, lVS, gVS, lSS_disp, gSS_disp;
+    PetscReal lE, gE;
+    PetscReal lUx, lUy, lUz, gUx, gUy, gUz;
+
+    PetscReal luu, lvv, lww, luv,luw,lvw;
+    
+    PetscReal guu, gvv, gww, guv,guw,gvw;
+    
+    PetscReal lTauS, gTauS;
+    PetscReal lSgs_disp, gSgs_disp;
+
+    DMDAVecGetArray(da,  les->lNu_t, &lnu_t);
+    DMDAVecGetArray(da,  les->lKsgs, &ksg);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da,  mesh->lAj, &aj);
+
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+
+    lEns = 0.0; gEns = 0.0;
+    lSS  = 0.0; gSS  = 0.0;
+    lSS_disp=0.0; gSS_disp = 0.0;
+    lW   = 0.0; gW   = 0.0;
+    lVS  = 0.0; gVS  = 0.0;
+    lVol1 = 0.0; gVol1 = 0.0;
+    lVol2 = 0.0; gVol2 = 0.0;
+    lE   = 0.0; gE   =  0.0;
+    lUx  = 0.0; gUx  = 0.0;
+    lUy  = 0.0; gUy  = 0.0;
+    lUz  = 0.0; gUz  = 0.0;
+    luu = 0.0; guu = 0.0;
+    lvv = 0.0; gvv = 0.0;
+    lww = 0.0; gww = 0.0;
+    luv  = 0.0; guv  = 0.0;
+    luw  = 0.0; guw  = 0.0;
+    lvw  = 0.0; gvw  = 0.0;
+    lTauS = 0.0; gTauS = 0.0;
+    lSgs_disp = 0.0, gSgs_disp = 0.0;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    for (k=lzs; k<lze; k++)
+    for (j=lys; j<lye; j++)
+    for (i=lxs; i<lxe; i++)
+    {
+        PetscReal volCell = 1.0 / aj[k][j][i]; 
+
+    
+        lUx  += (ucat[k][j][i].x) * volCell;
+        lUy  += (ucat[k][j][i].y) * volCell;
+        lUz  += (ucat[k][j][i].z) * volCell;
+
+        lVol1 += volCell;
+    }
+
+    MPI_Allreduce(&lVol1, &gVol1, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lUx,  &gUx,  1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lUy,  &gUy,  1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lUz,  &gUz,  1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    Cmpnts gVelocity;
+    
+    gVelocity.x = gUx / gVol1;
+    gVelocity.y = gUy / gVol1;
+    gVelocity.z = gUz / gVol1;
+
+    for (k=lzs; k<lze; k++)
+    for (j=lys; j<lye; j++)
+    for (i=lxs; i<lxe; i++)
+    {
+        //storing time series data of volume averaged Enstrophy, kinetic energy, taylor micro-scale, and skewness
+        PetscReal ajc = aj[k][j][i];
+        PetscReal csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+        PetscReal eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+        PetscReal zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+
+        PetscReal dudc, dvdc, dwdc, dude, dvde, dwde, dudz, dvdz, dwdz;
+        PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
+
+        Compute_du_center
+        (
+            mesh,
+            i, j, k,
+            mx, my, mz,
+            ucat, nvert, meshTag,
+            &dudc, &dvdc, &dwdc,
+            &dude, &dvde, &dwde,
+            &dudz, &dvdz, &dwdz
+        );
+
+        Compute_du_dxyz
+        (
+            mesh,
+            csi0, csi1, csi2,
+            eta0, eta1, eta2,
+            zet0, zet1, zet2,
+            ajc,
+            dudc, dvdc, dwdc,
+            dude, dvde, dwde,
+            dudz, dvdz, dwdz,
+            &du_dx, &dv_dx, &dw_dx,
+            &du_dy, &dv_dy, &dw_dy,
+            &du_dz, &dv_dz, &dw_dz
+        );
+
+        PetscReal volCell = 1.0/ajc;
+        
+        Tensor VGT;
+
+        //intialize to 0
+        zeroTensor(&VGT);
+
+        VGT.xx = du_dx;  VGT.xy = dv_dx;  VGT.xz = dw_dx;
+        VGT.yx = du_dy;  VGT.yy = dv_dy;  VGT.yz = dw_dy;
+        VGT.zx = du_dz;  VGT.zy = dv_dz;  VGT.zz = dw_dz;
+
+        //strain rate
+        Tensor SS= symm(VGT);     
+      
+        Cmpnts omega_curl = vorticity(VGT);
+
+        PetscReal omegaMagSqr = (omega_curl.x * omega_curl.x + omega_curl.y * omega_curl.y + omega_curl.z * omega_curl.z);
+
+        // Compute enstrophy: 0.5 * (omega_x^2 + omega_y^2 + omega_z^2)
+        PetscReal enstrophy = 0.5 * omegaMagSqr;
+
+        PetscReal SS_mag = PetscSqrtReal(tensorInnerProduct(SS));
+
+        PetscReal SS_disp = tensorInnerProduct(SS);
+
+        PetscReal vs = omega_curl.x * (SS.xx*omega_curl.x + SS.xy*omega_curl.y + SS.xz*omega_curl.z)
+                     + omega_curl.y * (SS.xy*omega_curl.x + SS.yy*omega_curl.y + SS.yz*omega_curl.z)
+                     + omega_curl.z * (SS.xz*omega_curl.x + SS.yz*omega_curl.y + SS.zz*omega_curl.z);
+        
+        PetscReal u2 = 0.5 * (ucat[k][j][i].x * ucat[k][j][i].x 
+                     + ucat[k][j][i].y * ucat[k][j][i].y 
+                     + ucat[k][j][i].z * ucat[k][j][i].z);
+
+        lEns += enstrophy    * volCell;
+        lSS  += SS_mag       * volCell;
+        lW   += omegaMagSqr  * volCell;
+        lVS  += vs           * volCell;
+        lE += u2             * volCell;
+        lSS_disp += SS_disp  * volCell;
+        lSgs_disp += 2*lnu_t[k][j][i] * SS_disp * volCell;
+
+        PetscReal up = ucat[k][j][i].x - gVelocity.x;  
+        PetscReal vp = ucat[k][j][i].y - gVelocity.y; 
+        PetscReal wp = ucat[k][j][i].z - gVelocity.z; 
+        
+        luu += (up * up) * volCell; 
+        lvv += (vp * vp) * volCell;
+        lww += (wp * wp) * volCell;
+        luv  += (up * vp) * volCell;
+        luw  += (up * wp) * volCell;
+        lvw  += (vp * wp) * volCell;
+
+        symmTensor Rij;
+
+        PetscReal nusgs = lnu_t[k][j][i];
+        Rij.xx = (2.0/3.0 * ksg[k][j][i] - 2.0 * (nusgs) * du_dx); 
+        Rij.yy = (2.0/3.0 * ksg[k][j][i] - 2.0 * (nusgs) * dv_dy);
+        Rij.zz = (2.0/3.0 * ksg[k][j][i] - 2.0 * (nusgs) * dw_dz);
+        Rij.xy = (- (nusgs) * (dv_dx + du_dy));
+        Rij.xz = (- (nusgs) * (dw_dx + du_dz));
+        Rij.yz = (- (nusgs) * (dv_dz + dw_dy));
+        
+        PetscReal tauSij = (Rij.xx) * SS.xx + (Rij.yy) * SS.yy + (Rij.zz) * SS.zz
+        + 2.0 * ((Rij.xy) * SS.xy + (Rij.xz) * SS.xz + (Rij.yz) * SS.yz);
+
+        lTauS += tauSij * volCell;
+
+        lVol2 += volCell;
+    }
+
+    MPI_Allreduce(&lTauS, &gTauS, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&luu, &guu, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lvv, &gvv, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lww, &gww, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    
+    MPI_Allreduce(&luv,  &guv,  1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&luw,  &guw,  1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lvw,  &gvw,  1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    
+    MPI_Allreduce(&lE,   &gE, 1, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lEns, &gEns, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lSS_disp,  &gSS_disp,  1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lSS,  &gSS,  1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lW,   &gW,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lVS,  &gVS,  1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lVol2, &gVol2, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lSgs_disp, &gSgs_disp, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    guu = guu / gVol2; 
+    gvv = gvv / gVol2; 
+    gww = gww / gVol2; 
+    guv =  guv / gVol2; 
+    guw = guw  / gVol2; 
+    gvw = gvw  / gVol2; 
+    gTauS = gTauS / gVol2;
+
+    gEns = gEns / gVol2;  
+    
+    gSS  = gSS  / gVol2;
+    gSS_disp = gSS_disp / gVol2; 
+    gW   = gW   / gVol2; 
+    gVS  = gVS  / gVol2; 
+    gE    = gE / gVol2;
+    gSgs_disp = gSgs_disp / gVol2;
+
+    PetscReal urms = PetscSqrtReal(guu);  
+    PetscReal vrms = PetscSqrtReal(gvv);
+    PetscReal wrms = PetscSqrtReal(gww);
+
+    //viscous dissipation
+    PetscReal dispS = 2 * cst->nu * gSS_disp;
+    
+    PetscReal dispW  = cst->nu * gW;
+
+    //kolmogorov scale
+    PetscReal neta = PetscPowReal(cst->nu, 3.0/4.0)/PetscPowReal(dispS, 1.0/4.0);
+
+    //Taylor-Microscale(davidson)
+    // PetscReal TayL  = sqrt(15.0 * PetscPowReal(urms, 2.0)/ dispS);
+        PetscReal TayL = sqrt(15.0 * gE / gSS_disp);
+    
+    //Taylor-Reynolds number
+    PetscReal ReTayL = (urms * TayL) / cst->nu;
+    
+    //skewness
+    PetscReal Sk = - ((6.0/7.0) * PetscSqrtReal(15.0) * gVS) / pow(gW, 3.0/2.0);
+
+    //volume averaged resolved energy
+    PetscReal k_res = 0.5 * (guu + gvv + gww);
+    
+    PetscPrintf(PETSC_COMM_WORLD, "TayL: %.5lf\n", TayL);
+    PetscPrintf(PETSC_COMM_WORLD, "Sk:   %.5lf\n", Sk);
+
+    // Write the source terms (time and volume-averaged enstrophy) to file.
+    if (!rank) 
+    {
+        // Create the postProcessing directory on the first iteration.
+        if (les->access->clock->it == les->access->clock->itStart) 
+        {
+            errno = 0;
+            PetscInt dirRes = mkdir("./postProcessing", 0777);
+            if (dirRes != 0 && errno != EEXIST) 
+            {
+                char error[512];
+                sprintf(error, "could not create postProcessing directory\n");
+                fatalErrorInFunction("turbStat", error);
+            }
+        }
+
+        // Construct the file name.
+        word fileName = "postProcessing/turbstat_" + getStartTimeName(les->access->clock);
+        FILE *fp = fopen(fileName.c_str(), "a");
+
+        if (!fp) 
+        {
+            char error[512];
+            sprintf(error, "cannot open file postProcessing/turbstat file\n");
+            fatalErrorInFunction("turbStat", error);
+        } 
+        else 
+        {
+            PetscInt width = -15;
+
+            // Write the current time.
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, les->access->clock->time);
+            // Write the volume-averaged enstrophy.
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, neta);   //kolmogorov scale
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, TayL);  //taylor microscale
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, ReTayL); //taylor reynolds number
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, dispS);  //dissipation with SijSij
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, dispW);  //dissipation with enstrophy
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, k_res);  //resolved kinetic energy
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, gE);     //energy
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, gTauS);  //Energy flux <tauijSij>
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, Sk);     //Skewness S0
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, gEns);   //Enstrophy
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, gSS_disp);    //SijSij
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, gW);     //||omega^2||
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, gVS);    //Vortex-stretching term
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.6e\t", width, gSgs_disp);    //sgs dissipation
+            PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+            
+            fclose(fp);
+        }
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+    DMDAVecRestoreArray(da,  les->lNu_t, &lnu_t);
+    DMDAVecRestoreArray(da,  les->lKsgs, &ksg);
+
+    return (0);   
+}
+//*******************************************************************************************
+PetscErrorCode updateLESStructuralModelCartesianForm(les_ *les)
+{
+    mesh_         *mesh = les->access->mesh;
+    ueqn_         *ueqn = les->access->ueqn;
+    teqn_         *teqn = les->access->teqn;
+
+    DM            da    = mesh->da, fda = mesh->fda, tda = mesh->tda;
+
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***aj, ***Sabs, ***nut,  ***ksg, ***nvert, ***meshTag;
+    PetscReal     ***iaj, ***jaj, ***kaj;
+    Cmpnts        ***csi, ***eta, ***zet, ***ucat;
+    Cmpnts        ***visc1, ***visc2, ***visc3;
+    Cmpnts        ***icsi, ***jeta, ***kzet;
+
+    PetscReal     ajc;
+    PetscMPIInt   rank;
+
+    PetscReal     dudc, dude, dudz,
+                  dvdc, dvde, dvdz,
+                  dwdc, dwde, dwdz;
+
+    Tensor        ***tauSGSCat, tauLocalCat;                                      //subgrid scale stress tensor in cartesian form
+    symmTensor    SS;
+
+    PetscReal     du_dx, du_dy, du_dz, 
+                  dv_dx, dv_dy, dv_dz, 
+                  dw_dx, dw_dy, dw_dz;
+
+    PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;      // surface area vectors components
+
+    lxs = xs; lxe = xe; if (xs == 0) lxs = xs+1; if (xe == mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys == 0) lys = ys+1; if (ye == my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs == 0) lzs = zs+1; if (ze == mz) lze = mz-1;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    VecSet(les->lTau, 0.0);
+
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da,  les->lNu_t, &nut);
+    DMDAVecGetArray(da,  les->lKsgs, &ksg);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+    DMDAVecGetArray(da, mesh->lAj,  &aj);
+
+    DMDAVecGetArray(tda, les->lTau, &tauSGSCat);
+
+    PetscReal lVol2 = 0., gVol2 = 0., lTauS = 0., gTauS = 0.;
+
+    //bardina model
+    if (les->model == BAMD || les->model == BV || les->model == BDS)
+    {
+
+        for (k = lzs; k < lze; k++)
+        for (j = lys; j < lye; j++)
+        for (i = lxs; i < lxe; i++)
+        {
+            /* Skip solid cells */
+            if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+            {
+                zeroTensor(&tauSGSCat[k][j][i]); //inline function each element 0
+                continue;
+            }
+
+            // get 1/V at the i-face
+            ajc = aj[k][j][i];
+
+            csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+            eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+            zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+
+            PetscReal filter, test_filter;                         // grid filter and dynamic model filter
+
+            PetscReal u[3][3][3] ,   v[3][3][3] ,   w[3][3][3];    // cartesian velocity
+            
+            PetscReal uu[3][3][3]  , uv[3][3][3]  , uw[3][3][3];   //         |uu uv uw|
+            
+            PetscReal vu[3][3][3]  , vv[3][3][3]  , vw[3][3][3];   // tensor: |vu vv vw|
+            
+            PetscReal wu[3][3][3]  , wv[3][3][3]  , ww[3][3][3];   //         |wu wv ww|
+            
+            PetscInt p, q, r;
+
+            for (p = -1; p <= 1; p++)
+            for (q = -1; q <= 1; q++)
+            for (r = -1; r <= 1; r++)
+            {
+                PetscInt R = r + 1, Q = q + 1, P = p + 1;
+                PetscInt K = k + r, J = j + q, I = i + p;
+
+                //cartesian velocity
+                u[R][Q][P] = ucat[K][J][I].x;
+                v[R][Q][P] = ucat[K][J][I].y;
+                w[R][Q][P] = ucat[K][J][I].z;
+            
+                //uu tensor components
+                
+                uu[R][Q][P] = u[R][Q][P] * u[R][Q][P];
+                uv[R][Q][P] = u[R][Q][P] * v[R][Q][P];
+                uw[R][Q][P] = u[R][Q][P] * w[R][Q][P];
+
+                vu[R][Q][P] = v[R][Q][P] * u[R][Q][P];
+                vv[R][Q][P] = v[R][Q][P] * v[R][Q][P];
+                vw[R][Q][P] = v[R][Q][P] * w[R][Q][P];
+
+                wu[R][Q][P] = w[R][Q][P] * u[R][Q][P];
+                wv[R][Q][P] = w[R][Q][P] * v[R][Q][P];
+                ww[R][Q][P] = w[R][Q][P] * w[R][Q][P];
+            }
+
+            //Build filter weights (using a binomial 3x3x3 kernel)
+            
+            PetscReal coef[3][3][3] = 
+            {
+                0.015625, 0.03125, 0.015625,
+                0.03125, 0.0625, 0.03125,
+                0.015625, 0.03125, 0.015625,
+            
+            
+                0.03125, 0.0625, 0.03125,
+                0.0625, 0.125, 0.0625,
+                0.03125, 0.0625, 0.03125,
+            
+            
+                0.015625, 0.03125, 0.015625,
+                0.03125, 0.0625, 0.03125,
+                0.015625, 0.03125, 0.015625
+            };
+
+            PetscReal weight[3][3][3];
+
+            PetscReal sum_vol = 0;
+
+            for (p = -1; p <= 1; p++)
+            for (q = -1; q <= 1; q++)
+            for (r = -1; r <= 1; r++)
+            {
+                PetscInt R = r + 1, Q = q + 1, P = p + 1;
+      
+                PetscInt K = k + r, J = j + q, I = i + p;
+                
+                if 
+                (
+                    (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                    
+                    (I != 0 && I != mx-1 && J != 0 && J != my-1 && K != 0 && K != mz-1))
+
+                {
+
+                    sum_vol += (1.0/aj[K][J][I]) * 8.0 * coef[R][Q][P];
+                    weight[R][Q][P] = 1;
+                
+                } 
+                
+                else 
+                {
+                    weight[R][Q][P] = 0;
+                }
+            
+            }
+            
+            //Apply test filter to local velocity fields
+            
+            PetscReal _u = integrateTestfilterSimpson(u, weight);
+            PetscReal _v = integrateTestfilterSimpson(v, weight);
+            PetscReal _w = integrateTestfilterSimpson(w, weight);
+            
+            //Apply test filter to product
+            PetscReal _uu = integrateTestfilterSimpson(uu, weight);
+            PetscReal _uv = integrateTestfilterSimpson(uv, weight);
+            PetscReal _uw = integrateTestfilterSimpson(uw, weight);
+            
+            PetscReal _vu = integrateTestfilterSimpson(vu, weight);
+            PetscReal _vv = integrateTestfilterSimpson(vv, weight);
+            PetscReal _vw = integrateTestfilterSimpson(vw, weight);
+
+            PetscReal _wu = integrateTestfilterSimpson(wu, weight);
+            PetscReal _wv = integrateTestfilterSimpson(wv, weight);
+            PetscReal _ww = integrateTestfilterSimpson(ww, weight);
+
+            //Compute the Bardina SGS stress ---
+            //tau_ij = test-filtered(u_i*u_j) - (test-filtered(u_i))*(test-filtered(u_j))
+            //and store the full 3x3 tensor in tauSGSCat.
+            
+            tauSGSCat[k][j][i].xx = _uu - _u*_u;   // tau_xx
+            tauSGSCat[k][j][i].xy = _uv - _u*_v;   // tau_xy
+            tauSGSCat[k][j][i].xz = _uw - _u*_w;   // tau_xz
+            
+            tauSGSCat[k][j][i].yx = _vu - _v*_u;   // tau_yx
+            tauSGSCat[k][j][i].yy = _vv - _v*_v;   // tau_yy
+            tauSGSCat[k][j][i].yz = _vw - _v*_w;   // tau_yz
+            
+            tauSGSCat[k][j][i].zx = _wu - _w*_u;   // tau_zx
+            tauSGSCat[k][j][i].zy = _wv - _w*_v;   // tau_zy
+            tauSGSCat[k][j][i].zz = _ww - _w*_w;   // tau_zz
+            
+           /*( if(ueqn->central4Div)
+            {
+                Compute_du_center4th
+                (
+                    mesh,
+                    i, j, k,
+                    mx, my, mz,
+                    ucat, nvert,
+                    &dudc, &dvdc, &dwdc,
+                    &dude, &dvde, &dwde,
+                    &dudz, &dvdz, &dwdz
+                );
+            }
+            else*/
+            {
+                Compute_du_center
+                (
+                    mesh,
+                    i, j, k,
+                    mx, my, mz,
+                    ucat, nvert, meshTag,
+                    &dudc, &dvdc, &dwdc,
+                    &dude, &dvde, &dwde,
+                    &dudz, &dvdz, &dwdz
+                );
+            }
+
+            Compute_du_dxyz
+            (
+                mesh, csi0, csi1, csi2,
+                eta0, eta1, eta2,
+                zet0, zet1, zet2,
+                ajc,
+                dudc, dvdc, dwdc,
+                dude, dvde, dwde,
+                dudz, dvdz, dwdz,
+                &du_dx, &dv_dx, &dw_dx,
+                &du_dy, &dv_dy, &dw_dy,
+                &du_dz, &dv_dz, &dw_dz
+            );
+
+            //compute strain rate tensor
+            SS.xx = 0.5 * (du_dx + du_dx);   
+            SS.xy = 0.5 * (du_dy + dv_dx);
+            SS.xz = 0.5 * (du_dz + dw_dx);
+
+            SS.yy = 0.5 * (dv_dy + dv_dy);   
+            SS.yz = 0.5 * (dv_dz + dw_dy);
+
+            SS.zz = 0.5 * (dw_dz + dw_dz);  
+
+            //kinetic energy: trace of tauSGSCat
+            ksg[k][j][i] = 0.5 * trace(tauSGSCat[k][j][i]);   
+
+            // provide dissipation to bardina model
+            tauSGSCat[k][j][i].xx -= 2.0 * nut[k][j][i] * SS.xx;
+            tauSGSCat[k][j][i].xy -= 2.0 * nut[k][j][i] * SS.xy;
+            tauSGSCat[k][j][i].xz -= 2.0 * nut[k][j][i] * SS.xz;
+
+            tauSGSCat[k][j][i].yx -= 2.0 * nut[k][j][i] * SS.xy; 
+            tauSGSCat[k][j][i].yy -= 2.0 * nut[k][j][i] * SS.yy;
+            tauSGSCat[k][j][i].yz -= 2.0 * nut[k][j][i] * SS.yz;
+
+            tauSGSCat[k][j][i].zx -= 2.0 * nut[k][j][i] * SS.xz; 
+            tauSGSCat[k][j][i].zy -= 2.0 * nut[k][j][i] * SS.yz; 
+            tauSGSCat[k][j][i].zz -= 2.0 * nut[k][j][i] * SS.zz;
+            
+            PetscReal tauSij = (tauSGSCat[k][j][i].xx) * SS.xx + (tauSGSCat[k][j][i].yy) * SS.yy + (tauSGSCat[k][j][i].zz) * SS.zz
+            + 2.0 * ((tauSGSCat[k][j][i].xy) * SS.xy + (tauSGSCat[k][j][i].xz) * SS.xz + (tauSGSCat[k][j][i].yz) * SS.yz);
+        
+            lTauS += tauSij * (1.0/aj[k][j][i]);
+            lVol2 += (1.0/aj[k][j][i]);
+        } 
+    }
+
+    DMDAVecRestoreArray(tda, les->lTau, &tauSGSCat);
+    DMDAVecRestoreArray(da,  les->lKsgs, &ksg);
+    DMDAVecRestoreArray(da,  les->lNu_t, &nut);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da, mesh->lAj,  &aj);
+
+    DMLocalToLocalBegin(tda, les->lTau, INSERT_VALUES, les->lTau);
+    DMLocalToLocalEnd  (tda, les->lTau, INSERT_VALUES, les->lTau);
+
+    //set tau boundary conditions
+    DMDAVecGetArray(tda, les->lTau, &tauSGSCat);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                PetscInt a=i, b=j, c=k, flag=0;
+
+                if(i==0)
+                {
+                    if(mesh->i_periodic)       a=mx-2, flag=1;
+                    else if(mesh->ii_periodic) a=-2, flag=1;
+                    else                      a=1, flag=1;
+                }
+                if(i==mx-1)
+                {
+                    if(mesh->i_periodic)       a=1, flag=1;
+                    else if(mesh->ii_periodic) a=mx+1, flag=1;
+                    else                      a=mx-2, flag=1;
+                }
+                if(j==0)
+                {
+                    if(mesh->j_periodic)       b=my-2, flag=1;
+                    else if(mesh->jj_periodic) b=-2, flag=1;
+                    else                      b=1, flag=1;
+                }
+                if(j==my-1)
+                {
+                    if(mesh->j_periodic)       b=1, flag=1;
+                    else if(mesh->jj_periodic) b=my+1, flag=1;
+                    else                      b=my-2, flag=1;
+                }
+                if(k==0)
+                {
+                    if(mesh->k_periodic)       c=mz-2, flag=1;
+                    else if(mesh->kk_periodic) c=-2, flag=1;
+                    else                      c=1, flag=1;
+                }
+                if(k==mz-1)
+                {
+                    if(mesh->k_periodic)       c=1, flag=1;
+                    else if(mesh->kk_periodic) c=mz+1, flag=1;
+                    else                      c=mz-2, flag=1;
+                }
+
+                if(flag)
+                {
+                    tauSGSCat[k][j][i].xx = tauSGSCat[c][b][a].xx;
+                    tauSGSCat[k][j][i].xy = tauSGSCat[c][b][a].xy;
+                    tauSGSCat[k][j][i].xz = tauSGSCat[c][b][a].xz;
+                    tauSGSCat[k][j][i].yx = tauSGSCat[c][b][a].yx;
+                    tauSGSCat[k][j][i].yy = tauSGSCat[c][b][a].yy;
+                    tauSGSCat[k][j][i].yz = tauSGSCat[c][b][a].yz;
+                    tauSGSCat[k][j][i].zx = tauSGSCat[c][b][a].zx;
+                    tauSGSCat[k][j][i].zy = tauSGSCat[c][b][a].zy;
+                    tauSGSCat[k][j][i].zz = tauSGSCat[c][b][a].zz;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(tda, les->lTau, &tauSGSCat);
+    DMLocalToLocalBegin(tda, les->lTau, INSERT_VALUES, les->lTau);
+    DMLocalToLocalEnd  (tda, les->lTau, INSERT_VALUES, les->lTau);
+
+    DMDAVecGetArray(fda, ueqn->lVisc1, &visc1);
+    DMDAVecGetArray(fda, ueqn->lVisc2, &visc2);
+    DMDAVecGetArray(fda, ueqn->lVisc3, &visc3);
+    DMDAVecGetArray(tda, les->lTau, &tauSGSCat);
+
+    DMDAVecGetArray(da, mesh->lIAj, &iaj);
+    DMDAVecGetArray(da, mesh->lJAj, &jaj);
+    DMDAVecGetArray(da, mesh->lKAj, &kaj);
+
+    DMDAVecGetArray(fda, mesh->lICsi, &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+
+    //i direction
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(j==0 || k==0) continue;
+
+                // get 1/V at the i-face
+                PetscReal ajc = iaj[k][j][i];
+
+                // get face normals
+                csi0 = icsi[k][j][i].x, csi1 = icsi[k][j][i].y, csi2 = icsi[k][j][i].z;
+
+                tauLocalCat.xx = 0.5 * (tauSGSCat[k][j][i].xx + tauSGSCat[k][j][i+1].xx);
+                tauLocalCat.xy = 0.5 * (tauSGSCat[k][j][i].xy + tauSGSCat[k][j][i+1].xy);
+                tauLocalCat.xz = 0.5 * (tauSGSCat[k][j][i].xz + tauSGSCat[k][j][i+1].xz);
+                tauLocalCat.yx = 0.5 * (tauSGSCat[k][j][i].yx + tauSGSCat[k][j][i+1].yx);
+                tauLocalCat.yy = 0.5 * (tauSGSCat[k][j][i].yy + tauSGSCat[k][j][i+1].yy);
+                tauLocalCat.yz = 0.5 * (tauSGSCat[k][j][i].yz + tauSGSCat[k][j][i+1].yz);
+                tauLocalCat.zx = 0.5 * (tauSGSCat[k][j][i].zx + tauSGSCat[k][j][i+1].zx);
+                tauLocalCat.zy = 0.5 * (tauSGSCat[k][j][i].zy + tauSGSCat[k][j][i+1].zy);
+                tauLocalCat.zz = 0.5 * (tauSGSCat[k][j][i].zz + tauSGSCat[k][j][i+1].zz);
+
+                if
+                (
+                    (mesh->boundaryU.iLeft=="velocityWallFunction"  && i==0) ||
+                    (mesh->boundaryU.iRight=="velocityWallFunction" && i==mx-2)
+                )
+                {
+                    visc1[k][j][i].x += (- ueqn->iLWM->tauWall.x[k-zs][j-ys]);
+                    visc1[k][j][i].y += (- ueqn->iLWM->tauWall.y[k-zs][j-ys]);
+                    visc1[k][j][i].z += (- ueqn->iLWM->tauWall.z[k-zs][j-ys]);
+
+                }
+                else if
+                (
+                    (mesh->boundaryU.iLeft =="slip" && i==0   ) ||
+                    (mesh->boundaryU.iRight=="slip" && i==mx-2)
+                )
+                {
+                    visc1[k][j][i].x = 0.0;
+                    visc1[k][j][i].y = 0.0;
+                    visc1[k][j][i].z = 0.0;
+                }
+                else 
+                {
+                    visc1[k][j][i].x -= (tauLocalCat.xx * csi0 + tauLocalCat.xy * csi1 + tauLocalCat.xz * csi2);
+                    visc1[k][j][i].y -= (tauLocalCat.yx * csi0 + tauLocalCat.yy * csi1 + tauLocalCat.yz * csi2);
+                    visc1[k][j][i].z -= (tauLocalCat.zx * csi0 + tauLocalCat.zy * csi1 + tauLocalCat.zz * csi2);
+                }
+            }
+        }
+    }
+
+    // j direction
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(i==0 || k==0) continue;
+
+                // get 1/V at the j-face
+                PetscReal ajc = jaj[k][j][i];
+
+                // get face normals
+                eta0 = jeta[k][j][i].x, eta1 = jeta[k][j][i].y, eta2 = jeta[k][j][i].z;
+
+                tauLocalCat.xx = 0.5 * (tauSGSCat[k][j][i].xx + tauSGSCat[k][j+1][i].xx);
+                tauLocalCat.xy = 0.5 * (tauSGSCat[k][j][i].xy + tauSGSCat[k][j+1][i].xy);
+                tauLocalCat.xz = 0.5 * (tauSGSCat[k][j][i].xz + tauSGSCat[k][j+1][i].xz);
+                tauLocalCat.yx = 0.5 * (tauSGSCat[k][j][i].yx + tauSGSCat[k][j+1][i].yx);
+                tauLocalCat.yy = 0.5 * (tauSGSCat[k][j][i].yy + tauSGSCat[k][j+1][i].yy);
+                tauLocalCat.yz = 0.5 * (tauSGSCat[k][j][i].yz + tauSGSCat[k][j+1][i].yz);
+                tauLocalCat.zx = 0.5 * (tauSGSCat[k][j][i].zx + tauSGSCat[k][j+1][i].zx);
+                tauLocalCat.zy = 0.5 * (tauSGSCat[k][j][i].zy + tauSGSCat[k][j+1][i].zy);
+                tauLocalCat.zz = 0.5 * (tauSGSCat[k][j][i].zz + tauSGSCat[k][j+1][i].zz);
+
+                if
+                (
+                    (mesh->boundaryU.jLeft=="velocityWallFunction" && j==0) ||
+                    (mesh->boundaryU.jRight=="velocityWallFunction" && j==my-2)
+                )
+                {
+                    visc2[k][j][i].x += (- ueqn->jLWM->tauWall.x[k-zs][i-xs]);
+                    visc2[k][j][i].y += (- ueqn->jLWM->tauWall.y[k-zs][i-xs]);
+                    visc2[k][j][i].z += (- ueqn->jLWM->tauWall.z[k-zs][i-xs]);
+                }
+                else if
+                (
+                    (mesh->boundaryU.jLeft =="slip" && j==0   ) ||
+                    (mesh->boundaryU.jRight=="slip" && j==my-2)
+                )
+                {
+                    visc2[k][j][i].x = 0.0;
+                    visc2[k][j][i].y = 0.0;
+                    visc2[k][j][i].z = 0.0;
+                }
+                else
+                {
+                    // if(k ==15 && j==2 && i==2)	
+                    // {
+                    //     PetscPrintf(PETSC_COMM_WORLD,"before %.10lf %.10lf %.10lf\n", visc2[k][j][i].x, visc2[k][j][i].y, visc2[k][j][i].z);
+                    //     PetscPrintf(PETSC_COMM_WORLD,"taulocal %.10lf %.10lf %.10lf %.10lf %.10lf %.10lf\n", tauLocalCat.xx, tauLocalCat.yy, tauLocalCat.zz, tauLocalCat.xy, tauLocalCat.xz, tauLocalCat.yz);
+                    //     PetscPrintf(PETSC_COMM_WORLD,"eta %.10lf %.10lf %.10lf\n", eta0, eta1, eta2);
+                    // }
+                    visc2[k][j][i].x -= (tauLocalCat.xx * eta0 + tauLocalCat.xy * eta1 + tauLocalCat.xz * eta2);
+                    visc2[k][j][i].y -= (tauLocalCat.yx * eta0 + tauLocalCat.yy * eta1 + tauLocalCat.yz * eta2);
+                    visc2[k][j][i].z -= (tauLocalCat.zx * eta0 + tauLocalCat.zy * eta1 + tauLocalCat.zz * eta2);
+                    // if(k ==15 && j==2 && i==2)
+                    // PetscPrintf(PETSC_COMM_WORLD,"after %.10lf %.10lf %.10lf\n", visc2[k][j][i].x, visc2[k][j][i].y, visc2[k][j][i].z);
+                } 
+            }
+        }
+    }
+
+    // k direction faces are from 0 to mz-2
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(i==0 || j==0) continue;
+
+                // get 1/V at the j-face
+                PetscReal ajc = kaj[k][j][i];
+
+                // get face normals
+                zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
+
+                tauLocalCat.xx = 0.5 * (tauSGSCat[k][j][i].xx + tauSGSCat[k+1][j][i].xx);
+                tauLocalCat.xy = 0.5 * (tauSGSCat[k][j][i].xy + tauSGSCat[k+1][j][i].xy);
+                tauLocalCat.xz = 0.5 * (tauSGSCat[k][j][i].xz + tauSGSCat[k+1][j][i].xz);
+                tauLocalCat.yx = 0.5 * (tauSGSCat[k][j][i].yx + tauSGSCat[k+1][j][i].yx);
+                tauLocalCat.yy = 0.5 * (tauSGSCat[k][j][i].yy + tauSGSCat[k+1][j][i].yy);
+                tauLocalCat.yz = 0.5 * (tauSGSCat[k][j][i].yz + tauSGSCat[k+1][j][i].yz);
+                tauLocalCat.zx = 0.5 * (tauSGSCat[k][j][i].zx + tauSGSCat[k+1][j][i].zx);
+                tauLocalCat.zy = 0.5 * (tauSGSCat[k][j][i].zy + tauSGSCat[k+1][j][i].zy);
+                tauLocalCat.zz = 0.5 * (tauSGSCat[k][j][i].zz + tauSGSCat[k+1][j][i].zz);
+
+                if
+                (
+                    (mesh->boundaryU.kLeft =="slip" && k==0   ) ||
+                    (mesh->boundaryU.kRight=="slip" && k==mz-2)
+                )
+                {
+                    visc3[k][j][i].x = 0.0;
+                    visc3[k][j][i].y = 0.0;
+                    visc3[k][j][i].z = 0.0;
+                }
+                else
+                {
+                    visc3[k][j][i].x -= (tauLocalCat.xx * zet0 + tauLocalCat.xy * zet1 + tauLocalCat.xz * zet2);
+                    visc3[k][j][i].y -= (tauLocalCat.yx * zet0 + tauLocalCat.yy * zet1 + tauLocalCat.yz * zet2);
+                    visc3[k][j][i].z -= (tauLocalCat.zx * zet0 + tauLocalCat.zy * zet1 + tauLocalCat.zz * zet2);
+                }
+            }
+        }
+    }
+
+    // compute postprocess data
+    MPI_Allreduce(&lTauS, &gTauS, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lVol2, &gVol2, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    gTauS = gTauS / gVol2;
+    
+    if (!rank) 
+    {
+        // Create the postProcessing directory on the first iteration.
+        if (les->access->clock->it == les->access->clock->itStart) 
+        {
+            errno = 0;
+            PetscInt dirRes = mkdir("./postProcessing", 0777);
+            if (dirRes != 0 && errno != EEXIST) 
+            {
+                char error[512];
+                sprintf(error, "could not create postProcessing directory\n");
+                fatalErrorInFunction("turbStat", error);
+            }
+        }
+
+        // Construct the file name.
+        word fileName = "postProcessing/turbstat_Bardina_" + getStartTimeName(les->access->clock);
+        FILE *fp = fopen(fileName.c_str(), "a");
+
+        if (!fp) 
+        {
+            char error[512];
+            sprintf(error, "cannot open file postProcessing/turbstat file\n");
+            fatalErrorInFunction("turbStat", error);
+        } 
+        else 
+        {
+            PetscInt width = -15;
+
+            // Write the current time.
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, les->access->clock->time);
+            // Write the volume-averaged enstrophy.
+            PetscFPrintf(mesh->MESH_COMM, fp, "%*.12e\t", width, gTauS);  //Energy flux <tauijSij>
+            PetscFPrintf(mesh->MESH_COMM, fp, "\n");
+            
+
+            fclose(fp);
+        }
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lVisc1, &visc1);
+    DMDAVecRestoreArray(fda, ueqn->lVisc2, &visc2);
+    DMDAVecRestoreArray(fda, ueqn->lVisc3, &visc3);
+    DMDAVecRestoreArray(tda, les->lTau, &tauSGSCat);
+
+    DMDAVecRestoreArray(da, mesh->lIAj, &iaj);
+    DMDAVecRestoreArray(da, mesh->lJAj, &jaj);
+    DMDAVecRestoreArray(da, mesh->lKAj, &kaj);
+
+    DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+
+
+
+    DMLocalToLocalBegin(fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
+    DMLocalToLocalEnd  (fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
+    DMLocalToLocalBegin(fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
+    DMLocalToLocalEnd  (fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
+    DMLocalToLocalBegin(fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
+    DMLocalToLocalEnd  (fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
+
+    return 0;
+}
+
+PetscErrorCode updateLESStructuralModelContravariantForm(les_ *les)
+{
+    mesh_         *mesh = les->access->mesh;
+    ueqn_         *ueqn = les->access->ueqn;
+    teqn_         *teqn = les->access->teqn;
+
+    DM            da    = mesh->da, fda = mesh->fda, tda = mesh->tda;
+
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***aj, ***Sabs, ***nut,  ***ksg, ***nvert, ***meshTag;
+    PetscReal     ***iaj, ***jaj, ***kaj;
+    Cmpnts        ***csi, ***eta, ***zet, ***ucat, ***ucont;
+    Cmpnts        ***visc1, ***visc2, ***visc3;
+    Cmpnts        ***icsi, ***jeta, ***kzet;
+
+    PetscReal     ajc;
+    PetscMPIInt   rank;
+
+    PetscReal     dudc, dude, dudz,
+                  dvdc, dvde, dvdz,
+                  dwdc, dwde, dwdz;
+
+    Tensor        ***tauSGS, tauLocal;                                      //subgrid scale stress tensor in cartesian form
+    symmTensor    SS;
+
+    PetscReal     du_dx, du_dy, du_dz, 
+                  dv_dx, dv_dy, dv_dz, 
+                  dw_dx, dw_dy, dw_dz;
+
+    PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;      // surface area vectors components
+
+    lxs = xs; lxe = xe; if (xs == 0) lxs = xs+1; if (xe == mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys == 0) lys = ys+1; if (ye == my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs == 0) lzs = zs+1; if (ze == mz) lze = mz-1;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+    VecSet(les->lTau, 0.0);
+
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da,  les->lNu_t, &nut);
+    DMDAVecGetArray(da,  les->lKsgs, &ksg);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+    DMDAVecGetArray(da, mesh->lAj,  &aj);
+
+    DMDAVecGetArray(tda, les->lTau, &tauSGS);
+
+    //bardina model
+    if (les->model == BAMD || les->model == BV || les->model == BDS)
+    {
+
+        for (k = lzs; k < lze; k++)
+        for (j = lys; j < lye; j++)
+        for (i = lxs; i < lxe; i++)
+        {
+            /* Skip solid cells */
+            if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+            {
+                zeroTensor(&tauSGS[k][j][i]); //inline function each element 0
+                continue;
+            }
+
+            // get 1/V at the i-face
+            ajc = aj[k][j][i];
+
+            csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+            eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+            zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+
+            PetscReal filter, test_filter;                         // grid filter and dynamic model filter
+
+            PetscReal u[3][3][3] ,   v[3][3][3] ,   w[3][3][3];    // cartesian velocity
+            
+            PetscReal U[3][3][3]   , V[3][3][3]   , W[3][3][3];
+
+            PetscReal Uu[3][3][3]  , Uv[3][3][3]  , Uw[3][3][3]; //         |Uu Uv Uw|
+            
+            PetscReal Vu[3][3][3]  , Vv[3][3][3]  , Vw[3][3][3]; // tensor: |Vu Vv Vw|
+            
+            PetscReal Wu[3][3][3]  , Wv[3][3][3]  , Ww[3][3][3]; //        |wu wv ww|
+            
+            PetscInt p, q, r;
+
+            for (p = -1; p <= 1; p++)
+            for (q = -1; q <= 1; q++)
+            for (r = -1; r <= 1; r++)
+            {
+                PetscInt R = r + 1, Q = q + 1, P = p + 1;
+                PetscInt K = k + r, J = j + q, I = i + p;
+
+                //cartesian velocity
+                u[R][Q][P] = ucat[K][J][I].x;
+                v[R][Q][P] = ucat[K][J][I].y;
+                w[R][Q][P] = ucat[K][J][I].z;
+            
+                // contravariant fluxes
+                U[R][Q][P] = u[R][Q][P]*csi[K][J][I].x + v[R][Q][P]*csi[K][J][I].y + w[R][Q][P]*csi[K][J][I].z;
+                V[R][Q][P] = u[R][Q][P]*eta[K][J][I].x + v[R][Q][P]*eta[K][J][I].y + w[R][Q][P]*eta[K][J][I].z;
+                W[R][Q][P] = u[R][Q][P]*zet[K][J][I].x + v[R][Q][P]*zet[K][J][I].y + w[R][Q][P]*zet[K][J][I].z;
+
+                //uu tensor components
+                
+                Uu[R][Q][P] = U[R][Q][P] * u[R][Q][P];
+                Uv[R][Q][P] = U[R][Q][P] * v[R][Q][P];
+                Uw[R][Q][P] = U[R][Q][P] * w[R][Q][P];
+
+                Vu[R][Q][P] = V[R][Q][P] * u[R][Q][P];
+                Vv[R][Q][P] = V[R][Q][P] * v[R][Q][P];
+                Vw[R][Q][P] = V[R][Q][P] * w[R][Q][P];
+
+                Wu[R][Q][P] = W[R][Q][P] * u[R][Q][P];
+                Wv[R][Q][P] = W[R][Q][P] * v[R][Q][P];
+                Ww[R][Q][P] = W[R][Q][P] * w[R][Q][P];
+            }
+
+            //Build filter weights (using a binomial 3x3x3 kernel)
+            
+            PetscReal coef[3][3][3] = 
+            {
+                0.015625, 0.03125, 0.015625,
+                0.03125, 0.0625, 0.03125,
+                0.015625, 0.03125, 0.015625,
+            
+            
+                0.03125, 0.0625, 0.03125,
+                0.0625, 0.125, 0.0625,
+                0.03125, 0.0625, 0.03125,
+            
+            
+                0.015625, 0.03125, 0.015625,
+                0.03125, 0.0625, 0.03125,
+                0.015625, 0.03125, 0.015625
+            };
+
+            PetscReal weight[3][3][3];
+
+            PetscReal sum_vol = 0;
+
+            for (p = -1; p <= 1; p++)
+            for (q = -1; q <= 1; q++)
+            for (r = -1; r <= 1; r++)
+            {
+                PetscInt R = r + 1, Q = q + 1, P = p + 1;
+      
+                PetscInt K = k + r, J = j + q, I = i + p;
+                
+                if 
+                (
+                    (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                    
+                    (I != 0 && I != mx-1 && J != 0 && J != my-1 && K != 0 && K != mz-1))
+
+                {
+
+                    sum_vol += (1.0/aj[K][J][I]) * 8.0 * coef[R][Q][P];
+                    weight[R][Q][P] = 1;
+                
+                } 
+                
+                else 
+                {
+                    weight[R][Q][P] = 0;
+                }
+            
+            }
+            
+            //Apply test filter to local velocity fields
+            
+            PetscReal _u = integrateTestfilterSimpson(u, weight);
+            PetscReal _v = integrateTestfilterSimpson(v, weight);
+            PetscReal _w = integrateTestfilterSimpson(w, weight);
+            
+            PetscReal _U = integrateTestfilterSimpson(U, weight);
+            PetscReal _V = integrateTestfilterSimpson(V, weight);
+            PetscReal _W = integrateTestfilterSimpson(W, weight);
+
+            //Apply test filter to product
+            PetscReal _Uu = integrateTestfilterSimpson(Uu, weight);
+            PetscReal _Uv = integrateTestfilterSimpson(Uv, weight);
+            PetscReal _Uw = integrateTestfilterSimpson(Uw, weight);
+            
+            PetscReal _Vu = integrateTestfilterSimpson(Vu, weight);
+            PetscReal _Vv = integrateTestfilterSimpson(Vv, weight);
+            PetscReal _Vw = integrateTestfilterSimpson(Vw, weight);
+
+            PetscReal _Wu = integrateTestfilterSimpson(Wu, weight);
+            PetscReal _Wv = integrateTestfilterSimpson(Wv, weight);
+            PetscReal _Ww = integrateTestfilterSimpson(Ww, weight);
+
+            //Compute the Bardina SGS stress ---
+            //tau_ij = test-filtered(u_i*u_j) - (test-filtered(u_i))*(test-filtered(u_j))
+            //and store the full 3x3 tensor in tauSGS.
+            
+            tauSGS[k][j][i].xx = _Uu - _U*_u;   // tau_xx
+            tauSGS[k][j][i].xy = _Uv - _U*_v;   // tau_xy
+            tauSGS[k][j][i].xz = _Uw - _U*_w;   // tau_xz
+            
+            tauSGS[k][j][i].yx = _Vu - _V*_u;   // tau_yx
+            tauSGS[k][j][i].yy = _Vv - _V*_v;   // tau_yy
+            tauSGS[k][j][i].yz = _Vw - _V*_w;   // tau_yz
+            
+            tauSGS[k][j][i].zx = _Wu - _W*_u;   // tau_zx
+            tauSGS[k][j][i].zy = _Wv - _W*_v;   // tau_zy
+            tauSGS[k][j][i].zz = _Ww - _W*_w;   // tau_zz
+        } 
+    }
+
+    DMDAVecRestoreArray(tda, les->lTau, &tauSGS);
+    DMDAVecRestoreArray(da,  les->lKsgs, &ksg);
+    DMDAVecRestoreArray(da,  les->lNu_t, &nut);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da, mesh->lAj,  &aj);
+
+    DMLocalToLocalBegin(tda, les->lTau, INSERT_VALUES, les->lTau);
+    DMLocalToLocalEnd  (tda, les->lTau, INSERT_VALUES, les->lTau);
+
+    //set tau boundary conditions
+    DMDAVecGetArray(tda, les->lTau, &tauSGS);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                PetscInt a=i, b=j, c=k, flag=0;
+
+                if(i==0)
+                {
+                    if(mesh->i_periodic)       a=mx-2, flag=1;
+                    else if(mesh->ii_periodic) a=-2, flag=1;
+                    else                      a=1, flag=1;
+                }
+                if(i==mx-1)
+                {
+                    if(mesh->i_periodic)       a=1, flag=1;
+                    else if(mesh->ii_periodic) a=mx+1, flag=1;
+                    else                      a=mx-2, flag=1;
+                }
+                if(j==0)
+                {
+                    if(mesh->j_periodic)       b=my-2, flag=1;
+                    else if(mesh->jj_periodic) b=-2, flag=1;
+                    else                      b=1, flag=1;
+                }
+                if(j==my-1)
+                {
+                    if(mesh->j_periodic)       b=1, flag=1;
+                    else if(mesh->jj_periodic) b=my+1, flag=1;
+                    else                      b=my-2, flag=1;
+                }
+                if(k==0)
+                {
+                    if(mesh->k_periodic)       c=mz-2, flag=1;
+                    else if(mesh->kk_periodic) c=-2, flag=1;
+                    else                      c=1, flag=1;
+                }
+                if(k==mz-1)
+                {
+                    if(mesh->k_periodic)       c=1, flag=1;
+                    else if(mesh->kk_periodic) c=mz+1, flag=1;
+                    else                      c=mz-2, flag=1;
+                }
+
+                if(flag)
+                {
+                    tauSGS[k][j][i].xx = tauSGS[c][b][a].xx;
+                    tauSGS[k][j][i].xy = tauSGS[c][b][a].xy;
+                    tauSGS[k][j][i].xz = tauSGS[c][b][a].xz;
+                    tauSGS[k][j][i].yx = tauSGS[c][b][a].yx;
+                    tauSGS[k][j][i].yy = tauSGS[c][b][a].yy;
+                    tauSGS[k][j][i].yz = tauSGS[c][b][a].yz;
+                    tauSGS[k][j][i].zx = tauSGS[c][b][a].zx;
+                    tauSGS[k][j][i].zy = tauSGS[c][b][a].zy;
+                    tauSGS[k][j][i].zz = tauSGS[c][b][a].zz;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(tda, les->lTau, &tauSGS);
+    DMLocalToLocalBegin(tda, les->lTau, INSERT_VALUES, les->lTau);
+    DMLocalToLocalEnd  (tda, les->lTau, INSERT_VALUES, les->lTau);
+
+    DMDAVecGetArray(fda, ueqn->lVisc1, &visc1);
+    DMDAVecGetArray(fda, ueqn->lVisc2, &visc2);
+    DMDAVecGetArray(fda, ueqn->lVisc3, &visc3);
+    DMDAVecGetArray(tda, les->lTau, &tauSGS);
+
+    DMDAVecGetArray(da, mesh->lIAj, &iaj);
+    DMDAVecGetArray(da, mesh->lJAj, &jaj);
+    DMDAVecGetArray(da, mesh->lKAj, &kaj);
+
+    DMDAVecGetArray(fda, mesh->lICsi, &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+    //i direction
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(j==0 || k==0) continue;
+
+                // get 1/V at the i-face
+                PetscReal ajc = iaj[k][j][i];
+
+                // get face normals
+                csi0 = icsi[k][j][i].x, csi1 = icsi[k][j][i].y, csi2 = icsi[k][j][i].z;
+
+                tauLocal.xx = 0.5 * (tauSGS[k][j][i].xx + tauSGS[k][j][i+1].xx);
+                tauLocal.xy = 0.5 * (tauSGS[k][j][i].xy + tauSGS[k][j][i+1].xy);
+                tauLocal.xz = 0.5 * (tauSGS[k][j][i].xz + tauSGS[k][j][i+1].xz);
+
+
+                if
+                (
+                    (mesh->boundaryU.iLeft=="velocityWallFunction"  && i==0) ||
+                    (mesh->boundaryU.iRight=="velocityWallFunction" && i==mx-2)
+                )
+                {
+
+                }
+                else if
+                (
+                    (mesh->boundaryU.iLeft =="slip" && i==0   ) ||
+                    (mesh->boundaryU.iRight=="slip" && i==mx-2)
+                )
+                {
+
+                }
+                else if(isIBMFluidIFace(k, j, i, i+1, nvert))
+                {
+
+                }
+                else 
+                {
+                    visc1[k][j][i].x -= tauLocal.xx;
+                    visc1[k][j][i].y -= tauLocal.xy;
+                    visc1[k][j][i].z -= tauLocal.xz;
+                }
+            }
+        }
+    }
+
+    // j direction
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(i==0 || k==0) continue;
+
+                // get 1/V at the j-face
+                PetscReal ajc = jaj[k][j][i];
+
+                // get face normals
+                eta0 = jeta[k][j][i].x, eta1 = jeta[k][j][i].y, eta2 = jeta[k][j][i].z;
+
+                tauLocal.yx = 0.5 * (tauSGS[k][j][i].yx + tauSGS[k][j+1][i].yx);
+                tauLocal.yy = 0.5 * (tauSGS[k][j][i].yy + tauSGS[k][j+1][i].yy);
+                tauLocal.yz = 0.5 * (tauSGS[k][j][i].yz + tauSGS[k][j+1][i].yz);
+
+                if
+                (
+                    (mesh->boundaryU.jLeft=="velocityWallFunction" && j==0) ||
+                    (mesh->boundaryU.jRight=="velocityWallFunction" && j==my-2)
+                )
+                {
+
+                }
+                else if
+                (
+                    (mesh->boundaryU.jLeft =="slip" && j==0   ) ||
+                    (mesh->boundaryU.jRight=="slip" && j==my-2)
+                )
+                {
+
+                }
+                else if(isIBMFluidJFace(k, j, i, j+1, nvert))
+                {
+
+                }
+                else
+                {
+                    // if(k ==15 && j==2 && i==2)	
+                    // {
+                    //     PetscPrintf(PETSC_COMM_WORLD,"before %.10lf %.10lf %.10lf\n", visc2[k][j][i].x, visc2[k][j][i].y, visc2[k][j][i].z);
+                    //     PetscPrintf(PETSC_COMM_WORLD,"taulocal %.10lf %.10lf %.10lf %.10lf %.10lf %.10lf\n", tauLocal.xx, tauLocal.yy, tauLocal.zz, tauLocal.xy, tauLocal.xz, tauLocal.yz);
+                    //     PetscPrintf(PETSC_COMM_WORLD,"eta %.10lf %.10lf %.10lf\n", eta0, eta1, eta2);
+                    // }
+                    visc2[k][j][i].x -= tauLocal.yx;
+                    visc2[k][j][i].y -= tauLocal.yy;
+                    visc2[k][j][i].z -= tauLocal.yz;
+                    // if(k ==15 && j==2 && i==2)
+                    // PetscPrintf(PETSC_COMM_WORLD,"after %.10lf %.10lf %.10lf\n", visc2[k][j][i].x, visc2[k][j][i].y, visc2[k][j][i].z);
+                } 
+            }
+        }
+    }
+
+    // k direction faces are from 0 to mz-2
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(i==0 || j==0) continue;
+
+                // get 1/V at the j-face
+                PetscReal ajc = kaj[k][j][i];
+
+                // get face normals
+                zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
+
+                tauLocal.zx = 0.5 * (tauSGS[k][j][i].zx + tauSGS[k+1][j][i].zx);
+                tauLocal.zy = 0.5 * (tauSGS[k][j][i].zy + tauSGS[k+1][j][i].zy);
+                tauLocal.zz = 0.5 * (tauSGS[k][j][i].zz + tauSGS[k+1][j][i].zz);
+
+                if
+                (
+                    (mesh->boundaryU.kLeft =="slip" && k==0   ) ||
+                    (mesh->boundaryU.kRight=="slip" && k==mz-2)
+                )
+                {
+
+                }
+                else if(isIBMFluidKFace(k, j, i, k+1, nvert))
+                {
+                    
+                }
+                else
+                {
+                    visc3[k][j][i].x -= tauLocal.zx;
+                    visc3[k][j][i].y -= tauLocal.zy;
+                    visc3[k][j][i].z -= tauLocal.zz;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lVisc1, &visc1);
+    DMDAVecRestoreArray(fda, ueqn->lVisc2, &visc2);
+    DMDAVecRestoreArray(fda, ueqn->lVisc3, &visc3);
+    DMDAVecRestoreArray(tda, les->lTau, &tauSGS);
+
+    DMDAVecRestoreArray(da, mesh->lIAj, &iaj);
+    DMDAVecRestoreArray(da, mesh->lJAj, &jaj);
+    DMDAVecRestoreArray(da, mesh->lKAj, &kaj);
+
+    DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    DMLocalToLocalBegin(fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
+    DMLocalToLocalEnd  (fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
+    DMLocalToLocalBegin(fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
+    DMLocalToLocalEnd  (fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
+    DMLocalToLocalBegin(fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
+    DMLocalToLocalEnd  (fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
+
+    return 0;
 }

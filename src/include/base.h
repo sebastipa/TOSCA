@@ -93,6 +93,31 @@ typedef struct
     PetscScalar xx, xy, xz, yy, yz, zz;
 } symmTensor;
 
+typedef struct
+{
+    PetscScalar xy, xz, yz;
+} skewSymmTensor;
+
+typedef struct
+{
+    PetscScalar xx, xy, xz,
+                yx, yy, yz,
+                zx, zy, zz;
+} Tensor;
+
+typedef struct 
+{
+    PetscScalar I1;  // First invariant: trace(T)
+    PetscScalar I2;  // Second invariant: 0.5*(trace(T)^2 - trace(T^2))
+    PetscScalar I3;  // Third invariant: determinant of T
+} TensorInvariants;
+
+typedef struct 
+{   
+    PetscScalar m[3][3];
+
+} Matrix3;
+
 //! \brief Vector field on the patch (used to store wall models fields)
 typedef struct
 {
