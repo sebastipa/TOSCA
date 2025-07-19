@@ -626,11 +626,51 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgHeatFlux));   
                 PetscMalloc(sizeof(Cmpnts) * nLevels,       &(abl->avgStress));   
 
+//read the abl->avgStress - different if restarting the simulation - so read from file avgStress
+                std::stringstream stream;
+                stream << std::fixed << std::setprecision(mesh->access->clock->timePrecision) << mesh->access->clock->startTime;
+                word location = "./fields/" + mesh->meshName + "/" + stream.str();
+                word fileName = location + "/avgStress";
+
+                FILE *fp=fopen(fileName.c_str(), "r");
+
+                if(fp==NULL)
+                {
+                    // if start time > 0 should find the file
+                    if(mesh->access->clock->startTime != 0.0)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file %s\n", fileName.c_str());
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    }
+
+                    for(j=0; j<nLevels; j++)
+                    {
+                        abl->avgStress[j] = nSetZero();
+                    } 
+                }
+                else
+                {   
+                    // Read data from file using fp
+                    for (int j = 0; j < nLevels; j++)
+                    {
+                        if (fscanf(fp, "%lf %lf %lf", 
+                                &(abl->avgStress[j].x), 
+                                &(abl->avgStress[j].y), 
+                                &(abl->avgStress[j].z)) != 3)
+                        {
+                            char error[512];
+                            sprintf(error, "error reading avgStress data at level %d from %s\n", j, fileName.c_str());
+                            fatalErrorInFunction("ABLInitialize", error);
+                        }
+                    }
+                    fclose(fp);
+                }
+
                 for(j=0; j<nLevels; j++)
                 {
                     abl->avgHeatFlux[j] = 0.0;
                     abl->avgTotalStress[j] = 0.0;
-                    abl->avgStress[j] = nSetZero();
                 } 
 
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "hAverageTime",     &(abl->hAvgTime)); 
@@ -4506,6 +4546,33 @@ PetscErrorCode findABLHeight(abl_ *abl)
             fprintf(f, "%.5lf\t", ablHeight);
             fprintf(f, "\n");
             fclose(f);
+        }
+    }
+    
+    //write the average stress term
+    if(mesh->access->io->runTimeWrite)
+    {
+        if(!rank)
+        {
+            word location = "./fields/" + mesh->meshName + "/" + getTimeName(clock);
+            word fileName = location + "/avgStress";
+
+            FILE *fp=fopen(fileName.c_str(), "w");
+
+            if(fp==NULL)
+            {
+                char error[512];
+                sprintf(error, "cannot open file %s\n", fileName.c_str());
+                fatalErrorInFunction("findABLHeight",  error);
+            }
+            else
+            {
+                PetscInt width = -15;
+                for (l = 0; l < nLevels; l++) 
+                {
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, abl->avgStress[l].x,  width, abl->avgStress[l].y,  width, abl->avgStress[l].z);
+                }
+            }
         }
     }
     
