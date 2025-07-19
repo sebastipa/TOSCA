@@ -713,6 +713,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             {
                 mScale(1.0/abl->totVolPerLevel[j], abl->geoDampU[j]);
             }
+            
             if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         U at hRef: (%.3f %.3f %.3f) m/s, U at hGeo: (%.3f %.3f %.3f)  = %0.3f m/s\n", uMean.x, uMean.y, uMean.z, uMeanGeo.x, uMeanGeo.y, uMeanGeo.z, nMag(uMeanGeo));
 
@@ -1004,7 +1005,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             }
 
             // Step 3: add the frictional drag term 
-            PetscReal ablgeoDelta = 200;
+            PetscReal ablgeoDelta = 0.2 * ablHeight;
             PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
 
             for (int j = 0; j < nlevels; ++j)
