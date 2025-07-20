@@ -217,6 +217,43 @@ static inline PetscReal TensorMagnitude(const Tensor T)
     return PetscSqrtReal(2.0 * tensorInnerProduct(T));
 }
 
+static inline Tensor multTensor(const Tensor A, const Tensor B) {
+    Tensor C;
+    zeroTensor(&C);
+
+    C.xx = A.xx * B.xx + A.xy * B.yx + A.xz * B.zx;
+    C.xy = A.xx * B.xy + A.xy * B.yy + A.xz * B.zy;
+    C.xz = A.xx * B.xz + A.xy * B.yz + A.xz * B.zz;
+
+    C.yx = A.yx * B.xx + A.yy * B.yx + A.yz * B.zx;
+    C.yy = A.yx * B.xy + A.yy * B.yy + A.yz * B.zy;
+    C.yz = A.yx * B.xz + A.yy * B.yz + A.yz * B.zz;
+
+    C.zx = A.zx * B.xx + A.zy * B.yx + A.zz * B.zx;
+    C.zy = A.zx * B.xy + A.zy * B.yy + A.zz * B.zy;
+    C.zz = A.zx * B.xz + A.zy * B.yz + A.zz * B.zz;
+
+    return C;
+}
+
+static inline PetscReal doubleContract(const Tensor A, const Tensor B)
+{
+    // return sum_{i,j} [A_ij * B_ij]
+    return  A.xx * B.xx + A.xy * B.xy + A.xz * B.xz
+          + A.yx * B.yx + A.yy * B.yy + A.yz * B.yz
+          + A.zx * B.zx + A.zy * B.zy + A.zz * B.zz;
+}
+
+static inline Cmpnts multTensorVector(const Tensor T, const Cmpnts v)
+{
+    // Standard 3×3 matrix times 3×1 vector = 3×1 result
+    Cmpnts out;
+    out.x = T.xx*v.x + T.xy*v.y + T.xz*v.z;
+    out.y = T.yx*v.x + T.yy*v.y + T.yz*v.z;
+    out.z = T.zx*v.x + T.zy*v.y + T.zz*v.z;
+    return out;
+}
+
 // Computes the standard Frobenius norm of the tensor: sqrt(T_ij*T_ij)
 static inline PetscReal frobeniusNorm(const Tensor T)
 {
