@@ -16,6 +16,7 @@
 #include "peqn.h"
 #include "teqn.h"
 #include "les.h"
+#include "lesScalar.h"
 #include "precursor.h"
 #include "turbines.h"
 #include "abl.h"

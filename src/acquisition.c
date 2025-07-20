@@ -10181,7 +10181,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             Cmpnts        ***ucat, ***uprime;           // cartesian vel. and fluct. part
             Cmpnts        ***csi, ***eta, ***zet;
             PetscReal     ***tmprt, ***tprime, ***nut, ***ksg;  // potential temp. and fluct. part and turb. visc.
-            PetscReal     ***aj, ***nvert, ***meshTag, ***ldt;
+            PetscReal     ***aj, ***nvert, ***meshTag, ***lkt;
 
             word          fileName;
 
@@ -10218,7 +10218,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                 {
-                    DMDAVecGetArray(da,  les->lDiff_t, &ldt);
+                    DMDAVecGetArray(da,  les->lk_t, &lkt);
                 }
             }
 
@@ -10275,7 +10275,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                             if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                             {
-                                ldiffT[j-1] += ldt[k][j][i]/ aj[k][j][i];
+                                ldiffT[j-1] += lkt[k][j][i]/ aj[k][j][i];
                             }
                         }
                     }
@@ -10470,7 +10470,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                             if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                             {
-                                PetscReal diffT = ldt[k][j][i];
+                                PetscReal diffT = lkt[k][j][i];
 
                                 lq[j-1].x  += ( - diffT * dt_dx) * volCell;
                                 lq[j-1].y  += ( - diffT * dt_dy) * volCell;
@@ -10577,7 +10577,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
                 {
-                    DMDAVecRestoreArray(da,  les->lDiff_t, &ldt);
+                    DMDAVecRestoreArray(da,  les->lk_t, &lkt);
                 }
             }
 

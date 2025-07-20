@@ -153,8 +153,12 @@ int main(int argc, char **argv)
             // temperature step
             if(flags.isTeqnActive)
             {
-                UpdateWallModelsT(domain[d].teqn);
 
+                UpdateCsk(domain[d].les);
+                UpdatekT(domain[d].les);
+
+                UpdateWallModelsT(domain[d].teqn);
+                
                 SolveTEqn(domain[d].teqn);
             }
 

@@ -50,12 +50,14 @@ PetscErrorCode InitializeLES(les_ *les)
         mesh_ *mesh = les->access->mesh;
 
         les->maxCs  = 0.5;
-
+        les->turbStat = 0;
+        
         // input file
         PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-max_cs",  &(les->maxCs), PETSC_NULL);
-        
+        PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-turbStat",  &(les->turbStat), PETSC_NULL);
+
         if(les->access->flags->isLesActive)
         {
             PetscBool modelSet;
@@ -2517,8 +2519,6 @@ PetscErrorCode UpdateNut(les_ *les)
                 DMDAVecRestoreArray(da, tempMAvg, &ltempDiff);
                 VecDestroy(&tempMAvg);
             }
-
-            UpdateDiffBCs(les);
         }
     }
 
@@ -2814,7 +2814,7 @@ PetscErrorCode ComputeTurbulenceStatistics(les_ *les)
             {
                 char error[512];
                 sprintf(error, "could not create postProcessing directory\n");
-                fatalErrorInFunction("turbStat", error);
+                fatalErrorInFunction("ComputeTurbulenceStatistics", error);
             }
         }
 
@@ -2826,7 +2826,7 @@ PetscErrorCode ComputeTurbulenceStatistics(les_ *les)
         {
             char error[512];
             sprintf(error, "cannot open file postProcessing/turbstat file\n");
-            fatalErrorInFunction("turbStat", error);
+            fatalErrorInFunction("ComputeTurbulenceStatistics", error);
         } 
         else 
         {
@@ -3429,7 +3429,7 @@ PetscErrorCode updateLESStructuralModelCartesianForm(les_ *les)
             {
                 char error[512];
                 sprintf(error, "could not create postProcessing directory\n");
-                fatalErrorInFunction("turbStat", error);
+                fatalErrorInFunction("updateLESStructuralModelCartesianForm", error);
             }
         }
 
@@ -3441,7 +3441,7 @@ PetscErrorCode updateLESStructuralModelCartesianForm(les_ *les)
         {
             char error[512];
             sprintf(error, "cannot open file postProcessing/turbstat file\n");
-            fatalErrorInFunction("turbStat", error);
+            fatalErrorInFunction("updateLESStructuralModelCartesianForm", error);
         } 
         else 
         {
