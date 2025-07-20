@@ -100,6 +100,22 @@ PetscErrorCode averageFields(acquisition_ *acquisition);
 //! \brief Compute Q criteria for I/O in cartesian form
 PetscErrorCode computeQCritIO(acquisition_ *acquisition);
 
+// Five invariants of VGT Qg, Rg, Qs, Rs, Qr
+//! \brief Compute Qg criteria for I/O in cartesian form
+PetscErrorCode computeVgtSecondInvariantIO(acquisition_ *acquisition);
+
+//! \brief Compute Rg criteria for I/O in cartesian form
+PetscErrorCode computeVgtThirdInvariantIO(acquisition_ *acquisition);
+
+//! \brief Compute Qs criteria for I/O in cartesian form
+PetscErrorCode computeStrainRateSecondInvariantIO(acquisition_ *acquisition);
+
+//! \brief Compute Rs criteria for I/O in cartesian form
+PetscErrorCode computeStrainRateThirdInvariantIO(acquisition_ *acquisition);
+
+//! \brief Compute Qr criteria for I/O in cartesian form
+PetscErrorCode computeQrIO(acquisition_ *acquisition);
+
 //! \brief Compute coriolis force for I/O in cartesian form
 PetscErrorCode computeCoriolisIO(acquisition_ *acquisition);
 
