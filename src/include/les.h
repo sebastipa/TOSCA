@@ -43,8 +43,16 @@ struct les_
 
     // general
     Vec           lNu_t;                  //!< eddy viscosity
-    Vec           lDiff_t;
     Vec           lKsgs;
+
+    //eddy diffusivity parameters 
+    Vec           lk_t;                 //!< eddy diffusivity
+    Vec           lCsk;
+    Vec           ldTheta;
+    Vec           lKX, lXX;
+    Vec           lPY, lYY;
+    Vec           lKX_old, lXX_old;
+    Vec           lPY_old, lYY_old;
 
     Vec           lTau;                   //!< tau sgs tensor for structural models
 

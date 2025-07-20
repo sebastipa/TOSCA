@@ -1300,7 +1300,7 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     Cmpnts        ***div, ***visc, ***viscIBM;                                                // divergence and viscous terms
     Cmpnts        ***limiter;                                                     // flux limiter
     PetscReal     ***aj, ***iaj, ***jaj, ***kaj;                                  // cell and face jacobians
-    PetscReal     ***lnu_t, ***Sabs, ***lch, ***lcs, ***ld_t;
+    PetscReal     ***lnu_t, ***Sabs, ***lch, ***lcs, ***lkt;
 
     PetscReal     dtdc, dtde, dtdz;                                              // velocity der. w.r.t. curvil. coords
     PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;          // surface area vectors components
@@ -1356,9 +1356,15 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
         {
             DMDAVecGetArray(da, les->lNu_t, &lnu_t);
 
-            if(les->model == AMD)
+            if(les->model == AMD   || 
+               les->model == DSM   || 
+               les->model == DLASI || 
+               les->model == DLASD || 
+               les->model == DPASD ||
+               les->model == BDS   ||
+               les->model == BAMD)            
             {
-                DMDAVecGetArray(da, les->lDiff_t, &ld_t);
+                DMDAVecGetArray(da, les->lk_t, &lkt);
             }
         }
         else
@@ -1430,10 +1436,16 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
 
-                        if(les->model == AMD)
+                        if( les->model == AMD   || 
+                            les->model == DSM   || 
+                            les->model == DLASI || 
+                            les->model == DLASD || 
+                            les->model == DPASD ||
+                            les->model == BDS   ||
+                            les->model == BAMD)  
                         {
-                           PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k][j][i+1]);
-                           kappaEff = (nu / cst->Pr) + diff;
+                            PetscReal diff =  0.5 * (lkt[k][j][i] + lkt[k][j][i+1]);
+                            kappaEff = (nu / cst->Pr) + diff;
                         }
                         else 
                         {
@@ -1572,10 +1584,16 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
 
-                        if(les->model == AMD)
-                        {
-                           PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k][j+1][i]);
-                           kappaEff = (nu / cst->Pr) + diff;
+                        if( les->model == AMD   || 
+                            les->model == DSM   || 
+                            les->model == DLASI || 
+                            les->model == DLASD || 
+                            les->model == DPASD ||
+                            les->model == BDS   ||
+                            les->model == BAMD)
+                        {                        
+                            PetscReal diff =  0.5 * (lkt[k][j][i] + lkt[k][j+1][i]);
+                            kappaEff = (nu / cst->Pr) + diff;
                         }
                         else 
                         {
@@ -1712,10 +1730,16 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                     {
                         nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
                         
-                        if(les->model == AMD)
-                        {
-                           PetscReal diff =  0.5 * (ld_t[k][j][i] + ld_t[k+1][j][i]);
-                           kappaEff = (nu / cst->Pr) + diff;
+                        if( les->model == AMD   || 
+                            les->model == DSM   || 
+                            les->model == DLASI || 
+                            les->model == DLASD || 
+                            les->model == DPASD ||
+                            les->model == BDS   ||
+                            les->model == BAMD)
+                        {                        
+                            PetscReal diff =  0.5 * (lkt[k][j][i] + lkt[k+1][j][i]);
+                            kappaEff = (nu / cst->Pr) + diff;
                         }
                         else 
                         {
@@ -1823,9 +1847,15 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
         {
             DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
 
-            if(les->model == AMD)
+            if( les->model == AMD   || 
+                les->model == DSM   || 
+                les->model == DLASI || 
+                les->model == DLASD || 
+                les->model == DPASD ||
+                les->model == BDS   ||
+                les->model == BAMD)             
             {
-                DMDAVecRestoreArray(da, les->lDiff_t, &ld_t);
+                DMDAVecRestoreArray(da, les->lk_t, &lkt);
             }
         }
         else

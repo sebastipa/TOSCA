@@ -173,7 +173,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn);
 PetscErrorCode UpdateNutBCs(les_ *les);
 
 //! \brief Update effective diffusivity boundary conditions
-PetscErrorCode UpdateDiffBCs(les_ *les);
+PetscErrorCode UpdatektBCs(les_ *les);
 
 //! \brief Update pressure boundary conditions
 PetscErrorCode UpdatePressureBCs(peqn_ *peqn);

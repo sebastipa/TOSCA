@@ -4147,7 +4147,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
     Cmpnts        ***csi, ***eta, ***zet;
     Cmpnts        ***ucat;                     // cartesian vel. and fluct. part
     PetscReal     ***tmprt, ***nut, ***nvert, ***meshTag;  // potential temp. and fluct. part and turb. visc.
-    PetscReal     ***aj, ***ld_t;
+    PetscReal     ***aj, ***lkt;
 
     PetscReal     nu = abl->access->constants->nu;
     PetscReal     ablHeight;
@@ -4168,7 +4168,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
     DMDAVecGetArray(fda, mesh->lEta,      &eta);
     DMDAVecGetArray(fda, mesh->lZet,      &zet);
     DMDAVecGetArray(da,  les->lNu_t,      &nut);
-    DMDAVecGetArray(da,  les->lDiff_t,    &ld_t);
+    DMDAVecGetArray(da,  les->lk_t,       &lkt);
 
     DMDAVecGetArray(da,  teqn->lTmprt,    &tmprt);
 
@@ -4347,7 +4347,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
                     &dt_dx, &dt_dy, &dt_dz
                 );
 
-                PetscReal diffEff = ld_t[k][j][i];
+                PetscReal diffEff = lkt[k][j][i];
                 lRTw[j-1] += ( - diffEff * dt_dz) * volCell;
 
             }
@@ -4624,7 +4624,7 @@ PetscErrorCode findABLHeight(abl_ *abl)
     DMDAVecRestoreArray(fda, mesh->lEta,      &eta);
     DMDAVecRestoreArray(fda, mesh->lZet,      &zet);
     DMDAVecRestoreArray(da,  les->lNu_t,      &nut);
-    DMDAVecRestoreArray(da,  les->lDiff_t,    &ld_t);
+    DMDAVecRestoreArray(da,  les->lk_t,       &lkt);
 
     DMDAVecRestoreArray(da,  teqn->lTmprt,    &tmprt);
     return (0);

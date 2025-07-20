@@ -55,6 +55,26 @@ PetscErrorCode InitializeIO(io_ *io)
     io->l2Crit          = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2", &(io->l2Crit), PETSC_NULL);
 
+    // read Qg-criterion flag
+    io->vgtQg          = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQg", &(io->vgtQg), PETSC_NULL);
+
+    // read Rg flag
+    io->vgtRg          = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeRg", &(io->vgtRg), PETSC_NULL);
+
+    // read Qs flag
+    io->vgtQs          = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQs", &(io->vgtQs), PETSC_NULL);
+
+    // read Rs flag
+    io->vgtRs          = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeRs", &(io->vgtRs), PETSC_NULL);
+
+    // read Qr flag
+    io->vgtQr          = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQr", &(io->vgtQr), PETSC_NULL);
+
     // read wind farm body force flag
     io->windFarmForce       = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeFarmForce", &(io->windFarmForce), PETSC_NULL);
@@ -410,6 +430,121 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscPrintf(mesh->MESH_COMM, "Reading Q...\n");
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(acquisition->fields->Q,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+    }
+
+    // read Qg-vgt
+    if(io->vgtQg)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // read pAvgU
+        field = "/Qg";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Qg(VGT2)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->Qg,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+    }
+
+    // read Rg-vgt
+    if(io->vgtRg)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // read pAvgU
+        field = "/Rg";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Rg(VGT2)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->Rg,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+    }
+
+    // read Qs-vgt
+    if(io->vgtQs)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // read pAvgU
+        field = "/Qs";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Qs(S2)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->Qs,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+    }
+
+    // read Rs-vgt
+    if(io->vgtRs)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // read pAvgU
+        field = "/Rs";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Rs(S3)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->Rs,viewer);
+            PetscViewerDestroy(&viewer);
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+    }
+
+    // read Rs-vgt
+    if(io->vgtQr)
+    {
+        // open file to check the existence, then read it with PETSc
+        FILE *fp;
+
+        // read pAvgU
+        field = "/Qr";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading Qr(R)...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->Qr,viewer);
             PetscViewerDestroy(&viewer);
         }
         MPI_Barrier(mesh->MESH_COMM);
@@ -2144,6 +2279,46 @@ PetscErrorCode writeFields(io_ *io)
             MPI_Barrier(mesh->MESH_COMM);
         }
 
+        if(io->vgtQg)
+        {
+            computeVgtSecondInvariantIO(acquisition);
+            fieldName = timeName + "/Qg";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->Qg, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        if(io->vgtRg)
+        {
+            computeVgtThirdInvariantIO(acquisition);
+            fieldName = timeName + "/Rg";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->Rg, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        if(io->vgtQs)
+        {
+            computeStrainRateSecondInvariantIO(acquisition);
+            fieldName = timeName + "/Qs";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->Qs, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        if(io->vgtRs)
+        {
+            computeStrainRateThirdInvariantIO(acquisition);
+            fieldName = timeName + "/Rs";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->Rs, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        if(io->vgtQr)
+        {
+            computeQrIO(acquisition);
+            fieldName = timeName + "/Qr";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->Qr, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+        
         // write sources
         if(io->sources && flags->isAblActive)
         {
