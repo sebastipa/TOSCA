@@ -3240,6 +3240,17 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
     Cmpnts        ***jeta;
     Cmpnts        ***ucat;
 
+    Cmpnts        e1, e2, e3;                          // local wall normal co-ordinate system
+
+    //rotation tensor direction cosines
+    PetscReal        a11, a21, a31,
+                     a12, a22, a32,
+                     a13, a23, a33;
+
+    PetscReal       tau11, tau21, tau31,
+                    tau12, tau22, tau32,
+                    tau13, tau23, tau33;
+
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
@@ -3464,6 +3475,13 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                     // compute wall-parallel velocity
                     Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
+                    //local co-ordinate system
+                    e1 = nUnit(UcellParallel);
+
+                    e3 = nSet(n);
+
+                    e2 = nCross(e3, e1);
+
                     PetscInt k_wm = k - zs;
                     PetscInt i_wm = i - xs;
                     // average velocity
@@ -3499,18 +3517,32 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         );
                     }
 
+                    //create the transformation vector for rotation to global axis.
+                    a11 = e1.x; a12 = e2.x, a13 = e3.x;
+                    a21 = e1.y; a22 = e2.y, a23 = e3.y;
+                    a31 = e1.z; a32 = e2.z, a33 = e3.z;
+
+                    //transform it to original co-ordinate system
+                    tau11 = -2.0 * a11 * a13 * frictionVel*frictionVel;
+                    tau12 = -(a13 * a21 + a11 * a23) * frictionVel*frictionVel;
+                    tau13 = -(a13 * a31 + a11 * a33) * frictionVel*frictionVel;
+
+                    tau21 = -(a23 * a11 + a21 * a13) * frictionVel*frictionVel;
+                    tau22 = -2.0 * a23 * a21 * frictionVel*frictionVel;
+                    tau23 = -(a23 * a31 + a21 * a33) * frictionVel*frictionVel;
+
+                    tau31 = -(a33 * a11 + a31 * a13) * frictionVel*frictionVel;
+                    tau32 = -(a33 * a21 + a31 * a23) * frictionVel*frictionVel;
+                    tau33 = -2.0 * a33 * a31 * frictionVel*frictionVel;
+
                     if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         //printf("uFilt.x = %f, u.x = %f\n", ueqn->jLWM->uFilt.x[k_wm][i_wm], UcellParallel.x);
 
                         // wall shear stress in cartesian coords
-                        PetscReal TauXZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.x[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
-                        PetscReal TauYZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.y[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
-
-                        // transform to contravariant coords
-                        ueqn->jLWM->tauWall.x[k_wm][i_wm] = jeta[k][j-1][i].z * TauXZ;
-                        ueqn->jLWM->tauWall.y[k_wm][i_wm] = jeta[k][j-1][i].z * TauYZ;
-                        ueqn->jLWM->tauWall.z[k_wm][i_wm] = jeta[k][j-1][i].x * TauXZ + jeta[k][j-1][i].y * TauYZ;
+                        ueqn->jLWM->tauWall.x[k_wm][i_wm] = (tau11* jeta[k][j-1][i].x + tau12 * jeta[k][j-1][i].y + tau13 * jeta[k][j-1][i].z);
+                        ueqn->jLWM->tauWall.y[k_wm][i_wm] = (tau21* jeta[k][j-1][i].x + tau22 * jeta[k][j-1][i].y + tau23 * jeta[k][j-1][i].z);
+                        ueqn->jLWM->tauWall.z[k_wm][i_wm] = (tau31* jeta[k][j-1][i].x + tau32 * jeta[k][j-1][i].y + tau33 * jeta[k][j-1][i].z);
                     }
                 }
             }

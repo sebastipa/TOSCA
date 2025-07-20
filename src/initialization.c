@@ -134,6 +134,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // LES model initialize
         InitializeLES(domain[d].les);
 
+        // LES scalar model initialize
+        InitializeLESScalar(domain[d].les);
+
         // initialize wind farm
         InitializeWindFarm(domain[d].farm);
 
