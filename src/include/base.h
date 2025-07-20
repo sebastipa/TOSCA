@@ -5,6 +5,7 @@
 #define _BASE_H_
 
 // include base headers
+#include <random>
 #include <vector>
 #include <algorithm>
 #include <assert.h>
