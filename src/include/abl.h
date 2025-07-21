@@ -49,7 +49,7 @@ struct abl_
 
     // geostrophic damping for pressure controller
     PetscInt     geostrophicDampingActive;       //!< geosptrophic oscillation damping
-	PetscInt     mesoScaleInputActive;           //!< use mesoscale data for pressure controller uDes
+    PetscInt     mesoScaleInputActive;           //!< use mesoscale data for pressure controller uDes
     
     PetscReal    geoDampAvgDT;                   //!< average time step from simulation start
 	Cmpnts       geoDampAvgS;                    //!< expected geostrophic velocity

@@ -57,6 +57,11 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     PetscInt isKEBudgetsActive      = 0;
     PetscInt isQCritActive          = 0;
     PetscInt isL2CritActive         = 0;
+    PetscInt isVgtQgActive          = 0;
+    PetscInt isVgtRgActive          = 0;
+    PetscInt isVgtQsActive          = 0;
+    PetscInt isVgtRsActive          = 0;
+    PetscInt isVgtQrActive          = 0;
     PetscInt isPerturbABLActive     = 0;
 
     flags->isAquisitionActive
@@ -64,7 +69,8 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     PetscMin((PetscInt)
     (
         isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive + isKEBudgetsActive +
-        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isPerturbABLActive),
+        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isPerturbABLActive +
+        isVgtQgActive + isVgtRgActive + isVgtQsActive + isVgtRsActive + isVgtQrActive),
         1
     );
 
@@ -122,6 +128,11 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
         domain->io->keBudgets      = 0;
         domain->io->qCrit          = 0;
         domain->io->l2Crit         = 0;
+        domain->io->vgtQg          = 0;
+        domain->io->vgtRg          = 0;
+        domain->io->vgtQs          = 0;
+        domain->io->vgtRs          = 0;
+        domain->io->vgtQr          = 0;
         domain->io->windFarmForce  = 0;
         domain->io->sources        = 0;
 

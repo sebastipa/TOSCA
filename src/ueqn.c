@@ -713,7 +713,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             {
                 mScale(1.0/abl->totVolPerLevel[j], abl->geoDampU[j]);
             }
-            
+
             if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
             if(print) PetscPrintf(mesh->MESH_COMM, "                         U at hRef: (%.3f %.3f %.3f) m/s, U at hGeo: (%.3f %.3f %.3f)  = %0.3f m/s\n", uMean.x, uMean.y, uMean.z, uMeanGeo.x, uMeanGeo.y, uMeanGeo.z, nMag(uMeanGeo));
 
@@ -5520,6 +5520,11 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMLocalToLocalEnd  (fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
     DMLocalToLocalBegin(fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
     DMLocalToLocalEnd  (fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
+
+    if(ueqn->access->flags->isLesActive && (les->model == BDS || les->model == BAMD || les->model == BV))
+    {
+        updateLESStructuralModelContravariantForm(les); 
+    }
 
     // ---------------------------------------------------------------------- //
     // FORM THE RIGHT HAND SIDE
