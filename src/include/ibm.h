@@ -6,33 +6,6 @@
 
 #define MAX_ELEMENTS_PER_NODE 20
 
-typedef struct Vertex Vertex;
-typedef struct HalfEdge HalfEdge;
-typedef struct Face Face;
-
-struct Vertex{
-    Cmpnts       nCoor;
-    PetscInt     vertexId;
-    HalfEdge     *edge;
-};
-
-struct HalfEdge{
-    Vertex       *origin;
-    HalfEdge     *next;
-    HalfEdge     *twin;
-    Face         *face;
-};
-
-struct Face{
-    PetscInt     faceId;
-    HalfEdge     *edge;
-};
-
-typedef struct {
-    PetscInt elem[MAX_ELEMENTS_PER_NODE];
-    PetscInt numConnected;
-} ibmNode;
-
 //! \brief Node struct
 typedef struct node
 {
@@ -70,17 +43,12 @@ typedef struct
     PetscInt     nodes;                        //!< number of nodes in the IBM Body
     PetscInt     elems;                        //!< number of elements in the IBM body
 
-    Vertex       *vertices;
-    HalfEdge     *halfEdges;
-    Face         *faces;
-
     Cmpnts       *nCoor;                       //!< pointer to the co-ordinates of the nodes
     PetscInt	 *nID1 , *nID2 , *nID3 ;       //!< pointer to the 3 node ids of a triangular mesh element
     Cmpnts	     *eN;                          //!< pointers to the component of face normal in x, y and z direction of element
     Cmpnts       *eT1;                         //!< pointers to the component of face tangential1 (eT1 = eN x k, where k is unit normal along z, which is taken as a generic direction)
     Cmpnts       *eT2;                         //!< pointers to the component of face tangential2 (eT2 = eN x eT1)
 
-    ibmNode      *ibmMeshNode;
     PetscInt     *eSurface;                    //!< pointer to the surfaceBody that this element belongs to
     PetscReal    *eA;                          //!< area of the element
     Cmpnts       *eCent;                       //!< coordinate of the element center
@@ -277,7 +245,6 @@ struct ibm_
     PetscInt             dynamic;
     PetscInt        computeForce;
     PetscInt         checkNormal;
-    PetscInt       averageNormal;
     PetscInt         wallShearOn;
     PetscInt            writeSTL;
     PetscInt              ibmABL;
@@ -402,8 +369,6 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm);
 
 PetscErrorCode recomputeIBMeshProperties(ibm_ *ibm, PetscInt b);
 
-PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm);
-
 //! \brief ray casting algorithm
 PetscReal rayCastingTest(Cmpnts p, ibmMesh *ibMsh, cellIds sCell, searchBox *sBox, boundingBox *ibBox, list *searchCellList);
 
@@ -435,12 +400,6 @@ inline PetscInt ISInsideTriangle2D(Cpt2D p, Cpt2D pa, Cpt2D pb, Cpt2D pc);
 
 //! \brief check whether point p is inside the triangle - 3D
 inline PetscInt isPointInTriangle(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts p3, Cmpnts norm);
-
-//! \brief find the angle averaged normal about a vertex
-inline Cmpnts computeVertexAverageNormal(ibmMesh *ibMsh, PetscInt vertexId);
-
-//! \brief find the angle averaged normal about an edge
-inline Cmpnts computeEdgeAverageNormal(ibmMesh *ibMsh, PetscInt vertexId, PetscInt faceId);
 
 //! \brief find projection of point on a line and the distance to it
 inline void disP2Line(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts *po, PetscReal *d, PetscReal *t);

@@ -20,9 +20,6 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
         //read ibm input file
         readIBMProperties(ibm);
 
-        //compute the node to element reverse connectivity
-        nodeElementConnectivity(ibm);
-
         //set the wall model properties
         setIBMWallModels(ibm);
 
@@ -37,9 +34,6 @@ PetscErrorCode InitializeIBM(ibm_ *ibm)
 
         //compute element normals and check that they point outwards
         computeIBMElementNormal(ibm);
-
-        // create half edge data structure
-        createHalfEdgeDataStructure(ibm);
 
         // ibm search algorithm
         PetscPrintf(mesh->MESH_COMM, "IBM search algorithm...");
@@ -1794,77 +1788,6 @@ PetscErrorCode recomputeIBMeshProperties(ibm_ *ibm, PetscInt b)
         mScale(1/3.0, ibMsh->eCent[i]);
     }
 
-    //use nearby elements to average the normal direction. this requires the node to element connectivity
-    if(ibm->averageNormal)
-    {
-        ibmNode *ibmNodes  = ibMsh->ibmMeshNode;
-
-        //temporary array to store the averaged element normals
-        Cmpnts *tempEn = new Cmpnts[ibMsh->elems];
-
-        for (PetscInt e=0; e<ibMsh->elems; e++)
-        {
-            PetscInt i, j;
-            // get the element nodes
-            n1 = ibMsh->nID1[e]; n2 = ibMsh->nID2[e]; n3 = ibMsh->nID3[e];
-
-            //find the number of elements connected to each node
-            PetscInt numElemn1 = ibmNodes[n1].numConnected;
-            PetscInt numElemn2 = ibmNodes[n2].numConnected;
-            PetscInt numElemn3 = ibmNodes[n3].numConnected;
-
-            PetscInt mergedElemArray[numElemn1 + numElemn2 + numElemn3];
-
-            //copy the first node elements into mergedElemArray
-            for (i = 0; i < numElemn1; i++)
-            {
-                mergedElemArray[i] = ibmNodes[n1].elem[i];
-            }
-
-            //copy the second node elements into merged array
-            for (j = 0; j < numElemn2; j++)
-            {
-                if (!isPresent(mergedElemArray, i+1, ibmNodes[n2].elem[j]))
-                {
-                    mergedElemArray[i++] = ibmNodes[n2].elem[j];
-                }
-            }
-
-            //copy the third node elements into merged array
-            for (j = 0; j < numElemn3; j++)
-            {
-                if (!isPresent(mergedElemArray, i+1, ibmNodes[n3].elem[j]))
-                {
-                    mergedElemArray[i++] = ibmNodes[n3].elem[j];
-                }
-            }
-
-            //average the normal at element e from its surrounding elements
-
-            PetscReal sumEnx = 0.0, sumEny = 0.0, sumEnz = 0.0;
-
-            for (j = 0; j < i; j++)
-            {
-                sumEnx += ibMsh->eN[mergedElemArray[j]].x;
-                sumEny += ibMsh->eN[mergedElemArray[j]].y;
-                sumEnz += ibMsh->eN[mergedElemArray[j]].z;
-
-            }
-
-            // save the averaged element normals
-            tempEn[e] = nSetFromComponents(sumEnx, sumEny, sumEnz);
-            PetscReal normMag = nMag(tempEn[e]);
-            mScale(1.0/normMag, tempEn[e]);
-        }
-
-        for (PetscInt e=0; e<ibMsh->elems; e++)
-        {
-            ibMsh->eN[e] = nSet(tempEn[e]);
-        }
-
-        delete[] tempEn;
-    }
-
     for (PetscInt i=0; i<ibMsh->elems; i++)
     {
         // tangential to the face( eT1 and eT2)
@@ -2923,14 +2846,13 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
         j = ibF[c].cellId.j;
         k = ibF[c].cellId.k;
 
-        PetscInt      n1, n2, n3, vertexId;
+        PetscInt      n1, n2, n3;
         PetscInt      cellMin = -100;
         Cmpnts        dis, elemNorm, p1, p2, p3;
-        PetscReal     d_center, dmin = 1.0e20, d, t, tmin;
+        PetscReal     d_center, dmin = 1.0e20, d, t;
         Cmpnts        pmin, po, pj;
         PetscReal     normProj;                             // normal projection of point to ibm mesh element
         PetscInt      bodyID;
-        word          closestType;
 
         // loop through the ibm bodies
         for (b = 0; b < ibm->numBodies; b++)
@@ -3039,7 +2961,6 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
                     {
                         pmin        = pj;
                         dmin        = fabs(normProj);
-                        closestType = "face";
                     }
                     // The projected point is outside the triangle
                     else
@@ -3051,16 +2972,6 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
                         {
                             dmin = d;
                             pmin = po;
-                            tmin = t;
-
-                            if(t < 1)
-                            {
-                                vertexId = n1;
-                            }
-                            else
-                            {
-                                vertexId = n2;
-                            }
                         }
 
                         disP2Line(cent[k][j][i], p2, p3, &po, &d, &t);
@@ -3069,16 +2980,6 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
                         {
                             dmin = d;
                             pmin = po;
-                            tmin = t;
-
-                            if(t < 1)
-                            {
-                                vertexId = n2;
-                            }
-                            else
-                            {
-                                vertexId = n3;
-                            }
                         }
 
                         disP2Line(cent[k][j][i], p3, p1, &po, &d, &t);
@@ -3087,19 +2988,7 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
                         {
                             dmin = d;
                             pmin = po;
-                            tmin = t;
-
-                            if(t < 1)
-                            {
-                                vertexId = n3;
-                            }
-                            else
-                            {
-                                vertexId = n1;
-                            }
                         }
-
-                        closestType = "edgeVertex";
                     }
                 }
             }
@@ -3111,30 +3000,7 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
         ibF[c].minDist = dmin;
         ibF[c].bodyID = bodyID;
 
-        // compute the element normal based on the closestType
-        if(closestType == "face")
-        {
-            ibF[c].normal = nSet(ibMsh->eN[cellMin]);
-        }
-        else if(closestType == "edgeVertex")
-        {
-            //compute the angle averaged normal
-            if(tmin <=0 || tmin >=1)
-            {
-                ibF[c].normal = nSet(computeVertexAverageNormal(ibMsh, vertexId));
-            }
-            else
-            {
-                ibF[c].normal = nSet(computeEdgeAverageNormal(ibMsh, vertexId, cellMin));
-            }
-
-        }
-        else
-        {
-            char error[512];
-            sprintf(error, "closestType not set. possible parallelization error");
-            fatalErrorInFunction("findClosestIBMElement",  error);
-        }
+        ibF[c].normal = nSet(ibMsh->eN[cellMin]);
 
         Cpt2D     pjp, pj1, pj2, pj3;
 
@@ -3147,7 +3013,6 @@ PetscErrorCode findClosestIBMElement2Solid(ibm_ *ibm)
         p2        = ibMsh->nCoor[n2];
         p3        = ibMsh->nCoor[n3];
 
-        
         // PetscPrintf(PETSC_COMM_SELF, "cell = %ld %ld %ld, coor = %lf %lf %lf, closest elem = %lf %lf %lf, dist = %lf\n", k, j, i, cent[k][j][i].x, cent[k][j][i].y, cent[k][j][i].z, 1.0/3.0 * (p1.x + p2.x +p3.x), 1.0/3.0 * (p1.y + p2.y +p3.y), 1.0/3.0 * (p1.z + p2.z +p3.z), ibF[c].minDist);
         
         // to find the ibm interpolation coefficient of the projected point from the ibm element nodes
@@ -3232,14 +3097,13 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
         j = ibF[c].cellId.j;
         k = ibF[c].cellId.k;
 
-        PetscInt      n1, n2, n3, vertexId;
+        PetscInt      n1, n2, n3;
         PetscInt      cellMin = -100;
         Cmpnts        dis, elemNorm, p1, p2, p3;
-        PetscReal     d_center, dmin = 1.0e20, d, t, tmin;
+        PetscReal     d_center, dmin = 1.0e20, d, t;
         Cmpnts        pmin, po, pj;
         PetscReal     normProj;                             // normal projection of point to ibm mesh element
         PetscInt      bodyID;
-        word          closestType;
 
         // loop through the ibm bodies
         for (b = 0; b < ibm->numBodies; b++)
@@ -3348,7 +3212,6 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
                     {
                         pmin        = pj;
                         dmin        = normProj;
-                        closestType = "face";
                     }
                     // The projected point is outside the triangle
                     else
@@ -3360,16 +3223,6 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
                         {
                             dmin = d;
                             pmin = po;
-                            tmin = t;
-
-                            if(t < 1)
-                            {
-                                vertexId = n1;
-                            }
-                            else
-                            {
-                                vertexId = n2;
-                            }
                         }
 
                         disP2Line(cent[k][j][i], p2, p3, &po, &d, &t);
@@ -3378,16 +3231,6 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
                         {
                             dmin = d;
                             pmin = po;
-                            tmin = t;
-
-                            if(t < 1)
-                            {
-                                vertexId = n2;
-                            }
-                            else
-                            {
-                                vertexId = n3;
-                            }
                         }
 
                         disP2Line(cent[k][j][i], p3, p1, &po, &d, &t);
@@ -3396,19 +3239,7 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
                         {
                             dmin = d;
                             pmin = po;
-                            tmin = t;
-
-                            if(t < 1)
-                            {
-                                vertexId = n3;
-                            }
-                            else
-                            {
-                                vertexId = n1;
-                            }
                         }
-
-                        closestType = "edgeVertex";
                     }
                 }
             }
@@ -3420,30 +3251,7 @@ PetscErrorCode findClosestIBMElement(ibm_ *ibm)
         ibF[c].minDist = dmin;
         ibF[c].bodyID = bodyID;
 
-        // compute the element normal based on the closestType
-        if(closestType == "face")
-        {
-            ibF[c].normal = nSet(ibMsh->eN[cellMin]);
-        }
-        else if(closestType == "edgeVertex")
-        {
-            //compute the angle averaged normal
-            if(tmin <=0 || tmin >=1)
-            {
-                ibF[c].normal = nSet(computeVertexAverageNormal(ibMsh, vertexId));
-            }
-            else
-            {
-                ibF[c].normal = nSet(computeEdgeAverageNormal(ibMsh, vertexId, cellMin));
-            }
-
-        }
-        else
-        {
-            char error[512];
-            sprintf(error, "closestType not set. possible parallelization error");
-            fatalErrorInFunction("findClosestIBMElement",  error);
-        }
+        ibF[c].normal = nSet(ibMsh->eN[cellMin]);
 
         Cpt2D     pjp, pj1, pj2, pj3;
 
@@ -7818,140 +7626,6 @@ PetscErrorCode checkIBMexists(ibm_ *ibm)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm)
-{
-    /*  this function creates the half edge data structure which provides efficient inter-access to an IBM element vertex, half edge and faces.
-        for definition of vertex, half-edge or faces check ibmInput.h
-        vertex stores its coordinates and pointer to one of the half-edges that originates from it
-        half-edge stores pointers to its origin vertex, next half-edge, twin half-edge and the face it is part of
-        face stores a pointer to one of the half-edge within it
-        For introduction to understanding this data structure refer this link: https://jerryyin.info/geometry-processing-algorithms/half-edge/
-    */
-    PetscInt         i, b;
-    PetscInt         nodes;                          // number of ib nodes
-    PetscInt         elems;
-
-    // loop through the ibm bodies
-    for(b = 0; b < ibm->numBodies; b++)
-    {
-        ibmMesh  *ibMesh = ibm->ibmBody[b]->ibMsh;
-
-        nodes    =    ibMesh->nodes;
-        elems    =    ibMesh->elems;
-
-        // allocate memory for the half edge data structure
-        PetscMalloc(nodes * sizeof(Vertex), &(ibMesh->vertices));
-        PetscMalloc(3 * elems * sizeof(HalfEdge), &(ibMesh->halfEdges));
-        PetscMalloc(elems * sizeof(Face), &(ibMesh->faces));
-
-        for(PetscInt i = 0; i < nodes; i++)
-        {
-            // set the half edge structure vertices
-            ibMesh->vertices[i].nCoor = nSet(ibMesh->nCoor[i]);
-            ibMesh->vertices[i].edge  = NULL;
-            ibMesh->vertices[i].vertexId = i;
-        }
-
-        for(PetscInt i = 0; i < elems; i++)
-        {
-            PetscInt id[3];
-            id[0] = ibMesh->nID1[i];
-            id[1] = ibMesh->nID2[i];
-            id[2] = ibMesh->nID3[i];
-
-            // Create half-edges for the current element
-            for (PetscInt ed = 0; ed < 3; ed++) {
-                PetscInt v1 = id[ed];
-                PetscInt v2 = id[(ed + 1) % 3];
-
-                ibMesh->halfEdges[3 * i + ed].origin = &ibMesh->vertices[v1];
-                ibMesh->halfEdges[3 * i + ed].next = &ibMesh->halfEdges[3 * i + (ed + 1) % 3];
-                ibMesh->halfEdges[3 * i + ed].twin = NULL;
-                ibMesh->halfEdges[3 * i + ed].face = &ibMesh->faces[i];
-
-                ibMesh->vertices[v1].edge = &ibMesh->halfEdges[3 * i + ed];
-            }
-        }
-
-        // Form faces
-        for (int i = 0; i < elems; i++) {
-            ibMesh->faces[i].edge = &ibMesh->halfEdges[3 * i]; // Link the face to one of its half-edges
-            ibMesh->faces[i].faceId = i;
-        }
-
-        // Link twins of the half-edges
-        for (PetscInt i = 0; i < 3 * elems; i++) {
-            Vertex *startVertex = ibMesh->halfEdges[i].origin;
-            Vertex *endVertex = ibMesh->halfEdges[i].next->origin;
-
-            // Search for the twin among the remaining half-edges
-            PetscInt vertexId = startVertex->vertexId;
-
-            // elements connected to startVertex
-            PetscInt numElemConnected = ibMesh->ibmMeshNode[vertexId].numConnected;
-
-            for (PetscInt j = 0; j < numElemConnected; j++)
-            {
-                PetscInt ele = ibMesh->ibmMeshNode[vertexId].elem[j];
-
-                //loop through the half edges of the element
-                HalfEdge  *start_he = ibMesh->faces[ele].edge;
-                HalfEdge  *he = start_he;
-                do
-                {
-                    if (he->origin == endVertex && he->next->origin == startVertex)
-                    {
-                        ibMesh->halfEdges[i].twin = he;
-                        break;
-                    }
-                    he = he->next;
-                }
-                while(he !=start_he);
-
-                if(ibMesh->halfEdges[i].twin!=NULL)
-                {
-                    break;
-                }
-            }
-
-        }
-
-        // for (PetscInt i = 0; i < 3 * elems; i++)
-        // {
-        //     printf("Half-edge %ld: Start vertex: (%lf, %lf, %lf)\n", i, ibMesh->halfEdges[i].origin->nCoor.x, ibMesh->halfEdges[i].origin->nCoor.y, ibMesh->halfEdges[i].origin->nCoor.z);
-        //     printf("Half-edge %ld: second vertex: (%lf, %lf, %lf)\n", i, ibMesh->halfEdges[i].next->origin->nCoor.x, ibMesh->halfEdges[i].next->origin->nCoor.y, ibMesh->halfEdges[i].next->origin->nCoor.z);
-        //     printf("Half-edge %ld: third vertex: (%lf, %lf, %lf)\n\n", i, ibMesh->halfEdges[i].next->next->origin->nCoor.x, ibMesh->halfEdges[i].next->next->origin->nCoor.y, ibMesh->halfEdges[i].next->next->origin->nCoor.z);
-        //
-        //     if(ibMesh->halfEdges[i].twin!=NULL)
-        //     {
-        //         printf("Half-edge twin of %ld: Start vertex: (%lf, %lf, %lf)\n", i, ibMesh->halfEdges[i].twin->origin->nCoor.x, ibMesh->halfEdges[i].twin->origin->nCoor.y, ibMesh->halfEdges[i].twin->origin->nCoor.z);
-        //         printf("Half-edge twin of %ld: Start vertex: (%lf, %lf, %lf)\n\n", i, ibMesh->halfEdges[i].twin->next->origin->nCoor.x, ibMesh->halfEdges[i].twin->next->origin->nCoor.y, ibMesh->halfEdges[i].twin->next->origin->nCoor.z);
-        //     }
-        //     else
-        //     {
-        //         printf("Half-edge twin of %ld: NULL\n\n", i );
-        //     }
-        //
-        // }
-
-
-        for (PetscInt i = 0; i < 3 * elems; i++)
-        {
-            if(ibMesh->halfEdges[i].twin==NULL)
-            {
-                char error[512];
-                sprintf(error, "IBM body: %s is not a closed body. If you are sure it is, then the issue could be that the element normals are not pointing outwards. Enable checkNormal in IBMProperties\n", ibm->ibmBody[b]->bodyName.c_str());
-                fatalErrorInFunction("createHalfEdgeDataStructure",  error);
-            }
-        }
-
-        PetscPrintf(PETSC_COMM_WORLD, "     Created half edge data structure for IBM body:%s \n", ibm->ibmBody[b]->bodyName.c_str());
-        PetscPrintf(PETSC_COMM_WORLD, "     Num nodes: %ld, Num elements: %ld\n\n", nodes, elems);
-
-    }
-    return 0;
-}
-//***************************************************************************************************************//
 
 PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 {
@@ -8033,105 +7707,6 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
 
             }
 
-            PetscPrintf(PETSC_COMM_WORLD, "done\n");
-        }
-
-
-        //use nearby elements to average the normal direction. this requires the node to element connectivity
-        if(ibm->averageNormal)
-        {
-            PetscPrintf(PETSC_COMM_WORLD, "Averaging IBM element normals...");
-            ibmNode *ibmNodes  = ibMesh->ibmMeshNode;
-
-            //temporary array to store the averaged element normals
-            Cmpnts *tempEn = new Cmpnts[ibMesh->elems];
-
-            for (e=0; e<ibMesh->elems; e++)
-            {
-                PetscInt i, j;
-                // get the element nodes
-                n1 = ibMesh->nID1[e]; n2 = ibMesh->nID2[e]; n3 = ibMesh->nID3[e];
-
-                //find the number of elements connected to each node
-                PetscInt numElemn1 = ibmNodes[n1].numConnected;
-                PetscInt numElemn2 = ibmNodes[n2].numConnected;
-                PetscInt numElemn3 = ibmNodes[n3].numConnected;
-
-                PetscInt mergedElemArray[numElemn1 + numElemn2 + numElemn3];
-
-                //copy the first node elements into mergedElemArray
-                for (i = 0; i < numElemn1; i++)
-                {
-                    mergedElemArray[i] = ibmNodes[n1].elem[i];
-
-                    if(e == 100)
-                    {
-                        PetscPrintf(PETSC_COMM_WORLD, "NODE 1 elements = %ld\n", ibmNodes[n1].elem[i]);
-                    }
-                }
-
-                //copy the second node elements into merged array
-                for (j = 0; j < numElemn2; j++)
-                {
-                    if (!isPresent(mergedElemArray, i+1, ibmNodes[n2].elem[j]))
-                    {
-                        mergedElemArray[i++] = ibmNodes[n2].elem[j];
-                    }
-
-                    if(e == 100)
-                    {
-                        PetscPrintf(PETSC_COMM_WORLD, "NODE 2 elements = %ld\n", ibmNodes[n2].elem[j]);
-                    }
-                }
-
-                //copy the third node elements into merged array
-                for (j = 0; j < numElemn3; j++)
-                {
-                    if (!isPresent(mergedElemArray, i+1, ibmNodes[n3].elem[j]))
-                    {
-                        mergedElemArray[i++] = ibmNodes[n3].elem[j];
-                    }
-
-                    if(e == 100)
-                    {
-                        PetscPrintf(PETSC_COMM_WORLD, "NODE 3 elements = %ld\n", ibmNodes[n3].elem[j]);
-                    }
-                }
-
-                //average the normal at element e from its surrounding elements
-
-                PetscReal sumEnx = 0.0, sumEny = 0.0, sumEnz = 0.0;
-
-                for (j = 0; j < i; j++)
-                {
-                    sumEnx += ibMesh->eN[mergedElemArray[j]].x;
-                    sumEny += ibMesh->eN[mergedElemArray[j]].y;
-                    sumEnz += ibMesh->eN[mergedElemArray[j]].z;
-
-                    if(e == 100)
-                    {
-                        PetscPrintf(PETSC_COMM_WORLD, "merged elements = %ld\n", mergedElemArray[j]);
-                    }
-                }
-
-                // save the averaged element normals
-                tempEn[e] = nSetFromComponents(sumEnx, sumEny, sumEnz);
-
-                PetscReal normMag = nMag(tempEn[e]);
-                mScale(1.0/normMag, tempEn[e]);
-
-                if(e == 100)
-                {
-                    PetscPrintf(PETSC_COMM_WORLD, "normal = %lf %lf %lf, avg normal = %lf %lf %lf\n", ibMesh->eN[e].x, ibMesh->eN[e].y, ibMesh->eN[e].z, tempEn[e].x, tempEn[e].y, tempEn[e].z);
-                }
-            }
-
-            for (e=0; e<ibMesh->elems; e++)
-            {
-                ibMesh->eN[e] = nSet(tempEn[e]);
-            }
-
-            delete[] tempEn;
             PetscPrintf(PETSC_COMM_WORLD, "done\n");
         }
 
@@ -10387,79 +9962,6 @@ inline void disP2Line(Cmpnts p, Cmpnts p1, Cmpnts p2, Cmpnts *po, PetscReal *d, 
   return;
 }
 
-//***************************************************************************************************************//
-inline Cmpnts computeVertexAverageNormal(ibmMesh *ibMsh, PetscInt vertexId)
-{
-    Cmpnts    avgNormal = nSetZero(), eNorm, n;
-    HalfEdge  *start_he = ibMsh->vertices[vertexId].edge;
-    HalfEdge  *he_1 = start_he;    //first half edge
-    HalfEdge  *he_2 = NULL;        //second half edge
-
-    Cmpnts    p1, p2, p3, pc;
-    Cmpnts    v1, v2;
-    PetscReal alpha, normMag;
-    PetscInt  faceId;
-
-    do
-    {
-        he_2 = he_1->twin->next;
-
-        faceId = he_1->face->faceId;
-        eNorm  = ibMsh->eN[faceId];
-
-        p1 = nSet(he_1->origin->nCoor);
-        p2 = nSet(he_1->next->origin->nCoor);
-        p3 = nSet(he_2->next->origin->nCoor);
-        v1 = nSub(p2, p1);
-        v2 = nSub(p3, p1);
-
-        pc = nCross(v1,v2);
-        n  = nUnit(pc);
-
-        alpha = std::atan2(nDot(n, pc), nDot(v1,v2));
-
-        mScale(alpha, eNorm);
-        mSum(avgNormal, eNorm);
-
-        he_1 = he_2;
-    }
-    while (he_1 != start_he);
-
-    mUnit(avgNormal);
-
-    return avgNormal;
-}
-//***************************************************************************************************************//
-inline Cmpnts computeEdgeAverageNormal(ibmMesh *ibMsh, PetscInt vertexId, PetscInt faceId)
-{
-    Cmpnts    avgNormal = nSetZero(), eN1, eN2;
-    HalfEdge  *start_he = ibMsh->vertices[vertexId].edge;
-    HalfEdge  *he_1 = start_he;    //first half edge
-    HalfEdge  *he_2 = NULL;        //second half edge
-
-    do
-    {
-        if(he_1->face->faceId == faceId)
-        {
-            break;
-        }
-        else
-        {
-            he_1 = he_1->twin->next;
-        }
-    }
-    while (he_1 != start_he);
-
-    eN1 = ibMsh->eN[he_1->face->faceId];
-
-    he_2 = he_1->twin;
-    eN2 = ibMsh->eN[he_2->face->faceId];
-
-    avgNormal = nSum(eN1, eN2);
-    mUnit(avgNormal);
-
-    return avgNormal;
-}
 //***************************************************************************************************************//
 
 inline void triangleIntp(Cpt2D p, Cpt2D p1, Cpt2D p2, Cpt2D p3, ibmFluidCell *ibF)

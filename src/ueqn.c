@@ -47,17 +47,34 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     // read divergence scheme
     readDictWord("control.dat", "-divScheme", &(ueqn->divScheme));
 
-    if(     ueqn->divScheme == "centralUpwind")  ueqn->centralUpwindDiv  = 1;
-    else if(ueqn->divScheme == "centralUpwindW") ueqn->centralUpwindWDiv = 1;
-    else if(ueqn->divScheme == "central")        ueqn->centralDiv        = 1;
-    else if(ueqn->divScheme == "central4")       ueqn->central4Div       = 1;
-    else if(ueqn->divScheme == "weno3")          ueqn->weno3Div          = 1;
-    else if(ueqn->divScheme == "quickDiv")       ueqn->quickDiv          = 1;
-    
+    if      (ueqn->divScheme == "centralUpwind")   ueqn->centralUpwindDiv  = 1;
+    else if (ueqn->divScheme == "centralUpwindW")  ueqn->centralUpwindWDiv = 1;
+    else if (ueqn->divScheme == "central")         ueqn->centralDiv        = 1;
+    else if (ueqn->divScheme == "central4")        ueqn->central4Div       = 1;
+    else if (ueqn->divScheme == "weno3")           ueqn->weno3Div          = 1;
+    else if (ueqn->divScheme == "quickDiv")        ueqn->quickDiv          = 1;
+    else
+    {
+        char error[512];
+        sprintf(error,
+            "unknown divScheme %s for U equation, available schemes are\n"
+            "    1. centralUpwind\n"
+            "    2. centralUpwindW\n"
+            "    3. central\n"
+            "    4. central4\n"
+            "    5. weno3\n"
+            "    6. quickDiv",
+            ueqn->divScheme.c_str());
+        fatalErrorInFunction("InitializeUEqn", error);
+    }
+
+    PetscPrintf(PETSC_COMM_WORLD, "DivScheme: %s for U equation\n", ueqn->divScheme.c_str());
+
     if(ueqn->divScheme == "central4")
     {
         ueqn->hyperVisc = 1.0;
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,  "-hyperVisc", &(ueqn->hyperVisc),   PETSC_NULL);
+        PetscPrintf(PETSC_COMM_WORLD, "Hyperviscosity parameter = %lf\n", ueqn->hyperVisc);
     }
 
     VecDuplicate(mesh->Cent, &(ueqn->Utmp));      VecSet(ueqn->Utmp,    0.0);
@@ -169,9 +186,9 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     }
     else
     {
-         char error[512];
-         sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. backwardEuler\n    2. forwardEuler\n    3. rungeKutta4", ueqn->ddtScheme.c_str());
-         fatalErrorInFunction("InitializeUEqn", error);
+        char error[512];
+        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. backwardEuler\n    2. forwardEuler\n    3. rungeKutta4", ueqn->ddtScheme.c_str());
+        fatalErrorInFunction("InitializeUEqn", error);
     }
 
     return(0);
