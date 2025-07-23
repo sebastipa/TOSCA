@@ -1361,7 +1361,6 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                les->model == DLASI || 
                les->model == DLASD || 
                les->model == DPASD ||
-               les->model == BDS   ||
                les->model == BAMD)            
             {
                 DMDAVecGetArray(da, les->lk_t, &lkt);
@@ -1441,7 +1440,6 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                             les->model == DLASI || 
                             les->model == DLASD || 
                             les->model == DPASD ||
-                            les->model == BDS   ||
                             les->model == BAMD)  
                         {
                             PetscReal diff =  0.5 * (lkt[k][j][i] + lkt[k][j][i+1]);
@@ -1589,7 +1587,6 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                             les->model == DLASI || 
                             les->model == DLASD || 
                             les->model == DPASD ||
-                            les->model == BDS   ||
                             les->model == BAMD)
                         {                        
                             PetscReal diff =  0.5 * (lkt[k][j][i] + lkt[k][j+1][i]);
@@ -1735,7 +1732,6 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                             les->model == DLASI || 
                             les->model == DLASD || 
                             les->model == DPASD ||
-                            les->model == BDS   ||
                             les->model == BAMD)
                         {                        
                             PetscReal diff =  0.5 * (lkt[k][j][i] + lkt[k+1][j][i]);
@@ -1852,7 +1848,6 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
                 les->model == DLASI || 
                 les->model == DLASD || 
                 les->model == DPASD ||
-                les->model == BDS   ||
                 les->model == BAMD)             
             {
                 DMDAVecRestoreArray(da, les->lk_t, &lkt);

@@ -14,8 +14,7 @@ typedef enum {
     AMD,
     VREMAN,
     BV,
-    BAMD,
-    BDS
+    BAMD
 } LesModel;
 
 //! \brief struct storing LES model

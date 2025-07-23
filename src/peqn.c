@@ -2901,6 +2901,478 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode GradP4thOrder(peqn_ *peqn)
+{
+    mesh_         *mesh = peqn->access->mesh;
+    ueqn_         *ueqn = peqn->access->ueqn;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***icsi, ***ieta, ***izet,
+                  ***jcsi, ***jeta, ***jzet,
+                  ***kcsi, ***keta, ***kzet,
+                  ***dp;
+
+    PetscReal     ***p, ***nvert, ***meshTag;
+    PetscReal     ***iaj, ***jaj, ***kaj;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    PetscReal     dpdc, dpde, dpdz;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    PetscInt periodic_i = mesh->i_periodic + mesh->ii_periodic,
+             periodic_j = mesh->j_periodic + mesh->jj_periodic,
+             periodic_k = mesh->k_periodic + mesh->kk_periodic;
+
+    VecSet(ueqn->dP, 0.0);
+
+    DMDAVecGetArray(fda, mesh->lICsi, &icsi);
+    DMDAVecGetArray(fda, mesh->lIEta, &ieta);
+    DMDAVecGetArray(fda, mesh->lIZet, &izet);
+    DMDAVecGetArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+    DMDAVecGetArray(fda, mesh->lJZet, &jzet);
+    DMDAVecGetArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecGetArray(fda, mesh->lKEta, &keta);
+    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da,  mesh->lIAj,  &iaj);
+    DMDAVecGetArray(da,  mesh->lJAj,  &jaj);
+    DMDAVecGetArray(da,  mesh->lKAj,  &kaj);
+
+    DMDAVecGetArray(da,  peqn->lP,  &p);
+    DMDAVecGetArray(fda, ueqn->dP, &dp);
+
+    //note: only solved faces need to be considered, for unsolved faces rhs will be set to 0 so no effect even if not considered here
+    for (k=lzs; k<lze; k++) 
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++) 
+            {
+                PetscReal g11_i = (icsi[k][j][i].x * icsi[k][j][i].x + icsi[k][j][i].y * icsi[k][j][i].y + icsi[k][j][i].z * icsi[k][j][i].z);
+                PetscReal g12_i = (ieta[k][j][i].x * icsi[k][j][i].x + ieta[k][j][i].y * icsi[k][j][i].y + ieta[k][j][i].z * icsi[k][j][i].z);
+                PetscReal g13_i = (izet[k][j][i].x * icsi[k][j][i].x + izet[k][j][i].y * icsi[k][j][i].y + izet[k][j][i].z * icsi[k][j][i].z);
+                PetscReal g21_j = (jcsi[k][j][i].x * jeta[k][j][i].x + jcsi[k][j][i].y * jeta[k][j][i].y + jcsi[k][j][i].z * jeta[k][j][i].z);
+                PetscReal g22_j = (jeta[k][j][i].x * jeta[k][j][i].x + jeta[k][j][i].y * jeta[k][j][i].y + jeta[k][j][i].z * jeta[k][j][i].z);
+                PetscReal g23_j = (jzet[k][j][i].x * jeta[k][j][i].x + jzet[k][j][i].y * jeta[k][j][i].y + jzet[k][j][i].z * jeta[k][j][i].z);
+                PetscReal g31_k = (kcsi[k][j][i].x * kzet[k][j][i].x + kcsi[k][j][i].y * kzet[k][j][i].y + kcsi[k][j][i].z * kzet[k][j][i].z);
+                PetscReal g32_k = (keta[k][j][i].x * kzet[k][j][i].x + keta[k][j][i].y * kzet[k][j][i].y + keta[k][j][i].z * kzet[k][j][i].z);
+                PetscReal g33_k = (kzet[k][j][i].x * kzet[k][j][i].x + kzet[k][j][i].y * kzet[k][j][i].y + kzet[k][j][i].z * kzet[k][j][i].z);
+
+                /*****************  i direction  ****************/
+
+                //dpdc
+                if (i == mx-2 && mesh->ii_periodic) 
+                {   
+                    //second order
+                    dpdc = (p[k][j][mx+1] - p[k][j][i]);
+                }
+                else if ((i == 1 && !mesh->i_periodic && !mesh->ii_periodic) ||
+                         (i == mx-3 && !mesh->i_periodic && !mesh->ii_periodic) ||
+                         (isOversetIFace(k, j, i+1, i+2, meshTag)) ||
+                         (isOversetIFace(k, j, i-1, i, meshTag))
+                        ) 
+                {
+                    //second order
+                    dpdc = p[k][j][i+1] - p[k][j][i];
+                }
+                else 
+                {
+                    //fourth order
+                    dpdc = (p[k][j][i-1] - 27*p[k][j][i] + 27*p[k][j][i+1] - p[k][j][i+2]) / 24.0;
+                }
+
+                //dpde
+                if (i == mx-2) 
+                {
+                    if (j == 1)
+                    {   
+                        //first order
+                        dpde = (p[k][j+1][i] - p[k][j][i] + p[k][j+1][i+1] - p[k][j][i+1]) / 2.0;
+                    } 
+                    else if (j == my-2) 
+                    {
+                        //first order
+                        dpde = (p[k][j][i] - p[k][j-1][i] + p[k][j][i+1] - p[k][j-1][i+1]) / 2.0;
+                    } 
+                    else 
+                    {
+                        //second order
+                        dpde = (p[k][j+1][i] - p[k][j-1][i] + p[k][j+1][i+1] - p[k][j-1][i+1]) * 0.25;
+                    }
+                } 
+                else 
+                {   
+                    if(isOversetIFace(k, j+1, i, i+1, meshTag))
+                    {   
+                        //first order
+                        dpde = (p[k][j][i] - p[k][j-1][i] + p[k][j][i+1] - p[k][j-1][i+1]) * 0.5;
+                    }
+                    else if(isOversetIFace(k, j-1, i, i+1, meshTag))
+                    {
+                        //first order
+                        dpde = (p[k][j+1][i  ] - p[k][j  ][i  ] + p[k][j+1][i+1] - p[k][j  ][i+1]) * 0.5;
+                    }
+                    else if(j == 1 || j == my-2 ||
+                            isIBMIFace(k, j-1, i, i+1, nvert) || isIBMIFace(k, j+1, i, i+1, nvert) ||
+                            isOversetIFace(k, j-2, i, i+1, meshTag) || isOversetIFace(k, j+2, i, i+1, meshTag)) 
+                    {
+                        //second order
+                        dpde = (p[k][j+1][i] - p[k][j-1][i] + p[k][j+1][i+1] - p[k][j-1][i+1]) * 0.25;
+                    } 
+                    else 
+                    {   
+                        //fourth order
+                        dpde = (
+                                    -p[k][j+2][i]   + 8*p[k][j+1][i]   - 8*p[k][j-1][i]   + p[k][j-2][i]
+                                    -p[k][j+2][i+1] + 8*p[k][j+1][i+1] - 8*p[k][j-1][i+1] + p[k][j-2][i+1]
+                               ) / (24.0);
+                    }
+                }
+
+                //dpdz
+                if (i == mx-2) 
+                {
+                    if (k == 1)
+                    {   
+                        // first order
+                        dpdz = (p[k+1][j][i] - p[k][j][i] + p[k+1][j][i+1] - p[k][j][i+1]) / 2.0;
+                    } 
+                    else if (k == mz-2) 
+                    {
+                        // first order
+                        dpdz = (p[k][j][i] - p[k-1][j][i] + p[k][j][i+1] - p[k-1][j][i+1]) / 2.0;
+                    } 
+                    else 
+                    {
+                        // second order
+                        dpdz = (p[k+1][j][i] - p[k-1][j][i] + p[k+1][j][i+1] - p[k-1][j][i+1]) * 0.25;
+                    }
+                } 
+                else 
+                {   
+                    if (isOversetIFace(k+1, j, i, i+1, meshTag))
+                    {   
+                        // first order
+                        dpdz = (p[k][j][i] - p[k-1][j][i] + p[k][j][i+1] - p[k-1][j][i+1]) * 0.5;
+                    }
+                    else if (isOversetIFace(k-1, j, i, i+1, meshTag))
+                    {
+                        // first order
+                        dpdz = (p[k+1][j][i] - p[k][j][i] + p[k+1][j][i+1] - p[k][j][i+1]) * 0.5;
+                    }
+                    else if (k == 1 || k == mz-2 ||
+                            isIBMIFace(k-1, j, i, i+1, nvert) || isIBMIFace(k+1, j, i, i+1, nvert) ||
+                            isOversetIFace(k-2, j, i, i+1, meshTag) || isOversetIFace(k+2, j, i, i+1, meshTag)) 
+                    {
+                        // second order
+                        dpdz = (p[k+1][j][i] - p[k-1][j][i] + p[k+1][j][i+1] - p[k-1][j][i+1]) * 0.25;
+                    } 
+                    else 
+                    {   
+                        // fourth order
+                        dpdz = (
+                                    -p[k+2][j][i]   + 8*p[k+1][j][i]   - 8*p[k-1][j][i]   + p[k-2][j][i]
+                                    -p[k+2][j][i+1] + 8*p[k+1][j][i+1] - 8*p[k-1][j][i+1] + p[k-2][j][i+1]
+                            ) / 24.0;
+                    }
+                }
+
+                dp[k][j][i].x = (dpdc * g11_i + dpde * g12_i + dpdz * g13_i) * iaj[k][j][i];
+
+                /*****************  j direction  ****************/
+
+                // dpdc  
+                if (j == my-2) 
+                {
+                    if (i == 1)
+                    {   
+                        // first order
+                        dpdc = (p[k][j][i+1] - p[k][j][i] + p[k][j+1][i+1] - p[k][j+1][i]) / 2.0;
+                    } 
+                    else if (i == mx-2) 
+                    {
+                        // first order
+                        dpdc = (p[k][j][i] - p[k][j][i-1] + p[k][j+1][i] - p[k][j+1][i-1]) / 2.0;
+                    } 
+                    else 
+                    {
+                        // second order
+                        dpdc = (p[k][j][i+1] - p[k][j][i-1] + p[k][j+1][i+1] - p[k][j+1][i-1]) * 0.25;
+                    }
+                } 
+                else 
+                {   
+                    if(isOversetJFace(k, j, i+1, j+1, meshTag)) 
+                    {   
+                        // first order
+                        dpdc = (p[k][j][i] - p[k][j][i-1] + p[k][j+1][i] - p[k][j+1][i-1]) * 0.5;
+                    }
+                    else if(isOversetJFace(k, j, i-1, j+1, meshTag))
+                    {
+                        // first order
+                        dpdc = (p[k][j][i+1] - p[k][j][i] + p[k][j+1][i+1] - p[k][j+1][i]) * 0.5;
+                    }
+                    else if(i == 1 || i == mx-2 ||
+                            isIBMJFace(k, j, i-1, j+1, nvert) || isIBMJFace(k, j, i+1, j+1, nvert) ||
+                            isOversetJFace(k, j, i-2, j+1, meshTag) || isOversetJFace(k, j, i+2, j+1, meshTag)) 
+                    {
+                        // second order
+                        dpdc = (p[k][j][i+1] - p[k][j][i-1] + p[k][j+1][i+1] - p[k][j+1][i-1]) * 0.25;
+                    } 
+                    else 
+                    {   
+                        // fourth order
+                        dpdc = (
+                                    -p[k][j][i+2]   + 8*p[k][j][i+1]   - 8*p[k][j][i-1]   + p[k][j][i-2]
+                                    -p[k][j+1][i+2] + 8*p[k][j+1][i+1] - 8*p[k][j+1][i-1] + p[k][j+1][i-2]
+                            ) / 24.0;
+                    }
+                }
+
+                // dpde  
+                if (j == my-2 && mesh->jj_periodic) 
+                {   
+                    // second order
+                    dpde = (p[k][my+1][i] - p[k][j][i]);
+                }
+                else if ((j == 1 && !mesh->j_periodic && !mesh->jj_periodic) ||
+                        (j == my-3 && !mesh->j_periodic && !mesh->jj_periodic) ||
+                        (isOversetJFace(k, j+1, i, j+2, meshTag)) ||
+                        (isOversetJFace(k, j-1, i, j, meshTag))
+                        ) 
+                {
+                    // second order
+                    dpde = p[k][j+1][i] - p[k][j][i];
+                }
+                else 
+                {
+                    // fourth order
+                    dpde = (p[k][j-1][i] - 27*p[k][j][i] + 27*p[k][j+1][i] - p[k][j+2][i]) / 24.0;
+                }
+
+                // dpdz 
+                if (j == my-2) 
+                {
+                    if (k == 1)
+                    {   
+                        // first order
+                        dpdz = (p[k+1][j][i] - p[k][j][i] + p[k+1][j+1][i] - p[k][j+1][i]) / 2.0;
+                    } 
+                    else if (k == mz-2) 
+                    {
+                        // first order
+                        dpdz = (p[k][j][i] - p[k-1][j][i] + p[k][j+1][i] - p[k-1][j+1][i]) / 2.0;
+                    } 
+                    else 
+                    {
+                        // second order
+                        dpdz = (p[k+1][j][i] - p[k-1][j][i] + p[k+1][j+1][i] - p[k-1][j+1][i]) * 0.25;
+                    }
+                } 
+                else 
+                {   
+                    if (isOversetJFace(k+1, j, i, j+1, meshTag))
+                    {   
+                        // first order
+                        dpdz = (p[k][j][i] - p[k-1][j][i] + p[k][j+1][i] - p[k-1][j+1][i]) * 0.5;
+                    }
+                    else if (isOversetJFace(k-1, j, i, j+1, meshTag))
+                    {
+                        // first order
+                        dpdz = (p[k+1][j][i] - p[k][j][i] + p[k+1][j+1][i] - p[k][j+1][i]) * 0.5;
+                    }
+                    else if (k == 1 || k == mz-2 ||
+                            isIBMJFace(k-1, j, i, j+1, nvert) || isIBMJFace(k+1, j, i, j+1, nvert) ||
+                            isOversetJFace(k-2, j, i, j+1, meshTag) || isOversetJFace(k+2, j, i, j+1, meshTag)) 
+                    {
+                        // second order
+                        dpdz = (p[k+1][j][i] - p[k-1][j][i] + p[k+1][j+1][i] - p[k-1][j+1][i]) * 0.25;
+                    } 
+                    else 
+                    {   
+                        // fourth order
+                        dpdz = (
+                                    -p[k+2][j][i]   + 8*p[k+1][j][i]   - 8*p[k-1][j][i]   + p[k-2][j][i]
+                                    -p[k+2][j+1][i] + 8*p[k+1][j+1][i] - 8*p[k-1][j+1][i] + p[k-2][j+1][i]
+                                ) / 24.0;
+                    }
+                }
+
+                dp[k][j][i].y = (dpdc * g21_j + dpde * g22_j + dpdz * g23_j) * jaj[k][j][i];
+
+                /*****************  k direction  ****************/
+
+                // dpdc  
+                if (k == mz-2) 
+                {
+                    if (i == 1)
+                    {   
+                        // first order
+                        dpdc = (p[k][j][i+1] - p[k][j][i] + p[k+1][j][i+1] - p[k+1][j][i]) / 2.0;
+                    } 
+                    else if (i == mx-2) 
+                    {
+                        // first order
+                        dpdc = (p[k][j][i] - p[k][j][i-1] + p[k+1][j][i] - p[k+1][j][i-1]) / 2.0;
+                    } 
+                    else 
+                    {
+                        // second order
+                        dpdc = (p[k][j][i+1] - p[k][j][i-1] + p[k+1][j][i+1] - p[k+1][j][i-1]) * 0.25;
+                    }
+                } 
+                else 
+                {   
+                    if(isOversetKFace(k, j, i+1, k+1, meshTag))
+                    {   
+                        // first order
+                        dpdc = (p[k][j][i] - p[k][j][i-1] + p[k+1][j][i] - p[k+1][j][i-1]) * 0.5;
+                    }
+                    else if(isOversetKFace(k, j, i-1, k+1, meshTag))
+                    {
+                        // first order
+                        dpdc = (p[k][j][i+1] - p[k][j][i] + p[k+1][j][i+1] - p[k+1][j][i]) * 0.5;
+                    }
+                    else if(i == 1 || i == mx-2 ||
+                            isIBMKFace(k, j, i-1, k+1, nvert) || isIBMKFace(k, j, i+1, k+1, nvert) ||
+                            isOversetKFace(k, j, i-2, k+1, meshTag) || isOversetKFace(k, j, i+2, k+1, meshTag)) 
+                    {
+                        // second order
+                        dpdc = (p[k][j][i+1] - p[k][j][i-1] + p[k+1][j][i+1] - p[k+1][j][i-1]) * 0.25;
+                    } 
+                    else 
+                    {   
+                        // fourth order
+                        dpdc = (
+                                    -p[k][j][i+2]   + 8*p[k][j][i+1]   - 8*p[k][j][i-1]   + p[k][j][i-2]
+                                    -p[k+1][j][i+2] + 8*p[k+1][j][i+1] - 8*p[k+1][j][i-1] + p[k+1][j][i-2]
+                            ) / 24.0;
+                    }
+                }
+
+                // dpde  
+                if (k == mz-2) 
+                {
+                    if (j == 1)
+                    {   
+                        // first order
+                        dpde = (p[k][j+1][i] - p[k][j][i] + p[k+1][j+1][i] - p[k+1][j][i]) / 2.0;
+                    } 
+                    else if (j == my-2) 
+                    {
+                        // first order
+                        dpde = (p[k][j][i] - p[k][j-1][i] + p[k+1][j][i] - p[k+1][j-1][i]) / 2.0;
+                    } 
+                    else 
+                    {
+                        // second order
+                        dpde = (p[k][j+1][i] - p[k][j-1][i] + p[k+1][j+1][i] - p[k+1][j-1][i]) * 0.25;
+                    }
+                } 
+                else 
+                {   
+                    if(isOversetKFace(k, j+1, i, k+1, meshTag))
+                    {   
+                        // first order
+                        dpde = (p[k][j][i] - p[k][j-1][i] + p[k+1][j][i] - p[k+1][j-1][i]) * 0.5;
+                    }
+                    else if(isOversetKFace(k, j-1, i, k+1, meshTag))
+                    {
+                        // first order
+                        dpde = (p[k][j+1][i] - p[k][j][i] + p[k+1][j+1][i] - p[k+1][j][i]) * 0.5;
+                    }
+                    else if(j == 1 || j == my-2 ||
+                            isIBMKFace(k, j-1, i, k+1, nvert) || isIBMKFace(k, j+1, i, k+1, nvert) ||
+                            isOversetKFace(k, j-2, i, k+1, meshTag) || isOversetKFace(k, j+2, i, k+1, meshTag)) 
+                    {
+                        // second order
+                        dpde = (p[k][j+1][i] - p[k][j-1][i] + p[k+1][j+1][i] - p[k+1][j-1][i]) * 0.25;
+                    } 
+                    else 
+                    {   
+                        // fourth order
+                        dpde = (
+                                    -p[k][j+2][i]   + 8*p[k][j+1][i]   - 8*p[k][j-1][i]   + p[k][j-2][i]
+                                    -p[k+1][j+2][i] + 8*p[k+1][j+1][i] - 8*p[k+1][j-1][i] + p[k+1][j-2][i]
+                            ) / 24.0;
+                    }
+                }
+
+                // dpdz  
+                if (k == mz-2 && mesh->kk_periodic) 
+                {   
+                    // second order
+                    dpdz = (p[mz+1][j][i] - p[k][j][i]);
+                }
+                else if ((k == 1 && !mesh->k_periodic && !mesh->kk_periodic) ||
+                        (k == mz-3 && !mesh->k_periodic && !mesh->kk_periodic) ||
+                        (isOversetKFace(k+1, j, i, k+2, meshTag)) ||
+                        (isOversetKFace(k-1, j, i, k, meshTag))
+                        ) 
+                {
+                    // second order
+                    dpdz = p[k+1][j][i] - p[k][j][i];
+                }
+                else 
+                {
+                    // fourth order
+                    dpdz = (p[k-1][j][i] - 27*p[k][j][i] + 27*p[k+1][j][i] - p[k+2][j][i]) / 24.0;
+                }
+
+                dp[k][j][i].z = (dpdc * g31_k + dpde * g32_k + dpdz * g33_k) * kaj[k][j][i];
+
+                // Set to zero at boundaries where contravariant velocity is not solved
+                // only solved faces need to be considered, for unsolved faces rhs will be set to 0 so no effect even if not considered here
+                if (i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2)) 
+                {
+                    dp[k][j][i].x = 0;
+                }
+                if (j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2)) 
+                {
+                    dp[k][j][i].y = 0;
+                }
+                if (k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2)) 
+                {
+                    dp[k][j][i].z = 0;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
+    DMDAVecRestoreArray(fda, mesh->lIEta, &ieta);
+    DMDAVecRestoreArray(fda, mesh->lIZet, &izet);
+    DMDAVecRestoreArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+    DMDAVecRestoreArray(fda, mesh->lJZet, &jzet);
+    DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
+    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,&meshTag);
+    DMDAVecRestoreArray(da,  mesh->lIAj,  &iaj);
+    DMDAVecRestoreArray(da,  mesh->lJAj,  &jaj);
+    DMDAVecRestoreArray(da,  mesh->lKAj,  &kaj);
+    
+    DMDAVecRestoreArray(da,  peqn->lP,  &p);
+    DMDAVecRestoreArray(fda, ueqn->dP, &dp);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
 PetscErrorCode GradP(peqn_ *peqn)
 {
     mesh_         *mesh = peqn->access->mesh;

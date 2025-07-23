@@ -272,89 +272,6 @@ static inline Cmpnts vorticity(const Tensor T)
     return omega;
 }
 
-inline Cmpnts randomUnitVector(std::mt19937& gen)
-{
-    // Uniform distributions:
-    //   1) distT -> t in [-1, 1]
-    //   2) dist01 -> in [0, 1), then multiply by 2 * M_PI
-    std::uniform_real_distribution<PetscReal> distT(-1.0, 1.0);
-    std::uniform_real_distribution<PetscReal> dist01(0.0, 1.0);
-   
-    // 1) Sample t in [-1,1]
-    PetscReal t = distT(gen);
-
-    // 2) Sample phim in [0, 2π]
-    PetscReal phim = dist01(gen) * 2.0 * M_PI;
-
-    // 3) thetam = acos(t)
-    PetscReal thetam = std::acos(t);
-
-    // Build the unit vector.
-    Cmpnts v;
-    v.x = std::sin(thetam) * std::cos(phim);
-    v.y = std::sin(thetam) * std::sin(phim);
-    v.z = std::cos(thetam);
-
-    return v;
-}
-
-
-//!Brief-< von Kármán–Pao spectrum used in HITFlow
-inline PetscReal vkpSpectrum(PetscReal k)
-{
-    const PetscReal nu     = 1.0e-5;
-    const PetscReal alpha  = 1.453;
-    const PetscReal urms   = 0.25;
-    const PetscReal ke     = 40.0 * PetscSqrtReal(5.0/12.0);
-
-    const PetscReal iL     = 0.748;
-    
-
-    PetscReal epsilon = std::pow(urms,3.0) / iL;
-    
-    PetscReal kneta = std::pow(epsilon, 1.0/4.0) * std::pow(nu, -3.0/4.0);
-
-    PetscReal r1 = k / ke;
-    PetscReal r2 = k / kneta;
-    
-
-    PetscReal espec = alpha * ((urms * urms) / ke)
-    * std::pow(r1, 4)
-    / std::pow(1.0 + r1*r1, 17.0/6.0)
-    * std::exp(-2.0 * r2*r2);
-
-    return (espec < 0.0 ? 0.0 : espec);
-
-    
-}
-
-// tuned parameter of vkp to obtain Comte-Bellot and Corrsin (1971) spectrum t@42
-inline PetscReal cbcSpectrum(PetscReal k, PetscReal nu, const PetscReal alpha, const PetscReal urms)
-{
-   
-    const PetscReal ke     = 50.0 * PetscSqrtReal(5.0/12.0);
-
-    const PetscReal iL     = 0.0508;
-    
-
-    PetscReal epsilon = std::pow(urms,3.0) / iL;
-    
-    PetscReal kneta = std::pow(epsilon, 1.0/4.0) * std::pow(nu, -3.0/4.0);
-
-    PetscReal r1 = k / ke;
-    PetscReal r2 = k / kneta;
-    
-
-    PetscReal espec = alpha * ((urms * urms) / ke)
-    * std::pow(r1, 4)
-    / std::pow(1.0 + r1*r1, 17.0/6.0)
-    * std::exp(-2.0 * r2*r2);
-
-    return (espec < 0.0 ? 0.0 : espec);
-
-    
-}
-
 //=============================================================================================================
 
 inline void gaussianSmooth1D(PetscReal *input, PetscReal *output, PetscInt n, PetscInt window)
@@ -3197,6 +3114,117 @@ inline void Compute_du_center
         *dudz = ( ucat[k+1][j][i].x - ucat[k-1][j][i].x ) * 0.5;
         *dvdz = ( ucat[k+1][j][i].y - ucat[k-1][j][i].y ) * 0.5;
         *dwdz = ( ucat[k+1][j][i].z - ucat[k-1][j][i].z ) * 0.5;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+inline void Compute_du_center4th
+(
+    mesh_ *mesh,
+    PetscInt i, PetscInt j, PetscInt k,  PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***ucat, PetscReal ***nvert, PetscReal ***meshTag,
+    PetscReal *dudc, PetscReal *dvdc, PetscReal *dwdc,
+    PetscReal *dude, PetscReal *dvde, PetscReal *dwde,
+    PetscReal *dudz, PetscReal *dvdz, PetscReal *dwdz
+)
+{
+    //csi direction
+    if (isIBMSolidCell(k, j, i+1, nvert) || isZeroedCell(k, j, i+1, meshTag) || (!mesh->i_periodic &&  !mesh->ii_periodic && i==mx-2))
+    {
+        *dudc = ( ucat[k][j][i].x - ucat[k][j][i-1].x );
+        *dvdc = ( ucat[k][j][i].y - ucat[k][j][i-1].y );
+        *dwdc = ( ucat[k][j][i].z - ucat[k][j][i-1].z );
+    }
+    else if (isIBMSolidCell(k, j, i-1, nvert) || isZeroedCell(k, j, i-1, meshTag) || (!mesh->i_periodic &&  !mesh->ii_periodic && i==1))
+    {
+        *dudc = ( ucat[k][j][i+1].x - ucat[k][j][i].x );
+        *dvdc = ( ucat[k][j][i+1].y - ucat[k][j][i].y );
+        *dwdc = ( ucat[k][j][i+1].z - ucat[k][j][i].z );
+    }
+    else if((i==2 && !mesh->i_periodic &&  !mesh->ii_periodic) || (i==1 && (mesh->i_periodic || mesh->ii_periodic)) || (isIBMFluidIFace(k, j, i, i+1, nvert) || isInterpolatedIFace(k, j, i, i+1, meshTag)))
+    {
+        *dudc = ( ucat[k][j][i+1].x - ucat[k][j][i-1].x ) * 0.5;
+        *dvdc = ( ucat[k][j][i+1].y - ucat[k][j][i-1].y ) * 0.5;
+        *dwdc = ( ucat[k][j][i+1].z - ucat[k][j][i-1].z ) * 0.5;
+    }
+    else if((i==mx-3 && !mesh->i_periodic &&  !mesh->ii_periodic) || (i==mx-2 && (mesh->i_periodic || mesh->ii_periodic)) || (isIBMFluidIFace(k, j, i, i-11, nvert) || isInterpolatedIFace(k, j, i, i-1, meshTag)))
+    {
+        *dudc = ( ucat[k][j][i+1].x - ucat[k][j][i-1].x ) * 0.5;
+        *dvdc = ( ucat[k][j][i+1].y - ucat[k][j][i-1].y ) * 0.5;
+        *dwdc = ( ucat[k][j][i+1].z - ucat[k][j][i-1].z ) * 0.5;
+    }
+    else
+    {
+        *dudc = (-ucat[k][j][i+2].x + 8*ucat[k][j][i+1].x - 8*ucat[k][j][i-1].x + ucat[k][j][i-2].x) / 12.0;
+        *dvdc = (-ucat[k][j][i+2].y + 8*ucat[k][j][i+1].y - 8*ucat[k][j][i-1].y + ucat[k][j][i-2].y) / 12.0;
+        *dwdc = (-ucat[k][j][i+2].z + 8*ucat[k][j][i+1].z - 8*ucat[k][j][i-1].z + ucat[k][j][i-2].z) / 12.0;        
+    }
+
+    //eta direction
+    if (isIBMSolidCell(k, j+1, i, nvert) || isZeroedCell(k, j+1, i, meshTag) || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2))
+    {
+        *dude = ( ucat[k][j][i].x - ucat[k][j-1][i].x );
+        *dvde = ( ucat[k][j][i].y - ucat[k][j-1][i].y );
+        *dwde = ( ucat[k][j][i].z - ucat[k][j-1][i].z );
+    }
+    else if (isIBMSolidCell(k, j-1, i, nvert) || isZeroedCell(k, j-1, i, meshTag) || (!mesh->j_periodic && !mesh->jj_periodic && j==1))
+    {
+        *dude = ( ucat[k][j+1][i].x - ucat[k][j][i].x );
+        *dvde = ( ucat[k][j+1][i].y - ucat[k][j][i].y );
+        *dwde = ( ucat[k][j+1][i].z - ucat[k][j][i].z );
+    }
+    else if((j==2 && !mesh->j_periodic && !mesh->jj_periodic) || (j==1 && (mesh->j_periodic || mesh->jj_periodic)) || (isIBMFluidJFace(k, j, i, j+1, nvert) || isInterpolatedJFace(k, j, i, j+1, meshTag)))
+    {
+        *dude = ( ucat[k][j+1][i].x - ucat[k][j-1][i].x ) * 0.5;
+        *dvde = ( ucat[k][j+1][i].y - ucat[k][j-1][i].y ) * 0.5;
+        *dwde = ( ucat[k][j+1][i].z - ucat[k][j-1][i].z ) * 0.5;
+    }
+    else if((j==my-3 && !mesh->j_periodic && !mesh->jj_periodic) || (j==my-2 && (mesh->j_periodic || mesh->jj_periodic)) || (isIBMFluidJFace(k, j, i, j-1, nvert) || isInterpolatedJFace(k, j, i, j-1, meshTag)))
+    {
+        *dude = ( ucat[k][j+1][i].x - ucat[k][j-1][i].x ) * 0.5;
+        *dvde = ( ucat[k][j+1][i].y - ucat[k][j-1][i].y ) * 0.5;
+        *dwde = ( ucat[k][j+1][i].z - ucat[k][j-1][i].z ) * 0.5;
+    }
+    else
+    {
+        *dude = (-ucat[k][j+2][i].x + 8*ucat[k][j+1][i].x - 8*ucat[k][j-1][i].x + ucat[k][j-2][i].x) / 12.0;
+        *dvde = (-ucat[k][j+2][i].y + 8*ucat[k][j+1][i].y - 8*ucat[k][j-1][i].y + ucat[k][j-2][i].y) / 12.0;
+        *dwde = (-ucat[k][j+2][i].z + 8*ucat[k][j+1][i].z - 8*ucat[k][j-1][i].z + ucat[k][j-2][i].z) / 12.0;
+    }
+
+    //zeta direction
+    if (isIBMSolidCell(k+1, j, i, nvert) || isZeroedCell(k+1, j, i, meshTag) || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2))
+    {
+        *dudz = ( ucat[k][j][i].x - ucat[k-1][j][i].x );
+        *dvdz = ( ucat[k][j][i].y - ucat[k-1][j][i].y );
+        *dwdz = ( ucat[k][j][i].z - ucat[k-1][j][i].z );
+    }
+    else if (isIBMSolidCell(k-1, j, i, nvert) || isZeroedCell(k-1, j, i, meshTag) || (!mesh->k_periodic && !mesh->kk_periodic && k==1))
+    {
+        *dudz = ( ucat[k+1][j][i].x - ucat[k][j][i].x );
+        *dvdz = ( ucat[k+1][j][i].y - ucat[k][j][i].y );
+        *dwdz = ( ucat[k+1][j][i].z - ucat[k][j][i].z );
+    }
+    else if((k==2 && !mesh->k_periodic && !mesh->kk_periodic) || (k==1 && (mesh->k_periodic || mesh->kk_periodic)) || (isIBMFluidKFace(k, j, i, k+1, nvert) || isInterpolatedKFace(k, j, i, k+1, meshTag)))
+    {
+        *dudz = ( ucat[k+1][j][i].x - ucat[k-1][j][i].x ) * 0.5;
+        *dvdz = ( ucat[k+1][j][i].y - ucat[k-1][j][i].y ) * 0.5;
+        *dwdz = ( ucat[k+1][j][i].z - ucat[k-1][j][i].z ) * 0.5;
+    }
+    else if((k==mz-3 && !mesh->k_periodic && !mesh->kk_periodic) || (k==mz-2 && (mesh->k_periodic || mesh->kk_periodic)) || (isIBMFluidKFace(k, j, i, k-1, nvert) || isInterpolatedKFace(k, j, i, k-1, meshTag)))
+    {
+        *dudz = ( ucat[k+1][j][i].x - ucat[k-1][j][i].x ) * 0.5;
+        *dvdz = ( ucat[k+1][j][i].y - ucat[k-1][j][i].y ) * 0.5;
+        *dwdz = ( ucat[k+1][j][i].z - ucat[k-1][j][i].z ) * 0.5;
+    }
+    else
+    {
+        *dudz = (-ucat[k+2][j][i].x + 8*ucat[k+1][j][i].x - 8*ucat[k-1][j][i].x + ucat[k-2][j][i].x) / 12.0;
+        *dvdz = (-ucat[k+2][j][i].y + 8*ucat[k+1][j][i].y - 8*ucat[k-1][j][i].y + ucat[k-2][j][i].y) / 12.0;
+        *dwdz = (-ucat[k+2][j][i].z + 8*ucat[k+1][j][i].z - 8*ucat[k-1][j][i].z + ucat[k-2][j][i].z) / 12.0;
     }
 
     return;

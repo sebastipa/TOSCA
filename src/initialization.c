@@ -220,15 +220,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isYDampingActive              = 0;
     flags->isKLeftRayleighDampingActive  = 0;
     flags->isKRightRayleighDampingActive = 0;
-    flags->isAdvectionDampingXActive      = 0;
+    flags->isAdvectionDampingXActive     = 0;
     flags->isAdvectionDampingYActive     = 0;
     flags->isCanopyActive                = 0;
     flags->isConcurrentPrecursorActive   = 0;
     flags->isPvCatalystActive            = 0;
     flags->isGravityWaveModelingActive   = 0;
     flags->isNonInertialFrameActive      = 0;
-    flags->isABCFlowActive               = 0;
-    flags->isgradPForcingActive          = 0;
+    flags->isMeangradPForcingActive      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",          &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",              &(flags->isLesActive), PETSC_NULL);
@@ -244,12 +243,11 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",       &(flags->isPvCatalystActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kLeftRayleigh",    &(flags->isKLeftRayleighDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kRightRayleigh",   &(flags->isKRightRayleighDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingX", &(flags->isAdvectionDampingXActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingX",&(flags->isAdvectionDampingXActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingY",&(flags->isAdvectionDampingYActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",      &(flags->isNonInertialFrameActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",      &(flags->isGravityWaveModelingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-linearForce",     &( flags->isABCFlowActive ), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-gradPForce",      &( flags->isgradPForcingActive ), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-meanGradPForce",   &(flags->isMeangradPForcingActive ), PETSC_NULL);
 
     // do some checks
     if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingXActive)

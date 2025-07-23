@@ -28,8 +28,7 @@ struct flags_
     PetscInt isSideForceActive;
     PetscInt isNonInertialFrameActive;
     PetscInt isGravityWaveModelingActive;
-    PetscInt isABCFlowActive;
-    PetscInt isgradPForcingActive;
+    PetscInt isMeangradPForcingActive;
 };
 
 #endif

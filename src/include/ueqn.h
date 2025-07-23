@@ -31,6 +31,8 @@ struct ueqn_
     Vec           Ucat, lUcat;                      //!< cartesian velocity
     Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step
     Vec           lUstar;
+    Cmpnts        meanGradP;
+    Cmpnts        uBulk;
 
     // momentum settings
     word          ddtScheme;                  //!< time derivative scheme
@@ -107,6 +109,9 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
 //! \brief Compute buoyancy term
 PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale);
+
+//! \brief Compute mean pressure gradient force
+PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
 //! Viscous and divergence terms
 PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
