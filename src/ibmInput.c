@@ -32,9 +32,6 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     // read check normals
     readDictInt("./IBM/IBMProperties.dat", "checkNormal", &(ibm->checkNormal));
 
-    // read average normals
-    readDictInt("./IBM/IBMProperties.dat", "averageNormal", &(ibm->averageNormal));
-
     // set wall shear force from wall model
     readDictInt("./IBM/IBMProperties.dat", "wallShear", &(ibm->wallShearOn));
 
@@ -290,11 +287,6 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm, PetscInt b)
-{
-    return 0;
-}
-//***************************************************************************************************************//
 
 PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
 {
@@ -496,126 +488,6 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
     return 0;
 }
 
-//***************************************************************************************************************//
-ibmNode* initializeIBMNodes(PetscInt numNodes)
-{
-    ibmNode *nodes = new ibmNode[numNodes];
-
-    for (PetscInt i = 0; i < numNodes; i++)
-    {
-        nodes[i].numConnected = 0;
-
-        for(PetscInt j = 0; j < MAX_ELEMENTS_PER_NODE; j++)
-        {
-            nodes[i].elem[j] = -1;
-        }
-    }
-
-    return nodes;
-}
-//***************************************************************************************************************//
-
-PetscErrorCode nodeElementConnectivity(ibm_ *ibm)
-{
-    mesh_         *mesh = ibm->access->mesh;
-    PetscMPIInt   nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
-    PetscMPIInt   rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    for (PetscInt b = 0; b < ibm->numBodies; b++)
-    {
-        ibmObject   *ibmBody = ibm->ibmBody[b];
-        ibmMesh       *ibMsh = ibmBody->ibMsh;
-        PetscInt    totElems = ibMsh->elems;
-        PetscInt    totNodes = ibMsh->nodes;
-
-        PetscInt   lNumElems = totElems/nprocs;
-        PetscInt  extraElems = totElems % nprocs;
-
-        //define the start and end of the the elements each processor will handle
-        PetscInt   startElem = rank * lNumElems + (rank < extraElems ? rank : extraElems);
-        PetscInt     endElem = startElem + lNumElems - (rank < extraElems ? 0 : 1);
-
-        // initialize the ibm element nodes
-        ibMsh->ibmMeshNode = initializeIBMNodes(totNodes);
-        ibmNode *ibmNodes  = ibMsh->ibmMeshNode;
-
-        // Compute reverse connectivity
-        for (PetscInt i = startElem; i <= endElem; i++)
-        {
-            PetscInt node;
-
-            node = ibMsh->nID1[i];
-            ibmNodes[node].elem[ibmNodes[node].numConnected] = i;
-            ibmNodes[node].numConnected++;
-
-            if(ibmNodes[node].numConnected > MAX_ELEMENTS_PER_NODE)
-            {
-                char error[512];
-                sprintf(error, "Max element per node currently set to 20. But more than 20 elements connected to node %ld found\n", node);
-                fatalErrorInFunction("nodeElementConnectivity", error);
-            }
-
-            node = ibMsh->nID2[i];
-            ibmNodes[node].elem[ibmNodes[node].numConnected] = i;
-            ibmNodes[node].numConnected++;
-
-            if(ibmNodes[node].numConnected > MAX_ELEMENTS_PER_NODE)
-            {
-                char error[512];
-                sprintf(error, "Max element per node currently set to 20. But more than 20 elements connected to node %ld found\n", node);
-                fatalErrorInFunction("nodeElementConnectivity", error);
-            }
-
-            node = ibMsh->nID3[i];
-            ibmNodes[node].elem[ibmNodes[node].numConnected] = i;
-            ibmNodes[node].numConnected++;
-
-            if(ibmNodes[node].numConnected > MAX_ELEMENTS_PER_NODE)
-            {
-                char error[512];
-                sprintf(error, "Max element per node currently set to 20. But more than 20 elements connected to node %ld found\n", node);
-                fatalErrorInFunction("nodeElementConnectivity", error);
-            }
-
-        }
-
-        if (rank == 0)
-        {
-            ibmNode* tempNodes = initializeIBMNodes(totNodes);
-
-            for (PetscInt source = 1; source < nprocs; source++)
-            {
-                MPI_Recv(tempNodes, totNodes * sizeof(ibmNode), MPI_BYTE, source, 0, mesh->MESH_COMM, MPI_STATUS_IGNORE);
-
-                for (PetscInt i = 0; i < totNodes; i++)
-                {
-                    for (PetscInt j = 0; j < tempNodes[i].numConnected; j++)
-                    {
-                        ibmNodes[i].elem[ibmNodes[i].numConnected] = tempNodes[i].elem[j];
-                        ibmNodes[i].numConnected++;
-
-                        if(ibmNodes[i].numConnected > MAX_ELEMENTS_PER_NODE)
-                        {
-                            char error[512];
-                            sprintf(error, "Max element per node currently set to 20. But more than 20 elements connected to node %ld found\n", i);
-                            fatalErrorInFunction("nodeElementConnectivity", error);
-                        }
-                    }
-                }
-            }
-
-            free(tempNodes);
-        }
-        else
-        {
-            MPI_Send(ibmNodes, totNodes * sizeof(ibmNode), MPI_BYTE, 0, 0, mesh->MESH_COMM);
-        }
-
-        MPI_Bcast(ibmNodes, totNodes * sizeof(ibmNode), MPI_BYTE, 0, mesh->MESH_COMM);
-    }
-
-    return 0;
-}
 //***************************************************************************************************************//
 
 PetscErrorCode combineMesh(ibmObject *ibmBody)
