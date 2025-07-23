@@ -24,9 +24,6 @@ static const char *LesModelNames[] = {
     "vreman",
     "bardinaVreman",
     "bardinaAMD",
-    "bardinaDSM",
-    "scaleAdaptive",
-    "m43",
     "LesModel", "", PETSC_NULL
 };
 
@@ -41,8 +38,8 @@ PetscErrorCode InitializeLES(les_ *les)
     // 6. dynamic smagorinsky scale dependent with plane averaging (PASD)
     // 7. Anisotropic minimum dissipation model (AMD)
     // 8. Vreman model //needs verification
-    // 9. Bardina model 
-    //10. Scale adaptive model
+    // 9. Bardina vreman model 
+    //10. Bardina AMD model
 
     if(les != NULL)
     {
@@ -51,7 +48,7 @@ PetscErrorCode InitializeLES(les_ *les)
 
         les->maxCs  = 0.5;
         les->turbStat = 0;
-        
+
         // input file
         PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
@@ -97,8 +94,7 @@ PetscErrorCode InitializeLES(les_ *les)
                 les->model == AMD    ||
                 les->model == VREMAN ||
                 les->model == BV     ||
-                les->model == BAMD   ||
-                les->model == BDS)
+                les->model == BAMD)
             {
                 VecDuplicate(mesh->lCsi, &(les->lSx)); VecSet(les->lSx, 0.);
                 VecDuplicate(mesh->lCsi, &(les->lSy)); VecSet(les->lSy, 0.);
@@ -118,8 +114,7 @@ PetscErrorCode InitializeLES(les_ *les)
             if (les->model == DSM ||
                 les->model == DLASI ||
                 les->model == DLASD ||
-                les->model == DPASD || 
-                les->model == BDS)
+                les->model == DPASD)
             {
                 VecDuplicate(mesh->lAj, &(les->lLM)); VecSet(les->lLM, 0.);
                 VecDuplicate(mesh->lAj, &(les->lMM)); VecSet(les->lMM, 0.);
@@ -146,7 +141,7 @@ PetscErrorCode InitializeLES(les_ *les)
                 VecDuplicate(mesh->lAj, &(les->lNN_old)); VecSet(les->lNN_old, 0.);
             }
 
-            if (les->model == BAMD || les->model == BV || les->model == BDS)
+            if (les->model == BAMD || les->model == BV)
             {
                 DMCreateLocalVector(mesh->tda, &(les->lTau)); VecSet(les->lTau,0.);
             }
@@ -302,16 +297,32 @@ PetscErrorCode UpdateCs (les_ *les)
                 PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
 
                 // compute velocity derivatices
-                Compute_du_center
-                (
-                    mesh,
-                    i, j, k,
-                    mx, my, mz,
-                    ucat, nvert, meshTag, 
-                    &dudc, &dvdc, &dwdc,
-                    &dude, &dvde, &dwde,
-                    &dudz, &dvdz, &dwdz
-                );
+                if(ueqn->central4Div)
+                {
+                    Compute_du_center4th
+                    (
+                        mesh,
+                        i, j, k,
+                        mx, my, mz,
+                        ucat, nvert, meshTag,
+                        &dudc, &dvdc, &dwdc,
+                        &dude, &dvde, &dwde,
+                        &dudz, &dvdz, &dwdz
+                    );
+                }
+                else
+                { 
+                    Compute_du_center
+                    (
+                        mesh,
+                        i, j, k,
+                        mx, my, mz,
+                        ucat, nvert, meshTag,
+                        &dudc, &dvdc, &dwdc,
+                        &dude, &dvde, &dwde,
+                        &dudz, &dvdz, &dwdz
+                    );
+                }
 
                 Compute_du_dxyz
                 (
@@ -438,7 +449,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da, les->lN, INSERT_VALUES, les->lN);
         DMLocalToLocalEnd  (da, les->lN, INSERT_VALUES, les->lN);
     }
-    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         // get arrays
         DMDAVecGetArray(fda, les->lSx, &Ax);
@@ -1753,7 +1764,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMDAVecGetArray(da,  les->lCh, &lch);
         DMDAVecGetArray(da,  les->L,   &scale);
     }
-    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         DMDAVecGetArray(da, les->lLM, &LM);
         DMDAVecGetArray(da, les->lMM, &MM);
@@ -1842,12 +1853,12 @@ PetscErrorCode UpdateCs (les_ *les)
             C = C / pow (delta, 2.0);
         }
         // dynamic Smagorinsky models
-        else if(les->model == DSM || les->model == DLASI || les->model == BDS)
+        else if(les->model == DSM || les->model == DLASI)
         {
             PetscReal LM_avg, MM_avg;
 
             // box averaging
-            if(les->model == DSM || les->model == BDS)
+            if(les->model == DSM)
             {
                 PetscReal weight[3][3][3];
 
@@ -2046,7 +2057,7 @@ PetscErrorCode UpdateCs (les_ *les)
         DMLocalToLocalBegin(da,  les->lCh,  INSERT_VALUES, les->lCh);
         DMLocalToLocalEnd  (da,  les->lCh,  INSERT_VALUES, les->lCh);
     }
-    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         DMDAVecRestoreArray(da, les->lLM, &LM);
         DMDAVecRestoreArray(da, les->lMM, &MM);
@@ -2210,16 +2221,32 @@ PetscErrorCode UpdateNut(les_ *les)
         PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
 
         // compute velocity derivatives w.r.t the curvilinear coordinates
-        Compute_du_center
-        (
-            mesh,
-            i, j, k,
-            mx, my, mz,
-            ucat, nvert, meshTag,
-            &dudc, &dvdc, &dwdc,
-            &dude, &dvde, &dwde,
-            &dudz, &dvdz, &dwdz
-        );
+        if(ueqn->central4Div)
+        {
+            Compute_du_center4th
+            (
+                mesh,
+                i, j, k,
+                mx, my, mz,
+                ucat, nvert, meshTag,
+                &dudc, &dvdc, &dwdc,
+                &dude, &dvde, &dwde,
+                &dudz, &dvdz, &dwdz
+            );
+        }
+        else
+        { 
+            Compute_du_center
+            (
+                mesh,
+                i, j, k,
+                mx, my, mz,
+                ucat, nvert, meshTag,
+                &dudc, &dvdc, &dwdc,
+                &dude, &dvde, &dwde,
+                &dudz, &dvdz, &dwdz
+            );
+        }
 
         // compute velocity derivative w.r.t. the cartesian coordinates
         Compute_du_dxyz
@@ -2542,10 +2569,9 @@ PetscErrorCode UpdateNut(les_ *les)
 PetscErrorCode ComputeTurbulenceStatistics(les_ *les)
 {
     mesh_         *mesh = les->access->mesh;
-    teqn_         *teqn = les->access->teqn;
     ueqn_         *ueqn = les->access->ueqn;
-    constants_    *cst  = ueqn->access->constants;
-    DM             da    = mesh->da, fda = mesh->fda, tda=mesh->tda;
+    constants_    *cst  = les->access->constants;
+    DM             da   = mesh->da, fda = mesh->fda, tda=mesh->tda;
 
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -2571,6 +2597,10 @@ PetscErrorCode ComputeTurbulenceStatistics(les_ *les)
     
     PetscReal lTauS, gTauS;
     PetscReal lSgs_disp, gSgs_disp;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
     DMDAVecGetArray(da,  les->lNu_t, &lnu_t);
     DMDAVecGetArray(da,  les->lKsgs, &ksg);
@@ -2611,7 +2641,6 @@ PetscErrorCode ComputeTurbulenceStatistics(les_ *les)
     {
         PetscReal volCell = 1.0 / aj[k][j][i]; 
 
-    
         lUx  += (ucat[k][j][i].x) * volCell;
         lUy  += (ucat[k][j][i].y) * volCell;
         lUz  += (ucat[k][j][i].z) * volCell;
@@ -2643,16 +2672,32 @@ PetscErrorCode ComputeTurbulenceStatistics(les_ *les)
         PetscReal dudc, dvdc, dwdc, dude, dvde, dwde, dudz, dvdz, dwdz;
         PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
 
-        Compute_du_center
-        (
-            mesh,
-            i, j, k,
-            mx, my, mz,
-            ucat, nvert, meshTag,
-            &dudc, &dvdc, &dwdc,
-            &dude, &dvde, &dwde,
-            &dudz, &dvdz, &dwdz
-        );
+        if(ueqn->central4Div)
+        {
+            Compute_du_center4th
+            (
+                mesh,
+                i, j, k,
+                mx, my, mz,
+                ucat, nvert, meshTag,
+                &dudc, &dvdc, &dwdc,
+                &dude, &dvde, &dwde,
+                &dudz, &dvdz, &dwdz
+            );
+        }
+        else
+        { 
+            Compute_du_center
+            (
+                mesh,
+                i, j, k,
+                mx, my, mz,
+                ucat, nvert, meshTag,
+                &dudc, &dvdc, &dwdc,
+                &dude, &dvde, &dwde,
+                &dudz, &dvdz, &dwdz
+            );
+        }
 
         Compute_du_dxyz
         (
@@ -2929,7 +2974,7 @@ PetscErrorCode updateLESStructuralModelCartesianForm(les_ *les)
     PetscReal lVol2 = 0., gVol2 = 0., lTauS = 0., gTauS = 0.;
 
     //bardina model
-    if (les->model == BAMD || les->model == BV || les->model == BDS)
+    if (les->model == BAMD || les->model == BV)
     {
 
         for (k = lzs; k < lze; k++)
@@ -3075,21 +3120,21 @@ PetscErrorCode updateLESStructuralModelCartesianForm(les_ *les)
             tauSGSCat[k][j][i].zy = _wv - _w*_v;   // tau_zy
             tauSGSCat[k][j][i].zz = _ww - _w*_w;   // tau_zz
             
-           /*( if(ueqn->central4Div)
+            if(ueqn->central4Div)
             {
                 Compute_du_center4th
                 (
                     mesh,
                     i, j, k,
                     mx, my, mz,
-                    ucat, nvert,
+                    ucat, nvert, meshTag,
                     &dudc, &dvdc, &dwdc,
                     &dude, &dvde, &dwde,
                     &dudz, &dvdz, &dwdz
                 );
             }
-            else*/
-            {
+            else
+            { 
                 Compute_du_center
                 (
                     mesh,
@@ -3542,7 +3587,7 @@ PetscErrorCode updateLESStructuralModelContravariantForm(les_ *les)
     DMDAVecGetArray(tda, les->lTau, &tauSGS);
 
     //bardina model
-    if (les->model == BAMD || les->model == BV || les->model == BDS)
+    if (les->model == BAMD || les->model == BV)
     {
 
         for (k = lzs; k < lze; k++)

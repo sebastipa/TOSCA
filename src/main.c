@@ -133,7 +133,14 @@ int main(int argc, char **argv)
             }
 
             // compute pressure gradient term
-            GradP(domain[d].peqn);
+            if(domain[d].ueqn->central4Div)
+            {
+                GradP4thOrder(domain[d].peqn);
+            }
+            else 
+            {
+                GradP(domain[d].peqn);
+            }
 
             // finish the y-damping layer processor mapping 
             if(flags.isYDampingActive)

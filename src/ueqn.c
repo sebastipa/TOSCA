@@ -82,6 +82,11 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 	VecDuplicate(mesh->lCent, &(ueqn->sourceU));  VecSet(ueqn->sourceU, 0.0);
 
     VecDuplicate(mesh->lAj, &(ueqn->lUstar));     VecSet(ueqn->lUstar,  0.0);
+    
+    if(ueqn->access->flags->isMeangradPForcingActive)
+    {
+        ueqn->meanGradP = nSetZero();
+    }
 
     if(ueqn->access->flags->isTeqnActive)
     {
@@ -3966,6 +3971,140 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
 //***************************************************************************************************************//
 
+PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+{
+    mesh_         *mesh = ueqn->access->mesh;
+    DM             da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo  info = mesh->info;
+    PetscInt       xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt       mx   = info.mx, my = info.my, mz = info.mz;
+    
+    Cmpnts        ***rhs, ***ucat;
+    Cmpnts        ***icsi, ***jeta, ***kzet;
+    PetscReal     ***aj, ***nvert, ***meshTag, cellVol;
+    PetscReal      lSumUx = 0.0, lSumUy = 0.0, lSumUz = 0.0;
+    PetscReal      lVol   = 0.0;
+    PetscReal      gSumUx = 0.0, gSumUy = 0.0, gSumUz = 0.0, gVol = 0.0;
+    PetscReal      meanUx, meanUy, meanUz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l;
+    
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecGetArray(da,  mesh->lAj,    &aj); 
+
+    DMDAVecGetArray(fda, Rhs,          &rhs);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
+   
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                if(isIBMCell(k,j,i,nvert) || isOversetCell(k,j,i,meshTag)) continue;
+
+                cellVol = 1.0 / aj[k][j][i];
+                lSumUx += ucat[k][j][i].x * cellVol;
+                lSumUy += ucat[k][j][i].y * cellVol;
+                lSumUz += ucat[k][j][i].z * cellVol;
+                lVol   += cellVol;
+            }
+        }
+    }
+    
+    MPI_Allreduce(&lSumUx, &gSumUx, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lSumUy, &gSumUy, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lSumUz, &gSumUz, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lVol,   &gVol,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    //volume averaged
+    meanUx = gSumUx / gVol;
+    meanUy = gSumUy / gVol;
+    meanUz = gSumUz / gVol;
+
+    Cmpnts meanU = nSetFromComponents(meanUx, meanUy, meanUz);
+    Cmpnts diffU = nSub(ueqn->uBulk, meanU);
+    
+    mSum(ueqn->meanGradP,diffU);
+     
+    //PetscPrintf(PETSC_COMM_WORLD,"Umean:  %.5lf  %.5lf %.5lf \n",meanU.x, meanU.y, meanU.z);
+    //PetscPrintf(PETSC_COMM_WORLD,"UBulk:  %.5lf  %.5lf %.5lf \n",ueqn->uBulk.x, ueqn->uBulk.y, ueqn->uBulk.z);
+    //PetscPrintf(PETSC_COMM_WORLD,"diffU:  %.5lf  %.5lf %.5lf \n",diffU.x, diffU.y, diffU.z);
+    // PetscPrintf(PETSC_COMM_WORLD,"meanGradP: %.5lf %.5lf %.5lf   \n",ueqn->meanGradP.x,ueqn->meanGradP.y,ueqn->meanGradP.z);
+    
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
+                {
+                    rhs[k][j][i].x 
+                    +=
+                    scale *
+                    (
+                        diffU.x * icsi[k][j][i].x +
+                        diffU.y * icsi[k][j][i].y +
+                        diffU.z * icsi[k][j][i].z
+                    );
+                }
+
+                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
+                {
+
+                    rhs[k][j][i].y
+                    +=
+                    scale *
+                    (
+                        diffU.x * jeta[k][j][i].x +
+                        diffU.y * jeta[k][j][i].y +
+                        diffU.z * jeta[k][j][i].z
+                    );
+                }
+
+                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
+                {
+
+                    rhs[k][j][i].z
+                    +=
+                    scale *
+                    (
+                        diffU.x * kzet[k][j][i].x +
+                        diffU.y * kzet[k][j][i].y +
+                        diffU.z * kzet[k][j][i].z
+                    );
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+
+    DMDAVecRestoreArray(fda, Rhs,          &rhs);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
 {
     mesh_         *mesh  = ueqn->access->mesh;
@@ -5521,7 +5660,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMLocalToLocalBegin(fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
     DMLocalToLocalEnd  (fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
 
-    if(ueqn->access->flags->isLesActive && (les->model == BDS || les->model == BAMD || les->model == BV))
+    if(ueqn->access->flags->isLesActive && (les->model == BAMD || les->model == BV))
     {
         updateLESStructuralModelContravariantForm(les); 
     }
@@ -5936,6 +6075,11 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         }
     }
 
+    if(ueqn->access->flags->isMeangradPForcingActive)
+    {
+        meanGradPForcing(ueqn, Rhs, 1.0);
+    }
+    
     resetNonResolvedCellFaces(mesh, Rhs);
 
     // add time derivative term
@@ -6040,6 +6184,11 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         {
             sourceU(ueqn, ueqn->Rhs, 1.0 / clock->dt);
         }
+    }
+
+    if(ueqn->access->flags->isMeangradPForcingActive)
+    {
+        meanGradPForcing(ueqn, ueqn->Rhs, 1.0 / clock->dt);
     }
 
     resetNonResolvedCellFaces(mesh, ueqn->Rhs);

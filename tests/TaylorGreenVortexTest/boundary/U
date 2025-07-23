@@ -5,8 +5,8 @@
 
 internalField   TGVFlow
 {
-u0        1.0
-freq      1.0
+	u0        1.0
+	freq      1.0
 }
 # boundary patches
 iLeft   periodic

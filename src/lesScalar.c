@@ -38,8 +38,7 @@ PetscErrorCode InitializeLESScalar(les_ *les)
             if( les->model == DSM || 
                 les->model == DLASI || 
                 les->model == DLASD || 
-                les->model == DPASD ||
-                les->model == BDS
+                les->model == DPASD
             )
             {
                 VecDuplicate(mesh->lAj, &(les->lKX));       VecSet(les->lKX,0.);
@@ -75,9 +74,9 @@ PetscErrorCode InitializeLESScalar(les_ *les)
 PetscErrorCode UpdateCsk (les_ *les)
 {
     mesh_          *mesh  = les->access->mesh;
-    ueqn_          *eqn   = les->access->ueqn;
+    ueqn_          *ueqn  = les->access->ueqn;
     clock_         *clock = les->access->clock;
-    teqn_          *teqn = les->access->teqn;
+    teqn_          *teqn  = les->access->teqn;
     DM             da     = mesh->da, fda = mesh->fda;
 
     DMDALocalInfo info = mesh->info;
@@ -122,7 +121,7 @@ PetscErrorCode UpdateCsk (les_ *les)
     }
     else if(les->model == AMD || les->model == BAMD)
     {
-        VecSet(les->lCsk, amd_cs);
+        VecSet(les->lCsk, les->amdCs);
         DMLocalToLocalBegin(da, les->lCsk, INSERT_VALUES, les->lCsk);
         DMLocalToLocalEnd  (da, les->lCsk, INSERT_VALUES, les->lCsk);
         return(0);
@@ -134,7 +133,7 @@ PetscErrorCode UpdateCsk (les_ *les)
         DMLocalToLocalEnd  (da, les->lCsk, INSERT_VALUES, les->lCsk);
         return(0);
     }
-    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
+    else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
     {
         //compute temperature gradients 
         // get jacobians
@@ -150,8 +149,8 @@ PetscErrorCode UpdateCsk (les_ *les)
 
         DMDAVecGetArray(da,  les->ldTheta, &dtheta);
 
-        DMDAVecGetArray(fda, eqn->lUcont, &ucont);
-        DMDAVecGetArray(fda, eqn->lUcat,  &ucat);
+        DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+        DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
         DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
         // 1 - loop over internal cells and compute temperature gradient
@@ -198,7 +197,6 @@ PetscErrorCode UpdateCsk (les_ *les)
                     );
 
                     dtheta[k][j][i].x = dt_dx; dtheta[k][j][i].y = dt_dy; dtheta[k][j][i].z = dt_dz;
-
                 }
             }
         }
@@ -1363,7 +1361,7 @@ PetscErrorCode UpdateCsk (les_ *les)
         
         // 3 - Compute Csk
 
-        if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
+        if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
         {
             DMDAVecGetArray(da, les->lKX, &KX);
             DMDAVecGetArray(da, les->lXX, &XX);
@@ -1391,12 +1389,12 @@ PetscErrorCode UpdateCsk (les_ *les)
             PetscReal C = 0.0;
 
             // dynamic Smagorinsky models
-            if(les->model == DSM || les->model == DLASI || les->model == BDS)
+            if(les->model == DSM || les->model == DLASI)
             {
                 PetscReal KX_avg, XX_avg;
 
                 // box averaging
-                if(les->model == DSM || les->model == BDS)
+                if(les->model == DSM)
                 {
                     PetscReal weight[3][3][3];
 
@@ -1584,7 +1582,7 @@ PetscErrorCode UpdateCsk (les_ *les)
             }
         }
 
-        if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
+        if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
         {
             DMDAVecRestoreArray(da, les->lKX, &KX);
             DMDAVecRestoreArray(da, les->lXX, &XX);
@@ -1608,8 +1606,8 @@ PetscErrorCode UpdateCsk (les_ *les)
         DMDAVecRestoreArray(da,  les->ldTheta, &dtheta);
         DMDAVecRestoreArray(da,  les->lCsk, &csk);
 
-        DMDAVecRestoreArray(fda, eqn->lUcont, &ucont);
-        DMDAVecRestoreArray(fda, eqn->lUcat,  &ucat);
+        DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+        DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
         DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
         // scatter the model coefficient
@@ -1626,9 +1624,9 @@ PetscErrorCode UpdateCsk (les_ *les)
 PetscErrorCode UpdatekT(les_ *les)
 {
     mesh_         *mesh = les->access->mesh;
-    ueqn_         *eqn  = les->access->ueqn;
+    ueqn_         *ueqn = les->access->ueqn;
     teqn_         *teqn = les->access->teqn;
-    constants_    *cst = teqn->access->constants;
+    constants_    *cst  = teqn->access->constants;
     DM            da    = mesh->da, fda = mesh->fda;
 
     DMDALocalInfo info = mesh->info;
@@ -1658,7 +1656,7 @@ PetscErrorCode UpdatekT(les_ *les)
 
     VecSet(les->lk_t, 0.);
 
-    DMDAVecGetArray(fda, eqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
 
     DMDAVecGetArray(fda, mesh->lCsi, &csi);
     DMDAVecGetArray(fda, mesh->lEta, &eta);
@@ -1694,16 +1692,32 @@ PetscErrorCode UpdatekT(les_ *les)
         PetscReal gradU[3][3], gradT[3];
 
         // compute velocity derivatives w.r.t the curvilinear coordinates
-        Compute_du_center
-        (
-            mesh,
-            i, j, k,
-            mx, my, mz,
-            ucat, nvert, meshTag,
-            &dudc, &dvdc, &dwdc,
-            &dude, &dvde, &dwde,
-            &dudz, &dvdz, &dwdz
-        );
+        if(ueqn->central4Div)
+        {
+            Compute_du_center4th
+            (
+                mesh,
+                i, j, k,
+                mx, my, mz,
+                ucat, nvert, meshTag,
+                &dudc, &dvdc, &dwdc,
+                &dude, &dvde, &dwde,
+                &dudz, &dvdz, &dwdz
+            );
+        }
+        else
+        { 
+            Compute_du_center
+            (
+                mesh,
+                i, j, k,
+                mx, my, mz,
+                ucat, nvert, meshTag,
+                &dudc, &dvdc, &dwdc,
+                &dude, &dvde, &dwde,
+                &dudz, &dvdz, &dwdz
+            );
+        }
 
         // compute velocity derivative w.r.t. the cartesian coordinates
         Compute_du_dxyz
@@ -1801,14 +1815,14 @@ PetscErrorCode UpdatekT(les_ *les)
 
             lkt[k][j][i] = diff_e;
         }
-        else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD || les->model == BDS)
+        else if(les->model == DSM || les->model == DLASI || les->model == DLASD || les->model == DPASD)
         {
             PetscReal filter = pow( 1./aj[k][j][i], 1./3.);
             lkt[k][j][i] = csk[k][j][i] * pow(filter, 2.0) * Sabs;
         }
     }
 
-    DMDAVecRestoreArray(fda, eqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
 
     DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);

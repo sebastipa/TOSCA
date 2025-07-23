@@ -194,6 +194,10 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             }
         }
 
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "readField", "uBulk", &(ueqn->uBulk));
+        }
         // all fields read together later
     }
     else if (ueqn->initFieldType == "uniform")
@@ -204,30 +208,13 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
         readSubDictVector(filename.c_str(), "uniform", "value",         &(uRef));
         readSubDictInt   (filename.c_str(), "uniform", "perturbations", &(addPerturbations));
 
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "uniform", "uBulk", &(ueqn->uBulk));
+        }
+
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetUniformFieldU(ueqn, uRef, addPerturbations);
-    }
-    else if (ueqn->initFieldType == "HITFlow")
-    {
-        PetscInt nmodes;
-        PetscReal kMin;
-
-        readSubDictInt (filename.c_str(), "HITFlow", "nmodes",      &nmodes);
-        readSubDictDouble (filename.c_str(), "HITFlow", "kMin",         &kMin);
-        
-        PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
-        SetHITFieldU(ueqn, nmodes, kMin);
-    }
-    else if (ueqn->initFieldType == "ABCFlow")
-    {
-        PetscReal u0;
-        PetscInt k0;
-
-        readSubDictDouble (filename.c_str(), "ABCFlow", "u0",      &u0);
-        readSubDictInt (filename.c_str(), "ABCFlow", "k0",         &k0);
-        
-        PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
-        SetABCFlow(ueqn, u0, k0);
     }
     else if (ueqn->initFieldType == "ABLFlow")
     {
@@ -236,6 +223,11 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             char error[512];
             sprintf(error, "activate ABL flag before setting the ABLFlow initial field\n");
             fatalErrorInFunction("SetInitialFieldU", error);
+        }
+
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "ABLFlow", "uBulk", &(ueqn->uBulk));
         }
 
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
@@ -257,22 +249,38 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             fatalErrorInFunction("SetInitialFieldU", error);
         }
 
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "ABLFlowZilitinkevich", "uBulk", &(ueqn->uBulk));
+        }
+
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetABLInitialFlowUZilitinkevich(ueqn);
     }
     else if (ueqn->initFieldType == "TGVFlow")
     {
-         PetscReal u0, freq;
-        
-         readSubDictDouble (filename.c_str(), "TGVFlow", "u0", &u0);
-         readSubDictDouble (filename.c_str(), "TGVFlow", "freq",      &freq);
+        PetscReal u0, freq;
+    
+        readSubDictDouble (filename.c_str(), "TGVFlow", "u0", &u0);
+        readSubDictDouble (filename.c_str(), "TGVFlow", "freq",      &freq);
 
-         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
-         SetTaylorGreenFieldU(ueqn, u0, freq);
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "TGVFlow", "uBulk", &(ueqn->uBulk));
+        }
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
+        SetTaylorGreenFieldU(ueqn, u0, freq);
     }
     else if (ueqn->initFieldType == "spreadInflow")
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
+        
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "spreadInflow", "uBulk", &(ueqn->uBulk));
+        }
+
         SpreadInletFlowU(ueqn);
     }
     else
@@ -1200,442 +1208,7 @@ PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq)
 
     return(0);
 }
-//***************************************************************************************************************//
 
-PetscErrorCode SetHITFieldU(ueqn_ *ueqn,PetscInt  nmodes, PetscReal kMin)
-{
-    // Procedure for generating synthetic turbulence (homogenous isotropic turbulence) based on
-    // Saad et al 2016 "Scalable Tools for Generating Synthetic Isotropic Turbulence with Arbitrary Spectra"
-    // It can take as input power spectrum theoretical or measurement driven
-    // Current implementation uses a Von-Karman Pow Power Spectrum or tuned VKP for CBC defined in an inline function
-
-    mesh_         *mesh = ueqn->access->mesh;
-    constants_    *cst  = ueqn->access->constants;
-    DM             da   = mesh->da; 
-    DM             fda  = mesh->fda;
-    DMDALocalInfo  info = mesh->info;
-
-    PetscInt xs = info.xs, xe = info.xs + info.xm;
-    PetscInt ys = info.ys, ye = info.ys + info.ym;
-    PetscInt zs = info.zs, ze = info.zs + info.zm;
-    PetscInt mx = info.mx, my = info.my, mz = info.mz;
-
-    Cmpnts        ***ucont, ***ucat, ***cent, ***csi, ***eta, ***zet;
-    Cmpnts        ***icsi, ***jeta, ***kzet;
-    Cmpnts           uFaceI, uFaceJ, uFaceK;
-    
-    PetscReal ***aj;
-    PetscInt i, j, k;
-    PetscInt lxs, lxe, lys, lye, lzs, lze;
-
-    lxs = xs; lxe = xe; if (xs == 0)    lxs = xs + 1; if (xe == mx) lxe = xe - 1;
-    lys = ys; lye = ye; if (ys == 0)    lys = ys + 1; if (ye == my) lye = ye - 1;
-    lzs = zs; lze = ze; if (zs == 0)    lzs = zs + 1; if (ze == mz) lze = ze - 1;
-
-    PetscReal Lx = mesh->bounds.Lx;
-
-    PetscReal Ly = mesh->bounds.Ly;
-    
-    PetscReal Lz = mesh->bounds.Lz;
-
-    DMDAVecGetArray(fda, mesh->lCsi, &csi);
-    DMDAVecGetArray(fda, mesh->lEta, &eta);
-    DMDAVecGetArray(fda, mesh->lZet, &zet);
-    DMDAVecGetArray(da,  mesh->lAj, &aj);
-
-    PetscReal minDx = 1e20, minDy = 1e20, minDz = 1e20;
-
-    for (PetscInt k = lzs; k < lze; k++)
-    for (PetscInt j = lys; j < lye; j++)
-    for (PetscInt i = lxs; i < lxe; i++)
-    {
-        
-        const PetscReal V   = 1.0 / aj[k][j][i];
-
-        const PetscReal Ax  = nMag(zet[k][j][i]);
-        const PetscReal Ay  = nMag(csi[k][j][i]);
-        const PetscReal Az  = nMag(eta[k][j][i]);
-
-        const PetscReal dx = V / Ax;
-        const PetscReal dy = V / Ay;
-        const PetscReal dz = V / Az;
-
-        if (dx < minDx) minDx = dx;
-        if (dy < minDy) minDy = dy;
-        if (dz < minDz) minDz = dz;
-    }
-
-    //kmin(k0) minimum wavenumber
-    PetscReal k0 = 0.0;
-
-    if (kMin > 0.0)
-    {
-        // user overrides the minimun wave number
-        k0 = kMin;
-    }
-    else
-    {
-        // or use the domain-based formula
-        k0 = PetscMax( (2.0*PETSC_PI)/Lx,
-        PetscMax( (2.0*PETSC_PI)/Ly, (2.0*PETSC_PI)/Lz ) );
-    }
-
-    const PetscReal kMax_x = PETSC_PI / minDx;
-    const PetscReal kMax_y = PETSC_PI / minDy;
-    const PetscReal kMax_z = PETSC_PI / minDz;
-
-    PetscReal kMax = PetscMax(kMax_x, PetscMax(kMax_y, kMax_z));
-
-    PetscPrintf(PETSC_COMM_WORLD," kMax is: %.lf\n", kMax);
-
-    //PetscReal kMax = 178.0;
-   
-    PetscReal deltaK = 0.0;
-    
-    if (nmodes > 1)
-    {
-        deltaK = (kMax - k0) / (PetscReal)(nmodes-1);
-    }
-
-    std::vector<ModeData> modes(nmodes);
-
-    //Random engine #include <random> added in base.h
-    std::mt19937 gen(1234);
-    
-    std::uniform_real_distribution<PetscReal> distPhase(-M_PI, M_PI);
-
-    for (PetscInt m = 1; m <= nmodes; ++m)
-    {
-        //compute km (the scalar wave number)
-        PetscReal km = k0 + (m-1)*deltaK;
-
-        km = PetscMax(km, 0.0);
-
-        const PetscReal alpha  = 1.6;
-        const PetscReal urms   = 0.22807;
-
-        // computing amplitude cbc or vkp
-        PetscReal Ekm = cbcSpectrum(km, cst->nu, alpha, urms);
-
-        Ekm = PetscMax(Ekm, 0.0);
-        
-        PetscReal amp = std::sqrt(Ekm * deltaK);
-
-        // random kappaHat: see inline func
-
-        const Cmpnts khatm = randomUnitVector(gen);
-
-        //ktilde
-        Cmpnts temp;
-        temp.x = 0.5 * km * (khatm.x * minDx);
-        temp.y = 0.5 * km * (khatm.y * minDy);
-        temp.z = 0.5 * km * (khatm.z * minDz);
-
-        Cmpnts ktilde;
-        ktilde.x = (2.0 / minDx) * PetscSinReal(temp.x);
-        ktilde.y = (2.0 / minDy) * PetscSinReal(temp.y);
-        ktilde.z = (2.0 / minDz) * PetscSinReal(temp.z);
-
-        //random zeta -> cross -> sigmahat
-        const Cmpnts zetahat = randomUnitVector(gen);
-
-        Cmpnts sigmahat = nCross(zetahat, ktilde);
-
-        //normalize by sigmahatMag
-        PetscReal sigmahatMag = nMag(sigmahat);
-
-        if (sigmahatMag < 1e-14)
-        { 
-            sigmahatMag = 1e-14;
-        }
-        mScale(1.0/sigmahatMag, sigmahat);
-        
-        PetscReal psim = 0.5 * distPhase(gen);
-        
-        modes[m-1].kappaM = km;
-        modes[m-1].khatx  = khatm.x;
-        modes[m-1].khaty  = khatm.y;
-        modes[m-1].khatz  = khatm.z;
-
-        modes[m-1].amp = amp;
-        modes[m-1].phi = psim;
-
-        modes[m-1].sx  = sigmahat.x;
-        modes[m-1].sy  = sigmahat.y;
-        modes[m-1].sz  = sigmahat.z;
-    }
-
-    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
-    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
-    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
-    DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
-    DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
-    DMDAVecGetArray(fda, mesh->lCent, &cent);
-
-    for (PetscInt k = lzs; k < lze; k++)
-    {
-        for (PetscInt j = lys; j < lye; j++)
-        {
-            for (PetscInt i = lxs; i < lxe; i++)
-            {
-                PetscReal x = cent[k][j][i].x;
-                PetscReal y = cent[k][j][i].y;
-                PetscReal z = cent[k][j][i].z;
-    
-                PetscReal ux = 0.0, uy = 0.0, uz = 0.0;
-    
-                for (PetscInt m = 0; m < nmodes; ++m)
-                {
-                    const auto& md = modes[m];
-    
-                    // dot = kappaM*(kappaHat dot [x,y,z])
-                    PetscReal dot = md.kappaM * (md.khatx*x + md.khaty*y + md.khatz*z);
-    
-                    // val = amp * cos(dot + phase)
-                    PetscReal val = md.amp * std::cos(dot + md.phi);
-    
-                    // final velocity addition: 2 * val * sigma
-                    ux += 2.0 * val * md.sx;
-                    uy += 2.0 * val * md.sy;
-                    uz += 2.0 * val * md.sz;
-                }
-    
-                ucat[k][j][i].x = ux;
-                ucat[k][j][i].y = uy;
-                ucat[k][j][i].z = uz;
-            }
-        }
-    }
-   
-    DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
-    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
-    DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
-    DMGlobalToLocalEnd(fda,   ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
-
-    UpdateCartesianBCs(ueqn);
-
-    DMDAVecGetArray(fda, mesh->lICsi, &icsi);
-    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
-    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
-    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
-    DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
-
-    // i-face
-    for (PetscInt k = lzs; k < lze; k++)
-    {
-        for (PetscInt j = lys; j < lye; j++)
-        {
-            for (PetscInt i = xs; i < lxe; i++)
-            {
-                Cmpnts uFaceI;
-                uFaceI.x = 0.5 * (ucat[k][j][i].x + ucat[k][j][i+1].x);
-                uFaceI.y = 0.5 * (ucat[k][j][i].y + ucat[k][j][i+1].y);
-                uFaceI.z = 0.5 * (ucat[k][j][i].z + ucat[k][j][i+1].z);
-
-                ucont[k][j][i].x =
-                    uFaceI.x * icsi[k][j][i].x +
-                    uFaceI.y * icsi[k][j][i].y +
-                    uFaceI.z * icsi[k][j][i].z;
-            }
-        }
-    }
-
-    // j-face
-    for (PetscInt k = lzs; k < lze; k++)
-    {
-        for (PetscInt j = ys; j < lye; j++)
-        {
-            for (PetscInt i = lxs; i < lxe; i++)
-            {
-                Cmpnts uFaceJ;
-                uFaceJ.x = 0.5 * (ucat[k][j][i].x + ucat[k][j+1][i].x);
-                uFaceJ.y = 0.5 * (ucat[k][j][i].y + ucat[k][j+1][i].y);
-                uFaceJ.z = 0.5 * (ucat[k][j][i].z + ucat[k][j+1][i].z);
-
-                ucont[k][j][i].y =
-                    uFaceJ.x * jeta[k][j][i].x +
-                    uFaceJ.y * jeta[k][j][i].y +
-                    uFaceJ.z * jeta[k][j][i].z;
-            }
-        }
-    }
-
-    // k-face
-    for (PetscInt k = zs; k < lze; k++)
-    {
-        for (PetscInt j = lys; j < lye; j++)
-        {
-            for (PetscInt i = lxs; i < lxe; i++)
-            {
-                Cmpnts uFaceK;
-                uFaceK.x = 0.5 * (ucat[k][j][i].x + ucat[k+1][j][i].x);
-                uFaceK.y = 0.5 * (ucat[k][j][i].y + ucat[k+1][j][i].y);
-                uFaceK.z = 0.5 * (ucat[k][j][i].z + ucat[k+1][j][i].z);
-
-                ucont[k][j][i].z =
-                    uFaceK.x * kzet[k][j][i].x +
-                    uFaceK.y * kzet[k][j][i].y +
-                    uFaceK.z * kzet[k][j][i].z;
-            }
-        }
-    }
-
-    PetscPrintf(PETSC_COMM_WORLD,"Done Generating Turbulence\n");
-
-    DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
-    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
-    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
-    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
-    DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
-
-    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-    DMGlobalToLocalEnd(fda,   ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-
-    UpdateContravariantBCs(ueqn);
-
-    return(0);
-}
-//***************************************************************************************************************//
-//ABC flow (also called the Arnold–Beltrami–Childress flow) is a well-known three-dimensional, steady, incompressible velocity field
-PetscErrorCode SetABCFlow(ueqn_ *ueqn, PetscReal &u0, PetscInt &k0)
-{
-    mesh_         *mesh = ueqn->access->mesh;
-    DM            da    = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info  = mesh->info;
-    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
-
-    Cmpnts        ***ucont, ***ucat, ***cent;
-    Cmpnts        ***icsi, ***jeta, ***kzet;
-    Cmpnts           uFaceI, uFaceJ, uFaceK;
-    
-    PetscInt i, j, k;
-    PetscInt lxs, lxe, lys, lye, lzs, lze;
-
-    lxs = xs; lxe = xe; if (xs == 0)    lxs = xs + 1; if (xe == mx) lxe = xe - 1;
-    lys = ys; lye = ye; if (ys == 0)    lys = ys + 1; if (ye == my) lye = ye - 1;
-    lzs = zs; lze = ze; if (zs == 0)    lzs = zs + 1; if (ze == mz) lze = ze - 1;
-
-    PetscReal Lx = mesh->bounds.Lx;
-    PetscReal Ly = mesh->bounds.Ly;
-    PetscReal Lz = mesh->bounds.Lz;
-
-    //get array
-    DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
-    DMDAVecGetArray(fda, mesh->lCent, &cent);    
-
-    // loop on the internal cells and set the reference cartesian velocity
-    for (k = lzs; k < lze; k++)
-    {
-        for (j = lys; j < lye; j++)
-        {
-            for (i = lxs; i < lxe; i++)
-            {
-                // Grab physical coordinates of the cell center
-                PetscReal x = cent[k][j][i].x;
-                PetscReal y = cent[k][j][i].y;
-                PetscReal z = cent[k][j][i].z;
-
-                //set the TGV
-                PetscReal Utgv =  u0 * (cos(k0*y) + sin(k0*z));
-                PetscReal Vtgv =  u0 * (sin(k0*x) + cos(k0*z));
-                PetscReal Wtgv =  u0 * (cos(k0*x) + sin(k0*y));;
-                
-                ucat[k][j][i].x = Utgv;
-                ucat[k][j][i].y = Vtgv;
-                ucat[k][j][i].z = Wtgv;
-            }
-        }
-    }
-
-    //restore array
-    DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
-    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
-
-    //scatter data to local values
-    DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
-    DMGlobalToLocalEnd(fda,   ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
-    
-    UpdateCartesianBCs(ueqn);
-    
-    DMDAVecGetArray(fda, mesh->lICsi, &icsi);
-    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
-    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
-    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
-    DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
-
-    // interpolate contravarient velocity at internal faces
-    for (k = lzs; k < lze; k++)
-    {
-        for (j = lys; j < lye; j++)
-        {
-            for (i = xs; i < lxe; i++)
-            {
-                //interpolate ucat at the i,j,k face
-                uFaceI.x = 0.5 * (ucat[k][j][i].x + ucat[k][j][i+1].x);
-                uFaceI.y = 0.5 * (ucat[k][j][i].y + ucat[k][j][i+1].y);
-                uFaceI.z = 0.5 * (ucat[k][j][i].z + ucat[k][j][i+1].z);
-
-                ucont[k][j][i].x =
-                    uFaceI.x * icsi[k][j][i].x +
-                    uFaceI.y * icsi[k][j][i].y +
-                    uFaceI.z * icsi[k][j][i].z;
-            }
-        }
-    }
-    // j-face
-    for (k = lzs; k < lze; k++)
-    {
-        for (j = ys; j < lye; j++)
-        {
-            for (i = lxs; i < lxe; i++)
-            {
-                uFaceJ.x = 0.5 * (ucat[k][j][i].x + ucat[k][j+1][i].x);
-                uFaceJ.y = 0.5 * (ucat[k][j][i].y + ucat[k][j+1][i].y);
-                uFaceJ.z = 0.5 * (ucat[k][j][i].z + ucat[k][j+1][i].z);
-
-                ucont[k][j][i].y =
-                    uFaceJ.x * jeta[k][j][i].x +
-                    uFaceJ.y * jeta[k][j][i].y +
-                    uFaceJ.z * jeta[k][j][i].z;
-            }
-        }
-    }
-    // k-face
-    for (k = zs; k < lze; k++)
-    {
-        for (j = lys; j < lye; j++)
-        {
-            for (i = lxs; i < lxe; i++)
-            {
-                uFaceK.x = 0.5 * (ucat[k][j][i].x + ucat[k+1][j][i].x);
-                uFaceK.y = 0.5 * (ucat[k][j][i].y + ucat[k+1][j][i].y);
-                uFaceK.z = 0.5 * (ucat[k][j][i].z + ucat[k+1][j][i].z);
-
-                ucont[k][j][i].z =
-                    uFaceK.x * kzet[k][j][i].x +
-                    uFaceK.y * kzet[k][j][i].y +
-                    uFaceK.z * kzet[k][j][i].z;
-            }
-        }
-    }
-
-    //Restore arrays
-    DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
-    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
-    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
-    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
-    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
-
-    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-    DMGlobalToLocalEnd(fda,   ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-
-    UpdateContravariantBCs(ueqn);
-
-    return(0);
-}
 //***************************************************************************************************************//
 PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
 {
