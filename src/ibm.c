@@ -4335,7 +4335,13 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 
         // background mesh projection point is taken 0.5 cell distance along the normal directional of the closest ibm mesh element
         elemDist = fabs(nDot(nSub(ibF[c].pMin, cent[k][j][i]), eNorm));
-        cellSize = 1.0 * elemDist;
+
+        PetscReal area, dx, dy, dz;
+        area = nMag(csi[k][j][i]); dy = 1.0/aj[k][j][i]/area;
+        area = nMag(eta[k][j][i]); dz = 1.0/aj[k][j][i]/area;
+        area = nMag(zet[k][j][i]); dx = 1.0/aj[k][j][i]/area;
+
+        cellSize = 1.0 * PetscMin(PetscMin(dx, dy), dz);
         bPt = nScale(cellSize, eNorm);
         mSum(bPt, cent[k][j][i]);
 
@@ -4356,7 +4362,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                     k1>=1 && k1<mz-1 &&
                     j1>=1 && j1<my-1 &&
                     i1>=1 && i1<mx-1
-                ) && (!isIBMSolidCell(k1, j1, i1, nvert))
+                ) && (isFluidCell(k1, j1, i1, nvert))
             )
             {
                 d = pow((bPt.x - cent[k1][j1][i1].x), 2) +
@@ -4414,7 +4420,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
             for (PetscInt jj = 0; jj<2; jj++)
             for (PetscInt ii = 0; ii<2; ii++)
             {
-                if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
+                if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
                 {
                     ibmCellCtr ++;
                 }
@@ -4446,7 +4452,7 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                                     k1>=1 && k1<mz-1 &&
                                     j1>=1 && j1<my-1 &&
                                     i1>=1 && i1<mx-1
-                                ) && (!isIBMSolidCell(k1, j1, i1, nvert))
+                                ) && (isFluidCell(k1, j1, i1, nvert))
                             )
                             {
                                 d = pow((bPt.x - cent[k1][j1][i1].x), 2) +
