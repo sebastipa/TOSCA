@@ -6,9 +6,9 @@
 #include "include/io.h"
 #include "include/inline.h"
 
-const PetscReal wall_cs = 0.001;
-const PetscReal std_cs  = 0.0289;
-const PetscReal amd_cs  =  0.1;
+const PetscReal wall_cs   = 0.001;
+const PetscReal std_cs    = 0.0289;
+const PetscReal amd_cs    = 0.1;
 const PetscReal vreman_cs = 0.07225;
 const PetscReal sa_cs     = 0.325; 
 //***************************************************************************************************************//
@@ -74,7 +74,7 @@ PetscErrorCode InitializeLES(les_ *les)
                 fatalErrorInFunction("InitializeLES",  error);
             }    
 
-            if(les->model == AMD)
+            if(les->model == AMD || les->model == BAMD)
             {
                 les->amdCs = amd_cs;
                 PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-amd_cs", &(les->amdCs), PETSC_NULL);
@@ -2290,7 +2290,6 @@ PetscErrorCode UpdateNut(les_ *les)
             PetscReal A_y = nMag(csi[k][j][i]);
             PetscReal A_z = nMag(eta[k][j][i]); 
                                                     
-
             // Compute delta_x, delta_y, delta_z
             PetscReal delta_x = V / A_x;
             PetscReal delta_y = V / A_y;

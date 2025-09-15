@@ -107,6 +107,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // initialize mesh
         InitializeMesh(domain[d].mesh);
 
+        // initialize i/o controls and initialization type
+        InitializeIO(domain[d].io);
+        
         // set wall models
         SetWallModels(domain[d].ueqn);
 
@@ -115,9 +118,6 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         
         // set inflow functions
         SetInflowFunctions(domain[d].mesh);
-
-        // initialize i/o controls and initialization type
-        InitializeIO(domain[d].io);
 
         // initialize ABL parameters
         InitializeABL(domain[d].abl);

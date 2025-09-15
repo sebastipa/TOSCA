@@ -187,14 +187,17 @@ PetscErrorCode SetDistributedArrays(mesh_ *mesh)
     DMSetUp(mesh->sda);
 
     // create da: distributed array data structure for generic tensors
-    DMDACreate3d(mesh->MESH_COMM, bx, by, bz,
+    DMDACreate3d
+    (   
+        mesh->MESH_COMM, bx, by, bz,
         DMDA_STENCIL_BOX,                                      // stencil type
         mesh->IM, mesh->JM, mesh->KM,                          // global number of grid points in x,y,z
         m, n, p,                                               // number of processes in x,y,z
         9,                                                     // 9 degrees of freedom per node (full tensor)
         s,                                                     // ghost stencil width
         PETSC_NULL, PETSC_NULL, PETSC_NULL,                    // optional: local grid spacing arrays lx, ly, lz
-        &(mesh->tda));                                         // pointer to the DMDA handle
+        &(mesh->tda)                                           // pointer to the DMDA handle
+    );                                                          
 
     // Set up the DMDA
     DMSetUp(mesh->tda);
