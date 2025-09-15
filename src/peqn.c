@@ -2429,8 +2429,8 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
     global_flux = global_influx - global_outflux;
 
     // Print global flux for debugging
-    PetscPrintf(PETSC_COMM_WORLD, "Post-correction global net flux: %e (influx to IBM: %e, outflux from IBM: %e)\n",
-                global_flux, global_influx, global_outflux);
+    // PetscPrintf(PETSC_COMM_WORLD, "Post-correction global net flux: %e (influx to IBM: %e, outflux from IBM: %e)\n",
+                // global_flux, global_influx, global_outflux);
 
     return(0);
 }

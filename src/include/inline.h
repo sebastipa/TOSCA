@@ -3150,7 +3150,7 @@ inline void Compute_du_center4th
         *dvdc = ( ucat[k][j][i+1].y - ucat[k][j][i-1].y ) * 0.5;
         *dwdc = ( ucat[k][j][i+1].z - ucat[k][j][i-1].z ) * 0.5;
     }
-    else if((i==mx-3 && !mesh->i_periodic &&  !mesh->ii_periodic) || (i==mx-2 && (mesh->i_periodic || mesh->ii_periodic)) || (isIBMFluidIFace(k, j, i, i-11, nvert) || isInterpolatedIFace(k, j, i, i-1, meshTag)))
+    else if((i==mx-3 && !mesh->i_periodic &&  !mesh->ii_periodic) || (i==mx-2 && (mesh->i_periodic || mesh->ii_periodic)) || (isIBMFluidIFace(k, j, i, i-1, nvert) || isInterpolatedIFace(k, j, i, i-1, meshTag)))
     {
         *dudc = ( ucat[k][j][i+1].x - ucat[k][j][i-1].x ) * 0.5;
         *dvdc = ( ucat[k][j][i+1].y - ucat[k][j][i-1].y ) * 0.5;
