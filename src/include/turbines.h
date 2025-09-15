@@ -27,6 +27,15 @@ typedef struct
     PetscInt            *foilIds;   //!< airfoil ids as provided in the dict, start from 0
 }bladeAeroInfo;
 
+//! \brief Ct table properties (used to store variable Ct curve)
+typedef struct
+{
+    PetscInt                size;   //!< number of points
+    PetscReal              *Uref;   //!< Uref
+    PetscReal                *Ct;   //!< Ct curve
+}ctTable;
+
+
 //! \brief Structure containing a coarser AD mesh located 2.5 D upstrem each turbine for velocity sampling
 typedef struct
 {
@@ -349,6 +358,10 @@ typedef struct
     PetscReal          tqMaxRate;   //!< maximum torque variation rate allowed for the generator torque controller
     PetscReal      ratedRotorSpd;   //!< rotor speed at rated wind speed
 
+    // Ct curve for UADM/AFM models
+    ctTable                ctTbl;   //!< table containing the variable Ct curve (if CtType is variable)
+    word                  ctType;   //!< constant vs variable Ct
+
     // rotor dynamics (if torque controller is active)
     PetscReal  driveTrainInertia;    //!< sum of all the inertias attached to the shaft
     PetscReal         genInertia;    //!< generator inertia
@@ -602,6 +615,9 @@ PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName);
 
 //! \brief Reads the blades aero properties used in the turbine (given in the bladeData subdict inside the file named as the wind turbine type)
 PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName, const PetscInt readThickness);
+
+//! \brief Reads the turbine Ct curve used in the turbine (given in the CtTable subdict inside the file named as the wind turbine type)
+PetscErrorCode readCtTable(windTurbine *wt, const char *dictName);
 
 //! \brief Reads the tower properties used in the turbine (given in the towerData subdict inside the file named as the wind turbine)
 PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName);
