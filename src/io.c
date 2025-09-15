@@ -2374,6 +2374,61 @@ PetscErrorCode writeFields(io_ *io)
             MPI_Barrier(mesh->MESH_COMM);
         }
 
+        if(flags->isAblActive)
+        {
+            if(io->access->abl->controllerType=="geostrophic")
+            {
+                if(!rank)
+                {
+                    fieldName = timeName + "/geostrophicAngleInfo";
+                    
+                    FILE *fp=fopen(fieldName.c_str(), "w");
+
+                    if(fp==NULL)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                        fatalErrorInFunction("writeFields",  error);
+                    }
+                    else
+                    {
+                        fprintf(fp, "geoAngle\t\t %.5lf\n", io->access->abl->geoAngle/M_PI*180);
+                        fclose(fp);
+                    }
+                }
+            }
+
+            if(io->access->abl->controllerType=="geostrophicProfileAssimilation")
+            {
+                DMDALocalInfo info = mesh->info;
+                PetscInt      my = info.my;
+                PetscInt      nLevels = my-2;
+
+                if(!rank)
+                {
+                    fieldName = timeName + "/avgStress";
+                    
+                    FILE *fp=fopen(fieldName.c_str(), "w");
+
+                    if(fp==NULL)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                        fatalErrorInFunction("writeFields",  error);
+                    }
+                    else
+                    {
+                        PetscInt width = -15;
+                        for (PetscInt l = 0; l < nLevels; l++) 
+                        {
+                            PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e  %*.5e  %*.5e\t", width, io->access->abl->avgStress[l].x,  width, io->access->abl->avgStress[l].y,  width, io->access->abl->avgStress[l].z);
+                        }
+                        fclose(fp);
+                    }
+                }
+            }
+
+        }
         // write continuity
         if(io->continuity)
         {
