@@ -76,9 +76,11 @@ struct abl_
 
     // read and average
     PetscInt     currentCloseIdx;                //!< save the current closest index at each iteration to speed up the interpolation search
+    PetscInt     currentCloseIdxT;    
     PetscReal    sourceAvgStartTime;             //!< if controllerType is 'average', average sources from this time value
     PetscReal    **preCompSources;               //!< table of given sources [ntimesteps][time|sourceX|sourceY|sourceZ] for velocity controller type = timeSeries/timeAverageSeries
     PetscReal    ***timeHtSources;               //!< table of given timeheight sources [time|sourceX|sourceY|sourceZ] at each cell level, controller type = timeHeightSeries
+    PetscReal    ***timeHtSourcesT;               //!< table of given timeheight sources [time|source|] at each cell level, controller type = timeHeightSeries
     PetscInt     nSourceTimes;                   //!< number of times in the pre-computed sources
     Cmpnts       cumulatedSource;                //!< cumulated error of the velocity controller (equalt to gradP at steady state)
     Cmpnts       *cumulatedSourceHt;              //!< cumulated error of the velocity controller for every mesh level
@@ -292,6 +294,8 @@ PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl);
 PetscErrorCode computeLSqPolynomialCoefficientMatrixT(abl_ *abl);
 
 PetscErrorCode findTimeHeightSeriesInterpolationWts(abl_ *abl);
+
+PetscErrorCode findTimeHeightSeriesInterpolationWtsT(abl_ *abl);
 
 PetscErrorCode findABLHeight(abl_ *abl);
 
