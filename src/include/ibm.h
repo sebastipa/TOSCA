@@ -133,7 +133,8 @@ typedef struct
     PetscInt      thinBody;
 
     word          elementSet;
-
+    PetscInt      addSideFaces;
+    
     ibmMesh       *ibMsh;
     surface       **ibmSurface;
 

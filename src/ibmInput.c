@@ -183,6 +183,12 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             // read name of the element set
             readSubDictWord("./IBM/IBMProperties.dat", objectName, "elementSet", &(ibmBody->elementSet));
         }
+
+        if(ibmBody->fileType == "grd")
+        {
+            // read name of the element set
+            readSubDictInt("./IBM/IBMProperties.dat", objectName, "addSideFaces", &(ibmBody->addSideFaces));
+        }
     }
 
     // read the ibm motion
@@ -1713,8 +1719,22 @@ PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
     delX = (xMax - xMin)/ (numX-1);
     delY = (yMax - yMin)/ (numY-1);
 
-    ibMesh->nodes = numX * numY;
-    ibMesh->elems = 2 * (numX-1) * (numY-1);
+    // Compute original nodes and elements (top face)
+    PetscInt orig_nodes = numX * numY;
+    PetscInt orig_elems = 2 * (numX-1) * (numY-1);
+
+    // Compute total nodes and elements conditionally if adding side faces (and bottom face)
+    PetscInt new_nodes = 0;
+    PetscInt new_elems = 0;
+
+    if (ibmBody->addSideFaces) 
+    {
+        new_nodes = numX * numY;
+        new_elems = 4 * (numX + numY - 2) + orig_elems;
+    }
+
+    ibMesh->nodes = orig_nodes + new_nodes;
+    ibMesh->elems = orig_elems + new_elems;
 
     // allocate memory for the x, y and z co-ordinates of the nodes
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nCoor));
@@ -1723,7 +1743,7 @@ PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nU));
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
-    // set the node co-rdinates from the file and initialize the node velocity to 0
+    // set the node coordinates from the file and initialize the node velocity to 0
     PetscInt n = 0;
     for(PetscInt j = 0; j < numY; j++)
     {
@@ -1743,6 +1763,27 @@ PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
             mSetValue(ibMesh->nUPrev[n], 0.0);
 
             n++;
+        }
+    }
+
+    if (ibmBody->addSideFaces) 
+    {
+        // Add full bottom nodes at z=0
+        PetscReal bottom_z = 0.0;  // Hardcoded to 0 as per requirement
+        PetscInt bottom_start = orig_nodes;
+
+        for(PetscInt j = 0; j < numY; j++)
+        {
+            for(PetscInt i = 0; i < numX; i++)
+            {
+                ibMesh->nCoor[n].x = xMin + i * delX;
+                ibMesh->nCoor[n].y = yMin + j * delY;
+                ibMesh->nCoor[n].z = bottom_z;
+                mSum(ibMesh->nCoor[n], ibmBody->baseLocation);
+                mSetValue(ibMesh->nU[n], 0.0);
+                mSetValue(ibMesh->nUPrev[n], 0.0);
+                n++;
+            }
         }
     }
 
@@ -1767,6 +1808,103 @@ PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
             ibMesh->nID3[n] = numX*(j+1) + i;
 
             n++;
+        }
+    }
+
+    if (ibmBody->addSideFaces) {
+        PetscInt bottom_start = orig_nodes;
+
+        // Add elements for front side (no reverse order)
+        for(PetscInt i = 0; i < numX - 1; i++)
+        {
+            PetscInt top_a = i;
+            PetscInt top_b = i + 1;
+            PetscInt bottom_a = bottom_start + i;
+            PetscInt bottom_b = bottom_start + i + 1;
+
+            ibMesh->nID1[n] = bottom_a;
+            ibMesh->nID2[n] = bottom_b;
+            ibMesh->nID3[n] = top_a;
+            n++;
+
+            ibMesh->nID1[n] = bottom_b;
+            ibMesh->nID2[n] = top_b;
+            ibMesh->nID3[n] = top_a;
+            n++;
+        }
+
+        // Add elements for back side (reverse order for outward normal)
+        for(PetscInt i = 0; i < numX - 1; i++)
+        {
+            PetscInt top_a = numX * (numY - 1) + i;
+            PetscInt top_b = numX * (numY - 1) + i + 1;
+            PetscInt bottom_a = bottom_start + numX * (numY - 1) + i;
+            PetscInt bottom_b = bottom_start + numX * (numY - 1) + i + 1;
+
+            ibMesh->nID1[n] = bottom_a;
+            ibMesh->nID2[n] = top_a;
+            ibMesh->nID3[n] = bottom_b;
+            n++;
+
+            ibMesh->nID1[n] = bottom_b;
+            ibMesh->nID2[n] = top_a;
+            ibMesh->nID3[n] = top_b;
+            n++;
+        }
+
+        // Add elements for left side (reverse order for outward normal)
+        for(PetscInt j = 0; j < numY - 1; j++)
+        {
+            PetscInt top_a = numX * j + 0;
+            PetscInt top_b = numX * (j + 1) + 0;
+            PetscInt bottom_a = bottom_start + numX * j + 0;
+            PetscInt bottom_b = bottom_start + numX * (j + 1) + 0;
+
+            ibMesh->nID1[n] = bottom_a;
+            ibMesh->nID2[n] = top_a;
+            ibMesh->nID3[n] = bottom_b;
+            n++;
+
+            ibMesh->nID1[n] = bottom_b;
+            ibMesh->nID2[n] = top_a;
+            ibMesh->nID3[n] = top_b;
+            n++;
+        }
+
+        // Add elements for right side (no reverse order)
+        for(PetscInt j = 0; j < numY - 1; j++)
+        {
+            PetscInt top_a = numX * j + (numX - 1);
+            PetscInt top_b = numX * (j + 1) + (numX - 1);
+            PetscInt bottom_a = bottom_start + numX * j + (numX - 1);
+            PetscInt bottom_b = bottom_start + numX * (j + 1) + (numX - 1);
+
+            ibMesh->nID1[n] = bottom_a;
+            ibMesh->nID2[n] = bottom_b;
+            ibMesh->nID3[n] = top_a;
+            n++;
+
+            ibMesh->nID1[n] = bottom_b;
+            ibMesh->nID2[n] = top_b;
+            ibMesh->nID3[n] = top_a;
+            n++;
+        }
+
+        // Add elements for bottom face (reverse order for outward normal pointing down)
+        for(PetscInt j = 0; j < numY - 1; j++)
+        {
+            for(PetscInt i = 0; i < numX - 1; i++)
+            {
+                ibMesh->nID1[n] = bottom_start + numX * j + i;
+                ibMesh->nID2[n] = bottom_start + numX * (j + 1) + i;
+                ibMesh->nID3[n] = bottom_start + numX * j + i + 1;
+                n++;
+
+                ibMesh->nID1[n] = bottom_start + numX * j + i + 1;
+                ibMesh->nID2[n] = bottom_start + numX * (j + 1) + i;
+                ibMesh->nID3[n] = bottom_start + numX * (j + 1) + i + 1;
+                n++;
+            }
         }
     }
 
