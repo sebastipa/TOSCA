@@ -174,7 +174,7 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
     PetscReal *ltMean, *gtMean, *tD, *tM;
     PetscReal *src;
 
-    if(abl->controllerAction == "write")
+    if(abl->controllerActionT == "write")
     {
         PetscMalloc(sizeof(PetscReal) * (nLevels), &(ltMean));
         PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMean));
@@ -444,7 +444,7 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             }
         }
     }
-    else if(abl->controllerAction == "read")
+    else if(abl->controllerActionT == "read")
     {
         if(abl->controllerTypeT == "timeHeightSeries")
         {
@@ -567,7 +567,7 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
         fatalErrorInFunction("correctSourceTermT", error);
     }
 
-    if(abl->controllerAction == "write")
+    if(abl->controllerActionT == "write")
     {
         // compute level-wise source
         std::vector<PetscReal> lsource(lye-lys);
@@ -697,7 +697,7 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
             }
         }
     }
-    else if(abl->controllerAction == "read")
+    else if(abl->controllerActionT == "read")
     {
         if(abl->controllerTypeT == "timeHeightSeries")
         {
@@ -717,14 +717,14 @@ PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
     DMDAVecRestoreArray(da, teqn->sourceT, &source);
     DMDAVecRestoreArray(da, teqn->lTmprt,  &t);
 
-    if(abl->controllerAction == "write")
+    if(abl->controllerActionT == "write")
     {
         PetscFree(tD);
         PetscFree(tM);
         PetscFree(ltMean);
         PetscFree(gtMean);
     }
-    else if(abl->controllerAction == "read")
+    else if(abl->controllerActionT == "read")
     {
         PetscFree(src);
     }

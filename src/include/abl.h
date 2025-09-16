@@ -38,6 +38,7 @@ struct abl_
     // velocity controller (common)
     word         controllerType;                 //!< velocity controller type: write/read (writes in postProcessing/momentumSource, reads from momentumSource)
     word         controllerAction;
+    word         controllerActionT;
     PetscReal    relax;                          //!< source term relaxation factor
     PetscReal    alpha;                          //!< proportional over integral controller action ratio
     PetscReal    timeWindow;                     //!< time window of the integral part
