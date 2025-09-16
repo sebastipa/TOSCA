@@ -1,0 +1,21 @@
+# TOSCA Input file - U boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    readField
+{
+  uBulk		 (17.55 0.0 0.0)
+}
+# boundary patches
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   noSlip
+
+jRight  noSlip               
+
+kLeft   periodic
+        
+kRight  periodic   
