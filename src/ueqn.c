@@ -782,29 +782,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 PetscPrintf(mesh->MESH_COMM, "                         Applying geostrophic damping...\n");
             }
 
-            if(mesh->access->io->runTimeWrite)
-            {
-                if(!rank)
-                {
-                    word location = "./fields/" + mesh->meshName + "/" + getTimeName(clock);
-                    word fileName = location + "/geostrophicAngleInfo";
-
-                    FILE *fp=fopen(fileName.c_str(), "w");
-
-                    if(fp==NULL)
-                    {
-                        char error[512];
-                        sprintf(error, "cannot open file %s\n", fileName.c_str());
-                        fatalErrorInFunction("ABLInitialize",  error);
-                    }
-                    else
-                    {
-                        fprintf(fp, "geoAngle\t\t %.5lf\n", abl->geoAngle/M_PI*180);
-                        fclose(fp);
-                    }
-                }
-            }
-
             /************ Wind angle controller  ***********/
 
             // compute previous geostrophic angle and delta angle w.r.t actual
@@ -1030,13 +1007,29 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             PetscReal ablgeoDelta = 0.2 * ablHeight;
             PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
 
+            PetscInt surfaceCell = 0;
+            for(l = 0; l < nlevels; l++)
+            {
+                if(abl->cellLevels[l] > 0)
+                {
+                    surfaceCell = l;
+                    break;
+                }
+            }
+
             for (int j = 0; j < nlevels; ++j)
             {
                 //apply drag term only if below the ABL height
                 scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
 
                 PetscReal dz;
-                if (j == 0)
+                if(j < surfaceCell)
+                {
+                    srcPA[j].x += 0;
+                    srcPA[j].y += 0;
+                    srcPA[j].z += 0;
+                }
+                else if(j == surfaceCell)
                 {
                     dz = abl->cellLevels[j+1] - abl->cellLevels[j];
                     srcPA[j].x += (1 - scaleFactor) * (abl->avgStress[j+1].x - abl->avgStress[j].x) / dz;
@@ -1738,6 +1731,19 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 idx_1 = idx_tmp;
             }
 
+            // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+            if(abl->timeHtSources[idx_2][0][0] < clock->time)
+            {
+                idx_1 = idx_2;
+                idx_2 = idx_1 + 1;
+            }
+
+            if(abl->timeHtSources[idx_1][0][0] > clock->time)
+            {
+                idx_2 = idx_1;
+                idx_1 = idx_2 - 1;
+            }
+            
             // find interpolation weights
             PetscReal idx = (idx_2 - idx_1) / (abl->timeHtSources[idx_2][0][0] - abl->timeHtSources[idx_1][0][0]) * (clock->time - abl->timeHtSources[idx_1][0][0]) + idx_1;
             PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
@@ -1769,23 +1775,35 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][1] + wth2 * abl->timeHtSources[idx_1][idxh2][1];
                     uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][1] + wth2 * abl->timeHtSources[idx_2][idxh2][1];
 
-                    src[j].x = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
+                    // src[j].x = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
+
+                    src[j].x = w1 * uT1 + w2 * uT2;
 
                     uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][2] + wth2 * abl->timeHtSources[idx_1][idxh2][2];
                     uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][2] + wth2 * abl->timeHtSources[idx_2][idxh2][2];
 
-                    src[j].y = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
-
+                    // src[j].y = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
+                    src[j].y = w1 * uT1 + w2 * uT2;
+                    
                     uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][3] + wth2 * abl->timeHtSources[idx_1][idxh2][3];
                     uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][3] + wth2 * abl->timeHtSources[idx_2][idxh2][3];
 
-                    src[j].z = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt; 
+                    // src[j].z = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt; 
+                    src[j].z = w1 * uT1 + w2 * uT2;
                 }
                 else 
                 {
-                    src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][1] / dtSource2) * clock->dt;
-                    src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][2] / dtSource2) * clock->dt;
-                    src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][3] / dtSource2) * clock->dt; 
+                    // src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][1] / dtSource2) * clock->dt;
+                    // src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][2] / dtSource2) * clock->dt;
+                    // src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][3] / dtSource2) * clock->dt; 
+
+                    src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] + w2 * abl->timeHtSources[idx_2][j][1] ) ;
+                    src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] + w2 * abl->timeHtSources[idx_2][j][2] ) ;
+                    src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] + w2 * abl->timeHtSources[idx_2][j][3] ) ; 
+
+                    // if(j%40 == 0)
+                    // PetscPrintf(mesh->MESH_COMM, "src at level %d, height %lf is %lf %lf dt = %lf %lf %lf, orig src = %lf %lf\n", j, abl->cellLevels[j], src[j].x, w1 * abl->timeHtSources[idx_1][j][1] + w2 * abl->timeHtSources[idx_2][j][1], dtSource1, dtSource2, clock->dt, abl->timeHtSources[idx_1][j][1], abl->timeHtSources[idx_2][j][1]);
+                    
                 } 
             }           
  
@@ -1870,8 +1888,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                         {
                             if(abl->averageSource)
                             {
-                                source[k][j][i].x = abl->avgsrc[j-1].x;
-                                source[k][j][i].y = abl->avgsrc[j-1].y;
+                                source[k][j][i].x = abl->avgsrc[j-1].x * clock->dt;
+                                source[k][j][i].y = abl->avgsrc[j-1].y * clock->dt;
                                 source[k][j][i].z = 0.0;  
 
                                 if((abl->cellLevels[j-1] > abl->bottomSrcHtV) && (abl->cellLevels[j-1] < abl->hV[abl->numhV - 1]))
@@ -1882,8 +1900,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                             }
                             else
                             {
-                                source[k][j][i].x = abl->srcPA[j-1].x;
-                                source[k][j][i].y = abl->srcPA[j-1].y;
+                                source[k][j][i].x = abl->srcPA[j-1].x * clock->dt;
+                                source[k][j][i].y = abl->srcPA[j-1].y * clock->dt;
                                 source[k][j][i].z = 0.0;
                                                                 
                                 if((abl->cellLevels[j-1] > abl->bottomSrcHtV) && (abl->cellLevels[j-1] < abl->hV[abl->numhV - 1]))
@@ -1898,14 +1916,14 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     {
                         if(abl->controllerType == "timeSeries" || abl->controllerType == "timeAverageSeries" || abl->controllerType == "timeSeriesFromPrecursor")
                         {
-                            source[k][j][i].x = s.x;
-                            source[k][j][i].y = s.y;
+                            source[k][j][i].x = s.x * clock->dt;
+                            source[k][j][i].y = s.y * clock->dt;
                             source[k][j][i].z = 0.0;
                         }
                         else if(abl->controllerType == "timeHeightSeries")
                         {
-                            source[k][j][i].x = src[j-1].x;
-                            source[k][j][i].y = src[j-1].y;
+                            source[k][j][i].x = src[j-1].x * clock->dt;
+                            source[k][j][i].y = src[j-1].y * clock->dt;
                             source[k][j][i].z = 0.0;
                         }
                     }
