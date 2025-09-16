@@ -1106,9 +1106,10 @@ PetscErrorCode InitializeABL(abl_ *abl)
             fatalErrorInFunction("ABLInitialize",  error);
         }
 
-        readDictWord     ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
+        readDictWord  ("ABLProperties.dat", "controllerActionT",   &(abl->controllerActionT));
+        readDictWord  ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
 
-        if(abl->controllerAction == "write")
+        if(abl->controllerActionT == "write")
         {
             PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
 
@@ -1172,7 +1173,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 PetscPrintf(PETSC_COMM_WORLD, "   wavelet profile assimilation using %s with wavelet filtering : %s and %ld levels of decomposition\n", abl->waveTMethod.c_str(), abl->waveName.c_str(), abl->waveLevel);
             }
         }
-        else if(abl->controllerAction == "read")
+        else if(abl->controllerActionT == "read")
         {
             if(abl->controllerTypeT=="timeHeightSeries")
             {
