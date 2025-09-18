@@ -33,14 +33,15 @@
 # Turbulence Model
 # ---------------------------------
 -les                       1
--lesModel                  dynamicLASI
+-lesModel                  bardinaAMD
 -max_cs                    10
-
+-amd_cs			   0.1
 # Numerical Schemes
 # ---------------------------------
 -dUdtScheme                rungeKutta4
 -dTdtScheme                backwardEuler
--divScheme                 centralUpwindW
+-divScheme                 central4
+-hyperVisc		   0.8
 # Wind Turbine
 # ---------------------------------
 -windplant                1

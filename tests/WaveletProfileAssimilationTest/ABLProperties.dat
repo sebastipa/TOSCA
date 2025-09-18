@@ -41,6 +41,9 @@ controllerActive 1
 # Activate temperature controller 
 controllerActiveT 1
 
+# temperature controller action - read or write
+controllerActionT write
+
 # Type of temperature controller 
 controllerTypeT   waveletProfileAssimilation
 
