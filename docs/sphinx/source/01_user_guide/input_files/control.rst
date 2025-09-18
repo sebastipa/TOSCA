@@ -91,8 +91,11 @@ Solution Flags
                           - *dynamicLASI*: dynamic Smagorinsky scale-invariant with lagrangian averaging
                           - *dynamicLASD*: dynamic Smagorinsky scale-dependent with lagrangian averaging
                           - *dynamicPASD*: dynamic Smagorinsky scale-dependent with planar averaging
+                          - *vreman*: eddy viscosity based vreman model
                           - *amd*: anisotropic minimum dissipation 
-
+                          - *bardinaAMD*: mixed model - combines structural Bardina model with eddy viscosity based amd model 
+                          - *bardinaVreman*: mixed model - combines structural Bardina model with Vreman model
+                          
                           TOSCA has been extensively and most used adopting the *dynamicLASI* model for ABL and wind plant 
                           simulations. Other models have been recently added to the code and might perform better in some 
                           cases (especially *dynamicLASD* and *amd*).
@@ -178,7 +181,8 @@ Solution Controls
                              non-oscillatory scheme, diffusive), ``centralUpwind`` (vanLeer blending of central and quadratic 
                              scheme, to balance diffusion and dispersion), ``centralUpwindW`` (weighted version, for 
                              graded/non-uniform meshes), ``central4`` (high-order central scheme, add diffusion through 
-                             ``-hyperVisc`` parameter, default value is 1 - no diffusion).)
+                             ``-hyperVisc`` parameter, default value is 1 - no diffusion, diffusion value of 0.75-0.8
+                             is recommended).)
    ------------------------- ----------------------------------------------------------------------------------------------------
    ``-relTolU``              Requires ``-dUdtScheme`` set to ``backwardEuler``, discarded otherwise. Allows to set the relative 
                              exit tolerance for the Newton method used to solve implicit discretized momentum equation, default 
@@ -221,8 +225,14 @@ Solution Controls
    ``-absTolT``              Requires ``-dTdtScheme`` set to ``backwardEuler``. Allows to set the absolute exit tolerance for 
                              the Newton method used to solve implicit discretized temperature equation, default value 1e-5.
    ------------------------- ----------------------------------------------------------------------------------------------------
-   ``-max_cs``               Maximum value for the LES model :math:`C_s` coefficient, default value is set to 0.5. Only used when
-                             ``-les`` is greater than 1. 
+   ``-max_cs``               Maximum value for the LES model :math:`C_s` coefficient, default value is set to 0.5. 
+   ------------------------- ----------------------------------------------------------------------------------------------------
+   ``-amd_cs``               Sets the amd model :math:`C_s` coefficient, default value is set to 0.1. However, this value needs
+                             to be adjusted based on the LES model and the numerical discretization scheme. For second order 
+                             ``-divScheme`` with *amd* model, recommended value is 0.3. For second order ``-divScheme`` with  
+                             *bardinaAMD* model the recommended value is 0.212. For fourth order ``-divScheme`` like *central4* 
+                             with *amd* model, recommended value is 0.212. For fourth order ``-divScheme`` like *central4* with  
+                             *bardinaAMD* model the recommended value is 0.14.                                                 
    ========================= ====================================================================================================
 
 Solution Constants 

@@ -118,6 +118,11 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                       ``controllerActiveT``, but for the concurrent
                                                       precursor simulation. Requires
                                                       ``controllerProperties`` dictionary.
+   ----------------------------------- -------------- --------------------------------------------------                                                   
+   ``controllerActivePrecursor``       bool           Velocity controller activation flag. Same as
+                                                      ``controllerActive``, but for the concurrent
+                                                      precursor simulation. Requires
+                                                      ``controllerProperties`` dictionary.
    ----------------------------------- -------------- --------------------------------------------------
    ``precursorControllerTypeMismatch`` bool           Requires ``xDampingLayer`` active in the 
                                                       ``control.dat`` file, and ``uBarSelectionType`` 
@@ -140,20 +145,35 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                       - *initial*
                                                       - *directProfileAssimilation*
                                                       - *indirectProfileAssimilation* 
+                                                      - *waveletProfileAssimilation*
+                                                      - *timeHeightSeries* 
 
+                                                      *initial*, *directProfileAssimilation*, 
+                                                      *indirectProfileAssimilation* and 
+                                                      *waveletProfileAssimilation* are of type 
+                                                      ``controllerActionT`` *write* while 
+                                                      *timeHeightSeries* is of type 
+                                                      ``controllerActionT`` *read*. 
                                                       Type *initial* tries to 
                                                       maintain the initial horizontally averaged 
                                                       potential temperature profile. Types 
-                                                      *directProfileAssimilation* and 
-                                                      *indirectProfileAssimilation* calculate source 
+                                                      *directProfileAssimilation*,  
+                                                      *indirectProfileAssimilation* and
+                                                      *waveletProfileAssimilation* calculate source 
                                                       terms to follow a provided time-series of 
                                                       potential temperature profile. They require 
                                                       additional entries in the ``controllerProperties``
                                                       subdictionary, i.e. ``relaxPI``, 
                                                       ``lowestSrcHeight``, ``highestSrcHeight``.  
-                                                      
                                                       Moreover, ``polynomialOrder`` is also required for 
-                                                      controller type *indirectProfileAssimilation*.
+                                                      controller type *indirectProfileAssimilation*.                                                      
+   ----------------------------------- -------------- --------------------------------------------------                                                   
+   ``controllerActionT``                string        can be set to *write* or *read*. The former 
+                                                      writes the temperature source terms to file.
+                                                      The latter reads these previously written source 
+                                                      terms and directly applies them with
+                                                      no feedback controlling action. This keyword has 
+                                                      to be set in combination with ``controllerTypeT``.                                                 
    ----------------------------------- -------------- --------------------------------------------------
    ``perturbations``                   bool           Adds divergence-free sinusoidal perturbations to
                                                       triger turbulence in the initial condition when
