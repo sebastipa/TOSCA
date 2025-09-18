@@ -39,6 +39,7 @@ smearT 0.5
 coriolisActive 1
 controllerActive 1
 controllerActiveT 0
+controllerActivePrecursor  1
 controllerActivePrecursorT 0
 precursorControllerTypeMismatch 0
 

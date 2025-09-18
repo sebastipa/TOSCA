@@ -5,7 +5,7 @@ windFarmName            Isolated
 
 arraySpecification      onebyone
 
-debug                   0
+debug                   1
 
 writeSettings
 {
