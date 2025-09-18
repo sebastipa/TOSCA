@@ -2376,6 +2376,32 @@ PetscErrorCode writeFields(io_ *io)
 
         if(flags->isAblActive)
         {
+            if(io->access->abl->controllerType=="pressure")
+            {
+                if(io->access->abl->geostrophicDampingActive)
+                {
+                    if(!rank)
+                    {
+                        fieldName = timeName + "/geostrophicDampingInfo";
+                        
+                        FILE *fp=fopen(fieldName.c_str(), "w");
+
+                        if(fp==NULL)
+                        {
+                            char error[512];
+                            sprintf(error, "cannot open file %s\n", fieldName.c_str());
+                            fatalErrorInFunction("writeFields",  error);
+                        }
+                        else
+                        {
+                            fprintf(fp, "filteredS \t\t(%.6e %.6e %.6e)\n", io->access->abl->geoDampAvgS.x, io->access->abl->geoDampAvgS.y, 0.0);
+                            fprintf(fp, "filteredDT\t\t %.5lf\n", io->access->abl->geoDampAvgDT);
+                            fclose(fp);
+                        }
+                    }
+                }
+            }
+
             if(io->access->abl->controllerType=="geostrophic")
             {
                 if(!rank)

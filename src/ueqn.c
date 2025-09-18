@@ -547,30 +547,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 {
                     applyGeoDamping = 1;
                 }
-
-                if(mesh->access->io->runTimeWrite)
-                {
-                    if(!rank)
-                    {
-                        word location = "./fields/" + mesh->meshName + "/" + getTimeName(clock);
-                        word fileName = location + "/geostrophicDampingInfo";
-
-                        FILE *fp=fopen(fileName.c_str(), "w");
-
-                        if(fp==NULL)
-                        {
-                            char error[512];
-                            sprintf(error, "cannot open file %s\n", fileName.c_str());
-                            fatalErrorInFunction("ABLInitialize",  error);
-                        }
-                        else
-                        {
-                            fprintf(fp, "filteredS \t\t(%.6e %.6e %.6e)\n", abl->geoDampAvgS.x, abl->geoDampAvgS.y, 0.0);
-                            fprintf(fp, "filteredDT\t\t %.5lf\n", abl->geoDampAvgDT);
-                            fclose(fp);
-                        }
-                    }
-                }
             }
 
             // write the uniform source term
