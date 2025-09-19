@@ -10,7 +10,7 @@ automatically set the **master** as the default branch. If you want to use previ
 
 The documentation for the **master** branch, which is updated alongside the introduction of new features and/or code refactoring, is available at 
 `TOSCA Stable Development Documentation <https://sebastipa.github.io/TOSCA/index.html>`_. We save snapshots of the documentation for each release, which can 
-be found below. 
+be found below.     
 
 New working features since release (V1.1.0):  
  - Added integral damping for `geostrophic` ABL controller. 
