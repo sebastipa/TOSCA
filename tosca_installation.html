@@ -21,7 +21,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="User Guide" href="tosca_user_guide.html" />
-    <link rel="prev" title="Welcome to TOSCA’s documentation" href="index.html" /> 
+    <link rel="prev" title="Welcome the official documentation of TOSCA" href="index.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -87,15 +87,21 @@
              
   <section id="installation">
 <span id="installation-section"></span><h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
+<p>This is a step-by-step guide to install TOSCA on your system.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Please follow these instructions carefully. Usually, installing TOSCA is very easy if all the following steps are completed in the order in which they are described. If you downloaded the
+latest TOSCA updates after having already compiled the code, run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">clean</span></code> before compiling the code at step 14.</p>
+</div>
 <p>In order to be installed, TOSCA requires a working C/C++ compiler, PETSc (version 3.14.x, 3.15.x), Open MPI (version 4.0.x, 4.1.x), HDF5 and
 HYPRE (needed by PETSs in order to build some of the matrix solvers we use). TOSCA has been tested with the above version combinations,
-it could work with other combinations or versions but it has not been tested (especially older versions).
-We recommend the following versions of the above libraries:</p>
+it could work with other combinations or versions but it has not been tested (especially older versions). The present guide also shows how to get
+these dependencies in the easiest way. First, the following versions are recommended:</p>
 <ul class="simple">
 <li><p>gcc      : 9.2.0  (<a class="reference external" href="https://gcc.gnu.org/">https://gcc.gnu.org/</a>).</p></li>
-<li><p>PETSc    : 3.15.5 (<a class="reference external" href="https://ftp.mcs.anl.gov/pub/petsc/">https://ftp.mcs.anl.gov/pub/petsc/</a>).</p></li>
+<li><p>PETSc    : 3.15.5 (<a class="reference external" href="https://ftp.mcs.anl.gov/pub/petsc/">https://ftp.mcs.anl.gov/pub/petsc/</a> - soon compilation against the latest version will be made available).</p></li>
 <li><p>Open MPI : 4.1.2  (<a class="reference external" href="https://www.open-mpi.org/software/ompi/v4.1/">https://www.open-mpi.org/software/ompi/v4.1/</a>).</p></li>
-<li><p>HYPRE    : 2.20.0 (<a class="reference external" href="https://github.com/hypre-space/hypre/tree/master">https://github.com/hypre-space/hypre/tree/master</a>) (check version in /src/CMakeLists.txt).</p></li>
+<li><p>HYPRE    : 2.20.0 (<a class="reference external" href="https://github.com/hypre-space/hypre/tree/master">https://github.com/hypre-space/hypre/tree/master</a> - check version in /src/CMakeLists.txt).</p></li>
 <li><p>HDF5     : 1.12.1 (<a class="reference external" href="https://www.hdfgroup.org/downloads/hdf5/">https://www.hdfgroup.org/downloads/hdf5/</a>).</p></li>
 </ul>
 <p>Prior to install TOSCA, we suggest to create a folder named <code class="docutils literal notranslate"><span class="pre">software</span></code> inside <code class="docutils literal notranslate"><span class="pre">$HOME</span></code>, where the PETSc, TOSCA and potentially other libraries directories will be located.
@@ -106,8 +112,8 @@ In order to compile TOSCA on your system, please follow these steps:</p>
 <li><p>Download Open MPI: you can download the binaries or compile from source (the latter is recommended if using <code class="docutils literal notranslate"><span class="pre">environment-modules</span></code> e.g. on an HPC architecture).
 If you have only one version of Open MPI installed on your system in the <code class="docutils literal notranslate"><span class="pre">/usr</span></code> directory (installed using sudo for example), you can omit the
 <code class="docutils literal notranslate"><span class="pre">--with-mpi-dir='your--path--to--mpicc'</span></code> at point 6: Open MPI will be found by the library locator.</p></li>
-<li><p>Download HYPRE into <code class="docutils literal notranslate"><span class="pre">$HOME/software/</span></code>. This can be omitted if you use the <code class="docutils literal notranslate"><span class="pre">--download-hypre</span></code> option in the PETSc configure step (suggested).</p></li>
-<li><p>Download HDF5 into <code class="docutils literal notranslate"><span class="pre">$HOME/software/</span></code>. This can be omitted if you use the <code class="docutils literal notranslate"><span class="pre">--download-hdf5</span></code> option in the PETSc configure step (suggested).</p></li>
+<li><p>Download HYPRE into <code class="docutils literal notranslate"><span class="pre">$HOME/software/</span></code>. This can be omitted (suggested) if you use the <code class="docutils literal notranslate"><span class="pre">--download-hypre</span></code> option in the PETSc configure step.</p></li>
+<li><p>Download HDF5 into <code class="docutils literal notranslate"><span class="pre">$HOME/software/</span></code>. This can be omitted (suggested) if you use the <code class="docutils literal notranslate"><span class="pre">--download-hdf5</span></code> option in the PETSc configure step.</p></li>
 <li><p>Configure PETSc. We suggest the following configure options, which will automatically compile HYPRE and HDF5.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--with-fc<span class="o">=</span><span class="m">0</span><span class="w"> </span>--download-f2cblaslapack<span class="w"> </span>--download-hypre<span class="w"> </span>--download-hdf5<span class="w"> </span>--with-64-bit-indices<span class="o">=</span><span class="m">1</span><span class="w"> </span>--with-debugging<span class="o">=</span><span class="m">0</span>
 </pre></div>
@@ -208,18 +214,20 @@ and the post-processing with <code class="docutils literal notranslate"><span cl
 <section id="contribute-to-the-tosca-project">
 <span id="contribute-subsection"></span><h2>Contribute to the TOSCA Project<a class="headerlink" href="#contribute-to-the-tosca-project" title="Link to this heading"></a></h2>
 <p>The TOSCA repository is open-source, so anyone can download and use the code. If you want to contribute to the project by adding
-code to TOSCA repository you need to open a pull-request that has to be approved by our team. In order to do so, please use the following steps:</p>
+code to TOSCA repository you need to open a pull-request that has to be approved by our team. Note that TOSCA’s master branch
+is protected, so you cannot do modifications there. Modifications have to be done in a separate branch which is then merged
+into the master branch after approval. In order to do so, please use the following steps:</p>
 <ol class="arabic simple">
-<li><p>Clone the TOSCA package locally on your machine with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/sebastipa/TOSCA.git</span></code></p></li>
-<li><p>Create a new local branch with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">-b</span> <span class="pre">your-branch-name</span></code></p></li>
-<li><p>Make the desired changes to the TOSCA code, then check which files have been modified with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">status</span></code></p></li>
-<li><p>Add changes to the git stack with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">add</span> <span class="pre">modified-files</span></code></p></li>
-<li><p>Commit the changes using a short but exhaustive comment with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">commit</span> <span class="pre">-m</span> <span class="pre">&quot;your-commit-description&quot;</span></code></p></li>
-<li><p>Push your local branch online with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">push</span> <span class="pre">origin</span> <span class="pre">your-branch-name</span></code></p></li>
+<li><p>Clone the TOSCA package locally on your machine with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/sebastipa/TOSCA.git</span></code> (we suggest using SSH if you can, this will avoid to insert your username and password every time you push/pull changes).</p></li>
+<li><p>Create a new local branch with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">-b</span> <span class="pre">&lt;your-branch-name&gt;</span></code>.</p></li>
+<li><p>Make the desired changes to the TOSCA code, then check which files have been modified with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">status</span></code>.</p></li>
+<li><p>Add changes to the git stack with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">add</span> <span class="pre">&lt;list-of-modified-files&gt;</span></code>.</p></li>
+<li><p>Commit the changes using a short but exhaustive comment with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">commit</span> <span class="pre">-m</span> <span class="pre">&quot;your-commit-description&quot;</span></code>.</p></li>
+<li><p>Push your local branch online with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">push</span> <span class="pre">origin</span> <span class="pre">&lt;your-branch-name&gt;</span></code></p></li>
 <li><p>Go to github, select your branch, click on <em>Contribute</em> and open a pull-request describing the motivation of your changes, their effect on the code and the tests you performed.</p></li>
-<li><p>After approval of the pull-request by our team, commits will be added to the main TOSCA version</p></li>
-<li><p>To stay up-to-date, rebase your local master with the your new commits by first checking out in your local master branch with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">master</span></code> and then rebase with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span> <span class="pre">--rebase</span> <span class="pre">origin</span> <span class="pre">master</span></code></p></li>
-<li><p>Delete your local branch as it is not useful anymore with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">branch</span> <span class="pre">--delete</span> <span class="pre">-d</span> <span class="pre">your-branch-name</span></code> and use the master until you want to make new changes</p></li>
+<li><p>After approval of the pull-request by our team, commits will be added to the main TOSCA version.</p></li>
+<li><p>To stay up-to-date after the modifications have been merged, rebase your local master with the your new commits by first checking out in your local master branch with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">master</span></code> and then rebase with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span> <span class="pre">--rebase</span> <span class="pre">origin</span> <span class="pre">master</span></code>.</p></li>
+<li><p>Delete your local branch as it is not useful anymore with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">branch</span> <span class="pre">--delete</span> <span class="pre">-d</span> <span class="pre">your-branch-name</span></code> and use the master until you want to make new changes.</p></li>
 </ol>
 </section>
 <section id="paraview-catalyst2-os-rendering">
@@ -331,7 +339,7 @@ make<span class="w"> </span>install
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to TOSCA’s documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome the official documentation of TOSCA" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="tosca_user_guide.html" class="btn btn-neutral float-right" title="User Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
