@@ -1,0 +1,73 @@
+.. TOSCA documentation master file, created by
+   sphinx-quickstart on Thu Dec 19 15:52:18 2024.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome the official documentation of TOSCA
+===========================================
+
+.. raw:: html
+
+    <video width="100%" autoplay loop muted playsinline>
+        <source src="_static/videos/moving-camera-windfarm.webm" type="video/webm">
+        Your browser does not support the video tag.
+    </video> 
+
+.. raw:: html
+
+    <br><br>
+
+TOSCA is an incompressible finite-volume large-eddy simulation code formulated in curvilinear coordinates 
+with Boussinesq approximation to account for buoyancy. It features a moving immersed boundary method and several actuator 
+models to include bodies and wind turbines within the simulation domain. Moreover, a two-way coupled overset mesh  
+method has been introduced in the latest release, allowing to nest one or more refined regions within the main background domain. 
+
+TOSCA has been successfully used to simulate atmospheric boundary layer and wind farm flows, including terrain and wind farm 
+induced atmospheric gravity waves, cluster wakes, as well as 
+wind farm control problems. TOSCA is currently developed at the `Computational Fluid Dynamics Laboratory of the University of British Columbia, Okanagan Campus <https://cfdlab.ok.ubc.ca/wind-farm-blockage-and-wake-effects/>`_.
+
+We kindly ask you to *please* fill up our `user survey <https://docs.google.com/forms/d/e/1FAIpQLSfUGtlHbCPfSI4-CO4bC9D4YsjcHis3Tu7UPTJeYqiB7BgCXA/viewform?usp=header>`_ , 
+which allows us to keep track of new TOSCA users around the world.
+
+`This link <https://github.com/sebastipa/TOSCA>`_ brings you back to the official repository of TOSCA. The code is open-source and licensed under the BSD 2-Clause Simplified License.
+
+Reporting Bugs, Issues & Contributing
+=====================================
+
+For bugs, issues, questions and new features please open an issue on the GitHub repository `here <https://github.com/sebastipa/TOSCA/issues>`_.
+To contribute to the TOSCA code, please see :ref:`contribute_subsection`.
+
+Publications
+============
+
+The following is a list of publication where TOSCA has been used. For referencing the TOSCA code please use the first publication on the list. 
+
+- `TOSCA – an open-source, finite-volume, large-eddy simulation (LES) environment for wind farm flows <https://wes.copernicus.org/articles/9/297/2024/>`_
+- `The actuator farm model for large eddy simulation (LES) of wind-farm-induced atmospheric gravity waves and farm–farm interaction <https://wes.copernicus.org/articles/9/2301/2024/wes-9-2301-2024.html>`_
+- `The multi-scale coupled model: a new framework capturing wind farm–atmosphere interaction and global blockage effects <https://wes.copernicus.org/articles/9/1123/2024/wes-9-1123-2024.html>`_
+- `A large-eddy simulation (LES) model for wind-farm-induced atmospheric gravity wave effects inside conventionally neutral boundary layers <https://wes.copernicus.org/articles/9/1647/2024/>`_
+- `A shear stress parametrization for arbitrary wind farms in conventionally neutral boundary layers <https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/shear-stress-parametrization-for-arbitrary-wind-farms-in-conventionally-neutral-boundary-layers/C0A9582A21C2C9907685D8C63B0565A6>`_
+- `Recommendations on setup in simulating atmospheric gravity waves under conventionally neutral boundary layer conditions <https://iopscience.iop.org/article/10.1088/1742-6596/2767/9/092042>`_
+- `Active Cluster Wake Mixing <https://iopscience.iop.org/article/10.1088/1742-6596/2767/9/092052>`_
+
+Contributing Authors
+====================
+
+This user guide is being developed by Sebastiano Stipa. The TOSCA code is under active development by the following authors:
+
+- Sebastiano Stipa (von Karman Institute for Fluid Dynamics)
+- Arjun Ajay (University of British Columbia)
+- Jagdeep Singh (University of British Columbia)
+- Joshua Brinkerhoff (University of British Columbia)
+
+.. toctree::
+   :hidden:
+   :maxdepth: 1
+   :caption: Contents:
+   
+   tosca_installation.rst
+   tosca_user_guide.rst
+   tosca_examples.rst
+   tosca_applications.rst
+   tosca_theory_guide.rst
+   tosca_versions.rst

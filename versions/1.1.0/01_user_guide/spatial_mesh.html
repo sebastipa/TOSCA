@@ -1,0 +1,337 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spatial Mesh &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="2-Way Nesting (Overset Mesh)" href="overset.html" />
+    <link rel="prev" title="IBM" href="input_files/ibm.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="input_files.html">Input Files</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Spatial Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overset.html">2-Way Nesting (Overset Mesh)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="acquisition.html">Data Acquisition System</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html">Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../tosca_user_guide.html">User Guide</a></li>
+      <li class="breadcrumb-item active">Spatial Mesh</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/01_user_guide/spatial_mesh.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="spatial-mesh">
+<span id="spatial-mesh-section"></span><h1>Spatial Mesh<a class="headerlink" href="#spatial-mesh" title="Link to this heading"></a></h1>
+<p>The spatial mesh can be provided in two different formats. These can be selected with the <code class="docutils literal notranslate"><span class="pre">-meshFileType</span></code> keyword in the <cite>control.dat</cite> file, which can be set to <code class="docutils literal notranslate"><span class="pre">cartesian</span></code> or <code class="docutils literal notranslate"><span class="pre">curvilinear</span></code> for <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> and <code class="docutils literal notranslate"><span class="pre">.grid</span></code> formats, respectively. While both formats describe a structured mesh (TOSCA can only operate with this type of mesh), the first one is additionally cartesian. Both types of mesh can be defined such that grid points are stretched in all spatial directions. The <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> mesh format is TOSCA’s custom Cartesian mesh format, and it is very convenient since the user only has to provide the discretization along each of the three cartesian axes. The <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> mesh file format can be generalized as</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Nx<span class="w"> </span>Ny<span class="w"> </span>Nz
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">2</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span>Ni<span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">2</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>which, for a cube extending 50 m in each direction, with 10 m cells along each direction (hence 6 points), is given by</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">6</span><span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="m">6</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">20</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">30</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">40</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">50</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">10</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">20</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">30</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">40</span>
+<span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">50</span>
+</pre></div>
+</div>
+<p>As can be noticed, the mesh file is extremely light, even for large meshes, as only the discretization along the three cartesian axes is provided. The coordinates of the remaining mesh cells are inferred iternally within TOSCA, starting from the axes discretization.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">.grid</span></code> format is a curvilinear mesh format (available for example in the meshing software <cite>Pointwise</cite>), where the cartesian coordinates of each mesh point are provided. This becomes useful when the mesh is deformed, and a unique relationship between the cartesian and curvilinear sets of coordinates does not exist anymore. This is a much heavier mesh format, which can be generalized as follows</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Nj<span class="w"> </span>Nk<span class="w"> </span>Ni
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+:
+x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...x<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+:
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....y<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+:
+y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...y<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+:
+:
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>....z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">2</span><span class="o">)</span><span class="w"> </span>....z<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">2</span><span class="o">)</span>
+:
+:
+z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span><span class="m">1</span><span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span><span class="w"> </span>...z<span class="o">(</span><span class="nv">k</span><span class="o">=</span>Nk<span class="w"> </span>,j<span class="o">=</span>Nj<span class="w"> </span>,i<span class="o">=</span>Ni<span class="o">)</span>
+</pre></div>
+</div>
+<p>Taking as an example the same box extending 50 m in each direction, with 10 m cells along each direction, this can be expressed using the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> format as</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">6</span><span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="m">6</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span><span class="w">  </span><span class="m">0</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">10</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">20</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">40</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+<span class="m">0</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="m">50</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Both in the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> and <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> format, the user has to provide the <em>mesh points</em> rather then the <em>cell centers</em> coordinates.</p>
+</div>
+<p>Notably, every cartesian mesh can be expressed using the curvilinear format, while the opposite is not true. TOSCA always operates using curvilinear coordinates internally, and since boundary conditions are given on curvilinear patches one has to bear in mind a few concepts, explained below, in order to assign BCs in the way he intends to. Firstly, one can think of curvilinear coordinates as the mesh cell indices in each of the three directions, expressed in TOSCA as <cite>k</cite>, <cite>j</cite> and <cite>i</cite>. With this in mind, it appears clear that each boundary can be identified by keeping one of the indices fixed while the others two vary. In fact, boundaries are identifyed in TOSCA using <cite>kLeft</cite>, <cite>kRight</cite>, <cite>jLeft</cite>, <cite>jRight</cite>, <cite>iLeft</cite> and <cite>iRight</cite>. When the mesh is cartesian (and the axes are aligned to the edges of the domain) boundaries can be also identifyed with the minimum and maximum of each cartesian coordinates. However, this is not general and it would not hold for a curvilinear mesh, or even a cartesian mesh with the domain edges not aligned with the cartesian coordinates. For this reason, boundaries are always identified using the curvilinear definition in TOSCA. To know how to assign boundary conditions, e.g. what boundary corresponds to the <cite>kLeft</cite> patch and so on, one has to keep in mind that the <cite>.grid</cite> file is read by TOSCA using a <cite>i,k,j</cite> nested loop order, namely</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="c1">// loop through the mesh cells</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">&lt;</span><span class="n">Ni</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">&lt;</span><span class="n">Nk</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">&lt;</span><span class="n">Nj</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="c1">// read point k,j,i in the .grid file</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Looking at the <code class="docutils literal notranslate"><span class="pre">.grid</span></code> file format, it is clear that there is no unique relation between <cite>k,j,i</cite> and <cite>x,y,z</cite>. However, when the mesh is cartesian, this relation depends on how the mesh file is created. It is easy to notice that, in the provided <code class="docutils literal notranslate"><span class="pre">.grid</span></code> example, <cite>k,j,i</cite> correspond to <cite>x,z,y</cite>. For the <code class="docutils literal notranslate"><span class="pre">.xyz</span></code> file format, where a unique relation exists, TOSCA constructs the mesh such that <cite>k,j,i</cite> correspond to <cite>x,z,y</cite> (this can be also appreciated in the provided example). In an ABL or wind farm simulation, where x is usually aligned with the wind direction, and y and z are the spanwise and vertical coordinates, respectively, the inlet will corrispond to <cite>kLeft</cite>, the outlet to <cite>kRight</cite>, the bottom and top to <cite>jLeft</cite> and <cite>jRight</cite>, respectively, while the spanwise boundaries will be <cite>iLeft</cite> and <cite>iRight</cite>. This relation will always apply as long as a cartesian mesh is used. The relations between curvilinear and cartesian coordinates depending on the mesh and domain type are summarized in the following table.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><strong>format</strong></p></td>
+<td><p><strong>cartesian domain</strong></p></td>
+<td><p><strong>curvilinear domain</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">.grid</span></code></p></td>
+<td><p>case-dependent</p></td>
+<td><p>unique relation impossible</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">.xyz</span></code></p></td>
+<td><p><cite>k,j,i</cite> -&gt; <cite>x,z,y</cite></p></td>
+<td><p>non-representable</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="input_files/ibm.html" class="btn btn-neutral float-left" title="IBM" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="overset.html" class="btn btn-neutral float-right" title="2-Way Nesting (Overset Mesh)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,184 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TOSCA Applications &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Atmospheric Boundary Layer" href="03_applications/abl.html" />
+    <link rel="prev" title="Rotating Cylinder Dynamic IBM Example" href="02_examples/07_rotating_cylinder_test.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">TOSCA Applications</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="03_applications/abl.html">Atmospheric Boundary Layer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_applications/ibm.html">Dynamic Immersed Boundary Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_applications/precursor.html">Precursor Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_applications/concurrent_precursor.html">Concurrent Precursor Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_applications/terrain.html">Terrain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_applications/assimilation.html">Observations/WRF Data Assimilation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_applications/turbulence.html">Turbulence</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">TOSCA Applications</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/tosca_applications.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="tosca-applications">
+<h1>TOSCA Applications<a class="headerlink" href="#tosca-applications" title="Link to this heading"></a></h1>
+<p>This section describes the main capabilities of the TOSCA package, highlighting steps to follow and considerations to make when
+setting up different types of simulations. The idea behind this section of the user guide is not that of explaining how to run
+a given case, but rather to show and explain how TOSCA can be leveraged to adopt best practices in the diverse engineering and
+scientific applications that can be studied with the code.</p>
+<p>The main focus of the TOSCA code has been, since the start of its development, atmospheric boundary layer flows and wind farm
+flows. The idea was to develop a tool that was able to tackle large-scale LES problems, such as atmospheric gravity waves (either
+triggered by terrain features or wind farms), global blockage effects of wind farms, as well as the evolution of wakes shed by
+large arrays of wind turbines. TOSCA is currently the only code that implements characteristic features of both spectral and
+finite volume codes. For example, the fringe region and concurrent precursor method are the only viable solution when one wants to
+accurately capture the wind farm interaction with the atmospheric gravity waves, as they ensure that these waves are not reflected at the
+domain boundaries. However, it does not exist a finite volume code that allows to run two simulations concurrently. Conversely,
+the parallel solution of a concurrent simulation is a well-known method, adopted in spectral codes, to nudge to an arbitrary inflow
+condition the flow reintroduced in the domain by periodic boundary conditions, which are implied in spectral methods. Luckily for
+those who possessed a spectral code, the concurrent precursor method resulted extremely efficient in damping gravity waves
+perturbations close to the boundary. As a result, prior to the introduction of TOSCA, the only LESs of wind farm induced gravity waves
+available in literature have been performed with spectral codes.</p>
+<p>On the other hand, spectral codes impose big limitation and poor flexibility. The mesh has to be cartesian and uniform
+in the majority of the methods, and it is very difficult to implement sharp-interface IBM methods due to the difficulty of
+reconstructing the boundary conditions. Conversely, this is easier in finite volume codes, which are more suited to simulate the
+flow over complex terrains both using IBM or terrain-following coordinates (if the ground is not too complex).</p>
+<p>Regarding the type of mesh, an unstructured mesh increases the flexibility of the code at the expense of its computational
+efficiency, as a connectivity matrix is required. This in turn requires more operations to perform cell access or to compute gradients.
+On the contrary, a structured mesh is much faster to solve and techniques such as grid nesting (overset) can be used to increase the
+resolution around specific regions of interest.</p>
+<p>TOSCA has been developed with all these considerations in mind. To make it a parallel-efficient code by construction, TOSCA is
+heavily based on PETSc, a state of the art library for the parallel solution of large numerical problems developed by the Argonne
+National Laboratory. The choiche was made to solve the Navier-Stokes equations in curvilinear coordinates, which offer some degree
+of flexibility (grid stretching and terrain-following meshes can be used) but still ensure simpler numerics with respect to an
+unstructured solver. Grid nesting has also been introduced after a major refactoring of the code in January 2022, which allows to
+introduce refined regions within the main background domain, and in the latest release the coupling has been made two-way. TOSCA features a dynamic
+sharp-interface immersed boundary method (IBM), meaning that any type of 3D object can be introduced and moved arbitrarily in the domain. The actual motion
+of the object is currently implemented through motion functions, but the introduction of additional types of motions, or even
+arbitrary motion time series, is straightforward as the IBM method is general by construction and does not assume any specific
+type of motion. TOSCA also features the state-of-the art turbine actuator models, such as
+actuator line, actuator disk (uniform and non-uniform), actuator farm, as well as simpler canopy models.
+Depending on the selected model, turbines can be controlled in pitch, angular frequency and nacelle yaw.</p>
+<p>We are currently introducing in TOSCA a handful of data assimilation techniques, which allow to nudge the atmospheric boundary layer
+variables, making them follow observational data or data from weather prediction codes such as the Weather Research and Forecasting (WRF)
+model. New turbulence models have been recently introduced, as well as integration with python in order
+to potentially conduct Machine Learning applications within the code.</p>
+<p>In the future, we plan on coupling TOSCA with the OpenFAST library, hence introducing blade flexibility, as well as introducing
+boundary coupling with WRF (this is already underway). There are ongoing efforts to port parts of the TOSCA code to GPUs and to also include multiphase
+capabilities to model ABL-wave interaction and floating wind turbines.</p>
+<p>Currently, TOSCA can be used to simulate atmopsheric boundary layers and wind farms over sea or complex terrain, including thermal
+stratification. The code can also be used to study urban environments and wind engineering problems (such as flow around ships,
+bridges and buildings). Furthermore, TOSCA can be (and it has been) used to simulate the flow around vertical axis wind turbines
+in a fully resolved manner, by leveraging the dynamic IBM method.</p>
+<p>Best practices and workflows on how to use the code are given for the following main applications. We highlight that this list is
+not complete and that the code could be used for additional problems that even the authors did not foresee.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="03_applications/abl.html">Atmospheric Boundary Layer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="03_applications/ibm.html">Dynamic Immersed Boundary Method</a></li>
+<li class="toctree-l1"><a class="reference internal" href="03_applications/precursor.html">Precursor Method</a></li>
+<li class="toctree-l1"><a class="reference internal" href="03_applications/concurrent_precursor.html">Concurrent Precursor Method</a></li>
+<li class="toctree-l1"><a class="reference internal" href="03_applications/terrain.html">Terrain</a></li>
+<li class="toctree-l1"><a class="reference internal" href="03_applications/assimilation.html">Observations/WRF Data Assimilation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="03_applications/turbulence.html">Turbulence</a></li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="02_examples/07_rotating_cylinder_test.html" class="btn btn-neutral float-left" title="Rotating Cylinder Dynamic IBM Example" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="03_applications/abl.html" class="btn btn-neutral float-right" title="Atmospheric Boundary Layer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

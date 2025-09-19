@@ -1,0 +1,759 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>boundary &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="ABLProperties.dat" href="ablProperties.html" />
+    <link rel="prev" title="control.dat" href="control.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../tosca_user_guide.html">User Guide</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../input_files.html">Input Files</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="control.html"><cite>control.dat</cite></a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#"><cite>boundary</cite></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#boundary-conditions">Boundary Conditions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#wall-functions">Wall Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#inlet-functions">Inlet Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#initial-condition">Initial Condition</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="ablProperties.html"><cite>ABLProperties.dat</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="turbines.html"><cite>turbines</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ibm.html"><cite>IBM</cite></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../spatial_mesh.html">Spatial Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../overset.html">2-Way Nesting (Overset Mesh)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../acquisition.html">Data Acquisition System</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../execution.html">Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../tosca_user_guide.html">User Guide</a></li>
+          <li class="breadcrumb-item"><a href="../input_files.html">Input Files</a></li>
+      <li class="breadcrumb-item active"><cite>boundary</cite></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/01_user_guide/input_files/boundary.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="boundary">
+<span id="boundary-subsection"></span><h1><cite>boundary</cite><a class="headerlink" href="#boundary" title="Link to this heading"></a></h1>
+<p>This section describes the input file definition used to prescribe boundary conditions in TOSCA. TOSCA expects a file for each solved field,
+where boundary and initial conditions are specified. Pressure boundary conditions are not required, as they are always of the Neumann type except when
+periodicity is present. Therefore, boundary conditions are expected for <em>U</em> (velocity) and <em>nut</em> (turbulent viscosity) fields, as well as for <em>T</em> (potential temperature),
+when this is activated in the <em>control.dat</em> file.
+Specifically, TOSCA expects to find <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code> (if applicable) files, inside a directory named <code class="docutils literal notranslate"><span class="pre">boundary</span></code>. Within each file, boundary conditions
+have to be specified for each side of the domain. These are identified as <code class="docutils literal notranslate"><span class="pre">kLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">kRight</span></code>, <code class="docutils literal notranslate"><span class="pre">jLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">jRight</span></code>, <code class="docutils literal notranslate"><span class="pre">iLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">iRight</span></code>. In addition,
+the keyword <code class="docutils literal notranslate"><span class="pre">internalField</span></code> has to be specified, which sets the type of initial condition for each of these fields. An example of a <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code> file is given below:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># TOSCA Input file - U boundary conditions</span>
+<span class="cp"># ----------------------------------------</span>
+
+<span class="n">internalField</span><span class="w"> </span><span class="n">spreadInflow</span>
+
+<span class="n">iLeft</span><span class="w">   </span><span class="n">periodic</span>
+<span class="n">iRight</span><span class="w">  </span><span class="n">periodic</span>
+<span class="n">jLeft</span><span class="w">   </span><span class="n">noSlip</span>
+<span class="n">jRight</span><span class="w">  </span><span class="n">slip</span>
+<span class="n">kLeft</span><span class="w">   </span><span class="n">fixedValue</span><span class="w"> </span><span class="p">(</span><span class="mf">5.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span>
+<span class="n">kRight</span><span class="w">  </span><span class="n">zeroGradient</span>
+</pre></div>
+</div>
+<p>In addition to common boundary conditions, which are available at all boundaries, TOSCA also features some special boundary conditions, which are only
+available on specific boundaries. These are used for specific simulations, the user is suggested to consider such
+constraint when designing and setting up a TOSCA case.</p>
+<section id="boundary-conditions">
+<h2>Boundary Conditions<a class="headerlink" href="#boundary-conditions" title="Link to this heading"></a></h2>
+<p>The boundary conditions available in TOSCA are summarized in the following table. The table also specifies the fields for which a given boundary condition is available, together with their entry type and description.</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 20.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>BC type</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">fixedValue</span></code></p></td>
+<td><p>scalar or vector</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fixedGradient</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">T</span></code>. Entry is a scalar value that refers to the gradient
+normal to the patch.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zeroGradient</span></code></p></td>
+<td><p>none</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slip</span></code></p></td>
+<td><p>none</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">noSlip</span></code></p></td>
+<td><p>none</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">periodic</span></code></p></td>
+<td><p>none</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code>. Requires keywords
+<code class="docutils literal notranslate"><span class="pre">-iPeriodicType</span></code>, <code class="docutils literal notranslate"><span class="pre">-jPeriodicType</span></code>, <code class="docutils literal notranslate"><span class="pre">-kPeriodicType</span></code> at the top of
+the mesh file, depending on the patch to which it is applied. These should
+be placed in the header, before the number of points in each direction, and
+indicate the type of parallel connectivity between the periodic boundaries.
+For type 1, the domain is decomposed such that periodic cell-pairs lie
+within the same processor. Type 2 allows for a more general decomposition
+(suggested).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Available only for <code class="docutils literal notranslate"><span class="pre">U</span></code>. Applies wall models to velocity.
+Only available for <code class="docutils literal notranslate"><span class="pre">iLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">iRight</span></code>, <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> and
+<code class="docutils literal notranslate"><span class="pre">jRight</span></code> patches. Not really tested on i-patches. It is usually applied
+on the <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> patch in combination with an <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> on the
+<code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">thetaWallFunction</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Available only for <code class="docutils literal notranslate"><span class="pre">T</span></code>. Applies wall models to temperature.
+Only available for <code class="docutils literal notranslate"><span class="pre">iLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">iRight</span></code>, <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> and
+<code class="docutils literal notranslate"><span class="pre">jRight</span></code> patches. Not really tested on i-patches. It is usually applied
+on the <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> patch in combination with an <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> on the
+<code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">inletFunction</span></code></p></td>
+<td><p>dictionary</p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nut</span></code> and <code class="docutils literal notranslate"><span class="pre">T</span></code> only at the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The last three boundary conditions listed in the previous table are not available on all patches. On the one hand, the
+<code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code> and <code class="docutils literal notranslate"><span class="pre">thetaWallFunction</span></code>, used to prescribe wall models, are not available on <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundaries,
+plus at additional boundaries, depending on the wall model type, as detailed below. On the
+other hand, the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> type, used to prescribe special inlet boundary conditions for inlet velocity, temperature and turbulent
+viscosity, is only available on the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch. The user should keep this constraint in mind when setting up a TOSCA case.</p>
+</section>
+<section id="wall-functions">
+<h2>Wall Functions<a class="headerlink" href="#wall-functions" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">velocityWallFunction</span></code> applies the Shumann wall model, used for ABL flows, or the Cabot wall model, used for wall surfaces, to the velocoty field.
+In the Shumann model, the modeled wall shear stress is directly enforced in the stress term of the momentum equations, while a constant normal gradient condition
+is applied to the velocity. In order to avoid double counting at the wall when using this condition (the wall shear
+stress should be entirely and only modeled), the turbulent viscosity at the wall should be set to zero in the
+<code class="docutils literal notranslate"><span class="pre">boundary/nut</span></code> file. Entries for velocity wall functions are summarized in the folllwing table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 20.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>WF type</strong></p></td>
+<td><p><strong>name</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>-1</p></td>
+<td><p>Cabot wall model</p></td>
+<td><p>Available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">jRight</span></code>, <code class="docutils literal notranslate"><span class="pre">iLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">iRight</span></code> patches. Mostly
+tested for the first two.
+Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">velocityWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-1</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">    </span><span class="mf">0.003</span><span class="w">     </span><span class="c1">// equivalent roughness length</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>-3</p></td>
+<td><p>Shumann wall model</p></td>
+<td><p>Available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code>, <code class="docutils literal notranslate"><span class="pre">jRight</span></code>, <code class="docutils literal notranslate"><span class="pre">iLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">iRight</span></code> patches. Mostly
+tested for the first two.
+Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">velocityWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-3</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">    </span><span class="mf">0.003</span><span class="w">     </span><span class="c1">// equivalent roughness length</span>
+<span class="w">   </span><span class="n">gammaM</span><span class="w">    </span><span class="mf">4.9</span><span class="w">       </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">kappa</span><span class="w">     </span><span class="mf">0.4</span><span class="w">       </span><span class="c1">// von Karman constant</span>
+<span class="w">   </span><span class="n">thetaRef</span><span class="w">  </span><span class="mf">300.0</span><span class="w">     </span><span class="c1">// reference potential</span>
+<span class="w">                       </span><span class="c1">// temperature in Kelvin</span>
+<span class="w">   </span><span class="n">uStarEval</span><span class="w"> </span><span class="n">averaged</span><span class="w">  </span><span class="c1">// for laterally homogeneous</span>
+<span class="w">                       </span><span class="c1">// flows (e.g. ABL), otherwise</span>
+<span class="w">                       </span><span class="c1">// set to &#39;localized&#39; (e.g.</span>
+<span class="w">                       </span><span class="c1">// wind farm flows)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The <code class="docutils literal notranslate"><span class="pre">thetaWallFunction</span></code> is used to select different formulations of the Shumann wall model for potential temperature.
+In particular, the modeled heat flux is directly enforced in the stress term of the potential temperature equations,
+while a zero normal gradient condition is applied to the temperature field. In order to avoid double counting at the wall when using this condition,
+the turbulent viscosity at the wall should be set to zero in the <code class="docutils literal notranslate"><span class="pre">boundary/nut</span></code> file.
+Entries for temperature wall functions are summarized in the folllwing table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 20.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>WF type</strong></p></td>
+<td><p><strong>name</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>-3</p></td>
+<td><p>Shumann wall model,
+standard.</p></td>
+<td><p>Only available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> and <code class="docutils literal notranslate"><span class="pre">jRight</span></code> patches.
+Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">thetaWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-3</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">    </span><span class="mf">0.003</span><span class="w">      </span><span class="c1">// equivalent roughness length</span>
+<span class="w">   </span><span class="n">gammaM</span><span class="w">    </span><span class="mf">4.9</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">gammaH</span><span class="w">    </span><span class="mf">7.8</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">alphaH</span><span class="w">    </span><span class="mf">1.0</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">kappa</span><span class="w">     </span><span class="mf">0.4</span><span class="w">        </span><span class="c1">// von Karman constant</span>
+<span class="w">   </span><span class="n">thetaRef</span><span class="w">  </span><span class="mf">300.0</span><span class="w">      </span><span class="c1">// reference potential</span>
+<span class="w">                        </span><span class="c1">// temperature in Kelvin</span>
+<span class="w">   </span><span class="n">uStarEval</span><span class="w"> </span><span class="n">averaged</span><span class="w">   </span><span class="c1">// for laterally homogeneous</span>
+<span class="w">                        </span><span class="c1">// flows (e.g. ABL), otherwise</span>
+<span class="w">                        </span><span class="c1">// set to &#39;localized&#39; (e.g.</span>
+<span class="w">                        </span><span class="c1">// wind farm flows)</span>
+<span class="w">   </span><span class="n">heatingRate</span><span class="w"> </span><span class="mf">-0.00014</span><span class="w"> </span><span class="c1">// K/s</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>-2</p></td>
+<td><p>Shumann wall model, with
+specified heat flux.</p></td>
+<td><p>Only available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> patch.
+Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">thetaWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-2</span>
+<span class="w">   </span><span class="n">qWall</span><span class="w">     </span><span class="mf">0.003</span><span class="w">     </span><span class="c1">// wall heat flux in J/m2</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p>-4</p></td>
+<td><p>Shumann wall model, with
+specified time history of
+surface temperature and Obhukhov
+length.</p></td>
+<td><p>Only available at <code class="docutils literal notranslate"><span class="pre">jLeft</span></code> patch.
+Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">thetaWallFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">-4</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">    </span><span class="mf">0.003</span><span class="w">      </span><span class="c1">// equivalent roughness length</span>
+<span class="w">   </span><span class="n">gammaM</span><span class="w">    </span><span class="mf">4.9</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">gammaH</span><span class="w">    </span><span class="mf">7.8</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">alphaH</span><span class="w">    </span><span class="mf">1.0</span><span class="w">        </span><span class="c1">// Shumann model constant</span>
+<span class="w">   </span><span class="n">kappa</span><span class="w">     </span><span class="mf">0.4</span><span class="w">        </span><span class="c1">// von Karman constant</span>
+<span class="w">                        </span><span class="c1">// temperature in Kelvin</span>
+<span class="w">   </span><span class="n">uStarEval</span><span class="w"> </span><span class="n">averaged</span><span class="w">   </span><span class="c1">// for laterally homogeneous</span>
+<span class="w">                        </span><span class="c1">// flows (e.g. ABL), otherwise</span>
+<span class="w">                        </span><span class="c1">// set to &#39;localized&#39; (e.g.</span>
+<span class="w">                        </span><span class="c1">// wind farm flows)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Look up tables of time (s), surface temperature (K), and Obhukhov length (m),
+stored in <code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/time</span></code>,
+<code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/surfTemp</span></code> and
+<code class="docutils literal notranslate"><span class="pre">inflowDatabase/mesoscaleData/L</span></code>, respectively. All vectors should have same
+size.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="inlet-functions">
+<span id="inlet-functions-subsubsection"></span><h2>Inlet Functions<a class="headerlink" href="#inlet-functions" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> boundary condition has several different types, each corresponding to a different inlet boundary
+condition. These are summarized in the following table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 20.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>IF type</strong></p></td>
+<td><p><strong>name</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>power law profile</p></td>
+<td><p>Power law velocity profile <span class="math notranslate nohighlight">\(\mathbf{U}=
+\mathbf{U}_\text{ref}\left(z/H_\text{ref}\right)
+^\alpha\)</span>, with <span class="math notranslate nohighlight">\(\alpha=0.107027\)</span>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">1</span>
+<span class="w">   </span><span class="n">Uref</span><span class="w">      </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">Href</span><span class="w">      </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">uPrimeRMS</span><span class="w"> </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>logarithmic profile</p></td>
+<td><p>Logarithmic velocity profile <span class="math notranslate nohighlight">\(\mathbf{U}=
+u*/0.4\ln(z/z_0)\mathbf{e}_U\)</span>.
+<span class="math notranslate nohighlight">\(\mathbf{U}\)</span> is constant above the
+inversion height <span class="math notranslate nohighlight">\(H\)</span> and equal to
+<span class="math notranslate nohighlight">\(\mathbf{U}(H)\)</span>.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">       </span><span class="mi">2</span>
+<span class="w">   </span><span class="n">directionU</span><span class="w"> </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">hInversion</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">frictionU</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">     </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>unsteady mapped inflow</p></td>
+<td><p>Maps 2D planes contained in <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code>
+directory at the inlet. Planes can be tiled
+laterally or vertically. Data can also be
+extrapolated in the vertical direction. The
+extrapolated value can be unsteady or steady. The
+latter is calculated by averaging the top data
+contained in the 2D planes and slowly merging with
+the unsteady data within the last 10 cells of the
+2D plane. Note: 2D planes and inlet mesh should be
+identical as data is only mapped.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">3</span>
+<span class="w">   </span><span class="n">n1Inflow</span><span class="w">  </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n2Inflow</span><span class="w">  </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n1Periods</span><span class="w"> </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n2Periods</span><span class="w"> </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n1Merge</span><span class="w">   </span><span class="kt">bool</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>unsteady interpolated inflow</p></td>
+<td><p>Same as type 3, but data is interpolated, hence
+the 2D plane mesh and inlet mesh can be different.
+Spanwise shift of the inflow data is also
+available by setting a lateral shift velocity.
+Note that this velocity is not added to the flow
+velocity, but rather data are shifted with this
+constant lateral velocity.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">       </span><span class="mi">4</span>
+<span class="w">   </span><span class="n">n1Inflow</span><span class="w">   </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n2Inflow</span><span class="w">   </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n1Periods</span><span class="w">  </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n2Periods</span><span class="w">  </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">n1Merge</span><span class="w">    </span><span class="kt">bool</span>
+<span class="w">   </span><span class="n">n2Shift</span><span class="w">    </span><span class="kt">bool</span>
+<span class="w">   </span><span class="n">shiftSpeed</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">sourceType</span><span class="w"> </span><span class="n">string</span>
+<span class="w">   </span><span class="n">cellWidth1</span><span class="w"> </span><span class="n">integer</span>
+<span class="w">   </span><span class="n">cellWidth2</span><span class="w"> </span><span class="n">integer</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Nieuwstadt (1983) model</p></td>
+<td><p>Applies the Nieuwstadt (1983) model. This is more
+sophisticated than the logarithmic profile, as it
+also contains wind veer. The wind profile is
+rotated such that the prescribed direction is
+imposed at the prescribed reference height.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">       </span><span class="mi">5</span>
+<span class="w">   </span><span class="n">directionU</span><span class="w"> </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">hInversion</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">hReference</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">frictionU</span><span class="w">  </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">kRough</span><span class="w">     </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">latitude</span><span class="w">   </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>sinusoidally varying i-th component</p></td>
+<td><p>Uniform inflow, where the spanwise component
+varies sinusoidally with given amplitude and
+frequency. Useful to test turbine yaw controllers.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">inletFunction</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">type</span><span class="w">      </span><span class="mi">6</span>
+<span class="w">   </span><span class="n">Uref</span><span class="w">      </span><span class="n">vector</span>
+<span class="w">   </span><span class="n">amplitude</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">periods</span><span class="w">   </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The different entries required in the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> dictionary for each function type are detailed below:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 20.0%" />
+<col style="width: 55.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>entry</strong></p></td>
+<td><p><strong>entry type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>type 1 - power law profile</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Uref</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>reference velocity in m/s</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Href</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>height where <span class="math notranslate nohighlight">\(\mathbf{U}= \mathbf{U}_\text{ref}\)</span> in m</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uPrimeRMS</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>isotropic fluctuation value in m/s</p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>type 2 - logarithmic profile</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">directionU</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>velocity direction (will be normalized)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hInversion</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>inversion height in m</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">frictionU</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>friction velocity in m/s</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRough</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness length in m</p></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>type 3 - unsteady mapped inflow</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Inflow</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 1 (j for kLeft patch)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Inflow</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 2 (i for kLeft patch)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Periods</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 1 for tiling (if target is larger data is extrapolated)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Periods</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 2 for tiling (if target is larger data is extrapolated)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Merge</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>average top cell values from 2D planes and merge within 10 top cells. Useful to make
+the geostrophic region steady, removing e.g. inertial oscillations.</p></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>type 4 - unsteady interpolated inflow</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Inflow</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 1 (j for kLeft patch)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Inflow</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of points in direction 2 (i for kLeft patch)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Periods</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of periods in direction 1 for tiling.
+If target is larger data is extrapolated.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Periods</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>number of periods in direction 2 for tiling.
+If target is larger data is extrapolated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">n1Merge</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>if set to 1 averages top-most cell from 2D planes and merges it with the unsteady
+data smoothly within the 10 top-most cells of the target mesh. It ensures that the
+extrapolated data is precisely steady.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">n2Shift</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>spanwise shift of inflow data</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">shiftSpeed</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>spanwise shift velocity in m/s</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sourceType</span></code></p></td>
+<td><p>string</p></td>
+<td><p><em>uniform</em> (requires next two entries) or <em>grading</em> (requires the mesh file used in
+the simulation that generated the 2D planes, renamed <code class="docutils literal notranslate"><span class="pre">inflowMesh.xyz</span></code> to be located
+inside the <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> directory)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cellWidth1</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>inflow mesh cell width in direction 1 if <code class="docutils literal notranslate"><span class="pre">sourceType</span></code> <em>uniform</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cellWidth2</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>inflow mesh cell width in direction 2 if <code class="docutils literal notranslate"><span class="pre">sourceType</span></code> <em>uniform</em></p></td>
+</tr>
+<tr class="row-even"><td colspan="3"><p><em>type 5 - Nieuwstadt (1983) model</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">directionU</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>velocity direction (will be normalized)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">hInversion</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>inversion height in m</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">hReference</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>reference height in m at which the wind has the provided direction</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">frictionU</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>friction velocity in m/s</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">hRough</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>equivalent roughness length in m</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">latitude</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>latitude in degrees</p></td>
+</tr>
+<tr class="row-odd"><td colspan="3"><p><em>type 6 - sinusoidally varying i-th component</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Uref</span></code></p></td>
+<td><p>vector</p></td>
+<td><p>reference velocity in m/s</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">amplitude</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>amplitude of the spanwise velocity oscillation in m/s</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">periods</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>number of periods contained in the domain length along the i curvilinear direction</p></td>
+</tr>
+</tbody>
+</table>
+<p>As an example, a logarithmic profile on the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> patch is prescribed as follows</p>
+<blockquote>
+<div><div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">kLeft</span><span class="w"> </span><span class="n">inletFunction</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="n">type</span><span class="w">        </span><span class="mi">2</span><span class="w">             </span><span class="c1">// type 2 is logarithmic profile</span>
+<span class="w">         </span><span class="n">directionU</span><span class="w">  </span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="c1">// velocity is along the x direction</span>
+<span class="w">         </span><span class="n">hInversion</span><span class="w">  </span><span class="mi">500</span><span class="w">           </span><span class="c1">// ABL height is 500 m</span>
+<span class="w">         </span><span class="n">frictionU</span><span class="w">   </span><span class="mf">0.5</span><span class="w">           </span><span class="c1">// friction velocity is 0.5 m/s</span>
+<span class="w">         </span><span class="n">kRough</span><span class="w">      </span><span class="mf">0.001</span><span class="w">         </span><span class="c1">// equivalent roughness lenght is 0.001 m</span>
+<span class="w">      </span><span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</section>
+<section id="initial-condition">
+<h2>Initial Condition<a class="headerlink" href="#initial-condition" title="Link to this heading"></a></h2>
+<p>The initial field is finally prescribed after the <code class="docutils literal notranslate"><span class="pre">internalField</span></code> keyword within each boundary condition file. Initial conditions
+available within TOSCA are summarized in the following table:</p>
+<table class="docutils align-center">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 75.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>initial condition type</strong></p></td>
+<td><p><strong>description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">uniform</span></code></p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nu</span></code>, <code class="docutils literal notranslate"><span class="pre">T</span></code>. The <em>value</em> entry can be vector or
+scalar.  If the <em>perturbations</em> entry is set to 1, sinusoidal perturbations
+are applied to trigger turbulence (only required for <code class="docutils literal notranslate"><span class="pre">U</span></code> field)</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">uniform</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">value</span><span class="w">          </span><span class="n">vector</span><span class="w"> </span><span class="n">or</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">perturbations</span><span class="w">  </span><span class="kt">bool</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">readField</span></code></p></td>
+<td><p>Available for <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">nu</span></code>, <code class="docutils literal notranslate"><span class="pre">T</span></code>. Reads field data from the <code class="docutils literal notranslate"><span class="pre">fields</span></code>
+directory. Used for simulation restart.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ABLFlow</span></code></p></td>
+<td><p>Sets initial log profile for <code class="docutils literal notranslate"><span class="pre">U</span></code>, while <code class="docutils literal notranslate"><span class="pre">T</span></code> is set according to the
+Rampanelli and Zardi (2003) model. Requires <code class="docutils literal notranslate"><span class="pre">-abl</span></code> set to 1 in the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file, as it picks input parameters from the
+<code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file. Perturbations to trigger turbulence can be
+added using the <em>perturbations</em> entry in the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">spreadInflow</span></code></p></td>
+<td><p>Copies the flow from the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> ghost cells at every <code class="docutils literal notranslate"><span class="pre">k</span></code>-plane. Useful
+for ensuring perfect consistency between the inlet boundary condition and
+the internal field when using <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code>. In practice, sets the
+internal field to whatever the <code class="docutils literal notranslate"><span class="pre">inletFunction</span></code> is.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">linear</span></code></p></td>
+<td><p>Only available for <code class="docutils literal notranslate"><span class="pre">T</span></code>. Sets an initial temperature profile characterized
+by a linear lapse rate <em>tLapse</em> along <code class="docutils literal notranslate"><span class="pre">j</span></code> and a ground temperature
+<em>tRef</em>. Used to prescribe an initially-linear potential temperature
+stratification.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">linear</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">tRef</span><span class="w">   </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">tLapse</span><span class="w"> </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="control.html" class="btn btn-neutral float-left" title="control.dat" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ablProperties.html" class="btn btn-neutral float-right" title="ABLProperties.dat" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

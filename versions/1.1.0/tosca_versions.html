@@ -1,0 +1,188 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Versions &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Turbine Models" href="04_theory_guide/turbine_models.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Versions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#development">Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#v1-1-0">V1.1.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#v1-0-0">V1.0.0</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Versions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/tosca_versions.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="versions">
+<h1>Versions<a class="headerlink" href="#versions" title="Link to this heading"></a></h1>
+<section id="development">
+<h2>Development<a class="headerlink" href="#development" title="Link to this heading"></a></h2>
+<p>The <strong>master</strong> branch is the latest stable development branch of TOSCA. New working features that are tested to a certain extent are merged into this branch.
+For ongoing development and testing, please refer to the respective branches based on the specific feature of interest. Cloning the TOSCA repository will
+automatically set the <strong>master</strong> as the default branch. If you want to use previous releases, please refer to the <a class="reference external" href="https://github.com/sebastipa/TOSCA/releases">respective tags</a>.</p>
+<p>The documentation for the <strong>master</strong> branch, which is updated alongside the introduction of new features and/or code refactoring, is available at
+<a class="reference external" href="https://sebastipa.github.io/TOSCA/index.html">TOSCA Stable Development Documentation</a>. We save snapshots of the documentation for each release, which can
+be found below.</p>
+<dl class="simple">
+<dt>New working features since release (V1.1.0):</dt><dd><ul class="simple">
+<li><p>Added integral damping for <cite>geostrophic</cite> ABL controller.</p></li>
+<li><p>Added geostrophic profile assimilation method for micro- to meso-scale coupling.</p></li>
+<li><p>Code refactoring: added lesScalar.c to handle eddy diffusivity SGS models.</p></li>
+<li><p>Added computation of 5 invariants of the Reynolds stress tensor.</p></li>
+<li><p>Generalized velocity wall models for non-cartesian grids.</p></li>
+<li><p>Added Arnold–Beltrami–Childress (ABC) flow and homogeneous isotropic turbulence (HIT) initial conditions.</p></li>
+<li><p>Added Bardina LES model.</p></li>
+<li><p>Added 4th-order gradient scheme.</p></li>
+<li><p>Removed IBM half-edge structure when using IBM bodies that are not fully closed.</p></li>
+<li><p>Added variable turbine Ct based on a Ct vs Uref lookup table. (only for AFM and Uniform ADM).</p></li>
+<li><p>Added additional fields as output when using geostrophic profile assimilation.</p></li>
+<li><p>Added possibility to read temperature sources when using <cite>timeHeightSeries</cite> in temperature controller.</p></li>
+<li><p>Updated concurrent-precusror method to include latest meso- to micro-scale coupling implementation.</p></li>
+<li><p>Changed NREL5MW test case to use variable Ct based on lookup table.</p></li>
+<li><p>Added additional test case ChannelFlowRe395Test (channel flow at Re = 395).</p></li>
+<li><p>Added control action <cite>read</cite> or <cite>write</cite> also for temperature controller.</p></li>
+<li><p>Updated and extended documentation to incorporate new changes &amp; features.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Bug fixes:
+- Fields are only written within the <cite>writeFields()</cite> function now in order to avoid problem with temporary file names while writing is in progress.</p>
+</section>
+<section id="v1-1-0">
+<h2>V1.1.0<a class="headerlink" href="#v1-1-0" title="Link to this heading"></a></h2>
+<p>This is release 1.1.0 of TOSCA. An image of the original documentation is
+available at <a class="reference external" href="https://sebastipa.github.io/TOSCA/versions/1.1.0/index.html">TOSCA v1.1.0 Documentation</a></p>
+<dl class="simple">
+<dt>New working features since release (V1.0.0):</dt><dd><ul class="simple">
+<li><p>Two-way coupled overset mesh method: this feature enables complete block-structed mesh refinement in TOSCA.</p></li>
+<li><p>Additional scale-dependent (<code class="docutils literal notranslate"><span class="pre">dynamicLASD</span></code>) and anisotropic minimum dissipation (<code class="docutils literal notranslate"><span class="pre">amd</span></code>) LES models.</p></li>
+<li><p>Additional high-order numerical scheme (<code class="docutils literal notranslate"><span class="pre">-central4</span></code> with <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter) to better capture the high-frequency tail of turbulence spectra.</p></li>
+<li><p>Improved immersed boundary method: faster algorithms and time-varying wall modeling.</p></li>
+<li><p>Lateral fringe region (<code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code>): allows for gravity wave problems with wind direction changes and assimilated atmospheric data.</p></li>
+<li><p>Data assimilation methods: direct/indirect profile assimilation techniques, as well as wavelet assimilation method (selectable through <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> and <code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code> flags in <em>ABLProperties.dat</em>).</p></li>
+<li><p>Additional example cases: <em>IndirectProfileAssimilationTest</em>, <em>WaveletAssimilationTest</em>, <em>MultiDomainOverset</em>, <em>PitchingAerofoilOversetTest</em>, <em>SuccessorOversetTest</em>, <em>SuccessorPeriodizedLateralFringeTest</em> and <em>TaylorGreenVortexTest</em>.</p></li>
+<li><p>Updated and extended documentation to incorporate new changes &amp; features.</p></li>
+</ul>
+</dd>
+<dt>Bug fixes:</dt><dd><ul class="simple">
+<li><p>Corrected bug in the fixedGradient BC for temperature.</p></li>
+<li><p>Corrected IBM shear stress-based wall model search algorithm.</p></li>
+<li><p>Corrected bug when writing fields using the <cite>-perturbABL</cite> flag.</p></li>
+<li><p>Corrected bug in IBM interpolation that was cousing oscillations in the pressure field.</p></li>
+<li><p>Corrected bug when creating the timelist for <cite>inletFunctions</cite> 3 and 4, now any possible duplicate time is removed.</p></li>
+</ul>
+</dd>
+<dt>Improvements:</dt><dd><ul class="simple">
+<li><p>Improved <cite>-purgeWrite</cite> so that more than one time step can be kept.</p></li>
+<li><p>Improved overset initialization algorithm using octree search method.</p></li>
+<li><p>Improved theory guide.</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+<section id="v1-0-0">
+<h2>V1.0.0<a class="headerlink" href="#v1-0-0" title="Link to this heading"></a></h2>
+<p>This is the first official release of TOSCA. An image of the original documentation is
+available at <a class="reference external" href="https://sebastipa.github.io/TOSCA/versions/1.0.0/index.html">TOSCA v1.0.0 Documentation</a></p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="04_theory_guide/turbine_models.html" class="btn btn-neutral float-left" title="Turbine Models" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

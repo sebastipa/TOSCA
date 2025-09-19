@@ -1,0 +1,240 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wind Farm Successor Example - Inlet/Outlet &mdash; TOSCA 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Wind Farm Successor Example - Concurrent Precursor" href="04_successor_periodized_fringe_test.html" />
+    <link rel="prev" title="NREL 5MW Example - Uniform Flow" href="02_nrel5mw_test.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tosca_examples.html">Example Cases</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_neutral_abl_test.html">Neutral ABL Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_nrel5mw_test.html">NREL 5MW Example - Uniform Flow</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Wind Farm Successor Example - Inlet/Outlet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_successor_periodized_fringe_test.html">Wind Farm Successor Example - Concurrent Precursor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="05_successor_overset_test.html">Wind Farm Successor Example - Overset Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="06_sphere_flow_test.html">Sphere Flow Static IBM Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="07_rotating_cylinder_test.html">Rotating Cylinder Dynamic IBM Example</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../tosca_examples.html">Example Cases</a></li>
+      <li class="breadcrumb-item active">Wind Farm Successor Example - Inlet/Outlet</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/03_examples/03_successor_periodized_test.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="wind-farm-successor-example-inlet-outlet">
+<span id="examples-successor-periodized-test"></span><h1>Wind Farm Successor Example - Inlet/Outlet<a class="headerlink" href="#wind-farm-successor-example-inlet-outlet" title="Link to this heading"></a></h1>
+<p>The <em>tests/SuccessorPeriodizedTest</em> example case shows how to use the <em>inflowDatabase</em> created in the <a class="reference internal" href="01_neutral_abl_test.html#examples-neutral-abl-test"><span class="std std-ref">Neutral ABL Example</span></a> as inlet boundary condition
+for a wind farm simulation. Unlike the <a class="reference internal" href="02_nrel5mw_test.html#examples-nrel5mw-test"><span class="std std-ref">NREL 5MW Example - Uniform Flow</span></a>, this test case features 4 wind turbines instead of an isolated rotor.
+Wind turbines are still represented using the ADM, and the simulation also includes the solution of the potential temperature field. Finally,
+a few probes are inserted in the domain in order to showcase their usage.</p>
+<p>The domain extends for 1000 m in the x, 2000 m in the y and 4675.48 m in the z direction. The mesh is stretched along z so that
+the vertical resolution transitions from 20 to 150 m. <strong>Please note that this set up is only intended to show how to define TOSCA cases and it does not
+apply for production runs or research simulations</strong>. The x and y coordinates of the 4 wind turbines are (200, 1000), (830, 1000), (500, 500) and (500, 1500),
+as defined in the <code class="docutils literal notranslate"><span class="pre">turbines/windFarmProperties</span></code> file. Notably, the third turbine is waking the last one.</p>
+<p>In order to specify the inflow boundary condition, data produced by running the <a class="reference internal" href="01_neutral_abl_test.html#examples-neutral-abl-test"><span class="std std-ref">Neutral ABL Example</span></a> should be used. We suggest the user
+to run that example case first if they are not already familiar with how to generate the inflow data. Alternatively, the dataset can be downloaded at <a class="reference external" href="https://drive.google.com/file/d/17F5wtI5Jc1XGh8crmOVJYVXabC8iQXq1/view?usp=sharing">this</a> link.
+The user should place the <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> directory (either downloaded or generated) in the same directory as the TOSCA case, thereby removing the
+<code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> file, which is just there as a place-holder. The mesh used to generate the inflow data is 1000 m in x, y and z, so the z-normal slices, which are
+read by TOSCA at each iteration in order to provide a suitable boundary condition, should be manipulated to match the domain of the current case.
+This is automatically done by TOSCA by correctly setting the parameters which define the inflow boundary condition in the <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code>, <code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> and <code class="docutils literal notranslate"><span class="pre">boundary/nut</span></code> files. In this example,
+the inflow data should be tiled twice in the y direction (as the domain is 2000 m in y) and extrapolated in the z direction. Please note that TOSCA also allows to tile
+the data in the vertical direction, but this operation would not make sense here as the inflow data contains a neutral ABL profile. For certain simulations, it may
+be worthwhile to make the inflow data exactly steady above the boundary layer in order to avoid numerical problems with atmospheric gravity waves triggered
+by the wind farm. In this regard, TOSCA allows to set the extrapolated data in the vertical direction as the time- and spanwise averaged value at the last available cell in z from the inflow slice.
+In order to avoid an abrupt change from transient and artificially steady inflow, the profile slowly transitions to a steady profile in the last 10 mesh cells. This means
+that the data will be transient at the <em>N-10</em> th cell, while at the <em>N</em> th cell the flow will be steady. The user cannot control the number of cells over which the smoothing
+is performed. A correct mapping of the available inflow data onto this case domain can be achieved by setting the following <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> boundary condition in the <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code>, <code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> and <code class="docutils literal notranslate"><span class="pre">boundary/nut</span></code> files:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">kLeft</span><span class="w">   </span><span class="n">inletFunction</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">type</span><span class="w">          </span><span class="mi">4</span><span class="w">        </span><span class="c1">// unsteady interpolated inflow</span>
+<span class="w">            </span><span class="n">n1Inflow</span><span class="w">      </span><span class="mi">50</span><span class="w">       </span><span class="c1">// n cells along z in the inflow data</span>
+<span class="w">            </span><span class="n">n2Inflow</span><span class="w">      </span><span class="mi">50</span><span class="w">       </span><span class="c1">// n cells along y in the inflow data</span>
+<span class="w">            </span><span class="n">n1Periods</span><span class="w">     </span><span class="mi">1</span><span class="w">        </span><span class="c1">// do not tile along z (will extrapolate)</span>
+<span class="w">            </span><span class="n">n2Periods</span><span class="w">     </span><span class="mi">2</span><span class="w">        </span><span class="c1">// tile twice along y</span>
+<span class="w">            </span><span class="n">interpolation</span><span class="w"> </span><span class="n">spline</span><span class="w">   </span><span class="c1">// spatial interpolation method</span>
+<span class="w">            </span><span class="n">sourceType</span><span class="w">    </span><span class="n">uniform</span><span class="w">  </span><span class="c1">// inflow data has uniform mesh</span>
+<span class="w">            </span><span class="n">cellWidth1</span><span class="w">    </span><span class="mi">20</span><span class="w">       </span><span class="c1">// inflow data cell width in z</span>
+<span class="w">            </span><span class="n">cellWidth2</span><span class="w">    </span><span class="mi">20</span><span class="w">       </span><span class="c1">// inflow data cell width in y</span>
+<span class="w">            </span><span class="n">n1Merge</span><span class="w">       </span><span class="mi">1</span><span class="w">        </span><span class="c1">// perform time smoothing at last 10 cells</span>
+<span class="w">            </span><span class="n">n2Shift</span><span class="w">       </span><span class="mi">0</span><span class="w">        </span><span class="c1">// no data shift in y</span>
+<span class="w">            </span><span class="n">shiftSpeed</span><span class="w">    </span><span class="mf">1.5</span>
+<span class="w">        </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Notably, in this case the inflow data and the target data have the same mesh of 20 by 20 m, so also the <code class="docutils literal notranslate"><span class="pre">inflowFunction</span></code> <em>type 3</em> could have been used (see Sec. <a class="reference internal" href="../01_user_guide/input_files/boundary.html#boundary-subsection"><span class="std std-ref">boundary</span></a>).
+The boundary condition displayed above can also be used if one wants to stretch the domain mesh in y and z directions, as long as the inflow mesh is uniform. If the inflow mesh is
+stretched along y and z, then the user should select <code class="docutils literal notranslate"><span class="pre">sourceType</span></code> to <em>grading</em>, and the <code class="docutils literal notranslate"><span class="pre">cellWidth1</span></code> and <code class="docutils literal notranslate"><span class="pre">cellWidth2</span></code> parameters would not be required
+anymore. Instead, TOSCA would read the inflow mesh from the <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> directory.</p>
+<p>Finally, since only the inflow data is available rather than the full 3D field, the user should set the <code class="docutils literal notranslate"><span class="pre">internalField</span></code> of all fields to <em>spreadInflow</em> and wait this
+dummy initial condition to be washed away after one flow-through time.</p>
+<p>Together with the inflow data, one must also provide the momentum source terms that balance the Coriolis force. These should have been previously calculated and are also
+contained in the <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> directory. In orer for TOSCA to read these data, the user should set the following parameters (among those prescribed in the example) in the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">coriolisActive</span><span class="w">            </span><span class="mi">1</span>
+<span class="n">controllerActive</span><span class="w">          </span><span class="mi">1</span>
+<span class="n">controllerActiveT</span><span class="w">         </span><span class="mi">0</span>
+
+<span class="n">controllerProperties</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">controllerAction</span><span class="w">       </span><span class="n">read</span>
+<span class="w">    </span><span class="n">controllerType</span><span class="w">         </span><span class="n">timeAverageSeries</span>
+
+<span class="w">    </span><span class="n">controllerAvgStartTime</span><span class="w"> </span><span class="mi">1000</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This will average the source data contained inside <code class="docutils literal notranslate"><span class="pre">inflowDatabase/momentumSource</span></code> from 10k to 12k s and apply it to the domain from the start time.
+Failure to do so with the <code class="docutils literal notranslate"><span class="pre">coriolisActive</span></code> parameter set to 1 wil determine a flow evolution as it enters the domain, which is due to the fact that the
+existing veer does not corrispond to the new geostrophic equilibirum condition anymore.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file should be set in order for the simulation to start at a time which is contained in the inflow data. If this is not the case,
+TOSCA will try to extrapolate the inflow data, likely resulting in very high values of the velocity field applied at the inlet.  The most important settings to notice for this example are:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">-</span><span class="n">startFrom</span><span class="w">      </span><span class="n">startTime</span>
+<span class="o">-</span><span class="n">startTime</span><span class="w">      </span><span class="mi">10000</span><span class="w">          </span><span class="c1">// inflow data is from 10k to 12k s</span>
+<span class="o">-</span><span class="n">endTime</span><span class="w">        </span><span class="mi">11000</span><span class="w">          </span><span class="c1">// should be contained in inflow data</span>
+
+<span class="o">-</span><span class="n">intervalType</span><span class="w">   </span><span class="n">adjustableTime</span><span class="w"> </span><span class="c1">// time step adjusted based on cfl and acq. frequency</span>
+<span class="o">-</span><span class="n">timeInterval</span><span class="w">   </span><span class="mi">100</span><span class="w">            </span><span class="c1">// checkpoint frequency</span>
+
+<span class="o">-</span><span class="n">potentialT</span><span class="w">     </span><span class="mi">1</span><span class="w">              </span><span class="c1">// solve potential temperature equation</span>
+<span class="o">-</span><span class="n">abl</span><span class="w">            </span><span class="mi">1</span><span class="w">              </span><span class="c1">// requires ABLProperties.dat file</span>
+<span class="o">-</span><span class="n">zDampingLayer</span><span class="w">  </span><span class="mi">1</span><span class="w">              </span><span class="c1">// defined in ABLProperties.dat file</span>
+
+<span class="o">-</span><span class="n">probes</span><span class="w">         </span><span class="mi">1</span><span class="w">              </span><span class="c1">// read probes from sampling/probes directory</span>
+</pre></div>
+</div>
+<p>Notably, different probe files are contained inside the <code class="docutils literal notranslate"><span class="pre">sampling/probes</span></code> directory. Each of these probe files is referred to as a probe rake. The position of all the probes
+within a rake identifies the number of processors that control the rake, so that probe data from many different rakes can be written to disk simulatenously if the controlling
+processors are different. The probes subdivision among processors cannot be controlled by the user, but it is automatically assigned by TOSCA. The best way to split the probes
+is to define only probes close to each other in the same file/rake, this will increase the chances that each processor does not control more than one rake. In this example, the
+probe rakes are composed by two probes, which are the same in some of them as they are just meant to be an example.</p>
+<p>Once the case is set up, the user can run the simulation by executing:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">4</span><span class="w"> </span>./tosca
+</pre></div>
+</div>
+<p>in order to run with four processors. At the simulation start, the code will print useful information regarding the input settings, inflow and probe data. The following image shows how
+the code prints the flow averages at the last 10 cells in the z direction, calculated from the inflow data, when <code class="docutils literal notranslate"><span class="pre">n1Merge</span></code> is set to 1 in the boundary condition. These are particularly useful when using
+inflow/outflow boundary conditions in combination with <code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code> or <code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code> functionalities, as these require the user
+to provide the average values of the fields that the source terms in these regions are trying to attain, which should be consistent with the boundary
+conditions.</p>
+<a class="reference internal image-reference" href="../_images/successor_periodized_test_inflow.png"><img alt="../_images/successor_periodized_test_inflow.png" src="../_images/successor_periodized_test_inflow.png" style="width: 100%;" />
+</a>
+<br><p>The following image shows the initialization of the wind turbines. In particular, TOSCA performs some checks, based on best practices, and informs the
+user if the parameters are not used as expected by the state-of-the-art in wind farm simulations. Furthermore, while TOSCA features a fully consistent wind turbine restart, this is
+not performed here as wind farm simulation is started from scratch. In this case, TOSCA sets the wind turbine configuration as that defined by the input files.</p>
+<a class="reference internal image-reference" href="../_images/successor_periodized_test_turbines.png"><img alt="../_images/successor_periodized_test_turbines.png" src="../_images/successor_periodized_test_turbines.png" style="width: 100%;" />
+</a>
+<br><p>The following image shows the ouput from the probe initialization. The code prints some useful information regarding each probe rake such as the
+processor that will perform the writing, the path to the output data, the fields gathered, acquisition start time and some additional
+info for each probe contained in the rake.</p>
+<a class="reference internal image-reference" href="../_images/successor_periodized_test_probes.png"><img alt="../_images/successor_periodized_test_probes.png" src="../_images/successor_periodized_test_probes.png" style="width: 100%;" />
+</a>
+<br><p>Once the simulation has completed, sections and 3D fields can be visualized in <em>ParaView</em> by converting the TOSCA outputs in <em>.hdf</em> and <em>.xmf</em> formats.
+This can be done by running</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./tosca2PV
+</pre></div>
+</div>
+<p>which will also slice the average fields, if present, as explained in Sec. <a class="reference internal" href="../01_user_guide/acquisition.html#acquisition-section"><span class="std std-ref">Data Acquisition System</span></a>.</p>
+<p>Finally, the following image shows the visualization of the
+velocity and potential temperature fields at the end of the simulation. The tiling and extrapolation procedure of the inflow data can be observed as
+coloured rectangles indicate the available inflow data (black), the data tiled in the y direction (magenta) and the data extrapolated in the z direction (blue).</p>
+<a class="reference internal image-reference" href="../_images/successor_periodized_test_field.png"><img alt="../_images/successor_periodized_test_field.png" src="../_images/successor_periodized_test_field.png" style="width: 100%;" />
+</a>
+<br></section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="02_nrel5mw_test.html" class="btn btn-neutral float-left" title="NREL 5MW Example - Uniform Flow" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="04_successor_periodized_fringe_test.html" class="btn btn-neutral float-right" title="Wind Farm Successor Example - Concurrent Precursor" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

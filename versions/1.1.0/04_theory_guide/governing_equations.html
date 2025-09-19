@@ -1,0 +1,143 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Governing Equations &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Numerical Method &amp; Curvilinear Coordinates" href="numerics.html" />
+    <link rel="prev" title="Theory Guide" href="../tosca_theory_guide.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Governing Equations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method &amp; Curvilinear Coordinates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../tosca_theory_guide.html">Theory Guide</a></li>
+      <li class="breadcrumb-item active">Governing Equations</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/04_theory_guide/governing_equations.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="governing-equations">
+<span id="gov-equations-section"></span><h1>Governing Equations<a class="headerlink" href="#governing-equations" title="Link to this heading"></a></h1>
+<p>Governing equations correspond to mass and momentum conservation for an incompressible flow with Coriolis forces and Boussinesq approximation for the buoyancy term. The latter is calculated using the modified density <span class="math notranslate nohighlight">\(\rho_k\)</span>, evaluated by solving a transport equation for the potential temperature. These equations, expressed in Cartesian coordinates using tensor notation read</p>
+<div class="math notranslate nohighlight" id="equation-eq-masscartesian">
+<span class="eqno">(1)<a class="headerlink" href="#equation-eq-masscartesian" title="Link to this equation"></a></span>\[\frac{\partial u_i}{\partial x_i} = 0\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-momentumcartesian">
+<span class="eqno">(2)<a class="headerlink" href="#equation-eq-momentumcartesian" title="Link to this equation"></a></span>\[\begin{split}\frac{\partial u_i}{\partial t} + \frac{\partial}{\partial x_j}\left(u_j u_i\right) &amp;=
+-\frac{1}{\rho_0}\frac{\partial p}{\partial x_i}
++ \frac{\partial}{\partial x_j}\left[\nu_\text{eff}\left(\frac{\partial u_i}{\partial x_j} + \frac{\partial u_j}{\partial x_i}\right)\right] \\
+&amp; - \frac{1}{\rho_0}\frac{\partial p_{\infty}}{\partial x_i}
++ \frac{\rho_k}{\rho_0}g_i - 2\epsilon_{ijk}\Omega_j u_k
++ f_i + s^v_i + s^h_i\end{split}\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-temperaturecartesian">
+<span class="eqno">(3)<a class="headerlink" href="#equation-eq-temperaturecartesian" title="Link to this equation"></a></span>\[\frac{\partial\theta}{\partial t} + \frac{\partial}{\partial x_j}\left(u_j\theta\right) =
+\frac{\partial}{\partial x_j}\left(k_\text{eff}\frac{\partial \theta}{\partial x_j}\right)\]</div>
+<p>where <span class="math notranslate nohighlight">\(u_i\)</span> is the Cartesian velocity, <span class="math notranslate nohighlight">\(p/\rho_0\)</span> is the kinematic pressure, <span class="math notranslate nohighlight">\(\theta\)</span> is the potential temperature, defined as <span class="math notranslate nohighlight">\(\theta = T(p_0/p)^{R/c_p}\)</span> (<cite>T</cite> is the absolute temperature, <span class="math notranslate nohighlight">\(R\)</span> is the gas specific constant, <span class="math notranslate nohighlight">\(c_p\)</span> is the specific heat at constant pressure and <span class="math notranslate nohighlight">\(p_0\)</span> is the reference pressure), <span class="math notranslate nohighlight">\(g_i\)</span> is the gravitational acceleration vector, <span class="math notranslate nohighlight">\(\Omega_j\)</span> is the rotation rate vector at an arbitrary location on the planetary surface (defined as <span class="math notranslate nohighlight">\(\omega\cos\phi\widehat{y}+\omega\sin\phi\widehat{z}\)</span>, where <span class="math notranslate nohighlight">\(\phi\)</span> is the latitude, in a local reference frame having <span class="math notranslate nohighlight">\(\widehat{z}\)</span> aligned and opposite to the gravitational acceleration vector, <span class="math notranslate nohighlight">\(\widehat{x}\)</span> tangent to Earth’s parallels and <span class="math notranslate nohighlight">\(\widehat{y}\)</span> such that the frame is right-handed). Source terms <span class="math notranslate nohighlight">\(f_i\)</span>, <span class="math notranslate nohighlight">\(s^v_i\)</span>, and <span class="math notranslate nohighlight">\(s^h_i\)</span> are body forces introduced by turbines, and by vertical and horizontal damping regions, respectively. Moreover, the modified density <span class="math notranslate nohighlight">\(\rho_k\)</span> is defined as</p>
+<div class="math notranslate nohighlight" id="equation-eq-modifieddensity">
+<span class="eqno">(4)<a class="headerlink" href="#equation-eq-modifieddensity" title="Link to this equation"></a></span>\[    \frac{\rho_k}{\rho_0} = 1 - \left(\frac{\theta-\theta_0}{\theta_0}\right)\]</div>
+<p>where <span class="math notranslate nohighlight">\(\theta_0\)</span> is a reference potential temperature, chosen as the ground temperature. Parameters <span class="math notranslate nohighlight">\(\nu_\text{eff}\)</span> and <span class="math notranslate nohighlight">\(\kappa_\text{eff}\)</span> are the effective viscosity and thermal diffusivity respectively. The former is the sum of the kinematic viscosity <span class="math notranslate nohighlight">\(\nu\)</span> and the sub-grid scale viscosity <span class="math notranslate nohighlight">\(\nu_t\)</span>, while the latter is sum between the thermal diffusivity <span class="math notranslate nohighlight">\(\kappa = \nu/Pr\)</span> and the turbulent thermal diffusivity <span class="math notranslate nohighlight">\(\kappa_t\)</span>. The computation of both <span class="math notranslate nohighlight">\(\nu_t\)</span> and <span class="math notranslate nohighlight">\(\kappa_t\)</span> is detailed in Sec. <a class="reference internal" href="turbulence_models.html#sgs-model-section"><span class="std std-ref">Sub-grid Scale Model</span></a>, while the Prandtl number <cite>Pr</cite> is set to 0.7 by default, although it can be changed in the <em>control.dat</em> file. The third term on the right-hand side of Eq. <a class="reference internal" href="#equation-eq-momentumcartesian">(2)</a> is a uniform horizontal pressure gradient that balances turbulent stresses and the Coriolis force, allowing the boundary layer to reach a statistically steady state. This term is commonly referred to as velocity controller, and it is explained in Sec. <a class="reference internal" href="flow_controllers.html#controllers-section"><span class="std std-ref">Controllers</span></a>.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../tosca_theory_guide.html" class="btn btn-neutral float-left" title="Theory Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="numerics.html" class="btn btn-neutral float-right" title="Numerical Method &amp; Curvilinear Coordinates" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
