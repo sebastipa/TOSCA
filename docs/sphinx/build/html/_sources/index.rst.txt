@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to TOSCA's documentation
-================================
+Welcome the official documentation of TOSCA
+===========================================
 
 .. raw:: html
 
@@ -57,6 +57,7 @@ This user guide is being developed by Sebastiano Stipa. The TOSCA code is under 
 
 - Sebastiano Stipa (von Karman Institute for Fluid Dynamics)
 - Arjun Ajay (University of British Columbia)
+- Jagdeep Singh (University of British Columbia)
 - Joshua Brinkerhoff (University of British Columbia)
 
 .. toctree::

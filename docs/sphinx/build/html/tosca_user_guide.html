@@ -90,7 +90,12 @@
 <p>TOSCA uses ASCII input files, organized in files and dictionaries.
 The code provides some level of input checking, meaning that non-recognized inputs are followed by an error message that
 lists available possibilities or points the user to possible problems.</p>
-<p>TOSCA adopts a standardized case structure. The minimum-required case structure is depicted on the left of the following figure,
+<p>To get a first idea of how to set up and run a TOSCA simulation, the user is advised to first follow the installation instructions
+in <a class="reference internal" href="tosca_installation.html#installation-section"><span class="std std-ref">Installation</span></a> and then run one of the provided tutorial cases, as described in <a class="reference internal" href="tosca_examples.html#examples-section"><span class="std std-ref">Example Cases</span></a>. We tried
+to provide a list of example cases that is comprehensive enough to allow users to always find a tutorial that is close enough to their own needs.
+Notably, all tutorial cases use very coarse/simple meshes, so that they can run on a laptop. The user needs to adapt these cases to their own needs
+in order to use TOSCA for production runs. If problems should arise in doing so, please open a <a class="reference external" href="https://github.com/sebastipa/TOSCA/issues">GitHub issue</a>.</p>
+<p>TOSCA adopts a standardized case structure. The minimum-required case structure is depicted on the left of the following code-block,
 while the case structure required to run e.g. atmospheric boundary layer (ABL) simulations with potential
 temperature stratification is shown on the right (i.e. with the addition of the <code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> and <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> files).</p>
 <p>The principal control file for a TOSCA simulation is the <cite>control.dat</cite> file, located in the case directory (see
@@ -109,7 +114,7 @@ to read additional input files and data.</p>
 <span class="w">                             </span>└──<span class="w"> </span>T
 </pre></div>
 </div>
-<p>A complete list of entries to all TOSCA input files is contained in Sec. <a class="reference internal" href="01_user_guide/input_files.html#input-files-section"><span class="std std-ref">Input Files</span></a>. Sec. <a class="reference internal" href="01_user_guide/spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>
+<p>A complete list of all entries to all TOSCA input files is contained in Sec. <a class="reference internal" href="01_user_guide/input_files.html#input-files-section"><span class="std std-ref">Input Files</span></a>. Sec. <a class="reference internal" href="01_user_guide/spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>
 describes the two mesh formats available in TOSCA and explains how boundary patches are identified using curvilinear coordinates,
 in which TOSCA is formulated. Sec. <a class="reference internal" href="01_user_guide/overset.html#overset-section"><span class="std std-ref">2-Way Nesting (Overset Mesh)</span></a> explains how to set up TOSCA cases with two-way nested domains (i.e. using the
 overset mesh technique) and Sec. <a class="reference internal" href="01_user_guide/acquisition.html#acquisition-section"><span class="std std-ref">Data Acquisition System</span></a> details the various outputs that the user can extract from different kinds

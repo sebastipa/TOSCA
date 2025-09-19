@@ -51,6 +51,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Versions</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#development">Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#v1-1-0">V1.1.0</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#v1-0-0">V1.0.0</a></li>
 </ul>
 </li>
@@ -84,19 +85,58 @@
 <h1>Versions<a class="headerlink" href="#versions" title="Link to this heading"></a></h1>
 <section id="development">
 <h2>Development<a class="headerlink" href="#development" title="Link to this heading"></a></h2>
-<p>The <strong>master</strong> branch is the current stable development branch of TOSCA. Dodumentation is available at
-<a class="reference external" href="https://sebastipa.github.io/TOSCA/index.html">TOSCA Stable Development Documentation</a></p>
-<p>New working features since last release (V1.0.0):</p>
-<ul class="simple">
-<li><p>Two-way coupled overset mesh method: this feature enables complete block-structed mesh refinement in TOSCA.</p></li>
-<li><p>Additional scale-dependent (<code class="docutils literal notranslate"><span class="pre">dynamicLASD</span></code>) and anisotropic minimum dissipation (<code class="docutils literal notranslate"><span class="pre">amd</span></code>) LES models.</p></li>
-<li><p>Additional high-order numerical scheme (<code class="docutils literal notranslate"><span class="pre">-central4</span></code> with <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter) to better capture the high-frequency tail of turbulence spectra.</p></li>
-<li><p>Improved immersed boundary method: faster algorithms and time-varying wall modeling.</p></li>
-<li><p>Lateral fringe region (<code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code>): allows for gravity wave problems with wind direction changes and assimilated atmospheric data.</p></li>
-<li><p>Data assimilation methods: direct/indirect profile assimilation techniques, as well as wavelet assimilation method (selectable through <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> and <code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code> flags in <em>ABLProperties.dat</em>).</p></li>
-<li><p>Additional example cases: <em>IndirectProfileAssimilationTest</em>, <em>WaveletAssimilationTest</em>, <em>MultiDomainOverset</em>, <em>PitchingAerofoilOversetTest</em>, <em>SuccessorOversetTest</em>, <em>SuccessorPeriodizedLateralFringeTest</em> and <em>TaylorGreenVortexTest</em>.</p></li>
+<p>The <strong>master</strong> branch is the latest stable development branch of TOSCA. New working features that are tested to a certain extent are merged into this branch.
+For ongoing development and testing, please refer to the respective branches based on the specific feature of interest. Cloning the TOSCA repository will
+automatically set the <strong>master</strong> as the default branch. If you want to use previous releases, please refer to the <a href="#id1"><span class="problematic" id="id2">`respective tags https://github.com/sebastipa/TOSCA/releases`_</span></a>.</p>
+<p>The documentation for the <strong>master</strong> branch, which is updated alongside the introduction of new features and/or code refactoring, is available at
+<a class="reference external" href="https://sebastipa.github.io/TOSCA/index.html">TOSCA Stable Development Documentation</a>. We save snapshots of the documentation for each release, which can
+be found below.</p>
+<dl class="simple">
+<dt>New working features since release (V1.1.0):</dt><dd><ul class="simple">
+<li><p>Added integral damping for <cite>geostrophic</cite> ABL controller.</p></li>
+<li><p>Added geostrophic profile assimilation method for micro- to meso-scale coupling.</p></li>
+<li><p>Code refactoring: added lesScalar.c to handle eddy diffusivity SGS models.</p></li>
+<li><p>Added computation of 5 invariants of the Reynolds stress tensor.</p></li>
+<li><p>Generalized velocity wall models for non-cartesian grids.</p></li>
+<li><p>Added Arnold–Beltrami–Childress (ABC) flow and homogeneous isotropic turbulence (HIT) initial conditions.</p></li>
+<li><p>Added Bardina LES model.</p></li>
+<li><p>Added 4th-order gradient scheme.</p></li>
+<li><p>Removed IBM half-edge structure when using IBM bodies that are not fully closed.</p></li>
+<li><p>Added variable turbine Ct based on a Ct vs Uref lookup table. (only for AFM and Uniform ADM).</p></li>
+<li><p>Added additional fields as output when using geostrophic profile assimilation.</p></li>
+<li><p>Added possibility to read temperature sources when using <cite>timeHeightSeries</cite> in temperature controller.</p></li>
+<li><p>Updated concurrent-precusror method to include latest meso- to micro-scale coupling implementation.</p></li>
+<li><p>Changed NREL5MW test case to use variable Ct based on lookup table.</p></li>
+<li><p>Added additional test case ChannelFlowRe395Test (channel flow at Re = 395).</p></li>
+<li><p>Added control action <cite>read</cite> or <cite>write</cite> also for temperature controller.</p></li>
 <li><p>Updated and extended documentation to incorporate new changes &amp; features.</p></li>
 </ul>
+</dd>
+</dl>
+<p>Bug fixes:
+- Fields are only written within the <cite>writeFields()</cite> function now in order to avoid problem with temporary file names while writing is in progress.</p>
+</section>
+<section id="v1-1-0">
+<h2>V1.1.0<a class="headerlink" href="#v1-1-0" title="Link to this heading"></a></h2>
+<p>New working features since release (V1.0.0):
+- Two-way coupled overset mesh method: this feature enables complete block-structed mesh refinement in TOSCA.
+- Additional scale-dependent (<code class="docutils literal notranslate"><span class="pre">dynamicLASD</span></code>) and anisotropic minimum dissipation (<code class="docutils literal notranslate"><span class="pre">amd</span></code>) LES models.
+- Additional high-order numerical scheme (<code class="docutils literal notranslate"><span class="pre">-central4</span></code> with <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter) to better capture the high-frequency tail of turbulence spectra.
+- Improved immersed boundary method: faster algorithms and time-varying wall modeling.
+- Lateral fringe region (<code class="docutils literal notranslate"><span class="pre">-yDampingLayer</span></code>): allows for gravity wave problems with wind direction changes and assimilated atmospheric data.
+- Data assimilation methods: direct/indirect profile assimilation techniques, as well as wavelet assimilation method (selectable through <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> and <code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code> flags in <em>ABLProperties.dat</em>).
+- Additional example cases: <em>IndirectProfileAssimilationTest</em>, <em>WaveletAssimilationTest</em>, <em>MultiDomainOverset</em>, <em>PitchingAerofoilOversetTest</em>, <em>SuccessorOversetTest</em>, <em>SuccessorPeriodizedLateralFringeTest</em> and <em>TaylorGreenVortexTest</em>.
+- Updated and extended documentation to incorporate new changes &amp; features.</p>
+<p>Bug fixes:
+- Corrected bug in the fixedGradient BC for temperature.
+- Corrected IBM shear stress-based wall model search algorithm.
+- Corrected bug when writing fields using the <cite>-perturbABL</cite> flag.
+- Corrected bug in IBM interpolation that was cousing oscillations in the pressure field.
+- Corrected bug when creating the timelist for <cite>inletFunctions</cite> 3 and 4, now any possible duplicate time is removed.</p>
+<p>Improvements:
+- Improved <cite>-purgeWrite</cite> so that more than one time step can be kept.
+- Improved overset initialization algorithm using octree search method.
+- Improved theory guide.</p>
 </section>
 <section id="v1-0-0">
 <h2>V1.0.0<a class="headerlink" href="#v1-0-0" title="Link to this heading"></a></h2>

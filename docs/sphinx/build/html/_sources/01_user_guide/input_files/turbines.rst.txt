@@ -230,7 +230,7 @@ in the table below:
    ``precone``                    scalar              angle in degrees formed between turbine blades and the rotor plane. The 
                                                       rotor plane is defined as the unique plane that is formed when all blades 
                                                       lie in the same plane.
-                                                      The more positive the angle, the furthest the blade tip from the tower.
+                                                      The more negative the angle, the furthest the blade tip from the tower.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``towerDir``                   vector              vector defining the tower direction from base to top. Normalized by TOSCA. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------

@@ -3,15 +3,22 @@
 Installation
 ============
 
+This is a step-by-step guide to install TOSCA on your system. 
+
+.. note::
+
+    Please follow these instructions carefully. Usually, installing TOSCA is very easy if all the following steps are completed in the order in which they are described. If you downloaded the 
+    latest TOSCA updates after having already compiled the code, run ``make clean`` before compiling the code at step 14.
+
 In order to be installed, TOSCA requires a working C/C++ compiler, PETSc (version 3.14.x, 3.15.x), Open MPI (version 4.0.x, 4.1.x), HDF5 and
 HYPRE (needed by PETSs in order to build some of the matrix solvers we use). TOSCA has been tested with the above version combinations,
-it could work with other combinations or versions but it has not been tested (especially older versions).
-We recommend the following versions of the above libraries:
+it could work with other combinations or versions but it has not been tested (especially older versions). The present guide also shows how to get 
+these dependencies in the easiest way. First, the following versions are recommended:
 
 - gcc      : 9.2.0  (https://gcc.gnu.org/).
-- PETSc    : 3.15.5 (https://ftp.mcs.anl.gov/pub/petsc/).
+- PETSc    : 3.15.5 (https://ftp.mcs.anl.gov/pub/petsc/ - soon compilation against the latest version will be made available).
 - Open MPI : 4.1.2  (https://www.open-mpi.org/software/ompi/v4.1/).
-- HYPRE    : 2.20.0 (https://github.com/hypre-space/hypre/tree/master) (check version in /src/CMakeLists.txt).
+- HYPRE    : 2.20.0 (https://github.com/hypre-space/hypre/tree/master - check version in /src/CMakeLists.txt).
 - HDF5     : 1.12.1 (https://www.hdfgroup.org/downloads/hdf5/).
 
 Prior to install TOSCA, we suggest to create a folder named ``software`` inside ``$HOME``, where the PETSc, TOSCA and potentially other libraries directories will be located.
@@ -22,8 +29,8 @@ In order to compile TOSCA on your system, please follow these steps:
 3. Download Open MPI: you can download the binaries or compile from source (the latter is recommended if using ``environment-modules`` e.g. on an HPC architecture).
    If you have only one version of Open MPI installed on your system in the ``/usr`` directory (installed using sudo for example), you can omit the
    ``--with-mpi-dir='your--path--to--mpicc'`` at point 6: Open MPI will be found by the library locator.
-4. Download HYPRE into ``$HOME/software/``. This can be omitted if you use the ``--download-hypre`` option in the PETSc configure step (suggested).
-5. Download HDF5 into ``$HOME/software/``. This can be omitted if you use the ``--download-hdf5`` option in the PETSc configure step (suggested).
+4. Download HYPRE into ``$HOME/software/``. This can be omitted (suggested) if you use the ``--download-hypre`` option in the PETSc configure step.
+5. Download HDF5 into ``$HOME/software/``. This can be omitted (suggested) if you use the ``--download-hdf5`` option in the PETSc configure step.
 6. Configure PETSc. We suggest the following configure options, which will automatically compile HYPRE and HDF5. 
 
    .. code-block:: bash
@@ -142,18 +149,20 @@ Contribute to the TOSCA Project
 -------------------------------
 
 The TOSCA repository is open-source, so anyone can download and use the code. If you want to contribute to the project by adding 
-code to TOSCA repository you need to open a pull-request that has to be approved by our team. In order to do so, please use the following steps:
+code to TOSCA repository you need to open a pull-request that has to be approved by our team. Note that TOSCA's master branch 
+is protected, so you cannot do modifications there. Modifications have to be done in a separate branch which is then merged 
+into the master branch after approval. In order to do so, please use the following steps:
 
-1. Clone the TOSCA package locally on your machine with ``git clone https://github.com/sebastipa/TOSCA.git``
-2. Create a new local branch with ``git checkout -b your-branch-name``
-3. Make the desired changes to the TOSCA code, then check which files have been modified with ``git status``
-4. Add changes to the git stack with ``git add modified-files``
-5. Commit the changes using a short but exhaustive comment with ``git commit -m "your-commit-description"``
-6. Push your local branch online with ``git push origin your-branch-name``
+1. Clone the TOSCA package locally on your machine with ``git clone https://github.com/sebastipa/TOSCA.git`` (we suggest using SSH if you can, this will avoid to insert your username and password every time you push/pull changes).
+2. Create a new local branch with ``git checkout -b <your-branch-name>``.
+3. Make the desired changes to the TOSCA code, then check which files have been modified with ``git status``.
+4. Add changes to the git stack with ``git add <list-of-modified-files>``.
+5. Commit the changes using a short but exhaustive comment with ``git commit -m "your-commit-description"``.
+6. Push your local branch online with ``git push origin <your-branch-name>``
 7. Go to github, select your branch, click on *Contribute* and open a pull-request describing the motivation of your changes, their effect on the code and the tests you performed.
-8. After approval of the pull-request by our team, commits will be added to the main TOSCA version
-9. To stay up-to-date, rebase your local master with the your new commits by first checking out in your local master branch with ``git checkout master`` and then rebase with ``git pull --rebase origin master``
-10. Delete your local branch as it is not useful anymore with ``git branch --delete -d your-branch-name`` and use the master until you want to make new changes
+8. After approval of the pull-request by our team, commits will be added to the main TOSCA version.
+9. To stay up-to-date after the modifications have been merged, rebase your local master with the your new commits by first checking out in your local master branch with ``git checkout master`` and then rebase with ``git pull --rebase origin master``.
+10. Delete your local branch as it is not useful anymore with ``git branch --delete -d your-branch-name`` and use the master until you want to make new changes.
 
 .. _paraview-catalyst-section:
 
