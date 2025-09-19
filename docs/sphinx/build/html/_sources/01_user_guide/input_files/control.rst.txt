@@ -15,7 +15,7 @@ some of which prompt the code to read additional input files. The `control.dat` 
 7. Post Processing Controls 
 
 The last group is only needed when the ``tosca2PV`` executable is launched, which converts the binary TOSCA output in ``.xmf`` 
-format, which can be read from e.g. `ParaView`. The following tables summarize all available entries for each of the `control.dat` 
+format. These can be read from e.g. `ParaView`. The following tables summarize all available entries for each of the `control.dat` 
 file subsections. 
 
 Time Controls 
@@ -61,8 +61,8 @@ I/O Controls
    :align: center 
                                                                                                           
    ===================== =====================================================================================================
-   ``-intervalType``     It can be set to `adjustableTime`, `timeStep` or `writeNow`. In the last case, a checkpoint 
-                         followed by termination of the simulation will be triggered.
+   ``-intervalType``     It can be set to `adjustableTime`, `timeStep` or `writeNow`. The last entry is used at runtime when 
+                         the user wants to trigger a checkpoint write, followed by termination of the simulation. 
    --------------------- -----------------------------------------------------------------------------------------------------
    ``-timeInterval``     Specifies how often a checkpoint file is written. If the ``-timeInterval`` is set to 
                          `adjustableTime`, the time interval between two checkpoints is expressed in seconds. If 

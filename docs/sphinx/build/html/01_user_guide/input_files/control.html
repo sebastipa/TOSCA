@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>control.dat &mdash; TOSCA 1.0 documentation</title>
+  <title>control.dat &mdash; TOSCA dev documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=23c79765" />
@@ -14,7 +14,7 @@
   
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/documentation_options.js?v=3ce10a4d"></script>
       <script src="../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
@@ -66,13 +66,13 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../spatial_mesh.html">Spatial Mesh</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../overset.html">Overset Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../overset.html">2-Way Nesting (Overset Mesh)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../acquisition.html">Data Acquisition System</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../execution.html">Execution</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_examples.html">Example Cases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_applications.html">TOSCA Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_versions.html">Versions</a></li>
 </ul>
@@ -117,7 +117,7 @@ some of which prompt the code to read additional input files. The <cite>control.
 <li><p>Post Processing Controls</p></li>
 </ol>
 <p>The last group is only needed when the <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> executable is launched, which converts the binary TOSCA output in <code class="docutils literal notranslate"><span class="pre">.xmf</span></code>
-format, which can be read from e.g. <cite>ParaView</cite>. The following tables summarize all available entries for each of the <cite>control.dat</cite>
+format. These can be read from e.g. <cite>ParaView</cite>. The following tables summarize all available entries for each of the <cite>control.dat</cite>
 file subsections.</p>
 <section id="time-controls">
 <h2>Time Controls<a class="headerlink" href="#time-controls" title="Link to this heading"></a></h2>
@@ -172,8 +172,8 @@ file.</p></td>
 </colgroup>
 <tbody>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-intervalType</span></code></p></td>
-<td><p>It can be set to <cite>adjustableTime</cite>, <cite>timeStep</cite> or <cite>writeNow</cite>. In the last case, a checkpoint
-followed by termination of the simulation will be triggered.</p></td>
+<td><p>It can be set to <cite>adjustableTime</cite>, <cite>timeStep</cite> or <cite>writeNow</cite>. The last entry is used at runtime when
+the user wants to trigger a checkpoint write, followed by termination of the simulation.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-timeInterval</span></code></p></td>
 <td><p>Specifies how often a checkpoint file is written. If the <code class="docutils literal notranslate"><span class="pre">-timeInterval</span></code> is set to

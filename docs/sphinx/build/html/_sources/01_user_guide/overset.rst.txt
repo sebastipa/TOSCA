@@ -1,9 +1,9 @@
 .. _overset-section: 
 
-Overset Mesh 
-------------
+2-Way Nesting (Overset Mesh)
+----------------------------
 
-Overset mesh allows to introduce refinement levels within TOSCA. In this technique, a finer mesh is immersed inside the original 
+Overset mesh (also known as grid nesting) allows to introduce refinement levels within TOSCA. In this technique, a finer mesh is immersed inside the original 
 background mesh. Boundary conditions for the finer mesh are interpolated from the background mesh, while cells in the background mesh 
 are blanked when they overlap with the finer mesh. This "hole" in the background mesh is treated as an IBM body (see :ref:`ibm-section`), 
 where the solution at the IBM fluid cells is interpolated from the finer mesh. In order to understand how the overset mesh method works 

@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>User Guide &mdash; TOSCA 1.0 documentation</title>
+  <title>User Guide &mdash; TOSCA dev documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
@@ -14,7 +14,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/documentation_options.js?v=3ce10a4d"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
@@ -50,13 +50,13 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">User Guide</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="01_user_guide/input_files.html">Input Files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="01_user_guide/spatial_mesh.html">Spatial Mesh</a></li>
-<li class="toctree-l2"><a class="reference internal" href="01_user_guide/overset.html">Overset Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="01_user_guide/overset.html">2-Way Nesting (Overset Mesh)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="01_user_guide/acquisition.html">Data Acquisition System</a></li>
 <li class="toctree-l2"><a class="reference internal" href="01_user_guide/execution.html">Execution</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">TOSCA Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_versions.html">Versions</a></li>
 </ul>
@@ -89,27 +89,38 @@
 <h1>User Guide<a class="headerlink" href="#user-guide" title="Link to this heading"></a></h1>
 <p>TOSCA uses ASCII input files, organized in files and dictionaries.
 The code provides some level of input checking, meaning that non-recognized inputs are followed by an error message that
-lists available possibilities.</p>
-<p>TOSCA has a standardized case structure. The minimum-required case structure is depicted on the left of the following figure,
-while the case structure required to run e.g. atmospheric boundary layer (ABL) with potential
-temperature stratification is shown on the right (i.e. with the addition of the <code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> and <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> files).
-The principal control file for a TOSCA simulation is the <cite>control.dat</cite> file, located in the case directory (see
-<a class="reference internal" href="01_user_guide/input_files/control.html#control-subsection"><span class="std std-ref">control.dat</span></a> for details).
-Depending on the type of simulation that one wishes to perform, flags can be activated in the <cite>control.dat</cite>, which prompt TOSCA
+lists available possibilities or points the user to possible problems.</p>
+<p>TOSCA adopts a standardized case structure. The minimum-required case structure is depicted on the left of the following figure,
+while the case structure required to run e.g. atmospheric boundary layer (ABL) simulations with potential
+temperature stratification is shown on the right (i.e. with the addition of the <code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> and <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> files).</p>
+<p>The principal control file for a TOSCA simulation is the <cite>control.dat</cite> file, located in the case directory (see
+<a class="reference internal" href="01_user_guide/input_files/control.html#control-subsection"><span class="std std-ref">control.dat</span></a> for details).</p>
+<p>Depending on the type of simulation that one wishes to perform, flags can be activated in the <cite>control.dat</cite>, which prompt TOSCA
 to read additional input files and data.</p>
-<img alt="_images/structure_1.png" class="align-center" src="_images/structure_1.png" />
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>case_name<span class="w">                </span>case_name
+├──<span class="w"> </span>control.dat<span class="w">          </span>├──<span class="w"> </span>control.dat
+├──<span class="w"> </span>mesh.xyz<span class="w">             </span>├──<span class="w"> </span>mesh.xyz
+├──<span class="w"> </span>tosca<span class="w">                </span>├──<span class="w"> </span>ABLProperties.dat
+├──<span class="w"> </span>tosca2PV<span class="w">             </span>├──<span class="w"> </span>tosca
+└──<span class="w"> </span>boundary<span class="w">             </span>├──<span class="w"> </span>tosca2PV
+<span class="w">    </span><span class="p">|</span>──<span class="w"> </span>U<span class="w">                </span>└──<span class="w"> </span>boundary
+<span class="w">    </span>└──<span class="w"> </span>nut<span class="w">                  </span>├──<span class="w"> </span>U
+<span class="w">                             </span><span class="p">|</span>──<span class="w"> </span>nut
+<span class="w">                             </span>└──<span class="w"> </span>T
+</pre></div>
+</div>
 <p>A complete list of entries to all TOSCA input files is contained in Sec. <a class="reference internal" href="01_user_guide/input_files.html#input-files-section"><span class="std std-ref">Input Files</span></a>. Sec. <a class="reference internal" href="01_user_guide/spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>
-describes the two mesh formats available in TOSCA, and explains how boundary patches are identified using curvilinear coordinates,
-in which TOSCA is formulated. Sec. <a class="reference internal" href="01_user_guide/overset.html#overset-section"><span class="std std-ref">Overset Mesh</span></a> explains how to set up TOSCA cases with one-way nested domains (i.e. the
+describes the two mesh formats available in TOSCA and explains how boundary patches are identified using curvilinear coordinates,
+in which TOSCA is formulated. Sec. <a class="reference internal" href="01_user_guide/overset.html#overset-section"><span class="std std-ref">2-Way Nesting (Overset Mesh)</span></a> explains how to set up TOSCA cases with two-way nested domains (i.e. using the
 overset mesh technique) and Sec. <a class="reference internal" href="01_user_guide/acquisition.html#acquisition-section"><span class="std std-ref">Data Acquisition System</span></a> details the various outputs that the user can extract from different kinds
 of simulations using TOSCA’s acquisition system. Finally, Sec. <a class="reference internal" href="01_user_guide/execution.html#execution-section"><span class="std std-ref">Execution</span></a> shows a typical TOSCA workflow, where the
-solution is first performed using <cite>tosca</cite> executable, the simulation is then possibily restarted and <cite>tosca2PV</cite> is used in the end to
+solution is first performed using the <cite>tosca</cite> executable, the simulation is then possibily restarted, and <cite>tosca2PV</cite> is used in the end to
 convert output binary data into <cite>.xmf</cite> format to be inspected in <em>ParaView</em>.</p>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="01_user_guide/input_files.html">Input Files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="01_user_guide/spatial_mesh.html">Spatial Mesh</a></li>
-<li class="toctree-l1"><a class="reference internal" href="01_user_guide/overset.html">Overset Mesh</a></li>
+<li class="toctree-l1"><a class="reference internal" href="01_user_guide/overset.html">2-Way Nesting (Overset Mesh)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="01_user_guide/acquisition.html">Data Acquisition System</a></li>
 <li class="toctree-l1"><a class="reference internal" href="01_user_guide/execution.html">Execution</a></li>
 </ul>
