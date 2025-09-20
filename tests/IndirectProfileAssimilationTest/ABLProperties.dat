@@ -41,6 +41,8 @@ controllerActive 1
 # Activate temperature controller 
 controllerActiveT 1
 
+# Temperature Controller action - read or write
+controllerActionT write
 # Type of temperature controller 
 controllerTypeT   directProfileAssimilation
 

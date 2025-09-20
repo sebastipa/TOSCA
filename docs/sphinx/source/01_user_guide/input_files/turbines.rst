@@ -158,7 +158,8 @@ syntax is defined as follows
    nRadPts             integer // for ALM, ADM and uniformADM only 
    nAziPts             integer // for ADM and uniformADM only 
    Uref                scalar  
-   Ct                  scalar  // for uniformADM and AFM only 
+   Ct                  scalar  // for uniformADM and AFM only
+   CtType              string  // for uniformADM and AFM only
    projection          string  // for ALM and AFM only 
    sampleType          string  // for ALM, uniformADM and AFM only 
    epsilon             scalar  // for ALM, ADM and unformADM only 
@@ -206,6 +207,16 @@ syntax is defined as follows
        (scalar     scalar   scalar     integer)
        (:          :        :          :      )
        (scalar     scalar   scalar     integer)
+   }
+
+   # Ct table against a reference velocity given as:
+   # (Uref(m/s) Ct)  
+   # for UniformADM and AFM only with CtType set to variable
+   CtTable
+   { 
+       (scalar     scalar)
+       (:          :     )
+       (scalar     scalar)
    }
 
 Notably, depending on the chosen actuator model type, different parameters are needed. Indication about this are provided in the 
@@ -305,6 +316,12 @@ in the table below:
                                                       - for ``AFM`` it should be the freestream thrust coefficient when
                                                         ``sampleType`` is set to *momentumTheory*. Conversely, when using 
                                                         *rotorDisk* or *integral* it should be the disk-based thrust coefficient.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``CtType``                     string              Ct type can be set to *constant* or *variable*.  Only required when 
+                                                      ``turbineModel`` is ``uniformADM`` or ``AFM``. *constant* type requires a 
+                                                      single thrust coefficient value. For *variable* type, a ``CtTable`` needs 
+                                                      to be provided with the reference velocity and corresponding freestream 
+                                                      thrust coefficient. This is regardless of ``sampleType`` used. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``projection``                 string              body force projection type. Only required for ``ALM`` and ``AFM`` models.
                                                       Entries specific to each model are described below.
@@ -463,6 +480,21 @@ in the table below:
                                                          }
                                                          
                                                       when using ``ALM`` with ``projection`` set to *anisotropic*. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``CtTable``                    table               Table of reference velocity and corresponding free stream veocity based 
+                                                      thrust coefficient Ct. Usage:
+                                                      
+                                                      .. code-block:: C
+                                                      
+                                                         CtTable
+                                                         { 
+                                                           (scalar scalar)
+                                                           (:      :     )
+                                                           (scalar scalar)
+                                                         }
+                                                         
+                                                      Required only for ``UniformADM`` and ``AFM`` models when ``CtType`` set to
+                                                      variable.                                                   
    ============================== =================== ============================================================================
 
 control 

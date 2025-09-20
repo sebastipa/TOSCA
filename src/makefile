@@ -70,13 +70,13 @@ OBJS_TOSCA = $(OBJ_DIR)/main.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ
              $(OBJ_DIR)/wallfunctions.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o
 
 OBJS_PP    = $(OBJ_DIR)/tosca2PV.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/wallfunctions.o \
              $(OBJ_DIR)/overset.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o
 
 # Targets
 all: $(BUILD_DIR) tosca tosca2PV

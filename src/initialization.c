@@ -107,6 +107,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // initialize mesh
         InitializeMesh(domain[d].mesh);
 
+        // initialize i/o controls and initialization type
+        InitializeIO(domain[d].io);
+        
         // set wall models
         SetWallModels(domain[d].ueqn);
 
@@ -115,9 +118,6 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         
         // set inflow functions
         SetInflowFunctions(domain[d].mesh);
-
-        // initialize i/o controls and initialization type
-        InitializeIO(domain[d].io);
 
         // initialize ABL parameters
         InitializeABL(domain[d].abl);
@@ -133,6 +133,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
 
         // LES model initialize
         InitializeLES(domain[d].les);
+
+        // LES scalar model initialize
+        InitializeLESScalar(domain[d].les);
 
         // initialize wind farm
         InitializeWindFarm(domain[d].farm);
@@ -217,13 +220,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isYDampingActive              = 0;
     flags->isKLeftRayleighDampingActive  = 0;
     flags->isKRightRayleighDampingActive = 0;
-    flags->isAdvectionDampingXActive      = 0;
+    flags->isAdvectionDampingXActive     = 0;
     flags->isAdvectionDampingYActive     = 0;
     flags->isCanopyActive                = 0;
     flags->isConcurrentPrecursorActive   = 0;
     flags->isPvCatalystActive            = 0;
     flags->isGravityWaveModelingActive   = 0;
     flags->isNonInertialFrameActive      = 0;
+    flags->isMeangradPForcingActive      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",          &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",              &(flags->isLesActive), PETSC_NULL);
@@ -239,10 +243,11 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",       &(flags->isPvCatalystActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kLeftRayleigh",    &(flags->isKLeftRayleighDampingActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kRightRayleigh",   &(flags->isKRightRayleighDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingX", &(flags->isAdvectionDampingXActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingX",&(flags->isAdvectionDampingXActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingY",&(flags->isAdvectionDampingYActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",      &(flags->isNonInertialFrameActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",      &(flags->isGravityWaveModelingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-meanGradPForce",   &(flags->isMeangradPForcingActive ), PETSC_NULL);
 
     // do some checks
     if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingXActive)
@@ -295,6 +300,11 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscInt isAveragingActive      = 0;
     PetscInt isKEBudgetsActive      = 0;
     PetscInt isQCritActive          = 0;
+    PetscInt isVgtQgActive          = 0;
+    PetscInt isVgtRgActive          = 0;
+    PetscInt isVgtQsActive          = 0;
+    PetscInt isVgtRsActive          = 0;
+    PetscInt isVgtQrActive          = 0;
     PetscInt isL2CritActive         = 0;
     PetscInt isSourcesActive        = 0;
     PetscInt isPerturbABLActive     = 0;
@@ -310,6 +320,11 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-phaseAveraging",   &isPhaseAveragingActive, PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQ",         &isQCritActive,          PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeL2",        &isL2CritActive,         PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQg",        &isVgtQgActive,          PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeRg",        &isVgtRgActive,          PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQs",        &isVgtQsActive,          PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeRs",        &isVgtRsActive,          PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeQr",        &isVgtQrActive,          PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-computeSources",   &isSourcesActive,        PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-perturbABL",       &isPerturbABLActive,     PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",       &PvCatalystActive,       PETSC_NULL);
@@ -320,7 +335,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscMin(
     (
         isProbesActive + isSectionsActive + isAverageABLActive + isAverage3LMActive + isKEBudgetsActive +
-        isAveragingActive + isPhaseAveragingActive + isQCritActive + isL2CritActive + isSourcesActive + isPerturbABLActive + PvCatalystActive + continuityActive),
+        isAveragingActive + isPhaseAveragingActive + isQCritActive + isVgtQgActive + isVgtRgActive + isVgtQsActive + isVgtRsActive + isVgtQrActive + isL2CritActive + isSourcesActive + isPerturbABLActive + PvCatalystActive + continuityActive),
         1
     );
 

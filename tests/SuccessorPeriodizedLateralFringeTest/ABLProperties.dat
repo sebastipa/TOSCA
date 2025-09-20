@@ -44,6 +44,9 @@ controllerActiveT 0
 # Activate precursor temperature controller 
 controllerActivePrecursorT 0
 
+# Activate precursor velocity controller
+controllerActivePrecursor 1
+
 # Mismatch between successor and precursor controllers
 precursorControllerTypeMismatch 0
 

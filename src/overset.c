@@ -514,7 +514,6 @@ PetscErrorCode readBlankingIBMObject(overset_ *os, domain_ *domain, char *holeOb
     os->oibm->dynamic       = 0;
     os->oibm->computeForce  = 0;
     os->oibm->checkNormal   = 1;
-    os->oibm->averageNormal = 0;
     os->oibm->wallShearOn   = 0;
     os->oibm->ibmABL        = 0;
     os->oibm->writeSTL      = 0;

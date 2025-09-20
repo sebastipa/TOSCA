@@ -30,6 +30,8 @@
 # ---------------------------------
 -les                       1
 -lesModel                  amd
+-turbStat		   1
+-amd_cs			   0.15
 -max_cs                    10
 
 # Numerical Schemes

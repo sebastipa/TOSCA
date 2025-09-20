@@ -297,6 +297,11 @@ PetscErrorCode postProcessInitializePrecursor(postProcess *pp, clock_ *clock)
     domain->io->keBudgets      = 0;
     domain->io->qCrit          = 0;
     domain->io->l2Crit         = 0;
+    domain->io->vgtQg          = 0;
+    domain->io->vgtRg          = 0;
+    domain->io->vgtQs          = 0;
+    domain->io->vgtRs          = 0;
+    domain->io->vgtQr          = 0;
     domain->io->windFarmForce  = 0;
     domain->io->sources        = 0;
 
@@ -579,6 +584,82 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             acquisition->fields->Q
         );
     }
+
+    if(io->vgtQg)
+    {
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Qg",
+            acquisition->fields->Qg
+        );
+    }
+
+    if(io->vgtRg)
+    {
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Rg",
+            acquisition->fields->Rg
+        );
+    }
+
+    if(io->vgtQs)
+    {
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Qs",
+            acquisition->fields->Qs
+        );
+    }
+
+    if(io->vgtRs)
+    {
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Rs",
+            acquisition->fields->Rs
+        );
+    }
+
+    if(io->vgtQr)
+    {
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "Qr",
+            acquisition->fields->Qr
+        );
+    }
+
 
     if(io->windFarmForce)
     {

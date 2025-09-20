@@ -29,6 +29,11 @@ struct io_
 
     PetscInt  qCrit;
     PetscInt  l2Crit;
+    PetscInt  vgtQg;
+    PetscInt  vgtRg;
+    PetscInt  vgtQs;
+    PetscInt  vgtRs;
+    PetscInt  vgtQr;
     PetscInt  windFarmForce;
     PetscInt  sources;
     PetscInt  buoyancy;

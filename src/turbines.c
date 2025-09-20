@@ -3492,32 +3492,126 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             // uniform actuator disk model
             else if((*farm->turbineModels[t]) == "uniformADM")
             {
-                // get thrust coefficient
-                PetscReal Ct_t = wt->uadm.Ct;
+                // get thrust coefficient and axial induction
+                PetscReal Ct_t, Uref, a_t;
 
-                // apply wind farm controller
-                if(farm->farmControlActive[t])
+                if(wt->ctType == "constant")
                 {
-                    Ct_t += wt->wfControlCt;
+                    Ct_t = wt->uadm.Ct;
+
+                    // apply wind farm controller
+                    if(farm->farmControlActive[t])
+                    {
+                        Ct_t += wt->wfControlCt;
+                    }
+
+                    // get induction factor
+                    a_t = wt->uadm.axiInd;
+
+                    if(wt->uadm.sampleType == "rotorUpstream")
+                    {
+                        Uref = wt->upPoints->Uref;
+                    }
+                    else if(wt->uadm.sampleType == "givenVelocity")
+                    {
+                        Uref = wt->uadm.Uref;
+                    }
+                    else if(wt->uadm.sampleType == "rotorDisk")
+                    {
+                        Uref = wt->uadm.rtrAvgMagU;
+                    }
                 }
-
-                // get induction factor
-                PetscReal a_t = wt->uadm.axiInd;
-
-                // get reference velocity
-                PetscReal Uref;
-
-                if(wt->uadm.sampleType == "rotorUpstream")
+                else if(wt->ctType == "variable")
                 {
-                    Uref = wt->upPoints->Uref;
-                }
-                else if(wt->uadm.sampleType == "givenVelocity")
-                {
-                    Uref = wt->uadm.Uref;
-                }
-                else if(wt->uadm.sampleType == "rotorDisk")
-                {
-                    Uref = wt->uadm.rtrAvgMagU;
+                    if(wt->uadm.sampleType == "rotorUpstream")
+                    {
+                        Uref = wt->upPoints->Uref;
+
+                        PetscReal w[2];
+                        PetscInt  l[2];
+                        
+                        findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                        Ct_t = w[0]*wt->ctTbl.Ct[l[0]] + w[1]*wt->ctTbl.Ct[l[1]];
+
+                        if (Ct_t > 1.0) 
+                        {
+                            a_t = 0.5;
+                            fprintf(stderr, "Warning: Ct > 1 (%f), using a=0.5\n", Ct_t);
+                        }
+                        else if (Ct_t < 0.0) 
+                        {
+                            a_t = 0.0;
+                        } 
+                        else 
+                        {
+                            a_t = 0.5 * (1.0 - sqrt(1.0 - Ct_t));
+                        }
+                    }
+                    else if(wt->uadm.sampleType == "rotorDisk")
+                    {
+                        //intial guess
+                        Uref = wt->uadm.rtrAvgMagU / (2.0 / 3.0);  
+
+                        PetscReal tol      = 0.001;  // Tolerance for disk average velocity in m/s
+                        PetscInt  maxIter  = 100;
+                        PetscInt  iter     = 0;
+                        PetscReal prevUref = 0.0;
+
+                        while (iter < maxIter) 
+                        {
+                            PetscReal w[2];
+                            PetscInt  l[2];
+                            
+                            findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                            Ct_t = w[0]*wt->ctTbl.Ct[l[0]] + w[1]*wt->ctTbl.Ct[l[1]];
+
+                            if (Ct_t > 1.0) 
+                            {
+                                a_t = 0.5;
+                                fprintf(stderr, "Warning: Ct > 1 (%f), using a=0.5\n", Ct_t);
+                            }
+                            else if (Ct_t < 0.0) 
+                            {
+                                a_t = 0.0;
+                            } 
+                            else 
+                            {
+                                a_t = 0.5 * (1.0 - sqrt(1.0 - Ct_t));
+                            }
+
+                            PetscReal UDiskCalc = Uref * (1.0 - a_t);
+
+                            if (fabs(UDiskCalc - wt->uadm.rtrAvgMagU) < tol) break;
+
+                            // Update Uref
+                            PetscReal newUref;
+                            if (fabs(1.0 - a_t) > 1e-6) 
+                            {
+                                newUref = wt->uadm.rtrAvgMagU / (1.0 - a_t);
+                            } 
+                            else 
+                            {
+                                newUref = Uref;  
+                            }
+
+                            // relaxation 
+                            Uref = 0.8 * newUref + 0.2 * Uref;
+
+                            if (fabs(Uref - prevUref) < 1e-6) break;
+
+                            prevUref = Uref;
+
+                            iter++;
+                        }
+
+                    }
+                    // given velocity sampling type not required for variable Ct
+                    
+                    // apply wind farm controller
+                    if(farm->farmControlActive[t])
+                    {
+                        Ct_t += wt->wfControlCt;
+                    }
                 }
 
                 // cumulate rotor thrust at this time step
@@ -3717,36 +3811,105 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
-                PetscReal a_t, Uref, bMag, Ct_t = wt->afm.Ct;
+                PetscReal a_t, Uref, bMag, Ct_t;
 
-                if(farm->farmControlActive[t])
+                if(wt->ctType == "constant")
                 {
-                    Ct_t += wt->wfControlCt;
+                    Ct_t = wt->afm.Ct;
+
+                    if(farm->farmControlActive[t])
+                    {
+                        Ct_t += wt->wfControlCt;
+                    }
+
+                    // reference velocity is extrapolated using induction coefficient - Ct relation
+                    if(wt->afm.sampleType == "momentumTheory")
+                    {
+                        // compute induction factor
+                        a_t     = (1.0 - std::sqrt(1.0 - Ct_t)) / 2.0;
+
+                        // compute freestream velocity
+                        Uref  = nMag(wt->afm.U) / (1.0 - a_t);
+
+                        // compute body force
+                        bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
+                    }
+                    // disk based Ct is used
+                    else if(wt->afm.sampleType == "rotorDisk" || wt->afm.sampleType == "integral")
+                    {
+                        // compute freestream velocity
+                        Uref  = nMag(wt->afm.U);
+
+                        // compute body force
+                        bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
+
+                        // compute induction factor (zero so that power is correct bcs Uref is already at disk)
+                        a_t = 0.0;
+                    }
                 }
+                else if(wt->ctType == "variable")
+                {   
+                    //intial guess
+                    Uref = nMag(wt->afm.U) / (2.0 / 3.0);  
 
-                // reference velocity is extrapolated using induction coefficient - Ct relation
-                if(wt->afm.sampleType == "momentumTheory")
-                {
-                    // compute induction factor
-                    a_t     = (1.0 - std::sqrt(1.0 - Ct_t)) / 2.0;
+                    PetscReal tol      = 0.001;  // Tolerance for disk average velocity in m/s
+                    PetscInt  maxIter  = 100;
+                    PetscInt  iter     = 0;
+                    PetscReal prevUref = 0.0;
 
-                    // compute freestream velocity
-                    Uref  = nMag(wt->afm.U) / (1.0 - a_t);
+                    while (iter < maxIter) 
+                    {
+                        PetscReal w[2];
+                        PetscInt  l[2];
+                        
+                        findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                        Ct_t = w[0]*wt->ctTbl.Ct[l[0]] + w[1]*wt->ctTbl.Ct[l[1]];
 
-                    // compute body force
+                        if (Ct_t > 1.0) 
+                        {
+                            a_t = 0.5;
+                            fprintf(stderr, "Warning: Ct > 1 (%f), using a=0.5\n", Ct_t);
+                        }
+                        else if (Ct_t < 0.0) 
+                        {
+                            a_t = 0.0;
+                        } 
+                        else 
+                        {
+                            a_t = 0.5 * (1.0 - sqrt(1.0 - Ct_t));
+                        }
+
+                        PetscReal UDiskCalc = Uref * (1.0 - a_t);
+
+                        if (fabs(UDiskCalc - nMag(wt->afm.U)) < tol) break;
+
+                        // Update Uref
+                        PetscReal newUref;
+                        if (fabs(1.0 - a_t) > 1e-6) 
+                        {
+                            newUref = nMag(wt->afm.U) / (1.0 - a_t);
+                        } 
+                        else 
+                        {
+                            newUref = Uref;  
+                        }
+
+                        // relaxation 
+                        Uref = 0.8 * newUref + 0.2 * Uref;
+
+                        if (fabs(Uref - prevUref) < 1e-6) break;
+
+                        prevUref = Uref;
+
+                        iter++;
+                    }
+
+                    if(farm->farmControlActive[t])
+                    {
+                        Ct_t += wt->wfControlCt;
+                    }
+
                     bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
-                }
-                // disk based Ct is used
-                else if(wt->afm.sampleType == "rotorDisk" || wt->afm.sampleType == "integral")
-                {
-                    // compute freestream velocity
-                    Uref  = nMag(wt->afm.U);
-
-                    // compute body force
-                    bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
-
-                    // compute induction factor (zero so that power is correct bcs Uref is already at disk)
-                    a_t = 0.0;
                 }
 
                 wt->afm.B = nScale(bMag, wt->rtrAxis);
@@ -6645,9 +6808,25 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
     // read from file AD parameters
     readDictInt(descrFile.c_str(),    "nRadPts",    &(wt->uadm.nRadial));
     readDictInt(descrFile.c_str(),    "nAziPts",    &(wt->uadm.nAzimuth));
-    readDictDouble(descrFile.c_str(), "Ct",         &(wt->uadm.Ct));
     readDictWord(descrFile.c_str(),   "sampleType", &(wt->uadm.sampleType));
     readDictDouble(descrFile.c_str(), "Uref",       &(wt->uadm.Uref));
+    readDictWord(descrFile.c_str(),   "CtType",     &(wt->ctType));
+
+    if(wt->ctType == "constant")
+    {
+        readDictDouble(descrFile.c_str(), "Ct",         &(wt->uadm.Ct));
+    }
+    else if(wt->ctType == "variable")
+    {
+        //read the Uref, Ct from the lookup table
+        readCtTable(wt, descrFile.c_str());
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "unknown CtType, available options are constant or variable\n");
+        fatalErrorInFunction("initUADM",  error);
+    }
 
     // check sample type
     if
@@ -6662,24 +6841,34 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
         fatalErrorInFunction("initUADM",  error);
     }
 
-    // compute axial induction factor
-    if(wt->uadm.sampleType != "rotorDisk")
+    if(wt->uadm.sampleType == "givenVelocity" && wt->ctType == "variable")
     {
-        // check that Ct does not make induction complex or negative
-        if(wt->uadm.Ct <= 0.0 || wt->uadm.Ct >= 1.0)
-        {
-            char error[512];
-            sprintf(error, "provided thrust coefficient ouside of bounds ([0 1] excluded). Change or switch to sampleType = rotorDisk");
-            fatalErrorInFunction("initUADM",  error);
-        }
-
-        // Ct
-        wt->uadm.axiInd = (1.0 - sqrt(1 - wt->uadm.Ct)) / 2.0;
+        char error[512];
+        sprintf(error, "cannot use variable Ct with givenVelocity sampleType. Change sampleType or use constant Ct");
+        fatalErrorInFunction("initUADM",  error);
     }
-    else
+
+    if(wt->ctType == "constant")
     {
-        // CtPrime
-        wt->uadm.axiInd = 0.0;
+        // compute axial induction factor
+        if(wt->uadm.sampleType != "rotorDisk")
+        {
+            // check that Ct does not make induction complex or negative
+            if(wt->uadm.Ct <= 0.0 || wt->uadm.Ct >= 1.0)
+            {
+                char error[512];
+                sprintf(error, "provided thrust coefficient ouside of bounds ([0 1] excluded). Change or switch to sampleType = rotorDisk");
+                fatalErrorInFunction("initUADM",  error);
+            }
+
+            // Ct
+            wt->uadm.axiInd = (1.0 - sqrt(1 - wt->uadm.Ct)) / 2.0;
+        }
+        else
+        {
+            // CtPrime
+            wt->uadm.axiInd = 0.0;
+        }
     }
 
     // debug switch
@@ -7162,7 +7351,24 @@ PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base, const word meshName)
     // read necessary properties from file
     word descrFile = "./turbines/" + meshName + "/" + wt->type;
 
-    readDictDouble(descrFile.c_str(), "Ct",         &(wt->afm.Ct));
+    readDictWord(descrFile.c_str(), "CtType",     &(wt->ctType));
+
+    if(wt->ctType == "constant")
+    {
+        readDictDouble(descrFile.c_str(), "Ct",         &(wt->afm.Ct));
+    }
+    else if(wt->ctType == "variable")
+    {
+        //read the Uref, Ct from the lookup table
+        readCtTable(wt, descrFile.c_str());
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "unknown CtType, available options are constant or variable\n");
+        fatalErrorInFunction("initAFM",  error);
+    }   
+
     readDictDouble(descrFile.c_str(), "Uref",       &(wt->afm.Uref));
     readDictWord(descrFile.c_str(),   "projection", &(wt->afm.projectionType));
     readDictWord(descrFile.c_str(),   "sampleType", &(wt->afm.sampleType));
@@ -9533,6 +9739,197 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName, const 
        char error[512];
         sprintf(error, "could not find keyword bladeData in dictionary %s\n", dictName);
         fatalErrorInFunction("readBladeProperties",  error);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readCtTable(windTurbine *wt, const char *dictName)
+{
+    // The dictionary must be located inside a
+    // file named as the turbine type and located
+    // inside ./turbines/, e.g.: ./turbines/NREL5MW.dat.
+    // It must be defined as follows:
+    //
+    // CtTable
+    // {
+    //     (Uref1 Ct1)
+    //     (Uref2 Ct2)
+    //                   ...
+    //     (UrefN CtN)
+    // }
+    //
+    // two is the minimum number of data points.
+    // no checks for doubles or integers are performed,
+    // only the format is checked.
+
+    // define the local variables
+    std::vector<PetscReal> Uref;
+    std::vector<PetscReal> Ct;
+
+    PetscReal   Uref_i, Ct_i;
+    PetscInt    nlines = 0;
+
+    // pointer for strtod and strtol
+    char   *eptr;
+
+    // file stream
+    std::ifstream indata;
+
+    // word by word read
+    char word[256];
+
+    // open dictionary
+    indata.open(dictName);
+
+    if(!indata)
+    {
+       char error[512];
+        sprintf(error, "could not open %s dictionary\n", dictName);
+        fatalErrorInFunction("readCtTable",  error);
+    }
+    else
+    {
+        // get word by word till end of dictionary
+        while(!indata.eof())
+        {
+            indata >> word;
+
+            // test if found subdictionary
+            if
+            (
+                strcmp
+                (
+                    "CtTable",
+                    word
+                ) == 0
+            )
+            {
+                // read the first "{"
+                indata >> word;
+
+                std::string token1(word);
+                std::string token2;
+
+                // test if braket is the first word after the subdictionary entry
+                if(trim(token1)=="{")
+                {
+                    // read until end of file (should find "}" before)
+                    while(!indata.eof())
+                    {
+                        // read the first component, contains "(" character
+                        indata >> word;
+
+                        // put the word in a string for performing checks
+                        std::string token3(word);
+
+                        std::string first(word);
+                        if (first.find ("(") != std::string::npos)
+                        {
+                            // remove "( character from the first component
+                            PetscInt l1 = first.size();
+                            for(PetscInt i=0;i<l1;i++)
+                            {
+                                word[i] = word[i+1];
+                            }
+
+                            // store the first variable (Uref)
+                            Uref_i = std::strtod(word, &eptr);
+                            Uref.push_back(Uref_i);
+
+                            // read the second component (Ct), contains ")" character
+                            indata >> word;
+
+                            std::string last(word);
+                            if (last.find (")") != std::string::npos)
+                            {
+                                // remove ") character from the last component and store
+                                Ct_i = std::strtod(word, &eptr);
+                                Ct.push_back(Ct_i);
+
+                                // increament line counter
+                                nlines++;
+                            }
+                            else
+                            {
+                               char error[512];
+                                sprintf(error, "expected <)>  at end of line as reading readData table in %s dictionary\n", dictName);
+                                fatalErrorInFunction("readCtTable",  error);
+                            }
+
+                        }
+                        // look for the terminating "}" if found: close the file, store the data and exit
+                        // if not found: may be another line
+                        else if(trim(token3)=="}")
+                        {
+                            if(nlines >= 2)
+                            {
+                                // close file
+                                indata.close();
+
+                                // allocate memory for the Ct table in the current wind turbine
+                                PetscMalloc(sizeof(ctTable), &(wt->ctTbl));
+                                PetscMalloc(nlines*sizeof(PetscReal), &(wt->ctTbl.Uref));
+                                PetscMalloc(nlines*sizeof(PetscReal), &(wt->ctTbl.Ct));
+
+                                // store the blade properties
+                                wt->ctTbl.size = nlines;
+
+                                for(PetscInt p=0; p<wt->ctTbl.size; p++)
+                                {
+                                    wt->ctTbl.Uref[p]  = Uref[p];
+                                    wt->ctTbl.Ct[p]    = Ct[p];
+                                }
+
+                                // clean the local variables
+                                std::vector<PetscReal> ().swap(Uref);
+                                std::vector<PetscReal> ().swap(Ct);
+
+                                // exit
+                                return(0);
+                            }
+                            else
+                            {
+                               char error[512];
+                                sprintf(error, "Required at least 2 data points as reading readData table in %s dictionary\n", dictName);
+                                fatalErrorInFunction("readCtTable",  error);
+                            }
+                        }
+                        // if find another "{" means another subdict is entered: throws error
+                        else if(trim(token3)=="{")
+                        {
+                           char error[512];
+                            sprintf(error, "missing '}' token at end of readData table in %s dictionary\n", dictName);
+                            fatalErrorInFunction("readCtTable",  error);
+                        }
+                        // we are at a new line and neither '(' nor '}' were found: throws error
+                        else
+                        {
+                             char error[512];
+                              sprintf(error, "expected either <(>  or <}> at new line as reading readData table in %s dictionary\n", dictName);
+                              fatalErrorInFunction("readCtTable",  error);
+                        }
+                    }
+
+                    // have reached this point without finding }: throws error
+                   char error[512];
+                    sprintf(error, "missing '}' token at end of readData table in %s dictionary\n", dictName);
+                    fatalErrorInFunction("readCtTable",  error);
+                }
+                else
+                {
+                   char error[512];
+                    sprintf(error, "expected '{' token after keyword CtTable in dictionary %s, found '%s'\n", dictName, word);
+                    fatalErrorInFunction("readCtTable",  error);
+                }
+            }
+        }
+
+       char error[512];
+        sprintf(error, "could not find keyword CtTable in dictionary %s\n", dictName);
+        fatalErrorInFunction("readCtTable",  error);
     }
 
     return(0);
