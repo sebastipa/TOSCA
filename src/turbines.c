@@ -7,6 +7,10 @@
 #include "include/inline.h"
 #include "include/turbines.h"
 
+#if USE_OPENFAST
+    #include "OpenFAST.H"
+#endif
+
 // Our ADM/ALM models are detailed actuator disk/line
 // models with blade pitch and generator speed controls, blade and airfoil properties
 // linearly interpolated where necessary. UniformADM is a simple AD version, where the
@@ -39,21 +43,6 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
 
     if(!farm->dbg) PetscPrintf(mesh->MESH_COMM,"Updating wind turbines, ");
 
-    // solve rotor dynamics and compute rot speeds
-    computeRotSpeed(farm);
-
-    // apply the generator speed controller
-    controlGenSpeed(farm);
-
-    // apply the pitch PID controller
-    controlBldPitch(farm);
-
-    // apply the wind farm controller
-    windFarmControl(farm);
-
-    // apply the yaw controller
-    controlNacYaw(farm);
-
     // find which AD points this processor controls
     findControlledPointsRotor(farm);
 
@@ -72,8 +61,47 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     // compute wind velocity at the nacelle mesh point
     computeWindVectorsNacelle(farm);
 
+#if USE_OPENFAST
+
+    // examples to see if it compiles 
+    fast::OpenFAST FAST;
+    fast::fastInputs fi;
+
+    // send velocities to openfast 
+
+    // advance openfast so that it is in sync with the current tosca time
+
+    // predict position at next time step
+
+    // get positions at next time step
+
+    // move coordinates in tosca 
+
+    // get force from openfast at current time 
+
+#else 
+
+    // NOTE: I MOVED TURBINE FUNCTIONS AROUND SO IT MIGHT NOT WORK FULLY!!!! THIS IS STILL IN PROGRESS !!!
+
+    // solve rotor dynamics and compute rot speeds
+    computeRotSpeed(farm);
+
+    // apply the generator speed controller
+    controlGenSpeed(farm);
+
+    // apply the pitch PID controller
+    controlBldPitch(farm);
+
+    // apply the wind farm controller
+    windFarmControl(farm);
+
+    // apply the yaw controller
+    controlNacYaw(farm);
+
     // compute aerodynamic forces at the turbine mesh points
     computeBladeForce(farm);
+
+#endif
 
     // project the wind turbine forces on the background mesh
     projectBladeForce(farm);

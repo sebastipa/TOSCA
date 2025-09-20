@@ -5,19 +5,22 @@
 # 3. PETSc     (we suggest compiling from source, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html)
 # 4. HDF5      (we suggest using the PETSc automatic installation)
 # 5. HYPRE     (we suggest using the PETSc automatic installation)
-# 6. Catalyst2 (optional, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html#paraview-catalyst2-os-rendering)
+# 6. OpenFAST  (optional, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html#openfast-coupling)
+# 7. Catalyst2 (optional, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html#paraview-catalyst2-os-rendering)
 # ==================================================================================================================================== #
 
 # User defined options 
 # ==================================================================================================================================== #
-USE_HDF5     ?= 1
-USE_CATALYST ?= 0
-USE_PYTHON   ?= 0
+USE_HDF5     ?= 1  # user must define HDF5_DIR in the shell environment
+USE_OPENFAST ?= 1  # user must define OPENFAST_DIR in the shell environment
+USE_CATALYST ?= 0  # user must define CATALYST_DIR in the shell environment
+USE_PYTHON   ?= 0  # user must have python3 and pybind11 installed
 # ==================================================================================================================================== #
 
 # Environment variables should be defined in the shell before running make
 HDF5       = ${HDF5_DIR}
 CATALYST   = ${CATALYST_DIR}
+OPENFAST   = ${OPENFAST_DIR}
 
 # Compiler and flags
 CC         = mpicxx
@@ -34,6 +37,33 @@ INC_FLAGS += -I$(HDF5)/include
 LIBS      += -lhdf5 
 else
 CPPFLAGS  += -DUSE_HDF5=0
+endif
+
+# OpenFAST support
+ifeq ($(USE_OPENFAST), 1)
+CPPFLAGS  += -DUSE_OPENFAST=1
+INC_FLAGS += -I${OPENFAST}/include
+LDFLAGS   += -L${OPENFAST}/lib
+LIBS      += -laerodynlib \
+			 -lbeamdynlib \
+			 -lelastodynlib \
+			 -lextptfm_mckflib \
+			 -lfeamlib \
+			 -lhydrodynlib \
+			 -licedynlib \
+			 -licefloelib \
+			 -lifwlib \
+			 -lmoordynlib \
+			 -lnwtclibs \
+			 -lopenfastcpplib \
+			 -lopenfastlib \
+			 -lopenfast_postlib \
+			 -lopenfast_prelib \
+			 -lorcaflexlib \
+			 -lservodynlib \
+			 -lsubdynlib 
+else
+CPPFLAGS  += -DUSE_OPENFAST=0
 endif
 
 # Catalyst support
