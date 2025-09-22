@@ -30,7 +30,7 @@ LDFLAGS    = -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
 LIBS       = -lpthread -lrt -ldl -lstdc++ -lpetsc -lf2cblas -lf2clapack -lHYPRE 
 
 # HDF5 support
-ifeq ($(USE_HDF5), 1)
+ifeq ($(strip $(USE_HDF5)), 1)
 CPPFLAGS  += -DUSE_HDF5=1
 LDFLAGS   += -L$(HDF5)/lib
 INC_FLAGS += -I$(HDF5)/include
@@ -40,7 +40,7 @@ CPPFLAGS  += -DUSE_HDF5=0
 endif
 
 # OpenFAST support
-ifeq ($(USE_OPENFAST), 1)
+ifeq ($(strip $(USE_OPENFAST)), 1)
 CPPFLAGS  += -DUSE_OPENFAST=1
 INC_FLAGS += -I${OPENFAST}/include
 LDFLAGS   += -L${OPENFAST}/lib
@@ -67,7 +67,7 @@ CPPFLAGS  += -DUSE_OPENFAST=0
 endif
 
 # Catalyst support
-ifeq ($(USE_CATALYST), 1)
+ifeq ($(strip $(USE_CATALYST)), 1)
 CPPFLAGS  += -DUSE_CATALYST=1
 LDFLAGS   += -L$(CATALYST)/lib
 INC_FLAGS += -I$(CATALYST)/include/catalyst-2.0
@@ -77,7 +77,7 @@ CPPFLAGS  += -DUSE_CATALYST=0
 endif
 
 # Python support
-ifeq ($(USE_PYTHON), 1)
+ifeq ($(strip $(USE_PYTHON)), 1)
 CPPFLAGS  += -DUSE_PYTHON=1
 CFLAGS    += $(shell python3 -m pybind11 --includes)
 LDFLAGS   += $(shell python3-config --ldflags)
