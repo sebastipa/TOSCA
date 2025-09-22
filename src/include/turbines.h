@@ -6,6 +6,10 @@
 #ifndef FARM_H
 #define FARM_H
 
+#if USE_OPENFAST
+    #include "OpenFAST.H"
+#endif
+
 //! \brief Airfoil info
 typedef struct
 {
@@ -296,6 +300,7 @@ typedef struct
 typedef struct
 {
     // global parameters (all turbine models)
+    PetscInt               index;   //!< index of the wind turbine in the array
     word                      id;   //!< id of the wind turbine
     word                    type;   //!< type of the wind turbine
     PetscInt             nBlades;   //!< number of turbine blades
@@ -448,6 +453,16 @@ typedef struct
     PetscReal                  I;   //!< normalization factor for gaussexp AFM projection
     PetscReal          prjNSigma;   //!< confidence interval as number of std deviations for the projection function (hardcoded to 2.7)
 
+    // OpenFAST coupling parameters 
+    PetscInt         useOpenFAST;   //< turbine specific flag to use OpenFAST 
+#if USE_OPENFAST
+    fast::OpenFAST         *FAST;   //!< OpenFAST object (points to that of the farm struct, used for access)
+    PetscInt       openfastIndex;   //!< index of this turbine in the OpenFAST labeling (-1 if not coupled)
+    PetscInt   nBladePtsOpenFAST;   //!< number of blade points for OpenFAST 
+    PetscInt     nTwrPtsOpenFAST;   //!< number of tower points for OpenFAST
+
+#endif
+
     // debug switch
     PetscInt                 dbg;   //!< this turbines info at the begining of the simulation and at each iteration
 
@@ -474,6 +489,18 @@ struct farm_
     PetscReal       timeInterval;  //!< acquisition time interval (overrides simulation time step if smaller and adjustableTime active)
     PetscInt         writeNumber;  //!< number of mesh files written up to now
 
+#if USE_OPENFAST
+
+    // OpenFAST coupling parameters 
+    fast::OpenFAST         *FAST;   //!< OpenFAST object
+    fast::fastInputs          fi;   //!< OpenFAST input structure
+    
+    PetscInt           nOpenFAST;   //!< number of turbines coupled to OpenFAST
+    PetscInt        *openfastIds;   //!< array of size nturbines containing indices turbines coupled to OpenFAST in the OpenFAST labeling (-1 if not coupled)
+    PetscInt       nFastSubSteps;   //!< number of OpenFAST time steps per TOSCA time step
+
+#endif
+
     // debug switch
     PetscInt                 dbg;  //!< global debug switch, checks for point discrimination algorithm (slower)
 
@@ -499,7 +526,7 @@ PetscErrorCode InitializeWindFarm(farm_ *farm);
 //! \brief Update wind turbines
 PetscErrorCode UpdateWindTurbines(farm_ *farm);
 
-// Actuator disk model routines.
+// Actuator models routines.
 // -----------------------------------------------------------------------------
 
 //! \brief Solve rotor dynamics and compute filtered rot speed
@@ -598,20 +625,35 @@ PetscErrorCode initControlledCells(farm_ *farm);
 //! \brief Initialize sphere cells and see what proc controls which sample point
 PetscErrorCode initSampleControlledCells(farm_ *farm);
 
-// \brief Initializes the ADM reading from files and allocating memory
-PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName);
+//! \brief Read actuator model parameters and allocate memory 
+PetscErrorCode readActuatorModelParameters(const word actuatorModel, windTurbine *wt, const word meshName); 
+
+//! \brief Initializes the ADM reading from files and allocating memory
+PetscErrorCode readADM(windTurbine *wt, const word meshName);
+
+//! \brief Creates the ADM mesh 
+PetscErrorCode meshADM(windTurbine *wt, const word meshName);
 
 //! \brief Initialize the Uniform Actuator Disk Model
-PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName);
+PetscErrorCode readUADM(windTurbine *wt, const word meshName);
 
-//! \brief Initialize the upstream sample points data structure
-PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base, const word meshName);
+//! \brief Creates the UADM mesh
+PetscErrorCode meshUADM(windTurbine *wt, const word meshName);
 
 //! \brief Initializes the ALM reading from files and allocating memory
-PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName);
+PetscErrorCode readALM(windTurbine *wt, const word meshName);
+
+//! \brief Creates the ALM mesh
+PetscErrorCode meshALM(windTurbine *wt, const word meshName);
 
 //! \brief Initializes the AFM reading from files and allocating memory
-PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base, const word meshName);
+PetscErrorCode readAFM(windTurbine *wt, const word meshName);
+
+//! \brief Creates the AFM mesh
+PetscErrorCode meshAFM(windTurbine *wt, const word meshName);
+
+//! \brief Initialize the upstream sample points data structure
+PetscErrorCode initSamplePoints(windTurbine *wt, const word meshName);
 
 //! \brief Initializes the tower model
 PetscErrorCode initTwrModel(windTurbine *wt, Cmpnts &base);
@@ -625,6 +667,25 @@ PetscErrorCode computeMaxTipSpeed(farm_ *farm);
 //! \brief Check that the mesh is resolved around the turbine
 PetscErrorCode checkTurbineMesh(farm_ *farm);
 
+// OpenFAST coupling functions
+// -----------------------------------------------------------------------------
+
+#if USE_OPENFAST
+
+//! \brief Initialize OpenFAST for the wind farm
+PetscErrorCode initOpenFAST(farm_ *farm);
+
+//! \brief Send velocity to OpenFAST 
+PetscErrorCode sendVelocityOpenFAST(farm_ *farm);
+
+//! \brief Receive forces and moments from OpenFAST
+PetscErrorCode getForcesOpenFAST(farm_ *farm);
+
+//! \brief Perform OpenFAST time step 
+PetscErrorCode advanceOpenFAST(farm_ *farm);
+
+#endif
+
 // Reading input files functions
 // -----------------------------------------------------------------------------
 
@@ -635,7 +696,7 @@ PetscErrorCode readFarmProperties(farm_ *farm);
 PetscErrorCode readTurbineArray(farm_ *wf);
 
 //! \brief Fill the windTurbine struct reading in the file named as the wind turbine type
-PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word meshName, const word modelName);
+PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word meshName, const word modelName, Cmpnts &base);
 
 //! \brief Reads the names of the airfoil used in the turbine (given in the airfoils subdict inside the file named as the wind turbine type)
 PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName);

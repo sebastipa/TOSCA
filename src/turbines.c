@@ -7,10 +7,6 @@
 #include "include/inline.h"
 #include "include/turbines.h"
 
-#if USE_OPENFAST
-    #include "OpenFAST.H"
-#endif
-
 // Our ADM/ALM models are detailed actuator disk/line
 // models with blade pitch and generator speed controls, blade and airfoil properties
 // linearly interpolated where necessary. UniformADM is a simple AD version, where the
@@ -64,8 +60,7 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
 #if USE_OPENFAST
 
     // examples to see if it compiles 
-    fast::OpenFAST FAST;
-    fast::fastInputs fi;
+    
 
     // send velocities to openfast 
 
@@ -80,8 +75,6 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     // get force from openfast at current time 
 
 #else 
-
-    // NOTE: I MOVED TURBINE FUNCTIONS AROUND SO IT MIGHT NOT WORK FULLY!!!! THIS IS STILL IN PROGRESS !!!
 
     // solve rotor dynamics and compute rot speeds
     computeRotSpeed(farm);
@@ -138,39 +131,13 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
         // read farm propeties and initialize all parameters
         PetscPrintf(mesh->MESH_COMM, "   reading wind farm properties...\n");
         readFarmProperties(farm);
-
-        PetscPrintf(mesh->MESH_COMM, "   initializing wind farm models...\n");
-        // initialize the wind turbine models
         PetscInt nT = farm->size;
 
+        PetscPrintf(mesh->MESH_COMM, "   reading actuator model parameters...\n");
         for(PetscInt t=0; t<nT; t++)
         {
-            if((*farm->turbineModels[t]) == "ADM")
-            {
-                // initialize actuator disk model parameters
-                initADM(farm->wt[t], farm->base[t], mesh->meshName);
-            }
-            else if((*farm->turbineModels[t]) == "uniformADM")
-            {
-                // initialize uniform actuator disk model parameters
-                initUADM(farm->wt[t], farm->base[t], mesh->meshName);
-            }
-            else if((*farm->turbineModels[t]) == "ALM")
-            {
-                // initialize actuator line model parameters
-                initALM(farm->wt[t], farm->base[t], mesh->meshName);
-            }
-            else if((*farm->turbineModels[t]) == "AFM")
-            {
-                // initialize actuator farm model parameters
-                initAFM(farm->wt[t], farm->base[t], mesh->meshName);
-            }
-            else
-            {
-               char error[512];
-               sprintf(error, "unknown wind turbine model for turbine %s\n", (*farm->turbineIds[t]).c_str());
-               fatalErrorInFunction("InitializeWindFarm",  error);
-            }
+            // read actuator model parameters (this needs to be done before OpenFAST)
+            readActuatorModelParameters((*farm->turbineModels[t]), farm->wt[t], mesh->meshName); 
 
             // initialize the tower model
             if(farm->wt[t]->includeTwr)
@@ -185,7 +152,7 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
             }
 
             // initialize upstream velocity sampling
-            initSamplePoints(farm->wt[t], farm->base[t], mesh->meshName);
+            initSamplePoints(farm->wt[t], mesh->meshName);
         }
 
         PetscPrintf(mesh->MESH_COMM, "   pre-calculating influence sphere cells...\n");
@@ -205,6 +172,38 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
         // determine which points in each nacelle are controlled by which processor (also finds closest cell)
         findControlledPointsNacelle(farm);
 
+#if USE_OPENFAST
+        PetscPrintf(mesh->MESH_COMM, "   sending inputs to OpenFAST...\n");
+        // initialize OpenFAST 
+        initOpenFAST(farm);
+#endif
+
+        // initialize actuator model meshes
+        PetscPrintf(mesh->MESH_COMM, "   initializing actuator model meshes...\n");
+        for(PetscInt t=0; t<nT; t++)
+        {
+            if((*farm->turbineModels[t]) == "ADM")
+            {
+                // initialize actuator disk model parameters
+                meshADM(farm->wt[t], mesh->meshName);
+            }
+            else if((*farm->turbineModels[t]) == "uniformADM")
+            {
+                // initialize uniform actuator disk model parameters
+                meshUADM(farm->wt[t], mesh->meshName);
+            }
+            else if((*farm->turbineModels[t]) == "ALM")
+            {
+                // initialize actuator line model parameters
+                meshALM(farm->wt[t], mesh->meshName);
+            }
+            else if((*farm->turbineModels[t]) == "AFM")
+            {
+                // initialize actuator farm model parameters
+                meshAFM(farm->wt[t], mesh->meshName);
+            }
+        }
+
         // read the checkpoint file if present and prepare wind turbines for restart
         windTurbinesReadCheckpoint(farm);
 
@@ -213,6 +212,134 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
 
     return(0);
 }
+
+//***************************************************************************************************************//
+
+#if USE_OPENFAST
+PetscErrorCode initOpenFAST(farm_ *farm)
+{
+    PetscInt nT = farm->size, nOpenFAST   = 0;
+    
+    // count how many turbines are coupled to OpenFAST
+    for(PetscInt t=0; t<nT; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        // check if this turbine uses OpenFAST 
+        if(wt->useOpenFAST)
+        {
+            nOpenFAST++;    
+        }
+    }
+
+    // set number of turbines that are coupled to OpenFAST
+    farm->nOpenFAST = nOpenFAST;
+
+    if(farm->nOpenFAST)
+    {
+        farm->FAST                = new fast::OpenFAST;
+
+        farm->fi.comm             = farm->access->mesh->MESH_COMM;
+        farm->fi.nTurbinesGlob    = (int)farm->nOpenFAST;
+        farm->fi.dryRun           = (bool)0;
+        farm->fi.debug            = (bool)farm->dbg;
+        farm->fi.tStart           = (double)farm->access->clock->startTime;
+        // for now restart is not available (need to check if the file is present)
+        farm->fi.simStart         = fast::init; 
+        farm->fi.restartFreq      = (int)100; // need to adjust
+        farm->fi.outputFreq       = (int)farm->timeInterval; // if this is is seconds need to adjust
+        farm->fi.tMax             = (double)farm->access->clock->endTime;
+        farm->fi.dtFAST           = (double)farm->access->clock->dt/(PetscReal)farm->nFastSubSteps;
+        farm->fi.dtDriver         = (double)farm->access->clock->dt;
+        farm->fi.globTurbineData.resize(farm->fi.nTurbinesGlob);
+
+        PetscMalloc(sizeof(PetscInt)*nT, &(farm->openfastIds));
+        PetscInt count = 0;
+
+        for(PetscInt t=0; t<nT; t++)
+        {
+            windTurbine *wt = farm->wt[t];
+
+            // check if this turbine uses OpenFAST 
+            if(wt->useOpenFAST)
+            {
+                farm->openfastIds[t] = count;
+
+                // set this index here (dont'use wt because it's a local ptr)
+                farm->wt[t]->openfastIndex = count;
+
+                std::vector<float> baseLoc(3);
+                baseLoc[0] = farm->base[t].x;
+                baseLoc[1] = farm->base[t].y;
+                baseLoc[2] = farm->base[t].z;
+
+                std::vector<double> hubLoc(3);
+                hubLoc[0] = wt->rotCenter.x;
+                hubLoc[1] = wt->rotCenter.y;
+                hubLoc[2] = wt->rotCenter.z;
+
+                farm->fi.globTurbineData[count].TurbID              = (int)t;
+                farm->fi.globTurbineData[count].FASTInputFileName   = (std::string)(wt->type + "." + std::to_string(t) + ".fst");
+                farm->fi.globTurbineData[count].FASTRestartFileName = (std::string)(wt->type + "." + std::to_string(t) + ".chkpt");
+                farm->fi.globTurbineData[count].TurbineBasePos      = baseLoc;
+                farm->fi.globTurbineData[count].TurbineHubPos       = hubLoc;
+                farm->fi.globTurbineData[count].numForcePtsBlade    = (int)wt->nBladePtsOpenFAST;
+                farm->fi.globTurbineData[count].numForcePtsTwr      = (int)wt->nTwrPtsOpenFAST;
+
+                count++;
+            }
+            else 
+            {
+                farm->openfastIds[t] = -1;
+            }
+        }
+
+        // send inputs to OpenFAST
+        farm->FAST->setInputs(farm->fi);
+
+        // assign OpenFAST instances to the writer rank of each turbine
+        for(PetscInt t=0; t<nT; t++)
+        {
+            if(farm->wt[t]->useOpenFAST)
+            {
+                farm->FAST->setTurbineProcNo(farm->openfastIds[t], farm->wt[t]->writerRank);
+            }
+        }
+
+        // initialize OpenFAST (reads OpenFAST input files and creates instance of OpenFAST)
+        farm->FAST->init();
+
+        // set access pointer to the OpenFAST object
+        for(PetscInt t=0; t<nT; t++)
+        {
+            if(farm->wt[t]->useOpenFAST)
+            {
+                farm->wt[t]->FAST = farm->FAST;
+            }
+        }
+    }
+    
+    return(0);
+}
+
+PetscErrorCode sendVelocityOpenFAST(farm_ *farm)
+{
+    // TO BE IMPLEMENTED
+    return(0);
+}
+
+PetscErrorCode getForcesOpenFAST(farm_ *farm)
+{
+    // TO BE IMPLEMENTED
+    return(0);
+}
+
+PetscErrorCode advanceOpenFAST(farm_ *farm)
+{
+    // TO BE IMPLEMENTED
+    return(0);
+}
+#endif
 
 //***************************************************************************************************************//
 
@@ -460,7 +587,9 @@ PetscErrorCode checkTurbineMesh(farm_ *farm)
 
     return(0);
 }
+
 //***************************************************************************************************************//
+
 PetscErrorCode computeRotSpeed(farm_ *farm)
 {
     // turbine and model mesh point indices
@@ -6772,7 +6901,37 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
 
 //***************************************************************************************************************//
 
-PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
+PetscErrorCode readActuatorModelParameters(const word actuatorModel, windTurbine *wt, const word meshName)
+{
+    if(actuatorModel == "ADM")
+    {
+        readADM(wt, meshName);
+    }
+    else if(actuatorModel == "uniformADM")
+    {
+        readUADM(wt, meshName);
+    }
+    else if(actuatorModel == "ALM")
+    {
+        readALM(wt, meshName);  
+    }
+    else if(actuatorModel == "AFM")
+    {
+        readAFM(wt, meshName);    
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "unknown wind turbine model for turbine %s\n", wt->id.c_str());
+        fatalErrorInFunction("readActuatorModelParameters",  error);
+    }
+    
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readADM(windTurbine *wt, const word meshName)
 {
     // allocate memory for the ADM
     PetscMalloc(sizeof(ADM), &(wt->adm));
@@ -6800,8 +6959,6 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
     // set average rotor velocity mag to zero
     wt->adm.rtrAvgMagU = 0.0;
 
-    // build the AD mesh
-
     // allocate memory for the ADM parameters
     PetscMalloc(wt->adm.nPoints*sizeof(Cmpnts), &(wt->adm.points));
     PetscMalloc(wt->adm.nPoints*sizeof(PetscReal), &(wt->adm.dr));
@@ -6822,15 +6979,11 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
     PetscMalloc(wt->adm.nPoints*sizeof(PetscReal), &(wt->adm.axialF));
     PetscMalloc(wt->adm.nPoints*sizeof(PetscReal), &(wt->adm.tangtF));
 
-    // set tower top point
-    Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
-                    mSum(tower, base);
+    return(0);
+}
 
-    // set rotor center point
-    Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
-    Cmpnts center = nSum(tower, overH);
-    wt->rotCenter = center;
-
+PetscErrorCode meshADM(windTurbine *wt, const word meshName)
+{
     // set the rotor reference frame
     // x from nacelle back to cone,
     // y on the rotor at zero azimuth,
@@ -6847,23 +7000,20 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
 
     // set rtrAxis and omega_hat turbine param. here
     {
-        // set rotor axis (up-tilted, from nacell back to cone)
-        wt->rtrAxis = xr_hat;
-
         // set the rotor rotation unit vector
         if(wt->rotDir == "cw")
         {
-            wt->omega_hat = nScale(-1.0, xr_hat);
+            wt->omega_hat = nScale(-1.0, wt->rtrAxis);
         }
         else if(wt->rotDir == "ccw")
         {
-            wt->omega_hat = nSet(xr_hat);
+            wt->omega_hat = nSet(wt->rtrAxis);
         }
         else
         {
             char error[512];
             sprintf(error, "unknown rotationDir, avilable options are 'cw' or 'ccw'\n");
-            fatalErrorInFunction("initADM",  error);
+            fatalErrorInFunction("meshADM",  error);
         }
     }
 
@@ -6939,10 +7089,10 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
             Cmpnts point = nSet(rvec);
 
             // rotate the point
-            mRot(xr_hat, point, daval*ai);
+            mRot(wt->rtrAxis, point, daval*ai);
 
             // add the rotor center vector from origin
-            mSum(point, center);
+            mSum(point, wt->rotCenter);
 
             // set the point value
             mSet(wt->adm.points[pi], point);
@@ -6959,7 +7109,7 @@ PetscErrorCode initADM(windTurbine *wt, Cmpnts &base, const word meshName)
 
 //***************************************************************************************************************//
 
-PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
+PetscErrorCode readUADM(windTurbine *wt, const word meshName)
 {
     // allocate memory for the ADM
     PetscMalloc(sizeof(UADM), &(wt->uadm));
@@ -7000,7 +7150,7 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
     {
         char error[512];
         sprintf(error, "unknown velocity sampling type. Available types are givenVelocity, rotorUpstream or rotorDisk");
-        fatalErrorInFunction("initUADM",  error);
+        fatalErrorInFunction("readUADM",  error);
     }
 
     if(wt->uadm.sampleType == "givenVelocity" && wt->ctType == "variable")
@@ -7008,6 +7158,16 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
         char error[512];
         sprintf(error, "cannot use variable Ct with givenVelocity sampleType. Change sampleType or use constant Ct");
         fatalErrorInFunction("initUADM",  error);
+        // check that Ct does not make induction complex or negative
+        if(wt->uadm.Ct <= 0.0 || wt->uadm.Ct >= 1.0)
+        {
+            char error[512];
+            sprintf(error, "provided thrust coefficient ouside of bounds ([0 1] excluded). Change or switch to sampleType = rotorDisk");
+            fatalErrorInFunction("readUADM",  error);
+        }
+
+        // Ct
+        wt->uadm.axiInd = (1.0 - sqrt(1 - wt->uadm.Ct)) / 2.0;
     }
 
     if(wt->ctType == "constant")
@@ -7060,15 +7220,11 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
     PetscMalloc(wt->uadm.nPoints*sizeof(Cmpnts), &(wt->uadm.B));
     PetscMalloc(wt->uadm.nPoints*sizeof(PetscReal), &(wt->uadm.axialF));
 
-    // set tower top point
-    Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
-                    mSum(tower, base);
+    return(0);
+}
 
-    // set rotor center point
-    Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
-    Cmpnts center = nSum(tower, overH);
-    wt->rotCenter = center;
-
+PetscErrorCode meshUADM(windTurbine *wt, const word meshName)
+{
     // set the rotor reference frame
     // x from nacelle back to cone,
     // y on the rotor at zero azimuth,
@@ -7082,9 +7238,6 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
 	// preconed r_hat
 	Cmpnts r_hat = nSet(yr_hat);
 	mRot(zr_hat, r_hat, wt->precone*wt->deg2rad);
-
-    // set rotor axis (up-tilted, from nacell back to cone)
-    wt->rtrAxis = xr_hat;
 
     // set the hub radius vector
     Cmpnts rHub = nScale(wt->rHub, yr_hat);
@@ -7134,10 +7287,10 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
             Cmpnts point = nSet(rvec);
 
             // rotate the point
-            mRot(xr_hat, point, daval*ai);
+            mRot(wt->rtrAxis, point, daval*ai);
 
             // add the rotor center vector from origin
-            mSum(point, center);
+            mSum(point, wt->rotCenter);
 
             // set the point value
             mSet(wt->uadm.points[pi], point);
@@ -7153,14 +7306,378 @@ PetscErrorCode initUADM(windTurbine *wt, Cmpnts &base, const word meshName)
 
 //***************************************************************************************************************//
 
-PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base, const word meshName)
+PetscErrorCode readALM(windTurbine *wt, const word meshName)
+{
+    // allocate memory for the ADM
+    PetscMalloc(sizeof(ALM), &(wt->alm));
+
+    // read necessary properties from file
+    word descrFile = "./turbines/" + meshName + "/" + wt->type;
+
+    // read from file AL parameters
+    readDictWord(descrFile.c_str(),   "projection", &(wt->alm.projectionType));
+    readDictInt(descrFile.c_str(),    "nRadPts", &(wt->alm.nRadial));
+    readDictDouble(descrFile.c_str(), "Uref",    &(wt->alm.Uref));
+    readDictWord(descrFile.c_str(),   "sampleType", &(wt->alm.sampleType));
+
+    // check sample type
+    if
+    (
+        wt->alm.sampleType != "rotorDisk" &&
+        wt->alm.sampleType != "integral"
+    )
+    {
+        char error[512];
+        sprintf(error, "unknown velocity sampling type. Available types are rotorDisk or integral");
+        fatalErrorInFunction("readALM",  error);
+    }
+
+    // check projection type
+    if(wt->alm.projectionType!="isotropic" && wt->alm.projectionType!="anisotropic")
+    {
+        char error[512];
+        sprintf(error, "unknown ALM projection, available possibilities are:\n    1. isotropic\n    2. anisotropic\n");
+        fatalErrorInFunction("readALM",  error);
+    }
+
+    //read projection radius
+    if(wt->alm.projectionType=="anisotropic")
+    {
+        if(wt->useOpenFAST)
+        {
+            char error[512];
+            sprintf(error, "anisotropic projection not compatible with OpenFAST coupling at turbine %s", wt->id.c_str());
+            fatalErrorInFunction("readALM",  error);
+        }
+        readDictDouble(descrFile.c_str(), "epsilonFactor_x",     &(wt->eps_x));
+        readDictDouble(descrFile.c_str(), "epsilonFactor_y",     &(wt->eps_y));
+        readDictDouble(descrFile.c_str(), "epsilonFactor_z",     &(wt->eps_z));
+    }
+    else
+    {
+        readDictDouble(descrFile.c_str(), "epsilon",     &(wt->eps));
+    }
+
+    wt->alm.nAzimuth = wt->nBlades;
+
+    // debug switch
+    readDictInt(descrFile.c_str(), "debug", &(wt->alm.dbg));
+
+    // check that OpenFAST and ALM have consistent number of radial points 
+#if USE_OPENFAST
+    if(wt->useOpenFAST)
+    {
+        if(wt->alm.nRadial != wt->nBladePtsOpenFAST)
+        {
+            char error[512];
+            sprintf(error, "inconsistent number of blade points between ALM (%ld) and OpenFAST (%ld)", wt->alm.nRadial, wt->nBladePtsOpenFAST);
+            fatalErrorInFunction("readALM",  error);
+        }
+    }
+#endif
+
+    // set total numer of points in the mesh
+    wt->alm.nPoints = wt->alm.nRadial * wt->alm.nAzimuth;
+
+    // set rotor torque and power to zero (will remain zero in the processors
+    // that do not control the turbine for parallel scatter/gather)
+    wt->alm.rtrThrust = 0.0;
+    wt->alm.rtrTorque = 0.0;
+    wt->alm.aeroPwr   = 0.0;
+
+    // set average rotor velocity mag to zero
+    wt->alm.rtrAvgMagU = 0.0;
+
+    // set initial azimuth
+    wt->alm.azimuth = 0.0;
+
+    // allocate memory for the ALM parameters
+    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.points));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.dr));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.chord));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.twist));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.solidity));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscInt*), &(wt->alm.foilIds));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal*), &(wt->alm.iw));
+
+    if(wt->alm.projectionType=="anisotropic")
+    {
+        PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.thick));
+    }
+
+    // allocate memory for the variables used during the simulation
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscInt), &(wt->alm.thisPtControlled));
+    PetscMalloc(wt->alm.nPoints*sizeof(cellIds),&(wt->alm.closestCells));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.Cd));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.Cl));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.alpha));
+    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.U));
+    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.gWind));
+    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.B));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.axialF));
+    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.tangtF));
+
+    return(0);
+}
+
+PetscErrorCode meshALM(windTurbine *wt, const word meshName)
+{
+    // set the rotor reference frame
+    // x from nacelle back to cone,
+    // y on the rotor at zero azimuth,
+    // z as the right hand rule
+    Cmpnts xr_hat = nUnit(wt->rtrDir);
+    Cmpnts yr_hat = nUnit(wt->twrDir);
+    Cmpnts zr_hat = nCross(xr_hat, yr_hat);
+    mRot(zr_hat, xr_hat, wt->upTilt*wt->deg2rad);  // rotate xr_hat with uptilt
+    mRot(zr_hat, yr_hat, wt->upTilt*wt->deg2rad);  // rotate yr_hat with uptilt
+
+	// preconed r_hat
+	Cmpnts r_hat = nSet(yr_hat);
+	mRot(zr_hat, r_hat, wt->precone*wt->deg2rad);
+
+    // set omega_hat turbine param. here
+    {
+        // set the rotor rotation unit vector
+        if(wt->rotDir == "cw")
+        {
+            wt->omega_hat = nScale(-1.0, wt->rtrAxis);
+        }
+        else if(wt->rotDir == "ccw")
+        {
+            wt->omega_hat = nSet(wt->rtrAxis);
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "unknown rotationDir, avilable options are 'cw' or 'ccw'\n");
+            fatalErrorInFunction("meshALM",  error);
+        }
+    }
+
+    if(wt->useOpenFAST)
+    {
+#if USE_OPENFAST
+
+        // when using OpenFAST, these are set later from the OpenFAST data
+        PetscInt npoints = wt->FAST->get_numVelPts(wt->index);
+        printf(" number of turbine vel points from openfast: %ld\n", npoints);
+        printf(" number of turbine points from tosca: %ld\n", wt->alm.nPoints);
+
+        std::vector<double> pointLocation(3,0.0);
+
+        // get points coordinates 
+        for(PetscInt pi=0; pi<npoints; pi++)
+        {
+            wt->FAST->getVelNodeCoordinates(pointLocation, pi, wt->openfastIndex);
+            printf(" pointLocation: %f %f %f\n", pointLocation[0], pointLocation[1], pointLocation[2]);
+
+            // set airfoil chord
+            wt->alm.chord[pi] = 0; // TO BE FILLED
+
+            // set airfoil twist
+            wt->alm.twist[pi] = 0; // TO BE FILLED
+
+            // NOTE: airfoil ids and weights are not allocated in OpenFAST mode 
+
+            // set the rotor solidity (it is one for the ALM)
+            wt->alm.solidity[pi] = 1.0;
+
+            wt->alm.points[pi] = nSetZero(); // TO BE FILLED
+
+            wt->alm.dr[pi] = 0; // TO BE FILLED
+        }
+
+        // when using OpenFAST, these are set later from the OpenFAST data
+        npoints = wt->FAST->get_numForcePts(wt->index);
+        printf(" number of turbine vel points from openfast: %ld\n", npoints);
+        printf(" number of turbine points from tosca: %ld\n", wt->alm.nPoints);
+#endif
+    }
+    else 
+    {
+        // set the hub radius vector
+        Cmpnts rHub = nScale(wt->rHub, yr_hat);
+
+        // radial mesh cell size size
+        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+        // delta angle in radiants
+        PetscReal daval = 2 * M_PI / wt->alm.nAzimuth;
+
+        // points counter
+        PetscInt    pi = 0;
+
+        // varying variables
+        PetscReal dr;
+
+        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+        {
+            // delta radius (beware start and end points)
+            if(ri==0 || ri==wt->alm.nRadial-1) dr = drval / 2;
+            else dr = drval;
+
+            // this station vector radius
+            Cmpnts rvec = nScale(drval*ri, r_hat);
+
+            // compute radius
+            PetscReal  rMag = nMag(rvec);
+
+            // add the initial hub radius to rvec (not aligned if precone != 0)
+            mSum(rvec, rHub);
+
+            // add hub radius (as if all was aligned)
+            rMag += nMag(rHub);
+
+            // interpolate blade propertes (only depend on r)
+            PetscReal  weights[2];
+            PetscInt   labels[2];
+
+            findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
+
+            for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
+            {
+                // set interpolation variables
+                PetscReal w1 = weights[0]; PetscInt l1 = labels[0];
+                PetscReal w2 = weights[1]; PetscInt l2 = labels[1];
+
+                // allocate memory for the 2 closest foil ids
+                PetscMalloc(2*sizeof(PetscInt), &(wt->alm.foilIds[pi]));
+
+                // allocate memory for the 2 interpolation weights
+                PetscMalloc(2*sizeof(PetscReal), &(wt->alm.iw[pi]));
+
+                // set airfoil chord
+                wt->alm.chord[pi] = w1*wt->blade.chord[l1] + w2*wt->blade.chord[l2];
+
+                // set airfoil twist
+                wt->alm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
+
+                // set airfoil thickness
+                if(wt->alm.projectionType=="anisotropic")
+                {
+                    wt->alm.thick[pi] = w1*wt->blade.thick[l1] + w2*wt->blade.thick[l2];
+                }
+
+                // set airfoil ids
+                wt->alm.foilIds[pi][0] = wt->blade.foilIds[l1];
+                wt->alm.foilIds[pi][1] = wt->blade.foilIds[l2];
+
+                // set interpolation weights
+                wt->alm.iw[pi][0] = w1;
+                wt->alm.iw[pi][1] = w2;
+
+                // set the rotor solidity (it is one for the ALM)
+                wt->alm.solidity[pi] = 1.0;
+
+                // new mesh point
+                Cmpnts point = nSet(rvec);
+
+                // rotate the point
+                mRot(wt->rtrAxis, point, daval*ai);
+
+                // add the rotor center vector from origin
+                mSum(point, wt->rotCenter);
+
+                // set the point value
+                mSet(wt->alm.points[pi], point);
+
+                // set the dr value (uniform for now)
+                wt->alm.dr[pi] = dr;
+
+                pi++;
+            }
+        }
+    }
+
+    return(0);
+};
+
+//***************************************************************************************************************//
+
+PetscErrorCode readAFM(windTurbine *wt, const word meshName)
+{
+    // allocate memory for the AFM
+    PetscMalloc(sizeof(AFM), &(wt->afm));
+
+    // read necessary properties from file
+    word descrFile = "./turbines/" + meshName + "/" + wt->type;
+
+    readDictDouble(descrFile.c_str(), "Ct",         &(wt->afm.Ct));
+    readDictDouble(descrFile.c_str(), "Uref",       &(wt->afm.Uref));
+    readDictWord(descrFile.c_str(),   "projection", &(wt->afm.projectionType));
+    readDictWord(descrFile.c_str(),   "sampleType", &(wt->afm.sampleType));
+
+    // check projection type
+    if(wt->afm.projectionType!="gaussexp" && wt->afm.projectionType!="anisotropic")
+    {
+        char error[512];
+        sprintf(error, "unknown AFM projection, available possibilities are:\n    1. gaussexp\n    2. anisotropic\n");
+        fatalErrorInFunction("readAFM",  error);
+    }
+
+    //read projection radius
+    if(wt->afm.projectionType=="anisotropic")
+    {
+        readDictDouble(descrFile.c_str(), "epsilon_x",     &(wt->eps_x));
+        readDictDouble(descrFile.c_str(), "epsilon_y",     &(wt->eps_y));
+        readDictDouble(descrFile.c_str(), "epsilon_z",     &(wt->eps_z));
+    }
+    else if(wt->afm.projectionType=="gaussexp")
+    {
+        readDictDouble(descrFile.c_str(), "gaussexp_x",     &(wt->eps_x));
+        readDictDouble(descrFile.c_str(), "gaussexp_r",     &(wt->r12));
+        readDictDouble(descrFile.c_str(), "gaussexp_f",     &(wt->flat));
+
+        // compute normalization factor
+        wt->I = - 2.0*wt->eps_x*pow(M_PI,3.0/2.0)*wt->flat*wt->flat*polyLog2(-std::exp(wt->r12/wt->flat));
+    }
+
+    // check sample type
+    if
+    (
+        wt->afm.sampleType != "rotorDisk" &&
+        wt->afm.sampleType != "momentumTheory" &&
+        wt->afm.sampleType != "integral"
+    )
+    {
+        char error[512];
+        sprintf(error, "unknown velocity sampling type. Available types are momentumTheory, rotorDisk or integral");
+        fatalErrorInFunction("readAFM",  error);
+    }
+
+    // check input
+    if(wt->afm.sampleType == "momentumTheory" && wt->afm.Ct > 0.999)
+    {
+        char error[512];
+        sprintf(error, "Ct coefficient must be less than one if sampling is of momentumTheory type");
+        fatalErrorInFunction("readAFM",  error);
+    }
+
+    // read sampling frequency
+    PetscReal windSpeedFilterPrd;
+    readDictDouble(descrFile.c_str(), "windSpeedFilterPrd", &windSpeedFilterPrd);
+    wt->afm.rtrUFilterFreq = 1.0 / windSpeedFilterPrd;
+
+    wt->afm.searchDone = 0;
+
+    return(0);
+}
+
+PetscErrorCode meshAFM(windTurbine *wt, const word meshName)
+{
+    wt->afm.point  = wt->rotCenter;
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode initSamplePoints(windTurbine *wt, const word meshName)
 {
     // allocate memory for this turbine sample points struct
     wt->upPoints = (upSampling*)malloc(sizeof(upSampling));
     upSampling* upPoints = wt->upPoints;
-
-    // read necessary properties from file
-    word descrFile = "./turbines/" + meshName + "/" + wt->type;
 
     // discretization is not very fine since only area-weighted
     // average must be performed
@@ -7175,14 +7692,6 @@ PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base, const word meshNa
     PetscMalloc(upPoints->nPoints*sizeof(PetscInt),  &(upPoints->thisPtControlled));
     PetscMalloc(upPoints->nPoints*sizeof(PetscReal), &(upPoints->dA));
 
-    // set tower top point
-    Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
-                    mSum(tower, base);
-
-    // set rotor center point
-    Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
-    Cmpnts center = nSum(tower, overH);
-
     // set the rotor reference frame
     // x from nacelle back to cone,
     // y on the rotor at zero azimuth,
@@ -7196,6 +7705,7 @@ PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base, const word meshNa
     Cmpnts upDist = nScale(2.5*2.0*wt->rTip, xr_hat);
 
     // set the sampling rotor center
+    Cmpnts center = wt->rotCenter;
     mSum(center, upDist);
     upPoints->center = center;
 
@@ -7263,357 +7773,6 @@ PetscErrorCode initSamplePoints(windTurbine *wt, Cmpnts &base, const word meshNa
 
     return(0);
 };
-
-//***************************************************************************************************************//
-
-PetscErrorCode initALM(windTurbine *wt, Cmpnts &base, const word meshName)
-{
-    // allocate memory for the ADM
-    PetscMalloc(sizeof(ALM), &(wt->alm));
-
-    // read necessary properties from file
-    word descrFile = "./turbines/" + meshName + "/" + wt->type;
-
-    // read from file AL parameters
-    readDictWord(descrFile.c_str(),   "projection", &(wt->alm.projectionType));
-    readDictInt(descrFile.c_str(),    "nRadPts", &(wt->alm.nRadial));
-    readDictDouble(descrFile.c_str(), "Uref",    &(wt->alm.Uref));
-    readDictWord(descrFile.c_str(),   "sampleType", &(wt->alm.sampleType));
-
-        // check sample type
-    if
-    (
-        wt->alm.sampleType != "rotorDisk" &&
-        wt->alm.sampleType != "integral"
-    )
-    {
-        char error[512];
-        sprintf(error, "unknown velocity sampling type. Available types are rotorDisk or integral");
-        fatalErrorInFunction("initALM",  error);
-    }
-
-    // check projection type
-    if(wt->alm.projectionType!="isotropic" && wt->alm.projectionType!="anisotropic")
-    {
-        char error[512];
-        sprintf(error, "unknown ALM projection, available possibilities are:\n    1. isotropic\n    2. anisotropic\n");
-        fatalErrorInFunction("initALM",  error);
-    }
-
-    //read projection radius
-    if(wt->alm.projectionType=="anisotropic")
-    {
-        readDictDouble(descrFile.c_str(), "epsilonFactor_x",     &(wt->eps_x));
-        readDictDouble(descrFile.c_str(), "epsilonFactor_y",     &(wt->eps_y));
-        readDictDouble(descrFile.c_str(), "epsilonFactor_z",     &(wt->eps_z));
-    }
-    else
-    {
-        readDictDouble(descrFile.c_str(), "epsilon",     &(wt->eps));
-    }
-
-    wt->alm.nAzimuth = wt->nBlades;
-
-    // debug switch
-    readDictInt(descrFile.c_str(), "debug", &(wt->alm.dbg));
-
-    // set total numer of points in the mesh
-    wt->alm.nPoints = wt->alm.nRadial * wt->alm.nAzimuth;
-
-    // set rotor torque and power to zero (will remain zero in the processors
-    // that do not control the turbine for parallel scatter/gather)
-    wt->alm.rtrThrust = 0.0;
-    wt->alm.rtrTorque = 0.0;
-    wt->alm.aeroPwr   = 0.0;
-
-    // set average rotor velocity mag to zero
-    wt->alm.rtrAvgMagU = 0.0;
-
-    // set initial azimuth
-    wt->alm.azimuth = 0.0;
-
-    // build the AL mesh
-
-    // allocate memory for the ALM parameters
-    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.points));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.dr));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.chord));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.twist));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.solidity));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscInt*), &(wt->alm.foilIds));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal*), &(wt->alm.iw));
-
-    if(wt->alm.projectionType=="anisotropic")
-    {
-        PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.thick));
-    }
-
-    // allocate memory for the variables used during the simulation
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscInt), &(wt->alm.thisPtControlled));
-    PetscMalloc(wt->alm.nPoints*sizeof(cellIds),&(wt->alm.closestCells));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.Cd));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.Cl));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.alpha));
-    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.U));
-    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.gWind));
-    PetscMalloc(wt->alm.nPoints*sizeof(Cmpnts), &(wt->alm.B));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.axialF));
-    PetscMalloc(wt->alm.nPoints*sizeof(PetscReal), &(wt->alm.tangtF));
-
-    // set tower top point
-    Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
-                    mSum(tower, base);
-
-    // set rotor center point
-    Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
-    Cmpnts center = nSum(tower, overH);
-    wt->rotCenter = center;
-
-    // set the rotor reference frame
-    // x from nacelle back to cone,
-    // y on the rotor at zero azimuth,
-    // z as the right hand rule
-    Cmpnts xr_hat = nUnit(wt->rtrDir);
-    Cmpnts yr_hat = nUnit(wt->twrDir);
-    Cmpnts zr_hat = nCross(xr_hat, yr_hat);
-    mRot(zr_hat, xr_hat, wt->upTilt*wt->deg2rad);  // rotate xr_hat with uptilt
-    mRot(zr_hat, yr_hat, wt->upTilt*wt->deg2rad);  // rotate yr_hat with uptilt
-
-	// preconed r_hat
-	Cmpnts r_hat = nSet(yr_hat);
-	mRot(zr_hat, r_hat, wt->precone*wt->deg2rad);
-
-
-    // set rtrAxis and omega_hat turbine param. here
-    {
-        // set rotor axis (up-tilted, from nacell back to cone)
-        wt->rtrAxis = xr_hat;
-
-        // set the rotor rotation unit vector
-        if(wt->rotDir == "cw")
-        {
-            wt->omega_hat = nScale(-1.0, xr_hat);
-        }
-        else if(wt->rotDir == "ccw")
-        {
-            wt->omega_hat = nSet(xr_hat);
-        }
-        else
-        {
-            char error[512];
-            sprintf(error, "unknown rotationDir, avilable options are 'cw' or 'ccw'\n");
-            fatalErrorInFunction("initALM",  error);
-        }
-    }
-
-    // set the hub radius vector
-    Cmpnts rHub = nScale(wt->rHub, yr_hat);
-
-    // radial mesh cell size size
-    PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
-
-    // delta angle in radiants
-    PetscReal daval = 2 * M_PI / wt->alm.nAzimuth;
-
-    // points counter
-    PetscInt    pi = 0;
-
-    // varying variables
-    PetscReal dr;
-
-    for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
-    {
-        // delta radius (beware start and end points)
-        if(ri==0 || ri==wt->alm.nRadial-1) dr = drval / 2;
-        else dr = drval;
-
-        // this station vector radius
-        Cmpnts rvec = nScale(drval*ri, r_hat);
-
-		// compute radius
-		PetscReal  rMag = nMag(rvec);
-
-        // add the initial hub radius to rvec (not aligned if precone != 0)
-        mSum(rvec, rHub);
-
-		// add hub radius (as if all was aligned)
-		rMag += nMag(rHub);
-
-        // interpolate blade propertes (only depend on r)
-        PetscReal  weights[2];
-        PetscInt   labels[2];
-
-
-        findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
-
-        for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
-        {
-            // set interpolation variables
-            PetscReal w1 = weights[0]; PetscInt l1 = labels[0];
-            PetscReal w2 = weights[1]; PetscInt l2 = labels[1];
-
-            // allocate memory for the 2 closest foil ids
-            PetscMalloc(2*sizeof(PetscInt), &(wt->alm.foilIds[pi]));
-
-            // allocate memory for the 2 interpolation weights
-            PetscMalloc(2*sizeof(PetscReal), &(wt->alm.iw[pi]));
-
-            // set airfoil chord
-            wt->alm.chord[pi] = w1*wt->blade.chord[l1] + w2*wt->blade.chord[l2];
-
-            // set airfoil twist
-            wt->alm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
-
-            // set airfoil thickness
-            if(wt->alm.projectionType=="anisotropic")
-            {
-                wt->alm.thick[pi] = w1*wt->blade.thick[l1] + w2*wt->blade.thick[l2];
-            }
-
-            // set airfoil ids
-            wt->alm.foilIds[pi][0] = wt->blade.foilIds[l1];
-            wt->alm.foilIds[pi][1] = wt->blade.foilIds[l2];
-
-            // set interpolation weights
-            wt->alm.iw[pi][0] = w1;
-            wt->alm.iw[pi][1] = w2;
-
-            // set the rotor solidity (it is one for the ALM)
-            wt->alm.solidity[pi] = 1.0;
-
-            // new mesh point
-            Cmpnts point = nSet(rvec);
-
-            // rotate the point
-            mRot(xr_hat, point, daval*ai);
-
-            // add the rotor center vector from origin
-            mSum(point, center);
-
-            // set the point value
-            mSet(wt->alm.points[pi], point);
-
-            // set the dr value (uniform for now)
-            wt->alm.dr[pi] = dr;
-
-            pi++;
-        }
-    }
-
-    return(0);
-};
-
-//***************************************************************************************************************//
-
-PetscErrorCode initAFM(windTurbine *wt, Cmpnts &base, const word meshName)
-{
-    // allocate memory for the AFM
-    PetscMalloc(sizeof(AFM), &(wt->afm));
-
-    // read necessary properties from file
-    word descrFile = "./turbines/" + meshName + "/" + wt->type;
-
-    readDictWord(descrFile.c_str(), "CtType",     &(wt->ctType));
-
-    if(wt->ctType == "constant")
-    {
-        readDictDouble(descrFile.c_str(), "Ct",         &(wt->afm.Ct));
-    }
-    else if(wt->ctType == "variable")
-    {
-        //read the Uref, Ct from the lookup table
-        readCtTable(wt, descrFile.c_str());
-    }
-    else
-    {
-        char error[512];
-        sprintf(error, "unknown CtType, available options are constant or variable\n");
-        fatalErrorInFunction("initAFM",  error);
-    }   
-
-    readDictDouble(descrFile.c_str(), "Uref",       &(wt->afm.Uref));
-    readDictWord(descrFile.c_str(),   "projection", &(wt->afm.projectionType));
-    readDictWord(descrFile.c_str(),   "sampleType", &(wt->afm.sampleType));
-
-    // check projection type
-    if(wt->afm.projectionType!="gaussexp" && wt->afm.projectionType!="anisotropic")
-    {
-        char error[512];
-        sprintf(error, "unknown AFM projection, available possibilities are:\n    1. gaussexp\n    2. anisotropic\n");
-        fatalErrorInFunction("initAFM",  error);
-    }
-
-    //read projection radius
-    if(wt->afm.projectionType=="anisotropic")
-    {
-        readDictDouble(descrFile.c_str(), "epsilon_x",     &(wt->eps_x));
-        readDictDouble(descrFile.c_str(), "epsilon_y",     &(wt->eps_y));
-        readDictDouble(descrFile.c_str(), "epsilon_z",     &(wt->eps_z));
-    }
-    else if(wt->afm.projectionType=="gaussexp")
-    {
-        readDictDouble(descrFile.c_str(), "gaussexp_x",     &(wt->eps_x));
-        readDictDouble(descrFile.c_str(), "gaussexp_r",     &(wt->r12));
-        readDictDouble(descrFile.c_str(), "gaussexp_f",     &(wt->flat));
-
-        // compute normalization factor
-        wt->I = - 2.0*wt->eps_x*pow(M_PI,3.0/2.0)*wt->flat*wt->flat*polyLog2(-std::exp(wt->r12/wt->flat));
-    }
-
-    // check sample type
-    if
-    (
-        wt->afm.sampleType != "rotorDisk" &&
-        wt->afm.sampleType != "momentumTheory" &&
-        wt->afm.sampleType != "integral"
-    )
-    {
-        char error[512];
-        sprintf(error, "unknown velocity sampling type. Available types are momentumTheory, rotorDisk or integral");
-        fatalErrorInFunction("initAFM",  error);
-    }
-
-    // check input
-    if(wt->afm.sampleType == "momentumTheory" && wt->afm.Ct > 0.999)
-    {
-        char error[512];
-        sprintf(error, "Ct coefficient must be less than one if sampling is of momentumTheory type");
-        fatalErrorInFunction("initAFM",  error);
-    }
-
-    // read sampling frequency
-    PetscReal windSpeedFilterPrd;
-    readDictDouble(descrFile.c_str(), "windSpeedFilterPrd", &windSpeedFilterPrd);
-    wt->afm.rtrUFilterFreq = 1.0 / windSpeedFilterPrd;
-
-    // set tower top point
-    Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
-                    mSum(tower, base);
-
-    // set rotor center point
-    Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
-    Cmpnts center = nSum(tower, overH);
-
-    wt->afm.point  = center;
-    wt->rotCenter  = center;
-
-    // set the rotor reference frame
-    // x from nacelle back to cone,
-    // y on the rotor at zero azimuth,
-    // z as the right hand rule
-    Cmpnts xr_hat = nUnit(wt->rtrDir);
-    Cmpnts yr_hat = nUnit(wt->twrDir);
-    Cmpnts zr_hat = nCross(xr_hat, yr_hat);
-    mRot(zr_hat, xr_hat, wt->upTilt*wt->deg2rad);  // rotate xr_hat with uptilt
-    mRot(zr_hat, yr_hat, wt->upTilt*wt->deg2rad);  // rotate yr_hat with uptilt
-
-    // set rotor axis (up-tilted, from nacell back to cone)
-    wt->rtrAxis = xr_hat;
-
-    wt->afm.searchDone = 0;
-
-    return(0);
-}
 
 //***************************************************************************************************************//
 
@@ -7700,7 +7859,7 @@ PetscErrorCode initControlledCells(farm_ *farm)
     // rotor where this processor have access. If the size of the sphere cell
     // is zero this processor does not control the wind turbine, so set
     // turbineControlled flag to zero. A wind turbine can be shared between
-    // two processors, in that case the sphere cells of the two or more processors
+    // two or more processors, in that case the sphere cells of the two or more processors
     // will sum up to an actual sphere of cell labels. In that case turbineControlled is
     // set to one since must compute the body force on the sub-set of the sphere.
 
@@ -7750,9 +7909,9 @@ PetscErrorCode initControlledCells(farm_ *farm)
             {
                 if(wt->alm.projectionType == "anisotropic")
                 {
-
-                    PetscReal   eps_x =     wt->alm.chord[0] * wt->eps_x,
-                                eps_y =     wt->alm.thick[0 ]* wt->eps_y;
+                    // use 5m as reference length for chord and thickness
+                    PetscReal   eps_x =     5.0 * wt->eps_x,
+                                eps_y =     5.0 * wt->eps_y;
 
 
                     PetscReal eps = PetscMax( eps_x, eps_y );
@@ -8741,6 +8900,13 @@ PetscErrorCode readFarmProperties(farm_ *farm)
     word arraySpec;
     readDictWord(windFarmPropertiesFile.c_str(), "arraySpecification", &arraySpec);
 
+#if USE_OPENFAST
+
+    // use OpenFAST turbine-specific flag
+    readDictInt(windFarmPropertiesFile.c_str(),    "nFastSubSteps",&(farm->nFastSubSteps));
+    
+#endif
+
     // read the wind turbines one by one until end of file
     if(arraySpec=="onebyone")
     {
@@ -8792,13 +8958,16 @@ PetscErrorCode readFarmProperties(farm_ *farm)
         word descrFile = "./turbines/" + mesh->meshName + "/" + (*farm->turbineTypes[t]);
 
         // read turbine properties
-        readTurbineProperties(farm->wt[t], descrFile.c_str(), mesh->meshName, (*farm->turbineModels[t]));
+        readTurbineProperties(farm->wt[t], descrFile.c_str(), mesh->meshName, (*farm->turbineModels[t]), farm->base[t]);
 
         // read wind farm control table for this wind turbine
         if(farm->farmControlActive[t])
         {
             readWindFarmControlTable(farm->wt[t]);
         }
+
+        // set turbine index 
+        farm->wt[t]->index = t;
     }
 
     // set CFL checking flag to zero
@@ -9181,7 +9350,7 @@ PetscErrorCode readTurbineArray(farm_ *farm)
 
 //***************************************************************************************************************//
 
-PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word meshName, const word modelName)
+PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word meshName, const word modelName, Cmpnts &base)
 {
     // local vectors (to be normalised)
     Cmpnts twrDirVec, rtrDirVec;
@@ -9218,6 +9387,46 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     // nacelle model flag
     readDictInt(dictName,    "includeNacelle",&(wt->includeNacelle));
 
+    // set OpenFAST usage flag to zero by default
+    wt->useOpenFAST = 0;
+
+#if USE_OPENFAST
+
+    // use OpenFAST turbine-specific flag
+    readDictInt(dictName,    "useOpenFAST",&(wt->useOpenFAST));
+
+    // check that model is compatible with OpenFAST
+    if(wt->useOpenFAST)
+    {
+        if(modelName != "ALM")
+        {
+            char error[512];
+            sprintf(error, "turbine model %s not compatible with useOpenFAST option in turbine type %s\n", modelName.c_str(), wt->type.c_str());
+            fatalErrorInFunction("readTurbineProperties",  error);
+        }
+    }
+    
+    // get number of blade points for OpenFAST 
+    if(wt->useOpenFAST)
+    {
+        readDictInt(dictName,    "nBladePtsOpenFAST",&(wt->nBladePtsOpenFAST));
+        if(wt->includeTwr)
+        {
+            readDictInt(dictName,    "nTwrPtsOpenFAST",&(wt->nTwrPtsOpenFAST));
+        }
+        else
+        {
+            wt->nTwrPtsOpenFAST = 0;
+        }
+    }
+    else
+    {
+        wt->nBladePtsOpenFAST  = -1;
+        wt->nTwrPtsOpenFAST    = -1;
+    }
+    
+#endif
+
     // debug switch
     readDictInt(dictName,    "debug",     &(wt->dbg));
 
@@ -9232,6 +9441,26 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
 
     // initialize rotor omega to zero (for CFL check access)
     wt->rtrOmega = 0.0;
+
+    // set rotor center point
+    Cmpnts tower  = nScale(wt->hTwr, wt->twrDir);
+                    mSum(tower, base);
+    Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
+    Cmpnts center = nSum(tower, overH);
+    wt->rotCenter = center;
+
+    // set the rotor reference frame
+    // x from nacelle back to cone,
+    // y on the rotor at zero azimuth,
+    // z as the right hand rule
+    Cmpnts xr_hat = nUnit(wt->rtrDir);
+    Cmpnts yr_hat = nUnit(wt->twrDir);
+    Cmpnts zr_hat = nCross(xr_hat, yr_hat);
+    mRot(zr_hat, xr_hat, wt->upTilt*wt->deg2rad);  // rotate xr_hat with uptilt
+    mRot(zr_hat, yr_hat, wt->upTilt*wt->deg2rad);  // rotate yr_hat with uptilt
+
+    // set rotor axis (up-tilted, from nacell back to cone)
+    wt->rtrAxis = xr_hat;
 
     // read parameters for AD/AL models
     if(modelName == "ADM" || modelName == "ALM")
@@ -9336,7 +9565,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
 
         if(max_id+1>wt->nFoils)
         {
-           char error[512];
+            char error[512];
             sprintf(error, "requested more airfoils than the number provided in turbine type %s (airfoils and bladeData mismatch)\n",wt->type.c_str());
             fatalErrorInFunction("readTurbineProperties",  error);
         }
