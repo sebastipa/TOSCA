@@ -7,6 +7,7 @@
 // include base headers
 #include <random>
 #include <vector>
+#include <numeric>
 #include <algorithm>
 #include <assert.h>
 #include <complex>

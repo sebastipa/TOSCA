@@ -454,13 +454,31 @@ typedef struct
     PetscReal          prjNSigma;   //!< confidence interval as number of std deviations for the projection function (hardcoded to 2.7)
 
     // OpenFAST coupling parameters 
-    PetscInt         useOpenFAST;   //< turbine specific flag to use OpenFAST 
+    PetscInt         useOpenFAST;   //< turbine specific flag to use OpenFAST (it exists and is always zero when USE_OPENFAST is off)
 #if USE_OPENFAST
-    fast::OpenFAST         *FAST;   //!< OpenFAST object (points to that of the farm struct, used for access)
-    PetscInt       openfastIndex;   //!< index of this turbine in the OpenFAST labeling (-1 if not coupled)
-    PetscInt   nBladePtsOpenFAST;   //!< number of blade points for OpenFAST 
-    PetscInt     nTwrPtsOpenFAST;   //!< number of tower points for OpenFAST
 
+    // access and connectivity 
+    fast::OpenFAST         *FAST;   //!< OpenFAST object (points to that of the farm struct, used for access)
+    fast::fastInputs         *fi;   //!< OpenFAST input structure (points to that of the farm struct, used for access)
+    PetscInt       openfastIndex;   //!< index of this turbine in the OpenFAST labeling (-1 if not coupled)
+    
+    // number of points for velocity sampling and force projection
+    PetscInt     nBladeVelPtsOF;    //!< number of blade points for OpenFAST 
+    PetscInt       nTwrVelPtsOF;    //!< number of tower points for OpenFAST
+    PetscInt   nBladeForcePtsOF;    //!< number of blade points for OpenFAST 
+    PetscInt     nTwrForcePtsOF;    //!< number of tower points for OpenFAST
+
+    // arrays containing the coordinates of the sampling and force points
+    Cmpnts               *velPts;   //!< array containing velocity sampling points for openfast 
+    Cmpnts              *velVals;   //!< array containing velocity values at the sampling points for openfast
+    Cmpnts             *forcePts;   //!< array containing force actuator points for openfast (these are coincident to TOSCA's actuator model points)
+    Cmpnts            *forceVals;   //!< array containing force values at the actuator points for openfast
+
+    // the following are only required for vel points 
+    PetscInt   *thisVelPtControlled; //!< flags telling if a vel point is controlled by this processor
+    cellIds        *closestVelCells; //!< indices of the closest cells to this turbine vel points
+    PetscInt *thisForcePtControlled; //!< flags telling if a vel point is controlled by this processor
+    cellIds      *closestForceCells; //!< indices of the closest cells to this turbine vel points
 #endif
 
     // debug switch
@@ -632,25 +650,25 @@ PetscErrorCode readActuatorModelParameters(const word actuatorModel, windTurbine
 PetscErrorCode readADM(windTurbine *wt, const word meshName);
 
 //! \brief Creates the ADM mesh 
-PetscErrorCode meshADM(windTurbine *wt, const word meshName);
+PetscErrorCode meshADM(windTurbine *wt);
 
 //! \brief Initialize the Uniform Actuator Disk Model
 PetscErrorCode readUADM(windTurbine *wt, const word meshName);
 
 //! \brief Creates the UADM mesh
-PetscErrorCode meshUADM(windTurbine *wt, const word meshName);
+PetscErrorCode meshUADM(windTurbine *wt);
 
 //! \brief Initializes the ALM reading from files and allocating memory
 PetscErrorCode readALM(windTurbine *wt, const word meshName);
 
 //! \brief Creates the ALM mesh
-PetscErrorCode meshALM(windTurbine *wt, const word meshName);
+PetscErrorCode meshALM(windTurbine *wt);
 
 //! \brief Initializes the AFM reading from files and allocating memory
 PetscErrorCode readAFM(windTurbine *wt, const word meshName);
 
 //! \brief Creates the AFM mesh
-PetscErrorCode meshAFM(windTurbine *wt, const word meshName);
+PetscErrorCode meshAFM(windTurbine *wt);
 
 //! \brief Initialize the upstream sample points data structure
 PetscErrorCode initSamplePoints(windTurbine *wt, const word meshName);
@@ -675,14 +693,39 @@ PetscErrorCode checkTurbineMesh(farm_ *farm);
 //! \brief Initialize OpenFAST for the wind farm
 PetscErrorCode initOpenFAST(farm_ *farm);
 
+//! \brief Initialize OpenFAST solution
+PetscErrorCode stepZeroOpenFAST(farm_ *farm);
+
+//! \brief Calculate OpenFAST solution
+PetscErrorCode stepOpenFAST(farm_ *farm);
+
+//! \brief Initialize processor-controlled vel points 
+PetscErrorCode initControlledPointsOpenFAST(windTurbine *wt);
+
+//! \brief Get global turbine parameters from OpenFAST
+PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt);
+
+//! \brief Get positions of velocity turbine points from OpenFAST
+PetscErrorCode getVelPtsBladeOpenFAST(windTurbine *wt);
+
+//! \brief Get positions of force turbine points from OpenFAST
+PetscErrorCode getForcePtsBladeOpenFAST(windTurbine *wt);
+
+//! \brief Get positions of velocity tower points from OpenFAST
+PetscErrorCode getVelPtsTwrOpenFAST(windTurbine *wt);
+
+//! \brief Get positions of force tower points from OpenFAST
+PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
+
 //! \brief Send velocity to OpenFAST 
-PetscErrorCode sendVelocityOpenFAST(farm_ *farm);
+PetscErrorCode computeWindVectorsRotorOpenFAST(farm_ *farm);
 
-//! \brief Receive forces and moments from OpenFAST
-PetscErrorCode getForcesOpenFAST(farm_ *farm);
+//! \brief Get force from OpenFAST
+PetscErrorCode computeBladeForceOpenFAST(farm_ *farm);
 
-//! \brief Perform OpenFAST time step 
-PetscErrorCode advanceOpenFAST(farm_ *farm);
+//! \brief Find out which OpenFAST velocity points are controlled by this processor
+PetscErrorCode findControlledVelPointsOpenFAST(farm_ *farm);
+
 
 #endif
 
