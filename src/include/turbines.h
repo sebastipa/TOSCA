@@ -1,14 +1,19 @@
-//! \file  ADM.h
-//! \brief Wind Farm Objects,
+#include "base.h"
+#include "domain.h"
+#include "io.h"
+#include "inline.h"
+
+#if USE_OPENFAST
+    #include "OpenFAST.H"
+#endif
+
+//! \file  turbines.h
+//! \brief Wind Farm Objects
 //! for the arrays of std::string and arrays of structs we use dynamic allocation
 //! through array of pointers to each std::string or struct respectively.
 
 #ifndef FARM_H
 #define FARM_H
-
-#if USE_OPENFAST
-    #include "OpenFAST.H"
-#endif
 
 //! \brief Airfoil info
 typedef struct
@@ -413,8 +418,12 @@ typedef struct
     PetscReal                  I;   //!< normalization factor for gaussexp AFM projection
     PetscReal          prjNSigma;   //!< confidence interval as number of std deviations for the projection function (hardcoded to 2.7)
 
+    // debug switch
+    PetscInt                 dbg;   //!< this turbines info at the begining of the simulation and at each iteration
+
     // OpenFAST coupling parameters 
     PetscInt         useOpenFAST;   //< turbine specific flag to use OpenFAST (it exists and is always zero when USE_OPENFAST is off)
+
 #if USE_OPENFAST
 
     // access and connectivity 
@@ -439,10 +448,8 @@ typedef struct
     cellIds        *closestVelCells; //!< indices of the closest cells to this turbine vel points
     PetscInt *thisForcePtControlled; //!< flags telling if a vel point is controlled by this processor
     cellIds      *closestForceCells; //!< indices of the closest cells to this turbine vel points
-#endif
 
-    // debug switch
-    PetscInt                 dbg;   //!< this turbines info at the begining of the simulation and at each iteration
+#endif
 
 } windTurbine;
 
@@ -467,18 +474,6 @@ struct farm_
     PetscReal       timeInterval;  //!< acquisition time interval (overrides simulation time step if smaller and adjustableTime active)
     PetscInt         writeNumber;  //!< number of mesh files written up to now
 
-#if USE_OPENFAST
-
-    // OpenFAST coupling parameters 
-    fast::OpenFAST         *FAST;   //!< OpenFAST object
-    fast::fastInputs          fi;   //!< OpenFAST input structure
-    
-    PetscInt           nOpenFAST;   //!< number of turbines coupled to OpenFAST
-    PetscInt        *openfastIds;   //!< array of size nturbines containing indices turbines coupled to OpenFAST in the OpenFAST labeling (-1 if not coupled)
-    PetscInt       nFastSubSteps;   //!< number of OpenFAST time steps per TOSCA time step
-
-#endif
-
     // debug switch
     PetscInt                 dbg;  //!< global debug switch, checks for point discrimination algorithm (slower)
 
@@ -491,9 +486,20 @@ struct farm_
     // CFL control for ALM: blade tip cannot move more than one cell
     PetscInt       checkCFL;       //!< at least one actuator line model is present in the wind farm
     PetscReal      maxTipSpeed;    //!< maximum tip speed among all rotors
-};
+
+#if USE_OPENFAST
+
+    // OpenFAST coupling parameters 
+    fast::OpenFAST         *FAST;   //!< OpenFAST object
+    fast::fastInputs          fi;   //!< OpenFAST input structure
+    
+    PetscInt           nOpenFAST;   //!< number of turbines coupled to OpenFAST
+    PetscInt        *openfastIds;   //!< array of size nturbines containing indices turbines coupled to OpenFAST in the OpenFAST labeling (-1 if not coupled)
+    PetscInt       nFastSubSteps;   //!< number of OpenFAST time steps per TOSCA time step
 
 #endif
+
+};
 
 // Top level functions
 // -----------------------------------------------------------------------------
@@ -504,226 +510,4 @@ PetscErrorCode InitializeWindFarm(farm_ *farm);
 //! \brief Update wind turbines
 PetscErrorCode UpdateWindTurbines(farm_ *farm);
 
-// Actuator models routines.
-// -----------------------------------------------------------------------------
-
-//! \brief Solve rotor dynamics and compute filtered rot speed
-PetscErrorCode computeRotSpeed(farm_ *farm);
-
-//! \brief Rotate blades (only for ALM)
-PetscErrorCode rotateBlades(windTurbine *wt, PetscReal angle, PetscInt updateAzimuth);
-
-//! \brief Compute generator torque with 5-regions control system model
-PetscErrorCode controlGenSpeed(farm_ *farm);
-
-//! \brief Compute blade pitch using the PID control
-PetscErrorCode controlBldPitch(farm_ *farm);
-
-//! \brief Compute nacelle yaw
-PetscErrorCode controlNacYaw(farm_ *farm);
-
-//! \brief Compute wind turbine control based on wind farm controller
-PetscErrorCode windFarmControl(farm_ *farm);
-
-//! \brief Discrimination algorithm: find out which points of each rotor are controlled by this processor
-PetscErrorCode findControlledPointsRotor(farm_ *farm);
-
-//! \brief Discrimination algorithm: find out which points of each tower are controlled by this processor
-PetscErrorCode findControlledPointsTower(farm_ *farm);
-
-//! \brief Discrimination algorithm: find out which points of each nacelle are controlled by this processor
-PetscErrorCode findControlledPointsNacelle(farm_ *farm);
-
-//! \brief Discrimination algorithm: find out which points of each sample rig are controlled by this processor
-PetscErrorCode findControlledPointsSample(farm_ *farm);
-
-//! \brief Debug check for the discrimination algorithm on the rotor
-PetscErrorCode checkPointDiscriminationRotor(farm_ *farm);
-
-//! \brief Debug check for the discrimination algorithm on the tower
-PetscErrorCode checkPointDiscriminationTower(farm_ *farm);
-
-//! \brief Debug check for the discrimination algorithm on the nacelle
-PetscErrorCode checkPointDiscriminationNacelle(farm_ *farm);
-
-//! \brief Debug check for the discrimination algorithm on sample points
-PetscErrorCode checkPointDiscriminationSample(farm_ *farm);
-
-//! \brief Compute wind velocity at the rotor mesh points
-PetscErrorCode computeWindVectorsRotor(farm_ *farm);
-
-//! \brief Compute wind velocity at the tower mesh points
-PetscErrorCode computeWindVectorsTower(farm_ *farm);
-
-//! \brief Compute wind velocity at the nacelle mesh points
-PetscErrorCode computeWindVectorsNacelle(farm_ *farm);
-
-//! \brief Compute wind velocity at the sample mesh points
-PetscErrorCode computeWindVectorsSample(farm_ *farm);
-
-//! \brief Compute aerodynamic forces at the turbine mesh points
-PetscErrorCode computeBladeForce(farm_ *farm);
-
-//! \brief Project the wind turbine forces on the background mesh
-PetscErrorCode projectBladeForce(farm_ *farm);
-
-//! \brief Compute and project the tower forces on the background mesh
-PetscErrorCode projectTowerForce(farm_ *farm);
-
-//! \brief Compute and project the nacelle forces on the background mesh
-PetscErrorCode projectNacelleForce(farm_ *farm);
-
-//! \brief Transform the cartesian body force to contravariant
-PetscErrorCode bodyForceCartesian2Contravariant(farm_ *farm);
-
-//! \brief Write output if applicable
-PetscErrorCode windTurbinesWrite(farm_ *farm);
-
-//! \brief Write checkpoint file
-PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm);
-
-//! \brief Read checkpoint file and prepare wind turbines
-PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm);
-
-//! \brief Print wind farm information
-PetscErrorCode printFarmProperties(farm_ *farm);
-
-//! \brief Write the wind farm AD mesh to ucd file
-PetscErrorCode writeFarmADMesh(farm_ *wf);
-
-//! \brief Write the wind farm AL mesh to ucd file
-PetscErrorCode writeFarmALMesh(farm_ *farm);
-
-//! \brief Write the wind farm tower mesh to ucd file
-PetscErrorCode writeFarmTwrMesh(farm_ *wf);
-
-//! \brief Initialize sphere cells and see what proc controls which turbine
-PetscErrorCode initControlledCells(farm_ *farm);
-
-//! \brief Initialize sphere cells and see what proc controls which sample point
-PetscErrorCode initSampleControlledCells(farm_ *farm);
-
-//! \brief Read actuator model parameters and allocate memory 
-PetscErrorCode readActuatorModelParameters(const word actuatorModel, windTurbine *wt, const word meshName); 
-
-//! \brief Initializes the ADM reading from files and allocating memory
-PetscErrorCode readADM(windTurbine *wt, const word meshName);
-
-//! \brief Creates the ADM mesh 
-PetscErrorCode meshADM(windTurbine *wt);
-
-//! \brief Initialize the Uniform Actuator Disk Model
-PetscErrorCode readUADM(windTurbine *wt, const word meshName);
-
-//! \brief Creates the UADM mesh
-PetscErrorCode meshUADM(windTurbine *wt);
-
-//! \brief Initializes the ALM reading from files and allocating memory
-PetscErrorCode readALM(windTurbine *wt, const word meshName);
-
-//! \brief Creates the ALM mesh
-PetscErrorCode meshALM(windTurbine *wt);
-
-//! \brief Initializes the AFM reading from files and allocating memory
-PetscErrorCode readAFM(windTurbine *wt, const word meshName);
-
-//! \brief Creates the AFM mesh
-PetscErrorCode meshAFM(windTurbine *wt);
-
-//! \brief Initialize the upstream sample points data structure
-PetscErrorCode initSamplePoints(windTurbine *wt, const word meshName);
-
-//! \brief Initializes the tower model
-PetscErrorCode initTwrModel(windTurbine *wt, Cmpnts &base);
-
-//! \brief Initializes the nacelle model
-PetscErrorCode initNacModel(windTurbine *wt, Cmpnts &base);
-
-//! \brief Compute max tip speed and activate CFL control flag
-PetscErrorCode computeMaxTipSpeed(farm_ *farm);
-
-//! \brief Check that the mesh is resolved around the turbine
-PetscErrorCode checkTurbineMesh(farm_ *farm);
-
-// OpenFAST coupling functions
-// -----------------------------------------------------------------------------
-
-#if USE_OPENFAST
-
-//! \brief Initialize OpenFAST for the wind farm
-PetscErrorCode initOpenFAST(farm_ *farm);
-
-//! \brief Initialize OpenFAST solution
-PetscErrorCode stepZeroOpenFAST(farm_ *farm);
-
-//! \brief Calculate OpenFAST solution
-PetscErrorCode stepOpenFAST(farm_ *farm);
-
-//! \brief Initialize processor-controlled vel points 
-PetscErrorCode initControlledPointsOpenFAST(windTurbine *wt);
-
-//! \brief Get global turbine parameters from OpenFAST
-PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt);
-
-//! \brief Get positions of velocity turbine points from OpenFAST
-PetscErrorCode getVelPtsBladeOpenFAST(windTurbine *wt);
-
-//! \brief Get positions of force turbine points from OpenFAST
-PetscErrorCode getForcePtsBladeOpenFAST(windTurbine *wt);
-
-//! \brief Get positions of velocity tower points from OpenFAST
-PetscErrorCode getVelPtsTwrOpenFAST(windTurbine *wt);
-
-//! \brief Get positions of force tower points from OpenFAST
-PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
-
-//! \brief Send velocity to OpenFAST 
-PetscErrorCode computeWindVectorsRotorOpenFAST(farm_ *farm);
-
-//! \brief Get force from OpenFAST
-PetscErrorCode computeBladeForceOpenFAST(farm_ *farm);
-
-//! \brief Find out which OpenFAST velocity points are controlled by this processor
-PetscErrorCode findControlledVelPointsOpenFAST(farm_ *farm);
-
-
 #endif
-
-// Reading input files functions
-// -----------------------------------------------------------------------------
-
-//! \brief Read the farm_Properties file and fill the structs
-PetscErrorCode readFarmProperties(farm_ *farm);
-
-//! \brief Read the wind turbines inside the farm_Properties file
-PetscErrorCode readTurbineArray(farm_ *wf);
-
-//! \brief Fill the windTurbine struct reading in the file named as the wind turbine type
-PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word meshName, const word modelName, Cmpnts &base);
-
-//! \brief Reads the names of the airfoil used in the turbine (given in the airfoils subdict inside the file named as the wind turbine type)
-PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName);
-
-//! \brief Reads the blades aero properties used in the turbine (given in the bladeData subdict inside the file named as the wind turbine type)
-PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName, const PetscInt readThickness);
-
-//! \brief Reads the tower properties used in the turbine (given in the towerData subdict inside the file named as the wind turbine)
-PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName);
-
-//! \brief Reads the nacelle properties used in the turbine (given in the nacelleData subdict inside the file named as the wind turbine)
-PetscErrorCode readNacelleProperties(windTurbine *wt, const char *dictName);
-
-//! \brief Reads the 2D airfoil tables given in the file named as the airfoil
-PetscErrorCode readAirfoilTable(foilInfo *af, const char *tableName);
-
-//! \brief Reads generator torque controller parameters
-PetscErrorCode readGenControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
-
-//! \brief Reads blade pitch controller parameters
-PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
-
-//! \brief Reads nacelle yaw controller parameters
-PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
-
-//! \brief Read wind farm controller table (1 header and time - value list)
-PetscErrorCode readWindFarmControlTable(windTurbine *wt);
