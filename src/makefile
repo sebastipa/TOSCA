@@ -95,18 +95,32 @@ BUILD_DIR  = build
 SRC_DIR    = .
 OBJ_DIR    = $(BUILD_DIR)
 
+# Turbines module
+TURBINES_DIR := turbines
+TURBINES_SRCS := $(wildcard $(SRC_DIR)/$(TURBINES_DIR)/*.c)
+TURBINES_OBJS := $(patsubst $(SRC_DIR)/$(TURBINES_DIR)/%.c, $(OBJ_DIR)/$(TURBINES_DIR)/%.o, $(TURBINES_SRCS))
+
+
 # Object files
 OBJS_TOSCA = $(OBJ_DIR)/main.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/overset.o \
              $(OBJ_DIR)/wallfunctions.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
+<<<<<<< HEAD
              $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o
+=======
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(TURBINES_OBJS)
+>>>>>>> b265293 (split turbine.c code in modules as it was too big to work with)
 
 OBJS_PP    = $(OBJ_DIR)/tosca2PV.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/wallfunctions.o \
              $(OBJ_DIR)/overset.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
+<<<<<<< HEAD
              $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o
+=======
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(TURBINES_OBJS)
+>>>>>>> b265293 (split turbine.c code in modules as it was too big to work with)
 
 # Targets
 all: $(BUILD_DIR) tosca tosca2PV
@@ -119,7 +133,7 @@ tosca2PV: $(OBJS_PP)
 
 # Pattern rule for object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(OBJ_DIR)
+	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
 
 # Clean targets
