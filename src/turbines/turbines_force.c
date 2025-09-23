@@ -4,7 +4,7 @@
 
 PetscErrorCode computeBladeForce(farm_ *farm)
 {
-    // turbine and AD mesh point indices
+    // turbine and mesh point indices
     PetscInt t, p;
 
     // simulation constants
@@ -1153,8 +1153,8 @@ PetscErrorCode projectTowerForce(farm_ *farm)
                     {
                         // cell indices
                         PetscInt i = wt->twr.controlledCells[c].i,
-                            j = wt->twr.controlledCells[c].j,
-                            k = wt->twr.controlledCells[c].k;
+                                 j = wt->twr.controlledCells[c].j,
+                                 k = wt->twr.controlledCells[c].k;
 
                         // compute distance from mesh cell to tower point
                         Cmpnts r_c = nSub(point_p, cent[k][j][i]);

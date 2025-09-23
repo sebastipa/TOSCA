@@ -49,38 +49,49 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     
 #if USE_OPENFAST
 
-    // find which point this processor controls 
+    // find which velocity and force blade point this processor controls 
     findControlledPointsRotorOpenFAST(farm); 
 
-    // find which tower point this processor controls 
+    // find which velocity and force tower point this processor controls 
     findControlledPointsTowerOpenFAST(farm);
 
-    // compute and send blade velocities to openfast 
+    // compute and send blade velocities to openfast (interp at velocity points, they differ from actuator points)
     computeWindVectorsRotorOpenFAST(farm); 
 
-    // compute and send tower velocities to openfast 
+    // compute and send tower velocities to openfast (interp at velocity points, they differ from actuator points)
     computeWindVectorsTowerOpenFAST(farm); 
 
     // advance openfast 
     stepOpenFAST(farm); 
 
-    // find which AD points this processor controls
+    // map openfast force points displacements to actuator points (they are the same for ALM)
+    mapOFDisplToActPts(farm);
+
+    // this is done at the actuator model level to sample the wind (this will be removed and wind transferred by interpolation from vel to force points)
     findControlledPointsRotor(farm); 
 
-    // find which sample points this processor controls
+    // find which sample points this processor controls (this is still needed because it concerns sampling rigs)
     findControlledPointsSample(farm); 
 
-    // compute wind velocity at the sample mesh points
+    // compute wind velocity at the sample mesh points (this is still needed because it concerns sampling rigs)
     computeWindVectorsSample(farm); 
 
-    // compute wind velocity at the rotor mesh points
+    // compute wind velocity at the rotor mesh points (this will be replaced by interpolation from vel to force points)
     computeWindVectorsRotor(farm); 
 
-    // compute wind velocity at the nacelle mesh point
+    // compute wind velocity at the tower mesh points (same as above, right now it gets it from the backgruoumd mesh)
+    computeWindVectorsTower(farm);
+
+    // compute wind velocity at the nacelle mesh point (this is good but the nacelle needs to be moved so need to implement processor search)
     computeWindVectorsNacelle(farm); 
 
-    // get force from openfast at current time 
+    // get force from openfast at current time (this puts the openfast force into force points, still not given to actuators)
     computeBladeForceOpenFAST(farm); 
+
+    // map OpenFAST forces to actuator points (this maps the force to the actuator points depending on actuator model, also does tower)
+    mapOFForcesToActPts(farm);
+
+    // note: the tower force that we got above at the moment is overwritten in projectTowerForce, need to split the function in force computation and projection
 
 #else 
     // solve rotor dynamics and compute rot speeds
@@ -246,10 +257,19 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
             // update global WT parameters from OpenFAST
             getGlobParamsOpenFAST(farm->wt[t]);
 
-            // compute initial condition 
-            stepZeroOpenFAST(farm);
             #endif
         }
+
+        #if USE_OPENFAST
+        // map openfast displacements to actuator points
+        mapOFDisplToActPts(farm);
+
+        // compute initial condition 
+        stepZeroOpenFAST(farm);
+
+        // map openfast displacements to actuator points
+        mapOFDisplToActPts(farm);
+        #endif
 
         // read the checkpoint file if present and prepare wind turbines for restart
         windTurbinesReadCheckpoint(farm);
