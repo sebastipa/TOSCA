@@ -15,8 +15,9 @@
 // Our ADM/ALM models are detailed actuator disk/line
 // models with blade pitch and generator speed controls, blade and airfoil properties
 // linearly interpolated where necessary. UniformADM is a simple AD version, where the
-// thrust is weighted based on the rotor mesh element area. Yaw control
-// can be activated for all models and is based upon 1D upstream velocity sampling. Turbines
+// thrust is weighted based on the rotor mesh element area. AFM is a coarse-LES turbine model. 
+// where the cell size can be as large as 1/3 of the turbine diameter. Yaw control
+// can be activated for all models and is based upon 1-diameter upstream velocity sampling. Turbines
 // rotate with a prescribed nacelle rotation speed.
 // We have fully optimized parallel communication: each turbine, tower and up-sampling
 // rig (it s just a rotor defined 2.5D upstream of each rotor for velocty sampling)
@@ -31,7 +32,9 @@
 // all turbines is never performed. There is only 1 communication of type MPI_Reduce
 // for wind turbine yaw syncronization on the master node, which will then write
 // the mesh to file. That is done only at global write time (not at turbine log write time).
-// The only function call for turbine update is "PetscErrorCode UpdateWindTurbines(farm_ *farm)"".
+// The only function call for turbine update outside of here is "PetscErrorCode UpdateWindTurbines(farm_ *farm)",
+// which is defined right below. If you are interested in how everything is performed, 
+// do a telescopic inspection (top to bottom) of this part of the code. 
 
 PetscErrorCode UpdateWindTurbines(farm_ *farm)
 {
@@ -46,11 +49,17 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     
 #if USE_OPENFAST
 
-    // find which force point this processor controls 
-    findControlledVelPointsOpenFAST(farm); 
+    // find which point this processor controls 
+    findControlledPointsRotorOpenFAST(farm); 
 
-    // compute and send velocities to openfast 
+    // find which tower point this processor controls 
+    findControlledPointsTowerOpenFAST(farm);
+
+    // compute and send blade velocities to openfast 
     computeWindVectorsRotorOpenFAST(farm); 
+
+    // compute and send tower velocities to openfast 
+    computeWindVectorsTowerOpenFAST(farm); 
 
     // advance openfast 
     stepOpenFAST(farm); 
@@ -66,9 +75,6 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
 
     // compute wind velocity at the rotor mesh points
     computeWindVectorsRotor(farm); 
-
-    // compute wind velocity at the tower mesh points
-    computeWindVectorsTower(farm); 
 
     // compute wind velocity at the nacelle mesh point
     computeWindVectorsNacelle(farm); 
@@ -223,8 +229,22 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
             }
 
             #if USE_OPENFAST
-            // initialize processor-controlled points
-            initControlledPointsOpenFAST(farm->wt[t]);
+
+            // update velocity points from OpenFAST
+            getVelPtsBladeOpenFAST(farm->wt[t]);
+
+            // update force points from OpenFAST
+            getForcePtsBladeOpenFAST(farm->wt[t]);
+
+            // update tower points from OpenFAST
+            if(farm->wt[t]->includeTwr)
+            {
+                getVelPtsTwrOpenFAST(farm->wt[t]);
+                getForcePtsTwrOpenFAST(farm->wt[t]);
+            }
+
+            // update global WT parameters from OpenFAST
+            getGlobParamsOpenFAST(farm->wt[t]);
 
             // compute initial condition 
             stepZeroOpenFAST(farm);
@@ -236,6 +256,36 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
 
         PetscPrintf(mesh->MESH_COMM, "done\n\n");
     }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeMaxTipSpeed(farm_ *farm)
+{
+    mesh_    *mesh = farm->access->mesh;
+
+    PetscReal lmaxTipSpeed = 0.0;
+    PetscReal gmaxTipSpeed = 0.0;
+
+    // loop over each wind turbine
+    for(PetscInt t=0; t<farm->size; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        PetscReal   tipSpeed = wt->rTip * wt->rtrOmega;
+
+        if(tipSpeed > lmaxTipSpeed)
+        {
+            lmaxTipSpeed = tipSpeed;
+        }
+    }
+
+    // compute the maximum among all processors
+    MPI_Allreduce(&lmaxTipSpeed, &gmaxTipSpeed, 1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
+
+    farm->maxTipSpeed = gmaxTipSpeed;
 
     return(0);
 }

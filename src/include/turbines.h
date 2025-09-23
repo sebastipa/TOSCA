@@ -472,22 +472,30 @@ typedef struct
     PetscInt       openfastIndex;   //!< index of this turbine in the OpenFAST labeling (-1 if not coupled)
     
     // number of points for velocity sampling and force projection
-    PetscInt     nBladeVelPtsOF;    //!< number of blade points for OpenFAST 
+    PetscInt     nBladeVelPtsOF;    //!< number of blade points for OpenFAST (note: this are for 1 blade, multiply for nBlades to have the total) 
     PetscInt       nTwrVelPtsOF;    //!< number of tower points for OpenFAST
-    PetscInt   nBladeForcePtsOF;    //!< number of blade points for OpenFAST 
+    PetscInt   nBladeForcePtsOF;    //!< number of blade points for OpenFAST (note: this are for 1 blade, multiply for nBlades to have the total) 
     PetscInt     nTwrForcePtsOF;    //!< number of tower points for OpenFAST
 
-    // arrays containing the coordinates of the sampling and force points
-    Cmpnts               *velPts;   //!< array containing velocity sampling points for openfast 
-    Cmpnts              *velVals;   //!< array containing velocity values at the sampling points for openfast
-    Cmpnts             *forcePts;   //!< array containing force actuator points for openfast (these are coincident to TOSCA's actuator model points)
-    Cmpnts            *forceVals;   //!< array containing force values at the actuator points for openfast
+    // arrays containing the coordinates and values of the sampling and force points
+    Cmpnts         *velPtsBlade;   //!< array containing blade velocity sampling points for openfast 
+    Cmpnts        *velValsBlade;   //!< array containing blad velocity values at the sampling points for openfast
+    Cmpnts       *forcePtsBlade;   //!< array containing blad force actuator points for openfast (these are coincident to TOSCA's actuator model points)
+    Cmpnts      *forceValsBlade;   //!< array containing blad force values at the actuator points for openfast
+    Cmpnts           *velPtsTwr;   //!< array containing tower velocity sampling points for openfast 
+    Cmpnts          *velValsTwr;   //!< array containing tower velocity values at the sampling points for openfast
+    Cmpnts         *forcePtsTwr;   //!< array containing tower force actuator points for openfast (these are coincident to TOSCA's actuator model points)
+    Cmpnts        *forceValsTwr;   //!< array containing tower force values at the actuator points for openfast
 
-    // the following are only required for vel points 
-    PetscInt   *thisVelPtControlled; //!< flags telling if a vel point is controlled by this processor
-    cellIds        *closestVelCells; //!< indices of the closest cells to this turbine vel points
-    PetscInt *thisForcePtControlled; //!< flags telling if a vel point is controlled by this processor
-    cellIds      *closestForceCells; //!< indices of the closest cells to this turbine vel points
+    // processors controlling the OpenFAST points
+    PetscInt   *thisBladeVelPtControlled; //!< flags telling if a blade vel point is controlled by this processor
+    cellIds        *closestBladeVelCells; //!< indices of the closest cells to this turbine blade vel points
+    PetscInt *thisBladeForcePtControlled; //!< flags telling if a blade force point is controlled by this processor
+    cellIds      *closestBladeForceCells; //!< indices of the closest cells to this turbine blade force points
+    PetscInt     *thisTwrVelPtControlled; //!< flags telling if a tower vel point is controlled by this processor
+    cellIds          *closestTwrVelCells; //!< indices of the closest cells to this turbine tower vel points
+    PetscInt   *thisTwrForcePtControlled; //!< flags telling if a tower force point is controlled by this processor
+    cellIds        *closestTwrForceCells; //!< indices of the closest cells to this turbine tower force points    
 
 #endif
 
@@ -536,6 +544,7 @@ struct farm_
     PetscInt           nOpenFAST;   //!< number of turbines coupled to OpenFAST
     PetscInt        *openfastIds;   //!< array of size nturbines containing indices turbines coupled to OpenFAST in the OpenFAST labeling (-1 if not coupled)
     PetscInt       nFastSubSteps;   //!< number of OpenFAST time steps per TOSCA time step
+    PetscInt        iterOpenFAST;   //!< current OpenFAST global interation
 
 #endif
 
@@ -549,6 +558,9 @@ PetscErrorCode InitializeWindFarm(farm_ *farm);
 
 //! \brief Update wind turbines
 PetscErrorCode UpdateWindTurbines(farm_ *farm);
+
+//! \brief Compute max tip speed and activate CFL control flag
+PetscErrorCode computeMaxTipSpeed(farm_ *farm);
 
 #endif
 <<<<<<< HEAD

@@ -842,33 +842,3 @@ PetscErrorCode windFarmControl(farm_ *farm)
 
     return(0);
 }
-
-//***************************************************************************************************************//
-
-PetscErrorCode computeMaxTipSpeed(farm_ *farm)
-{
-    mesh_    *mesh = farm->access->mesh;
-
-    PetscReal lmaxTipSpeed = 0.0;
-    PetscReal gmaxTipSpeed = 0.0;
-
-    // loop over each wind turbine
-    for(PetscInt t=0; t<farm->size; t++)
-    {
-        windTurbine *wt = farm->wt[t];
-
-        PetscReal   tipSpeed = wt->rTip * wt->rtrOmega;
-
-        if(tipSpeed > lmaxTipSpeed)
-        {
-            lmaxTipSpeed = tipSpeed;
-        }
-    }
-
-    // compute the maximum among all processors
-    MPI_Allreduce(&lmaxTipSpeed, &gmaxTipSpeed, 1, MPIU_REAL, MPIU_MAX, mesh->MESH_COMM);
-
-    farm->maxTipSpeed = gmaxTipSpeed;
-
-    return(0);
-}

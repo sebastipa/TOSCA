@@ -1,4 +1,5 @@
 #include "turbines_io.h"
+#include "turbines_phys.h"
 #include "turbines_openfast.h"
 
 //***************************************************************************************************************//
@@ -2006,6 +2007,7 @@ PetscErrorCode readALM(windTurbine *wt, const word meshName)
     if(wt->useOpenFAST)
     {
         #if USE_OPENFAST
+        // here we force the number of force points to be defined by TOSCA
         wt->nBladeForcePtsOF = wt->alm.nRadial;
         #endif
     }
@@ -2089,141 +2091,96 @@ PetscErrorCode meshALM(windTurbine *wt)
         }
     }
 
-    if(wt->useOpenFAST)
+    // set the hub radius vector
+    Cmpnts rHub = nScale(wt->rHub, yr_hat);
+
+    // radial mesh cell size size
+    PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+
+    // delta angle in radiants
+    PetscReal daval = 2 * M_PI / wt->alm.nAzimuth;
+
+    // points counter
+    PetscInt    pi = 0;
+
+    // varying variables
+    PetscReal dr;
+
+    for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
     {
-#if USE_OPENFAST
-        
-        // update velocity points from OpenFAST
-        getVelPtsBladeOpenFAST(wt);
+        // delta radius (beware start and end points)
+        if(ri==0 || ri==wt->alm.nRadial-1) dr = drval / 2;
+        else dr = drval;
 
-        // update Force points from OpenFAST
-        getForcePtsBladeOpenFAST(wt);
+        // this station vector radius
+        Cmpnts rvec = nScale(drval*ri, r_hat);
 
-        // update global WT parameters from OpenFAST
-        getGlobParamsOpenFAST(wt);
+        // compute radius
+        PetscReal  rMag = nMag(rvec);
 
-        // points counter
-        PetscInt    pi = 0;
+        // add the initial hub radius to rvec (not aligned if precone != 0)
+        mSum(rvec, rHub);
 
-        // get points coordinates 
-        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
+        // add hub radius (as if all was aligned)
+        rMag += nMag(rHub);
+
+        // interpolate blade propertes (only depend on r)
+        PetscReal  weights[2];
+        PetscInt   labels[2];
+
+        findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
+
+        for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
         {
-            for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
+            // set interpolation variables
+            PetscReal w1 = weights[0]; PetscInt l1 = labels[0];
+            PetscReal w2 = weights[1]; PetscInt l2 = labels[1];
+
+            // allocate memory for the 2 closest foil ids
+            PetscMalloc(2*sizeof(PetscInt), &(wt->alm.foilIds[pi]));
+
+            // allocate memory for the 2 interpolation weights
+            PetscMalloc(2*sizeof(PetscReal), &(wt->alm.iw[pi]));
+
+            // set airfoil chord
+            wt->alm.chord[pi] = w1*wt->blade.chord[l1] + w2*wt->blade.chord[l2];
+
+            // set airfoil twist
+            wt->alm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
+
+            // set airfoil thickness
+            if(wt->alm.projectionType=="anisotropic")
             {
-
-                // set airfoil chord
-                wt->alm.chord[pi] = 0; // TO BE FILLED
-
-                // set airfoil twist
-                wt->alm.twist[pi] = 0; // TO BE FILLED
-
-                // NOTE: airfoil ids and weights are not allocated in OpenFAST mode 
-
-                // set the rotor solidity (it is one for the ALM)
-                wt->alm.solidity[pi] = 1.0;
-
-                wt->alm.points[pi] = wt->forcePts[pi]; 
-
-                wt->alm.dr[pi] = 0; // TO BE FILLED
-
-                pi++;
+                wt->alm.thick[pi] = w1*wt->blade.thick[l1] + w2*wt->blade.thick[l2];
             }
-        }
-#endif
-    }
-    else 
-    {
-        // set the hub radius vector
-        Cmpnts rHub = nScale(wt->rHub, yr_hat);
 
-        // radial mesh cell size size
-        PetscReal drval = (wt->rTip - wt->rHub) / (wt->alm.nRadial - 1);
+            // set airfoil ids
+            wt->alm.foilIds[pi][0] = wt->blade.foilIds[l1];
+            wt->alm.foilIds[pi][1] = wt->blade.foilIds[l2];
 
-        // delta angle in radiants
-        PetscReal daval = 2 * M_PI / wt->alm.nAzimuth;
+            // set interpolation weights
+            wt->alm.iw[pi][0] = w1;
+            wt->alm.iw[pi][1] = w2;
 
-        // points counter
-        PetscInt    pi = 0;
+            // set the rotor solidity (it is one for the ALM)
+            wt->alm.solidity[pi] = 1.0;
 
-        // varying variables
-        PetscReal dr;
+            // new mesh point
+            Cmpnts point = nSet(rvec);
 
-        for(PetscInt ri=0; ri<wt->alm.nRadial; ri++)
-        {
-            // delta radius (beware start and end points)
-            if(ri==0 || ri==wt->alm.nRadial-1) dr = drval / 2;
-            else dr = drval;
+            // rotate the point
+            mRot(wt->rtrAxis, point, daval*ai);
 
-            // this station vector radius
-            Cmpnts rvec = nScale(drval*ri, r_hat);
+            // add the rotor center vector from origin
+            mSum(point, wt->rotCenter);
 
-            // compute radius
-            PetscReal  rMag = nMag(rvec);
+            // set the point value
+            mSet(wt->alm.points[pi], point);
 
-            // add the initial hub radius to rvec (not aligned if precone != 0)
-            mSum(rvec, rHub);
+            // set the dr value (uniform for now)
+            wt->alm.dr[pi] = dr;
 
-            // add hub radius (as if all was aligned)
-            rMag += nMag(rHub);
-
-            // interpolate blade propertes (only depend on r)
-            PetscReal  weights[2];
-            PetscInt   labels[2];
-
-            findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
-
-            for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
-            {
-                // set interpolation variables
-                PetscReal w1 = weights[0]; PetscInt l1 = labels[0];
-                PetscReal w2 = weights[1]; PetscInt l2 = labels[1];
-
-                // allocate memory for the 2 closest foil ids
-                PetscMalloc(2*sizeof(PetscInt), &(wt->alm.foilIds[pi]));
-
-                // allocate memory for the 2 interpolation weights
-                PetscMalloc(2*sizeof(PetscReal), &(wt->alm.iw[pi]));
-
-                // set airfoil chord
-                wt->alm.chord[pi] = w1*wt->blade.chord[l1] + w2*wt->blade.chord[l2];
-
-                // set airfoil twist
-                wt->alm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
-
-                // set airfoil thickness
-                if(wt->alm.projectionType=="anisotropic")
-                {
-                    wt->alm.thick[pi] = w1*wt->blade.thick[l1] + w2*wt->blade.thick[l2];
-                }
-
-                // set airfoil ids
-                wt->alm.foilIds[pi][0] = wt->blade.foilIds[l1];
-                wt->alm.foilIds[pi][1] = wt->blade.foilIds[l2];
-
-                // set interpolation weights
-                wt->alm.iw[pi][0] = w1;
-                wt->alm.iw[pi][1] = w2;
-
-                // set the rotor solidity (it is one for the ALM)
-                wt->alm.solidity[pi] = 1.0;
-
-                // new mesh point
-                Cmpnts point = nSet(rvec);
-
-                // rotate the point
-                mRot(wt->rtrAxis, point, daval*ai);
-
-                // add the rotor center vector from origin
-                mSum(point, wt->rotCenter);
-
-                // set the point value
-                mSet(wt->alm.points[pi], point);
-
-                // set the dr value (uniform for now)
-                wt->alm.dr[pi] = dr;
-
-                pi++;
-            }
+            pi++;
         }
     }
 
@@ -4144,7 +4101,7 @@ PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName)
     if(wt->useOpenFAST)
     {
         #if USE_OPENFAST
-        // set number of tower points for OpenFAST
+        // here we force the number of force points to be defined by TOSCA
         wt->nTwrForcePtsOF = wt->twr.nPoints;
         #endif 
     }

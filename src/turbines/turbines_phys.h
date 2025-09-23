@@ -27,7 +27,4 @@ PetscErrorCode controlNacYaw(farm_ *farm);
 //! \brief Compute wind turbine control based on wind farm controller
 PetscErrorCode windFarmControl(farm_ *farm);
 
-//! \brief Compute max tip speed and activate CFL control flag
-PetscErrorCode computeMaxTipSpeed(farm_ *farm);
-
 #endif
