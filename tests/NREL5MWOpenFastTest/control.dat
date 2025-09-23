@@ -37,7 +37,7 @@
 
 # Numerical Schemes
 # ---------------------------------
--dUdtScheme                backwardEuler
+-dUdtScheme                rungeKutta4
 -divScheme                 centralUpwind
 # Wind Turbine
 # ---------------------------------

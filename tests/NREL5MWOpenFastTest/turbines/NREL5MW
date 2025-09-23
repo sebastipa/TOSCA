@@ -10,8 +10,8 @@ precone             0.0
 towerDir            (0.0 0.0 1.0)
 rotorDir            (-1 0 0.000000)
 upTilt              0
-includeTower        0
-includeNacelle      0
+includeTower        1
+includeNacelle      1
 useOpenFAST         1
 
 # Controllers 
@@ -38,9 +38,9 @@ Uref                9.0
 # Tower properties 
 towerData
 {
-    Cd              0.8
+    Cd              4
     epsilon         12.0
-    nLinPts         10
+    nLinPts         20
     rBase           3
     rTop            1.5
 }
