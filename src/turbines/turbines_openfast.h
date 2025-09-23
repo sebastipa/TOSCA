@@ -54,6 +54,13 @@ PetscErrorCode getVelPtsTwrOpenFAST(windTurbine *wt);
 //! \brief Get positions of force tower points from OpenFAST
 PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
 
+//! \brief Translate OpenFAST force points displacements into TOSCA actuator point displacements 
+PetscErrorCode mapOFDisplToActPts(farm_ *farm);
+
+//! \brief Translate OpenFAST forces into TOSCA forces depending on the actutor model
+PetscErrorCode mapOFForcesToActPts(farm_ *farm);
+
+
 #endif
 
 #endif

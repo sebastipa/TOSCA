@@ -18,7 +18,7 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
+        if((*farm->turbineModels[t]) == "ALM" || (*farm->turbineModels[t]) == "ADM")
         {
             // test if this processor controls this turbine
             if(wt->turbineControlled)
@@ -116,7 +116,7 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                 // divide by nprocs in turbine communicator
                 gazimuth = gazimuth / wt->nProcsTrb;
 
-                // rotate turbines
+                // sync turbines on overall master node
                 if(!rank)
                 {
                     PetscReal angle        = (gazimuth - wt->alm.azimuth) * wt->deg2rad;
@@ -186,7 +186,7 @@ PetscErrorCode controlGenSpeed(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
+        if((*farm->turbineModels[t]) == "ALM" || (*farm->turbineModels[t]) == "ADM")
         {
             // test if this processor controls this turbine
             if(wt->turbineControlled)
@@ -523,8 +523,9 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                         if(angle != 0.0)
                         {
                             // rotate common parameters
-                            mRot(wt->twrDir,  wt->rtrDir, angle);
-                            mRot(wt->twrDir,  wt->rtrAxis, angle);
+                            mRot(wt->twrDir, wt->rtrDir,    angle);
+                            mRot(wt->twrDir, wt->rtrAxis,   angle);
+                            mRot(wt->twrDir, wt->rotCenter, angle);
 
                             // actuator disk model
                             if((*farm->turbineModels[t]) == "ADM")
@@ -535,9 +536,9 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                                 // loop over the AD mesh points
                                 for(p=0; p<npts_t; p++)
                                 {
-                                    mSub(wt->adm.points[p], wt->rotCenter);
+                                    mSub(wt->adm.points[p], wt->twrTop);
                                     mRot(wt->twrDir, wt->adm.points[p], angle);
-                                    mSum(wt->adm.points[p], wt->rotCenter);
+                                    mSum(wt->adm.points[p], wt->twrTop);
                                 }
 
                                 // rotate other parameters
@@ -552,9 +553,9 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                                 // loop over the AD mesh points
                                 for(p=0; p<npts_t; p++)
                                 {
-                                    mSub(wt->uadm.points[p], wt->rotCenter);
+                                    mSub(wt->uadm.points[p], wt->twrTop);
                                     mRot(wt->twrDir, wt->uadm.points[p], angle);
-                                    mSum(wt->uadm.points[p], wt->rotCenter);
+                                    mSum(wt->uadm.points[p], wt->twrTop);
                                 }
                             }
                             // actuator line model
@@ -566,9 +567,9 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                                 // loop over the AL mesh points
                                 for(p=0; p<npts_t; p++)
                                 {
-                                    mSub(wt->alm.points[p], wt->rotCenter);
+                                    mSub(wt->alm.points[p], wt->twrTop);
                                     mRot(wt->twrDir, wt->alm.points[p], angle);
-                                    mSum(wt->alm.points[p], wt->rotCenter);
+                                    mSum(wt->alm.points[p], wt->twrTop);
                                 }
 
                                 // rotate other parameters
@@ -584,9 +585,9 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                                 upSampling *upPoints = farm->wt[t]->upPoints;
 
                                 // rotate center
-                                mSub(upPoints->center, wt->rotCenter);
+                                mSub(upPoints->center, wt->twrTop);
                                 mRot(wt->twrDir, upPoints->center, angle);
-                                mSum(upPoints->center, wt->rotCenter);
+                                mSum(upPoints->center, wt->twrTop);
 
                                 // number of points in the sample mesh
                                 PetscInt npts_t = upPoints->nPoints;
@@ -594,9 +595,9 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                                 // loop over the sample mesh points
                                 for(p=0; p<npts_t; p++)
                                 {
-                                    mSub(upPoints->points[p], wt->rotCenter);
+                                    mSub(upPoints->points[p], wt->twrTop);
                                     mRot(wt->twrDir, upPoints->points[p], angle);
-                                    mSum(upPoints->points[p], wt->rotCenter);
+                                    mSum(upPoints->points[p], wt->twrTop);
                                 }
                             }
                         }

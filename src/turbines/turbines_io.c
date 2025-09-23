@@ -3397,6 +3397,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
                     mSum(tower, base);
     Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
     Cmpnts center = nSum(tower, overH);
+    wt->twrTop    = tower;  
     wt->rotCenter = center;
 
     // set the rotor reference frame

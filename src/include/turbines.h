@@ -309,32 +309,33 @@ typedef struct
     word                      id;   //!< id of the wind turbine
     word                    type;   //!< type of the wind turbine
     PetscInt             nBlades;   //!< number of turbine blades
-    PetscReal               rTip;   //!< tip radius from CoR
-    PetscReal               rHub;   //!< hub radius from CoR
-    PetscReal               hTwr;   //!< tower height
-    PetscReal            ovrHang;   //!< nacelle overhang in the rotor direction (facing the wind)
-    PetscReal            precone;   //!< blade precone (equal for all blades)
-    Cmpnts                twrDir;   //!< unit vector pointing from base to tower top
-    PetscReal             upTilt;   //!< nacell up-tilt (positive when blades get far from tower)
-    PetscReal             genEff;   //!< electrical generator eficiency
+    PetscReal               rTip;   //!< tip radius from AoR (turbine at rest)
+    PetscReal               rHub;   //!< hub radius from AoR (turbine at rest)
+    PetscReal               hTwr;   //!< tower height (turbine at rest)
+    PetscReal            ovrHang;   //!< nacelle overhang in the rotor direction (facing the wind, turbine at rest)
+    PetscReal            precone;   //!< blade precone (equal for all blades, turbine at rest)
+    Cmpnts                twrDir;   //!< unit vector pointing from base to tower top (turbine at rest)
+    PetscReal             upTilt;   //!< nacell up-tilt (positive when blades get far from tower, turbine at rest)
+    PetscReal             genEff;   //!< electrical generator eficiency for aero to power conversion
 
-    // detailed parameters (ADM and ALM models)
-    word                  rotDir;   //!< rotation dir as seen lookingthrough the WT from the front
-    Cmpnts             rotCenter;   //!< rotor rotation center
-    PetscInt              nFoils;   //!< number of airfoils in the database
-    word             **foilNames;   //!< array of pointers of size(n-foils in turbine) to airfoil names
-    foilInfo             **foils;   //!< array of pointers of size(n-foils in turbine) to each airfoil's info
-    bladeAeroInfo          blade;   //!< blade properties
-
-    anemometer              WDAS;   //!< wind data acquisition system (nacelle mounted anemometer)
-
-    // time-varying variables
-    Cmpnts                rtrDir;   //!< (all) unit vector pointing to the rotor orientation in non-tilted position (facing the wind)
-    Cmpnts               rtrAxis;   //!< (all) unit vector pointing to the rotor orientation in tilted position (facing the wind)
+    // additional info for ADM and ALM models
+    word                  rotDir;   //!< (AD/AL) rotation dir as seen lookingthrough the WT from the front
+    PetscInt              nFoils;   //!< (AD/AL) number of airfoils in the database
+    word             **foilNames;   //!< (AD/AL) array of pointers of size(n-foils in turbine) to airfoil names
+    foilInfo             **foils;   //!< (AD/AL) array of pointers of size(n-foils in turbine) to each airfoil's info
+    bladeAeroInfo          blade;   //!< (AD/AL) blade properties
     Cmpnts             omega_hat;   //!< (AD/AL) turbine angular velocity unit vector (directed as rtrAxis, pointed according to rotDir)
     PetscReal           rtrOmega;   //!< (AD/AL) turbine angular velocity in rad/sec
 
-    // wind turbine models
+    anemometer              WDAS;   //!< wind data acquisition system (nacelle mounted anemometer)
+
+    // time-varying parameters 
+    Cmpnts             rotCenter;   //!< (all) rotor rotation center (offset from tower top by ovrHang, turbine at rest)
+    Cmpnts                twrTop;   //!< (all) tower top point, CoR for turbine yaw (turbine at rest)
+    Cmpnts                rtrDir;   //!< (all) unit vector pointing to the rotor orientation in non-tilted position (horizontal facing the wind)
+    Cmpnts               rtrAxis;   //!< (all) unit vector pointing to the rotor orientation in tilted position (facing the wind)
+
+    // rotor models
     ADM                      adm;   //!< actuator disk model
     UADM                    uadm;   //!< unform actuator disk model
     ALM                      alm;   //!< actuator line model
@@ -356,9 +357,6 @@ typedef struct
     PetscReal            rad2deg;   //!< radiants to degrees conversion factor
     PetscReal         rpm2RadSec;   //!< RPM to rad/s conversion factor
 
-    // flags
-    PetscInt   turbineControlled;   //!< flag which tells if this proc controls this wind turbine
-
     // communication color
     MPI_Comm            TRB_COMM;   //!< communicator for this turbine
     PetscMPIInt       writerRank;   //!< label of master rank of the TRB_COMM communicator in the MPI_COMM_WORLD rank list
@@ -375,10 +373,8 @@ typedef struct
     PetscReal    regTwoEndGenSpd;   //!< generator speed at the end of control region 2
     PetscReal         ratedGenTq;   //!< generator torque at the rated wind speed
     PetscReal            omegaKP;   //!< proportional gain of the generator torque controller
-
     PetscReal          genTorque;   //!< total generator torque
     PetscReal             genPwr;   //!< total rotor gen power
-
     PetscInt       tqRateLimiter;   //!< activate torque rate limiter (1 yes, 0 no)
     PetscInt       rtrSpdLimiter;   //!< activate generator speed limiter (1 yes, 0 no)
     PetscReal          tqMaxRate;   //!< maximum torque variation rate allowed for the generator torque controller
@@ -424,14 +420,14 @@ typedef struct
     PetscReal    yawAllowedError;   //!< allows +-yawAllowedError flow misalignment in degrees
     PetscReal             yawMin;   //!< minimum yaw angle
     PetscReal             yawMax;   //!< maximum yaw angle
-    PetscReal           yawAngle;   //!< actual yaw angle wrt xyz background ref frame
-    PetscReal          flowAngle;   //!< actual averaged flow angle wrt xyz background ref frame
-    PetscReal           yawError;   //!< yaw misalignment error
+    PetscReal           yawAngle;   //!< actual yaw angle on the horizontal plane wrt positive x axis (range: -180:180)
+    PetscReal          flowAngle;   //!< actual averaged flow angle on the horizontal plane wrt positive x axis (range: -180:180)
+    PetscReal           yawError;   //!< yaw misalignment error (difference of the two above)
     PetscReal           yawSpeed;   //!< yaw speed in degs/s
     cellIds         yawSampleIds;   //!< ids of the point where the velocity for misalignment computation must be sampled
     PetscInt          yawChanged;   //!< flag telling if must do the search on the turbine points due to yaw change
 
-    // wind farm controller
+    // wind farm overall controller
     PetscReal wfControlCollPitch;   //!< delta pitch proscribed by wind farm controller (ADM and ALM)
     PetscReal        wfControlCt;   //!< delta Ct prescribed by wind farm controller (uniformADM, AFM)
     PetscInt      wfControlNData;   //!< number of entries in the control table
@@ -447,6 +443,8 @@ typedef struct
 
 
     // numerical parameters
+    // numerical parameters and flags 
+    PetscInt   turbineControlled;   //!< flag which tells if this proc controls this wind turbine
     cellIds     *controlledCells;   //!< labels of the background mesh cells influenced by this turbine in this processor
     PetscInt         nControlled;   //!< size of controlledCells
     PetscReal                eps;   //!< spreading width of the gaussian projection function (good is 0.035 * dBlade)
@@ -477,7 +475,7 @@ typedef struct
     PetscInt   nBladeForcePtsOF;    //!< number of blade points for OpenFAST (note: this are for 1 blade, multiply for nBlades to have the total) 
     PetscInt     nTwrForcePtsOF;    //!< number of tower points for OpenFAST
 
-    // arrays containing the coordinates and values of the sampling and force points
+    // arrays containing the coordinates and values of the velocity and force points
     Cmpnts         *velPtsBlade;   //!< array containing blade velocity sampling points for openfast 
     Cmpnts        *velValsBlade;   //!< array containing blad velocity values at the sampling points for openfast
     Cmpnts       *forcePtsBlade;   //!< array containing blad force actuator points for openfast (these are coincident to TOSCA's actuator model points)
@@ -517,23 +515,23 @@ struct farm_
     windTurbine             **wt;   //!< array of pointers to wind turbines
 
     // output parameters
-    PetscReal          timeStart;  //!< start time of acquisition system
-    word            intervalType;  //!< timeStep: sample at every (timeInterval) iter, adjustableTime sample at every (timeInterval) seconds
-    PetscReal       timeInterval;  //!< acquisition time interval (overrides simulation time step if smaller and adjustableTime active)
-    PetscInt         writeNumber;  //!< number of mesh files written up to now
+    PetscReal          timeStart;   //!< start time of acquisition system
+    word            intervalType;   //!< timeStep: sample at every (timeInterval) iter, adjustableTime sample at every (timeInterval) seconds
+    PetscReal       timeInterval;   //!< acquisition time interval (overrides simulation time step if smaller and adjustableTime active)
+    PetscInt         writeNumber;   //!< number of mesh files written up to now
 
     // debug switch
-    PetscInt                 dbg;  //!< global debug switch, checks for point discrimination algorithm (slower)
+    PetscInt                 dbg;   //!< global debug switch, checks for point discrimination algorithm (slower)
 
-    Vec           lsourceFarmCat,  //!< cartesian wind farm body force
-                  sourceFarmCont;  //!< contravariant wind farm body force
+    Vec           lsourceFarmCat,   //!< cartesian wind farm body force
+                  sourceFarmCont;   //!< contravariant wind farm body force
 
     // access database
-    access_              *access;
+    access_              *access;   //!< provides access to other TOSCA classes such as mesh, io, etc...
 
     // CFL control for ALM: blade tip cannot move more than one cell
-    PetscInt       checkCFL;       //!< at least one actuator line model is present in the wind farm
-    PetscReal      maxTipSpeed;    //!< maximum tip speed among all rotors
+    PetscInt       checkCFL;        //!< at least one actuator line model is present in the wind farm
+    PetscReal      maxTipSpeed;     //!< maximum tip speed among all rotors
 
 #if USE_OPENFAST
 
@@ -563,7 +561,6 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm);
 PetscErrorCode computeMaxTipSpeed(farm_ *farm);
 
 #endif
-<<<<<<< HEAD
 
 // Reading input files functions
 // -----------------------------------------------------------------------------
@@ -615,5 +612,3 @@ PetscErrorCode readWindFarmControlTable(windTurbine *wt);
 
 //! \brief Read discrete induction controller parameters
 PetscErrorCode readDipcControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
-=======
->>>>>>> b265293 (split turbine.c code in modules as it was too big to work with)
