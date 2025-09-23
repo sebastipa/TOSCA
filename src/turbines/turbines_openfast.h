@@ -24,17 +24,20 @@ PetscErrorCode stepOpenFAST(farm_ *farm);
 //! \brief Get positions of force tower points from OpenFAST
 PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
 
-//! \brief Send velocity to OpenFAST 
+//! \brief Compute and end blade velocity to OpenFAST 
 PetscErrorCode computeWindVectorsRotorOpenFAST(farm_ *farm);
+
+//! \brief Compute and end tower velocity to OpenFAST
+PetscErrorCode computeWindVectorsTowerOpenFAST(farm_ *farm);
 
 //! \brief Get force from OpenFAST
 PetscErrorCode computeBladeForceOpenFAST(farm_ *farm);
 
-//! \brief Find out which OpenFAST velocity points are controlled by this processor
-PetscErrorCode findControlledVelPointsOpenFAST(farm_ *farm);
+//! \brief Find out which OpenFAST points are controlled by which processor
+PetscErrorCode findControlledPointsRotorOpenFAST(farm_ *farm);
 
-//! \brief Initialize processor-controlled vel points 
-PetscErrorCode initControlledPointsOpenFAST(windTurbine *wt);
+//! \brief Find out which OpenFAST points are controlled by which processor
+PetscErrorCode findControlledPointsTowerOpenFAST(farm_ *farm);
 
 //! \brief Get global turbine parameters from OpenFAST
 PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt);
@@ -47,6 +50,9 @@ PetscErrorCode getForcePtsBladeOpenFAST(windTurbine *wt);
 
 //! \brief Get positions of velocity tower points from OpenFAST
 PetscErrorCode getVelPtsTwrOpenFAST(windTurbine *wt);
+
+//! \brief Get positions of force tower points from OpenFAST
+PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
 
 #endif
 

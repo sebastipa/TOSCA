@@ -894,72 +894,28 @@ PetscErrorCode computeWindVectorsTower(farm_ *farm)
 
                     if(wt->twr.thisPtControlled[p])
                     {
+                        // get the closest cell center
                         PetscInt i = wt->twr.closestCells[p].i,
                                  j = wt->twr.closestCells[p].j,
                                  k = wt->twr.closestCells[p].k;
 
-                        // get velocity at that point
-                        Cmpnts uc_p = nSet(ucat[k][j][i]);
-
-                        // reverse sign to the velocity (we go backward along streamline)
-                        mScale(-1.0, uc_p);
-
                         // find the point at which velocity must be sampled
-                        Cmpnts sample = nScale(clock->dt, uc_p);
-                                        mSum(sample, point_p);
-
-                        // find the closest cell indices to the sample point,
-                        // allow for max 2 delta cells to stay in this processor
-                        PetscReal  r_c_minMag = 1e20;
-                        cellIds closestCell;
-                        PetscInt     k1, j1, i1;
-
-                        for (k1=k-2; k1<k+3; k1++)
-                        for (j1=j-2; j1<j+3; j1++)
-                        for (i1=i-2; i1<i+3; i1++)
-                        {
-                            // make sure not to interpolate from ghost: tower is usually next to boundaries
-                            if
-                            (
-                                (i1>0 && i1<mx-1) &&
-                                (j1>0 && j1<my-1) &&
-                                (k1>0 && k1<mz-1)
-                            )
-                            {
-                                // compute distance from mesh cell to AD point
-                                Cmpnts r_c = nSub(sample, cent[k1][j1][i1]);
-
-                                // compute magnitude
-                                PetscReal r_c_mag = nMag(r_c);
-
-                                if(r_c_mag < r_c_minMag)
-                                {
-                                    r_c_minMag = r_c_mag;
-                                    closestCell.i = i1;
-                                    closestCell.j = j1;
-                                    closestCell.k = k1;
-                                }
-                            }
-                        }
+                        Cmpnts sample = nSet(point_p);
 
                         // trilinear interpolate
                         vectorPointLocalVolumeInterpolation
                         (
                             mesh,
                             sample.x, sample.y, sample.z,
-                            closestCell.i, closestCell.j, closestCell.k,
-                            cent, ucat, uc_p
+                            i, j, k,
+                            cent, ucat, lU[p]
                         );
-
-                        lU[p]     = nSet(uc_p);
                     }
                 }
 
                 MPI_Allreduce(&(lU[0]), &(wt->twr.U[0]), wt->twr.nPoints*3, MPIU_REAL, MPIU_SUM, wt->twr.TWR_COMM);
 
-
-
-                // loop over the tower mesh points
+                // subtract axial velocity
                 for(p=0; p<npts_t; p++)
                 {
                     PetscReal uAxMag = nDot(wt->twr.U[p], wt->twrDir);
