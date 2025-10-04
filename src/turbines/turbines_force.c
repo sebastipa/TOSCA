@@ -1068,6 +1068,77 @@ PetscErrorCode projectBladeForce(farm_ *farm)
 
 //***************************************************************************************************************//
 
+PetscErrorCode computeTowerForce(farm_ *farm)
+{
+    constants_       *constants = farm->access->constants;
+    mesh_            *mesh = farm->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k, t, c, p;
+
+    Cmpnts           ***cent;
+
+    PetscReal        ***aj;
+
+    PetscMPIInt           rank; MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    // loop over each wind turbine
+    for(t=0; t<farm->size; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        // test if tower is modeled in this turbine
+        if(wt->includeTwr)
+        {
+            // test if this processor controls this tower
+            if(wt->twr.nControlled)
+            {
+                // zero this tower thrust
+                wt->twr.twrThrust = 0.0;
+
+                // number of points in the tower mesh
+                PetscInt npts_t = wt->twr.nPoints;
+
+                // loop over the tower mesh points
+                for(p=0; p<npts_t; p++)
+                {
+                    // get this point velocity
+                    PetscReal uMag = nMag(wt->twr.U[p]);
+
+                    // compute scalar body force
+                    PetscReal magB = 0.5 * uMag * uMag * wt->twr.dA[p] * wt->twr.Cd;
+
+                    // get force direction unit vector (x in the local aero frame)
+                    Cmpnts xa_hat = nUnit(wt->twr.U[p]);
+
+                    // compute vector body force
+                    wt->twr.B[p] = nScale(-magB, xa_hat);
+
+                    // compute axial force
+                    wt->twr.tangF[p] = nDot(wt->twr.B[p], wt->rtrAxis);
+
+                    // cumulate this tower thrust
+                    wt->twr.twrThrust += wt->twr.tangF[p] * constants->rho;
+                }
+            }
+        }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode projectTowerForce(farm_ *farm)
 {
     constants_       *constants = farm->access->constants;
@@ -1127,24 +1198,6 @@ PetscErrorCode projectTowerForce(farm_ *farm)
                 // loop over the tower mesh points
                 for(p=0; p<npts_t; p++)
                 {
-                    // get this point velocity
-                    PetscReal uMag = nMag(wt->twr.U[p]);
-
-                    // compute scalar body force
-                    PetscReal magB = 0.5 * uMag * uMag * wt->twr.dA[p] * wt->twr.Cd;
-
-                    // get force direction unit vector (x in the local aero frame)
-                    Cmpnts xa_hat = nUnit(wt->twr.U[p]);
-
-                    // compute vector body force
-                    wt->twr.B[p] = nScale(-magB, xa_hat);
-
-                    // compute axial force
-                    wt->twr.tangF[p] = nDot(wt->twr.B[p], wt->rtrAxis);
-
-                    // cumulate this tower thrust
-                    wt->twr.twrThrust += wt->twr.tangF[p] * constants->rho;
-
                     // save this point locally for speed
                     Cmpnts point_p    = wt->twr.points[p];
 

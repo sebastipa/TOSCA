@@ -677,7 +677,7 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
         if(wt->turbineControlled)
         {
             // actuator disk model
-            if((*farm->turbineModels[t]) == "ADM" && wt->yawChanged)
+            if((*farm->turbineModels[t]) == "ADM" && wt->trbMoved)
             {
                 // number of points in the AD mesh
                 PetscInt npts_t = wt->adm.nPoints;
@@ -769,7 +769,7 @@ PetscErrorCode findControlledPointsRotor(farm_ *farm)
                 std::vector<Cmpnts> ().swap(perturb);
             }
             // uniform actuator disk model
-            else if((*farm->turbineModels[t]) == "uniformADM" && wt->yawChanged)
+            else if((*farm->turbineModels[t]) == "uniformADM" && wt->trbMoved)
             {
                 // number of points in the AD mesh
                 PetscInt npts_t = wt->uadm.nPoints;
@@ -1334,7 +1334,7 @@ PetscErrorCode findControlledPointsSample(farm_ *farm)
         upSampling *upPoints = farm->wt[t]->upPoints;
 
         // test if this processor controls this rig
-        if(upPoints->thisRigControlled && farm->wt[t]->yawChanged)
+        if(upPoints->thisRigControlled && farm->wt[t]->trbMoved)
         {
             // number of points in the sampling mesh
             PetscInt npts_t = upPoints->nPoints;
@@ -1421,8 +1421,8 @@ PetscErrorCode findControlledPointsSample(farm_ *farm)
             std::vector<Cmpnts>    ().swap(perturb);
         }
 
-        // set yaw changed to zero (will be overwritten by controlNacYaw if applicable)
-        farm->wt[t]->yawChanged = 0;
+        // set turbine moved to zero (will be overwritten by controlNacYaw and others if applicable)
+        farm->wt[t]->trbMoved = 0;
     }
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);

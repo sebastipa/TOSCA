@@ -603,7 +603,7 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                         }
 
                         // turbine point search will be performed
-                        wt->yawChanged = 1;
+                        wt->trbMoved = 1;
                     }
                     else if(wt->yawSamplingType == "anemometer")
                     {

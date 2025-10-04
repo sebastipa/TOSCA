@@ -318,6 +318,9 @@ typedef struct
     PetscReal             upTilt;   //!< nacell up-tilt (positive when blades get far from tower, turbine at rest)
     PetscReal             genEff;   //!< electrical generator eficiency for aero to power conversion
 
+    // moving turbine flag 
+    PetscInt            trbMoved;   //!< flag telling if the turbine has moved (triggers point-processor ownership update)
+
     // additional info for ADM and ALM models
     word                  rotDir;   //!< (AD/AL) rotation dir as seen lookingthrough the WT from the front
     PetscInt              nFoils;   //!< (AD/AL) number of airfoils in the database
@@ -425,7 +428,6 @@ typedef struct
     PetscReal           yawError;   //!< yaw misalignment error (difference of the two above)
     PetscReal           yawSpeed;   //!< yaw speed in degs/s
     cellIds         yawSampleIds;   //!< ids of the point where the velocity for misalignment computation must be sampled
-    PetscInt          yawChanged;   //!< flag telling if must do the search on the turbine points due to yaw change
 
     // wind farm overall controller
     PetscReal wfControlCollPitch;   //!< delta pitch proscribed by wind farm controller (ADM and ALM)

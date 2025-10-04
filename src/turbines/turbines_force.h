@@ -15,7 +15,10 @@ PetscErrorCode computeBladeForce(farm_ *farm);
 //! \brief Project the wind turbine forces on the background mesh
 PetscErrorCode projectBladeForce(farm_ *farm);
 
-//! \brief Compute and project the tower forces on the background mesh
+//! \brief Compute the tower forces on the background mesh
+PetscErrorCode computeTowerForce(farm_ *farm);
+
+//! \brief Compute project the tower forces on the background mesh
 PetscErrorCode projectTowerForce(farm_ *farm);
 
 //! \brief Compute and project the nacelle forces on the background mesh
