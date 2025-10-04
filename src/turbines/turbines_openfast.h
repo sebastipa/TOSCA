@@ -21,17 +21,17 @@ PetscErrorCode stepZeroOpenFAST(farm_ *farm);
 //! \brief Time step OpenFAST solution
 PetscErrorCode stepOpenFAST(farm_ *farm);
 
-//! \brief Get positions of force tower points from OpenFAST
-PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
-
 //! \brief Compute and end blade velocity to OpenFAST 
 PetscErrorCode computeWindVectorsRotorOpenFAST(farm_ *farm);
 
 //! \brief Compute and end tower velocity to OpenFAST
 PetscErrorCode computeWindVectorsTowerOpenFAST(farm_ *farm);
 
-//! \brief Get force from OpenFAST
+//! \brief Get blade force from OpenFAST
 PetscErrorCode computeBladeForceOpenFAST(farm_ *farm);
+
+//! \brief Get tower from OpenFAST
+PetscErrorCode computeTowerForceOpenFAST(farm_ *farm);
 
 //! \brief Find out which OpenFAST points are controlled by which processor
 PetscErrorCode findControlledPointsRotorOpenFAST(farm_ *farm);
@@ -39,20 +39,23 @@ PetscErrorCode findControlledPointsRotorOpenFAST(farm_ *farm);
 //! \brief Find out which OpenFAST points are controlled by which processor
 PetscErrorCode findControlledPointsTowerOpenFAST(farm_ *farm);
 
-//! \brief Get global turbine parameters from OpenFAST
-PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt);
+//! \brief Update turbine points and parameters from OpenFAST after a step
+PetscErrorCode getDataFromOpenFAST(farm_ *farm);
 
-//! \brief Get positions of velocity turbine points from OpenFAST
-PetscErrorCode getVelPtsBladeOpenFAST(windTurbine *wt);
+    //! \brief Get global turbine parameters from OpenFAST
+    PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt);
 
-//! \brief Get positions of force turbine points from OpenFAST
-PetscErrorCode getForcePtsBladeOpenFAST(windTurbine *wt);
+    //! \brief Get positions of velocity turbine points from OpenFAST
+    PetscErrorCode getVelPtsBladeOpenFAST(windTurbine *wt);
 
-//! \brief Get positions of velocity tower points from OpenFAST
-PetscErrorCode getVelPtsTwrOpenFAST(windTurbine *wt);
+    //! \brief Get positions of force turbine points from OpenFAST
+    PetscErrorCode getForcePtsBladeOpenFAST(windTurbine *wt);
 
-//! \brief Get positions of force tower points from OpenFAST
-PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
+    //! \brief Get positions of velocity tower points from OpenFAST
+    PetscErrorCode getVelPtsTwrOpenFAST(windTurbine *wt);
+
+    //! \brief Get positions of force tower points from OpenFAST
+    PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
 
 //! \brief Translate OpenFAST force points displacements into TOSCA actuator point displacements 
 PetscErrorCode mapOFDisplToActPts(farm_ *farm);

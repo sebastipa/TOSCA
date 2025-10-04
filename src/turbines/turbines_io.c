@@ -3511,10 +3511,10 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
         readNacelleProperties(wt, dictName);
     }
 
-    // set yaw changed parameter to 1 at initialization
+    // set tower moved parameter to 1 at initialization
     // this makes sure all models do the first cell to point search
     // ALM always does the search as blades are rotating
-    wt->yawChanged = 1;
+    wt->trbMoved   = 1;
 
     return(0);
 }

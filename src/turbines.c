@@ -49,51 +49,66 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     
 #if USE_OPENFAST
 
-    // find which velocity and force blade point this processor controls 
-    findControlledPointsRotorOpenFAST(farm); 
+    // -------------------------------------------------------------
+    // 1. FIND POINT-PROCESSOR OWNERSHIP AND SAMPLE WIND 
+    //    (this is done at OpenFAST velocity and force points,
+    //     not at TOSCA's actuator points)
+    // -------------------------------------------------------------
 
-    // find which velocity and force tower point this processor controls 
+    findControlledPointsRotorOpenFAST(farm); 
     findControlledPointsTowerOpenFAST(farm);
 
-    // compute and send blade velocities to openfast (interp at velocity points, they differ from actuator points)
     computeWindVectorsRotorOpenFAST(farm); 
-
-    // compute and send tower velocities to openfast (interp at velocity points, they differ from actuator points)
     computeWindVectorsTowerOpenFAST(farm); 
 
-    // advance openfast 
+    // -------------------------------------------------------------
+    // 3. MOVE WIND TURBINES 
+    // -------------------------------------------------------------
+
+    // solve for rotor dynamics and structure in OpenFAST
     stepOpenFAST(farm); 
 
-    // map openfast force points displacements to actuator points (they are the same for ALM)
+    // map OpenFAST force points displacements to TOSCA's actuator points 
     mapOFDisplToActPts(farm);
 
-    // this is done at the actuator model level to sample the wind (this will be removed and wind transferred by interpolation from vel to force points)
-    findControlledPointsRotor(farm); 
+    // -------------------------------------------------------------
+    // 4. COMPUTE POINT-PROCESSOR OWNERSHIP AFTER MOTION
+    //    (this is done at TOSCA's actuator points)
+    // -------------------------------------------------------------
 
-    // find which sample points this processor controls (this is still needed because it concerns sampling rigs)
+    // find which actuator points this processor controls (also finds closest cell)
+    findControlledPointsRotor(farm);
+    findControlledPointsTower(farm);
+    findControlledPointsNacelle(farm);
     findControlledPointsSample(farm); 
 
-    // compute wind velocity at the sample mesh points (this is still needed because it concerns sampling rigs)
+    // -------------------------------------------------------------
+    // 5. SAMPLE WIND (at TOSCA's actuator points)
+    // -------------------------------------------------------------
+
+    // compute wind velocity 
+    computeWindVectorsRotor(farm); 
+    computeWindVectorsTower(farm);
+    computeWindVectorsNacelle(farm); 
     computeWindVectorsSample(farm); 
 
-    // compute wind velocity at the rotor mesh points (this will be replaced by interpolation from vel to force points)
-    computeWindVectorsRotor(farm); 
-
-    // compute wind velocity at the tower mesh points (same as above, right now it gets it from the backgruoumd mesh)
-    computeWindVectorsTower(farm);
-
-    // compute wind velocity at the nacelle mesh point (this is good but the nacelle needs to be moved so need to implement processor search)
-    computeWindVectorsNacelle(farm); 
-
-    // get force from openfast at current time (this puts the openfast force into force points, still not given to actuators)
+    // -------------------------------------------------------------
+    // 6. COMPUTE FORCE 
+    //    (this is first put into force point values, then mapped 
+    //     to TOSCA's actuator points)
+    // -------------------------------------------------------------
+    
+    // compute aerodynamic forces 
     computeBladeForceOpenFAST(farm); 
-
-    // map OpenFAST forces to actuator points (this maps the force to the actuator points depending on actuator model, also does tower)
+    computeTowerForceOpenFAST(farm); 
     mapOFForcesToActPts(farm);
 
-    // note: the tower force that we got above at the moment is overwritten in projectTowerForce, need to split the function in force computation and projection
-
 #else 
+
+    // -------------------------------------------------------------
+    // 1. MOVE WIND TURBINES
+    // -------------------------------------------------------------
+
     // solve rotor dynamics and compute rot speeds
     computeRotSpeed(farm);
 
@@ -109,37 +124,48 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     // apply the yaw controller
     controlNacYaw(farm);
 
-    // find which AD points this processor controls
-    findControlledPointsRotor(farm);
+    // -------------------------------------------------------------
+    // 2. COMPUTE POINT-PROCESSOR OWNERSHIP AFTER MOTION
+    // -------------------------------------------------------------
 
-    // find which sample points this processor controls
+    // find which actuator points this processor controls (also finds closest cell)
+    findControlledPointsRotor(farm);
+    findControlledPointsTower(farm);
+    findControlledPointsNacelle(farm);
     findControlledPointsSample(farm);
 
-    // compute wind velocity at the sample mesh points
+    // -------------------------------------------------------------
+    // 3. SAMPLE WIND
+    // -------------------------------------------------------------
+
+    // compute wind velocity 
+    computeWindVectorsRotor(farm);
+    computeWindVectorsTower(farm);
+    computeWindVectorsNacelle(farm);
     computeWindVectorsSample(farm);
 
-    // compute wind velocity at the rotor mesh points
-    computeWindVectorsRotor(farm);
-
-    // compute wind velocity at the tower mesh points
-    computeWindVectorsTower(farm);
-
-    // compute wind velocity at the nacelle mesh point
-    computeWindVectorsNacelle(farm);
+    // -------------------------------------------------------------
+    // 4. COMPUTE FORCE
+    // -------------------------------------------------------------
     
-    // compute aerodynamic forces at the turbine mesh points
+    // compute aerodynamic forces 
     computeBladeForce(farm);
+    computeTowerForce(farm);
 
 #endif
 
-    // project the wind turbine forces on the background mesh
+    // -------------------------------------------------------------
+    // PROJECT FORCE 
+    // -------------------------------------------------------------
+
+    // project aerodynamic forces 
     projectBladeForce(farm); 
-
-    // project the tower forces on the background mesh
     projectTowerForce(farm); 
-
-    // project the nacelle forces on the background mesh
     projectNacelleForce(farm); 
+
+    // -------------------------------------------------------------
+    // TRANSFORMATION & WRITING
+    // -------------------------------------------------------------
 
     // transform forces from cartesian to contravariant
     bodyForceCartesian2Contravariant(farm); 
@@ -196,17 +222,11 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
         // initialize turbine and tower sphere cells and see what processor controls which wind turbine
         initControlledCells(farm);
 
-        // ensure best practices with respect to mesh size and turbine dimension are followed
-        checkTurbineMesh(farm);
-
         // initialize sample sphere cells and see what processor controls which sampling rig
         initSampleControlledCells(farm);
 
-        // determine which points in each tower are controlled by which processor (also finds closest cell)
-        findControlledPointsTower(farm);
-
-        // determine which points in each nacelle are controlled by which processor (also finds closest cell)
-        findControlledPointsNacelle(farm);
+        // ensure best practices with respect to mesh size and turbine dimension are followed
+        checkTurbineMesh(farm);
 
         // initialize OpenFAST 
         #if USE_OPENFAST
@@ -238,37 +258,14 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
                 // initialize actuator farm model parameters
                 meshAFM(farm->wt[t]);
             }
-
-            #if USE_OPENFAST
-
-            // update velocity points from OpenFAST
-            getVelPtsBladeOpenFAST(farm->wt[t]);
-
-            // update force points from OpenFAST
-            getForcePtsBladeOpenFAST(farm->wt[t]);
-
-            // update tower points from OpenFAST
-            if(farm->wt[t]->includeTwr)
-            {
-                getVelPtsTwrOpenFAST(farm->wt[t]);
-                getForcePtsTwrOpenFAST(farm->wt[t]);
-            }
-
-            // update global WT parameters from OpenFAST
-            getGlobParamsOpenFAST(farm->wt[t]);
-
-            #endif
         }
 
         #if USE_OPENFAST
-        // map openfast displacements to actuator points
-        mapOFDisplToActPts(farm);
+        // get global params and position of force and velocity points from openfast
+        getDataFromOpenFAST(farm);
 
-        // compute initial condition 
+        // compute initial condition for openfast
         stepZeroOpenFAST(farm);
-
-        // map openfast displacements to actuator points
-        mapOFDisplToActPts(farm);
         #endif
 
         // read the checkpoint file if present and prepare wind turbines for restart

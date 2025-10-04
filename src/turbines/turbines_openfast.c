@@ -283,11 +283,6 @@ PetscErrorCode initOpenFAST(farm_ *farm)
 
 PetscErrorCode stepZeroOpenFAST(farm_ *farm)
 {
-    PetscInt nT = farm->size;
-
-    PetscMPIInt   rank;
-    MPI_Comm_rank(farm->fi.comm, &rank);
-
     // find which rotor point this processor controls 
     findControlledPointsRotorOpenFAST(farm);
 
@@ -306,28 +301,7 @@ PetscErrorCode stepZeroOpenFAST(farm_ *farm)
         farm->FAST->solution0();
     }
 
-    for(PetscInt t=0; t<nT; t++)
-    {
-        if(farm->wt[t]->useOpenFAST)
-        {
-            // update velocity points from OpenFAST
-            getVelPtsBladeOpenFAST(farm->wt[t]);
-            if(farm->wt[t]->includeTwr)
-            {
-                getVelPtsTwrOpenFAST(farm->wt[t]);
-            }
-
-            // update Force points from OpenFAST
-            getForcePtsBladeOpenFAST(farm->wt[t]);
-            if(farm->wt[t]->includeTwr)
-            {
-                getForcePtsTwrOpenFAST(farm->wt[t]);
-            }
-
-            // update global WT parameters from OpenFAST
-            getGlobParamsOpenFAST(farm->wt[t]);
-        }
-    }
+    getDataFromOpenFAST(farm);
 
     return(0);
 }
@@ -348,7 +322,16 @@ PetscErrorCode stepOpenFAST(farm_ *farm)
         farm->FAST->step(writeFilesOF);
     }
 
-    for(PetscInt t=0; t<nT; t++)
+    getDataFromOpenFAST(farm);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode getDataFromOpenFAST(farm_ *farm)
+{
+    for(PetscInt t=0; t<farm->size; t++)
     {
         if(farm->wt[t]->useOpenFAST)
         {
@@ -368,7 +351,6 @@ PetscErrorCode stepOpenFAST(farm_ *farm)
 
             // update global WT parameters from OpenFAST
             getGlobParamsOpenFAST(farm->wt[t]);
-
         }
     }
 
@@ -427,7 +409,7 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
 
     // the following are all ouputs that we would like to get from OpenFAST somehow
 
-    // wt->yawChanged -> this is important as it triggers the processor search for all actuator models except ALM
+    // wt->trbMoved -> this is important as it triggers the processor search for all actuator models except ALM
 
     // wt->omega_hat from the shaft 
     // wt->rtrOmega       compute by saving old points and calculating angular velocity
@@ -790,7 +772,7 @@ PetscErrorCode mapOFForcesToActPts(farm_ *farm)
 
             PetscInt nForcePtsBlade = wt->nBlades * wt->nBladeForcePtsOF;
 
-            // map blade displacements
+            // map blade forces
             if((*farm->turbineModels[t]) == "ALM")
             {
                 for(p=0; p<nForcePtsBlade; p++)
@@ -1625,8 +1607,6 @@ PetscErrorCode computeBladeForceOpenFAST(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        Cmpnts rtrAxis  = farm->wt[t]->rtrAxis;
-
         // local vectors 
         std::vector<Cmpnts> lForceVals(wt->nBlades*wt->nBladeForcePtsOF);
 
@@ -1657,6 +1637,60 @@ PetscErrorCode computeBladeForceOpenFAST(farm_ *farm)
     }
 
     return(0);  
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode computeTowerForceOpenFAST(farm_ *farm)
+{
+    mesh_            *mesh = farm->access->mesh;
+
+    // turbine and AD mesh point indices
+    PetscInt t, p;
+
+    PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
+    PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    // loop over each wind turbine
+    for(t=0; t<farm->size; t++)
+    {
+        windTurbine *wt = farm->wt[t];
+
+        // local vectors 
+        std::vector<Cmpnts> lForceVals(wt->nBlades*wt->nBladeForcePtsOF);
+
+        // test if tower is modeled in this turbine
+        if(wt->includeTwr)
+        {
+            // test if this processor controls this tower
+            if(wt->twr.nControlled)
+            {
+                // get data from OpenFAST 
+                if(rank == wt->writerRank)
+                {
+                    // set the velocity at each point in OpenFAST
+                    std::vector<double> pointForce(3);
+                    for(PetscInt i=0; i<wt->nTwrForcePtsOF; i++)
+                    {
+                        // OpenFAST index: 1, rad_1_bld_1, rad_N_bld_1, rad_1_bld_2, ..., rad_N_bld_N, tower1, ..., towerN
+                        PetscInt pi_of = 1 + i + wt->nBladeForcePtsOF*wt->nBlades; 
+                        // TOSCA index: tower1, ..., towerN
+                        PetscInt pi_ts = i;
+                        wt->FAST->getForce(pointForce, pi_of, wt->openfastIndex);
+                        lForceVals[pi_ts].x = pointForce[0];
+                        lForceVals[pi_ts].y = pointForce[1];
+                        lForceVals[pi_ts].z = pointForce[2];
+                    }
+                    std::vector<double> ().swap(pointForce);
+                }
+
+                // scatter to all ransk of this communicator 
+                MPI_Allreduce(&(lForceVals[0]), &(wt->forceValsTwr[0]), wt->nTwrForcePtsOF*3, MPIU_REAL, MPIU_SUM, wt->twr.TWR_COMM);
+            }
+        }
+    }
+
+    return(0);
 }
 
 #endif
