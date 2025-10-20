@@ -397,35 +397,230 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
     // update rtrDir
     wt->rtrDir = nUnit(nSetFromComponents(wt->rtrAxis.x, wt->rtrAxis.y, 0.0));
 
-    if(wt->dbg && rank == thisTurbRank) 
+    // update twrTop  
+    Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
+    wt->twrTop    = nSub(wt->rotCenter, overH);
+    //wt->twrDir    = TO BE IMPLEMENTED - NEED TURBINE BASE FROM FARM
+
+    // get omega hat as vector product between old and new position of last blade force point (tip of blade 3)
+    Cmpnts rOld  = wt->forcePtBladeOld;
+    Cmpnts rNew  = wt->forcePtsBlade[wt->nBlades*wt->nBladeForcePtsOF-1];
+    
+    // project on rotor plane
+    Cmpnts rOld_p = nSub(rOld, nScale(nDot(rOld, wt->rtrAxis), wt->rtrAxis));
+    Cmpnts rNew_p = nSub(rNew, nScale(nDot(rNew, wt->rtrAxis), wt->rtrAxis));
+    
+    // get angle in radians 
+    PetscReal cosAngle = fabs(nDot(nUnit(rOld_p), nUnit(rNew_p)));
+    PetscReal angle    = acos(cosAngle);
+    wt->rtrOmega       = angle / wt->fi->dtDriver; // in rad/s
+    wt->rtrOmegaFilt   = wt->rtrOmega;             // no filtering for now
+    wt->genOmega       = wt->rtrOmega * 100;       // gearbox ratio of 100 for now
+    
+    wt->omega_hat      = nUnit(nCross(rOld_p, rNew_p));
+
+    // rottor direction (cw or ccw)
+    if(nDot(wt->omega_hat, wt->rtrAxis) < 0.0) 
+    { 
+        wt->rotDir = "cw"; 
+    }
+    else 
+    { 
+        wt->rotDir = "ccw";
+    }
+
+    // compute azimut as the azimuthal position of the last blade force point (tip of blade 3)
+    // in OpenFAST azimuth is 0 when blade 1 is pointing up (in the direction of the positive y axis)
+    // and increases when blade 1 goes down (clockwise when looking from the top)
+    PetscReal azimuth = 0.0;
+    if(wt->rotDir == "cw")
+    {
+        azimuth = atan2(rNew_p.x, rNew_p.y);
+        if(azimuth < 0.0)
+        {
+            azimuth += 2.0*PETSC_PI;
+        }
+    }
+    else if(wt->rotDir == "ccw")
+    {
+        azimuth = atan2(-rNew_p.x, rNew_p.y);
+        if(azimuth < 0.0)
+        {
+            azimuth += 2.0*PETSC_PI;
+        }
+    }
+    azimuth = azimuth * 180.0 / PETSC_PI; 
+
+    if(rank == thisTurbRank) 
     {
         printf("\nTurbine %s, OpenFAST rank %d out of %d\n", wt->id.c_str(), rank, nProcs);
+        printf(" - old tip pos: %f %f %f\n", rOld.x, rOld.y, rOld.z);
+        printf(" - new tip pos: %f %f %f\n", rNew.x, rNew.y, rNew.z);
         printf(" - rotCenter: %f %f %f\n", wt->rotCenter.x, wt->rotCenter.y, wt->rotCenter.z);
         printf(" - rtrAxis:   %f %f %f\n", wt->rtrAxis.x,   wt->rtrAxis.y,   wt->rtrAxis.z);
         printf(" - rtrDir:    %f %f %f\n", wt->rtrDir.x,    wt->rtrDir.y,    wt->rtrDir.z);
+        printf(" - twrTop:    %f %f %f\n", wt->twrTop.x,    wt->twrTop.y,    wt->twrTop.z);
+        printf(" - twrDir:    %f %f %f\n", wt->twrDir.x,    wt->twrDir.y,    wt->twrDir.z);
+        printf(" - rtrOmega:  %f (rad/s)\n", wt->rtrOmega);
+        printf(" - genOmega:  %f (rad/s)\n", wt->genOmega);
+        printf(" - omega_hat: %f %f %f\n", wt->omega_hat.x, wt->omega_hat.y, wt->omega_hat.z);
+        printf(" - rotDir:    %s\n", wt->rotDir.c_str());  
+        printf(" - azimuth:   %f (deg)\n", azimuth); 
     }
 
-    // TO BE IMPLEMENTED
+    // get blade pitch and average it 
+    std::vector<double> bld_pitch(wt->nBlades, 0.0);
+    if(rank == thisTurbRank)
+    {
+        //wt->FAST->getBladePitch(bld_pitch, wt->openfastIndex);
 
-    // the following are all ouputs that we would like to get from OpenFAST somehow
+    }
+    MPI_Bcast(&bld_pitch[0], wt->nBlades, MPIU_REAL, thisTurbRank, wt->fi->comm);
 
-    // wt->trbMoved -> this is important as it triggers the processor search for all actuator models except ALM
+    wt->collPitch = 0.0;
+    for(PetscInt b=0; b<wt->nBlades; b++)
+    {
+        wt->collPitch += bld_pitch[b];
+    }
+    wt->collPitch /= (PetscReal)wt->nBlades;
 
-    // wt->omega_hat from the shaft 
-    // wt->rtrOmega       compute by saving old points and calculating angular velocity
+    
     // wt->azimuth        compute by saving the angular poisition of one of the points 
-    // wt->genTorque      this is won't be done as TOSCA control is deactivated 
+
+    PetscReal gThrust   = 0.0;
+    PetscReal gTorque   = 0.0;
+    PetscReal gAeroPwr  = 0.0;
+
+    PetscReal gThrustFAST  = 0.0;
+    PetscReal gTorqueFAST  = 0.0;
+
+    if(rank == thisTurbRank)
+    {
+        // number of points in the AL mesh
+        PetscInt npts_t = wt->nBladeForcePtsOF * wt->nBlades;
+
+        // get air density 
+        PetscReal rho = 1.0;
+
+        // get thrust and torque from OpenFAST (for validation)
+        std::vector<double> thrustVec(wt->nBlades,0.0);
+        std::vector<double> torqueVec(wt->nBlades,0.0);
+        wt->FAST->computeTorqueThrust(wt->openfastIndex, torqueVec, thrustVec);
+        for(PetscInt b=0; b<wt->nBlades; b++)
+        {
+            gThrustFAST += thrustVec[b];
+            gTorqueFAST += torqueVec[b];
+        }
+
+        // loop over all blade force points and sum forces and torques
+        for(PetscInt p=0; p<npts_t; p++)
+        {
+            // save this point locally for speed
+            Cmpnts point_p    = wt->forcePtsBlade[p];
+
+            // this point position from COR
+            Cmpnts r_p  = nSub(point_p, wt->rotCenter);
+
+            // get part of r_p that is normal to rotor axis
+            mSub(r_p, nScale(nDot(r_p, wt->rtrAxis), wt->rtrAxis));
+
+            Cmpnts xb_hat, yb_hat, zb_hat;
+
+            if(wt->rotDir == "cw")
+            {
+                zb_hat = nUnit(r_p);
+                xb_hat = nScale(-1.0, wt->rtrAxis);
+                yb_hat = nCross(zb_hat, xb_hat);
+            }
+            else if(wt->rotDir == "ccw")
+            {
+                zb_hat = nUnit(r_p);
+                         mScale(-1.0, zb_hat);
+                xb_hat = nScale(-1.0, wt->rtrAxis);
+                yb_hat = nCross(zb_hat, xb_hat);
+            }
+
+            gThrust += nDot(wt->forceValsBlade[p], wt->rtrAxis) * rho;
+
+            gTorque += nDot(wt->forceValsBlade[p], yb_hat) * nMag(r_p) * rho;
+        }
+
+        gAeroPwr = gTorque * wt->rtrOmega; // in Watts
+    }
+
+    // broadcast global parameters to all processors
+    MPI_Bcast(&gThrust, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gTorque, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gAeroPwr, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gThrustFAST, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gTorqueFAST, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+
+    // print
+    if(rank == thisTurbRank) 
+    {
+        printf(" - rtrOmega:    %f (rad/s)\n", wt->rtrOmega);
+        printf(" - genOmega:    %f (rad/s)\n", wt->genOmega);
+        printf(" - omega_hat:   %f %f %f\n", wt->omega_hat.x, wt->omega_hat.y, wt->omega_hat.z);
+        printf(" - rotDir:      %s\n", wt->rotDir.c_str());
+        printf(" - collPitch:   %f (deg)\n", wt->collPitch);
+        printf(" - gThrust:     %f (kN)   \n", gThrust/1.0e3);
+        printf(" - gTorque:     %f (kNm)  \n", gTorque/1.0e3);
+        printf(" - gAeroPwr:    %f (MW)   \n", gAeroPwr/1.0e6);
+        printf(" - gThrustFAST: %f (kN)   from OpenFAST\n", gThrustFAST/1.0e3);
+        printf(" - gTorqueFAST: %f (kNm)  from OpenFAST\n", gTorqueFAST/1.0e3);
+        printf(" - gPwrFAST   : %f (MW)  from OpenFAST\n", gTorqueFAST * wt->rtrOmega/1.0e6);
+    }
+
+
+    wt->genTorque = 0.0;
     // wt->genPwr         can be calculated from aero power given the generator efficiency (which is a global parameter)
-    // wt->genOmega       this is won't be done as TOSCA control is deactivated 
-    // wt->rtrOmegaFilt   not really needed but can set same as above
-    // wt->collPitch      use FAST->getBladePitch
-    // wt->intErrPID      set to zero 
-    // wt->errPID         set to zero 
-    // wt->yawError       can sample the wind at actuator point 1 (nacelle) and compare it with shaft dir 
-    // wt->yawAngle       easy from shaft direction: zero is negative x direction 
-    // wt->flowAngle      easy from wind at actuator point 1 (nacelle)
-    // wt->twrTop         top point of the tower (list goes from highest to lowest)
-    // wt->twrDir         take the vector from the two higher actuator points of the tower (maybe leave as is)
+    wt->genPwr = gAeroPwr * wt->genEff; // in Watts
+    wt->intErrPID = 0.0;
+    wt->errPID   = 0.0;
+    wt->yawAngle = std::atan2(-1.0 * wt->rtrDir.y, -1.0 * wt->rtrDir.x) * wt->rad2deg;
+
+    //wt->flowAngle      easy from wind at actuator point 1 (nacelle)
+    if(nMag(wt->velValsBlade[0]) > 0.0)
+    {
+        wt->flowAngle = std::atan2(wt->velValsBlade[0].y, wt->velValsBlade[0].x) * wt->rad2deg;
+    }
+    else
+    {
+        wt->flowAngle = 0.0;
+    }
+    wt->yawError       = wt->flowAngle - wt->yawAngle;
+
+    PetscReal allowedAngle = 1.0;
+    PetscReal rotationSign;
+    if(wt->yawError > 1.0*allowedAngle)       rotationSign =  1.0;
+    else if(wt->yawError < -1.0*allowedAngle) rotationSign = -1.0;
+    else                                      rotationSign =  0.0;
+
+    PetscReal yawRotAngle = fabs(wt->yawError);
+
+    // rotate upsampling points 
+    if (yawRotAngle > allowedAngle)
+    {
+        upSampling *upPoints = wt->upPoints;
+
+        // rotate center
+        mSub(upPoints->center, wt->twrTop);
+        mRot(wt->twrDir, upPoints->center, yawRotAngle);
+        mSum(upPoints->center, wt->twrTop);
+
+        // number of points in the sample mesh
+        PetscInt npts_t = upPoints->nPoints;
+
+        // loop over the sample mesh points
+        for(PetscInt p=0; p<npts_t; p++)
+        {
+            mSub(upPoints->points[p], wt->twrTop);
+            mRot(wt->twrDir, upPoints->points[p], yawRotAngle);
+            mSum(upPoints->points[p], wt->twrTop);
+        }
+    }
+
+    wt->trbMoved = 1;
 
     return(0);
 }
@@ -621,6 +816,13 @@ PetscErrorCode getForcePtsBladeOpenFAST(windTurbine *wt)
     // assign them to the turbine structure
     for(PetscInt pi=0; pi<nForcePtsBlade; pi++)
     {
+        // set old position of last blade force point (tip of blade 3)
+        if(pi == nForcePtsBlade-1)
+        {
+            mSet(wt->forcePtBladeOld, wt->forcePtsBlade[pi]);
+        }
+
+        // set new position of blade force points
         mSet(wt->forcePtsBlade[pi], gForcePoints[pi]);
         
         if(rank == thisTurbRank && wt->dbg) 

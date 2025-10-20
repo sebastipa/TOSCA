@@ -487,6 +487,9 @@ typedef struct
     Cmpnts         *forcePtsTwr;   //!< array containing tower force actuator points for openfast (these are coincident to TOSCA's actuator model points)
     Cmpnts        *forceValsTwr;   //!< array containing tower force values at the actuator points for openfast
 
+    // helper variables 
+    Cmpnts      forcePtBladeOld;   //!< helper variable to store old position of last blade force point (tip of blade 3)
+
     // processors controlling the OpenFAST points
     PetscInt   *thisBladeVelPtControlled; //!< flags telling if a blade vel point is controlled by this processor
     cellIds        *closestBladeVelCells; //!< indices of the closest cells to this turbine blade vel points
