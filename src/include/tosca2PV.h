@@ -140,6 +140,18 @@ void xmfWriteFileSymmTensor
     const char *center = "Cell"
 );
 
+//! \brief Writes a full tensor in the XMF files
+void xmfWriteFileTensor
+(
+    FILE *xmf, const char *filexmf,
+    PetscInt size_x, PetscInt size_y, PetscInt size_z,
+    const char *PathSave, const char *TensorName,
+    const char * XX, const char * XY, const char *XZ,
+    const char * YX, const char * YY, const char *YZ,
+    const char * ZX, const char * ZY, const char *ZZ,
+    const char *center = "Cell"
+);
+
 //! \brief Writes a vector in the XMF file
 void xmfWriteFileVector
 (
@@ -203,6 +215,19 @@ PetscErrorCode writeVectorToXMF
 
 //! \brief Writes a symmetric tensor field (appends to XMF and creates HDF)
 PetscErrorCode writeSymmTensorToXMF
+(
+    domain_    *domain,
+    const char *filexmf,
+    const char *hdfilen,
+    hid_t	   *file_id,
+    hid_t      *dataspace_id,
+    PetscReal     time,
+    const char *fieldName,
+    Vec        V
+);
+
+//! \brief Writes a full tensor field (appends to XMF and creates HDF)
+PetscErrorCode writeTensorToXMF
 (
     domain_    *domain,
     const char *filexmf,

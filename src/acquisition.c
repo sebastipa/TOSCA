@@ -388,7 +388,9 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
             // allocate memory and set to zero
             VecDuplicate(mesh->Cent,  &(avg->avgU));        VecSet(avg->avgU,0.);
             VecDuplicate(mesh->Nvert, &(avg->avgP));        VecSet(avg->avgP,0.);
+            
             DMCreateGlobalVector(mesh->sda, &(avg->avgUU)); VecSet(avg->avgUU,0.);
+            VecDuplicate(avg->avgUU,  &(avg->avgDUU));      VecSet(avg->avgDUU,0.);
 
             if(io->averaging > 1)
             {
@@ -1654,6 +1656,146 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
 
             PetscTime(&te);
             PetscPrintf(mesh->MESH_COMM, "Averaged fields in %lf s\n", te-ts);
+        }
+    }
+
+    //now compute the dispersive stresses once we have the time average
+    if(io->averaging)
+    {
+        // accumulation flags for current time step
+        PetscInt    accumulateAvg      = 0;
+        PetscReal   epsilon            = 1e-8;
+        PetscReal   startTimeAvg         = io->avgStartTime;
+        PetscReal   timeIntervalAvg      = io->avgPrd;
+
+        // check if must accumulate averaged fields
+        if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg))
+        {
+            accumulateAvg = 1;
+        }
+        
+        if(accumulateAvg)
+        {
+            mesh_  *mesh   = acquisition->access->mesh;
+            ueqn_  *ueqn   = acquisition->access->ueqn;
+
+            avgFields *avg = acquisition->fields;
+
+            DMDALocalInfo info = mesh->info;
+            DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+
+            PetscInt       xs = info.xs, xe = info.xs + info.xm;
+            PetscInt       ys = info.ys, ye = info.ys + info.ym;
+            PetscInt       zs = info.zs, ze = info.zs + info.zm;
+            PetscInt       mx = info.mx, my = info.my, mz = info.mz;
+
+            PetscInt       i, j, k, l;
+            PetscInt       lxs, lxe, lys, lye, lzs, lze;
+
+            symmTensor     ***uud_mean;
+            Cmpnts         ***umean;
+            PetscReal      ***aj, ***nvert;
+
+            // the vertical direction is the j direction in curvilinear coordinates
+            PetscInt nLevels = my-2;
+
+            //horizontal plane mean of the time averaged velocity
+            std::vector<Cmpnts> lVelocity(nLevels);
+            std::vector<Cmpnts> gVelocity(nLevels);
+            std::vector<PetscReal> lVolumes(nLevels);
+            std::vector<PetscReal> gVolumes(nLevels);
+
+            // indices for internal cells
+            lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+            lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+            lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+            for(l=0; l<nLevels; l++)
+            {
+                lVelocity[l] = {0., 0., 0.};
+                gVelocity[l] = {0., 0., 0.};
+                lVolumes[l] = 0.0;
+                gVolumes[l] = 0.0;
+            }
+
+            DMDAVecGetArray(fda, avg->avgU,  &umean);
+            DMDAVecGetArray(da,  mesh->lAj,  &aj);
+
+            //compute space average of the time averaged fields
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        lVelocity[j-1].x  += umean[k][j][i].x / aj[k][j][i];
+                        lVelocity[j-1].y  += umean[k][j][i].y / aj[k][j][i];
+                        lVelocity[j-1].z  += umean[k][j][i].z / aj[k][j][i];
+                        lVolumes[j-1] += 1 / aj[k][j][i];
+                    }
+                }
+            }
+
+            MPI_Allreduce(&lVelocity[0], &gVelocity[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&lVolumes[0], &gVolumes[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+            for(l=0; l<nLevels; l++)
+            {
+                if(gVolumes[l] > epsilon)
+                {
+                    gVelocity[l].x /= gVolumes[l];
+                    gVelocity[l].y /= gVolumes[l];
+                    gVelocity[l].z /= gVolumes[l];
+                }
+                else
+                {
+                    gVelocity[l].x = 0.0;
+                    gVelocity[l].y = 0.0;
+                    gVelocity[l].z = 0.0;
+                }
+            }
+
+            DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+
+            DMDAVecGetArray(sda, avg->avgDUU, &uud_mean);
+            DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+            //compute the dispersive stress tensor
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if(isFluidCell(k, j, i, nvert))
+                        {
+                            // dispersive stress tensor
+                            uud_mean[k][j][i].xx = (umean[k][j][i].x - gVelocity[j-1].x) * (umean[k][j][i].x - gVelocity[j-1].x);
+                            uud_mean[k][j][i].yy = (umean[k][j][i].y - gVelocity[j-1].y) * (umean[k][j][i].y - gVelocity[j-1].y);
+                            uud_mean[k][j][i].zz = (umean[k][j][i].z - gVelocity[j-1].z) * (umean[k][j][i].z - gVelocity[j-1].z);
+
+                            uud_mean[k][j][i].xy = (umean[k][j][i].x - gVelocity[j-1].x) * (umean[k][j][i].y - gVelocity[j-1].y);
+                            uud_mean[k][j][i].xz = (umean[k][j][i].x - gVelocity[j-1].x) * (umean[k][j][i].z - gVelocity[j-1].z);
+                            uud_mean[k][j][i].yz = (umean[k][j][i].y - gVelocity[j-1].y) * (umean[k][j][i].z - gVelocity[j-1].z);
+                        }
+                        else
+                        {
+                            uud_mean[k][j][i].xx = 0.0;
+                            uud_mean[k][j][i].yy = 0.0;
+                            uud_mean[k][j][i].zz = 0.0;
+
+                            uud_mean[k][j][i].xy = 0.0;
+                            uud_mean[k][j][i].xz = 0.0;
+                            uud_mean[k][j][i].yz = 0.0;
+                        }
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(sda, avg->avgDUU, &uud_mean);
+            DMDAVecRestoreArray(fda, avg->avgU,  &umean);
+            DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
         }
     }
 
@@ -11232,6 +11374,100 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     lR[j-1].yz += (_vw - _v*_w) * volCell;
                     lR[j-1].zz += (_ww - _w*_w) * volCell;
                 } 
+
+                if(acquisition->access->flags->isTeqnActive)
+                {
+                    for (k = lzs; k < lze; k++)
+                    for (j = lys; j < lye; j++)
+                    for (i = lxs; i < lxe; i++)
+                    {
+                        /* Skip solid cells */
+                        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+                        {
+                            continue;
+                        }
+
+                        // get 1/V at the i-face
+                        PetscReal ajc = aj[k][j][i];
+
+                        // pre-set variables for speed
+                        volCell      = 1.0 / ajc;
+
+                        PetscReal u[3][3][3] ,   v[3][3][3] ,   w[3][3][3];    // cartesian velocity
+                        
+                        PetscReal utheta[3][3][3]  , vtheta[3][3][3]  , wtheta[3][3][3]  ;
+                        
+                        PetscReal theta[3][3][3]  ;
+                                    
+                        PetscInt p, q, r;
+
+                        for (p = -1; p <= 1; p++)
+                        for (q = -1; q <= 1; q++)
+                        for (r = -1; r <= 1; r++)
+                        {
+                            PetscInt R = r + 1, Q = q + 1, P = p + 1;
+                            PetscInt K = k + r, J = j + q, I = i + p;
+
+                            //cartesian velocity
+                            u[R][Q][P] = ucat[K][J][I].x;
+                            v[R][Q][P] = ucat[K][J][I].y;
+                            w[R][Q][P] = ucat[K][J][I].z;
+
+                            theta[R][Q][P] = tmprt[K][J][I];
+
+                            utheta[R][Q][P] = u[R][Q][P] * theta[R][Q][P];
+                            vtheta[R][Q][P] = v[R][Q][P] * theta[R][Q][P];
+                            wtheta[R][Q][P] = w[R][Q][P] * theta[R][Q][P];
+                        }
+
+                        PetscReal weight[3][3][3];
+
+                        for (p = -1; p <= 1; p++)
+                        for (q = -1; q <= 1; q++)
+                        for (r = -1; r <= 1; r++)
+                        {
+                            PetscInt R = r + 1, Q = q + 1, P = p + 1;
+                
+                            PetscInt K = k + r, J = j + q, I = i + p;
+                            
+                            if 
+                            (
+                                (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                                
+                                (I != 0 && I != mx-1 && J != 0 && J != my-1 && K != 0 && K != mz-1))
+
+                            {
+                                weight[R][Q][P] = 1;                
+                            } 
+                            
+                            else 
+                            {
+                                weight[R][Q][P] = 0;
+                            }
+                        
+                        }
+                        
+                        //Apply test filter to local velocity fields
+                        
+                        PetscReal _u = integrateTestfilterSimpson(u, weight);
+                        PetscReal _v = integrateTestfilterSimpson(v, weight);
+                        PetscReal _w = integrateTestfilterSimpson(w, weight);
+
+                        PetscReal _theta = integrateTestfilterSimpson(theta, weight);
+
+                        //Apply test filter to product
+                        PetscReal _utheta = integrateTestfilterSimpson(utheta, weight);        
+                        PetscReal _vtheta = integrateTestfilterSimpson(vtheta, weight);
+                        PetscReal _wtheta = integrateTestfilterSimpson(wtheta, weight);
+
+                        //Compute the Bardina SGS stress ---
+                        //q_i = test-filtered(U_i*theta) - (test-filtered(U_i))*(test-filtered(theta))
+                        
+                        lq[j-1].x += (_utheta - _u*_theta) * volCell;   
+                        lq[j-1].y += (_vtheta - _v*_theta) * volCell;   
+                        lq[j-1].z += (_wtheta - _w*_theta) * volCell;   
+                    } 
+                }
             }
             
             // sum statistics over processors

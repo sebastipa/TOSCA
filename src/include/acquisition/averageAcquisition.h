@@ -31,6 +31,7 @@ struct avgFields
     Vec           avgU;                       //!< sum of u, v, w over time
     Vec           avgP;                       //!< sum of p over time
     Vec           avgUU;                      //!< sum of resolved R stresses over time
+    Vec           avgDUU;                     //!< sum of dispersive stresses over time
     Vec           avgP2;                      //!< sum of p^2 over time
     Vec           avgNut;                     //!< sun of nut over time
     Vec           avgCs;                      //!< sum of cs over time

@@ -553,6 +553,22 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
                 domain->les->L
             );
         }
+
+        if(domain->les->model == BAMD || domain->les->model == BV)
+        {
+            writeTensorToXMF
+            (
+                domain,
+                filexmf,
+                hdfileName.c_str(),
+                &file_id,
+                &dataspace_id,
+                time,
+                "TauSGStructural",
+                domain->les->lTau
+            );
+        }
+
     }
 
     if(domain->flags.isTeqnActive)
@@ -805,6 +821,18 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
             time,
             "avgUU",
             acquisition->fields->avgUU
+        );
+
+        writeSymmTensorToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "avgDUU",
+            acquisition->fields->avgDUU
         );
 
         if(domain->flags.isLesActive)
@@ -1321,6 +1349,62 @@ void xmfWriteFileSymmTensor
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
     fprintf(xmf, "        %s:/%s\n", PathSave, YZ);
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "        %s:/%s\n", PathSave, ZZ);
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "     </Attribute>\n");
+    fclose(xmf);
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+void xmfWriteFileTensor
+(
+    FILE *xmf, const char *filexmf,
+    PetscInt size_x, PetscInt size_y, PetscInt size_z,
+    const char *PathSave, const char *TensorName,
+    const char * XX, const char * XY, const char *XZ,
+    const char * YX, const char * YY, const char *YZ,
+    const char * ZX, const char * ZY, const char *ZZ,
+    const char *center
+)
+{
+
+    // center  - Cell or Node
+    // Vecname - Vector name as shown in paraview
+    // XX,XY,XZ,YY,YZ,ZZ: tensor component names as saved in hdf5 file
+    // pathsave = relative path with respect to the saved files
+
+    xmf = fopen(filexmf, "a");
+    fprintf(xmf, "     <Attribute Name=\"%s\" AttributeType=\"Tensor\" Center=\"%s\">\n", TensorName, center);
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 9\" Function=\"JOIN($0, $1, $2, $3, $4, $5, $6, $7, $8)\" ItemType=\"Function\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "        %s:/%s\n", PathSave, XX);
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "        %s:/%s\n", PathSave, XY);
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "        %s:/%s\n", PathSave, XZ);
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "        %s:/%s\n", PathSave, YX);
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "        %s:/%s\n", PathSave, YY);
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "        %s:/%s\n", PathSave, YZ);
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "        %s:/%s\n", PathSave, ZX);
+    fprintf(xmf, "       </DataItem>\n");
+    fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
+    fprintf(xmf, "        %s:/%s\n", PathSave, ZY);
     fprintf(xmf, "       </DataItem>\n");
     fprintf(xmf, "       <DataItem Dimensions=\"%ld %ld %ld 1\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\" ItemType=\"Uniform\">\n", size_z, size_y, size_x);
     fprintf(xmf, "        %s:/%s\n", PathSave, ZZ);
@@ -2036,6 +2120,162 @@ PetscErrorCode writeSymmTensorToXMF
     xmfWriteFileSymmTensor(xmf, filexmf, mx-2, my-2, mz-2, hdfilen, fieldName, str2xx, str2yy, str2zz, str2xy, str2xz, str2yz);
 
     DMDAVecRestoreArray(sda, V, &v);
+
+    delete [] x;
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode writeTensorToXMF
+(
+    domain_    *domain,        // user context
+    const char *filexmf,     // name of the XMF file to append
+    const char *hdfilen,     // name of the HDF file to refer
+    hid_t       *file_id,     // id of the HDF file to refer
+    hid_t      *dataspace_id,// id of the HDF dataspace to refer
+    PetscReal     time,         // time
+    const char *fieldName,   // field name as it appears in ParaView
+    Vec        V             // Petsc vector to write
+)
+{
+    DM            tda = domain->mesh->tda;
+    DMDALocalInfo info = domain->mesh->info;
+
+    PetscInt           xs = info.xs, xe = info.xs + info.xm;
+    PetscInt           ys = info.ys, ye = info.ys + info.ym;
+    PetscInt           zs = info.zs, ze = info.zs + info.zm;
+    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt           i, j, k;
+    PetscInt           lxs, lxe, lys, lye, lzs, lze;
+
+    Tensor    ***v;
+
+    FILE          *xmf;
+
+    float         *x; x = new float [(mx-2)*(my-2)*(mz-2)];
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    // set internal variables used to recall the HDF5 field from the XMF file
+    char str1xx[256], str1xy[256], str1xz[256],
+         str1yx[256], str1yy[256], str1yz[256],
+         str1zx[256], str1zy[256], str1zz[256],
+         str2xx[256], str2xy[256], str2xz[256],
+         str2yx[256], str2yy[256], str2yz[256],
+         str2zx[256], str2zy[256], str2zz[256];
+
+    sprintf(str1xx, "/%s_xx",fieldName);
+    sprintf(str1xy, "/%s_xy",fieldName);
+    sprintf(str1xz, "/%s_xz",fieldName);
+    sprintf(str1yx, "/%s_yx",fieldName);
+    sprintf(str1yy, "/%s_yy",fieldName);
+    sprintf(str1yz, "/%s_yz",fieldName);
+    sprintf(str1zx, "/%s_zx",fieldName);
+    sprintf(str1zy, "/%s_zy",fieldName);
+    sprintf(str1zz, "/%s_zz",fieldName);
+
+    sprintf(str2xx, "%s_xx",fieldName);
+    sprintf(str2xy, "%s_xy",fieldName);
+    sprintf(str2xz, "%s_xz",fieldName);
+    sprintf(str2yx, "%s_yx",fieldName);
+    sprintf(str2yy, "%s_yy",fieldName);
+    sprintf(str2yz, "%s_yz",fieldName);
+    sprintf(str2zx, "%s_zx",fieldName);
+    sprintf(str2zy, "%s_zy",fieldName);
+    sprintf(str2zz, "%s_zz",fieldName);
+
+    DMDAVecGetArray(tda, V, &v);
+
+    // write xx component
+    for (k=zs; k<ze-2; k++)
+    for (j=ys; j<ye-2; j++)
+    for (i=xs; i<xe-2; i++)
+    {
+        x[ (k-zs) * (mx - 2)*(my - 2) + (j-ys) * (mx - 2) + (i-xs)] = v[k+1][j+1][i+1].xx;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xx, x);
+
+    // write xy component
+    for (k=zs; k<ze-2; k++)
+    for (j=ys; j<ye-2; j++)
+    for (i=xs; i<xe-2; i++)
+    {
+        x[ (k-zs) * (mx - 2)*(my - 2) + (j-ys) * (mx - 2) + (i-xs)] = v[k+1][j+1][i+1].xy;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xy, x);
+
+    // write xz component
+    for (k=zs; k<ze-2; k++)
+    for (j=ys; j<ye-2; j++)
+    for (i=xs; i<xe-2; i++)
+    {
+        x[ (k-zs) * (mx - 2)*(my - 2) + (j-ys) * (mx - 2) + (i-xs)] = v[k+1][j+1][i+1].xz;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1xz, x);
+
+    // write yx component
+    for (k=zs; k<ze-2; k++)
+    for (j=ys; j<ye-2; j++)
+    for (i=xs; i<xe-2; i++)
+    {
+        x[ (k-zs) * (mx - 2)*(my - 2) + (j-ys) * (mx - 2) + (i-xs)] = v[k+1][j+1][i+1].yx;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1yx, x);
+
+    // write yy component
+    for (k=zs; k<ze-2; k++)
+    for (j=ys; j<ye-2; j++)
+    for (i=xs; i<xe-2; i++)
+    {
+        x[ (k-zs) * (mx - 2)*(my - 2) + (j-ys) * (mx - 2) + (i-xs)] = v[k+1][j+1][i+1].yy;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1yy, x);
+
+    // write yz component
+    for (k=zs; k<ze-2; k++)
+    for (j=ys; j<ye-2; j++)
+    for (i=xs; i<xe-2; i++)
+    {
+        x[ (k-zs) * (mx - 2)*(my - 2) + (j-ys) * (mx - 2) + (i-xs)] = v[k+1][j+1][i+1].yz;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1yz, x);
+
+    // write zx component
+    for (k=zs; k<ze-2; k++)
+    for (j=ys; j<ye-2; j++)
+    for (i=xs; i<xe-2; i++)
+    {
+        x[ (k-zs) * (mx - 2)*(my - 2) + (j-ys) * (mx - 2) + (i-xs)] = v[k+1][j+1][i+1].zx;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1zx, x);
+
+    // write zy component
+    for (k=zs; k<ze-2; k++)
+    for (j=ys; j<ye-2; j++)
+    for (i=xs; i<xe-2; i++)
+    {
+        x[ (k-zs) * (mx - 2)*(my - 2) + (j-ys) * (mx - 2) + (i-xs)] = v[k+1][j+1][i+1].zy;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1zy, x);
+
+    // write zz component
+    for (k=zs; k<ze-2; k++)
+    for (j=ys; j<ye-2; j++)
+    for (i=xs; i<xe-2; i++)
+    {
+        x[ (k-zs) * (mx - 2)*(my - 2) + (j-ys) * (mx - 2) + (i-xs)] = v[k+1][j+1][i+1].zz;
+    }
+    hdfWriteDataset(file_id, dataspace_id, str1zz, x);
+
+    // write reference to HDF file in XMF file
+    xmfWriteFileTensor(xmf, filexmf, mx-2, my-2, mz-2, hdfilen, fieldName, str2xx, str2xy, str2xz, str2yx, str2yy, str2yz, str2zx, str2zy, str2zz);
+
+    DMDAVecRestoreArray(tda, V, &v);
 
     delete [] x;
 

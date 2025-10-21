@@ -391,6 +391,31 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             VecLoad(les->L, viewer);
             PetscViewerDestroy(&viewer);
         }
+
+        if(domain->les->model == BAMD || domain->les->model == BV)
+        {
+            Vec TauSGS; DMCreateGlobalVector(mesh->tda, &(TauSGS));
+            VecSet(TauSGS, 0.0);
+            
+            field = "/TauSGStructural";
+            fileName = location + field;
+            fp=fopen(fileName.c_str(), "r");
+
+            if(fp!=NULL)
+            {
+                fclose(fp);
+
+                PetscPrintf(mesh->MESH_COMM, "Reading TauSGStructural...\n");
+                PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+                VecLoad(TauSGS, viewer);
+                PetscViewerDestroy(&viewer);
+            }
+
+            DMGlobalToLocalBegin(mesh->tda, TauSGS, INSERT_VALUES, les->lTau);
+            DMGlobalToLocalEnd(mesh->tda, TauSGS, INSERT_VALUES, les->lTau);
+
+            VecDestroy(&TauSGS);
+        }
     }
 
     // scatter fields
@@ -771,6 +796,23 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
             PetscPrintf(mesh->MESH_COMM, "Reading avgUU...\n");
             PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
             VecLoad(acquisition->fields->avgUU,viewer);
+            PetscViewerDestroy(&viewer);
+            avgAvailable++;
+        }
+        MPI_Barrier(mesh->MESH_COMM);
+
+        // read avgDUU
+        field = "/avgDUU";
+        fileName = location + field;
+        fp=fopen(fileName.c_str(), "r");
+
+        if(fp!=NULL)
+        {
+            fclose(fp);
+
+            PetscPrintf(mesh->MESH_COMM, "Reading avgDUU...\n");
+            PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+            VecLoad(acquisition->fields->avgDUU,viewer);
             PetscViewerDestroy(&viewer);
             avgAvailable++;
         }
@@ -2056,6 +2098,54 @@ PetscErrorCode VecSymmTensorLocalToGlobalCopy(mesh_ *mesh, Vec &lV, Vec &V)
     return(0);
 }
 
+PetscErrorCode VecTensorLocalToGlobalCopy(mesh_ *mesh, Vec &lV, Vec &V)
+{
+    DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda, tda = mesh->tda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    Tensor     ***lv, ***v;
+
+    DMDAVecGetArray(tda, V, &v);
+    DMDAVecGetArray(tda, lV, &lv);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                v[k][j][i].xx = lv[k][j][i].xx;
+                v[k][j][i].xy = lv[k][j][i].xy;
+                v[k][j][i].xz = lv[k][j][i].xz;
+
+                v[k][j][i].yx = lv[k][j][i].yx;
+                v[k][j][i].yy = lv[k][j][i].yy;
+                v[k][j][i].yz = lv[k][j][i].yz;
+
+                v[k][j][i].zx = lv[k][j][i].zx;
+                v[k][j][i].zy = lv[k][j][i].zy;
+                v[k][j][i].zz = lv[k][j][i].zz;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(tda, V, &v);
+    DMDAVecRestoreArray(tda, lV, &lv);
+
+    return(0);
+}
+
 //***************************************************************************************************************//
 
 
@@ -2254,6 +2344,17 @@ PetscErrorCode writeFields(io_ *io)
             }
 
             MPI_Barrier(mesh->MESH_COMM);
+
+            if((les->model == BAMD || les->model == BV))
+            {   
+                Vec TauSGS; DMCreateGlobalVector(mesh->tda, &(TauSGS)); VecSet(TauSGS, 0.);
+                VecTensorLocalToGlobalCopy(mesh, les->lTau, TauSGS);
+
+                fieldName = timeName + "/TauSGStructural";
+                writeBinaryField(mesh->MESH_COMM, TauSGS, fieldName.c_str());
+                VecDestroy(&TauSGS);
+                MPI_Barrier(mesh->MESH_COMM);
+            }
         }
 
         if(io->windFarmForce && flags->isWindFarmActive)
@@ -2402,28 +2503,6 @@ PetscErrorCode writeFields(io_ *io)
                 }
             }
 
-            if(io->access->abl->controllerType=="geostrophic")
-            {
-                if(!rank)
-                {
-                    fieldName = timeName + "/geostrophicAngleInfo";
-                    
-                    FILE *fp=fopen(fieldName.c_str(), "w");
-
-                    if(fp==NULL)
-                    {
-                        char error[512];
-                        sprintf(error, "cannot open file %s\n", fieldName.c_str());
-                        fatalErrorInFunction("writeFields",  error);
-                    }
-                    else
-                    {
-                        fprintf(fp, "geoAngle\t\t %.5lf\n", io->access->abl->geoAngle/M_PI*180);
-                        fclose(fp);
-                    }
-                }
-            }
-
             if(io->access->abl->controllerType=="geostrophicProfileAssimilation")
             {
                 DMDALocalInfo info = mesh->info;
@@ -2480,6 +2559,11 @@ PetscErrorCode writeFields(io_ *io)
             // write pAvgUU
             fieldName = timeName + "/avgUU";
             writeBinaryField(mesh->MESH_COMM, acquisition->fields->avgUU, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+
+            // write AvgDUU
+            fieldName = timeName + "/avgDUU";
+            writeBinaryField(mesh->MESH_COMM, acquisition->fields->avgDUU, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
 
             if(io->windFarmForce && flags->isWindFarmActive)
