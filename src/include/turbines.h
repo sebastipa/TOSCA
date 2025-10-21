@@ -33,6 +33,7 @@ typedef struct
     PetscInt                size;   //!< number of points
     PetscReal              *Uref;   //!< Uref
     PetscReal                *Ct;   //!< Ct curve
+    PetscReal               *Cp;   //!< Cp curve (optional)
 }ctTable;
 
 
@@ -361,6 +362,7 @@ typedef struct
     // Ct curve for UADM/AFM models
     ctTable                ctTbl;   //!< table containing the variable Ct curve (if CtType is variable)
     word                  ctType;   //!< constant vs variable Ct
+    PetscInt          variableCp;   //!< flag telling if Cp data is available in the Ct table
 
     // rotor dynamics (if torque controller is active)
     PetscReal  driveTrainInertia;    //!< sum of all the inertias attached to the shaft

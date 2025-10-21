@@ -3637,7 +3637,26 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                 }
 
                 // aerodynamic power
-                wt->uadm.aeroPwr = wt->uadm.rtrThrust * (1-a_t) * Uref;
+                if(wt->ctType == "constant")
+                {
+                    wt->uadm.aeroPwr   = wt->uadm.rtrThrust * (1-a_t) * Uref;
+                }
+                else if(wt->ctType == "variable")
+                {
+                    if(wt->variableCp)
+                    {
+                        PetscReal w[2], Cp;
+                        PetscInt  l[2];
+                        
+                        findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                        Cp = w[0]*wt->ctTbl.Cp[l[0]] + w[1]*wt->ctTbl.Cp[l[1]];
+                        wt->uadm.aeroPwr   = 0.5 * Uref * Uref * Uref * M_PI * wt->rTip * wt->rTip * Cp *  constants->rho;
+                    }
+                    else
+                    {
+                        wt->uadm.aeroPwr   = wt->uadm.rtrThrust * (1-a_t) * Uref;
+                    }
+                }
             }
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
@@ -3918,7 +3937,28 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                 wt->afm.rtrThrust = bMag * constants->rho;
 
                 // aerodynamic power
-                wt->afm.aeroPwr   = wt->afm.rtrThrust * (1-a_t) * Uref;
+                if(wt->ctType == "constant")
+                {
+                    wt->afm.aeroPwr   = wt->afm.rtrThrust * (1-a_t) * Uref;
+                }
+                else if(wt->ctType == "variable")
+                {
+                    if(wt->variableCp)
+                    {
+                        PetscReal w[2], Cp;
+                        PetscInt  l[2];
+                        
+                        findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                        Cp = w[0]*wt->ctTbl.Cp[l[0]] + w[1]*wt->ctTbl.Cp[l[1]];
+                        wt->afm.aeroPwr   = 0.5 * Uref * Uref * Uref * M_PI * wt->rTip * wt->rTip * Cp *  constants->rho;
+
+                        if(t == 0) PetscPrintf(PETSC_COMM_SELF, "Uref = %lf, Uturbine = %lf, Ct = %lf, Cp = %lf, a = %lf, Power = %lf MW, Thrust = %lf KW\n", Uref, nMag(wt->afm.U), Ct_t, Cp, a_t, wt->afm.aeroPwr/1.0e6, wt->afm.rtrThrust/1.0e3);
+                    }
+                    else
+                    {
+                        wt->afm.aeroPwr   = wt->afm.rtrThrust * (1-a_t) * Uref;
+                    }
+                }
             }
 
             // electric power (only for AD/AL models)
@@ -5159,7 +5199,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                     // actuator farm model
                     else if((*farm->turbineModels[t]) == "AFM")
                     {
-                        fprintf(f, "%*s %*s %*s ", width, w0.c_str(), width, w3.c_str(), width, w4.c_str());
+                        fprintf(f, "%*s %*s %*s %*s ", width, w0.c_str(), width, w1.c_str(), width, w3.c_str(), width, w4.c_str());
                     }
                     else if((*farm->turbineModels[t]) == "ALM")
                     {
@@ -5714,9 +5754,11 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                 {
                     MPI_Reduce(&(wt->afm.rtrThrust),  &rtrThrust,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                     MPI_Reduce(&(wt->afm.aeroPwr),    &aeroPwr,       1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(wt->afm.U), &rtrAvgMagU,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
 
                     rtrThrust    = rtrThrust  / wt->nProcsTrb / 1.0e3;
                     aeroPwr      = aeroPwr    / wt->nProcsTrb / 1.0e6;
+                    rtrAvgMagU   = rtrAvgMagU / wt->nProcsTrb;   
                 }
                 else if((*farm->turbineModels[t]) == "ALM")
                 {
@@ -5802,7 +5844,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                         // actuator farm model
                         else if((*farm->turbineModels[t]) == "AFM")
                         {
-                            fprintf(f, "%*.4f %*.4f %*.4f ", width, clock->time, width, rtrThrust, width, aeroPwr);
+                            fprintf(f, "%*.4f %*.4f %*.4f %*.4f ", width, clock->time, width, rtrAvgMagU, width, rtrThrust, width, aeroPwr);
                         }
                         else if((*farm->turbineModels[t]) == "ALM")
                         {
@@ -9761,6 +9803,15 @@ PetscErrorCode readCtTable(windTurbine *wt, const char *dictName)
     //     (UrefN CtN)
     // }
     //
+    // if variable Cp data is also available
+    // CtTable
+    // {
+    //     (Uref1 Ct1 Cp1)
+    //     (Uref2 Ct2 Cp2)
+    //                   ...
+    //     (UrefN CtN CpN)
+    // }
+    // set Variable Cp flag to 1 and also read the Cp data to wt->ctTbl.Cp
     // two is the minimum number of data points.
     // no checks for doubles or integers are performed,
     // only the format is checked.
@@ -9768,8 +9819,9 @@ PetscErrorCode readCtTable(windTurbine *wt, const char *dictName)
     // define the local variables
     std::vector<PetscReal> Uref;
     std::vector<PetscReal> Ct;
+    std::vector<PetscReal> Cp;
 
-    PetscReal   Uref_i, Ct_i;
+    PetscReal   Uref_i, Ct_i, Cp_i;
     PetscInt    nlines = 0;
 
     // pointer for strtod and strtol
@@ -9839,26 +9891,36 @@ PetscErrorCode readCtTable(windTurbine *wt, const char *dictName)
                             Uref_i = std::strtod(word, &eptr);
                             Uref.push_back(Uref_i);
 
-                            // read the second component (Ct), contains ")" character
+                            // read the second component (Ct)
                             indata >> word;
 
-                            std::string last(word);
-                            if (last.find (")") != std::string::npos)
-                            {
-                                // remove ") character from the last component and store
-                                Ct_i = std::strtod(word, &eptr);
-                                Ct.push_back(Ct_i);
+                            std::string ct_str(word);
+                            Ct_i = std::strtod(word, &eptr);
+                            Ct.push_back(Ct_i);
 
-                                // increament line counter
+                            if (ct_str.find (")") != std::string::npos)
+                            {
+                                // no Cp data on this line
                                 nlines++;
                             }
                             else
                             {
-                               char error[512];
-                                sprintf(error, "expected <)>  at end of line as reading readData table in %s dictionary\n", dictName);
-                                fatalErrorInFunction("readCtTable",  error);
-                            }
+                                // read the third component (Cp)
+                                indata >> word;
 
+                                std::string cp_str(word);
+                                if (cp_str.find (")") == std::string::npos)
+                                {
+                                   char error[512];
+                                    sprintf(error, "expected <)> at end of line as reading CtTable in %s dictionary\n", dictName);
+                                    fatalErrorInFunction("readCtTable",  error);
+                                }
+
+                                Cp_i = std::strtod(word, &eptr);
+                                Cp.push_back(Cp_i);
+
+                                nlines++;
+                            }
                         }
                         // look for the terminating "}" if found: close the file, store the data and exit
                         // if not found: may be another line
@@ -9883,9 +9945,31 @@ PetscErrorCode readCtTable(windTurbine *wt, const char *dictName)
                                     wt->ctTbl.Ct[p]    = Ct[p];
                                 }
 
+                                // handle Cp data if present and consistent
+                                if (static_cast<PetscInt>(Cp.size()) == nlines)
+                                {
+                                    PetscMalloc(nlines*sizeof(PetscReal), &(wt->ctTbl.Cp));
+                                    for(PetscInt p=0; p<nlines; p++)
+                                    {
+                                        wt->ctTbl.Cp[p] = Cp[p];
+                                    }
+                                    wt->variableCp = 1;
+                                }
+                                else if (Cp.size() != 0)
+                                {
+                                   char error[512];
+                                    sprintf(error, "inconsistent Cp columns in CtTable of %s dictionary\n", dictName);
+                                    fatalErrorInFunction("readCtTable",  error);
+                                }
+                                else
+                                {
+                                    wt->variableCp = 0;
+                                }
+
                                 // clean the local variables
                                 std::vector<PetscReal> ().swap(Uref);
                                 std::vector<PetscReal> ().swap(Ct);
+                                std::vector<PetscReal> ().swap(Cp);
 
                                 // exit
                                 return(0);
@@ -9893,7 +9977,7 @@ PetscErrorCode readCtTable(windTurbine *wt, const char *dictName)
                             else
                             {
                                char error[512];
-                                sprintf(error, "Required at least 2 data points as reading readData table in %s dictionary\n", dictName);
+                                sprintf(error, "Required at least 2 data points as reading CtTable in %s dictionary\n", dictName);
                                 fatalErrorInFunction("readCtTable",  error);
                             }
                         }
@@ -9901,21 +9985,21 @@ PetscErrorCode readCtTable(windTurbine *wt, const char *dictName)
                         else if(trim(token3)=="{")
                         {
                            char error[512];
-                            sprintf(error, "missing '}' token at end of readData table in %s dictionary\n", dictName);
+                            sprintf(error, "missing '}' token at end of CtTable in %s dictionary\n", dictName);
                             fatalErrorInFunction("readCtTable",  error);
                         }
                         // we are at a new line and neither '(' nor '}' were found: throws error
                         else
                         {
                              char error[512];
-                              sprintf(error, "expected either <(>  or <}> at new line as reading readData table in %s dictionary\n", dictName);
+                              sprintf(error, "expected either <(>  or <}> at new line as reading CtTable in %s dictionary\n", dictName);
                               fatalErrorInFunction("readCtTable",  error);
                         }
                     }
 
                     // have reached this point without finding }: throws error
                    char error[512];
-                    sprintf(error, "missing '}' token at end of readData table in %s dictionary\n", dictName);
+                    sprintf(error, "missing '}' token at end of CtTable in %s dictionary\n", dictName);
                     fatalErrorInFunction("readCtTable",  error);
                 }
                 else
