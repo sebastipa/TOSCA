@@ -13,178 +13,120 @@ void uStarShumann
 (
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
     PetscReal &gammaM, PetscReal &kappa, PetscReal &qwall, PetscReal &thetaRef,
-    PetscReal &uStar, PetscReal &phiM, PetscReal &L
+    PetscReal &uStar, PetscReal &phiM, PetscReal &L,
+    PetscInt k, PetscInt j, PetscInt i
 )
 {
-    PetscReal uStar0 = (kappa * UParallelMeanMag) / std::log(wallDist / z0);
-    PetscReal uStar1 = uStar0 + 1e-5;
-    PetscReal f0, f1;
+    if (wallDist <= z0) 
+    { 
+        char error[512];
+        sprintf(error, "wall distance is smaller than the roughness length for cell (%ld %ld %ld)\n", k, j, i);
+        fatalErrorInFunction("uStarShumann",  error); 
+    }
 
-    PetscReal g      = 9.81;
+    PetscReal logLaw = std::log(wallDist / z0);
+    PetscReal uStar_neutral = std::max(0.0, (kappa * UParallelMeanMag) / logLaw);
 
-    PetscInt  iter = 0, iterMax = 500;
-    PetscReal tol  = 1e-5;
-
-    if(qwall == 0.0)
-    {
-        uStar = uStar0;
-        L     = 1e30;
-        phiM  = 1.0;
+    if (fabs(qwall) < 1e-6) {
+        uStar = uStar_neutral;
+        L = 1e30;
+        phiM = 1.0;
         return;
     }
-    else if(qwall < 0.0)
-    {
-        do
-        {
-            // set initial guesses at L
-            PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qwall);
-            PetscReal L1 = -(std::pow(uStar1,3.0)) / (kappa * (g/thetaRef) * qwall);
 
-            // limit L to always be positive and finite
-            L0 = std::max(1e-10,L0);
-            L1 = std::max(1e-10,L1);
+    PetscReal g = 9.81;
+    PetscInt iter = 0, iterMax = 500;
+    PetscReal tol = 1e-5;
+    PetscReal omega = 0.5;  // Under-relaxation factor
 
-            // form the "zeta" variable
-            PetscReal zeta0 = wallDist/L0;
-            PetscReal zeta1 = wallDist/L1;
+    // Start with neutral for iteration
+    PetscReal uStar0 = uStar_neutral;
 
-            // form psiM
-            PetscReal psiM0 = -gammaM * zeta0;
-            PetscReal psiM1 = -gammaM * zeta1;
+    PetscReal uStarDiff = 1e30;
+    do {
+        // Initial L guess
+        PetscReal L0 = -std::pow(uStar0, 3.0) / (kappa * (g / thetaRef) * qwall);
+        // Clamp magnitude to avoid zero/NaN (sign follows qwall)
+        L0 = (L0 > 0) ? std::max(1e-10, L0) : std::min(-1e-10, L0);
 
-            // form the function that we are driving to zero
-            PetscReal denom0 = std::max(std::log(wallDist/z0) - psiM0, 1e-10);
-            PetscReal denom1 = std::max(std::log(wallDist/z0) - psiM1, 1e-10);
+        PetscReal zeta0 = wallDist / L0;
+        PetscReal psiM0;
 
-            f0 = uStar0 - ((UParallelMeanMag * kappa) / denom0);
-            f1 = uStar1 - ((UParallelMeanMag * kappa) / denom1);
-
-            // update uStar
-            PetscReal slope = (f1 - f0) / (uStar1 - uStar0);
-
-            if(fabs(slope)<1e-10)
-            {
-                if(slope >= 0) slope =  1e-10;
-                else slope =  -1e-10;
-            }
-            
-            PetscReal uStarTmp = uStar1;
-            uStar1 = std::max(0.0, uStar0 - (f0 / slope));
-            uStar0 = uStarTmp;
-
-            uStar  = uStar1;
-            L      = L1;
-            phiM   = 1.0 + (gammaM * zeta1);
-
-            iter++;
-
-        } while(fabs(f1)>tol && uStar0 != uStar1 && iter < iterMax);
-
-        if(iter == iterMax)
-        {
-            printf("max uStar iteration reached\n");
+        if (L0 > 0) {  // Stable (qwall < 0)
+            psiM0 = -gammaM * zeta0;
+            phiM = 1.0 + gammaM * zeta0;
+        } else {  // Unstable (qwall > 0)
+            // Cap for numerical stability
+            if (zeta0 < -1.0 / 15.0) zeta0 = -1.0 / 15.0 + 1e-8;
+            PetscReal xi = std::pow(1.0 - 15.0 * zeta0, 0.25);
+            psiM0 = 2.0 * std::log((1.0 + xi) / 2.0) + std::log((1.0 + xi * xi) / 2.0) - 2.0 * std::atan(xi) + M_PI / 2.0;
+            phiM = std::pow(1.0 - 15.0 * zeta0, -0.25);
         }
 
-        // if uStar is close zero it means that the zero does not exist, but a maximum exists
-        if(uStar < 1e-2)
-        {
-            PetscReal duStar = 0.1 / 100.0;
-            uStar0 = 1e-10;
-            uStar1 = uStar0 + duStar;
+        // Update with relaxation (fixed qwall, iterate u*)
+        PetscReal uStarNew = std::max(0.0, (kappa * UParallelMeanMag) / (logLaw - psiM0));
+        uStar0 = omega * uStarNew + (1.0 - omega) * uStar0;
 
-            do
-            {
-                uStar0 = uStar1;
-                uStar1 = uStar0 + duStar;
+        uStarDiff = fabs(uStarNew - uStar0);
 
-                // set initial guesses at L
-                PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qwall);
-                PetscReal L1 = -(std::pow(uStar1,3.0)) / (kappa * (g/thetaRef) * qwall);
+        iter++;
+    } while (uStarDiff > tol && iter < iterMax);
 
-                // limit L to always be positive and finite
-                L0 = std::max(1e-10,L0);
-                L1 = std::max(1e-10,L1);
-
-                // form the "zeta" variable
-                PetscReal zeta0 = wallDist/L0;
-                PetscReal zeta1 = wallDist/L1;
-
-                // form psiM
-                PetscReal psiM0 = -gammaM * zeta0;
-                PetscReal psiM1 = -gammaM * zeta1;
-
-                // form the function that we are driving to zero
-                f0 = UParallelMeanMag - (uStar0/kappa)*(std::log(wallDist/z0) - psiM0);
-                f1 = UParallelMeanMag - (uStar1/kappa)*(std::log(wallDist/z0) - psiM1);
-
-                uStar = uStar0;
-                L     = L0;
-                phiM  = 1.0 + (gammaM * zeta0);
-
-            } while (f1 > f0);
-
-            // printf("uStar is zero, looking for maximum: uStar = %lf\n", uStar);
-        }
-
+    if (iter == iterMax) {
+        char error[512];
+        sprintf(error, "Max iterations reached for cell (%ld %ld %ld)\n", k, j, i);
+        printf("%s", error);
+        uStar = uStar_neutral; L = 1e30; phiM = 1.0;
         return;
     }
-    else
-    {
-        do
-        {
-            // set initial guesses at L
-            PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qwall);
-            PetscReal L1 = -(std::pow(uStar1,3.0)) / (kappa * (g/thetaRef) * qwall);
 
-            // limit L to always be positive and finite
-            L0 = std::min(-1e-10,L0);
-            L1 = std::min(-1e-10,L1);
+    uStar = uStar0;
+    L = -std::pow(uStar, 3.0) / (kappa * (g / thetaRef) * qwall);  // Final L
+    L = (L > 0) ? std::max(1e-10, L) : std::min(-1e-10, L);
 
-            // form the "zeta" variable
-            PetscReal zeta0 = wallDist/L0;
-            PetscReal zeta1 = wallDist/L1;
+    // Stable low-u* check (only if L>0 and no solution)
+    if (L > 0 && uStar < 1e-2) {
+        // Bisection for min U_model (df/du*=0, f = U - U_model)
+        PetscReal uLow = 1e-6, uHigh = uStar_neutral;
+        PetscReal uMid, dfMid, dfLow, dfHigh;
+        PetscInt bisIter = 0;
+        while (bisIter < 50) {
+            uMid = 0.5 * (uLow + uHigh);
 
-            // form psiM
-            PetscReal psiM0 = 2.0 * std::log(0.5 * (1.0 + zeta0)) + std::log(0.5 * (1.0 + zeta0*zeta0)) - 2.0 * std::tanh(zeta0) + M_PI/2.0;
-            PetscReal psiM1 = 2.0 * std::log(0.5 * (1.0 + zeta1)) + std::log(0.5 * (1.0 + zeta1*zeta1)) - 2.0 * std::tanh(zeta1) + M_PI/2.0;
+            // Use fixed qwall for L_mid
+            PetscReal L_mid = std::max(1e-10, -std::pow(uMid, 3.0) / (kappa * (g / thetaRef) * qwall));
+            PetscReal zeta_mid = wallDist / L_mid;
+            PetscReal psiM_mid = -gammaM * zeta_mid;
+            PetscReal U_model_mid = (uMid / kappa) * (logLaw - psiM_mid);
+            dfMid = (U_model_mid - UParallelMeanMag) / uMid;  // Approx slope proxy; seek ~0 for extremum
 
-            // form the function that we are driving to zero
-            PetscReal denom0 = std::max(std::log(wallDist/z0) - psiM0, 1e-10);
-            PetscReal denom1 = std::max(std::log(wallDist/z0) - psiM1, 1e-10);
+            if (fabs(uHigh - uLow) < 1e-6 || fabs(dfMid) < tol) break;
 
-            f0 = uStar0 - ((UParallelMeanMag * kappa) / denom0);
-            f1 = uStar1 - ((UParallelMeanMag * kappa) / denom1);
+            // Compute dfLow, dfHigh with fixed qwall
+            PetscReal L_low = std::max(1e-10, -std::pow(uLow, 3.0) / (kappa * (g / thetaRef) * qwall));
+            PetscReal zeta_low = wallDist / L_low;
+            PetscReal psiM_low = -gammaM * zeta_low;
+            PetscReal U_model_low = (uLow / kappa) * (logLaw - psiM_low);
+            dfLow = (U_model_low - UParallelMeanMag) / uLow;
 
-            // update uStar
-            PetscReal slope = (f1 - f0) / (uStar1 - uStar0);
+            PetscReal L_high = std::max(1e-10, -std::pow(uHigh, 3.0) / (kappa * (g / thetaRef) * qwall));
+            PetscReal zeta_high = wallDist / L_high;
+            PetscReal psiM_high = -gammaM * zeta_high;
+            PetscReal U_model_high = (uHigh / kappa) * (logLaw - psiM_high);
+            dfHigh = (U_model_high - UParallelMeanMag) / uHigh;
 
-            if(fabs(slope)<1e-10)
-            {
-                if(slope >= 0) slope =  1e-10;
-                else slope =  -1e-10;
-            }
-
-            PetscReal uStarTmp = uStar1;
-            uStar1 = std::max(0.0, uStar0 - (f0 / slope));
-            uStar0 = uStarTmp;
-
-            uStar  = uStar1;
-            L      = L1;
-            phiM   = 1.0 + (gammaM * zeta1);
-
-            iter++;
-
-        } while(fabs(f1)>tol && uStar0 != uStar1 && iter < iterMax);
-
-        if(iter == iterMax)
-        {
-            printf("max uStar iteration reached\n");
+            if ((dfLow > 0 && dfMid > 0) || (dfLow < 0 && dfMid < 0)) uLow = uMid;
+            else uHigh = uMid;
+            bisIter++;
         }
-
-        return;
+        
+        uStar = uMid;
+        PetscReal L_final = std::max(1e-10, -std::pow(uStar, 3.0) / (kappa * (g / thetaRef) * qwall));
+        PetscReal zeta_final = wallDist / L_final;
+        L = L_final;
+        phiM = 1.0 + gammaM * zeta_final;
     }
 }
-
 
 //***************************************************************************************************************//
 
@@ -193,184 +135,143 @@ void qWallShumann
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
     PetscReal &gammaM, PetscReal &gammaH, PetscReal &alphaH,
     PetscReal &thetaRef, PetscReal &deltaTheta, PetscReal &kappa,
-    PetscReal &qWall, PetscReal &uStar, PetscReal &phiM, PetscReal &phiH, PetscReal &L
+    PetscReal &qWall, PetscReal &uStar, PetscReal &phiM, PetscReal &phiH, PetscReal &L,
+    PetscInt k, PetscInt j, PetscInt i
 )
 {
-    PetscReal uStar0 = std::max(0.0, (kappa * UParallelMeanMag) / std::log(wallDist / z0));
-    PetscReal qWall0 = (-deltaTheta * uStar0 * kappa) / (alphaH * std::log(wallDist / z0));
-    PetscReal uStar1 = uStar0 + 1e-5;
-    PetscReal f0, f1;
-
-    if(fabs(qWall0) < 1e-6)
-    {
-        qWall0 = signNonZero(qWall) * 1e-6;
+    if (wallDist <= z0) 
+    { 
+        char error[512];
+        sprintf(error, "wall distance is smaller than the roughness length for cell (%ld %ld %ld)\n", k, j, i);
+        fatalErrorInFunction("qWallShumann",  error); 
     }
 
-    PetscReal g      = 9.81;
+    PetscReal uStar_neutral = std::max(0.0, (kappa * UParallelMeanMag) / std::log(wallDist / z0));
+    PetscReal qWall_neutral = (-deltaTheta * uStar_neutral * kappa) / (alphaH * std::log(wallDist / z0));
 
+    if (fabs(qWall_neutral) < 1e-6) 
+    {
+        qWall_neutral = signNonZero(qWall_neutral) * 1e-6;  
+    }
+
+    PetscReal g = 9.81;
     PetscInt  iter = 0, iterMax = 500;
-    PetscReal tol  = 1e-5;
+    PetscReal tol = 1e-5;
+    PetscReal omega = 0.5;  
 
-    if(deltaTheta == 0.0)
+    //neutral case
+    if (deltaTheta == 0.0) 
     {
-        uStar = uStar0;
-        qWall = qWall0;
-        L     = 1e30;
-        phiM  = 1.0;
-        phiH  = alphaH;
+        uStar = uStar_neutral;
+        qWall = qWall_neutral;
+        L = 1e30;
+        phiM = 1.0;
+        phiH = alphaH;
         return;
     }
-    else if(deltaTheta > 0.0)
-    {
-        PetscReal uStarDiff = 1e30;
-        PetscReal qWallDiff = 1e30;
 
-        do
-        {
-            // set initial guesses at L
-            PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qWall0);
+    // Start with neutral for iteration
+    PetscReal uStar0 = uStar_neutral;
+    PetscReal qWall0 = qWall_neutral;
 
-            // limit L to always be positive and finite
-            L0 = std::max(1e-10,L0);
+    PetscReal uStarDiff = 1e30, qWallDiff = 1e30;
+    do {
+        // Initial L guess
+        PetscReal L0 = -std::pow(uStar0, 3.0) / (kappa * (g / thetaRef) * qWall0);
+        // Clamp magnitude to avoid zero/NaN 
+        L0 = (L0 > 0) ? std::max(1e-10, L0) : std::min(-1e-10, L0);
 
-            // form the "zeta" variable
-            PetscReal zeta0 = wallDist/L0;
+        PetscReal zeta0 = wallDist / L0;
+        PetscReal psiM0, psiH0;
 
-            // form psiM
-            PetscReal psiM0 = -gammaM * zeta0;
-
-            // form psiH
-            PetscReal psiH0 = -gammaH * zeta0;
-
-            // update uStar
-            PetscReal uStarOld = uStar0;
-            uStar0 = std::max(0.0, (kappa * UParallelMeanMag) / (std::log(wallDist / z0) - psiM0));
-
-            // update qWall
-            PetscReal qWallOld = qWall0;
-            qWall0 = (-deltaTheta * uStar0 * kappa) / (alphaH * std::log(wallDist / z0) - psiH0);
-
-            // compute change in uStar and qWall
-            uStarDiff = uStar0 - uStarOld;
-            qWallDiff = qWall0 - qWallOld;
-
-            // evaluate in case it is converged
-            uStar  = uStar0;
-            qWall  = qWall0;
-            L      = L0;
-            phiM   = 1.0 + (gammaM * zeta0);
-            phiH   = alphaH + (gammaH * zeta0);
-
-            iter++;
-
-        } while((fabs(uStarDiff)>tol || abs(qWallDiff)>tol) && iter < iterMax);
-
-        if(iter == iterMax)
-        {
-            printf("max qWall iteration %ld reached\n", iterMax);
+        if (L0 > 0) 
+        {   // Stable: 
+            psiM0 = -gammaM * zeta0;
+            psiH0 = -gammaH * zeta0;
+            phiM = 1.0 + gammaM * zeta0;
+            phiH = alphaH + gammaH * zeta0;  
+        } 
+        else 
+        {   // Unstable: 
+            if (zeta0 < -1.0 / 15.0) zeta0 = -1.0 / 15.0 + 1e-8;
+            PetscReal xi = std::pow(1.0 - 15.0 * zeta0, 0.25);
+            psiM0 = 2.0 * std::log((1.0 + xi) / 2.0) + std::log((1.0 + xi * xi) / 2.0) - 2.0 * std::atan(xi) + M_PI / 2.0;
+            psiH0 = 2.0 * std::log((1.0 + xi * xi) / 2.0);
+            phiM = std::pow(1.0 - 15.0 * zeta0, -0.25);
+            phiH = alphaH * std::pow(1.0 - 15.0 * zeta0, -0.5);
         }
 
-        // if uStar is close zero it means that the zero does not exist, but a maximum exists
-        if(uStar < 1e-2)
-        {
-            PetscReal duStar = 0.1 / 100.0;
-            uStar0 = 1e-10;
-            uStar1 = uStar0 + duStar;
+        // Update with relaxation
+        PetscReal uStarNew = std::max(0.0, (kappa * UParallelMeanMag) / (std::log(wallDist / z0) - psiM0));
+        uStar0 = omega * uStarNew + (1.0 - omega) * uStar0;
 
-            PetscReal uStarInit = std::max(0.0, (kappa * UParallelMeanMag) / std::log(wallDist / z0));
-            qWall0 = (-deltaTheta * uStarInit * kappa) / (alphaH * std::log(wallDist / z0));
+        PetscReal qWallNew = (-deltaTheta * uStar0 * kappa) / (alphaH * std::log(wallDist / z0) - psiH0);
+        qWall0 = omega * qWallNew + (1.0 - omega) * qWall0;
 
-            do
-            {
-                uStar0 = uStar1;
-                uStar1 = uStar0 + duStar;
+        uStarDiff = fabs(uStarNew - uStar0);
+        qWallDiff = fabs(qWallNew - qWall0);
 
-                // set initial guesses at L
-                PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qWall0);
-                PetscReal L1 = -(std::pow(uStar1,3.0)) / (kappa * (g/thetaRef) * qWall0);
+        iter++;
+    } while ((uStarDiff > tol || qWallDiff > tol) && iter < iterMax);
 
-                // limit L to always be positive and finite
-                L0 = std::max(1e-10,L0);
-                L1 = std::max(1e-10,L1);
-
-                // form the "zeta" variable
-                PetscReal zeta0 = wallDist/L0;
-                PetscReal zeta1 = wallDist/L1;
-
-                // form psiM
-                PetscReal psiM0 = -gammaM * zeta0;
-                PetscReal psiM1 = -gammaM * zeta1;
-
-                // form the function that we are driving to zero
-                f0 = UParallelMeanMag - (uStar0/kappa)*(std::log(wallDist/z0) - psiM0);
-                f1 = UParallelMeanMag - (uStar1/kappa)*(std::log(wallDist/z0) - psiM1);
-
-                //form psiH
-                PetscReal psiH0 = -gammaH * zeta0;
-
-                uStar = uStar0;
-                qWall = (-deltaTheta * uStar0 * kappa) / (alphaH * std::log(wallDist / z0) - psiH0);
-                L     = L0;
-                phiM  = 1.0 + (gammaM * zeta0);
-
-            } while (f1 > f0);
-
-            // printf("uStar is zero, looking for maximum: uStar = %lf\n", uStar);
-        }
-
+    if (iter == iterMax) {
+        char error[512];
+        sprintf(error, "Max iterations reached for cell (%ld %ld %ld)\n", k, j, i);
+        printf("%s", error);
+        uStar = uStar_neutral; qWall = qWall_neutral; L = 1e30; phiM = 1.0; phiH = alphaH;
         return;
     }
-    else
+
+    uStar = uStar0; qWall = qWall0; L = -std::pow(uStar, 3.0) / (kappa * (g / thetaRef) * qWall);  // Final L
+    L = (L > 0) ? std::max(1e-10, L) : std::min(-1e-10, L);
+
+    // Stable low-u*, u* is close to zero it means that the zero does not exist, but a maximum exists
+    if (L > 0 && uStar < 1e-2) 
     {
-        PetscReal uStarDiff = 1e30;
-        PetscReal qWallDiff = 1e30;
-
-        do
+        // Neutral u* as upper bound for bisection
+        PetscReal uLow = 1e-6, uHigh = uStar_neutral;
+        PetscReal uMid, dfMid, dfLow, dfHigh;
+        PetscInt  bisIter = 0;
+        
+        while (bisIter < 50) 
         {
-            // set initial guesses at L
-            PetscReal L0 = -(std::pow(uStar0,3.0)) / (kappa * (g/thetaRef) * qWall0);
+            uMid = 0.5 * (uLow + uHigh);
 
-            // limit L to always be negative and finite
-            L0 = std::min(-1e-10,L0);
+            // Use fixed neutral qWall for L_mid to decouple
+            PetscReal L_mid = std::max(1e-10, -std::pow(uMid, 3.0) / (kappa * (g / thetaRef) * qWall_neutral));
+            PetscReal zeta_mid = wallDist / L_mid;
+            PetscReal psiM_mid = -gammaM * zeta_mid;
+            PetscReal U_model_mid = (uMid / kappa) * (std::log(wallDist / z0) - psiM_mid);
+            dfMid = (U_model_mid - UParallelMeanMag) / uMid;  // Approx slope 
 
-            // form the "zeta" variable
-            PetscReal zeta0 = wallDist/L0;
+            if (fabs(uHigh - uLow) < 1e-6 || fabs(dfMid) < tol) break;
 
-            // form psiM
-            PetscReal psiM0 = 2.0 * std::log(0.5 * (1.0 + zeta0)) + std::log(0.5 * (1.0 + zeta0*zeta0)) - 2.0 * std::tanh(zeta0) + M_PI/2.0 ;
+            //sign-based bisection on df 
+            PetscReal L_low = std::max(1e-10, -std::pow(uLow, 3.0) / (kappa * (g / thetaRef) * qWall_neutral));
+            PetscReal zeta_low = wallDist / L_low;
+            PetscReal psiM_low = -gammaM * zeta_low;
+            PetscReal U_model_low = (uLow / kappa) * (std::log(wallDist / z0) - psiM_low);
+            dfLow = (U_model_low - UParallelMeanMag) / uLow;
 
-            // form psiH
-            PetscReal psiH0 = 2.0 * std::log(0.5 * (1.0 + zeta0*zeta0));
+            PetscReal L_high = std::max(1e-10, -std::pow(uHigh, 3.0) / (kappa * (g / thetaRef) * qWall_neutral));
+            PetscReal zeta_high = wallDist / L_high;
+            PetscReal psiM_high = -gammaM * zeta_high;
+            PetscReal U_model_high = (uHigh / kappa) * (std::log(wallDist / z0) - psiM_high);
+            dfHigh = (U_model_high - UParallelMeanMag) / uHigh;
 
-            // update uStar
-            PetscReal uStarOld = uStar0;
-            uStar0 = std::max(0.0, (kappa * UParallelMeanMag) / (std::log(wallDist / z0) - psiM0));
-
-            // update qWall
-            PetscReal qWallOld = qWall0;
-            qWall0 = (-deltaTheta * uStar0 * kappa) / (alphaH * std::log(wallDist / z0) - psiH0);
-
-            // compute change in uStar and qWall
-            uStarDiff = uStar0 - uStarOld;
-            qWallDiff = qWall0 - qWallOld;
-
-            // evaluate in case it is converged
-            uStar  = uStar0;
-            qWall  = qWall0;
-            L      = L0;
-            phiM   = 1.0 + (gammaM * zeta0);
-            phiH   = alphaH + (gammaH * zeta0);
-
-            iter++;
-
-        } while((fabs(uStarDiff)>tol || abs(qWallDiff)>tol) && iter < iterMax);
-
-        if(iter == iterMax)
-        {
-            printf("max uStar iteration reached\n");
+            if ((dfLow > 0 && dfMid > 0) || (dfLow < 0 && dfMid < 0)) uLow = uMid;
+            else uHigh = uMid;
+            bisIter++;
         }
-
-        return;       
+        
+        uStar = uMid;
+        PetscReal L_final = std::max(1e-10, -std::pow(uStar, 3.0) / (kappa * (g / thetaRef) * qWall_neutral));
+        PetscReal zeta_final = wallDist / L_final;
+        PetscReal psiH_final = -gammaH * zeta_final;
+        qWall = (-deltaTheta * uStar * kappa) / (alphaH * std::log(wallDist / z0) - psiH_final);
+        L = std::max(1e-10, -std::pow(uStar, 3.0) / (kappa * (g / thetaRef) * qWall));
+        phiM = 1.0 + gammaM * zeta_final;
+        phiH = alphaH + gammaH * zeta_final;
     }
 }
 
@@ -825,69 +726,134 @@ void wallShearVelocityBCQuadratic(PetscReal nu,  PetscReal sd, PetscReal sc, Pet
     Cmpnts    utd  = nSub(u_d, und);    
     Cmpnts    ut_b;
 
-    Cmpnts    et  = nUnit(utc);
+    Cmpnts    et  = nUnit(utd);
 
     PetscReal ut_mag = nMag(utc);
     PetscReal coeff  = (sc - sb)/(sd - sc);
 
-    *ustar = ut_mag * kappa / log(sc/roughness);
+    //allign utc along utd direction
+    utc = nScale(ut_mag, et);
 
-    // ut_b.x = utc.x - coeff * (utd.x - utc.x);
-    // ut_b.y = utc.y - coeff * (utd.y - utc.y);
-    // ut_b.z = utc.z - coeff * (utd.z - utc.z);
+    ut_b.x = utc.x - coeff * (utd.x - utc.x);
+    ut_b.y = utc.y - coeff * (utd.y - utc.y);
+    ut_b.z = utc.z - coeff * (utd.z - utc.z);
 
-    // (*Ub) = nSum(ut_b, nScale( (sb/sc), unc));
+    Cmpnts un_b = nScale((-sb / sc), unc);
 
-	// (*Ub).x = (*Ub).x + Ua.x;
-	// (*Ub).y = (*Ub).y + Ua.y;
-	// (*Ub).z = (*Ub).z + Ua.z;
+    // Enforce no-penetration
+    mSub(ut_b, un_b);
 
-    (*Ub).x = u_c.x - coeff * (u_d.x - u_c.x);
-    (*Ub).y = u_c.y - coeff * (u_d.y - u_c.y);
-    (*Ub).z = u_c.z - coeff * (u_d.z - u_c.z);
-
-    (*Ub).x = (*Ub).x + Ua.x;
-	(*Ub).y = (*Ub).y + Ua.y;
-	(*Ub).z = (*Ub).z + Ua.z;
+    (*Ub).x = ut_b.x + Ua.x;
+    (*Ub).y = ut_b.y + Ua.y;
+    (*Ub).z = ut_b.z + Ua.z;
 
     return;
 }
 
 //***************************************************************************************************************//
 
-void wallShearGhostVelocityBC(PetscReal nu,  PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
-    PetscReal kappa, Cmpnts Ua, Cmpnts Ud, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf)
+void wallShearGhostVelocityBC
+(
+    PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
+    PetscReal kappa, Cmpnts Ua, Cmpnts Ud, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf
+)
 {
-    Cmpnts    u_d  = nSub(Ud, Ua);
-    Cmpnts    und  = nScale(nDot(u_d, nf), nf);
-    Cmpnts    utd  = nSub(u_d, und);    
+    Cmpnts u_d = nSub(Ud, Ua);
+    Cmpnts und = nScale(nDot(u_d, nf), nf);
+    Cmpnts utd = nSub(u_d, und);
     PetscReal ut_mag = nMag(utd);
-    Cmpnts    et  = nUnit(utd);
+    Cmpnts et = nUnit(utd);
 
-    Cmpnts    u_c, ut_c;
-    PetscReal ut_magc;
+    *ustar = ut_mag * kappa / std::log(sd / roughness);
 
-    *ustar = ut_mag * kappa / log(sd/roughness);
+    PetscReal ut_magc = (*ustar / kappa) * std::log(sc / roughness);
+    if (ut_magc < 1.e-10) ut_magc = 0.0;
 
-    ut_magc = (*ustar/kappa) * log(sc/roughness);
+    Cmpnts ut_c = nScale(ut_magc, et);
+    Cmpnts un_c = nScale((sc / sd), und);
 
-    if (ut_magc < 1.e-10)
+    PetscReal coeff = (sc - sb) / (sd - sc);
+
+    Cmpnts ut_b;
+    ut_b.x = ut_c.x - coeff * (utd.x - ut_c.x);
+    ut_b.y = ut_c.y - coeff * (utd.y - ut_c.y);
+    ut_b.z = ut_c.z - coeff * (utd.z - ut_c.z);
+
+    Cmpnts un_b = nScale((-sb / sd), und);
+
+    // Enforce no-penetration
+    mSub(ut_b, un_b);
+
+    (*Ub).x = ut_b.x + Ua.x;
+    (*Ub).y = ut_b.y + Ua.y;
+    (*Ub).z = ut_b.z + Ua.z;
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+void ghostTempVelocityBCShumann
+(
+    Shumann *wm, PetscReal sd, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpnts Ud, Cmpnts *Ub, 
+    PetscReal Td, PetscReal surfaceTemp, Cmpnts nf, PetscInt k, PetscInt j, PetscInt i
+)
+{
+    Cmpnts u_d = nSub(Ud, Ua);
+    Cmpnts und = nScale(nDot(u_d, nf), nf);
+    Cmpnts utd = nSub(u_d, und);
+    PetscReal ut_mag = nMag(utd);
+    Cmpnts et = nUnit(utd);
+
+    PetscReal surfaceL;
+
+    PetscReal deltaTheta = Td - surfaceTemp;
+    PetscReal phiM, phiH;
+    PetscReal qWall, ustar;
+
+    qWallShumann
+    (
+        ut_mag, sd, wm->roughness,
+        wm->gammaM, wm->gammaH, wm->alphaH,
+        wm->thetaRef, deltaTheta, wm->kappa,
+        qWall, ustar, phiM, phiH, surfaceL, k, j, i
+    );
+
+    PetscReal psiM;
+    PetscReal zeta = sc/surfaceL;
+
+    if(surfaceL > 0)
     {
-        ut_magc = 0.0;
+        psiM = -wm->gammaM * zeta;
+    }
+    else
+    {
+        if (zeta < -1.0 / 15.0) zeta = -1.0 / 15.0 + 1e-8;
+        PetscReal xi = std::pow(1.0 - 15.0 * zeta, 0.25);
+        psiM = 2.0 * std::log((1.0 + xi) / 2.0) + std::log((1.0 + xi * xi) / 2.0) - 2.0 * std::atan(xi) + M_PI / 2.0;
     }
 
-    ut_c = nScale(ut_magc, et);
-    u_c  = nSum(ut_c, nScale( (sc/sd), und));
+    //set velocity at pt C and interpolate at B
+    PetscReal ut_magc = (ustar / wm->kappa) * (std::log(sc / wm->roughness) - psiM);
+    if (ut_magc < 1.e-10) ut_magc = 0.0;
 
-    PetscReal coeff  = (sc - sb)/(sd - sc);
+    Cmpnts ut_c = nScale(ut_magc, et);
 
-    (*Ub).x = u_c.x - coeff * (u_d.x - u_c.x);
-    (*Ub).y = u_c.y - coeff * (u_d.y - u_c.y);
-    (*Ub).z = u_c.z - coeff * (u_d.z - u_c.z);
+    PetscReal coeff = (sc - sb) / (sd - sc);
 
-    (*Ub).x = (*Ub).x + Ua.x;
-	(*Ub).y = (*Ub).y + Ua.y;
-	(*Ub).z = (*Ub).z + Ua.z;
+    Cmpnts ut_b;
+    ut_b.x = ut_c.x - coeff * (utd.x - ut_c.x);
+    ut_b.y = ut_c.y - coeff * (utd.y - ut_c.y);
+    ut_b.z = ut_c.z - coeff * (utd.z - ut_c.z);
+
+    Cmpnts un_b = nScale((-sb / sd), und);
+
+    // Enforce no-penetration
+    mSub(ut_b, un_b);
+
+    (*Ub).x = ut_b.x + Ua.x;
+    (*Ub).y = ut_b.y + Ua.y;
+    (*Ub).z = ut_b.z + Ua.z;
 
     return;
 }

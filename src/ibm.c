@@ -3940,61 +3940,14 @@ PetscErrorCode CurvibInterpolationInternalCell(ibm_ *ibm)
         /********************************************************************************************************
             Interpolation of the IBM fluid cell field
         /*******************************************************************************************************/
-         // point placement b.......wall........c.......d
-         //find the distance from the points b and c along the element normal
-         sb = -elemDist;
-         sc = nDot(nSub(bPt1, cent[k][j][i]), eNorm) - elemDist;
-         sd = sc + nDot(nSub(bPt2, bPt1), eNorm); 
+        // point placement b.......wall........c.......d
+        //find the distance from the points b and c along the element normal
+        sb = -elemDist;
+        sc = nDot(nSub(bPt1, cent[k][j][i]), eNorm) - elemDist;
+        sd = sc + nDot(nSub(bPt2, bPt1), eNorm); 
 
-        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
+        if (flags->isTeqnActive)
         {
-            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
-            {
-                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
-
-                // wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                            // bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
-
-                wallShearGhostVelocityBC(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                            bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
-            }
-            else if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
-            {
-                Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot;
-
-                wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
-                            bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
-            }
-        }
-        else 
-        {
-            char error[512];
-            sprintf(error, "wall shear model is on, however velocity BC is not velocityWallfunction \n");
-            fatalErrorInFunction("CurvibInterpolationInternalCell", error);
-        }
-
-        
-         //pressure and temperature boundary condition - neumann
-         PetscReal aTemp, bTemp, cTemp, aP, bP, cP;
-
-         bP = nDot(nScale(-1.0/clock->dtOld, nSub(ibmPtVel, ibmPtVelPrev)), eNorm);
-         aP = (bPt2Pres - bPt1Pres - bP * cellSize)/(sd*sd - sc*sc);
-         cP = bPt1Pres - aP*sc*sc - bP*sc;
-
-        //  if(intFlag == 2 || (intFlag == 1 && ibmCellCtr > 0))
-        //  {
-        //      p[k][j][i] = bP * (sb - sc) + bPt1Pres;
-        //  }
-        //  else
-        //  {
-        //      p[k][j][i] = aP * sb * sb + bP * sb + cP;
-        //  }
-
-         p[k][j][i] = bP * (sb - sc) + bPt1Pres;
-         
-         if (flags->isTeqnActive)
-         {
-
             if(ibm->ibmBody[ibF[c].bodyID]->tempBC == "zeroGradient")
             {
                 //apply zerogradient boundary condition. effect of boundary through heat flux bc
@@ -4016,7 +3969,6 @@ PetscErrorCode CurvibInterpolationInternalCell(ibm_ *ibm)
                     {
                         Shumann *wm  = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelT->wmShumann;
 
-                        // find interpolation weights for surface temp
                         PetscReal w[2];
                         PetscInt  l[2];
 
@@ -4024,7 +3976,15 @@ PetscErrorCode CurvibInterpolationInternalCell(ibm_ *ibm)
 
                         PetscReal surfaceTemp = w[0] * wm->surfTemp[l[0]] + w[1] * wm->surfTemp[l[1]];
 
-                        temp[k][j][i] = 2.0*surfaceTemp - bPt1Temp;
+                        ghostTempVelocityBCShumann(wm, sd, sc, sb, ibmPtVel, bPt2Vel, &ucat[k][j][i],
+                                bPt2Temp, surfaceTemp, eNorm, k, j, i);
+
+                        temp[k][j][i] = surfaceTemp + (sb/sc) * (bPt1Temp - surfaceTemp);
+                        
+                        // if(c%100 == 0)
+                        // {
+                        //     PetscPrintf(PETSC_COMM_SELF, "cell %ld %ld %ld sb %f sc %f bPt1Temp %f , temp %f, vel = %lf %lf %lf, bPt2Vel = %lf %lf %lf\n", k, j, i, sb, sc, bPt1Temp, temp[k][j][i], ucat[k][j][i].x, ucat[k][j][i].y, ucat[k][j][i].z, bPt2Vel.x, bPt2Vel.y, bPt2Vel.z);
+                        // }
                     }
                 }
                 else 
@@ -4044,7 +4004,57 @@ PetscErrorCode CurvibInterpolationInternalCell(ibm_ *ibm)
             //  {
             //     temp[k][j][i] = aTemp * sb * sb + cTemp;
             //  }
-         }
+        }
+
+        if(ibm->ibmBody[ibF[c].bodyID]->velocityBC == "velocityWallFunction")
+        {
+            if(ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -3)
+            {
+                Shumann *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmShumann;
+
+                if(flags->isTeqnActive && ibm->ibmBody[ibF[c].bodyID]->tempBC == "thetaWallFunction" && ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeT==-4)
+                {
+                    //ibm velocity already set above
+                }
+                else
+                {
+                    wallShearGhostVelocityBC(sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                            bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
+                }
+            }
+            else if (ibm->ibmBody[ibF[c].bodyID]->wallFunctionTypeU == -1)
+            {
+                Cabot *wm = ibm->ibmBody[ibF[c].bodyID]->ibmWallModelU->wmCabot;
+
+                wallShearVelocityBCQuadratic(cst->nu, sd, sc, sb, wm->roughness, wm->kappa, ibmPtVel,
+                            bPt2Vel, bPt1Vel, &ucat[k][j][i], &ustar, eNorm);
+            }
+        }
+        else 
+        {
+            char error[512];
+            sprintf(error, "wall shear model is on, however velocity BC is not velocityWallfunction \n");
+            fatalErrorInFunction("CurvibInterpolationInternalCell", error);
+        }
+
+        
+        //pressure and temperature boundary condition - neumann
+        PetscReal aTemp, bTemp, cTemp, aP, bP, cP;
+
+        bP = nDot(nScale(-1.0/clock->dtOld, nSub(ibmPtVel, ibmPtVelPrev)), eNorm);
+        aP = (bPt2Pres - bPt1Pres - bP * cellSize)/(sd*sd - sc*sc);
+        cP = bPt1Pres - aP*sc*sc - bP*sc;
+
+        //  if(intFlag == 2 || (intFlag == 1 && ibmCellCtr > 0))
+        //  {
+        //      p[k][j][i] = bP * (sb - sc) + bPt1Pres;
+        //  }
+        //  else
+        //  {
+        //      p[k][j][i] = aP * sb * sb + bP * sb + cP;
+        //  }
+
+        p[k][j][i] = bP * (sb - sc) + bPt1Pres;
     }
 
     DMDAVecRestoreArray(fda, mesh->lCent, &cent);
@@ -5374,7 +5384,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                                 ka>=1 && ka<mz-1 &&
                                 ja>=1 && ja<my-1 &&
                                 ia>=1 && ia<mx-1
-                            ) && isFluidCell(ka, ja, ia, nvert)
+                            ) && !(isIBMSolidCell(ka, ja, ia, nvert))
                         )
                         {
                             d = pow((bPt.x - cent[ka][ja][ia].x), 2) +
@@ -5415,145 +5425,53 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                             intId
                     );
 
-                    // save the initial closest cell and background point
-                    initCp.i = ic; initCp.j = jc; initCp.k = kc;
-                    bPtInit  = nSet(bPt);                    
-
-                    PetscReal sumDel = 0.0;
-
-                    while ( (intFlag == 1) && isInsideBoundingBox(bPt, mesh->bounds) && (sumDel <= 1.5*cellSize))
+                    PetscInt ibmCellCtr = 0;
+                    for (PetscInt kk = 0; kk<2; kk++)
+                    for (PetscInt jj = 0; jj<2; jj++)
+                    for (PetscInt ii = 0; ii<2; ii++)
                     {
-                        PetscInt ibmCellCtr = 0;
-                        PetscInt icc, jcc, kcc, setFlag = 0;
-
-                        for (PetscInt kk = 0; kk<2; kk++)
-                        for (PetscInt jj = 0; jj<2; jj++)
-                        for (PetscInt ii = 0; ii<2; ii++)
+                        if(isIBMSolidCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
                         {
-                            if(isIBMCell(intId[kk], intId[jj+2], intId[ii+4], nvert))
-                            {
-                                ibmCellCtr ++;
-                            }
-
-                        }
-
-                        if (ibmCellCtr > 0)
-                        {
-                            Cmpnts del =  nScale(0.2 * cellSize, eNorm);
-                            mSum(bPt, del);
-                            dmin = 10e10;
-
-                            sumDel += nMag(del);
-
-                            for (ka=kc-1; ka<kc+2; ka++)
-                            {
-                                //check processor ghost bounds
-                                if (ka < gzs || ka >= gze) {intFlag = 2; break;}
-                                for (ja=jc-1; ja<jc+2; ja++)
-                                {
-                                    if (ja < gys || ja >= gye) {intFlag = 2; break;}
-                                    for (ia=ic-1; ia<ic+2; ia++)
-                                    {
-                                        if (ia < gxs || ia >= gxe) {intFlag = 2; break;}
-
-                                        if
-                                        (
-                                            (
-                                                ka>=1 && ka<mz-1 &&
-                                                ja>=1 && ja<my-1 &&
-                                                ia>=1 && ia<mx-1
-                                            ) && (isFluidCell(ka, ja, ia, nvert))
-                                        )
-                                        {
-                                            d = pow((bPt.x - cent[ka][ja][ia].x), 2) +
-                                                pow((bPt.y - cent[ka][ja][ia].y), 2) +
-                                                pow((bPt.z - cent[ka][ja][ia].z), 2);
-
-                                            if
-                                            (
-                                                d < dmin
-                                            )
-                                            {
-                                                dmin  = d;
-                                                icc = ia;
-                                                jcc = ja;
-                                                kcc = ka;
-                                                setFlag = 1;
-                                            }
-                                        }
-
-                                    }
-                                }
-                            }
-
-                            if(setFlag == 0)
-                            {
-                                //closest point not set, do not interpolate
-                                intFlag = 2;
-                            }
-
-                            if(intFlag == 1)
-                            {
-                                kc = kcc; jc = jcc; ic = icc;
-
-                                PointInterpolationCells
-                                (
-                                        mesh,
-                                        bPt.x, bPt.y, bPt.z,
-                                        ic, jc, kc,
-                                        cent,
-                                        intId
-                                );
-                            }
-
-                        }
-                        else
-                        {
-                            intFlag = 0;
-
-                            // trilinear interpolate the velocity at this point
-                            vectorPointLocalVolumeInterpolation
-                            (
-                                    mesh,
-                                    bPt.x, bPt.y, bPt.z,
-                                    ic, jc, kc,
-                                    cent,
-                                    ucat,
-                                    bPtVel
-                            );
-
-                            if(flags->isTeqnActive)
-                            {
-                                scalarPointLocalVolumeInterpolation
-                                (
-                                        mesh,
-                                        bPt.x, bPt.y, bPt.z,
-                                        ic, jc, kc,
-                                        cent,
-                                        lt,
-                                        bPtTemp
-                                );
-                            }
+                            ibmCellCtr ++;
                         }
                     }
 
-                    // while loop fails
-                    if(intFlag > 0)
+                    if (ibmCellCtr > 0)
                     {
-                        bPtVel = nSet(ucat[initCp.k][initCp.j][initCp.i]);
+                        bPtVel = nSet(ucat[kc][jc][ic]);
 
                         if(flags->isTeqnActive)
                         {
-                            bPtTemp = lt[initCp.k][initCp.j][initCp.i];
+                            bPtTemp = lt[kc][jc][ic];
                         }
-
-                        bPt = nSet(bPtInit);
-
-                        ic = initCp.i;
-                        jc = initCp.j;
-                        kc = initCp.k;
                     }
-                    
+                    else 
+                    {
+                        // trilinear interpolate the velocity at this point
+                        vectorPointLocalVolumeInterpolation
+                        (
+                            mesh,
+                            bPt.x, bPt.y, bPt.z,
+                            ic, jc, kc,
+                            cent,
+                            ucat,
+                            bPtVel
+                        );
+
+                        if(flags->isTeqnActive)
+                        {
+                            scalarPointLocalVolumeInterpolation
+                            (
+                                mesh,
+                                bPt.x, bPt.y, bPt.z,
+                                ic, jc, kc,
+                                cent,
+                                lt,
+                                bPtTemp
+                            );
+                        }
+                    }
+
                     // distance of background point from the wall
                     sb = nDot(nSub(bPt, ibF[c].pMin), eNorm);
 
@@ -5600,7 +5518,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                                     uTmag, sb, wm->roughness,
                                     wm->gammaM, wm->gammaH, wm->alphaH,
                                     wm->thetaRef, deltaTheta, wm->kappa,
-                                    qWall, ustar, phiM, phiH, surfaceL
+                                    qWall, ustar, phiM, phiH, surfaceL, k, j, i
                                 );
 
                                 // if(i  == 5 && k == 5 && j == 5)
@@ -5634,7 +5552,7 @@ PetscErrorCode findIBMWallShearChester(ibm_ *ibm)
                             (
                                 uTmag, sb, wm->roughness,
                                 wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                                ustar, phiM, L
+                                ustar, phiM, L, k, j, i
                             );
 
                             // if(i  == 5 && k == 5 && j == 5)
@@ -6229,7 +6147,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                                     uTmag, sb, wm->roughness,
                                     wm->gammaM, wm->gammaH, wm->alphaH,
                                     wm->thetaRef, deltaTheta, wm->kappa,
-                                    qWall, ustar, phiM, phiH, surfaceL
+                                    qWall, ustar, phiM, phiH, surfaceL, k, j, i
                                 );
                             }
                         }
@@ -6260,7 +6178,7 @@ PetscErrorCode findIBMWallShear(ibm_ *ibm)
                             (
                                 uTmag, sb, wm->roughness,
                                 wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                                ustar, phiM, L
+                                ustar, phiM, L, k, j, i
                             );
                         }
                     }
@@ -7673,14 +7591,38 @@ PetscErrorCode computeIBMElementNormal(ibm_ *ibm)
             PetscPrintf(PETSC_COMM_WORLD, "     Checking IBM element normal direction for body: %s...", ibm->ibmBody[b]->bodyName.c_str());
             // set offset distance
             minBound = PetscMin( PetscMin(ibBox->Lx, ibBox->Ly), ibBox->Lz);
-            offset   = 1.0e-7;
 
             // check that the normal points outwards
             for (e=0; e<ibMesh->elems; e++)
             {
                 //move reference distance from the element center
-                offsetVec = nScale(offset, ibMesh->eN[e]);
-                refPt = nSum(ibMesh->eCent[e], offsetVec);
+                offset   = PetscSqrtReal(4.0 * ibMesh->eA[e] / PetscSqrtReal(3.0));;
+
+                if(offset > 0.1 * minBound)
+                {
+                    offset = 0.01 * minBound;
+                }
+                
+                bool inside = PETSC_FALSE;
+                PetscInt maxTries = 10;
+                PetscInt attempt = 0;
+
+                while (!inside && attempt < maxTries)
+                {
+                    // Compute offset vector and tentative reference point
+                    offsetVec = nScale(offset, ibMesh->eN[e]);
+                    refPt = nSum(ibMesh->eCent[e], offsetVec);
+
+                    // Check if the point is inside the bounding box
+                    inside = isInsideBoundingBox(refPt, *ibBox);
+
+                    if (!inside)
+                    {
+                        // Reduce offset by 10× and retry
+                        offset /= 10.0;
+                        attempt++;
+                    }
+                }
 
                 // find the search cell were the ref pt is located
                 sCell.i = floor((refPt.x - ibBox->xmin) / sBox->dcx);

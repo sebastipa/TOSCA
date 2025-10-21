@@ -3398,7 +3398,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
             (
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                frictionVel, phiM, L
+                frictionVel, phiM, L, k, j, i
             );
 
             // print information (debugging)
@@ -3513,7 +3513,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         (
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                            frictionVel, phiM, L
+                            frictionVel, phiM, L, k, j, i
                         );
                     }
 
@@ -3539,10 +3539,22 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                     {
                         //printf("uFilt.x = %f, u.x = %f\n", ueqn->jLWM->uFilt.x[k_wm][i_wm], UcellParallel.x);
 
-                        // wall shear stress in cartesian coords
-                        ueqn->jLWM->tauWall.x[k_wm][i_wm] = (tau11* jeta[k][j-1][i].x + tau12 * jeta[k][j-1][i].y + tau13 * jeta[k][j-1][i].z);
-                        ueqn->jLWM->tauWall.y[k_wm][i_wm] = (tau21* jeta[k][j-1][i].x + tau22 * jeta[k][j-1][i].y + tau23 * jeta[k][j-1][i].z);
-                        ueqn->jLWM->tauWall.z[k_wm][i_wm] = (tau31* jeta[k][j-1][i].x + tau32 * jeta[k][j-1][i].y + tau33 * jeta[k][j-1][i].z);
+                        if(mesh->meshFileType == "curvilinear")
+                        {
+                            ueqn->jLWM->tauWall.x[k_wm][i_wm] = (tau11* jeta[k][j-1][i].x + tau12 * jeta[k][j-1][i].y + tau13 * jeta[k][j-1][i].z);
+                            ueqn->jLWM->tauWall.y[k_wm][i_wm] = (tau21* jeta[k][j-1][i].x + tau22 * jeta[k][j-1][i].y + tau23 * jeta[k][j-1][i].z);
+                            ueqn->jLWM->tauWall.z[k_wm][i_wm] = (tau31* jeta[k][j-1][i].x + tau32 * jeta[k][j-1][i].y + tau33 * jeta[k][j-1][i].z);
+                        }
+                        else if(mesh->meshFileType == "cartesian")
+                        {
+                            PetscReal TauXZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.x[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
+                            PetscReal TauYZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.y[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
+
+                            // transform to contravariant coords
+                            ueqn->jLWM->tauWall.x[k_wm][i_wm] = jeta[k][j-1][i].z * TauXZ;
+                            ueqn->jLWM->tauWall.y[k_wm][i_wm] = jeta[k][j-1][i].z * TauYZ;
+                            ueqn->jLWM->tauWall.z[k_wm][i_wm] = jeta[k][j-1][i].x * TauXZ + jeta[k][j-1][i].y * TauYZ;
+                        }
                     }
                 }
             }
@@ -3658,7 +3670,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
             (
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                frictionVel, phiM, L
+                frictionVel, phiM, L, k, j, i
             );
             // print information (debugging)
             // PetscPrintf(PETSC_COMM_WORLD, "ShumannGrotzbach: uStar = %lf, <U_||> = %lf\n", frictionVel, UParallelMeanMag);
@@ -3766,7 +3778,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         (
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                            frictionVel, phiM, L
+                            frictionVel, phiM, L, k, j, i
                         );
                     }
 
@@ -3977,7 +3989,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->gammaH, wm->alphaH,
                 wm->thetaRef, deltaTheta, wm->kappa,
-                qWall, frictionVel, phiM, phiH, L
+                qWall, frictionVel, phiM, phiH, L, k, j, i
             );
 
             // print information (debugging)
@@ -4038,7 +4050,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->gammaH, wm->alphaH,
                             wm->thetaRef, deltaTheta, wm->kappa,
-                            qWall, frictionVel, phiM, phiH, L
+                            qWall, frictionVel, phiM, phiH, L, k, j, i
                         );
                     }
 
@@ -4178,7 +4190,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->gammaH, wm->alphaH,
                 wm->thetaRef, deltaTheta, wm->kappa,
-                qWall, frictionVel, phiM, phiH, L
+                qWall, frictionVel, phiM, phiH, L, k, j, i
             );
 
             // print information (debugging)
@@ -4233,7 +4245,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->gammaH, wm->alphaH,
                             wm->thetaRef, deltaTheta, wm->kappa,
-                            qWall, frictionVel, phiM, phiH, L
+                            qWall, frictionVel, phiM, phiH, L, k, j, i
                         );
                     }
 
@@ -4378,7 +4390,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->gammaH, wm->alphaH,
                 wm->thetaRef, deltaTheta, wm->kappa,
-                qWall, frictionVel, phiM, phiH, L
+                qWall, frictionVel, phiM, phiH, L, k, j, i
             );
 
             // print information (debugging)
@@ -4439,7 +4451,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->gammaH, wm->alphaH,
                             wm->thetaRef, deltaTheta, wm->kappa,
-                            qWall, frictionVel, phiM, phiH, L
+                            qWall, frictionVel, phiM, phiH, L, k, j, i
                         );
                     }
 
@@ -4514,7 +4526,14 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                     ucy = (lucat[k][j][i].y + lucat[k][j][i+1].y) * 0.5;
                     ucz = (lucat[k][j][i].z + lucat[k][j][i+1].z) * 0.5;
 
-                    ucont[k][j][i].x = (ucx * icsi[k][j][i].x + ucy * icsi[k][j][i].y + ucz * icsi[k][j][i].z);
+                    if(ibm->wallShearOn)
+                    {
+                        ucont[k][j][i].x = 0.0;
+                    }
+                    else 
+                    {
+                        ucont[k][j][i].x = (ucx * icsi[k][j][i].x + ucy * icsi[k][j][i].y + ucz * icsi[k][j][i].z);
+                    }
                 }
 
                 if (isIBMFluidJFace(k, j, i, j+1, nvert))
@@ -4522,8 +4541,15 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                     ucx = (lucat[k][j+1][i].x + lucat[k][j][i].x) * 0.5;
                     ucy = (lucat[k][j+1][i].y + lucat[k][j][i].y) * 0.5;
                     ucz = (lucat[k][j+1][i].z + lucat[k][j][i].z) * 0.5;
-
-                    ucont[k][j][i].y = (ucx * jeta[k][j][i].x + ucy * jeta[k][j][i].y + ucz * jeta[k][j][i].z);
+                    
+                    if(ibm->wallShearOn)
+                    {
+                        ucont[k][j][i].y = 0.0;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].y = (ucx * jeta[k][j][i].x + ucy * jeta[k][j][i].y + ucz * jeta[k][j][i].z);
+                    }
                 }
 
                 if (isIBMFluidKFace(k, j, i, k+1, nvert))
@@ -4532,7 +4558,14 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                     ucy = (lucat[k+1][j][i].y + lucat[k][j][i].y) * 0.5;
                     ucz = (lucat[k+1][j][i].z + lucat[k][j][i].z) * 0.5;
 
-                    ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z);
+                    if(ibm->wallShearOn)
+                    {
+                        ucont[k][j][i].z = 0.0;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z);
+                    }
                 }
 
                 if(isIBMSolidIFace(k, j, i, i+1, nvert))

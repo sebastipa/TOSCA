@@ -37,14 +37,18 @@ void      wallShearVelocityBC(PetscReal nu, PetscReal sc, PetscReal sb, PetscRea
 void      wallShearVelocityBCQuadratic(PetscReal nu,  PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
                                     PetscReal kappa, Cmpnts Ua, Cmpnts Ud, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
 
-void      wallShearGhostVelocityBC(PetscReal nu,  PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
+void      wallShearGhostVelocityBC(PetscReal sd, PetscReal sc, PetscReal sb, PetscReal roughness,
                                     PetscReal kappa, Cmpnts Ua, Cmpnts Ud, Cmpnts Uc, Cmpnts *Ub, PetscReal *ustar, Cmpnts nf);
+
+void      ghostTempVelocityBCShumann(Shumann *wm, PetscReal sd, PetscReal sc, PetscReal sb, Cmpnts Ua, Cmpnts Ud, Cmpnts *Ub,
+                                    PetscReal Td, PetscReal surfaceTemp, Cmpnts nf, PetscInt k, PetscInt j, PetscInt i);
 
 void uStarShumann
 (
-    PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &roughness,
+    PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
     PetscReal &gammaM, PetscReal &kappa, PetscReal &qwall, PetscReal &thetaRef,
-    PetscReal &uStar, PetscReal &phiM, PetscReal &L
+    PetscReal &uStar, PetscReal &phiM, PetscReal &L,
+    PetscInt k, PetscInt j, PetscInt i
 );
 
 void qWallShumann
@@ -52,5 +56,6 @@ void qWallShumann
     PetscReal &UParallelMeanMag, PetscReal &wallDist, PetscReal &z0,
     PetscReal &gammaM, PetscReal &gammaH, PetscReal &alphaH,
     PetscReal &thetaRef, PetscReal &deltaTheta, PetscReal &kappa,
-    PetscReal &qWall, PetscReal &uStar, PetscReal &phiM, PetscReal &phiH, PetscReal &L
+    PetscReal &qWall, PetscReal &uStar, PetscReal &phiM, PetscReal &phiH, PetscReal &L,
+    PetscInt k, PetscInt j, PetscInt i
 );
