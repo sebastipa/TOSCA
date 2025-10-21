@@ -7,3 +7,4 @@ PetscErrorCode UpdateCsk (les_ *les);
 
 PetscErrorCode UpdatekT(les_ *les);
 
+PetscErrorCode updateLESScalarStructuralModel(les_ *les);

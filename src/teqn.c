@@ -1955,6 +1955,11 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     DMLocalToLocalBegin(fda, teqn->lViscT, INSERT_VALUES, teqn->lViscT);
     DMLocalToLocalEnd  (fda, teqn->lViscT, INSERT_VALUES, teqn->lViscT);
 
+    if(teqn->access->flags->isLesActive && (les->model == BAMD || les->model == BV))
+    {
+        updateLESScalarStructuralModel(les); 
+    }
+
     resetFacePeriodicFluxesVector(mesh, teqn->lDivT,   teqn->lDivT, "localToLocal");
     resetFacePeriodicFluxesVector(mesh, teqn->lViscT, teqn->lViscT, "localToLocal");
 

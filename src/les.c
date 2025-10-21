@@ -2211,7 +2211,20 @@ PetscErrorCode UpdateNut(les_ *les)
             ksg[k][j][i]=0;
             continue;
         }
-
+        
+        if(les->access->flags->isIBMActive)
+        {
+            if(les->access->ibm->wallShearOn)
+            {
+                if(isIBMFluidCell(k, j, i, nvert))
+                {
+                    lnu_t[k][j][i]=0;
+                    ksg[k][j][i]=0;
+                    continue;
+                }
+            }
+        }
+        
         PetscReal ajc  = aj[k][j][i];
         PetscReal csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
         PetscReal eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;

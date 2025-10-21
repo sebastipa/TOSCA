@@ -7,11 +7,11 @@
 #include "include/inline.h"
 #include "include/inline.h"
 
-const PetscReal wall_cs = 0.001 ;
-const PetscReal std_cs  = 0.0289; // standard Cs value for HIT
-const PetscReal amd_cs  =  0.34;
-const PetscReal vreman_cs = 0.0049; // 0.1 for high mach number
-const PetscReal sa_cs     = 0.325;
+const PetscReal wall_cs   = 0.001;
+const PetscReal std_cs    = 0.0289;
+const PetscReal amd_cs    = 0.1;
+const PetscReal vreman_cs = 0.07225;
+const PetscReal sa_cs     = 0.325; 
 //***************************************************************************************************************//
 
 PetscErrorCode InitializeLESScalar(les_ *les)
@@ -19,11 +19,14 @@ PetscErrorCode InitializeLESScalar(les_ *les)
     // TOSCA LES models
     // 1. standard Smagorinsky
     // 2. stability dependent
-    // 3. dynamic Smagorinsky with box averaging
+    // 3. dynamic Smagorinsky with box averaging (DSM)
     // 4. dynamic Smagorinsky scale invariant with lagrangian averaging (LASI)
     // 5. dynamic smagorinsky scale dependent with lagrangian averaging (LASD)
     // 6. dynamic smagorinsky scale dependent with plane averaging (PASD)
     // 7. Anisotropic minimum dissipation model (AMD)
+    // 8. Vreman model //needs verification
+    // 9. Bardina vreman model 
+    //10. Bardina AMD model
 
     if(les != NULL)
     {
@@ -41,27 +44,32 @@ PetscErrorCode InitializeLESScalar(les_ *les)
                 les->model == DPASD
             )
             {
-                VecDuplicate(mesh->lAj, &(les->lKX));       VecSet(les->lKX,0.);
-                VecDuplicate(mesh->lAj, &(les->lXX));       VecSet(les->lXX,0.);
-                VecDuplicate(mesh->lAj, &(les->ldTheta));   VecSet(les->ldTheta,0.);
+                VecDuplicate(mesh->lAj, &(les->lKX));       VecSet(les->lKX, 0.);
+                VecDuplicate(mesh->lAj, &(les->lXX));       VecSet(les->lXX, 0.);
+                VecDuplicate(mesh->lAj, &(les->ldTheta));   VecSet(les->ldTheta, 0.);
 
                 if (les->model == DLASI || les->model == DLASD)
                 {
-                    VecDuplicate(mesh->lAj, &(les->lKX_old));   VecSet(les->lKX_old,0.);
-                    VecDuplicate(mesh->lAj, &(les->lXX_old));   VecSet(les->lXX_old,0.);
+                    VecDuplicate(mesh->lAj, &(les->lKX_old));   VecSet(les->lKX_old, 0.);
+                    VecDuplicate(mesh->lAj, &(les->lXX_old));   VecSet(les->lXX_old, 0.);
                 }
 
                 if (les->model == DLASD || les->model == DPASD)
                 {
-                    VecDuplicate(mesh->lAj, &(les->lPY));  VecSet(les->lPY,0.);
-                    VecDuplicate(mesh->lAj, &(les->lYY));  VecSet(les->lYY,0.);
+                    VecDuplicate(mesh->lAj, &(les->lPY));  VecSet(les->lPY, 0.);
+                    VecDuplicate(mesh->lAj, &(les->lYY));  VecSet(les->lYY, 0.);
 
                     if(les->model == DLASD)
                     {
-                        VecDuplicate(mesh->lAj, &(les->lPY_old));   VecSet(les->lPY_old,0.);
-                        VecDuplicate(mesh->lAj, &(les->lYY_old));   VecSet(les->lYY_old,0.);
+                        VecDuplicate(mesh->lAj, &(les->lPY_old));   VecSet(les->lPY_old, 0.);
+                        VecDuplicate(mesh->lAj, &(les->lYY_old));   VecSet(les->lYY_old, 0.);
                     }
                 }
+            }
+
+            if (les->model == BAMD || les->model == BV)
+            {
+                VecDuplicate(mesh->lCent, &(les->lQ)); VecSet(les->lQ, 0.);
             }
         }
     }
@@ -1759,13 +1767,17 @@ PetscErrorCode UpdatekT(les_ *les)
             PetscReal A_y = nMag(csi[k][j][i]);
             PetscReal A_z = nMag(eta[k][j][i]); 
                                                     
-
             // Compute delta_x, delta_y, delta_z
             PetscReal delta_x = V / A_x;
             PetscReal delta_y = V / A_y;
             PetscReal delta_z = V / A_z;
 
-            PetscReal deltaCell[3] = {delta_x, delta_y, delta_z};
+            PetscReal invDelta2Sum =
+                  1.0 / (delta_x * delta_x)
+                + 1.0 / (delta_y * delta_y)
+                + 1.0 / (delta_z * delta_z);
+
+            PetscReal delta2_harm = 3.0 / invDelta2Sum; 
 
             PetscReal num = 0.0, denom = 0.0;
 
@@ -1802,16 +1814,15 @@ PetscErrorCode UpdatekT(les_ *les)
             {
                 for (PetscInt c = 0; c < 3; c++)
                 {
-                    num += pow(deltaCell[c], 2.0) * gradU[c][a] * gradT[c] * gradT[a];
+                    num += (-gradU[c][a] * gradT[c] * gradT[a]);
                 }
             }
 
             denom = gradT[0]*gradT[0] + gradT[1]*gradT[1] + gradT[2]*gradT[2];
 
-            //jagdeep: negative sign from formulation - this is correct
-            PetscReal diff_e = -num / (denom + 1e-10);
+            PetscReal diff_e = num / (denom + 1e-10);
 
-            diff_e = csk[k][j][i] * PetscMax(diff_e, 0.0);
+            diff_e = csk[k][j][i] * delta2_harm * PetscMax(diff_e, 0.0);
 
             lkt[k][j][i] = diff_e;
         }
@@ -1840,4 +1851,328 @@ PetscErrorCode UpdatekT(les_ *les)
 
     UpdatektBCs(les);
     return(0);
+}
+
+PetscErrorCode updateLESScalarStructuralModel(les_ *les)
+{
+    mesh_         *mesh = les->access->mesh;
+    ueqn_         *ueqn = les->access->ueqn;
+    teqn_         *teqn = les->access->teqn;
+
+    DM            da    = mesh->da, fda = mesh->fda;
+
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***nvert, ***meshTag;
+    Cmpnts        ***csi, ***eta, ***zet, ***ucat;
+    Cmpnts        ***visc;
+    PetscReal     ***lt;
+    
+    Cmpnts        ***qSGS, qSGSLocal;                                      //subgrid scale heat flux 
+    
+    lxs = xs; lxe = xe; if (xs == 0) lxs = xs+1; if (xe == mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys == 0) lys = ys+1; if (ye == my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs == 0) lzs = zs+1; if (ze == mz) lze = mz-1;
+
+    VecSet(les->lQ, 0.0);
+
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(da, teqn->lTmprt, &lt);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+
+    DMDAVecGetArray(fda, les->lQ, &qSGS);
+
+    //bardina model
+    if (les->model == BAMD || les->model == BV)
+    {
+
+        for (k = lzs; k < lze; k++)
+        for (j = lys; j < lye; j++)
+        for (i = lxs; i < lxe; i++)
+        {
+            /* Skip solid cells */
+            if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+            {
+                qSGS[k][j][i] = nSetZero();
+                continue;
+            }
+
+            PetscReal u[3][3][3] ,   v[3][3][3] ,   w[3][3][3];    // cartesian velocity
+            
+            PetscReal U[3][3][3]   , V[3][3][3]   , W[3][3][3];
+
+            PetscReal Utheta[3][3][3]  , Vtheta[3][3][3]  , Wtheta[3][3][3]  ;
+            
+            PetscReal theta[3][3][3]  ;
+                        
+            PetscInt p, q, r;
+
+            for (p = -1; p <= 1; p++)
+            for (q = -1; q <= 1; q++)
+            for (r = -1; r <= 1; r++)
+            {
+                PetscInt R = r + 1, Q = q + 1, P = p + 1;
+                PetscInt K = k + r, J = j + q, I = i + p;
+
+                //cartesian velocity
+                u[R][Q][P] = ucat[K][J][I].x;
+                v[R][Q][P] = ucat[K][J][I].y;
+                w[R][Q][P] = ucat[K][J][I].z;
+            
+                // contravariant fluxes
+                U[R][Q][P] = u[R][Q][P]*csi[K][J][I].x + v[R][Q][P]*csi[K][J][I].y + w[R][Q][P]*csi[K][J][I].z;
+                V[R][Q][P] = u[R][Q][P]*eta[K][J][I].x + v[R][Q][P]*eta[K][J][I].y + w[R][Q][P]*eta[K][J][I].z;
+                W[R][Q][P] = u[R][Q][P]*zet[K][J][I].x + v[R][Q][P]*zet[K][J][I].y + w[R][Q][P]*zet[K][J][I].z;
+
+                theta[R][Q][P] = lt[K][J][I];
+
+                Utheta[R][Q][P] = U[R][Q][P] * theta[R][Q][P];
+                Vtheta[R][Q][P] = V[R][Q][P] * theta[R][Q][P];
+                Wtheta[R][Q][P] = W[R][Q][P] * theta[R][Q][P];
+            }
+
+            PetscReal weight[3][3][3];
+
+            for (p = -1; p <= 1; p++)
+            for (q = -1; q <= 1; q++)
+            for (r = -1; r <= 1; r++)
+            {
+                PetscInt R = r + 1, Q = q + 1, P = p + 1;
+      
+                PetscInt K = k + r, J = j + q, I = i + p;
+                
+                if 
+                (
+                    (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                    
+                    (I != 0 && I != mx-1 && J != 0 && J != my-1 && K != 0 && K != mz-1))
+
+                {
+                    weight[R][Q][P] = 1;                
+                } 
+                
+                else 
+                {
+                    weight[R][Q][P] = 0;
+                }
+            
+            }
+            
+            //Apply test filter to local velocity fields
+            
+            PetscReal _U = integrateTestfilterSimpson(U, weight);
+            PetscReal _V = integrateTestfilterSimpson(V, weight);
+            PetscReal _W = integrateTestfilterSimpson(W, weight);
+
+            PetscReal _theta = integrateTestfilterSimpson(theta, weight);
+
+            //Apply test filter to product
+            PetscReal _Utheta = integrateTestfilterSimpson(Utheta, weight);        
+            PetscReal _Vtheta = integrateTestfilterSimpson(Vtheta, weight);
+            PetscReal _Wtheta = integrateTestfilterSimpson(Wtheta, weight);
+
+            //Compute the Bardina SGS stress ---
+            //q_i = test-filtered(U_i*theta) - (test-filtered(U_i))*(test-filtered(theta))
+            
+            qSGS[k][j][i].x = _Utheta - _U*_theta;   
+            qSGS[k][j][i].y = _Vtheta - _V*_theta;   
+            qSGS[k][j][i].z = _Wtheta - _W*_theta;   
+        } 
+    }
+
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    
+    DMDAVecRestoreArray(fda, les->lQ, &qSGS);
+
+    DMLocalToLocalBegin(fda, les->lQ, INSERT_VALUES, les->lQ);
+    DMLocalToLocalEnd  (fda, les->lQ, INSERT_VALUES, les->lQ);
+
+    //set tau boundary conditions
+    DMDAVecGetArray(fda, les->lQ, &qSGS);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                PetscInt a=i, b=j, c=k, flag=0;
+
+                if(i==0)
+                {
+                    if(mesh->i_periodic)       a=mx-2, flag=1;
+                    else if(mesh->ii_periodic) a=-2, flag=1;
+                    else                      a=1, flag=1;
+                }
+                if(i==mx-1)
+                {
+                    if(mesh->i_periodic)       a=1, flag=1;
+                    else if(mesh->ii_periodic) a=mx+1, flag=1;
+                    else                      a=mx-2, flag=1;
+                }
+                if(j==0)
+                {
+                    if(mesh->j_periodic)       b=my-2, flag=1;
+                    else if(mesh->jj_periodic) b=-2, flag=1;
+                    else                      b=1, flag=1;
+                }
+                if(j==my-1)
+                {
+                    if(mesh->j_periodic)       b=1, flag=1;
+                    else if(mesh->jj_periodic) b=my+1, flag=1;
+                    else                      b=my-2, flag=1;
+                }
+                if(k==0)
+                {
+                    if(mesh->k_periodic)       c=mz-2, flag=1;
+                    else if(mesh->kk_periodic) c=-2, flag=1;
+                    else                      c=1, flag=1;
+                }
+                if(k==mz-1)
+                {
+                    if(mesh->k_periodic)       c=1, flag=1;
+                    else if(mesh->kk_periodic) c=mz+1, flag=1;
+                    else                      c=mz-2, flag=1;
+                }
+
+                if(flag)
+                {
+                    qSGS[k][j][i].x = qSGS[c][b][a].x;
+                    qSGS[k][j][i].y = qSGS[c][b][a].y;
+                    qSGS[k][j][i].z = qSGS[c][b][a].z;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, les->lQ, &qSGS);
+    DMLocalToLocalBegin(fda, les->lQ, INSERT_VALUES, les->lQ);
+    DMLocalToLocalEnd  (fda, les->lQ, INSERT_VALUES, les->lQ);
+
+    DMDAVecGetArray(fda, teqn->lViscT, &visc);
+    DMDAVecGetArray(fda, les->lQ, &qSGS);
+
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+    //i direction
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(j==0 || k==0) continue;
+
+                qSGSLocal.x = 0.5 * (qSGS[k][j][i].x + qSGS[k][j][i+1].x);
+
+                if
+                (
+                    (mesh->boundaryT.iLeft=="thetaWallFunction" && i==0) ||
+                    (mesh->boundaryT.iRight=="thetaWallFunction" && i==mx-2)
+                )
+                {
+
+                }
+                else if(isIBMFluidIFace(k, j, i, i+1, nvert))
+                {
+
+                }
+                else 
+                {
+                    visc[k][j][i].x -= qSGSLocal.x;
+                }
+            }
+        }
+    }
+
+    // j direction
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(i==0 || k==0) continue;
+
+                qSGSLocal.y = 0.5 * (qSGS[k][j][i].y + qSGS[k][j+1][i].y);
+
+                if
+                (
+                    (mesh->boundaryT.jLeft=="thetaWallFunction"  && j==0) ||
+                    (mesh->boundaryT.jRight=="thetaWallFunction" && j==my-2)
+                )
+                {
+
+                }
+                else if(isIBMFluidJFace(k, j, i, j+1, nvert))
+                {
+
+                }
+                else
+                {
+                    // if(k ==15 && j==2 && i==2)	
+                    // {
+                    //     PetscPrintf(PETSC_COMM_SELF,"before visc %.10lf qSGSLocal %.10lf\n", visc[k][j][i].y, qSGSLocal.y);
+                    // }
+                    visc[k][j][i].y -= qSGSLocal.y;
+
+                    // if(k ==15 && j==2 && i==2)
+                    // PetscPrintf(PETSC_COMM_SELF,"after visc %.10lf \n", visc[k][j][i].y);
+                } 
+            }
+        }
+    }
+
+    // k direction faces are from 0 to mz-2
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(i==0 || j==0) continue;
+
+                qSGSLocal.z = 0.5 * (qSGS[k][j][i].z + qSGS[k+1][j][i].z);
+
+                if(isIBMFluidKFace(k, j, i, k+1, nvert))
+                {
+                    
+                }
+                else
+                {
+                    visc[k][j][i].z -= qSGSLocal.z;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, teqn->lViscT, &visc);
+    DMDAVecRestoreArray(fda, les->lQ, &qSGS);
+
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    DMLocalToLocalBegin(fda, teqn->lViscT, INSERT_VALUES, teqn->lViscT);
+    DMLocalToLocalEnd  (fda, teqn->lViscT, INSERT_VALUES, teqn->lViscT);
+
+    return 0;
 }
