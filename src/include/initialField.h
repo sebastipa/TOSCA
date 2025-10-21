@@ -49,12 +49,6 @@ PetscErrorCode SetABLInitialFlowUZilitinkevich(ueqn_ *ueqn);
 //!< \brief set initial field Taylor green vortex problem
 PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq);
 
-//!< \brief set initial field by generating synthetic turbulence (homogenous isotropic turbulence)
-PetscErrorCode SetHITFieldU(ueqn_ *ueqn,PetscInt  nmodes, PetscReal kMin);
-
-//!< \brief set initial field ABC flow (also called the Arnold–Beltrami–Childress flow) is a well-known three-dimensional, steady, incompressible velocity field
-PetscErrorCode SetABCFlow(ueqn_ *ueqn, PetscReal &u0, PetscInt &k0);
-
 //!< \brief set the internal field as the spreaded inlet flow condition
 PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn);
 
@@ -63,6 +57,9 @@ PetscErrorCode SetUniformFieldT(teqn_ *teqn, PetscReal &tRef);
 
 //!< \brief set linear profile for the temperature
 PetscErrorCode SetLinearFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse);
+
+//!< \brief set const tRef + linear profile for the temperature above it like CNBL
+PetscErrorCode SetLinearCNBLFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse, PetscReal &hRef);
 
 //!< \brief set initial ABL flow T
 PetscErrorCode SetABLInitialFlowT(teqn_ *teqn);

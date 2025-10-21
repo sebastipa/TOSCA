@@ -341,6 +341,17 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for T: %s\n\n", teqn->initFieldType.c_str());
         SetLinearFieldT(teqn, tRef, tLapse);
     }
+    else if (teqn->initFieldType == "linearCNBL")
+    {
+        PetscReal tRef, tLapse, hRef;
+
+        readSubDictDouble(filename.c_str(), "linearCNBL", "tRef", &(tRef));
+        readSubDictDouble(filename.c_str(), "linearCNBL", "tLapse", &(tLapse));
+        readSubDictDouble(filename.c_str(), "linearCNBL", "hRef", &(hRef));
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for T: %s\n\n", teqn->initFieldType.c_str());
+        SetLinearCNBLFieldT(teqn, tRef, tLapse, hRef);
+    }  
     else if (teqn->initFieldType == "ABLFlow" || teqn->initFieldType == "ABLFlowZilitinkevich")
     {
         if(!(teqn->access->flags->isAblActive))
@@ -1688,6 +1699,7 @@ PetscErrorCode SetLinearFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse)
     DMDAVecGetArray(fda, mesh->Cent, &cent);
 
     // loop on the internal cells and set the reference cartesian velocity
+
     for(k=lzs; k<lze; k++)
     {
         for(j=lys; j<lye; j++)
@@ -1696,7 +1708,62 @@ PetscErrorCode SetLinearFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse)
             {
                 PetscReal h = cent[k][j][i].z - mesh->grndLevel;
 
-                temp[k][j][i] = tRef + h*tLapse;
+                temp[k][j][i] = tRef + h * tLapse;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, teqn->Tmprt,  &temp);
+    DMDAVecRestoreArray(fda, mesh->Cent, &cent);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    UpdateTemperatureBCs(teqn);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+PetscErrorCode SetLinearCNBLFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse, PetscReal &hRef)
+{
+    mesh_         *mesh = teqn->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***temp;
+    Cmpnts        ***cent;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, teqn->Tmprt,  &temp);
+    DMDAVecGetArray(fda, mesh->Cent, &cent);
+
+    // loop on the internal cells and set the reference cartesian velocity
+
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                PetscReal h = cent[k][j][i].z - mesh->grndLevel;
+
+                if(h <= hRef) temp[k][j][i] = tRef;
+                else
+                {
+                    temp[k][j][i] = tRef + (h - hRef)*tLapse;
+                }
             }
         }
     }
