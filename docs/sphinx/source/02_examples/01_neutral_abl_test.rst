@@ -49,7 +49,7 @@ layer to displace upwards), the Coriolis force and the initial flow perturbation
    controllerActiveT 1               # activates temperature controller 
    controllerTypeT   initial         # target temperature is the initial temperature 
    coriolisActive    1               # activates Coriolis force 
-   fCoriolis         5.156303966e-5  # in TOSCA this is equal to Omega * sin(phi) (0.5 * the Coriolis parameter)
+   fCoriolis         5.156303966e-5  # equal to Omega*sin(phi) (i.e. Coriolis parameter / 2)
    perturbations     1               # flow perturbations 
    
 Notably, the ``fCoriolis`` should be set to :math:`7.272205217\cdot 10^{-5} \sin(\phi)` (this corresponds to 
