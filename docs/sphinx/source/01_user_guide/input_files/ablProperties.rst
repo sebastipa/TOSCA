@@ -101,7 +101,9 @@ entries specific to each dictionaries is given in the subsequent tables.
    ----------------------------------- -------------- --------------------------------------------------
    ``fCoriolis``                       scalar         Coriolis parameter. Should be computed as
                                                       :math:`10^{-5} \cdot 7.272205217sin(\phi)`,
-                                                      where :math:`\phi` is latitude.
+                                                      where :math:`\phi` is latitude. This corresponds 
+                                                      to `\Omega sin(\phi)`. Note that in TOSCA,  
+                                                      multiplication by 2 is done internally.
    ----------------------------------- -------------- --------------------------------------------------
    ``controllerActive``                bool           Velocity controller activation flag. Requires
                                                       ``controllerProperties`` dictionary.
