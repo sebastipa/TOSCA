@@ -232,7 +232,9 @@ when <code class="docutils literal notranslate"><span class="pre">internalField<
 <td><p>scalar</p></td>
 <td><p>Coriolis parameter. Should be computed as
 <span class="math notranslate nohighlight">\(10^{-5} \cdot 7.272205217sin(\phi)\)</span>,
-where <span class="math notranslate nohighlight">\(\phi\)</span> is latitude.</p></td>
+where <span class="math notranslate nohighlight">\(\phi\)</span> is latitude. This corresponds
+to <cite>Omega sin(phi)</cite>. Note that in TOSCA,
+multiplication by 2 is done internally.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">controllerActive</span></code></p></td>
 <td><p>bool</p></td>
